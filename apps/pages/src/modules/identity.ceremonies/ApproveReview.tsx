@@ -56,27 +56,85 @@ function Facts({ phase }: { phase: Review }) {
           </code>
         </dd>
       </div>
-      <div>
-        <dt>{APPROVAL_LABELS.grants}</dt>
-        <dd>
-          <ul>
-            {facts.grants.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </dd>
-      </div>
-      <div>
-        <dt>{APPROVAL_LABELS.requires}</dt>
-        <dd>
-          <ul>
-            {facts.needs.map((sentence) => (
-              <li key={sentence}>{sentence}</li>
-            ))}
-          </ul>
-        </dd>
-      </div>
     </dl>
+  );
+}
+
+/** A list the review reads in full: what it allows, and what it takes. */
+function Listed({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <section aria-label={title}>
+      <h3>{title}</h3>
+      <ul>
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The six-digit code carried from where the request started. */
+function ComparisonField({
+  value,
+  busy,
+  onChange,
+}: {
+  value: string;
+  busy: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="field">
+      <label htmlFor="approve-comparison">{APPROVAL_LABELS.comparison}</label>
+      <input
+        id="approve-comparison"
+        className="mono"
+        autoComplete="off"
+        inputMode="numeric"
+        maxLength={6}
+        value={value}
+        disabled={busy}
+        onChange={(event) =>
+          onChange(event.target.value.replace(/[^0-9]/g, ""))
+        }
+      />
+    </div>
+  );
+}
+
+/** Deny, report, and what the model last said, beside the approve key. */
+function DecisionKeys({
+  view,
+  off,
+  onDeny,
+}: {
+  view: ApprovalReviewView;
+  off: boolean;
+  onDeny: () => void;
+}) {
+  const { step } = view;
+  return (
+    <>
+      <IconKey
+        label={APPROVAL_LABELS.deny}
+        danger
+        disabled={off}
+        onClick={onDeny}
+      >
+        <IconX size={16} />
+      </IconKey>
+      <IconKey
+        label={APPROVAL_LABELS.report}
+        disabled={off}
+        onClick={view.report}
+      >
+        <IconAlert size={16} />
+      </IconKey>
+      <output aria-live={step.alarm ? "assertive" : "polite"}>
+        {step.message ? <StatusMark tone="err" label={step.message} /> : null}
+      </output>
+    </>
   );
 }
 
@@ -92,7 +150,7 @@ export function ApproveReview({
   const [confirmed, setConfirmed] = useState(false);
   const [comparison, setComparison] = useState("");
   const { requirement, request } = phase;
-  const { busy, step } = view;
+  const { busy } = view;
   const off = busy || !online;
   const decision = () => ({
     confirmed,
@@ -112,27 +170,23 @@ export function ApproveReview({
       </div>
       <div className="panel__body">
         <Facts phase={phase} />
+        <Listed
+          title={APPROVAL_LABELS.grants}
+          lines={reviewFacts(phase).grants}
+        />
+        <Listed
+          title={APPROVAL_LABELS.requires}
+          lines={reviewFacts(phase).needs}
+        />
         <form onSubmit={submit} noValidate>
           {requirement.requireComparison ? (
-            <div className="field">
-              <label htmlFor="approve-comparison">
-                {APPROVAL_LABELS.comparison}
-              </label>
-              <input
-                id="approve-comparison"
-                className="mono"
-                autoComplete="off"
-                inputMode="numeric"
-                maxLength={6}
-                value={comparison}
-                disabled={busy}
-                onChange={(event) =>
-                  setComparison(event.target.value.replace(/[^0-9]/g, ""))
-                }
-              />
-            </div>
+            <ComparisonField
+              value={comparison}
+              busy={busy}
+              onChange={setComparison}
+            />
           ) : null}
-          <label className="field">
+          <label className="check">
             <input
               type="checkbox"
               checked={confirmed}
@@ -153,26 +207,11 @@ export function ApproveReview({
             disabled={off || !confirmed}
             busy={busy}
           >
-            <IconKey
-              label={APPROVAL_LABELS.deny}
-              danger
-              disabled={off}
-              onClick={() => view.deny(decision())}
-            >
-              <IconX size={16} />
-            </IconKey>
-            <IconKey
-              label={APPROVAL_LABELS.report}
-              disabled={off}
-              onClick={view.report}
-            >
-              <IconAlert size={16} />
-            </IconKey>
-            <output aria-live={step.alarm ? "assertive" : "polite"}>
-              {step.message ? (
-                <StatusMark tone="err" label={step.message} />
-              ) : null}
-            </output>
+            <DecisionKeys
+              view={view}
+              off={off}
+              onDeny={() => view.deny(decision())}
+            />
           </FormCommit>
         </form>
       </div>
