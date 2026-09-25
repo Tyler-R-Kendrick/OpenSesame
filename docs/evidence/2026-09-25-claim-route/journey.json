@@ -1,0 +1,400 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "dropManifest": "drop-manifest.json",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "claim#token=osc_clm_evidence.c2VjcmV0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "390-claim-door"
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "pressNamedOptional": "Continue as guest"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "focused": null
+        },
+        {
+          "fillOptional": {
+            "label": "Consent code",
+            "text": "WXYZ-1234"
+          }
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "count": [".note"]
+        },
+        {
+          "shot": "390-claim-review"
+        },
+        {
+          "pressNamedOptional": "Accept claim"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-claim-done"
+        },
+        {
+          "arrive": "claim#token=osc_clm_drop.c2VjcmV0&key=P0w7ghFizCAzFYvXEizZjI9KExM5mCi7QeNboPBwZE0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [".status-mark--warn", ".note"]
+        },
+        {
+          "shot": "390-drop-off"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "switchOptional": "Sharing"
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "arrive": "claim#token=osc_clm_drop.c2VjcmV0&key=P0w7ghFizCAzFYvXEizZjI9KExM5mCi7QeNboPBwZE0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2, h1"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-drop-arrival"
+        },
+        {
+          "fillOptional": {
+            "label": "One-time code",
+            "text": "ABCD-EFGH"
+          }
+        },
+        {
+          "pressNamedOptional": "Open drop"
+        },
+        {
+          "pressNamedOptional": "Open once"
+        },
+        {
+          "report": "pre"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "390-drop-open"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "claim#token=osc_clm_evidence.c2VjcmV0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "1280-claim-door"
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "pressNamedOptional": "Continue as guest"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "focused": null
+        },
+        {
+          "fillOptional": {
+            "label": "Consent code",
+            "text": "WXYZ-1234"
+          }
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "count": [".note"]
+        },
+        {
+          "shot": "1280-claim-review"
+        },
+        {
+          "pressNamedOptional": "Accept claim"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-claim-done"
+        },
+        {
+          "arrive": "claim#token=osc_clm_drop.c2VjcmV0&key=P0w7ghFizCAzFYvXEizZjI9KExM5mCi7QeNboPBwZE0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [".status-mark--warn", ".note"]
+        },
+        {
+          "shot": "1280-drop-off"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "switchOptional": "Sharing"
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "arrive": "claim#token=osc_clm_drop.c2VjcmV0&key=P0w7ghFizCAzFYvXEizZjI9KExM5mCi7QeNboPBwZE0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2, h1"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-drop-arrival"
+        },
+        {
+          "fillOptional": {
+            "label": "One-time code",
+            "text": "ABCD-EFGH"
+          }
+        },
+        {
+          "pressNamedOptional": "Open drop"
+        },
+        {
+          "pressNamedOptional": "Open once"
+        },
+        {
+          "report": "pre"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "1280-drop-open"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-claim-door",
+      "width": 390,
+      "title": "A claim link on a locked device \u2014 390 \u00d7 844",
+      "caption": "The link opens on the front door either way: sign-in and guest first, nothing in front of them (ADR 0090). The difference is the address the first painted frame had.",
+      "before": "first render address \u2026/claim#token=osc_clm_\u2026 \u2014 the bearer in the bar",
+      "after": "first render address \u2026/claim \u2014 the bearer left at boot"
+    },
+    {
+      "shot": "390-claim-review",
+      "width": 390,
+      "title": "After Continue as guest \u2014 390 \u00d7 844",
+      "caption": "Before, /claim on a guest vault was no route at all. After, the claim is presented once (the stand-in answered it) and shown for review; the consent code is the only field.",
+      "before": "empty shell, no h1, focus on body, bearer still in the address",
+      "after": "h1 Accept a claim; Kind \u00b7 Items 2 \u00b7 Manifest; focus on Consent code (352\u00d744, focus-visible); .go 44\u00d744"
+    },
+    {
+      "shot": "390-claim-done",
+      "width": 390,
+      "title": "Accepted \u2014 390 \u00d7 844",
+      "caption": "The answer is a StatusMark; the panel that says so takes the focus, because the key that answered is gone.",
+      "before": "0 ok marks, focus on body",
+      "after": "1 ok mark (Claim accepted), 0 .note boxes, focus on the Claim accepted panel"
+    },
+    {
+      "shot": "390-drop-off",
+      "width": 390,
+      "title": "A drop link where Drops are off (the default) \u2014 390 \u00d7 844",
+      "caption": "Drops are optional. The dispatcher loads none of their code: it says so with a mark and in the tray.",
+      "before": "empty shell; bearer and key in the address",
+      "after": "h1 Open a drop, Drop not opened + 1 warn mark, tray notice; address \u2026/claim"
+    },
+    {
+      "shot": "390-drop-arrival",
+      "width": 390,
+      "title": "The same link, Sharing switched on \u2014 390 \u00d7 844",
+      "caption": "With drops approved, the route draws the opener sharing.drops contributed. Before, it was the drops module's own route, drawn on a locked device with the key still in the address.",
+      "before": "unframed Open a drop on the locked screen; bearer and key in the address; focus on body",
+      "after": "framed behind the guest unlock; focus on One-time code (352\u00d744, focus-visible); address \u2026/claim"
+    },
+    {
+      "shot": "390-drop-open",
+      "width": 390,
+      "title": "Opened \u2014 390 \u00d7 844",
+      "caption": "The same decryption either way: the payload was sealed under the link's key and opened here.",
+      "before": "payload shown; Download/Done word buttons",
+      "after": "payload shown with 1 ok mark (Drop opened); 0 .note boxes"
+    },
+    {
+      "shot": "1280-claim-door",
+      "width": 1280,
+      "title": "A claim link on a locked device \u2014 1280 \u00d7 900",
+      "caption": "The link opens on the front door either way: sign-in and guest first, nothing in front of them (ADR 0090). The difference is the address the first painted frame had.",
+      "before": "first render address \u2026/claim#token=osc_clm_\u2026 \u2014 the bearer in the bar",
+      "after": "first render address \u2026/claim \u2014 the bearer left at boot"
+    },
+    {
+      "shot": "1280-claim-review",
+      "width": 1280,
+      "title": "After Continue as guest \u2014 1280 \u00d7 900",
+      "caption": "Before, /claim on a guest vault was no route at all. After, the claim is presented once (the stand-in answered it) and shown for review; the consent code is the only field.",
+      "before": "empty shell, no h1, focus on body, bearer still in the address",
+      "after": "h1 Accept a claim; Kind \u00b7 Items 2 \u00b7 Manifest; focus on Consent code (474\u00d732, focus-visible); .go 40\u00d740"
+    },
+    {
+      "shot": "1280-claim-done",
+      "width": 1280,
+      "title": "Accepted \u2014 1280 \u00d7 900",
+      "caption": "The answer is a StatusMark; the panel that says so takes the focus, because the key that answered is gone.",
+      "before": "0 ok marks, focus on body",
+      "after": "1 ok mark (Claim accepted), 0 .note boxes, focus on the Claim accepted panel"
+    },
+    {
+      "shot": "1280-drop-off",
+      "width": 1280,
+      "title": "A drop link where Drops are off (the default) \u2014 1280 \u00d7 900",
+      "caption": "Drops are optional. The dispatcher loads none of their code: it says so with a mark and in the tray.",
+      "before": "empty shell; bearer and key in the address",
+      "after": "h1 Open a drop, Drop not opened + 1 warn mark, tray notice; address \u2026/claim"
+    },
+    {
+      "shot": "1280-drop-arrival",
+      "width": 1280,
+      "title": "The same link, Sharing switched on \u2014 1280 \u00d7 900",
+      "caption": "With drops approved, the route draws the opener sharing.drops contributed. Before, it was the drops module's own route, drawn on a locked device with the key still in the address.",
+      "before": "unframed Open a drop on the locked screen; bearer and key in the address; focus on body",
+      "after": "framed behind the guest unlock; focus on One-time code (474\u00d732, focus-visible); address \u2026/claim"
+    },
+    {
+      "shot": "1280-drop-open",
+      "width": 1280,
+      "title": "Opened \u2014 1280 \u00d7 900",
+      "caption": "The same decryption either way: the payload was sealed under the link's key and opened here.",
+      "before": "payload shown; Download/Done word buttons",
+      "after": "payload shown with 1 ok mark (Drop opened); 0 .note boxes"
+    }
+  ]
+}

@@ -30,7 +30,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ceremonySteps, identityStub } from "./lib/capture-ceremony-steps.mjs";
+import {
+  ceremonySteps,
+  stubJourneyIdentity,
+} from "./lib/capture-ceremony-steps.mjs";
 import { menuSteps } from "./lib/capture-menu-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -342,14 +345,11 @@ async function capture(browser, into) {
       remote,
     });
     // A journey through an Identity-plane ceremony names a stand-in API.
-    const identityCalls = [];
-    if (journey.identityStub) {
-      await identityStub(page, {
-        origin: journey.identityStub,
-        pagesOrigin: origin,
-        calls: identityCalls,
-      });
-    }
+    const identityCalls = await stubJourneyIdentity(page, {
+      journey,
+      journeyPath,
+      pagesOrigin: origin,
+    });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.
