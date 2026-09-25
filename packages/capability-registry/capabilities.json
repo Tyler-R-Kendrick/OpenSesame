@@ -459,7 +459,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/access",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -3346,7 +3346,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/i/:ref",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -3373,7 +3373,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/i/:ref",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4039,7 +4039,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/approve/:ref",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4066,7 +4066,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/approve/:ref",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4093,7 +4093,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/approve/:ref",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4104,6 +4104,10 @@
         "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
+        "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
         "adr": "0084-external-authorization-notifications.md"
       }

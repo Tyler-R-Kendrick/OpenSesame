@@ -213,6 +213,31 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+  {
+    // Opened by its link (`/i/<ref>`, ADR 0140), never by a guide: the
+    // answer is a person's passkey touch bound to that one request.
+    id: "identity.interaction.approve",
+    title: "Approve or deny a request from another device",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "identity.interaction.approve"',
+      'say "Open the link or scan the code the other device shows. Check that the match shown there is the one on this page, then approve with your passkey or deny."',
+      "end",
+    ].join("\n"),
+  },
+  {
+    // Opened by its link (`/approve/<ref>`) or a row in Access › Requests.
+    id: "identity.approval.review",
+    title: "Review an authorization request",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "identity.approval.review"',
+      'say "Open the request from its link or from Access › Requests. Read what it would allow, confirm, and touch your passkey; if you do not recognize it, report it instead."',
+      "end",
+    ].join("\n"),
+  },
 ];
 
 export const IDENTITY_HELP: readonly HelpTopic[] = [

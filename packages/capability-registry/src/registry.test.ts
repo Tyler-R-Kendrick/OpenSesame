@@ -231,13 +231,20 @@ describe("agent-surface parity rules", () => {
   });
 });
 
+/**
+ * A `route:` surface is an exact path; a segment may be a named parameter
+ * (`:ref`) — a ceremony a link opens (`route:/i/:ref`, ADR 0140) — never a
+ * wildcard, a query, a fragment or an encoded character.
+ */
 const PWA_SURFACE =
-  /^((?:lib|vault-core)\/[\w/.-]+\.ts:\w+|route:\/(?:[\w-]+(?:\/[\w-]+)*)?)$/;
+  /^((?:lib|vault-core)\/[\w/.-]+\.ts:\w+|route:\/(?:(?:[\w-]+|:\w+)(?:\/(?:[\w-]+|:\w+))*)?)$/;
 it("admits exact nested routes without URL or path ambiguity", () => {
   for (const route of [
     "route:/",
     "route:/identity",
     "route:/identity/authorize",
+    "route:/i/:ref",
+    "route:/approve/:ref",
   ])
     expect(route).toMatch(PWA_SURFACE);
   for (const route of [
@@ -248,6 +255,9 @@ it("admits exact nested routes without URL or path ambiguity", () => {
     "route:/identity#x",
     "route:https://example.test",
     "route:/identity%2fauthorize",
+    "route:/i/:",
+    "route:/i/:ref?",
+    "route:/i/*",
   ])
     expect(route).not.toMatch(PWA_SURFACE);
 });

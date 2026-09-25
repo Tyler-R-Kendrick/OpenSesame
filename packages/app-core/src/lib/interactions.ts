@@ -15,21 +15,19 @@
  *   - the link: `/i/<ref>` read from the page's address, its fragment and any
  *     legacy code or credential-bearing query taken out before anything else.
  *
- * Model only: the route and screen are plan step 9. The reference is not a
- * bearer, and no assertion, activation or session ever goes in a URL.
+ * The route and screen are `identity.ceremonies`' `/i/:ref` (plan step 9).
+ * The reference is not a bearer, and no assertion, activation or session
+ * ever goes in a URL.
  */
 
 import {
   type InteractionApproval,
-  type InteractionArrival,
   type InteractionAssertion,
   type InteractionAuthenticator,
   type InteractionClient,
   InteractionStepUpError,
   createInteractionApproval,
   createInteractionClient,
-  matchCeremonyPath,
-  readInteractionArrival,
 } from "@opensesame/ceremony-kit";
 import {
   assertionPayload,
@@ -37,7 +35,7 @@ import {
   parsePublicKeyCredentialRequestOptionsJson,
   requestOptionsFromJson,
 } from "@opensesame/sdk-browser";
-import { credentials, maybePage, publicKeyCredentialApi } from "../ports.js";
+import { credentials, publicKeyCredentialApi } from "../ports.js";
 import { identityPlaneRequest } from "./device-identity.js";
 import { currentSession, identityFetch } from "./identity.js";
 
@@ -136,20 +134,7 @@ export function interactionApproval(
   );
 }
 
-/**
- * Take an interaction link out of this page's address, before anything
- * renders or calls. Only an `/i/<ref>` path is read: every other address is
- * left alone — a sign-in callback's `?code=` is not a legacy user code — and
- * the legacy shapes elsewhere are the device route's (plan step 7).
- */
-export function captureInteractionLink(): InteractionArrival {
-  const page = maybePage();
-  if (!page) return { kind: "none" };
-  const { location } = page;
-  if (matchCeremonyPath("interaction", location.pathname) === null) {
-    return { kind: "none" };
-  }
-  const { arrival, scrubbed } = readInteractionArrival(location.href);
-  if (scrubbed !== null) page.replaceUrl(scrubbed);
-  return arrival;
-}
+export type { InteractionApproval, InteractionAuthenticator };
+
+/** The link is read at boot, apart from the ceremony (`interactions-link.ts`). */
+export { captureInteractionLink } from "./interactions-link.js";

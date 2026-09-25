@@ -2,8 +2,9 @@ import {
   accessPath,
   accessViewFromLocation,
 } from "@opensesame/app-core/lib/access-routes.js";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { useLocation } from "react-router";
+import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { AccessBookPanel } from "./access/AccessBookPanel.js";
@@ -19,17 +20,27 @@ import { SessionsPanel } from "./access/SessionsPanel.js";
 import "./access.css";
 import { useHashTarget } from "../lib/hash-target.js";
 
+// The requests addressed to an Identity session load only where an Identity
+// API is configured (ADR 0090); a deployment without one never fetches them.
+const HostedRequestsPanel = lazy(() =>
+  import("./access/HostedRequestsPanel.js").then((m) => ({
+    default: m.HostedRequestsPanel,
+  })),
+);
+
 /**
  * Access — the local PAM plane. Six tabs, one mounted at a time; every
  * list fails soft and reloads on demand. Grants, requests, sessions,
  * connectors, resources and policies all read sealed local records —
- * no backend stands behind any of them.
+ * no backend stands behind any of them. Requests also lists what an
+ * Identity session was asked, where an Identity API is configured.
  */
 export function AccessSection() {
   const online = useOnline();
   const { tomb } = useVault();
   const location = useLocation();
   const tab = accessViewFromLocation(location.pathname, location.search);
+  const identityConfigured = useIdentityConfigured();
   const [bookEpoch, setBookEpoch] = useState(0);
   useHashTarget();
 
@@ -59,7 +70,16 @@ export function AccessSection() {
           <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
         </>
       ) : null}
-      {tab === "requests" ? <LocalRequestsPanel tomb={tomb} /> : null}
+      {tab === "requests" ? (
+        <>
+          {identityConfigured ? (
+            <Suspense fallback={null}>
+              <HostedRequestsPanel />
+            </Suspense>
+          ) : null}
+          <LocalRequestsPanel tomb={tomb} />
+        </>
+      ) : null}
       {tab === "sessions" ? <SessionsPanel key={tomb} online={online} /> : null}
       {tab === "connectors" ? <ConnectorsPanel key={tomb} tomb={tomb} /> : null}
       {tab === "resources" ? <LocalResourcesPanel /> : null}

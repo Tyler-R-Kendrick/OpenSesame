@@ -1282,12 +1282,11 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   // ── Identity plane: cross-device interactions (ADR 0086) ───────────────
   //
-  // None of these map onto an agent surface, and that is the design rather
-  // than a backlog. The layer exists to put a question in front of a person
-  // and take an answer bound to a cryptographic proof; a tool that could
-  // answer one would remove the only step that makes the answer mean
-  // anything. They are listed here so the parity sweep sees a decision
-  // instead of an omission.
+  // None of these map onto an agent surface, by design: the layer puts a
+  // question in front of a person (in Pages, at `/i/:ref`, ADR 0140) and
+  // takes an answer bound to a cryptographic proof, and a tool that could
+  // answer one would make the answer mean nothing. Listed so the parity
+  // sweep sees a decision instead of an omission.
   {
     id: "identity.interaction.create",
     title: "Ask someone to authorize an operation",
@@ -1313,7 +1312,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "route:/i/:ref",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1331,7 +1330,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "route:/i/:ref",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1530,7 +1529,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "route:/approve/:ref",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1548,7 +1547,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "route:/approve/:ref",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1566,7 +1565,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "route:/approve/:ref",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1574,6 +1573,7 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: {
       mcp_host: APPROVAL_CEREMONY,
       mcp_client: APPROVAL_CEREMONY,
+      webmcp: APPROVAL_CEREMONY,
     },
   },
   {

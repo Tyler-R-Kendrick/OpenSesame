@@ -37,6 +37,8 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "identity.device.approve": ["/identity"],
     "identity.claim.accept": ["/identity"],
     "identity.drop.open": ["/identity"],
+    "identity.interaction.approve": ["/identity"],
+    "identity.approval.review": ["/access"],
     "vault.item-types.install": ["/settings"],
     "vault.export": ["/settings"],
     "client.support": [],

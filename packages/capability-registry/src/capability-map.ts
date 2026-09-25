@@ -51,6 +51,12 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.device.approve": "identity.ceremonies",
     "identity.claim.accept": "identity.ceremonies",
     "identity.drop.open": "identity.ceremonies",
+    // `/i/:ref` and `/approve/:ref` (ADR 0140 plan step 9, D7).
+    "identity.interaction.approve": "identity.ceremonies",
+    "identity.interaction.deny": "identity.ceremonies",
+    "identity.approval.activation": "identity.ceremonies",
+    "identity.approval.comparison": "identity.ceremonies",
+    "identity.approval.report": "identity.ceremonies",
 
     // --- core: settings and install -------------------------------------
     "setup.first_run": "settings.core",
@@ -71,6 +77,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "shared_sessions.join_request": "access.authority",
     "agent_identities.read": "access.authority",
     "identity.local.requests.manage": "access.authority",
+    // Access › Requests' hosted rows; each opens `/approve/:ref`.
+    "identity.approval.requests": "access.authority",
     "identity.local.policy.manage": "access.authority",
     "identity.local.access.manage": "access.authority",
     "host.health.pages": "access.authority",

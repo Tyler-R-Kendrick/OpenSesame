@@ -7,6 +7,7 @@
  * can run before a person's selection has been read.
  */
 
+import { captureApprovalArrivalFromPage } from "@opensesame/app-core/lib/approvals-link.js";
 import { collectRuntimeFacts } from "@opensesame/app-core/lib/capabilities/facts.js";
 import { ensureInstallationId } from "@opensesame/app-core/lib/capabilities/installation.js";
 import {
@@ -20,6 +21,7 @@ import {
   captureClaimArrivalFromPage,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
+import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
 import {
   captureInviteFromPage,
   watchInviteArrivals,
@@ -69,6 +71,12 @@ export async function bootCore(): Promise<CoreBoot> {
   captureClaimArrivalFromPage();
   // Every lock purges it (ADR 0140 D6), whatever is on screen.
   bindClaimLockReset();
+  // `/i/<ref>` and `/approve/<ref>` keep their reference in the path (it
+  // authorizes nothing, ADR 0086 §3); a fragment or query that rode along
+  // leaves here, and one naming credential material refuses the link
+  // (ADR 0140 plan step 9).
+  captureInteractionArrivalFromPage();
+  captureApprovalArrivalFromPage();
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked

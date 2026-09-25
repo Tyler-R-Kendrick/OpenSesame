@@ -40,7 +40,7 @@ export const accessPortalCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "route:/access",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
