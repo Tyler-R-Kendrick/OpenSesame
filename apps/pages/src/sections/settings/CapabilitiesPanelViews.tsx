@@ -115,8 +115,8 @@ export function CapabilitySourceView({
           <button
             type="button"
             className="icon-btn icon-btn--sm"
-            aria-label="Save source"
-            title="Save source"
+            aria-label={`Save ${descriptor.displayPath}`}
+            title={`Save ${descriptor.displayPath}`}
             onClick={() => void save()}
           >
             <IconCheck size={14} />

@@ -158,27 +158,41 @@ function times(n: number, run: () => void): void {
   for (let i = 0; i < n; i++) run();
 }
 
-/** tinykeys map plus counts/`g` leader; remappable actions use liveBindings. */
-export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
-  let count = 0;
-  let pendingGo = false;
-  let goTimer: ReturnType<typeof setTimeout> | undefined;
+/** A half-typed count or `g`, held apart from the handler that reads it. */
+export type ChordState = {
+  count: number;
+  pendingGo: boolean;
+  goTimer: ReturnType<typeof setTimeout> | undefined;
+};
 
+export function createChordState(): ChordState {
+  return { count: 0, pendingGo: false, goTimer: undefined };
+}
+
+/**
+ * tinykeys map plus counts/`g` leader; remappable actions use liveBindings.
+ * The shell passes one `chord` for the page's life: a capability's wrapper
+ * arriving remounts it, and a `g` typed across that must still land.
+ */
+export function createKeymapHandler(
+  { navigate, showHelp }: KeymapOptions,
+  chord: ChordState = createChordState(),
+) {
   const clearGo = () => {
-    pendingGo = false;
-    clearTimeout(goTimer);
-    goTimer = undefined;
+    chord.pendingGo = false;
+    clearTimeout(chord.goTimer);
+    chord.goTimer = undefined;
   };
 
   const armGo = () => {
-    pendingGo = true;
-    goTimer = setTimeout(clearGo, keymapSeams.goTimeoutMs);
+    chord.pendingGo = true;
+    chord.goTimer = setTimeout(clearGo, keymapSeams.goTimeoutMs);
   };
 
   const takeCount = () => {
-    const hadCount = count > 0;
-    const steps = hadCount ? count : 1;
-    count = 0;
+    const hadCount = chord.count > 0;
+    const steps = hadCount ? chord.count : 1;
+    chord.count = 0;
     return { steps, hadCount };
   };
 
@@ -199,7 +213,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   };
 
   const verb = (fn: () => void) => (event: KeyboardEvent) => {
-    count = 0;
+    chord.count = 0;
     fn();
     event.preventDefault();
   };
@@ -247,7 +261,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     Enter: run((listing) => listing?.activate()),
     "/": verb(() => (currentSearchTarget() ?? currentVaultTarget())?.search()),
     Escape: (event) => {
-      count = 0;
+      chord.count = 0;
       currentSearchTarget()?.closeSearch();
       currentVaultTarget()?.closeSearch();
       (
@@ -269,7 +283,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     ":": verb(() => focusCommandBar()),
     m: verb(() => toggleCommandBarMic()),
     F6: (event) => {
-      count = 0;
+      chord.count = 0;
       const listing = listingOf(event);
       const other =
         listing === "rail" ? currentVaultTarget() : currentRailTarget();
@@ -278,7 +292,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       event.preventDefault();
     },
     Space: (event) => {
-      count = 0;
+      chord.count = 0;
       if (listingOf(event)) event.preventDefault();
     },
   };
@@ -290,13 +304,13 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   return (event: KeyboardEvent) => {
     ensureCode(event);
     if (handlePaneEscape(event)) {
-      count = 0;
+      chord.count = 0;
       clearGo();
       return;
     }
     // An open context menu owns every key until it closes.
     if (!contextMenuOpen() && handleCommandBarChord(event)) {
-      count = 0;
+      chord.count = 0;
       clearGo();
       return;
     }
@@ -326,19 +340,19 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
         ].includes(event.key)) ||
       document.querySelector('[role="dialog"][aria-modal="true"]')
     ) {
-      count = 0;
+      chord.count = 0;
       clearGo();
       return;
     }
 
     if (!event.ctrlKey && event.key >= "1" && event.key <= "9") {
-      count = Math.min(count * 10 + Number(event.key), COUNT_MAX);
+      chord.count = Math.min(chord.count * 10 + Number(event.key), COUNT_MAX);
       event.preventDefault();
       return;
     }
     if (!event.ctrlKey && event.key === "0") {
-      if (count > 0) {
-        count = Math.min(count * 10, COUNT_MAX);
+      if (chord.count > 0) {
+        chord.count = Math.min(chord.count * 10, COUNT_MAX);
         event.preventDefault();
         return;
       }
@@ -348,9 +362,9 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       return;
     }
 
-    if (pendingGo) {
-      if (applyGoChord(event, count, navigate)) {
-        count = 0;
+    if (chord.pendingGo) {
+      if (applyGoChord(event, chord.count, navigate)) {
+        chord.count = 0;
         clearGo();
         return;
       }
@@ -373,7 +387,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
         "help.keymap": () => showHelp(),
       })
     ) {
-      count = 0;
+      chord.count = 0;
       return;
     }
 

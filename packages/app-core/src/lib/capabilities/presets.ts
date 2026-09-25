@@ -24,7 +24,8 @@ export type PresetId =
 
 export type Preset = Readonly<{
   id: PresetId;
-  version: 1;
+  /** 2 since ADR 0142: a version-1 projection may list now-core ids (`preset-residue.ts`). */
+  version: 2;
   title: string;
   summary: string;
   required: readonly CapabilityId[];
@@ -45,14 +46,13 @@ const DENY: NetworkPolicy = {
 };
 
 /**
- * Functions that run on this device with no connector, enterprise, agent,
- * remote-AI or telemetry surface. Personal and Family offer only these.
+ * Optional functions that run on this device with no connector, enterprise,
+ * agent, remote-AI or telemetry surface. Personal and Family offer only
+ * these. Browser-local IAM, SIOP, the site broker and git backup are always
+ * on (ADR 0142), so no preset names them.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
   "sharing.drops",
-  "identity.local-iam",
-  "identity.siop",
-  "identity.site-broker",
   "support.local-ai",
 ];
 
@@ -77,7 +77,7 @@ const everyOptional = (): CapabilityId[] => optionalCapabilityIds();
 export const PRESETS: readonly Preset[] = [
   {
     id: "personal",
-    version: 1,
+    version: 2,
     title: "Personal",
     summary:
       "One person's vault on their own devices. Only local features are offered; the always-on functions stay as they are.",
@@ -88,7 +88,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "family",
-    version: 1,
+    version: 2,
     title: "Family",
     summary:
       "A household sharing chosen items with each other. Local features and drops, and no automatic call to an external service.",
@@ -99,21 +99,21 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "homelab",
-    version: 1,
+    version: 2,
     title: "Homelab",
     summary:
       "A self-hosted Host and Identity API at home. Everything is offered; enterprise and agent tools wait to be chosen.",
     required: [],
     optional: everyOptional(),
-    defaultSelected: ["identity.local-iam"],
+    defaultSelected: [],
     network: ALLOW,
   },
   {
     id: "organization",
-    version: 1,
+    version: 2,
     title: "Organization",
     summary:
-      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise, server and agent tools are offered, not pre-selected.",
+      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise and agent tools are offered, not pre-selected.",
     required: [],
     optional: everyOptional(),
     defaultSelected: [],
@@ -121,7 +121,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: "custom",
-    version: 1,
+    version: 2,
     title: "Custom",
     summary: "Every optional capability offered, nothing pre-selected.",
     required: [],

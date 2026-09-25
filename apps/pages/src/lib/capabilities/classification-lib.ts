@@ -126,6 +126,7 @@ const GIT_FILES = [
   "history-backup-idb",
   "history-claim-notice",
   "vault-backup-observer",
+  "backup-egress-gate",
   "vault-backup-sync",
   "embedded-git",
 ];
@@ -195,6 +196,7 @@ const FEDERATION_FILES = [
   // four Identity-API calls as seams this capability installs.
   "orgs-directory",
   "directory",
+  "oauth-client-admin",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
@@ -330,6 +332,13 @@ export const LIB_RULES = [
     `${L}duress/`,
     "vault.local-unlock",
     "duress slots, fence, compartments and alerting",
+  ),
+  // Travel mode (ADR 0143) moves whole vaults off the device and back; it
+  // belongs with the device's vault list, under the core unlock capability.
+  core(
+    `${L}travel/`,
+    "vault.local-unlock",
+    "travel mode: departure bundle and return",
   ),
   // Transport security (ADR 0132) is deployment-plane operator work; the
   // Pages surface reads status and runs the enforcement probe.

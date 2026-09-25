@@ -10,6 +10,7 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import {
+  createChordState,
   createKeymapHandler,
   focusVaultListing,
   registerKeymapHelp,
@@ -99,6 +100,13 @@ function SessionPrompt() {
   );
 }
 
+/**
+ * The half-typed chord outlives any one shell: a new `navigate`, or a
+ * capability's wrapper arriving above the shell, rebuilds the handler, and a
+ * `g` typed across that still lands.
+ */
+const SHELL_CHORD = createChordState();
+
 function Shell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   useDeniedRouteFallback(useSections());
@@ -106,7 +114,7 @@ function Shell({ children }: { children?: ReactNode }) {
   const showKeymap = useCallback(() => setKeymapOpen(true), []);
   const closeKeymap = useCallback(() => setKeymapOpen(false), []);
   const keymap = useMemo(
-    () => createKeymapHandler({ navigate, showHelp: showKeymap }),
+    () => createKeymapHandler({ navigate, showHelp: showKeymap }, SHELL_CHORD),
     [navigate, showKeymap],
   );
 

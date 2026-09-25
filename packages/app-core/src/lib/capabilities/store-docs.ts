@@ -19,6 +19,7 @@ import {
   type VaultCapabilitySelection,
 } from "@opensesame/capability-composition";
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
+import { withoutPresetResidue } from "./preset-residue.js";
 import type { PersistedDocs } from "./store-persist.js";
 
 export type StoreState = {
@@ -100,7 +101,7 @@ export function readPolicy(
   if (section?.instancePolicy) {
     const review = reviewManaged(section.instancePolicy);
     state.provenance = "same-origin-deployment";
-    state.policy = section.instancePolicy;
+    state.policy = withoutPresetResidue(section.instancePolicy);
     state.policyValid = review.ok;
     for (const d of review.diagnostics) note(d);
     return;
@@ -112,7 +113,8 @@ export function readPolicy(
     note("local policy invalid: core-only plan until it is repaired");
     return;
   }
-  state.policy = docs.localPolicy.policy;
+  state.policy =
+    docs.localPolicy.policy && withoutPresetResidue(docs.localPolicy.policy);
   state.policyValid = true;
 }
 

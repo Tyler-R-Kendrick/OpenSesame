@@ -87,6 +87,19 @@ export const PM_PLANE: CapabilityExclusion = {
   adr: ADR_PM_BRIDGING,
 };
 
+export const ADR_BITWARDEN_COMPAT = "0141-bitwarden-compatible-server.md";
+
+/**
+ * The Bitwarden-compatible surface speaks Bitwarden's own client protocol to
+ * Bitwarden's own clients; a person's master password is its only key. No
+ * agent surface may stand in for that client.
+ */
+export const BITWARDEN_CLIENT_ONLY: CapabilityExclusion = {
+  reason:
+    "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+  adr: ADR_BITWARDEN_COMPAT,
+};
+
 export const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   reason:
     "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",

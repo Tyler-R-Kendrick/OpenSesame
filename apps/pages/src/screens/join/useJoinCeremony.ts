@@ -13,7 +13,7 @@
  */
 import { JoinError } from "@opensesame/app-core/lib/join/client.js";
 import type { CapturedInvite } from "@opensesame/app-core/lib/join/invite.js";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { acceptedCount, controls } from "./join-actions.js";
 import { type Fields, codeOf, deps, useJoinFields } from "./join-state.js";
 
@@ -85,7 +85,11 @@ const HOLDS_APPROVAL: readonly string[] = ["verify", "review", "ask"];
 function useGrantRenewal(f: Fields) {
   const step = f.step.value;
   const endpoint = f.endpoint.value;
-  useEffect(() => {
+  // A layout effect, so leaving a holding step clears the timer in the same
+  // commit that draws the next one. A passive effect's cleanup ran later,
+  // and a tick already due in between renewed a grant the ceremony had
+  // just ended (CI: one renewal after "Asked" was on screen).
+  useLayoutEffect(() => {
     if (!HOLDS_APPROVAL.includes(step)) return;
     const timer = setInterval(
       () => void deps.keepJoinAuthority(endpoint),

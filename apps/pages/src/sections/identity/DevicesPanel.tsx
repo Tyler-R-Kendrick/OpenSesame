@@ -1,22 +1,15 @@
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
-import { useVault } from "../../lib/vault/hooks.js";
 import { ConnectIdentityNote } from "./ConnectIdentityNote.js";
 import { DeviceApproval } from "./DeviceApproval.js";
-import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 
-export function DevicesPanel({
-  online,
-  session,
-}: {
-  online: boolean;
-  session: IdentitySession | null;
-}) {
+type DevicesProps = { online: boolean; session: IdentitySession | null };
+
+/** The directory's part of the Devices tab: approving a device that signs in. */
+export function DirectoryDevices({ online, session }: DevicesProps) {
   const configured = useIdentityConfigured();
-  const { tomb } = useVault();
   return (
     <>
-      <LocalDevicesPanel key={tomb} tomb={tomb} />
       {configured && session ? <ApproveDeviceCard online={online} /> : null}
       {configured && !session ? (
         <ConnectIdentityNote

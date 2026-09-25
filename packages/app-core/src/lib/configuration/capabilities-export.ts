@@ -21,7 +21,7 @@ import {
 import { INSTANCE_EXPORT_FILE_NAME } from "./capabilities-keys.js";
 import {
   type CompositionSnapshot,
-  compositionStore,
+  capabilityPorts,
 } from "./capabilities-ports.js";
 
 /** What leaves the device as a file: policy + selection, never a service. */
@@ -50,7 +50,7 @@ export type InstanceConfigurationFile = Readonly<{
 }>;
 
 export function exportInstanceConfiguration(
-  snapshot: CompositionSnapshot = compositionStore.getSnapshot(),
+  snapshot: CompositionSnapshot = capabilityPorts.compositionStore.getSnapshot(),
 ): InstanceConfigurationFile {
   return {
     fileName: INSTANCE_EXPORT_FILE_NAME,

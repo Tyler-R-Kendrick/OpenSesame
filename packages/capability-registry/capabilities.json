@@ -881,6 +881,37 @@
     }
   },
   {
+    "id": "host.bitwarden_compat",
+    "title": "Serve Bitwarden clients from the Host (bitwarden-compat)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame host run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+        "adr": "0141-bitwarden-compatible-server.md"
+      },
+      "mcp_client": {
+        "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+        "adr": "0141-bitwarden-compatible-server.md"
+      },
+      "webmcp": {
+        "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+        "adr": "0141-bitwarden-compatible-server.md"
+      }
+    }
+  },
+  {
     "id": "sync.cursor.read",
     "title": "Read this device's sync cursor",
     "plane": "client_local",
@@ -4292,6 +4323,33 @@
       "android": {
         "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
         "adr": "0139-one-definition-every-target.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.travel",
+    "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/travel/index.ts:packTravelDeparture",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      },
+      "mcp_client": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      },
+      "webmcp": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
       }
     }
   },

@@ -20,22 +20,17 @@ function journeyDropManifest(journey, journeyPath) {
 
 /**
  * The stand-in a journey names (`identityStub`: its origin), installed on
- * `page`. Returns the list each call it answers is recorded in — empty, and
- * nothing installed, for a journey that names none.
+ * `page`. Each call it answers is printed as it answers it, so the capture
+ * log records what the page sent. A journey that names none installs nothing.
  */
-export async function stubJourneyIdentity(
-  page,
-  { journey, journeyPath, pagesOrigin },
-) {
-  const calls = [];
-  if (!journey.identityStub) return calls;
+export async function stubJourneyIdentity(page, journey, journeyPath, origin) {
+  if (!journey.identityStub) return;
   await identityStub(page, {
     origin: journey.identityStub,
-    pagesOrigin,
-    calls,
+    pagesOrigin: origin,
+    calls: { push: (call) => console.log(`  identity: ${call}`) },
     dropManifest: journeyDropManifest(journey, journeyPath),
   });
-  return calls;
 }
 
 /** The one ownership claim the stand-in serves (`answerClaims` below). */

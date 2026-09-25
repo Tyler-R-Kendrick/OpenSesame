@@ -267,7 +267,9 @@ describe("SettingsSection", () => {
     renderSettings("#connectivity");
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
-    expect(screen.getByRole("region", { name: "Providers" })).toBeTruthy();
+    expect(
+      screen.getByRole("region", { name: "Identity providers" }),
+    ).toBeTruthy();
     expect(
       screen.getByRole("heading", { name: "Identity providers" }),
     ).toBeTruthy();
