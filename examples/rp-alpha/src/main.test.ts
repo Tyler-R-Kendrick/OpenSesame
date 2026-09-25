@@ -6,7 +6,15 @@ import {
   isValidElement,
 } from "react";
 import type { Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { RpApp } from "./RpApp.js";
 
 type RpAppProps = ComponentProps<typeof RpApp>;
@@ -16,6 +24,15 @@ const mocks = {
   render: vi.fn<Root["render"]>(),
   unmount: vi.fn<Root["unmount"]>(),
 };
+
+// The first import of the entry transforms RpApp and its dependencies cold.
+// On a loaded runner that one-time cost alone can pass the 5s test timeout,
+// so it is paid here, under its own budget; the tests then measure the mount,
+// not the transform. `resetModules` re-evaluates modules but keeps transforms.
+beforeAll(async () => {
+  await import("./RpApp.js");
+  await import("./react-dom.js");
+}, 60_000);
 
 beforeEach(async () => {
   vi.clearAllMocks();
