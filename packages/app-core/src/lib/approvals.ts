@@ -17,9 +17,10 @@
  *   - the inbox: pending requests as `plane: "hosted"` rows, each saying
  *     whether it may be decided in the list or must open the review.
  *
- * Model only: the `/approve/:ref` route and the hosted rows' rendering are
- * plan step 9. A request id is not a bearer, and no activation, assertion,
- * comparison value or session ever goes in a URL.
+ * The `/approve/:ref` route is `identity.ceremonies`', and the hosted rows
+ * are drawn by Access › Requests (plan step 9); the link is read at boot by
+ * `approvals-link.ts`. A request id is not a bearer, and no activation,
+ * assertion, comparison value or session ever goes in a URL.
  */
 
 import {

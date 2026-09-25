@@ -105,7 +105,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "access.authority",
     "Access authority",
-    "The Access section: local grants, requests, sessions, resources and policies, receipts, browser pairing and transport status.",
+    "The Access section: local grants, requests and the requests addressed to your Identity session, sessions, resources and policies, receipts, browser pairing and transport status.",
     {
       operationIds: [
         "agent_identities.read",
@@ -122,6 +122,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "delegations.claim",
         "host.health.pages",
         "host.whoami",
+        "identity.approval.requests",
         "identity.local.access.manage",
         "identity.local.policy.manage",
         "identity.local.requests.manage",
@@ -172,17 +173,23 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "identity.ceremonies",
     "Ceremonies",
-    "The routes a link opens on this origin (ADR 0140): device and CLI sign-in approval at /device and the older approval links that now open it, and claim links at /claim — an ownership claim reviewed and accepted, or a drop opened with the sender's code. They open before unlock and never read the vault.",
+    "The routes a link opens on this origin (ADR 0140): device sign-in approval at /device and the older links that open it; claims and drops at /claim; a cross-device approval at /i/<ref> and a request review at /approve/<ref>, each decided with a passkey touch bound to that request. They open before unlock and never read the vault.",
     {
       operationIds: [
         "identity.device.approve",
         "identity.claim.accept",
         "identity.drop.open",
+        "identity.interaction.approve",
+        "identity.interaction.deny",
+        "identity.approval.activation",
+        "identity.approval.comparison",
+        "identity.approval.report",
       ],
       egress: [IDENTITY_API_EGRESS],
+      browserPermissions: ["webauthn"],
       requiresService: true,
       offlineLimits:
-        "The routes open and show what their link carried offline; approving a device, accepting a claim or opening a drop needs the claim host.",
+        "The routes open and show what their link carried offline; approving a device or a request, accepting a claim or opening a drop needs the claim host.",
     },
   ),
   alwaysOn(

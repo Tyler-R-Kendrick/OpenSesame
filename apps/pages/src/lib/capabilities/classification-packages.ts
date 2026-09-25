@@ -143,6 +143,10 @@ export const PACKAGE_RULES = [
   ),
   shared(`${NM}@opensesame/os-domain`, "domain models and boundary guards"),
   shared(
+    `${NM}@opensesame/ceremony-kit`,
+    "ceremony link parsers, clients and models: the core boot reads links, identity.ceremonies runs them (ADR 0140)",
+  ),
+  shared(
     `${NM}@opensesame/vault-item-types`,
     "item type definitions for both planes",
   ),

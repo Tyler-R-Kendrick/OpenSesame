@@ -1,3 +1,7 @@
+import {
+  peekApprovalArrival,
+  resetApprovalArrivalForTests,
+} from "@opensesame/app-core/lib/approvals-link.js";
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import {
   compositionStore,
@@ -8,6 +12,10 @@ import {
   resetClaimArrivalForTests,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { takeDeviceArrival } from "@opensesame/app-core/lib/device-link.js";
+import {
+  peekInteractionArrival,
+  resetInteractionArrivalForTests,
+} from "@opensesame/app-core/lib/interactions-link.js";
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 /** @vitest-environment jsdom */
@@ -262,6 +270,37 @@ describe("pre-unlock boot path", () => {
     await boot();
     expect(location.hash).toBe("#token=osc_clm_pub.secret");
     expect(peekClaimArrival()).toEqual({ kind: "none" });
+    history.replaceState(null, "", "/");
+  });
+
+  it("takes an /i/<ref> link's fragment and credential query out before the first paint", async () => {
+    const ref = "i_AbCdEfGhIjKlMnOpQr.0123456789abcdef";
+    history.replaceState(null, "", `/i/${ref}#state=abc`);
+    await boot();
+    expect(`${location.pathname}${location.search}${location.hash}`).toBe(
+      `/i/${ref}`,
+    );
+    expect(peekInteractionArrival()).toEqual({ kind: "interaction", ref });
+    history.replaceState(null, "", `/i/${ref}?access_token=leaked`);
+    await boot();
+    expect(location.href).not.toContain("leaked");
+    expect(peekInteractionArrival()).toEqual({ kind: "refused" });
+    resetInteractionArrivalForTests();
+    history.replaceState(null, "", "/");
+  });
+
+  it("takes an /approve/<ref> link's query and fragment out before the first paint", async () => {
+    history.replaceState(null, "", "/approve/areq_abc?utm=chat#x");
+    await boot();
+    expect(`${location.pathname}${location.search}${location.hash}`).toBe(
+      "/approve/areq_abc",
+    );
+    expect(peekApprovalArrival()).toEqual({ kind: "request", ref: "areq_abc" });
+    history.replaceState(null, "", "/approve/areq_abc#id_token=leaked");
+    await boot();
+    expect(location.href).not.toContain("leaked");
+    expect(peekApprovalArrival()).toEqual({ kind: "refused" });
+    resetApprovalArrivalForTests();
     history.replaceState(null, "", "/");
   });
 });

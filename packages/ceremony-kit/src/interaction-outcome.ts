@@ -188,6 +188,16 @@ export const INTERACTION_WORDS = {
     "That link carried credential material. Start the request again from the device that asked.",
 } as const;
 
+/** The names of a review's keys and rows, the same on every surface. */
+export const INTERACTION_LABELS = {
+  title: "Approve a request",
+  match: "Match",
+  approve: "Approve with passkey",
+  deny: "Deny",
+  read: "Read the request",
+  retry: "Try again",
+} as const;
+
 const W = INTERACTION_ERROR_WORDS;
 
 function ended(code: InteractionErrorCode, outcome: Outcome) {

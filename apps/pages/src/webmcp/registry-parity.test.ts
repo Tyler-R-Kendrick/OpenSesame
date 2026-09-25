@@ -56,6 +56,12 @@ const KNOWN_ROUTES = new Set<string>([
       source.matchAll(/\b(?:path|to):\s*"(\/[^"?:*]+)"/g),
       (match) => match[1] ?? "",
     ),
+    // A ceremony a link opens names its reference as a segment
+    // (`path: "/i/:ref"`, ADR 0140); a wildcard or optional one never counts.
+    ...Array.from(
+      source.matchAll(/\bpath:\s*"(\/[\w/-]*(?::\w+)(?:\/[\w-]+|\/:\w+)*)"/g),
+      (match) => match[1] ?? "",
+    ),
   ]),
 ]);
 

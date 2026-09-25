@@ -121,6 +121,15 @@ export function ceremonyPath(
   return `/${built.join("/")}`;
 }
 
+/**
+ * The route's path in a client router's spelling: each `{name}` becomes the
+ * named segment `:name` (`/i/{ref}` → `/i/:ref`), for a drift test against
+ * the routes a surface registers.
+ */
+export function ceremonyRouterPath(id: CeremonyRouteId): string {
+  return CEREMONY_ROUTES[id].path.replace(/\{(\w+)\}/g, ":$1");
+}
+
 /** The fixed part of a route's path, up to its first parameter. */
 export function ceremonyRoutePrefix(id: CeremonyRouteId): string {
   const { path } = CEREMONY_ROUTES[id];

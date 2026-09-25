@@ -28,6 +28,7 @@ export {
   type CeremonyRoute,
   type CeremonyRouteId,
   ceremonyPath,
+  ceremonyRouterPath,
   ceremonyRoutePrefix,
   type InvokeKind,
   invokeKind,
@@ -98,6 +99,7 @@ export {
 export {
   type ApprovalView,
   chooseMechanism,
+  INTERACTION_LABELS,
   INTERACTION_WORDS,
   interactionRefusal,
   type InteractionRefusal,
@@ -129,10 +131,18 @@ export {
   readInteractionArrival,
 } from "./interaction-arrival.js";
 export {
+  type ApprovalArrival,
+  type ApprovalArrivalRead,
+  approvalRefAt,
+  isApprovalRef,
+  readApprovalArrival,
+} from "./approval-link.js";
+export {
   renderInteractionSummary,
   type RenderedInteractionSummary,
 } from "./interaction-summary.js";
 export {
+  APPROVAL_LABELS,
   APPROVAL_WORDS,
   type ApprovalAssurance,
   arrivedViaSentence,
