@@ -164,11 +164,13 @@ async fn tailnet_discover(
     }
 }
 
-/// The tailnet surface: liveness and discovery only, behind the whois gate.
+/// The tailnet surface, behind the whois gate: liveness, discovery, and the
+/// vault drive's device routes, which also need the slot key (ADR 0144).
 pub fn router(state: App, policy: TailnetPolicy) -> Router {
     Router::new()
         .route("/health", get(crate::daemon_health))
         .route("/v1/discover", post(tailnet_discover))
+        .merge(crate::vault_drive_routes::device_routes())
         .route_layer(middleware::from_fn_with_state(policy, whois_gate))
         .with_state(state)
 }

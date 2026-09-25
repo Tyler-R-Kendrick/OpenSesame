@@ -136,6 +136,7 @@ function tombSessionKeys(tomb: string): string[] {
     "config/identity-applications",
     "config/identity-requests",
     "config/siop-keys",
+    "config/tailnet-drive",
   ].map((path) => tombFileKey(tomb, path));
 }
 

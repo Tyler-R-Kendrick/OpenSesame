@@ -51,6 +51,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-25-claim-route/`](2026-09-25-claim-route/README.md) | `/claim` and `/device` open before unlock (ADR 0140 step 8, §2, D2, D7) |
 | [`2026-09-25-approval-routes/`](2026-09-25-approval-routes/README.md) | `/i/:ref`, `/approve/:ref` and Access › Requests' hosted rows (ADR 0140 step 9) |
 | [`2026-09-24-travel-mode/`](2026-09-24-travel-mode/README.md) | Travel mode — visual evidence |
+| [`2026-09-24-tailnet-sync/`](2026-09-24-tailnet-sync/README.md) | Tailnet vault sync — a Settings › Vaults panel, and two devices in step |
 | [`2026-09-24-reviewer-findings/`](2026-09-24-reviewer-findings/README.md) | Reviewer findings fixed — before / after |
 | [`2026-09-24-join-a-session/`](2026-09-24-join-a-session/README.md) | Join a session, restored (ADR 0136) |
 | [`2026-09-24-capabilities-sections/`](2026-09-24-capabilities-sections/README.md) | Settings › Capabilities: one list, one style, honest defaults |

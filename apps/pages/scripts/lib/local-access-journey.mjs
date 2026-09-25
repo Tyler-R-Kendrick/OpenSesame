@@ -117,6 +117,13 @@ export async function openLocalAccessPage(
   const base = BASE;
   await page.goto(`${base}/${section}?view=${view}`);
   await unlockVault(page);
+  // unlockVault presses Enter and returns; the unlock itself (the password
+  // KDF, then this tab's first read of the encrypted ledger) is still running.
+  // Wait for it here, on the budget this suite gives every slow step, so a
+  // caller's first assertion is not left to cover a KDF in its default 5 s.
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
   return page;
 }
 

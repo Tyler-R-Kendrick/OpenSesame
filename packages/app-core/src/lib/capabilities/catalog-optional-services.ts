@@ -113,19 +113,25 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "networking.tailnet",
     "Tailnet networking",
-    "Bind this installation to a Tailscale tailnet: the networking connectors and the tailnet a Host or daemon is reached over.",
+    "Bind this installation to a Tailscale tailnet: the networking connectors, the tailnet a daemon is reached over, and syncing the vault through a drive on it.",
     {
+      operationIds: ["vault.drive.sync"],
       egress: [
         {
           class: "peer-or-local-network",
-          purpose:
-            "a Host or daemon reached over the tailnet a person configured",
+          purpose: "a daemon reached over the tailnet a person configured",
           automatic: false,
+        },
+        {
+          class: "peer-or-local-network",
+          purpose:
+            "the vault drive a person paired, which only ever receives the sealed vault",
+          automatic: true,
         },
       ],
       requiresService: true,
       offlineLimits:
-        "A tailnet peer is reachable only while the tailnet is up.",
+        "A tailnet peer is reachable only while the tailnet is up; edits made offline sync on the next pass.",
     },
   ),
 ];

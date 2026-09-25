@@ -2,6 +2,7 @@ import {
   APPROVAL_CEREMONY,
   accessPortalCapabilities,
 } from "./access-portal.js";
+import { backupSyncCapabilities } from "./backup-sync.js";
 import { connectorDirectoryCapabilities } from "./connectors.js";
 import { enrollmentCapabilities } from "./enrollment.js";
 import {
@@ -1142,40 +1143,7 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: SCOPED_AGENT_ONLY,
     },
   },
-  {
-    id: "backup.status",
-    title: "Read server-side backup posture",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: "opensesame_settings_read",
-    },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
-  },
-  {
-    id: "backup.target.set",
-    title: "Configure the server-side backup target",
-    plane: "host",
-    kind: "admin",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: OPS_PLANE,
-      mcp_client: OPS_PLANE,
-      webmcp: OPS_PLANE,
-    },
-  },
+  ...backupSyncCapabilities,
 
   // ── Host plane: human-only secret surfaces (explicit exclusions) ──────
   {

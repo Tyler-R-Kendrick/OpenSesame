@@ -8,7 +8,9 @@ import type {
 import { typedSearchText, typedSubtitle } from "./item-types.js";
 
 import type { LoginUri, UriMatch } from "./login-uri.js";
+import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { LoginUri, UriMatch } from "./login-uri.js";
+export type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 /**
  * Legacy kinds retain named fields; plugins use `typed`, `typeId` and `values`.
  * `itemTypeId()` bridges both shapes without rewriting existing vaults (ADR 0087).
@@ -206,6 +208,8 @@ export type Folder = {
   id: string;
   name: string;
   createdAt: string;
+  /** Last rename, so a merge can tell which of two names is newer (ADR 0144). */
+  updatedAt?: string | undefined;
 };
 
 export type VaultBody = {
@@ -218,12 +222,16 @@ export type VaultBody = {
    * work offline, and need no server.
    */
   itemTypes?: InstalledItemTypes;
+  /** When each of `itemTypes` was installed, so an uninstall elsewhere can lose to it. */
+  itemTypesAt?: ItemTypeInstallTimes | undefined;
   /**
    * Writes so far. Sealed with the body, so it cannot be edited without the vault
    * key, and compared against the header on unlock: a body that has gone
    * backwards is one restored from an older copy, not the vault as last left.
    */
   rev?: number | undefined;
+  /** Purged items, deleted folders and uninstalled types, so a merge cannot bring them back (ADR 0144). */
+  tombstones?: VaultTombstones | undefined;
 };
 
 /**
@@ -273,46 +281,6 @@ export function createTypedItem(
     typeId: definition.metadata.id,
     values: { ...values },
   };
-}
-
-/** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
-export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
-  const items = new Map(left.items.map((item) => [item.id, item]));
-  for (const incoming of right.items) {
-    const current = items.get(incoming.id);
-    if (!current || itemVersion(incoming) > itemVersion(current)) {
-      items.set(incoming.id, incoming);
-    }
-  }
-  const folders = new Map(left.folders.map((folder) => [folder.id, folder]));
-  for (const incoming of right.folders) {
-    const current = folders.get(incoming.id);
-    if (!current || JSON.stringify(incoming) > JSON.stringify(current)) {
-      folders.set(incoming.id, incoming);
-    }
-  }
-  // Installed definitions merge by type id. A definition is inert data and an
-  // id belongs to one publisher (ADR 0087 §7), so taking the incoming text on
-  // a conflict cannot change what any existing item means.
-  const itemTypes = { ...left.itemTypes };
-  for (const [id, text] of Object.entries(right.itemTypes ?? {})) {
-    if (text !== undefined) itemTypes[id] = text;
-  }
-  return {
-    v: 1,
-    items: [...items.values()],
-    folders: [...folders.values()],
-    ...(Object.keys(itemTypes).length > 0 ? { itemTypes } : undefined),
-    rev: Math.max(left.rev ?? 0, right.rev ?? 0),
-  };
-}
-
-function itemVersion(item: VaultItem): string {
-  const changedAt =
-    item.deletedAt && item.deletedAt > item.updatedAt
-      ? item.deletedAt
-      : item.updatedAt;
-  return `${changedAt}\0${JSON.stringify(item)}`;
 }
 
 /** True only when OpenSesame has complete signing material for the passkey. */

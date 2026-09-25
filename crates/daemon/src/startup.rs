@@ -81,6 +81,8 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
             invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
             token_source_factory: cli_token_source_factory(),
             duress_peer,
+            vault_drive: crate::vault_drive::default_dir()
+                .map(|dir| Arc::new(crate::vault_drive::DriveStore::new(dir))),
         },
         hsts,
     ))

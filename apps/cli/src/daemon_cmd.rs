@@ -1,6 +1,8 @@
 //! `opensesame daemon`: run the local agent daemon in this process, start or
 //! stop it in the background, and read or approve what it holds (ADR 0017).
 use crate::daemon_toolbar::ToolbarCmd;
+#[path = "daemon_drive.rs"]
+mod daemon_drive;
 use clap::Subcommand;
 use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;
@@ -45,6 +47,9 @@ enum DaemonCmd {
     Logs,
     /// SIGTERM via pidfile.
     Stop,
+    /// This machine's tailnet vault drive (ADR 0144).
+    #[command(subcommand)]
+    Drive(daemon_drive::DriveCmd),
     #[command(flatten)]
     Toolbar(ToolbarCmd),
 }
@@ -64,6 +69,9 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
         .unwrap_or_else(|_| format!("{home}/.opensesame/daemon.log"));
     match cmd {
         DaemonCmd::Run(daemon) => opensesame_daemon::run(*daemon).await?,
+        DaemonCmd::Drive(verb) => {
+            daemon_drive::run(base, operator_token.as_deref(), verb).await?;
+        }
         DaemonCmd::Toolbar(verb) => {
             crate::daemon_toolbar::run(base, operator_token.as_deref(), verb).await?;
         }
