@@ -22,6 +22,7 @@ import {
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
 import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
+import { captureInvocationArrivalFromPage } from "@opensesame/app-core/lib/invoke-link.js";
 import {
   captureInviteFromPage,
   watchInviteArrivals,
@@ -77,6 +78,10 @@ export async function bootCore(): Promise<CoreBoot> {
   // (ADR 0140 plan step 9).
   captureInteractionArrivalFromPage();
   captureApprovalArrivalFromPage();
+  // `/invoke/<kind>`'s handle — a user code, a request id or a request URI —
+  // leaves the query here and is held in memory for the hand-off, never
+  // fetched (ADR 0140 plan step 10).
+  captureInvocationArrivalFromPage();
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked

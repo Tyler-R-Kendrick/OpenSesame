@@ -3,10 +3,11 @@
  * A link a device printed must open on every installation (ADR 0140): under
  * the smallest shipped profile, `minimal-local`, the ceremonies capability is
  * approved with nothing optional beside it, its module is in the plan, and
- * activating that module serves `/device`, `/claim`, `/i/:ref` and
- * `/approve/:ref` before unlock — a claim or drop link opens even where drops
- * cannot be sent (ADR 0140 D2), and an approval link opens with no vault
- * (D7) and with zero optional capabilities approved.
+ * activating that module serves `/device`, `/claim`, `/i/:ref`,
+ * `/approve/:ref` and `/invoke/:kind` before unlock — a claim or drop link
+ * opens even where drops cannot be sent (ADR 0140 D2), an approval link opens
+ * with no vault (D7), and an authenticator hand-off opens with zero optional
+ * capabilities approved (plan step 10).
  */
 
 import {
@@ -45,6 +46,7 @@ describe("minimal-local serves the ceremony routes", () => {
       "/claim",
       "/i/:ref",
       "/approve/:ref",
+      "/invoke/:kind",
     ]);
     expect(t.entries("route").every((route) => route.gate === "any")).toBe(
       true,
@@ -59,6 +61,7 @@ describe("minimal-local serves the ceremony routes", () => {
       "identity.approval.activation",
       "identity.approval.comparison",
       "identity.approval.report",
+      "identity.authenticator.invoke",
     ]) {
       expect(plan.approvedOperations, operation).toContain(operation);
     }

@@ -173,7 +173,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "identity.ceremonies",
     "Ceremonies",
-    "The routes a link opens on this origin (ADR 0140): device sign-in approval at /device and the older links that open it; claims and drops at /claim; a cross-device approval at /i/<ref> and a request review at /approve/<ref>, each decided with a passkey touch bound to that request. They open before unlock and never read the vault.",
+    "The routes a link opens on this origin (ADR 0140): device sign-in approval at /device and the older links to it; claims and drops at /claim; a cross-device approval at /i/<ref> and a request review at /approve/<ref>, each decided with a passkey touch bound to it; the app hand-off at /invoke/<kind>. They open before unlock and never read the vault.",
     {
       operationIds: [
         "identity.device.approve",
@@ -184,6 +184,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.approval.activation",
         "identity.approval.comparison",
         "identity.approval.report",
+        "identity.authenticator.invoke",
       ],
       egress: [IDENTITY_API_EGRESS],
       browserPermissions: ["webauthn"],
