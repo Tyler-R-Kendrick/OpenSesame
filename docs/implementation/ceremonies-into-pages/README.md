@@ -13,14 +13,14 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | ceremonies `/claim#token=osc_clm_` (ownership claim, guest path) | `POST /v1/claims/present`, `GET /v1/claims/:id`, `POST /v1/claims/:id/complete`, `POST /v1/principals/provisional` | model: `app-core/lib/claims/` (step 4) | partial: no route (step 8) |
 | ceremonies `/claim#token&key` (drop) | `POST /v1/claims/present` | `screens/DropClaimScreen.tsx`, `app-core/lib/vault/drop.ts` | partial: optional capability, fragment not scrubbed on arrival (step 8); refusals worded by code (step 4) |
 | ceremonies `/guest` | provisional principal | `guest-auth.ts` `continueAsGuest` | covered (D12) |
-| ceremonies `/device?user_code=`, console `/device` | `POST /v1/device/approve` | `DevicesPanel` via `app-core/lib/directory.ts` | partial: no deep link, optional enterprise capability, three implementations |
+| ceremonies `/device?user_code=`, console `/device` | `POST /v1/device/approve` | `/device` route (`identity.ceremonies`) and `DevicesPanel`, one form (`DeviceApproval`) over `app-core/lib/device-approval.ts` → `directory.ts` → ceremony-kit (step 7) | covered in Pages; the two apps' copies go with them (step 14) |
 | ceremonies `/delegate#token=osc_dlg_` | Host delegations present/claim | Join (`lib/join/invite.ts`) | covered by Join (D5) |
 | ceremonies `/inbox` | `GET /v1/authorization-requests?status=pending`, approve/deny | Access › Requests (local only); model: app-core `lib/approvals.ts` hosted rows (step 6) | partial: no rows rendered (step 9) |
 | ceremonies `/approve/:ref` | request, requirement, activation, decision, report | model: ceremony-kit `approval-review.ts`, app-core `lib/approvals.ts` (step 6) | partial: no route (step 9); refusals worded by code (step 6) |
 | ceremonies `/notifications` | channels, bindings, preferences | model: app-core `lib/notification-routing/` (step 6) | partial: no provider, no panel (step 11) |
 | ceremonies `/invoke/:kind` + `.well-known` | — (parser) | none | missing |
 | mobile-mfa `/i/<ref>` | interaction resolve/read/activation/approve/deny, WebAuthn | model: ceremony-kit `interaction-approval.ts`, app-core `lib/interactions.ts` (step 5) | partial: no route (step 9); refusals worded by code (step 5) |
-| mobile-mfa legacy links (`?user_code=`, `?code=`, `opensesame://invoke/mfa`, `opensesame-mfa://approve`) | `/v1/device/approve` | device approval; read by ceremony-kit `readInteractionArrival` (step 5) | partial: no adapter (step 7) |
+| mobile-mfa legacy links (`?user_code=`, `?code=`, `opensesame://invoke/mfa`, `opensesame-mfa://approve`) | `/v1/device/approve` | normalised to `/device` at boot by app-core `lib/device-link.ts` over ceremony-kit `readInteractionArrival`; `?code=` only on `/device`, never the sign-in callback at the base (step 7) | covered |
 | mobile-mfa enrolment | `/v1/mfa/passkey/*`, `/v1/mfa/totp/*` | vault authenticator only (ADR 0091) | missing (D10) |
 | mobile-mfa token field | — | Identity session | dropped (D13) |
 | console `/` sign-in | OIDC, `/v1/federated/providers` | `SignInPanel` | covered |

@@ -96,6 +96,11 @@ export const SECTION_RULES = [
         "Identity API directory admin",
       ),
   ),
+  core(
+    "src/sections/identity/DeviceApproval",
+    "identity.ceremonies",
+    "the device-approval form /device and Identity › Devices share (ADR 0140)",
+  ),
   ...each(
     "src/sections/identity/",
     ["ProviderRouting", "ConnectIdentityNote", "RegistrationExtras"],

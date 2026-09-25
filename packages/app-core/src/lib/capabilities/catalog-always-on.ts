@@ -170,6 +170,18 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   alwaysOn(
+    "identity.ceremonies",
+    "Ceremonies",
+    "The routes a link opens on this origin (ADR 0140): device and CLI sign-in approval at /device, and the older approval links that now open it.",
+    {
+      operationIds: ["identity.device.approve"],
+      egress: [IDENTITY_API_EGRESS],
+      requiresService: true,
+      offlineLimits:
+        "The route opens and shows its code offline; approving needs the Identity API.",
+    },
+  ),
+  alwaysOn(
     "identity.ambient-sso",
     "Ambient single sign-on",
     "Silent sign-in on boot through Microsoft Entra or another configured provider, with the MSAL redirect bridge page.",

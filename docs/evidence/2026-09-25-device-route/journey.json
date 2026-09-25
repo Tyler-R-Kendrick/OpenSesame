@@ -1,0 +1,193 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "arrive": "device?user_code=ABCD-EFGH"
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "390-door"
+        },
+        {
+          "guest": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-arrival"
+        },
+        {
+          "fillOptional": {
+            "label": "Sign-in service",
+            "text": "https://identity.evidence.example"
+          }
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "shot": "390-confirm"
+        },
+        {
+          "pressNamedOptional": "Approve device"
+        },
+        {
+          "count": ".status-mark--ok"
+        },
+        {
+          "shot": "390-approved"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "arrive": "device?user_code=ABCD-EFGH"
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "1280-door"
+        },
+        {
+          "guest": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-arrival"
+        },
+        {
+          "fillOptional": {
+            "label": "Sign-in service",
+            "text": "https://identity.evidence.example"
+          }
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "shot": "1280-confirm"
+        },
+        {
+          "pressNamedOptional": "Approve device"
+        },
+        {
+          "count": ".status-mark--ok"
+        },
+        {
+          "shot": "1280-approved"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-door",
+      "width": 390,
+      "title": "A device link on a locked phone — 390 × 844",
+      "caption": "The link opens on the front door either way: sign-in and guest first, nothing in front of them.",
+      "before": "address …/OpenSesame/device?user_code=ABCD-EFGH",
+      "after": "address …/OpenSesame/device (code taken out at boot)"
+    },
+    {
+      "shot": "390-arrival",
+      "width": 390,
+      "title": "After Continue as guest — 390 × 844",
+      "caption": "No Identity API configured: the route says what it needs, the way every Identity-plane panel does, and puts the keyboard on it.",
+      "before": "empty shell, no h1, focus on body, code still in the address",
+      "after": "h1 Approve a device, focus on Sign-in service field (332×44, focus-visible)"
+    },
+    {
+      "shot": "390-confirm",
+      "width": 390,
+      "title": "Signed in — the code to confirm — 390 × 844",
+      "caption": "The code the link carried sits in the field; the key that approves it holds the focus.",
+      "before": "empty shell: no field, no key",
+      "after": "User code ABCD-EFGH, focus on Approve device (.go 44×44)"
+    },
+    {
+      "shot": "390-approved",
+      "width": 390,
+      "title": "Approved — 390 × 844",
+      "caption": "The answer is a mark beside the code; a failure's words go to the tray, never a box on the page.",
+      "before": "empty shell: 0 marks",
+      "after": "1 ok mark (Device approved); POST /v1/device/approve {\"user_code\":\"ABCD-EFGH\"}"
+    },
+    {
+      "shot": "1280-door",
+      "width": 1280,
+      "title": "A device link on a locked desktop — 1280 × 900",
+      "caption": "Same arrival at desktop width.",
+      "before": "address …/OpenSesame/device?user_code=ABCD-EFGH",
+      "after": "address …/OpenSesame/device (code taken out at boot)"
+    },
+    {
+      "shot": "1280-arrival",
+      "width": 1280,
+      "title": "After Continue as guest — 1280 × 900",
+      "caption": "No Identity API configured: the route says what it needs, the way every Identity-plane panel does, and puts the keyboard on it.",
+      "before": "empty shell, no h1, focus on body, code still in the address",
+      "after": "h1 Approve a device, focus on Sign-in service field (332×34, focus-visible)"
+    },
+    {
+      "shot": "1280-confirm",
+      "width": 1280,
+      "title": "Signed in — the code to confirm — 1280 × 900",
+      "caption": "Same form Identity › Devices draws, prefilled from the link.",
+      "before": "empty shell: no field, no key",
+      "after": "User code ABCD-EFGH, focus on Approve device (.go 40×40)"
+    },
+    {
+      "shot": "1280-approved",
+      "width": 1280,
+      "title": "Approved — 1280 × 900",
+      "caption": "The mark replaces nothing and moves nothing.",
+      "before": "empty shell: 0 marks",
+      "after": "1 ok mark (Device approved); POST /v1/device/approve {\"user_code\":\"ABCD-EFGH\"}"
+    }
+  ]
+}
