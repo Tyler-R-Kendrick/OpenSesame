@@ -1,0 +1,609 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "i/i_EvIdEnCeAbCdEfGhIjKl.0123456789abcdef#state=evidence"
+        },
+        {
+          "passkey": null
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".unlock", "[data-testid=capability-apply]", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-i-arrival"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv, main .panel__body ul"
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-i-review"
+        },
+        {
+          "pressNamedOptional": "Approve with passkey"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-i-approved"
+        },
+        {
+          "arrive": "i/i_EvIdEnCeAbCdEfGhIjKl.0123456789abcdef#token=osc_clm_leaked.c2VjcmV0"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".unlock", ".status-mark--err", ".note"]
+        },
+        {
+          "shot": "390-i-refused"
+        },
+        {
+          "arrive": "approve/areq_evidence_approve?utm=telegram"
+        },
+        {
+          "address": null
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "count": [".unlock", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-approve-review"
+        },
+        {
+          "fillOptional": {
+            "label": "Six-digit code from where this started",
+            "text": "424242"
+          }
+        },
+        {
+          "confirmOptional": "I have read"
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "pressNamedOptional": "Touch your passkey to approve"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-approve-approved"
+        },
+        {
+          "arrive": "approve/areq_evidence_deny"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "fillOptional": {
+            "label": "Six-digit code from where this started",
+            "text": "424242"
+          }
+        },
+        {
+          "pressNamedOptional": "Deny"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "390-approve-denied"
+        },
+        {
+          "arrive": "approve/areq_evidence_policy"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "fillOptional": {
+            "label": "Six-digit code from where this started",
+            "text": "424242"
+          }
+        },
+        {
+          "confirmOptional": "I have read"
+        },
+        {
+          "pressNamedOptional": "Touch your passkey to approve"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".status-mark--ok", ".status-mark--err", ".note"]
+        },
+        {
+          "shot": "390-approve-refused"
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "visit": "access/requests"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "#hosted-requests li strong"
+        },
+        {
+          "count": [
+            "#hosted-requests",
+            "#hosted-requests li",
+            "#hosted-requests a[href*='/approve/']",
+            "#hosted-requests button[aria-label*='pprove']",
+            "#local-requests"
+          ]
+        },
+        {
+          "measure": "#hosted-requests a.icon-btn"
+        },
+        {
+          "shot": "390-access-requests"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "i/i_EvIdEnCeAbCdEfGhIjKl.0123456789abcdef#state=evidence"
+        },
+        {
+          "passkey": null
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".unlock", "[data-testid=capability-apply]", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-i-arrival"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv, main .panel__body ul"
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-i-review"
+        },
+        {
+          "pressNamedOptional": "Approve with passkey"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-i-approved"
+        },
+        {
+          "arrive": "i/i_EvIdEnCeAbCdEfGhIjKl.0123456789abcdef#token=osc_clm_leaked.c2VjcmV0"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".unlock", ".status-mark--err", ".note"]
+        },
+        {
+          "shot": "1280-i-refused"
+        },
+        {
+          "arrive": "approve/areq_evidence_approve?utm=telegram"
+        },
+        {
+          "address": null
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "count": [".unlock", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-approve-review"
+        },
+        {
+          "fillOptional": {
+            "label": "Six-digit code from where this started",
+            "text": "424242"
+          }
+        },
+        {
+          "confirmOptional": "I have read"
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "pressNamedOptional": "Touch your passkey to approve"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-approve-approved"
+        },
+        {
+          "arrive": "approve/areq_evidence_deny"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "fillOptional": {
+            "label": "Six-digit code from where this started",
+            "text": "424242"
+          }
+        },
+        {
+          "pressNamedOptional": "Deny"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "1280-approve-denied"
+        },
+        {
+          "arrive": "approve/areq_evidence_policy"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "fillOptional": {
+            "label": "Six-digit code from where this started",
+            "text": "424242"
+          }
+        },
+        {
+          "confirmOptional": "I have read"
+        },
+        {
+          "pressNamedOptional": "Touch your passkey to approve"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".status-mark--ok", ".status-mark--err", ".note"]
+        },
+        {
+          "shot": "1280-approve-refused"
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "visit": "access/requests"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "#hosted-requests li strong"
+        },
+        {
+          "count": [
+            "#hosted-requests",
+            "#hosted-requests li",
+            "#hosted-requests a[href*='/approve/']",
+            "#hosted-requests button[aria-label*='pprove']",
+            "#local-requests"
+          ]
+        },
+        {
+          "measure": "#hosted-requests a.icon-btn"
+        },
+        {
+          "shot": "1280-access-requests"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-i-arrival",
+      "width": 390,
+      "title": "An /i/:ref link on a device with no vault — 390 × 844",
+      "caption": "Before, the link met the front door. After, the approval opens by itself — no unlock, no vault — resolves the link with no session and asks for a sign-in with the Connect note on the route.",
+      "before": "front door (.unlock 1); fragment still in the address; focus on the sign-in field",
+      "after": "first render …/i/:ref (fragment gone); .unlock 0; h1 Approve a request, Read the request (warn: Sign in to answer this request.); focus on Connect (44×44, focus-visible)"
+    },
+    {
+      "shot": "390-i-review",
+      "width": 390,
+      "title": "After Connect: the request to compare — 390 × 844",
+      "caption": "The approver's view: the match to compare with the other device and the request's facts, approved only with a passkey touch.",
+      "before": "front door; no request shown",
+      "after": "Match 42, From / Resource / Expires; .go 44×44, focused"
+    },
+    {
+      "shot": "390-i-approved",
+      "width": 390,
+      "title": "Approved with a virtual passkey — 390 × 844",
+      "caption": "The activation named the digest shown and the verb; the approve named the activation the stand-in verified.",
+      "before": "front door; 0 ok marks",
+      "after": "Approved, 1 ok mark, 0 .note; focus on the answer"
+    },
+    {
+      "shot": "390-i-refused",
+      "width": 390,
+      "title": "A link that carried a bearer in its fragment — 390 × 844",
+      "caption": "The fragment left the address at boot and the link is refused: nothing was resolved or read.",
+      "before": "front door (.unlock 1), #token= still in the address",
+      "after": "address …/i/:ref, no fragment; Refused (err: carried credential material); .unlock 0; nothing resolved"
+    },
+    {
+      "shot": "390-approve-review",
+      "width": 390,
+      "title": "An /approve/:ref link: the review — 390 × 844",
+      "caption": "Who asks, what it would allow, how long it is good for, what it takes and why, and which channel pointed here — ceremony-kit's words.",
+      "before": "front door (.unlock 1), ?utm= still in the address",
+      "after": "address …/approve/areq_… (query gone); .unlock 0; focus on the six-digit code (358×44)"
+    },
+    {
+      "shot": "390-approve-approved",
+      "width": 390,
+      "title": "Confirmed, code typed, passkey touched — 390 × 844",
+      "caption": "The activation was minted naming the digest shown and the verb, under the policy shown; the settle named it and the comparison code.",
+      "before": "front door; 0 ok marks",
+      "after": "activation {decision: approved, requestDigest}, then approve naming act_1 + code; Approved, 1 ok mark, 0 .note"
+    },
+    {
+      "shot": "390-approve-denied",
+      "width": 390,
+      "title": "A deny — 390 × 844",
+      "caption": "Deny runs its own activation, minted for the deny.",
+      "before": "front door",
+      "after": "activation {decision: denied} minted for the deny, then deny naming it; Denied"
+    },
+    {
+      "shot": "390-approve-refused",
+      "width": 390,
+      "title": "An activation that came back under another policy — 390 × 844",
+      "caption": "The stand-in mints this one under a policy other than the requirement showed: the review stops before the passkey is asked for, and says the rules changed.",
+      "before": "front door; 0 marks",
+      "after": "activation came back under another policy: no passkey prompt, no settle; 'This request could not be decided' (err: the rules … changed), 1 err mark"
+    },
+    {
+      "shot": "390-access-requests",
+      "width": 390,
+      "title": "Access › Requests with a hosted row — 390 × 844",
+      "caption": "The request still waiting is listed beside the local ones; its only key opens /approve/:ref. Nothing on the list approves.",
+      "before": "h2 Local requests only; #hosted-requests 0",
+      "after": "Requests for you · 1 above Local requests; 1 row, 1 link to /approve/, 0 approve buttons; key 44×44"
+    },
+    {
+      "shot": "1280-i-arrival",
+      "width": 1280,
+      "title": "An /i/:ref link on a device with no vault — 1280 × 900",
+      "caption": "Before, the link met the front door. After, the approval opens by itself — no unlock, no vault — resolves the link with no session and asks for a sign-in with the Connect note on the route.",
+      "before": "front door (.unlock 1); fragment still in the address; focus on the sign-in field",
+      "after": "first render …/i/:ref (fragment gone); .unlock 0; h1 Approve a request, Read the request (warn: Sign in to answer this request.); focus on Connect (32×32, focus-visible)"
+    },
+    {
+      "shot": "1280-i-review",
+      "width": 1280,
+      "title": "After Connect: the request to compare — 1280 × 900",
+      "caption": "The approver's view: the match to compare with the other device and the request's facts, approved only with a passkey touch.",
+      "before": "front door; no request shown",
+      "after": "Match 42, From / Resource / Expires; .go 40×40, focused"
+    },
+    {
+      "shot": "1280-i-approved",
+      "width": 1280,
+      "title": "Approved with a virtual passkey — 1280 × 900",
+      "caption": "The activation named the digest shown and the verb; the approve named the activation the stand-in verified.",
+      "before": "front door; 0 ok marks",
+      "after": "Approved, 1 ok mark, 0 .note; focus on the answer"
+    },
+    {
+      "shot": "1280-i-refused",
+      "width": 1280,
+      "title": "A link that carried a bearer in its fragment — 1280 × 900",
+      "caption": "The fragment left the address at boot and the link is refused: nothing was resolved or read.",
+      "before": "front door (.unlock 1), #token= still in the address",
+      "after": "address …/i/:ref, no fragment; Refused (err: carried credential material); .unlock 0; nothing resolved"
+    },
+    {
+      "shot": "1280-approve-review",
+      "width": 1280,
+      "title": "An /approve/:ref link: the review — 1280 × 900",
+      "caption": "Who asks, what it would allow, how long it is good for, what it takes and why, and which channel pointed here — ceremony-kit's words.",
+      "before": "front door (.unlock 1), ?utm= still in the address",
+      "after": "address …/approve/areq_… (query gone); .unlock 0; focus on the six-digit code (480×32)"
+    },
+    {
+      "shot": "1280-approve-approved",
+      "width": 1280,
+      "title": "Confirmed, code typed, passkey touched — 1280 × 900",
+      "caption": "The activation was minted naming the digest shown and the verb, under the policy shown; the settle named it and the comparison code.",
+      "before": "front door; 0 ok marks",
+      "after": "activation {decision: approved, requestDigest}, then approve naming act_1 + code; Approved, 1 ok mark, 0 .note"
+    },
+    {
+      "shot": "1280-approve-denied",
+      "width": 1280,
+      "title": "A deny — 1280 × 900",
+      "caption": "Deny runs its own activation, minted for the deny.",
+      "before": "front door",
+      "after": "activation {decision: denied} minted for the deny, then deny naming it; Denied"
+    },
+    {
+      "shot": "1280-approve-refused",
+      "width": 1280,
+      "title": "An activation that came back under another policy — 1280 × 900",
+      "caption": "The stand-in mints this one under a policy other than the requirement showed: the review stops before the passkey is asked for, and says the rules changed.",
+      "before": "front door; 0 marks",
+      "after": "activation came back under another policy: no passkey prompt, no settle; 'This request could not be decided' (err: the rules … changed), 1 err mark"
+    },
+    {
+      "shot": "1280-access-requests",
+      "width": 1280,
+      "title": "Access › Requests with a hosted row — 1280 × 900",
+      "caption": "The request still waiting is listed beside the local ones; its only key opens /approve/:ref. Nothing on the list approves.",
+      "before": "h2 Local requests only; #hosted-requests 0",
+      "after": "Requests for you · 1 above Local requests; 1 row, 1 link to /approve/, 0 approve buttons; key 24×24"
+    }
+  ]
+}
