@@ -9,19 +9,20 @@ import {
   withParam,
 } from "@opensesame/app-core/lib/connect-draft.js";
 import {
-  type ApiKeyPreset,
   type ConnectMethodKind,
   type ConnectPlan,
   type McpInfo,
-  type OauthPreset,
   fillTemplate,
 } from "@opensesame/app-core/lib/connect-plan.js";
+import {
+  VERIFY_TARGETS,
+  type VerifyTarget,
+} from "../../../server/connect-verify-targets.generated.mjs";
 import type { ProviderProfile } from "./provider-emulator.js";
 
 export const PARAM = "acme.example";
 
 type Scenario = { profile: ProviderProfile; state: DraftState };
-type Verify = NonNullable<OauthPreset["verify"]>;
 
 const BASE = { registerPath: "/register", cimd: false, requiredParams: {} };
 
@@ -34,10 +35,27 @@ export const fill = (url: string) =>
     new Proxy({}, { get: (_t, name) => (name === "key" ? undefined : PARAM) }),
   );
 
-function filledHeaders(verify: Verify): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(verify.headers).map(([k, v]) => [k, fill(v)]),
-  );
+/**
+ * The verify call the provider emulator answers: the relay's own pinned
+ * target for this service (`connect-verify-targets.generated.mjs`), with the
+ * test's account host filled in.
+ */
+function verifyProfile(
+  target: VerifyTarget | undefined,
+): ProviderProfile["verify"] {
+  if (!target) return null;
+  return {
+    method: target.method,
+    path: decodeURIComponent(path(fill(target.url))),
+    header: target.header,
+    scheme: target.scheme,
+    basic: target.basic,
+    headers: Object.fromEntries(
+      Object.entries(target.headers).map(([k, v]) => [k, fill(v)]),
+    ),
+    accountField: target.accountField,
+    mcp: false,
+  };
 }
 
 function withParams(plan: ConnectPlan, kind: ConnectMethodKind): DraftState {
@@ -80,8 +98,7 @@ function mcpScenario(
   };
 }
 
-function keyScenario(state: DraftState, preset: ApiKeyPreset | null): Scenario {
-  const verify = preset?.verify;
+function keyScenario(plan: ConnectPlan, state: DraftState): Scenario {
   return {
     state: {
       ...state,
@@ -94,19 +111,7 @@ function keyScenario(state: DraftState, preset: ApiKeyPreset | null): Scenario {
       authorizePath: "/-",
       tokenPath: "/-",
       pkce: "none",
-      verify:
-        verify && preset
-          ? {
-              method: verify.method,
-              path: decodeURIComponent(path(fill(verify.url))),
-              header: preset.header,
-              scheme: preset.scheme,
-              basic: preset.basic,
-              headers: filledHeaders(verify),
-              accountField: verify.accountField,
-              mcp: false,
-            }
-          : null,
+      verify: verifyProfile(VERIFY_TARGETS[plan.id]?.apiKey),
     },
   };
 }
@@ -125,11 +130,7 @@ function withServer(state: DraftState): DraftState {
   };
 }
 
-function oauthScenario(
-  plan: ConnectPlan,
-  given: DraftState,
-  preset: OauthPreset | null,
-): Scenario {
+function oauthScenario(plan: ConnectPlan, given: DraftState): Scenario {
   const assisted = given.oauth.registration !== "manual" && plan.registry;
   const served = withServer(given);
   const state = assisted
@@ -142,7 +143,6 @@ function oauthScenario(
           clientSecret: "client-secret",
         },
       };
-  const verify = preset?.verify;
   return {
     state,
     profile: {
@@ -152,18 +152,7 @@ function oauthScenario(
       pkce: state.oauth.pkce,
       cimd: assisted && state.oauth.registration === "cimd",
       requiredParams: state.oauth.authorizationParams,
-      verify: verify
-        ? {
-            method: verify.method,
-            path: path(fill(verify.url)),
-            header: verify.header,
-            scheme: verify.scheme,
-            basic: null,
-            headers: filledHeaders(verify),
-            accountField: verify.accountField,
-            mcp: false,
-          }
-        : null,
+      verify: verifyProfile(VERIFY_TARGETS[plan.id]?.oauth),
     },
   };
 }
@@ -174,10 +163,6 @@ export function scenario(plan: ConnectPlan, kind: ConnectMethodKind): Scenario {
   if (method?.kind === "mcp" && method.mcp.status === "ok") {
     return mcpScenario(state, method.mcp);
   }
-  if (method?.kind === "api-key") return keyScenario(state, method.preset);
-  return oauthScenario(
-    plan,
-    state,
-    method?.kind === "oauth" ? method.preset : null,
-  );
+  if (method?.kind === "api-key") return keyScenario(plan, state);
+  return oauthScenario(plan, state);
 }

@@ -27,20 +27,8 @@ const TemplateParamSchema = z.object({
   placeholder: z.string(),
 });
 
-const VerifySchema = z.object({
-  method: z.enum(["GET", "POST"]),
-  url,
-  accountField: z.string().nullable(),
-  headers: z.record(z.string(), z.string()),
-  body: z.string().nullable(),
-  /** OAuth only: how the access token rides (Shopify's own header). */
-  header: z.string().nullable(),
-  scheme: z.string().nullable(),
-});
-
 export const OauthPresetSchema = z.object({
   serverUrl: url,
-  discoveryUrl: url.nullable(),
   authorizationEndpoint: url,
   tokenEndpoint: url,
   revocationEndpoint: url.nullable(),
@@ -48,7 +36,6 @@ export const OauthPresetSchema = z.object({
   tokenAuth: z.enum(["client_secret_post", "client_secret_basic", "none"]),
   pkce: z.enum(["S256", "none", "required"]),
   authorizationParams: z.record(z.string(), z.string()),
-  scopeSeparator: z.string().min(1).max(3),
   scopes: z.array(
     z.object({
       name: z.string().min(1),
@@ -61,22 +48,15 @@ export const OauthPresetSchema = z.object({
   consoleUrl: url.nullable(),
   docsUrl: url.nullable(),
   templateParams: z.array(TemplateParamSchema),
-  verify: VerifySchema.nullable(),
 });
 
 export const ApiKeyPresetSchema = z.object({
   keyUrl: url.nullable(),
-  /** Null when the key rides in the URL path (Telegram's `bot{key}`). */
-  header: z.string().min(1).nullable(),
-  scheme: z.string().max(16).nullable(),
-  /** HTTP Basic pair, `{key}` where the key goes (Mailgun: `api:{key}`). */
-  basic: z.object({ username: z.string(), password: z.string() }).nullable(),
   keyPrefix: z.string().nullable(),
   serviceUrls: z.array(url),
   instructions: z.string().max(4000),
   docsUrl: url.nullable(),
   templateParams: z.array(TemplateParamSchema),
-  verify: VerifySchema.nullable(),
 });
 
 const McpInfoSchema = z.discriminatedUnion("status", [
@@ -127,8 +107,6 @@ const CATEGORIES = [
 export const ConnectPlanSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
   name: z.string().min(1),
-  description: z.string().nullable(),
-  website: url.nullable(),
   docsUrl: url.nullable(),
   category: z.enum(CATEGORIES),
   /** Listed in Vercel Connect's service registry (preset configuration). */

@@ -47,8 +47,7 @@ function toProvider(plan: ConnectPlan): Provider {
     id: plan.id,
     displayName: plan.name,
     category: plan.category,
-    docsUrl:
-      plan.docsUrl ?? plan.website ?? `https://vercel.com/connect/${plan.id}`,
+    docsUrl: plan.docsUrl ?? `https://vercel.com/connect/${plan.id}`,
     authKind:
       method?.kind === "api-key" ? "api_key" : "oauth2_authorization_code",
     supportsRefresh: preset?.refreshTokens ?? method?.kind !== "api-key",

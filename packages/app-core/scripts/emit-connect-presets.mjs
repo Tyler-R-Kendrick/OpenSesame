@@ -63,7 +63,6 @@ const REFUSED = new Set(["stripe", "razorpay", "agentcard"]);
 function oauthPreset(row) {
   return {
     serverUrl: row.server_url,
-    discoveryUrl: row.discovery_url ?? null,
     authorizationEndpoint: row.authorization_endpoint,
     tokenEndpoint: row.token_endpoint,
     revocationEndpoint: row.revocation_endpoint ?? null,
@@ -71,7 +70,6 @@ function oauthPreset(row) {
     tokenAuth: row.token_endpoint_auth_method,
     pkce: row.pkce,
     authorizationParams: row.authorization_params ?? {},
-    scopeSeparator: row.scope_separator ?? " ",
     scopes: (row.scopes ?? []).map((scope) => ({
       name: scope.name,
       description: scope.description,
@@ -82,36 +80,17 @@ function oauthPreset(row) {
     consoleUrl: row.developer_console_url ?? null,
     docsUrl: row.docs_url ?? null,
     templateParams: row.template_params ?? [],
-    verify: verifyOf(row.verify),
   };
-}
-
-function verifyOf(verify) {
-  return verify
-    ? {
-        method: verify.method,
-        url: verify.url,
-        accountField: verify.account_field ?? null,
-        headers: verify.headers ?? {},
-        body: verify.body ?? null,
-        header: verify.header === undefined ? "Authorization" : verify.header,
-        scheme: verify.scheme === undefined ? "Bearer" : verify.scheme,
-      }
-    : null;
 }
 
 function apiKeyPreset(row) {
   return {
     keyUrl: row.key_url ?? null,
-    header: row.header ?? null,
-    basic: row.basic ?? null,
-    scheme: row.scheme ?? null,
     keyPrefix: row.key_prefix ?? null,
     serviceUrls: row.service_urls ?? [],
     instructions: row.instructions ?? "",
     docsUrl: row.docs_url ?? null,
     templateParams: row.template_params ?? [],
-    verify: verifyOf(row.verify),
   };
 }
 
@@ -171,11 +150,10 @@ function methodsFor(service, oauth, apiKey) {
 /**
  * A preset from the one integration catalog's own OAuth block, for a row the
  * researched presets do not cover (Cursor Origin): same endpoints, client
- * authentication, scopes and verify path the Host uses (ADR 0139).
+ * authentication, and scopes the Host uses (ADR 0139).
  */
 function catalogOauthPreset(row) {
   const auth = row.auth;
-  const host = row.egress?.authorities?.[0];
   return oauthPreset({
     server_url: new URL(auth.authorize_url).origin,
     authorization_endpoint: auth.authorize_url,
@@ -188,10 +166,6 @@ function catalogOauthPreset(row) {
     refresh_tokens: auth.supports_refresh,
     client_registration: "manual",
     docs_url: row.docs_url,
-    verify:
-      row.verify?.path && host
-        ? { method: "GET", url: `https://${host}${row.verify.path}` }
-        : null,
   });
 }
 
@@ -219,8 +193,6 @@ function planFor(id, service, row, oauth, apiKey) {
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
-    description: service?.description ?? null,
-    website: service?.website ?? null,
     docsUrl: docsFor(service, row, oauth, apiKey),
     category: categoryFor(id, service, row),
     registry: Boolean(service),
