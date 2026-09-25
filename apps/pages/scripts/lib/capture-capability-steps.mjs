@@ -1,9 +1,11 @@
 /**
- * Capture verbs that change what a device has switched on — Settings ›
- * Capabilities' own Add, a feature's own switch, then Apply (ADR 0130) —
- * kept beside `capture-evidence.mjs`'s own. `press` is that script's
- * tap-or-click; `openSettings(page, name)` opens a Settings page by name.
+ * Capture verbs that change what a device has switched on — a capability's
+ * own switch, or a whole section's, then Settings › Capabilities' Apply
+ * (ADR 0130) — kept beside `capture-evidence.mjs`'s own. `press` is that
+ * script's tap-or-click; `openSettings(page, name)` opens a Settings page.
  */
+import { capabilityOffSwitch } from "./always-on.mjs";
+
 export function capabilitySteps({ press, openSettings }) {
   /** Press what proposes a capability change, then Settings' own Apply. */
   async function apply(page, control) {
@@ -18,19 +20,15 @@ export function capabilitySteps({ press, openSettings }) {
 
   return {
     /**
-     * Switch an optional capability on, through Settings › Capabilities' own
-     * Add and Apply — Access, Identity and Connections are capabilities, and
-     * a guest device has none of them until it chooses (ADR 0130).
+     * Switch an optional capability on, by its catalog title. An always-on
+     * one has no switch: skipped.
      */
     async enable(page, title) {
       await openSettings(page, "Capabilities");
-      const add = page.getByRole("button", {
-        name: `Add ${title}`,
-        exact: true,
-      });
+      const add = capabilityOffSwitch(page, title);
       if (await add.count()) await apply(page, add.first());
     },
-    /** A whole feature, by its own switch — what a person actually turns on. */
+    /** A whole section, by its own switch — what a person actually turns on. */
     async feature(page, title) {
       await openSettings(page, "Capabilities");
       const toggle = page.getByRole("switch", { name: title, exact: true });

@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { currentDirectoryPanels } from "../../sections/identity/directory-panel-slot.js";
+import { DIRECTORY_PANELS } from "../../sections/identity/directory-panels.js";
 import {
   enabledIdentityViews,
   resetIdentityViewsForTests,
@@ -38,6 +40,17 @@ describe("enterprise.directory-provisioning runtime", () => {
       // 4 tab commands + tutorial descriptors
       count: 4 + targets.length + goals.length,
     });
+  });
+
+  it("hands the Identity section its panels and takes them back", async () => {
+    // The section is always on and never imports these (ADR 0142).
+    expect(currentDirectoryPanels()).toBeNull();
+    const handle = await runtime.capabilityRuntime.activate(
+      createTestContext().ctx,
+    );
+    expect(currentDirectoryPanels()).toBe(DIRECTORY_PANELS);
+    await handle.dispose();
+    expect(currentDirectoryPanels()).toBeNull();
   });
 
   it("puts the four Identity-API tabs on the page and takes them back", async () => {

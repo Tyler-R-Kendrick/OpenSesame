@@ -38,15 +38,20 @@ describe("settingsPageTree", () => {
     );
   });
 
-  it("names the Capabilities rows: guests, every feature, then providers", () => {
+  it("names the Capabilities sections: guests, then every section once", () => {
     expect(capabilitiesSettingsSections().map((s) => s.label)).toEqual([
       "Guests",
       ...FEATURES.map((feature) => feature.title),
-      "Providers",
     ]);
-    expect(capabilitiesSettingsSections()[2]?.href).toBe(
-      "/settings/capabilities#feature-backups",
+    expect(capabilitiesSettingsSections()[1]?.href).toBe(
+      "/settings/capabilities#feature-identity",
     );
+    // The operator's section is listed only where it draws.
+    expect(
+      capabilitiesSettingsSections(true, true)
+        .map((s) => s.label)
+        .at(-1),
+    ).toBe("Instance policy");
   });
 
   it("mirrors vaults on this device under the Vaults tab only, then Travel", () => {

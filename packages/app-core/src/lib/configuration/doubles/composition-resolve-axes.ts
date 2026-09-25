@@ -97,6 +97,21 @@ function optionalAxes(entry: CapabilityDescriptor, input: DoubleInput): Axes {
 
 export function axesOf(entry: CapabilityDescriptor, input: DoubleInput): Axes {
   if (entry.tier !== "core") return optionalAxes(entry, input);
+  // As the resolver: an always-on capability (one with a module) that the
+  // policy prohibits is withdrawn (ADR 0142). The double does not cascade
+  // to dependents; the resolver's own tests pin that.
+  if (
+    entry.moduleIds.length > 0 &&
+    input.policy?.capabilities.prohibited.includes(entry.id) === true
+  ) {
+    return {
+      permitted: false,
+      required: false,
+      selected: false,
+      runtimeSupported: true,
+      reasons: ["PROHIBITED_BY_INSTANCE"],
+    };
+  }
   return {
     permitted: true,
     required: false,

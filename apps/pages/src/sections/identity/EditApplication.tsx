@@ -7,7 +7,7 @@ import type { OAuthClient } from "@opensesame/app-core/lib/directory.js";
 import {
   previewHostedClaims,
   updateApplication,
-} from "@opensesame/app-core/lib/identity-management.js";
+} from "@opensesame/app-core/lib/oauth-client-admin.js";
 import { useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconX } from "../../components/Icons.js";

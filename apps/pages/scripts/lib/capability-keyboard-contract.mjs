@@ -10,7 +10,11 @@
 // press, with no click, no injected focus and no synthetic event.
 
 import { expect } from "@playwright/test";
-import { ALWAYS_ON_TITLES } from "./always-on.mjs";
+import {
+  ALWAYS_ON_TITLES,
+  awaitCapabilitySections,
+  capabilityOffSwitch,
+} from "./always-on.mjs";
 
 /** Open Settings › Capabilities from wherever the walk is, by keyboard. */
 async function openCapabilities(page, tabTo) {
@@ -25,30 +29,19 @@ async function openCapabilities(page, tabTo) {
 }
 
 /**
- * Add each capability by name, through its row's Add key and the review's
- * Apply. Asserts the absence first: a row that offers Add is one this
- * installation may have and is not running, so a name that is already
- * approved — or that this distribution does not carry — has no key here and
- * the walk would be lying if it passed anyway.
+ * Add each capability by name, through its switch and the review's Apply.
+ * Asserts the switch is off first: an off switch is one this installation
+ * may have and is not running, so a name that is already approved — or that
+ * this distribution does not carry — has no off switch here and the walk
+ * would be lying if it passed anyway.
  */
 export async function approveByKeyboard(page, tabTo, titles) {
   for (const title of titles) {
     // Always on (ADR 0135): in every plan, with no row to add it from.
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await openCapabilities(page, tabTo);
-    // The per-capability rows are under Advanced: open it by keyboard.
-    const advanced = page
-      .getByTestId("capabilities-advanced")
-      .locator("summary");
-    if (
-      !(await page
-        .getByTestId("capabilities-advanced")
-        .evaluate((node) => node.open))
-    ) {
-      await tabTo(page, advanced);
-      await page.keyboard.press("Enter");
-    }
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    await awaitCapabilitySections(page);
+    const add = capabilityOffSwitch(page, title);
     await expect(add).toHaveCount(1);
     await tabTo(page, add);
     await page.keyboard.press("Enter");

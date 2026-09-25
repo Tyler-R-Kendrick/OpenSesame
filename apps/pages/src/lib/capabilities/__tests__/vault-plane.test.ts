@@ -52,8 +52,17 @@ const BODY_KEY = tombFileKey(PERSONAL_TOMB, BODY_PATH);
  * salt, wrapping, unwrapping, header persistence — runs for real. This is
  * the same stand-in `store-passkey.test.ts` uses.
  */
+/** What the stand-in ceremony hands back, set per case. */
+type CeremonyStandIn = {
+  prfOutput: ArrayBuffer | null;
+  credentialId: BoundaryValue;
+};
+
+/** The identity fields a test may point a vault scope elsewhere with. */
+type ScopeIdentity = { vaultId?: string; instanceId?: string };
+
 const ceremony = vi.hoisted(
-  (): { prfOutput: ArrayBuffer | null; credentialId: BoundaryValue } => ({
+  (): CeremonyStandIn => ({
     prfOutput: null,
     credentialId: null,
   }),
@@ -228,7 +237,7 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
    */
   const vaultScope = (
     disabled: readonly string[],
-    over: { vaultId?: string; instanceId?: string } = {},
+    over: ScopeIdentity = {},
   ) => ({
     schemaVersion: 1 as const,
     kind: "VaultCapabilitySelection" as const,
@@ -281,7 +290,7 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
     // And nothing a tomb holds can turn a prohibited capability on, because
     // no field in that document says "on".
     for (const plan of [base, narrowed, foreign])
-      expect(approved(plan, "backup.git-remote")).toBe(false);
+      expect(approved(plan, "support.remote-ai")).toBe(false);
   });
 });
 

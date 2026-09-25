@@ -6,7 +6,7 @@
  * and writes nothing (MODEL-10).
  */
 
-import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { useState } from "react";
 import { InstallationRequirements } from "./InstallationRequirements.js";
 import "./capabilities.css";
@@ -25,7 +25,7 @@ export function RequirementsGate({
   return (
     <InstallationRequirements
       required={required}
-      catalog={CAPABILITY_CATALOG}
+      catalog={capabilityPorts.CAPABILITY_CATALOG}
       instanceId={snapshot.plan?.identity.instanceId ?? "this instance"}
       onAccept={() => onOpenSetup(true)}
       onDecline={() => setDeclined(true)}

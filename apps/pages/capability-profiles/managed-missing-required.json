@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "managed-missing-required",
-  "notes": "Organization policy requiring identity.local-iam; the installation did not accept it. Joining is refused (REQUIRED_NOT_ACCEPTED), nothing optional approved.",
+  "notes": "Organization policy requiring enterprise.directory-provisioning; the installation did not accept it. Joining is refused (REQUIRED_NOT_ACCEPTED), nothing optional approved.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -13,15 +13,11 @@
     },
     "capabilities": {
       "default": "deny",
-      "required": ["identity.local-iam"],
+      "required": ["enterprise.directory-provisioning"],
       "optional": ["sharing.drops"],
       "prohibited": [
         "agents.webmcp",
-        "backup.git-remote",
         "enterprise.ca-administration",
-        "enterprise.directory-provisioning",
-        "identity.siop",
-        "identity.site-broker",
         "networking.tailnet",
         "notifications.web-push",
         "sharing.household",

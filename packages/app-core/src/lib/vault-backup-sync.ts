@@ -10,6 +10,7 @@ import {
   readString,
 } from "@opensesame/os-domain";
 import type { SealedBlob, VaultHeader } from "@opensesame/vault-core";
+import { backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   type LocalBackupTarget,
   clearLocalBackupPending,
@@ -70,6 +71,13 @@ function sealedEnvelopeJson(): string {
 
 type PutContentsResult = { commitSha: string | null };
 
+/** Git backup withdrawn, or the relay off the operator's allowlist: no call. */
+function refuseUnlessAllowed(base: string): void {
+  if (!backupOriginAllowed(base)) {
+    throw new Error("The operator's policy does not allow this backup.");
+  }
+}
+
 async function putGithubContentsDefault(input: {
   appId: string;
   pem: string;
@@ -81,6 +89,7 @@ async function putGithubContentsDefault(input: {
 }): Promise<PutContentsResult> {
   const base = githubAppRelayBase();
   if (base === "") throw new Error("Connect relay is not configured.");
+  refuseUnlessAllowed(base);
   const response = await fetch(`${base}/api/github-app/put-contents`, {
     method: "POST",
     headers: {
@@ -124,6 +133,7 @@ async function putForgeContentsDefault(input: {
     contentBase64: input.contentBase64,
   };
   if (input.username) body.username = input.username;
+  refuseUnlessAllowed(base);
   const response = await fetch(`${base}/api/git-backup/put`, {
     method: "POST",
     headers: {
@@ -149,7 +159,7 @@ async function putForgeContentsDefault(input: {
 
 async function drainWebhookPendingDefault(): Promise<number> {
   const base = githubAppRelayBase();
-  if (base === "") return 0;
+  if (base === "" || !backupOriginAllowed(base)) return 0;
   const creds = vaultBackupSyncSeams.resolveCredentials();
   if (!creds) return 0;
   const targets = listLocalBackupTargets().filter(

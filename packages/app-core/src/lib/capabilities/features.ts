@@ -1,19 +1,18 @@
 /**
- * Features — the switches a person or operator actually thinks in.
+ * Features — the sections Settings › Capabilities draws, one list.
  *
  * The catalog is granular on purpose: a consent receipt binds one
  * descriptor's exposure, and an operator's policy may name any single id.
  * Nobody decides "SIOP, but not the site broker" while using the app,
- * though. A feature is a rollup: one switch over the optional capabilities
- * that make up a way of using OpenSesame, together with the connector
- * families (the Connections catalogue's categories) whose providers that
- * feature binds to. Settings › Capabilities draws one row per feature, and
- * the per-capability rows only under Advanced.
+ * though. A feature is a section of the page: a topic, the connector
+ * families (the Connections catalogue's categories) whose providers are
+ * configured under it, and the optional capabilities — if any — its one
+ * switch adds and removes. A feature with no optional capability is a
+ * function every installation has; its section draws the same way and
+ * simply carries no switch (ADR 0142).
  *
- * `PROVIDER_GROUPS` are the connector families of always-on functions —
- * identity providers, encryption, password managers and the rest. They have
- * no switch, because nothing about them can be switched off, but their
- * providers are configured on the same page.
+ * Every optional capability has exactly one home, and so does every
+ * connector family: two sections never configure the same thing.
  *
  * Pure data and pure functions: no store, no React, no network.
  */
@@ -26,11 +25,17 @@ import type {
 import type { ProviderCategory } from "../connections.js";
 
 export type FeatureId =
-  | "ai"
+  | "identity"
+  | "directory"
+  | "encryption"
+  | "certificates"
   | "backups"
-  | "payments"
-  | "servers"
+  | "password-managers"
+  | "cloud-secret-storage"
+  | "local-storage"
   | "sharing"
+  | "payments"
+  | "ai"
   | "networking"
   | "notifications"
   | "telemetry";
@@ -38,85 +43,100 @@ export type FeatureId =
 export type Feature = Readonly<{
   id: FeatureId;
   title: string;
-  /** Optional capabilities the switch adds and removes, in catalog order. */
+  /**
+   * Optional capabilities the section's switch adds and removes, in catalog
+   * order. Empty: an always-on function, drawn with no switch.
+   */
   capabilities: readonly CapabilityId[];
-  /** Connector families configured under this feature while it is on. */
+  /** Connector families configured in this section. */
   providerCategories: readonly ProviderCategory[];
-  /** The model picks (voice and inference) sit under this feature. */
+  /** The model picks (voice and inference) sit in this section. */
   models?: true;
+  /**
+   * The always-on capabilities this section's providers work through. An
+   * operator may withdraw one (ADR 0142); the section then says so.
+   */
+  backedBy?: readonly CapabilityId[];
 }>;
 
+const section = (
+  id: FeatureId,
+  title: string,
+  capabilities: readonly CapabilityId[],
+  providerCategories: readonly ProviderCategory[],
+  backedBy: readonly CapabilityId[] = [],
+): Feature => ({ id, title, capabilities, providerCategories, backedBy });
+
+/**
+ * In page order, by topic: who signs in, what protects keys, where secrets
+ * live, then what this installation does with others and with models.
+ * Browser-local IAM, SIOP, the site broker and git backup are always on
+ * (ADR 0142), so Identity providers and Backups carry no switch.
+ */
 export const FEATURES: readonly Feature[] = [
+  section(
+    "identity",
+    "Identity providers",
+    [],
+    ["identity"],
+    ["identity.federation"],
+  ),
+  section("directory", "Directory", ["enterprise.directory-provisioning"], []),
+  section(
+    "encryption",
+    "Encryption",
+    [],
+    ["encryption"],
+    ["backup.cloud-secrets"],
+  ),
+  section(
+    "certificates",
+    "Certificate authority",
+    ["enterprise.ca-administration"],
+    ["certificates"],
+  ),
+  section("backups", "Backups", [], ["backup_recovery"], ["backup.git-remote"]),
+  section(
+    "password-managers",
+    "Password managers",
+    [],
+    ["password_managers"],
+    ["connectors.external"],
+  ),
+  section(
+    "cloud-secret-storage",
+    "Cloud secret storage",
+    [],
+    ["cloud_secret_storage"],
+    ["connectors.external"],
+  ),
+  section(
+    "local-storage",
+    "Local storage",
+    [],
+    ["local_storage"],
+    ["connectors.external"],
+  ),
+  section("sharing", "Sharing", ["sharing.drops", "sharing.household"], []),
+  section("payments", "Payments", ["wallet.spending"], ["wallet"]),
   {
-    id: "ai",
-    title: "AI",
-    capabilities: ["support.local-ai", "support.remote-ai", "agents.webmcp"],
-    providerCategories: ["agent_harnesses"],
+    ...section(
+      "ai",
+      "AI",
+      ["support.local-ai", "support.remote-ai", "agents.webmcp"],
+      ["agent_harnesses"],
+    ),
     models: true,
   },
-  {
-    id: "backups",
-    title: "Backups",
-    capabilities: ["backup.git-remote"],
-    providerCategories: ["backup_recovery"],
-  },
-  {
-    id: "payments",
-    title: "Payments",
-    capabilities: ["wallet.spending"],
-    providerCategories: ["wallet"],
-  },
-  {
-    id: "servers",
-    title: "Servers",
-    capabilities: [
-      "identity.local-iam",
-      "identity.siop",
-      "identity.site-broker",
-      "enterprise.directory-provisioning",
-      "enterprise.ca-administration",
-    ],
-    providerCategories: ["certificates"],
-  },
-  {
-    id: "sharing",
-    title: "Sharing",
-    capabilities: ["sharing.drops", "sharing.household"],
-    providerCategories: [],
-  },
-  {
-    id: "networking",
-    title: "Networking",
-    capabilities: ["networking.tailnet"],
-    providerCategories: ["networking"],
-  },
-  {
-    id: "notifications",
-    title: "Notifications",
-    capabilities: ["notifications.web-push"],
-    providerCategories: [],
-  },
-  {
-    id: "telemetry",
-    title: "Telemetry",
-    capabilities: ["telemetry.external"],
-    providerCategories: [],
-  },
+  section("networking", "Networking", ["networking.tailnet"], ["networking"]),
+  section("notifications", "Notifications", ["notifications.web-push"], []),
+  section("telemetry", "Telemetry", ["telemetry.external"], []),
 ];
 
-export type ProviderGroup = Readonly<{
-  category: ProviderCategory;
-  title: string;
-}>;
-
-/** Connector families of always-on functions: configured, never switched. */
-export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
-  { category: "identity", title: "Identity providers" },
-  { category: "encryption", title: "Encryption" },
-  { category: "password_managers", title: "Password managers" },
-  { category: "cloud_secret_storage", title: "Cloud secret storage" },
-  { category: "local_storage", title: "Local storage" },
-];
+/** Whether a section carries a switch: it has an optional capability. */
+export function isSwitchable(feature: Feature): boolean {
+  return feature.capabilities.length > 0;
+}
 
 export function featureById(id: FeatureId): Feature {
   const feature = FEATURES.find((entry) => entry.id === id);
@@ -213,9 +233,7 @@ export function switchFeature(
     return { roots: kept, alternatives };
   }
   const added = featureState(feature, plan).available;
-  const alternatives: Record<string, CapabilityId> = {
-    ...current.alternatives,
-  };
+  const alternatives = { ...current.alternatives };
   const runnable = (id: CapabilityId) => {
     const state = plan?.capabilities[id];
     return state === undefined || (state.distributed && state.permitted);
@@ -231,4 +249,64 @@ export function switchFeature(
     }
   }
   return { roots: [...kept, ...added], alternatives };
+}
+
+/**
+ * One capability of a section switched on its own — a tile inside a
+ * section with more than one. The same proposal as the section's switch,
+ * narrowed to that capability, so an alternative slot it needs is still
+ * answered and switching it off still forgets the choice it made.
+ */
+export function switchCapability(
+  current: FeatureProposal,
+  feature: Feature,
+  id: CapabilityId,
+  on: boolean,
+  plan: EffectivePlan | null,
+  catalog: CapabilityCatalog,
+): FeatureProposal {
+  return switchFeature(
+    current,
+    { ...feature, capabilities: [id] },
+    on,
+    plan,
+    catalog,
+  );
+}
+
+/**
+ * The kept roots that answer an alternative slot with `id` — Household
+ * sharing's transport is Shared drops. Switching `id` off on its own would
+ * leave a review that changes nothing (the slot keeps it), so its tile says
+ * who needs it instead of offering a switch that cannot take.
+ */
+export function neededBy(
+  current: FeatureProposal,
+  id: CapabilityId,
+  catalog: CapabilityCatalog,
+): CapabilityId[] {
+  const slots = Object.entries(current.alternatives)
+    .filter(([, chosen]) => chosen === id)
+    .map(([slot]) => slot);
+  if (slots.length === 0) return [];
+  return current.roots.filter(
+    (root) =>
+      root !== id &&
+      catalog.capabilities
+        .find((entry) => entry.id === root)
+        ?.alternatives.some((slot) => slots.includes(slot.slot)) === true,
+  );
+}
+
+/**
+ * Always-on capabilities this plan does not run: an operator withdrew them
+ * (ADR 0142), or they need one that was. The page names them rather than
+ * drawing their sections as though they ran.
+ */
+export function withdrawnAlwaysOn(plan: EffectivePlan | null): CapabilityId[] {
+  if (plan === null) return [];
+  return Object.values(plan.capabilities)
+    .filter((state) => state.tier === "core" && !state.approved)
+    .map((state) => state.id)
+    .sort();
 }

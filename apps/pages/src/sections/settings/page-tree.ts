@@ -20,10 +20,15 @@ export type SettingsRailSnapshot = {
   /** General › Install draws (InstallPanel's own rule); unlisted when not. */
   install?: boolean;
   /**
-   * Capabilities › Guests draws (GuestRow's rule: the operator's switch,
+   * Capabilities › Guests draws (GuestSection's rule: the operator's switch,
    * never shown to a guest); unlisted when not. Defaults to listed.
    */
   guests?: boolean;
+  /**
+   * Capabilities › Instance policy draws (the operator's section,
+   * `useDeviceOperator`); unlisted when not. Defaults to unlisted.
+   */
+  instancePolicy?: boolean;
 };
 
 function panel(
@@ -40,16 +45,22 @@ function panel(
 }
 
 /**
- * Rows on Settings → Capabilities, in document order: the features, then
- * the always-on provider groups. Their providers are configured in place.
+ * Sections on Settings → Capabilities, in document order: Guests, every
+ * feature section, then the operator's Instance policy. Their providers are
+ * configured in place.
  */
-export function capabilitiesSettingsSections(guests = true): PageTreeSource[] {
+export function capabilitiesSettingsSections(
+  guests = true,
+  instancePolicy = false,
+): PageTreeSource[] {
   return [
     ...(guests ? [panel("capabilities", "feature-guests", "Guests")] : []),
     ...FEATURES.map((feature) =>
       panel("capabilities", `feature-${feature.id}`, feature.title),
     ),
-    panel("capabilities", "settings-connections", "Providers"),
+    ...(instancePolicy
+      ? [panel("capabilities", "instance-policy", "Instance policy")]
+      : []),
   ];
 }
 
@@ -80,7 +91,10 @@ function sectionsFor(
         panel("vaults", "travel", "Travel"),
       ];
     case "capabilities":
-      return capabilitiesSettingsSections(snapshot.guests ?? true);
+      return capabilitiesSettingsSections(
+        snapshot.guests ?? true,
+        snapshot.instancePolicy ?? false,
+      );
     default:
       return [];
   }

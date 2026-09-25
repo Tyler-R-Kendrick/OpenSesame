@@ -93,13 +93,11 @@ import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { monogram } from "./connections/connector-marks.js";
-import { AgentsPanel } from "./identity/AgentsPanel.js";
 import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
-import { DevicesPanel } from "./identity/DevicesPanel.js";
+import * as Directory from "./identity/DirectoryTabs.js";
 import { EditApplication } from "./identity/EditApplication.js";
 import { type IdentityTab, IdentityTabs } from "./identity/IdentityTabs.js";
 import { LocalDirectoryPanel } from "./identity/LocalDirectoryPanel.js";
-import { UsersPanel } from "./identity/UsersPanel.js";
 import { useEnabledIdentityViews } from "./identity/identity-views.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
@@ -168,13 +166,13 @@ function IdentityTabPanels({
         />
       ) : null}
       {tab === "devices" ? (
-        <DevicesPanel online={online} session={session} />
+        <Directory.DevicesTab online={online} session={session} />
       ) : null}
       {tab === "agents" ? (
         localOnly ? (
           <LocalDirectoryPanel kind="agent" />
         ) : session ? (
-          <AgentsPanel online={online} />
+          <Directory.DirectoryAgents online={online} />
         ) : (
           <ConnectIdentityNote online={online} what="agent identities" />
         )
@@ -872,7 +870,7 @@ function PeoplePanel({
 
   return (
     <>
-      <UsersPanel online={online} />
+      <Directory.DirectoryPeople online={online} />
       <MeCard online={online} />
       <LinkedIdentitiesCard online={online} />
       <OrgMembersCard online={online} />

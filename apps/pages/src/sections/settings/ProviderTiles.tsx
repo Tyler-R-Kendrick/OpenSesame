@@ -6,8 +6,12 @@
  * wears its enable switch.
  */
 
-import type { ProviderCategory } from "@opensesame/app-core/lib/connections.js";
+import type {
+  Provider,
+  ProviderCategory,
+} from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { featureBindingSections } from "../connections/page-tree.js";
 import "../connections.css";
@@ -17,6 +21,21 @@ import {
   useHostBackupTarget,
 } from "./FeatureBindingTile.js";
 
+const HISTORY_ROADS = new Set(
+  HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds),
+);
+
+/**
+ * A git history road is drawn under Backups whatever its catalog category:
+ * the one catalog (ADR 0139) files password-store under local storage, as
+ * Fnox does, but here it is configured beside the forges (ADR 0142).
+ */
+function placed(provider: Provider): Provider {
+  return HISTORY_ROADS.has(provider.id)
+    ? { ...provider, category: "backup_recovery" }
+    : provider;
+}
+
 export function ProviderTiles({
   category,
   label,
@@ -25,7 +44,7 @@ export function ProviderTiles({
   /** Names the list for assistive technology. */
   label: string;
 }) {
-  const providers = getBundledProviders();
+  const providers = getBundledProviders().map(placed);
   const group = featureBindingSections(providers).find(
     (section) => section.id === category,
   );

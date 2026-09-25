@@ -5,22 +5,15 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
-import { useVault } from "../../lib/vault/hooks.js";
 import { ConnectIdentityNote } from "./ConnectIdentityNote.js";
-import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 
-export function DevicesPanel({
-  online,
-  session,
-}: {
-  online: boolean;
-  session: IdentitySession | null;
-}) {
+type DevicesProps = { online: boolean; session: IdentitySession | null };
+
+/** The directory's part of the Devices tab: approving a device that signs in. */
+export function DirectoryDevices({ online, session }: DevicesProps) {
   const configured = useIdentityConfigured();
-  const { tomb } = useVault();
   return (
     <>
-      <LocalDevicesPanel key={tomb} tomb={tomb} />
       {configured && session ? <ApproveDeviceCard online={online} /> : null}
       {configured && !session ? (
         <ConnectIdentityNote

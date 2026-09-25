@@ -3,7 +3,7 @@
  *
  * Three roads in, each a choice object: the minimal configuration, a
  * customized installation, or joining an instance whose operator already
- * decided. Purpose cards come from `PRESETS`; capability cards from the
+ * decided. Purpose cards come from `capabilityPorts.PRESETS`; capability cards from the
  * catalog; the review from the store. Nothing on this screen imports an
  * implementation, opens a connection or asks the browser for anything until
  * Apply has committed (CONSENT-01). The tools row holds Save on this device,
@@ -12,10 +12,7 @@
  */
 
 import { exportInstanceConfiguration } from "@opensesame/app-core/lib/configuration/capabilities-export.js";
-import {
-  PRESETS,
-  PUBLICATION_CAPABILITIES,
-} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useEffect, useRef } from "react";
 import {
@@ -103,7 +100,7 @@ function Roads({
 
 function Tools({ model }: { model: CapabilitySetupModel }) {
   const approved = model.snapshot.plan?.approvedCapabilities ?? [];
-  const publishable = PUBLICATION_CAPABILITIES.some((id) =>
+  const publishable = capabilityPorts.PUBLICATION_CAPABILITIES.some((id) =>
     approved.includes(id),
   );
   return (
@@ -236,7 +233,7 @@ function Purpose({ model }: { model: CapabilitySetupModel }) {
   if (!onPurposeStage || model.managed) return null;
   return (
     <PurposeCards
-      presets={PRESETS}
+      presets={capabilityPorts.PRESETS}
       chosen={model.draft?.preset ?? null}
       onChoose={model.edit.preset}
     />

@@ -32,6 +32,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { menuSteps } from "./lib/capture-menu-steps.mjs";
+import { placeSteps } from "./lib/capture-place-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -198,6 +199,7 @@ const STEPS = {
     }
   },
   ...menuSteps({ press }),
+  ...placeSteps(),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.

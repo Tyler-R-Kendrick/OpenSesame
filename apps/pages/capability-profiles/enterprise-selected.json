@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "enterprise-selected",
-  "notes": "Organization instance: identity.local-iam plus directory provisioning and CA administration. Their dependencies (identity.federation, access.authority, vault.certificate-records) are always on.",
+  "notes": "Organization instance: directory provisioning and CA administration. Their dependencies (identity.federation, access.authority, vault.certificate-records) and browser-local IAM are always on.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -16,14 +16,10 @@
       "required": [],
       "optional": [
         "enterprise.ca-administration",
-        "enterprise.directory-provisioning",
-        "identity.local-iam"
+        "enterprise.directory-provisioning"
       ],
       "prohibited": [
         "agents.webmcp",
-        "backup.git-remote",
-        "identity.siop",
-        "identity.site-broker",
         "networking.tailnet",
         "notifications.web-push",
         "sharing.drops",
@@ -53,8 +49,7 @@
     "acceptedRequired": [],
     "selectedOptional": [
       "enterprise.ca-administration",
-      "enterprise.directory-provisioning",
-      "identity.local-iam"
+      "enterprise.directory-provisioning"
     ],
     "chosenAlternatives": {},
     "delivery": {

@@ -5,14 +5,16 @@
  * front-door requirements panel, the configuration editor — reaches the
  * store, the registrar, the inventory and the pure semantics through this
  * one module, and nothing else. Its hooks (`bindings/capabilities.ts`) read
- * the store and the contributions through it too. Tests replace it whole
- * (`vi.mock`) with the double in `lib/configuration/doubles/composition-fixture.ts`, so a surface's
+ * the store and the contributions through it too. Surfaces read it through
+ * `capabilityPorts` at call time, and a test installs the double from
+ * `lib/configuration/doubles/` there (`installDoublePorts`), so a surface's
  * suite never depends on the loader landing first and never touches a real
- * store. Production code re-exports the owners' exact names
- * (ownership.md §4.1, §4.2, §7); this file adds no behaviour.
+ * store. The owners' exact names are re-exported too (ownership.md §4.1,
+ * §4.2, §7); this file adds no behaviour.
  */
 
 import type {
+  CapabilityCatalog,
   CapabilityId,
   ContributionKind,
   EffectivePlan,
@@ -30,6 +32,7 @@ import {
   presetToInstancePolicy as projectPreset,
 } from "../capabilities/presets.js";
 import { contributions, subscribeRegistry } from "../capabilities/registry.js";
+import type { ContributionEntry } from "../capabilities/runtime-contract.js";
 import type { CommitOutcome } from "../capabilities/store-types.js";
 import { compositionStore } from "../capabilities/store.js";
 
@@ -60,6 +63,16 @@ export {
   parseInstancePolicy,
   parseVaultSelection,
 } from "@opensesame/capability-composition";
+import {
+  buildConsentReceipt,
+  canonicalize,
+  explainCapability,
+  parseInstallationSelection,
+  parseInstancePolicy,
+  parseVaultSelection,
+} from "@opensesame/capability-composition";
+import { CAPABILITY_CATALOG as REAL_CATALOG } from "../capabilities/catalog.js";
+import { PRESETS as REAL_PRESETS } from "../capabilities/presets.js";
 
 /** A purpose preset as `lib/capabilities/presets.ts` (S02) publishes it. */
 export type CapabilityPreset = Readonly<{
@@ -131,4 +144,74 @@ export function viewOutcome(
   if (record.status === "conflict")
     return { status: "conflict", message: reason };
   return { status: "refused", message: reason };
+}
+
+/**
+ * The store as a surface uses it — the methods, not the class, so a test
+ * double with the same methods can stand in.
+ */
+export type CompositionStorePort = Pick<
+  typeof compositionStore,
+  "getSnapshot" | "subscribe" | "review" | "preview" | "commit" | "invalidate"
+>;
+
+/** The registry's contributions as a surface reads them. */
+export type ContributionSourcePort = {
+  subscribe: (listener: () => void) => () => void;
+  /** A reference-stable token that moves when `read` would answer differently. */
+  version: (kind: ContributionKind) => object;
+  read: <K extends ContributionKind>(
+    kind: K,
+  ) => readonly ContributionEntry<K>[];
+};
+
+/**
+ * Everything a capability surface reads from the composition, as one record
+ * surfaces read at call time (`capabilityPorts.X`), never at import. A test
+ * installs the double here (`installCapabilityPorts`) instead of replacing
+ * this module, and restores the real one after.
+ */
+export type CapabilityPorts = {
+  compositionStore: CompositionStorePort;
+  contributionSource: ContributionSourcePort;
+  CAPABILITY_CATALOG: CapabilityCatalog;
+  PRESETS: readonly CapabilityPreset[];
+  presetToInstancePolicy: typeof presetToInstancePolicy;
+  buildConsentReceipt: typeof buildConsentReceipt;
+  canonicalize: typeof canonicalize;
+  explainCapability: typeof explainCapability;
+  parseInstancePolicy: typeof parseInstancePolicy;
+  parseInstallationSelection: typeof parseInstallationSelection;
+  parseVaultSelection: typeof parseVaultSelection;
+  previewPlan: typeof previewPlan;
+  PUBLICATION_CAPABILITIES: readonly CapabilityId[];
+  viewOutcome: typeof viewOutcome;
+};
+
+const REAL_PORTS: CapabilityPorts = {
+  compositionStore,
+  contributionSource,
+  CAPABILITY_CATALOG: REAL_CATALOG,
+  PRESETS: REAL_PRESETS,
+  presetToInstancePolicy,
+  buildConsentReceipt,
+  canonicalize,
+  explainCapability,
+  parseInstancePolicy,
+  parseInstallationSelection,
+  parseVaultSelection,
+  previewPlan,
+  PUBLICATION_CAPABILITIES,
+  viewOutcome,
+};
+
+export const capabilityPorts: CapabilityPorts = { ...REAL_PORTS };
+
+/** Put a stand-in behind every surface; `restoreCapabilityPorts` undoes it. */
+export function installCapabilityPorts(ports: CapabilityPorts): void {
+  Object.assign(capabilityPorts, ports);
+}
+
+export function restoreCapabilityPorts(): void {
+  Object.assign(capabilityPorts, REAL_PORTS);
 }

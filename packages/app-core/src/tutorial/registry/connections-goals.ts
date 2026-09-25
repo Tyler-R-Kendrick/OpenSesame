@@ -45,7 +45,7 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
-      'focus "settings.backup" "Switch Backups on, then choose the git provider the vault backs up to." side=bottom',
+      'focus "settings.backup" "Choose the git provider the vault backs up to under Backups, and switch it on." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -174,7 +174,7 @@ export const CONNECTIONS_HELP: readonly HelpTopic[] = [
     id: "help.backup",
     title: "How do I back up the vault?",
     answer:
-      "Settings → Capabilities → Backups. Switch it on, then choose the git provider — GitHub, GitLab, Bitbucket, Codeberg or any git remote — the encrypted vault backs up to.",
+      "Settings → Capabilities → Backups. Choose the git provider — GitHub, GitLab, Bitbucket, Codeberg or any git remote — the encrypted vault backs up to, and switch that provider on.",
     routes: [],
     goal: "settings.backup",
     keywords: [

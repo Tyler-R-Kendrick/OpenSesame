@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "managed-prohibited",
-  "notes": "Managed instance that prohibits git backup, enterprise, WebMCP agents, remote AI and telemetry as deliberate refusals. The installation tries to select backup.git-remote anyway; it must resolve PROHIBITED_BY_INSTANCE while sharing.drops is approved.",
+  "notes": "Managed instance that prohibits enterprise, WebMCP agents, remote AI and telemetry as deliberate refusals. The installation tries to select support.remote-ai anyway; it must resolve PROHIBITED_BY_INSTANCE while sharing.drops is approved.",
   "instancePolicy": {
     "schemaVersion": 1,
     "kind": "InstanceCapabilityPolicy",
@@ -14,16 +14,9 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": [
-        "identity.local-iam",
-        "identity.siop",
-        "identity.site-broker",
-        "sharing.drops",
-        "support.local-ai"
-      ],
+      "optional": ["sharing.drops", "support.local-ai"],
       "prohibited": [
         "agents.webmcp",
-        "backup.git-remote",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
         "networking.tailnet",
@@ -48,7 +41,7 @@
     "basePolicyRevision": "12",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["backup.git-remote", "sharing.drops"],
+    "selectedOptional": ["sharing.drops", "support.remote-ai"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",
