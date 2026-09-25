@@ -144,7 +144,15 @@ impl Account {
 
     /// A password-grant token, as any client obtains one.
     pub async fn access_token(&self, base: &str) -> String {
-        let response: Value = http()
+        self.sign_in(base).await["access_token"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    /// The whole password-grant response: access and refresh tokens, keys.
+    pub async fn sign_in(&self, base: &str) -> Value {
+        http()
             .post(format!("{base}/identity/connect/token"))
             .form(&[
                 ("grant_type", "password"),
@@ -161,8 +169,7 @@ impl Account {
             .unwrap()
             .json()
             .await
-            .unwrap();
-        response["access_token"].as_str().unwrap().to_owned()
+            .unwrap()
     }
 
     /// Change the KDF the way the web vault does: re-derive under the new KDF

@@ -83,11 +83,10 @@ pub async fn restore_many(
     touch(&server, &user.id).await?;
     let restored: Vec<Value> = server
         .db
-        .bitwarden_ciphers(&user.id)
+        .bitwarden_ciphers_by_ids(&user.id, &ids)
         .await?
-        .into_iter()
-        .filter(|cipher| ids.contains(&cipher.id))
-        .map(|cipher| cipher_json(&cipher))
+        .iter()
+        .map(cipher_json)
         .collect();
     Ok(Json(list_json(&restored)))
 }
@@ -134,7 +133,7 @@ pub async fn import(
     Authed { user, .. }: Authed,
     Json(body): Json<Value>,
 ) -> ApiResult<StatusCode> {
-    let body = normalize(body);
+    let mut body = normalize(body);
     let count = |key: &str| body.get(key).and_then(Value::as_array).map_or(0, Vec::len);
     if count("ciphers") > IMPORT_CIPHERS
         || count("folderRelationships") > IMPORT_CIPHERS
@@ -144,11 +143,10 @@ pub async fn import(
             "You cannot import more than {IMPORT_CIPHERS} items or {IMPORT_FOLDERS} folders at once."
         )));
     }
-    let array = |key: &str| {
-        body.get(key)
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
+    // Taken out of the body, not cloned: an import can be 32 MiB.
+    let mut array = |key: &str| match body.remove(key) {
+        Some(Value::Array(items)) => items,
+        _ => Vec::new(),
     };
     let now = Utc::now();
     let folders = array("folders")

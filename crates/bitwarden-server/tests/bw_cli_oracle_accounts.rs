@@ -117,7 +117,7 @@ async fn an_imported_legacy_server_hash_upgrades_on_bw_sign_in() {
         .to_string();
     harness
         .db
-        .bitwarden_set_password_hash(&user.id, &legacy)
+        .bitwarden_set_password_hash(&user.id, &user.master_password_hash, &legacy)
         .await
         .unwrap();
 

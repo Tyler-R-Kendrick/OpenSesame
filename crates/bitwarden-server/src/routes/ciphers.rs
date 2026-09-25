@@ -84,9 +84,32 @@ async fn insert(
     let mut input = parse_cipher(body, &user.id)?;
     input.folder_id = owned_folder(server, &user.id, input.folder_id.take()).await?;
     let cipher = new_cipher(user, input, Utc::now());
-    server.db.bitwarden_put_cipher(&cipher).await?;
+    server.db.bitwarden_insert_cipher(&cipher).await?;
     touch(server, &user.id).await?;
-    Ok(Json(cipher_json(&cipher)))
+    Ok(Json(cipher_json(
+        &owned(server, &user.id, &cipher.id).await?,
+    )))
+}
+
+const OUT_OF_DATE: &str =
+    "The cipher you are updating is out of date. Please save your work, sync your vault, and try again.";
+
+/// Write `cipher` only if it is still at the revision it was read at, then
+/// answer with what was stored.
+async fn replace(
+    server: &BitwardenServer,
+    user_id: &str,
+    mut cipher: BitwardenCipher,
+) -> ApiResult<Json<Value>> {
+    let read_at = cipher.revision_at;
+    cipher.revision_at = Utc::now();
+    if !server.db.bitwarden_update_cipher(&cipher, read_at).await? {
+        return Err(ApiError::bad_request(OUT_OF_DATE));
+    }
+    touch(server, user_id).await?;
+    Ok(Json(cipher_json(
+        &owned(server, user_id, &cipher.id).await?,
+    )))
 }
 
 /// `POST /api/ciphers`.
@@ -131,19 +154,14 @@ pub async fn update(
     let mut input = parse_cipher(body, &user.id)?;
     if let Some(known) = input.last_known_revision {
         if (cipher.revision_at - known).num_milliseconds().abs() > 1_000 {
-            return Err(ApiError::bad_request(
-                "The cipher you are updating is out of date. Please save your work, sync your vault, and try again.",
-            ));
+            return Err(ApiError::bad_request(OUT_OF_DATE));
         }
     }
     cipher.folder_id = owned_folder(&server, &user.id, input.folder_id.take()).await?;
     cipher.cipher_type = input.cipher_type;
     cipher.favorite = input.favorite;
     cipher.data = input.data.to_string();
-    cipher.revision_at = Utc::now();
-    server.db.bitwarden_put_cipher(&cipher).await?;
-    touch(&server, &user.id).await?;
-    Ok(Json(cipher_json(&cipher)))
+    replace(&server, &user.id, cipher).await
 }
 
 /// `PUT /api/ciphers/{id}/partial`: folder and favorite only.
@@ -165,10 +183,7 @@ pub async fn partial(
         .get("favorite")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    cipher.revision_at = Utc::now();
-    server.db.bitwarden_put_cipher(&cipher).await?;
-    touch(&server, &user.id).await?;
-    Ok(Json(cipher_json(&cipher)))
+    replace(&server, &user.id, cipher).await
 }
 
 /// `DELETE /api/ciphers/{id}`: permanent.

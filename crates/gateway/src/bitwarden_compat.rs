@@ -11,12 +11,15 @@
 //! | `OPENSESAME_BITWARDEN_URL` | the URL clients are given; default `<resource>/bitwarden` |
 //! | `OPENSESAME_BITWARDEN_SIGNUPS` | `closed` (default), `open`, or a comma-separated domain list |
 //! | `OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID` | `true` refuses PBKDF2 for new accounts and KDF changes |
+//! | `OPENSESAME_BITWARDEN_TOKEN_KEY` | 32+ hex-encoded bytes that sign access tokens, shared by every replica; unset = a per-process key |
 
+use anyhow::Context as _;
 use axum::Router;
 use opensesame_bitwarden_server::hashing::HashRegistry;
 use opensesame_bitwarden_server::kdf::KdfPolicy;
 use opensesame_bitwarden_server::{BitwardenServer, ServerConfig, SignupPolicy};
 use opensesame_storage::Db;
+use zeroize::Zeroizing;
 
 /// Where the surface is mounted on the Host.
 pub const MOUNT: &str = "/bitwarden";
@@ -47,19 +50,53 @@ fn config_from(lookup: impl Fn(&str) -> Option<String>, resource: &str) -> Optio
     Some(config)
 }
 
-/// The mounted surface, or an empty router when it is off.
-pub fn from_env(db: Db, resource: &str) -> Router {
-    let Some(config) = config_from(|key| std::env::var(key).ok(), resource) else {
-        return Router::new();
+/// The access-token signing key: 32 or more bytes, hex-encoded. Replicas
+/// behind one URL share it, so a token minted on one verifies on another.
+fn token_key(raw: Option<&str>) -> anyhow::Result<Option<Zeroizing<Vec<u8>>>> {
+    let Some(raw) = raw.map(str::trim).filter(|raw| !raw.is_empty()) else {
+        return Ok(None);
     };
+    let key = Zeroizing::new(
+        hex::decode(raw).context("OPENSESAME_BITWARDEN_TOKEN_KEY must be hex-encoded")?,
+    );
+    anyhow::ensure!(
+        key.len() >= 32,
+        "OPENSESAME_BITWARDEN_TOKEN_KEY must hold at least 32 bytes"
+    );
+    Ok(Some(key))
+}
+
+/// The mounted surface, or an empty router when it is off.
+///
+/// # Errors
+///
+/// Fails when the surface is on and its token key is malformed; nothing is
+/// served in that case rather than falling back to a per-process key.
+pub fn from_env(db: Db, resource: &str) -> anyhow::Result<Router> {
+    let Some(config) = config_from(|key| std::env::var(key).ok(), resource) else {
+        return Ok(Router::new());
+    };
+    let key = token_key(
+        std::env::var("OPENSESAME_BITWARDEN_TOKEN_KEY")
+            .ok()
+            .map(Zeroizing::new)
+            .as_deref()
+            .map(String::as_str),
+    )?;
     tracing::info!(
         url = %config.public_url,
         signups = ?config.signups,
         allow_pbkdf2 = config.kdf.allow_pbkdf2,
+        shared_token_key = key.is_some(),
         "bitwarden-compat surface mounted"
     );
-    let server = BitwardenServer::new(db, config, HashRegistry::default(), None);
-    Router::new().nest(MOUNT, server.router())
+    let server = BitwardenServer::new(
+        db,
+        config,
+        HashRegistry::default(),
+        key.as_deref().map(Vec::as_slice),
+    );
+    Ok(Router::new().nest(MOUNT, server.router()))
 }
 
 #[cfg(test)]
@@ -83,6 +120,18 @@ mod tests {
         assert_eq!(on.public_url, "https://host.example/bitwarden");
         assert_eq!(on.signups, SignupPolicy::Closed);
         assert!(on.kdf.allow_pbkdf2);
+    }
+
+    #[test]
+    fn a_token_key_is_hex_and_long_enough_or_absent() {
+        assert!(token_key(None).unwrap().is_none());
+        assert!(token_key(Some("  ")).unwrap().is_none());
+        assert_eq!(
+            token_key(Some(&"ab".repeat(32))).unwrap().unwrap().len(),
+            32
+        );
+        assert!(token_key(Some(&"ab".repeat(31))).is_err());
+        assert!(token_key(Some("not hex")).is_err());
     }
 
     #[test]

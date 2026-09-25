@@ -4,6 +4,8 @@ use std::collections::HashMap;
 
 use axum::extract::State;
 use axum::{Form, Json};
+use chrono::{DateTime, Utc};
+use opensesame_storage::bitwarden::BitwardenSignIn;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -53,6 +55,12 @@ fn required<'a>(form: &'a HashMap<String, String>, key: &str) -> ApiResult<&'a s
         .ok_or_else(|| ApiError::oauth("invalid_request", format!("{key} is required.")))
 }
 
+fn refresh_expiry(server: &BitwardenServer) -> DateTime<Utc> {
+    let ttl = chrono::Duration::from_std(server.config.refresh_token_ttl)
+        .unwrap_or_else(|_| chrono::Duration::days(30));
+    Utc::now() + ttl
+}
+
 /// `POST /identity/connect/token`.
 pub async fn token(
     State(server): State<BitwardenServer>,
@@ -82,26 +90,37 @@ async fn password_grant(
         .and_then(|raw| raw.parse::<i64>().ok())
         .unwrap_or(14);
 
+    // Refused before any hash is spent; known and unknown addresses alike.
+    if server.sign_in_failures.blocked(&email) {
+        return Err(ApiError::too_many_requests());
+    }
     let Some(user) = server.db.bitwarden_user_by_email(&email).await? else {
         server.decoy_check(secret).await?;
+        server.sign_in_failures.record_failure(&email);
         return Err(ApiError::invalid_grant());
     };
     if !server
         .check_secret(&user.id, &user.master_password_hash, secret)
         .await?
     {
+        server.sign_in_failures.record_failure(&email);
         return Err(ApiError::invalid_grant());
     }
+    server.sign_in_failures.clear(&email);
     let refresh = new_refresh_token();
     let device_id = server
         .db
-        .bitwarden_upsert_device(
-            &user.id,
+        .bitwarden_upsert_device(&BitwardenSignIn {
+            user_id: &user.id,
             identifier,
-            device_name,
+            name: device_name,
             device_type,
-            &refresh_token_hash(&refresh),
-        )
+            refresh_token_hash: &refresh_token_hash(&refresh),
+            // The stamp this sign-in verified under. A password change that
+            // lands before this write leaves the token already dead.
+            security_stamp: &user.security_stamp,
+            refresh_expires_at: refresh_expiry(server),
+        })
         .await?;
     let access = server.tokens.mint_access(&user, &device_id, client_id)?;
     Ok(Json(token_body(
@@ -128,6 +147,19 @@ async fn refresh_grant(
         .bitwarden_user_by_id(&device.user_id)
         .await?
         .ok_or_else(refused)?;
+    // Issued under an older stamp (a password, KDF or "log out everywhere"
+    // change since), or unused for longer than its lifetime: refused.
+    let current = device.refresh_stamp.as_deref() == Some(user.security_stamp.as_str());
+    let live = device
+        .refresh_expires_at
+        .is_some_and(|expires| expires > Utc::now());
+    if !current || !live {
+        return Err(refused());
+    }
+    server
+        .db
+        .bitwarden_extend_refresh(&device.id, refresh_expiry(server))
+        .await?;
     let client_id = form.get("client_id").map_or("unknown", String::as_str);
     let access = server.tokens.mint_access(&user, &device.id, client_id)?;
     Ok(Json(json!({

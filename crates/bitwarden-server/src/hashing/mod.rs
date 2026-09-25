@@ -148,9 +148,9 @@ impl HashRegistry {
 }
 
 impl Default for HashRegistry {
-    /// Argon2id at OWASP's server-side parameters, accepting legacy
-    /// PBKDF2-SHA256 hashes (the form vaultwarden and Bitwarden's own server
-    /// have stored) so an imported account upgrades on its first sign-in.
+    /// Argon2id at OWASP's server-side parameters, accepting PBKDF2-SHA256
+    /// hashes in PHC form verify-only, so a hash an importer converts into
+    /// that form upgrades on its first sign-in (see [`Pbkdf2Sha256Legacy`]).
     fn default() -> Self {
         Self::new(Arc::new(Argon2idScheme::default())).accept(Arc::new(Pbkdf2Sha256Legacy))
     }

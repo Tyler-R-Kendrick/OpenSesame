@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS bitwarden_devices (
     name TEXT NOT NULL,
     device_type INTEGER NOT NULL,
     refresh_token_hash TEXT UNIQUE,
+    refresh_stamp TEXT,
+    refresh_expires_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     UNIQUE (user_id, identifier)

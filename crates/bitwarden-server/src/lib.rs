@@ -32,6 +32,7 @@ pub mod auth;
 pub mod error;
 pub mod hashing;
 pub mod kdf;
+mod limiter;
 mod routes;
 pub mod tokens;
 mod wire;
@@ -58,7 +59,10 @@ pub enum SignupPolicy {
     Closed,
     /// Anyone who can reach the server.
     Open,
-    /// Only addresses at these domains (lower-case, no `@`).
+    /// Only addresses at these domains (lower-case, no `@`). This server
+    /// sends no mail, so the list limits which addresses may be claimed; it
+    /// does not prove the person claiming one receives its mail. Open it only
+    /// on a network where that is acceptable, or while onboarding.
     Domains(Vec<String>),
 }
 
@@ -103,6 +107,15 @@ pub struct ServerConfig {
     /// memory cost for its duration, so this bounds the memory a burst of
     /// sign-in attempts can take.
     pub hash_concurrency: usize,
+    /// Requests allowed to wait for a hash slot. Beyond it a request is
+    /// refused at once (429) rather than queued without limit.
+    pub hash_queue: usize,
+    /// Failed sign-ins an address may make per `failure_window` before it
+    /// is refused without a hash being computed.
+    pub max_failed_sign_ins: u32,
+    pub failure_window: Duration,
+    /// A refresh token lapses after this long unused; each use slides it.
+    pub refresh_token_ttl: Duration,
 }
 
 impl ServerConfig {
@@ -114,6 +127,10 @@ impl ServerConfig {
             kdf: KdfPolicy::default(),
             access_token_ttl: Duration::from_secs(3600),
             hash_concurrency: 4,
+            hash_queue: 64,
+            max_failed_sign_ins: 10,
+            failure_window: Duration::from_secs(15 * 60),
+            refresh_token_ttl: Duration::from_secs(30 * 24 * 3600),
         }
     }
 }
@@ -123,6 +140,8 @@ pub struct Inner {
     pub config: ServerConfig,
     pub hashes: HashRegistry,
     pub tokens: TokenKeys,
+    pub(crate) sign_in_failures: limiter::FailureLimiter,
+    hash_admission: Semaphore,
     hash_permits: Semaphore,
     decoy_hash: OnceCell<String>,
 }
@@ -154,10 +173,15 @@ impl BitwardenServer {
         Self(Arc::new(Inner {
             db,
             tokens: TokenKeys::new(token_secret, &issuer, ttl),
-            config,
-            hashes,
+            sign_in_failures: limiter::FailureLimiter::new(
+                config.max_failed_sign_ins.max(1),
+                config.failure_window,
+            ),
+            hash_admission: Semaphore::new(permits + config.hash_queue),
             hash_permits: Semaphore::new(permits),
             decoy_hash: OnceCell::new(),
+            config,
+            hashes,
         }))
     }
 
@@ -166,13 +190,29 @@ impl BitwardenServer {
         routes::router(self)
     }
 
-    /// Hash a client's master-password hash under the current scheme.
-    pub(crate) async fn hash_secret(&self, secret: &str) -> ApiResult<String> {
-        let _permit = self
+    /// A place in the hashing queue, then a hashing slot. A full queue is
+    /// refused at once: a flood of sign-ins must not queue without bound.
+    async fn hash_slot(
+        &self,
+    ) -> ApiResult<(
+        tokio::sync::SemaphorePermit<'_>,
+        tokio::sync::SemaphorePermit<'_>,
+    )> {
+        let admitted = self
+            .hash_admission
+            .try_acquire()
+            .map_err(|_| ApiError::too_many_requests())?;
+        let slot = self
             .hash_permits
             .acquire()
             .await
             .map_err(|e| ApiError::internal(&e.into()))?;
+        Ok((admitted, slot))
+    }
+
+    /// Hash a client's master-password hash under the current scheme.
+    pub(crate) async fn hash_secret(&self, secret: &str) -> ApiResult<String> {
+        let _permits = self.hash_slot().await?;
         let hashes = self.hashes.clone();
         let secret = Zeroizing::new(secret.to_owned());
         tokio::task::spawn_blocking(move || hashes.hash(secret.as_bytes()))
@@ -182,11 +222,7 @@ impl BitwardenServer {
     }
 
     async fn verify_secret(&self, stored: String, secret: &str) -> ApiResult<Verdict> {
-        let _permit = self
-            .hash_permits
-            .acquire()
-            .await
-            .map_err(|e| ApiError::internal(&e.into()))?;
+        let _permits = self.hash_slot().await?;
         let hashes = self.hashes.clone();
         let secret = Zeroizing::new(secret.to_owned());
         tokio::task::spawn_blocking(move || hashes.verify(&stored, secret.as_bytes()))
@@ -207,8 +243,10 @@ impl BitwardenServer {
             Verdict::Mismatch => Ok(false),
             Verdict::Match { rehash } => {
                 if let Some(rehash) = rehash {
+                    // Only over the hash just verified: a password change
+                    // that landed meanwhile must not be undone.
                     self.db
-                        .bitwarden_set_password_hash(user_id, &rehash)
+                        .bitwarden_set_password_hash(user_id, stored, &rehash)
                         .await?;
                 }
                 Ok(true)

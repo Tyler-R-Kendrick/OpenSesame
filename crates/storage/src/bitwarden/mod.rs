@@ -3,9 +3,11 @@
 //! `EncString`.
 
 mod accounts;
+mod ciphers;
 mod devices;
-mod vault;
+mod folders;
 
 pub use accounts::{BitwardenCredentials, BitwardenKdf, BitwardenUser};
-pub use devices::BitwardenDevice;
-pub use vault::{BitwardenCipher, BitwardenFolder};
+pub use ciphers::BitwardenCipher;
+pub use devices::{BitwardenDevice, BitwardenSignIn};
+pub use folders::BitwardenFolder;

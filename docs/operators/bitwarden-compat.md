@@ -11,6 +11,8 @@ and edit a personal vault against it, and never learn the difference beyond a
 ```bash
 export OPENSESAME_BITWARDEN_COMPAT=on
 export OPENSESAME_BITWARDEN_SIGNUPS=open          # closed (default) | open | example.com,corp.example
+# A domain list limits which addresses can be claimed; no mail is sent, so it
+# does not prove the person registering receives that address's mail.
 export OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID=true  # optional: refuse PBKDF2 for new accounts
 # optional; defaults to "$OPENSESAME_RESOURCE/bitwarden"
 export OPENSESAME_BITWARDEN_URL=https://vault.example.com/bitwarden
@@ -53,14 +55,25 @@ that has them turned off.
 
 ## Operating notes
 
-- Access tokens last an hour and are signed with a per-process key. After a
-  restart, or on another replica, clients refresh once and carry on.
+- Access tokens last an hour. Unless `OPENSESAME_BITWARDEN_TOKEN_KEY` is set
+  they are signed with a per-process key, so after a restart clients refresh
+  once and carry on.
 - "Log out all sessions", a password change and a KDF change rotate the
   account's security stamp: every token it held stops working at once.
 - Sign-in hashing is bounded to four concurrent Argon2id computations (about
   76 MiB). An unknown email costs the same work as a known one.
-- Hashes imported from a Bitwarden or vaultwarden server (PBKDF2-SHA256, PHC
-  form) are accepted and replaced with Argon2id at the account's next sign-in.
+- Server hashes in PBKDF2-SHA256 PHC form are accepted and replaced with
+  Argon2id at the account's next sign-in. Bitwarden's server and vaultwarden
+  store theirs in other forms and there is no importer yet: move an existing
+  vault by exporting it from the old server and importing it with `bw import`.
+- A refresh token lapses after 30 days unused, and dies at once on a password
+  change, a KDF change or "log out all sessions".
+- An address that fails to sign in ten times in fifteen minutes is refused
+  until its window passes, known and unknown addresses alike; a full hashing
+  queue answers 429 rather than waiting.
+- Set `OPENSESAME_BITWARDEN_TOKEN_KEY` (32+ hex-encoded bytes) when more than
+  one replica serves the same URL, so an access token minted on one verifies
+  on another.
 
 ## Verify
 

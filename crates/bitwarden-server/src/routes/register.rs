@@ -21,9 +21,12 @@ use crate::BitwardenServer;
 
 fn admitted_email(server: &BitwardenServer, body: &Map<String, Value>) -> ApiResult<String> {
     let email = normalize_email(&credentials::require(body, "email")?);
-    let well_formed = email
-        .split_once('@')
-        .is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.'));
+    // Exactly one `@`: a domain allow-list reads the part after the last one,
+    // so `x@evil.example@corp.example` must never reach it.
+    let well_formed = email.matches('@').count() == 1
+        && email
+            .split_once('@')
+            .is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.'));
     if !well_formed {
         return Err(ApiError::bad_request(
             "The Email field is not a valid e-mail address.",

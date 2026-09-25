@@ -44,6 +44,15 @@ impl ApiError {
         Self::new(StatusCode::UNAUTHORIZED, "Unauthorized.")
     }
 
+    /// Too many attempts, or a full hashing queue.
+    #[must_use]
+    pub fn too_many_requests() -> Self {
+        Self::new(
+            StatusCode::TOO_MANY_REQUESTS,
+            "Too many requests. Try again later.",
+        )
+    }
+
     /// The one answer for a wrong password *and* an unknown email.
     #[must_use]
     pub fn invalid_grant() -> Self {

@@ -194,8 +194,11 @@ impl Db {
         Ok(())
     }
 
-    /// Store a re-hash of the same secret under the registry's current scheme.
-    /// The security stamp is untouched: nothing a client holds changed.
+    /// Store a re-hash of the same secret under the registry's current scheme,
+    /// but only while the stored hash is still `expected` — the one the caller
+    /// verified. A password change that landed in between wins; the re-hash
+    /// is dropped. Returns whether the re-hash was stored. The security stamp
+    /// is untouched: nothing a client holds changed.
     ///
     /// # Errors
     ///
@@ -203,17 +206,20 @@ impl Db {
     pub async fn bitwarden_set_password_hash(
         &self,
         user_id: &str,
+        expected: &str,
         master_password_hash: &str,
-    ) -> anyhow::Result<()> {
-        sqlx::query(
-            "UPDATE bitwarden_users SET master_password_hash = ?, updated_at = ? WHERE id = ?",
+    ) -> anyhow::Result<bool> {
+        let done = sqlx::query(
+            "UPDATE bitwarden_users SET master_password_hash = ?, updated_at = ? \
+             WHERE id = ? AND master_password_hash = ?",
         )
         .bind(master_password_hash)
         .bind(bitwarden_timestamp(Utc::now()))
         .bind(user_id)
+        .bind(expected)
         .execute(&self.pool)
         .await?;
-        Ok(())
+        Ok(done.rows_affected() == 1)
     }
 
     /// Set the master-password hint (`None` clears it).
@@ -237,7 +243,9 @@ impl Db {
         Ok(())
     }
 
-    /// Set the account's key pair: a public key and a user-key-wrapped private key.
+    /// Set the account's key pair — a public key and a user-key-wrapped
+    /// private key — on an account that has none. Returns `false`, and writes
+    /// nothing, when a pair is already set.
     ///
     /// # Errors
     ///
@@ -247,9 +255,10 @@ impl Db {
         user_id: &str,
         public_key: &str,
         private_key: &str,
-    ) -> anyhow::Result<()> {
-        sqlx::query(
-            "UPDATE bitwarden_users SET public_key = ?, private_key = ?, updated_at = ? WHERE id = ?",
+    ) -> anyhow::Result<bool> {
+        let done = sqlx::query(
+            "UPDATE bitwarden_users SET public_key = ?, private_key = ?, updated_at = ? \
+             WHERE id = ? AND private_key IS NULL",
         )
         .bind(public_key)
         .bind(private_key)
@@ -257,7 +266,7 @@ impl Db {
         .bind(user_id)
         .execute(&self.pool)
         .await?;
-        Ok(())
+        Ok(done.rows_affected() == 1)
     }
 
     /// Rotate the security stamp — every access token and refresh token the

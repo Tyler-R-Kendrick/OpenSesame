@@ -58,9 +58,11 @@ flag day: no forced password reset and no re-encryption.
    v1.3 at OWASP's server parameters: 19 MiB, two passes, one lane) and any
    number of *accepted* ones. A sign-in that verifies against an accepted scheme,
    or against the current one under older parameters, is re-hashed under the
-   current scheme on the spot. PBKDF2-SHA256 is accepted verify-only, so an
-   account imported from a Bitwarden or vaultwarden server upgrades on its first
-   sign-in. Replacing Argon2id is: implement the trait for the successor, make it
+   current scheme on the spot. PBKDF2-SHA256 in PHC form is accepted
+   verify-only; Bitwarden's server and vaultwarden store other forms, so an
+   importer would convert to it (none ships yet). The re-hash is a
+   compare-and-set against the hash just verified, so it can never undo a
+   password change that landed meanwhile. Replacing Argon2id is: implement the trait for the successor, make it
    current, keep Argon2id accepted.
 5. **The official client is the oracle.** Parity is not asserted from reading
    Bitwarden's source (which this project does not copy); it is observed. The
@@ -74,11 +76,20 @@ flag day: no forced password reset and no re-encryption.
 - `/api/config` names the server `OpenSesame`, so clients show their usual
   notice for a server that is not Bitwarden's.
 - Accounts report `premium: true`: there is no billing on a self-hosted Host.
-- Access tokens are signed with a per-process key. A restart, or a request that
-  lands on another replica, costs the client one refresh-token exchange.
+- Access tokens are signed with a per-process key unless the operator sets a
+  shared one (`OPENSESAME_BITWARDEN_TOKEN_KEY`). Without it, a restart costs
+  each client one refresh, and replicas behind one URL need the shared key.
+- Refresh tokens lapse after 30 days unused and are bound to the security stamp
+  they were issued under, so a password or KDF change retires them even if a
+  sign-in raced it.
+- Failed sign-ins are limited per address (ten per fifteen minutes, known and
+  unknown addresses alike) and the hashing queue is bounded; past either, the
+  answer is 429 before any hash is computed.
 - No mail is sent, so registration behaves as a self-hosted Bitwarden server with
   email verification off; signups are closed unless the operator opens them
-  (`OPENSESAME_BITWARDEN_SIGNUPS=open` or a domain list).
+  (`OPENSESAME_BITWARDEN_SIGNUPS=open` or a domain list). With no mail, a
+  domain list limits which addresses can be claimed but proves nobody receives
+  that address's mail.
 - Not served: organizations and collections, Sends, attachments, emergency
   access, two-factor providers, the notifications hub, API-key
   (`client_credentials`) sign-in, and key rotation. A write that names an
@@ -87,7 +98,8 @@ flag day: no forced password reset and no re-encryption.
 ## Consequences
 
 - A person can move from Bitwarden or vaultwarden to their own Host without
-  changing apps.
+  changing apps, by exporting the vault from the old server and importing it
+  with `bw import`.
 - `pnpm test:bitwarden-oracle` installs `@bitwarden/cli@2026.9.0` into
   `.cache/bitwarden-oracle/` and runs the oracle suites; they fail rather than
   skip without it. `tests/protocol.rs` covers refusals, isolation and wire

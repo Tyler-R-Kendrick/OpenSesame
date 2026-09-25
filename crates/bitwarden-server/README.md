@@ -27,8 +27,9 @@ Bitwarden's own server ([ADR 0141](../../docs/adr/0141-bitwarden-compatible-serv
 | Client KDF (`kdf`) | the Bitwarden client, over the master password | Argon2id, 64 MiB / 3 / 4 | a new `KdfType` and one row in `kdf::RULES` |
 | Server hash (`hashing`) | the server, over the client's master-password hash | Argon2id v1.3, 19 MiB / 2 / 1 (PHC string) | implement `PasswordHashScheme`, make it current in `HashRegistry`, keep Argon2id accepted — each account re-hashes on its next sign-in |
 
-PBKDF2-SHA256 PHC hashes (what Bitwarden's server and vaultwarden store) are
-accepted verify-only and upgraded on first sign-in.
+PBKDF2-SHA256 hashes in PHC form are accepted verify-only and upgraded on
+first sign-in. Bitwarden's server and vaultwarden store their hashes in other
+forms, so an importer would convert them first; none ships yet.
 
 ## Surface
 

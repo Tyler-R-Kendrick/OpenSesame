@@ -95,10 +95,15 @@ pub async fn set_keys(
             "The private key is not a valid encrypted string.",
         ));
     }
-    server
+    // Set only while no pair exists, in the write itself: of two racing
+    // requests, the second is refused rather than replacing the first pair.
+    if !server
         .db
         .bitwarden_set_keys(&user.id, &public_key, &private_key)
-        .await?;
+        .await?
+    {
+        return Err(ApiError::bad_request("User has existing keypair."));
+    }
     user.public_key = Some(public_key);
     user.private_key = Some(private_key);
     Ok(Json(keys_json(&user)))

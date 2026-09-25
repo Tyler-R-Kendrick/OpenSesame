@@ -1,24 +1,17 @@
-//! Folders and ciphers behind the Bitwarden-compatible server (ADR 0141).
+//! Ciphers behind the Bitwarden-compatible server (ADR 0141).
 //!
 //! A cipher's `data` is the client's own JSON — every value in it an
 //! `EncString` the server cannot open — held verbatim so a client reads back
-//! exactly what it wrote.
+//! exactly what it wrote. A folder a write names is resolved inside the same
+//! statement, so a folder deleted mid-write leaves the cipher in "no folder"
+//! rather than pointing at nothing.
 
 use chrono::{DateTime, Utc};
 use sqlx::sqlite::SqliteRow;
 
 use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
+use super::folders::{insert_folder, BitwardenFolder};
 use crate::{Db, Row};
-
-/// A personal folder. `name` is an `EncString`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BitwardenFolder {
-    pub id: String,
-    pub user_id: String,
-    pub name: String,
-    pub created_at: DateTime<Utc>,
-    pub revision_at: DateTime<Utc>,
-}
 
 /// A personal cipher. `data` is the client's encrypted payload as JSON.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,16 +33,6 @@ fn optional_timestamp(row: &SqliteRow, column: &str) -> anyhow::Result<Option<Da
         .as_deref()
         .map(parse_bitwarden_timestamp)
         .transpose()
-}
-
-fn folder_from_row(row: &SqliteRow) -> anyhow::Result<BitwardenFolder> {
-    Ok(BitwardenFolder {
-        id: row.get("id"),
-        user_id: row.get("user_id"),
-        name: row.get("name"),
-        created_at: parse_bitwarden_timestamp(&row.get::<String, _>("created_at"))?,
-        revision_at: parse_bitwarden_timestamp(&row.get::<String, _>("revision_at"))?,
-    })
 }
 
 fn cipher_from_row(row: &SqliteRow) -> anyhow::Result<BitwardenCipher> {
@@ -75,89 +58,11 @@ fn placeholders(count: usize) -> String {
     vec!["?"; count].join(", ")
 }
 
+/// The caller's own folder with this id, or `NULL`: evaluated in the write.
+const OWNED_FOLDER: &str =
+    "(SELECT f.id FROM bitwarden_folders f WHERE f.id = ? AND f.user_id = ?)";
+
 impl Db {
-    /// Every folder the account owns.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the query fails or a row is malformed.
-    pub async fn bitwarden_folders(&self, user_id: &str) -> anyhow::Result<Vec<BitwardenFolder>> {
-        let rows = sqlx::query(
-            "SELECT id, user_id, name, created_at, revision_at FROM bitwarden_folders \
-             WHERE user_id = ? ORDER BY created_at, id",
-        )
-        .bind(user_id)
-        .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(folder_from_row).collect()
-    }
-
-    /// One folder, only if the account owns it.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the query fails or the row is malformed.
-    pub async fn bitwarden_folder(
-        &self,
-        user_id: &str,
-        id: &str,
-    ) -> anyhow::Result<Option<BitwardenFolder>> {
-        let row = sqlx::query(
-            "SELECT id, user_id, name, created_at, revision_at FROM bitwarden_folders \
-             WHERE user_id = ? AND id = ?",
-        )
-        .bind(user_id)
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await?;
-        row.as_ref().map(folder_from_row).transpose()
-    }
-
-    /// Create a folder, or rename one the same account owns.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the write fails.
-    pub async fn bitwarden_put_folder(&self, folder: &BitwardenFolder) -> anyhow::Result<()> {
-        sqlx::query(
-            "INSERT INTO bitwarden_folders (id, user_id, name, created_at, revision_at) \
-             VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, \
-             revision_at = excluded.revision_at WHERE bitwarden_folders.user_id = excluded.user_id",
-        )
-        .bind(&folder.id)
-        .bind(&folder.user_id)
-        .bind(&folder.name)
-        .bind(bitwarden_timestamp(folder.created_at))
-        .bind(bitwarden_timestamp(folder.revision_at))
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Delete a folder; its ciphers fall back to "no folder", as Bitwarden does.
-    /// Returns whether a folder was deleted.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the transaction cannot be completed.
-    pub async fn bitwarden_delete_folder(&self, user_id: &str, id: &str) -> anyhow::Result<bool> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query(
-            "UPDATE bitwarden_ciphers SET folder_id = NULL WHERE user_id = ? AND folder_id = ?",
-        )
-        .bind(user_id)
-        .bind(id)
-        .execute(&mut *tx)
-        .await?;
-        let done = sqlx::query("DELETE FROM bitwarden_folders WHERE user_id = ? AND id = ?")
-            .bind(user_id)
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
-        tx.commit().await?;
-        Ok(done.rows_affected() == 1)
-    }
-
     /// Every cipher the account owns, trashed ones included.
     ///
     /// # Errors
@@ -194,13 +99,71 @@ impl Db {
         row.as_ref().map(cipher_from_row).transpose()
     }
 
-    /// Create a cipher or replace one the same account owns.
+    /// The account's ciphers with these ids.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails or a row is malformed.
+    pub async fn bitwarden_ciphers_by_ids(
+        &self,
+        user_id: &str,
+        ids: &[String],
+    ) -> anyhow::Result<Vec<BitwardenCipher>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sql = format!(
+            "SELECT {CIPHER_COLUMNS} FROM bitwarden_ciphers WHERE user_id = ? AND id IN ({}) \
+             ORDER BY created_at, id",
+            placeholders(ids.len())
+        );
+        let mut query = sqlx::query(&sql).bind(user_id);
+        for id in ids {
+            query = query.bind(id);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+        rows.iter().map(cipher_from_row).collect()
+    }
+
+    /// Create a cipher.
     ///
     /// # Errors
     ///
     /// Returns an error when the write fails.
-    pub async fn bitwarden_put_cipher(&self, cipher: &BitwardenCipher) -> anyhow::Result<()> {
-        put_cipher(&self.pool, cipher).await
+    pub async fn bitwarden_insert_cipher(&self, cipher: &BitwardenCipher) -> anyhow::Result<()> {
+        insert_cipher(&self.pool, cipher).await
+    }
+
+    /// Replace a cipher's contents, but only while it is still at
+    /// `expected_revision` — the revision the caller read. Returns `false`,
+    /// and writes nothing, when another write got there first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the write fails.
+    pub async fn bitwarden_update_cipher(
+        &self,
+        cipher: &BitwardenCipher,
+        expected_revision: DateTime<Utc>,
+    ) -> anyhow::Result<bool> {
+        let sql = format!(
+            "UPDATE bitwarden_ciphers SET folder_id = {OWNED_FOLDER}, cipher_type = ?, \
+             favorite = ?, data = ?, revision_at = ? \
+             WHERE id = ? AND user_id = ? AND revision_at = ?"
+        );
+        let done = sqlx::query(&sql)
+            .bind(&cipher.folder_id)
+            .bind(&cipher.user_id)
+            .bind(cipher.cipher_type)
+            .bind(i64::from(cipher.favorite))
+            .bind(&cipher.data)
+            .bind(bitwarden_timestamp(cipher.revision_at))
+            .bind(&cipher.id)
+            .bind(&cipher.user_id)
+            .bind(bitwarden_timestamp(expected_revision))
+            .execute(&self.pool)
+            .await?;
+        Ok(done.rows_affected() == 1)
     }
 
     /// Import folders and ciphers in one transaction: all land or none do.
@@ -215,20 +178,10 @@ impl Db {
     ) -> anyhow::Result<()> {
         let mut tx = self.pool.begin().await?;
         for folder in folders {
-            sqlx::query(
-                "INSERT INTO bitwarden_folders (id, user_id, name, created_at, revision_at) \
-                 VALUES (?,?,?,?,?)",
-            )
-            .bind(&folder.id)
-            .bind(&folder.user_id)
-            .bind(&folder.name)
-            .bind(bitwarden_timestamp(folder.created_at))
-            .bind(bitwarden_timestamp(folder.revision_at))
-            .execute(&mut *tx)
-            .await?;
+            insert_folder(&mut *tx, folder).await?;
         }
         for cipher in ciphers {
-            put_cipher(&mut *tx, cipher).await?;
+            insert_cipher(&mut *tx, cipher).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -281,12 +234,13 @@ impl Db {
             return Ok(0);
         }
         let sql = format!(
-            "UPDATE bitwarden_ciphers SET folder_id = ?, revision_at = ? \
+            "UPDATE bitwarden_ciphers SET folder_id = {OWNED_FOLDER}, revision_at = ? \
              WHERE user_id = ? AND id IN ({})",
             placeholders(ids.len())
         );
         let mut query = sqlx::query(&sql)
             .bind(folder_id)
+            .bind(user_id)
             .bind(bitwarden_timestamp(revision_at))
             .bind(user_id);
         for id in ids {
@@ -339,29 +293,28 @@ impl Db {
     }
 }
 
-async fn put_cipher<'e, E>(executor: E, cipher: &BitwardenCipher) -> anyhow::Result<()>
+async fn insert_cipher<'e, E>(executor: E, cipher: &BitwardenCipher) -> anyhow::Result<()>
 where
     E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {
-    sqlx::query(
+    let sql = format!(
         "INSERT INTO bitwarden_ciphers (id, user_id, folder_id, cipher_type, favorite, data, \
-         created_at, revision_at, deleted_at, archived_at) VALUES (?,?,?,?,?,?,?,?,?,?) \
-         ON CONFLICT(id) DO UPDATE SET folder_id = excluded.folder_id, \
-         cipher_type = excluded.cipher_type, favorite = excluded.favorite, data = excluded.data, \
-         revision_at = excluded.revision_at, deleted_at = excluded.deleted_at, \
-         archived_at = excluded.archived_at WHERE bitwarden_ciphers.user_id = excluded.user_id",
-    )
-    .bind(&cipher.id)
-    .bind(&cipher.user_id)
-    .bind(&cipher.folder_id)
-    .bind(cipher.cipher_type)
-    .bind(i64::from(cipher.favorite))
-    .bind(&cipher.data)
-    .bind(bitwarden_timestamp(cipher.created_at))
-    .bind(bitwarden_timestamp(cipher.revision_at))
-    .bind(cipher.deleted_at.map(bitwarden_timestamp))
-    .bind(cipher.archived_at.map(bitwarden_timestamp))
-    .execute(executor)
-    .await?;
+         created_at, revision_at, deleted_at, archived_at) \
+         VALUES (?, ?, {OWNED_FOLDER}, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    sqlx::query(&sql)
+        .bind(&cipher.id)
+        .bind(&cipher.user_id)
+        .bind(&cipher.folder_id)
+        .bind(&cipher.user_id)
+        .bind(cipher.cipher_type)
+        .bind(i64::from(cipher.favorite))
+        .bind(&cipher.data)
+        .bind(bitwarden_timestamp(cipher.created_at))
+        .bind(bitwarden_timestamp(cipher.revision_at))
+        .bind(cipher.deleted_at.map(bitwarden_timestamp))
+        .bind(cipher.archived_at.map(bitwarden_timestamp))
+        .execute(executor)
+        .await?;
     Ok(())
 }
