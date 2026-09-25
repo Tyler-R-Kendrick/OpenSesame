@@ -42,6 +42,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 
 | Guide | When you need it |
 |---|---|
+| [Serving Bitwarden clients](bitwarden-compat.md) | Point `bw` and the Bitwarden apps at the Host: Argon2id, signups, scope. |
 | [Optional mTLS and workload identity](mtls.md) | Per-hop TLS profiles, service bindings, SPIFFE, NATS and ingress references. |
 | [Security alerting](security-alerting.md) | Routing security notices to Alertmanager, PagerDuty, syslog and the built-in notifier. |
 | [Notification channels](notification-channels.md) | Where people are asked to approve, and what each channel can be trusted with. |

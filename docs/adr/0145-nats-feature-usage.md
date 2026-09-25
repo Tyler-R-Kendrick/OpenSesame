@@ -1,4 +1,4 @@
-# ADR 0141 — Using NATS fully: delivery semantics, services, mixed-mode callout
+# ADR 0145 — Using NATS fully: delivery semantics, services, mixed-mode callout
 
 - Status: Accepted
 - Date: 2026-09-24

@@ -35,7 +35,7 @@ re-verifies everything else from the raw request JWT the bridge forwards.
 | `host_client`: `HostDecisionRequest`, `HostDecisionResponse`, `HostEvidence`, `check_echo` | The Host decision contract and its mTLS HTTP client |
 | `response`: `ResponseSigner`, `UserGrant` | Signed response and user JWT |
 | `xkey`, `bridge::BridgeCore`, `config` | Sealed callouts, the request→decision→response core, the bridge's environment |
-| `service`: `serve`, `CalloutStats`, `SERVICE_NAME` | The NATS Services API registration: `$SRV.PING\|INFO\|STATS` discovery, allowed/denied/dropped stats, up to `MAX_IN_FLIGHT` concurrent decisions per instance (ADR 0141) |
+| `service`: `serve`, `CalloutStats`, `SERVICE_NAME` | The NATS Services API registration: `$SRV.PING\|INFO\|STATS` discovery, allowed/denied/dropped stats, up to `MAX_IN_FLIGHT` concurrent decisions per instance (ADR 0145) |
 
 Configuration is read from `OPENSESAME_NATS_*`, `OPENSESAME_NATS_CALLOUT_*` and
 `OPENSESAME_CALLOUT_TLS_*`; the table is in [`src/config.rs`](src/config.rs).

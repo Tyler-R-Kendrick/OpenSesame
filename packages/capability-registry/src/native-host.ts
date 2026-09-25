@@ -1,5 +1,6 @@
 import {
   AUTH_CEREMONY,
+  BITWARDEN_CLIENT_ONLY,
   HUMAN_CEREMONY,
   NEVER_AGENT_SECRET,
   OPS_PLANE,
@@ -224,6 +225,25 @@ export const nativeHostCapabilities: readonly Capability[] = [
       webmcp: null,
     },
     excluded: { webmcp: PM_PLANE },
+  },
+  {
+    id: "host.bitwarden_compat",
+    title: "Serve Bitwarden clients from the Host (bitwarden-compat)",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame host run",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      pwa: PAGES_HAS_NO_HOST,
+      mcp_host: BITWARDEN_CLIENT_ONLY,
+      mcp_client: BITWARDEN_CLIENT_ONLY,
+      webmcp: BITWARDEN_CLIENT_ONLY,
+    },
   },
   {
     id: "sync.cursor.read",

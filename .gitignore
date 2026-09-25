@@ -113,4 +113,5 @@ apps/pages/scripts/duress/.ui-artifacts/
 
 # mTLS fixture downloads (scripts/mtls/mtls-fixtures.sh) and suite artifacts
 .cache/mtls-fixtures/
+.cache/bitwarden-oracle/
 artifacts/mtls/

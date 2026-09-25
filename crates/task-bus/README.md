@@ -20,7 +20,7 @@ request/reply in the AUTH account (`ops/nats/secure-callout.conf`, bridge in
 `crates/nats-callout`). `opensesame.callout.>` is an unrelated reserved
 application prefix and is never that wire.
 
-## Delivery semantics (ADR 0141)
+## Delivery semantics (ADR 0145)
 
 | Call | Guarantee |
 |---|---|
