@@ -30,7 +30,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { capabilityOffSwitch } from "./lib/always-on.mjs";
 import { menuSteps } from "./lib/capture-menu-steps.mjs";
+import { placeSteps } from "./lib/capture-place-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -191,6 +193,7 @@ const STEPS = {
     }
   },
   ...menuSteps({ press }),
+  ...placeSteps(),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -237,13 +240,12 @@ const STEPS = {
   },
   /**
    * Switch an optional capability on, through Settings › Capabilities' own
-   * Add and Apply — Access, Identity and Connections are capabilities, and a
-   * guest device has none of them until it chooses (ADR 0130).
+   * switch and Apply (ADR 0130). An always-on one has no switch: skipped.
    */
   async enable(page, title) {
     await STEPS.tab(page, "settings");
     await STEPS.open(page, "Capabilities");
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    const add = capabilityOffSwitch(page, title);
     if (!(await add.count())) return;
     await press(add.first());
     await page.waitForTimeout(400);

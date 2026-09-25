@@ -77,7 +77,9 @@ function visitEdge(
     });
     return null;
   }
-  if (axis.tier === "core") return null;
+  // Core satisfies a dependency — unless an operator withdrew it, and then
+  // it is a prohibited dependency like any other.
+  if (axis.tier === "core" && axis.blocked.length === 0) return null;
   if (axis.blocked.length > 0) {
     walk.conflicts.push({
       code:

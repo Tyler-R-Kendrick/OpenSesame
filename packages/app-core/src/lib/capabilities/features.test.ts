@@ -11,15 +11,24 @@ import {
 } from "./catalog.js";
 import {
   FEATURES,
-  PROVIDER_GROUPS,
   featureById,
   featureOf,
   featureState,
+  isSwitchable,
+  neededBy,
+  switchCapability,
   switchFeature,
+  withdrawnAlwaysOn,
 } from "./features.js";
 
-/** A plan in which the named capabilities run and every optional one may. */
-function planWith(approved: readonly string[]): EffectivePlan {
+/**
+ * A plan in which the named capabilities run and every optional one may;
+ * `overrides` changes single capabilities' states on top of that.
+ */
+function planWith(
+  approved: readonly string[],
+  overrides: ReadonlyMap<string, Partial<CapabilityState>> = new Map(),
+): EffectivePlan {
   const capabilities: Record<string, CapabilityState> = {};
   for (const entry of CAPABILITY_CATALOG.capabilities) {
     capabilities[entry.id] = {
@@ -34,10 +43,39 @@ function planWith(approved: readonly string[]): EffectivePlan {
       approved: entry.tier === "core" || approved.includes(entry.id),
       restartRequired: false,
       reasons: [],
+      ...overrides.get(entry.id),
     };
   }
-  // SAFETY: the tests read `capabilities` only.
-  return { capabilities } as unknown as EffectivePlan;
+  return {
+    identity: {
+      instanceId: "personal-local",
+      installationId: "features-test",
+      vaultId: null,
+      distributionId: "features-test",
+      policyRevision: "personal-local",
+      selectionRevision: "1",
+      planDigest: "sha256:features-test",
+    },
+    provenance: "personal-local",
+    policyValid: true,
+    capabilities,
+    approvedCapabilities: Object.values(capabilities)
+      .filter((state) => state.approved)
+      .map((state) => state.id),
+    approvedModules: [],
+    approvedOperations: [],
+    approvedItemKinds: [],
+    requiredWorkerVariant: null,
+    conflicts: [],
+    consent: {
+      addedRoots: [],
+      removedRoots: [],
+      changedExposure: [],
+      addedDependencies: [],
+      requiredNotAccepted: [],
+    },
+    network: { externalServices: "allow", allowedServiceOrigins: [] },
+  };
 }
 
 describe("FEATURES", () => {
@@ -53,13 +91,15 @@ describe("FEATURES", () => {
     for (const id of coreCapabilityIds()) expect(featureOf(id)).toBeNull();
   });
 
-  it("gives every connector family one home: a feature or an always-on group", () => {
-    const homes = [
-      ...FEATURES.flatMap((feature) => feature.providerCategories),
-      ...PROVIDER_GROUPS.map((group) => group.category),
-    ];
+  it("gives every connector family exactly one section", () => {
+    const homes = FEATURES.flatMap((feature) => feature.providerCategories);
     expect(new Set(homes).size).toBe(homes.length);
     expect([...homes].sort()).toEqual([...FEATURE_BINDING_CATEGORIES].sort());
+  });
+
+  it("names every section once", () => {
+    const titles = FEATURES.map((feature) => feature.title);
+    expect(new Set(titles).size).toBe(titles.length);
   });
 
   it("puts the git providers under Backups and the models under AI", () => {
@@ -67,6 +107,27 @@ describe("FEATURES", () => {
       "backup_recovery",
     ]);
     expect(featureById("ai").models).toBe(true);
+  });
+
+  it("draws no switch where the function is always on (ADR 0142)", () => {
+    for (const id of [
+      "identity",
+      "encryption",
+      "backups",
+      "password-managers",
+      "cloud-secret-storage",
+      "local-storage",
+    ] as const) {
+      expect(isSwitchable(featureById(id)), id).toBe(false);
+    }
+    for (const id of [
+      "backup.git-remote",
+      "identity.local-iam",
+      "identity.siop",
+      "identity.site-broker",
+    ]) {
+      expect(coreCapabilityIds(), id).toContain(id);
+    }
   });
 });
 
@@ -81,12 +142,10 @@ describe("featureState", () => {
   });
 
   it("offers nothing a plan does not distribute or permit", () => {
-    const plan = planWith([]);
-    const state = plan.capabilities["wallet.spending"];
-    if (!state) throw new Error("missing wallet");
-    // SAFETY: test-only mutation of a fixture plan.
-    (plan.capabilities as Record<string, CapabilityState>)["wallet.spending"] =
-      { ...state, permitted: false };
+    const plan = planWith(
+      [],
+      new Map([["wallet.spending", { permitted: false }]]),
+    );
     expect(featureState(featureById("payments"), plan).available).toEqual([]);
   });
 });
@@ -94,14 +153,14 @@ describe("featureState", () => {
 describe("switchFeature", () => {
   it("adds every capability behind a feature and keeps the other roots", () => {
     const next = switchFeature(
-      { roots: ["backup.git-remote"], alternatives: {} },
+      { roots: ["wallet.spending"], alternatives: {} },
       featureById("sharing"),
       true,
-      planWith(["backup.git-remote"]),
+      planWith(["wallet.spending"]),
       CAPABILITY_CATALOG,
     );
     expect(next.roots).toEqual([
-      "backup.git-remote",
+      "wallet.spending",
       "sharing.drops",
       "sharing.household",
     ]);
@@ -192,5 +251,88 @@ describe("switchFeature", () => {
       CAPABILITY_CATALOG,
     );
     expect(next.roots).toEqual(["wallet.spending"]);
+  });
+});
+
+describe("switchCapability", () => {
+  it("adds one capability of a section and answers the slot it needs", () => {
+    const next = switchCapability(
+      { roots: [], alternatives: {} },
+      featureById("sharing"),
+      "sharing.household",
+      true,
+      planWith([]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.roots).toEqual(["sharing.household"]);
+    expect(next.alternatives).toEqual({ transport: "sharing.drops" });
+  });
+
+  it("removes only that capability and keeps its section's others", () => {
+    const next = switchCapability(
+      { roots: ["support.local-ai", "support.remote-ai"], alternatives: {} },
+      featureById("ai"),
+      "support.remote-ai",
+      false,
+      planWith(["support.local-ai", "support.remote-ai"]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.roots).toEqual(["support.local-ai"]);
+  });
+});
+
+describe("neededBy", () => {
+  it("names the kept root whose slot the capability answers", () => {
+    expect(
+      neededBy(
+        {
+          roots: ["sharing.drops", "sharing.household"],
+          alternatives: { transport: "sharing.drops" },
+        },
+        "sharing.drops",
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual(["sharing.household"]);
+  });
+
+  it("names nobody once that root is gone, or for a capability no slot chose", () => {
+    expect(
+      neededBy(
+        {
+          roots: ["sharing.drops"],
+          alternatives: { transport: "sharing.drops" },
+        },
+        "sharing.drops",
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual([]);
+    expect(
+      neededBy(
+        { roots: ["sharing.household"], alternatives: {} },
+        "support.local-ai",
+        CAPABILITY_CATALOG,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("withdrawnAlwaysOn", () => {
+  it("names the always-on capabilities the plan does not run, and nothing optional", () => {
+    const withdrawn = {
+      approved: false,
+      reasons: ["PROHIBITED_BY_INSTANCE" as const],
+    };
+    const plan = planWith(
+      [],
+      new Map([
+        ["identity.site-broker", withdrawn],
+        ["backup.git-remote", withdrawn],
+      ]),
+    );
+    expect(withdrawnAlwaysOn(plan)).toEqual([
+      "backup.git-remote",
+      "identity.site-broker",
+    ]);
+    expect(withdrawnAlwaysOn(null)).toEqual([]);
   });
 });

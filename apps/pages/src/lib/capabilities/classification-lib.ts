@@ -125,6 +125,7 @@ const GIT_FILES = [
   "history-backup-idb",
   "history-claim-notice",
   "vault-backup-observer",
+  "backup-egress-gate",
   "vault-backup-sync",
   "embedded-git",
 ];
@@ -194,6 +195,7 @@ const FEDERATION_FILES = [
   // four Identity-API calls as seams this capability installs.
   "orgs-directory",
   "directory",
+  "oauth-client-admin",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",

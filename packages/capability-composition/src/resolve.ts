@@ -47,8 +47,11 @@ type Pass = Readonly<{
   worker: WorkerSelection;
 }>;
 
+/** Core in every plan — less what an operator withdrew (ADR 0142). */
 function coreIds(ctx: ResolveContext): CapabilityId[] {
-  return ctx.ids.filter((id) => ctx.index.get(id)?.tier === "core");
+  return ctx.ids.filter(
+    (id) => ctx.index.get(id)?.tier === "core" && !ctx.withdrawn.has(id),
+  );
 }
 
 function runPass(
@@ -160,10 +163,14 @@ function buildState(
   joinRefused: boolean,
 ): CapabilityState {
   const d = ctx.index.get(axis.id);
-  const approved = axis.tier === "core" || pass.approved.has(axis.id);
+  const withdrawn = ctx.withdrawn.has(axis.id);
+  const approved =
+    (axis.tier === "core" && !withdrawn) || pass.approved.has(axis.id);
   const reasons =
     axis.tier === "core"
-      ? ["CORE" as const]
+      ? withdrawn
+        ? ["PROHIBITED_BY_INSTANCE" as const]
+        : ["CORE" as const]
       : optionalReasons(ctx, pass, axis, joinRefused);
   if (pass.worker.unavailable.has(axis.id))
     reasons.push("WORKER_GRAPH_UNAVAILABLE");

@@ -1,22 +1,23 @@
 /**
  * Settings › Capabilities — how this installation is used.
  *
- * Features first: one switch per way of using OpenSesame (AI, Backups,
- * Payments, Servers, Sharing, Networking, Notifications, Telemetry) plus
- * Allow guests, each feature's providers configured right under it while it
- * is on. Then the providers of the always-on functions, which have no switch
- * because nothing about them can be turned off. Then Advanced: the optional
- * capabilities one by one and, for the operator of this device, the instance
- * policy (`InstanceCapabilitiesPanel`, never shown to a member — SURFACE-06).
+ * One list of sections, each drawn the same way (`CapabilitySections`): a
+ * subheader, the switch on it where the section has optional capabilities,
+ * and the tiles configured under it. Guests first; then identity, keys,
+ * storage, sharing, payments, AI, networking, notifications and telemetry;
+ * then, for the operator of this device, the instance policy
+ * (`InstanceCapabilitiesPanel`, never shown to a member — SURFACE-06).
  *
- * A switch or an Advanced row proposes roots; the review and Apply are one
- * ceremony (`useCapabilityChange`). Visual, Source and Effective are three
- * views of the same documents; Source commits through the S04 adapter,
- * Effective is read-only.
+ * A switch proposes roots; the review and Apply are one ceremony
+ * (`useCapabilityChange`). Visual, Source and Effective are the page's three
+ * views of the same documents — one toggle for all of them. Source shows
+ * the installation's selection and, to the operator, the instance policy,
+ * each committed through the S04 adapter; Effective is read-only.
  */
 
+import { withdrawnAlwaysOn } from "@opensesame/app-core/lib/capabilities/features.js";
 import { effectivePlanToYaml } from "@opensesame/app-core/lib/configuration/capabilities-document.js";
-import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { useState } from "react";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -28,26 +29,17 @@ import {
   CapabilitySourceView,
   type CapabilityView,
 } from "./CapabilitiesPanelViews.js";
-import { CapabilityFeatures } from "./CapabilityFeatures.js";
-import { CapabilityProviders } from "./CapabilityProviders.js";
-import { CapabilityRows } from "./CapabilityRows.js";
+import { CapabilitySections } from "./CapabilitySections.js";
 import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
 import {
   type CapabilityChange,
   capabilitiesPanelSeams,
   useCapabilityChange,
 } from "./useCapabilityChange.js";
+import { useDeviceOperator } from "./useDeviceOperator.js";
 import "./capabilities.css";
 
 export { capabilitiesPanelSeams } from "./useCapabilityChange.js";
-
-/**
- * Whether Advanced is open, for this document. Applying a change bumps the
- * plan generation, the shell re-registers its routes and this panel mounts
- * afresh — component state would close Advanced on the very row a person
- * just changed.
- */
-const advancedMemory = { open: false };
 
 function RestartNotice({ change }: { change: CapabilityChange }) {
   const pending = Object.values(change.snapshot.plan?.capabilities ?? {}).some(
@@ -71,23 +63,43 @@ function RestartNotice({ change }: { change: CapabilityChange }) {
   );
 }
 
-function Visual({
-  change,
-  advanced,
-  onAdvanced,
-}: {
-  change: CapabilityChange;
-  /** Advanced stays open across a review, so a row changed there is still in view. */
-  advanced: boolean;
-  onAdvanced: (open: boolean) => void;
-}) {
+/**
+ * Always-on capabilities this plan does not run: an operator withdrew them
+ * (ADR 0142), or they need one that was. Named here, and marked on the
+ * section they back, rather than drawn as though they ran.
+ */
+function WithdrawnNotice({ change }: { change: CapabilityChange }) {
+  const withdrawn = withdrawnAlwaysOn(change.snapshot.plan);
+  if (withdrawn.length === 0) return null;
+  const titles = withdrawn
+    .map(
+      (id) =>
+        capabilityPorts.CAPABILITY_CATALOG.capabilities.find(
+          (entry) => entry.id === id,
+        )?.title ?? id,
+    )
+    .join(", ");
+  const label = `withdrawn by operator: ${titles}`;
+  return (
+    <p className="capspanel__notice" data-testid="capabilities-withdrawn">
+      <StatusMark tone="err" label={label} />
+      <span>{label}</span>
+    </p>
+  );
+}
+
+function Visual({ change }: { change: CapabilityChange }) {
   if (change.review) {
     return (
       <CapabilityReview
         review={change.review}
-        catalog={CAPABILITY_CATALOG}
+        catalog={capabilityPorts.CAPABILITY_CATALOG}
         alternativesFor={(root) =>
-          alternativesFor(root, CAPABILITY_CATALOG, change.snapshot.plan)
+          alternativesFor(
+            root,
+            capabilityPorts.CAPABILITY_CATALOG,
+            change.snapshot.plan,
+          )
         }
         busy={change.busy}
         onApply={() => void change.apply()}
@@ -98,18 +110,8 @@ function Visual({
   }
   return (
     <>
-      <CapabilityFeatures current={change.current} onPropose={change.propose} />
-      <CapabilityProviders />
-      <details
-        className="capadvanced"
-        data-testid="capabilities-advanced"
-        open={advanced}
-        onToggle={(event) => onAdvanced(event.currentTarget.open)}
-      >
-        <summary>Advanced</summary>
-        <CapabilityRows current={change.current} onPropose={change.propose} />
-        <InstanceCapabilitiesPanel />
-      </details>
+      <CapabilitySections current={change.current} onPropose={change.propose} />
+      <InstanceCapabilitiesPanel />
     </>
   );
 }
@@ -118,11 +120,7 @@ export function CapabilitiesPanel() {
   const change = useCapabilityChange();
   const { tomb } = useVault();
   const [view, setView] = useState<CapabilityView>("visual");
-  const [advanced, setAdvanced] = useState(advancedMemory.open);
-  const onAdvanced = (open: boolean) => {
-    advancedMemory.open = open;
-    setAdvanced(open);
-  };
+  const operator = useDeviceOperator();
   return (
     <section className="panel" data-testid="capabilities-panel">
       <div className="panel__head capspanel__head">
@@ -131,17 +129,21 @@ export function CapabilitiesPanel() {
       </div>
       <div className="panel__body capspanel">
         <RestartNotice change={change} />
+        <WithdrawnNotice change={change} />
         {change.notice ? (
           <p className="capspanel__notice">
             <StatusMark tone="err" label={change.notice} />
             <span>{change.notice}</span>
           </p>
         ) : null}
-        {view === "visual" ? (
-          <Visual change={change} advanced={advanced} onAdvanced={onAdvanced} />
-        ) : null}
+        {view === "visual" ? <Visual change={change} /> : null}
         {view === "source" ? (
-          <CapabilitySourceView kind="installation-selection" tomb={tomb} />
+          <>
+            <CapabilitySourceView kind="installation-selection" tomb={tomb} />
+            {operator ? (
+              <CapabilitySourceView kind="instance-policy" tomb={tomb} />
+            ) : null}
+          </>
         ) : null}
         {view === "effective" ? (
           <pre className="capspanel__source" aria-label="Effective plan">

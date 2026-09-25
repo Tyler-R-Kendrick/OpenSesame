@@ -8,14 +8,10 @@
  */
 
 import {
-  CAPABILITY_CATALOG,
   type CapabilityPreset,
   type CompositionSnapshot,
   type OutcomeView,
-  buildConsentReceipt,
-  compositionStore,
-  previewPlan,
-  viewOutcome,
+  capabilityPorts,
 } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type {
   CapabilityCatalog,
@@ -175,13 +171,16 @@ function useApply(args: ApplyArgs): () => Promise<void> {
     setBusy(true);
     try {
       const selection = selectionOf(draft);
-      const receipt = buildConsentReceipt(
-        previewPlan(selection),
+      const receipt = capabilityPorts.buildConsentReceipt(
+        capabilityPorts.previewPlan(selection),
         catalog,
         capabilitySetupSeams.now(),
       );
-      const result = await compositionStore.commit(selection, receipt);
-      setOutcome(viewOutcome(result, durability));
+      const result = await capabilityPorts.compositionStore.commit(
+        selection,
+        receipt,
+      );
+      setOutcome(capabilityPorts.viewOutcome(result, durability));
     } catch (caught) {
       setOutcome({
         status: "refused",
@@ -205,7 +204,7 @@ function useApply(args: ApplyArgs): () => Promise<void> {
 
 export function useCapabilitySetup(initialJoin: boolean) {
   const snapshot = useComposition();
-  const catalog = CAPABILITY_CATALOG;
+  const catalog = capabilityPorts.CAPABILITY_CATALOG;
   const requiredNotAccepted = snapshot.plan?.consent.requiredNotAccepted ?? [];
   const managed =
     snapshot.provenance !== "personal-local" ||
@@ -230,7 +229,7 @@ export function useCapabilitySetup(initialJoin: boolean) {
   const openReview = useCallback(
     (next: CapabilityDraft) => {
       setDraft(next);
-      setReview(compositionStore.review(selectionOf(next)));
+      setReview(capabilityPorts.compositionStore.review(selectionOf(next)));
       setStage("review");
     },
     [selectionOf],

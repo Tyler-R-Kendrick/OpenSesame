@@ -8,6 +8,7 @@ import {
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
 import {
   openSetup,
@@ -16,15 +17,7 @@ import {
 } from "./setup/test-harness.js";
 import { createSetupSeams } from "./setup/test-seams.js";
 
-vi.mock(
-  "@opensesame/app-core/lib/configuration/capabilities-ports.js",
-  async () => {
-    const { mockedPorts } = await import(
-      "@opensesame/app-core/lib/configuration/doubles/test-support.js"
-    );
-    return mockedPorts();
-  },
-);
+installDoublePorts();
 
 const seams = createSetupSeams();
 const { completeSetup } = seams;

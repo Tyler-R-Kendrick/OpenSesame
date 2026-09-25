@@ -1,4 +1,8 @@
-import { ALWAYS_ON_TITLES, openAdvanced } from "./always-on.mjs";
+import {
+  ALWAYS_ON_TITLES,
+  awaitCapabilitySections,
+  capabilityOffSwitch,
+} from "./always-on.mjs";
 
 /**
  * Choose capabilities from Settings › Capabilities, at whatever width this
@@ -31,8 +35,8 @@ export async function chooseCapabilitiesHere(
     }
     await tab.tap();
     await page.waitForTimeout(700);
-    await openAdvanced(page);
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
+    await awaitCapabilitySections(page);
+    const add = capabilityOffSwitch(page, title);
     if ((await add.count()) === 0) continue;
     await add.tap();
     await page.waitForTimeout(600);

@@ -5,10 +5,11 @@
  * generic git / password-store, ADR 0090), and the repository picker on a
  * connector's settings page.
  *
- * The Backups feature on Settings › Capabilities: switching it on selects
- * this capability, and while it is approved that page draws the
- * backup/recovery tiles (the git providers). Contributed: the backup
- * observer as a background job. Its guide target
+ * Always on (ADR 0142): it runs entirely in the browser, and a git history
+ * remote already defaults to GitHub, so the default installation has it.
+ * Settings › Capabilities draws its tiles (the git providers) under Backups,
+ * each with its own enable switch. Contributed: the backup observer as a
+ * background job, held off by a plan that denies external services. Its guide target
  * `settings.backup` and goal are authored in the registry's connections
  * files and contributed by `connectors.external`, which this capability
  * depends on (catalog), so they are declared whenever this category mounts. The per-connector pages (`GithubInstallationPanel`,
@@ -36,6 +37,7 @@
  * forge remote store. No third-party git or GitHub SDK is used.
  */
 
+import { backupEgressGate } from "@opensesame/app-core/lib/backup-egress-gate.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   startVaultBackupObserver,
@@ -71,6 +73,9 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {
         if (signal.aborted) return;
+        // Always on is not a way round the operator's network envelope
+        // (ADR 0135 §1, 0142): the one gate every caller shares.
+        if (!backupEgressGate.allowed()) return;
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
           once: true,

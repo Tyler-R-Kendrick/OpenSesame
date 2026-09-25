@@ -221,7 +221,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2225,
+      "max-lines": 2223,
       "max-lines-per-function": 9
     },
     "apps/pages/src/sections/SettingsSection.tsx": {

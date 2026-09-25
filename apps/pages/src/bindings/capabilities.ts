@@ -20,10 +20,7 @@ import {
   subscribeWorkerStatus,
   workerStatus,
 } from "@opensesame/app-core/lib/capabilities/worker-controller.js";
-import {
-  compositionStore,
-  contributionSource,
-} from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type {
   CapabilityId,
   CapabilityState,
@@ -33,9 +30,9 @@ import { useMemo, useSyncExternalStore } from "react";
 
 export function useComposition(): CompositionSnapshot {
   return useSyncExternalStore(
-    compositionStore.subscribe,
-    compositionStore.getSnapshot,
-    compositionStore.getSnapshot,
+    capabilityPorts.compositionStore.subscribe,
+    capabilityPorts.compositionStore.getSnapshot,
+    capabilityPorts.compositionStore.getSnapshot,
   );
 }
 
@@ -49,13 +46,16 @@ export function useCompositionContributions<K extends ContributionKind>(
   kind: K,
 ): readonly ContributionEntry<K>[] {
   const version = useSyncExternalStore(
-    contributionSource.subscribe,
-    () => contributionSource.version(kind),
-    () => contributionSource.version(kind),
+    capabilityPorts.contributionSource.subscribe,
+    () => capabilityPorts.contributionSource.version(kind),
+    () => capabilityPorts.contributionSource.version(kind),
   );
   // `version` is the cache key: the source answers anew only when it moves.
   // biome-ignore lint/correctness/useExhaustiveDependencies: version is the read's cache key
-  return useMemo(() => contributionSource.read(kind), [kind, version]);
+  return useMemo(
+    () => capabilityPorts.contributionSource.read(kind),
+    [kind, version],
+  );
 }
 
 /** React binding of `capabilityEnabled`; re-renders on provider events. */

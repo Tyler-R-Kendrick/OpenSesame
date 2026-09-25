@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { fireEvent, screen } from "@testing-library/react";
+import { Link } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   filterLink,
@@ -128,6 +129,26 @@ describe("AppShell rail navigation", () => {
     expect(selected("Vault")).toBe("true");
     fireEvent.keyDown(row, { key: "j" });
     expect(selected("Settings")).toBe("false");
+  });
+  it("keeps a pending g when the location moves before its second key", () => {
+    // A plan change or a navigation hands the shell a new `navigate`; the
+    // chord typed across it still lands.
+    renderShell("/vault", <Link to="/settings">elsewhere</Link>);
+    const body = document.body;
+    fireEvent.keyDown(body, { key: "g" });
+    fireEvent.click(screen.getByRole("link", { name: "elsewhere" }));
+    expect(selected("Settings")).toBe("true");
+    fireEvent.keyDown(body, { key: "v" });
+    expect(selected("Vault")).toBe("true");
+  });
+  it("keeps a pending g across a remount of the shell", () => {
+    // A capability's wrapper arriving above the shell remounts it.
+    const first = renderShell("/settings");
+    fireEvent.keyDown(document.body, { key: "g" });
+    first.unmount();
+    renderShell("/settings");
+    fireEvent.keyDown(document.body, { key: "v" });
+    expect(selected("Vault")).toBe("true");
   });
   it("moves the rail cursor with arrows and j/k", () => {
     const { container } = renderShell("/vault");
