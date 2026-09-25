@@ -10,7 +10,6 @@ import {
   ADR_CEREMONIES,
   ADR_LIVE_OBSERVATION,
   ADR_NOTIFICATION_CEREMONIES,
-  APPROVAL_ROUTING,
   AUTH_CEREMONY,
   BREACH_CHECK_TAKES_A_SECRET,
   COMMAND_BAR_HUMAN_ONLY,
@@ -33,6 +32,7 @@ import { generalAuthorityCapabilities } from "./general-authority.js";
 import { identityManagementCapabilities } from "./identity-management.js";
 import { itemTypeCapabilities } from "./item-types.js";
 import { nativeHostCapabilities } from "./native-host.js";
+import { notificationRoutingCapabilities } from "./notification-routing.js";
 import { sharedSessionCapabilities } from "./shared-sessions.js";
 /**
  * Agent-surface capability registry (ADR 0065).
@@ -1439,57 +1439,7 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
 
-  {
-    id: "identity.notification.channels.read",
-    title: "List notification channels and what each can do",
-    plane: "identity",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: APPROVAL_ROUTING,
-      mcp_client: APPROVAL_ROUTING,
-    },
-  },
-  {
-    id: "identity.notification.bindings.manage",
-    title: "Bind, verify, or revoke a notification destination",
-    plane: "identity",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: APPROVAL_ROUTING,
-      mcp_client: APPROVAL_ROUTING,
-    },
-  },
-  {
-    id: "identity.notification.preferences.manage",
-    title: "Read or change where authorization prompts are delivered",
-    plane: "identity",
-    kind: "admin",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: APPROVAL_ROUTING,
-      mcp_client: APPROVAL_ROUTING,
-    },
-  },
+  ...notificationRoutingCapabilities,
   {
     id: "identity.approval.activation",
     title: "Run the transaction-bound authenticator ceremony for an approval",

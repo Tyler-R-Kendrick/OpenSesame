@@ -70,6 +70,7 @@ const OPTIONAL_TARGET_SOURCES = [
   "identity-catalog.ts",
   "wallet-catalog.ts",
   "activity-catalog.ts",
+  "notifications-catalog.ts",
 ];
 
 const TARGET_SOURCES = [

@@ -1,0 +1,68 @@
+/* Settings › Notifications (notifications.routing). Rows are records: the
+   name first, its status glyph, then the keys that act on it at the row's
+   end (DESIGN.md § Keys have a home). The track is minmax(0, 1fr) so one
+   long channel sentence wraps rather than widening the page on a phone. */
+
+.notif-standing {
+  max-width: var(--text-max);
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+
+.notif-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notif-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.notif-row__text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.notif-row > .notif-row__name {
+  flex: 1;
+}
+
+.notif-row__name {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.notif-row__meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.notif-row__keys {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.notif-add {
+  display: grid;
+  gap: 0.35rem;
+}

@@ -21,6 +21,7 @@
       "prohibited": [
         "agents.webmcp",
         "networking.tailnet",
+        "notifications.routing",
         "notifications.web-push",
         "sharing.drops",
         "sharing.household",

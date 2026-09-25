@@ -210,6 +210,11 @@ export const SECTION_RULES = [
     (p) => optional(p, GIT, "history remote picker"),
   ),
   optional(
+    "src/sections/settings/notification-routing-files",
+    "notifications.routing",
+    "Settings › Notifications' files: routing.json, channels.json, bindings.json (ADR 0134, 0140 D9)",
+  ),
+  optional(
     "src/sections/settings/FeatureBindingsPanel",
     CONNECTORS,
     "capability → connector bindings",
