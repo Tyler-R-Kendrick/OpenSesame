@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-25-invoke-route/`](2026-09-25-invoke-route/README.md) | `/invoke/:kind`, the authenticator hand-off (ADR 0140 step 10) |
 | [`2026-09-25-device-route/`](2026-09-25-device-route/README.md) | `/device` — approve a device sign-in from its link (ADR 0140 step 7) |
 | [`2026-09-25-claim-route/`](2026-09-25-claim-route/README.md) | `/claim` and `/device` open before unlock (ADR 0140 step 8, §2, D2, D7) |
 | [`2026-09-25-approval-routes/`](2026-09-25-approval-routes/README.md) | `/i/:ref`, `/approve/:ref` and Access › Requests' hosted rows (ADR 0140 step 9) |
