@@ -21,13 +21,18 @@
  *   - `/approve/:ref`: the authorization-request review (ADR 0084), from
  *     `apps/ceremonies`: request, requirement, an activation bound to the
  *     digest, the verb and the policy shown, decide or report. Access ›
- *     Requests' hosted rows open it; nothing there approves inline.
+ *     Requests' hosted rows open it; nothing there approves inline;
+ *   - `/invoke/:kind`: the authenticator hand-off, from `apps/ceremonies`:
+ *     the native app link ceremony-kit builds for an MFA user code or
+ *     request id, or a wallet protocol's request URI, and for a user code
+ *     the `/device` ceremony as its fallback. It calls nothing, and never
+ *     fetches a request URI or a credential offer.
  *
  * Every link is read at boot, not here: the address must be clean before
  * anything renders, and boot may not import a module to make it so
  * (`device-link.ts`, `claims/arrival.ts`, `interactions-link.ts`,
- * `approvals-link.ts`). The `/i` and `/approve` screens load only when their
- * route opens (`lazy-routes.tsx`).
+ * `approvals-link.ts`, `invoke-link.ts`). The `/i`, `/approve` and `/invoke`
+ * screens load only when their route opens (`lazy-routes.tsx`).
  *
  * None touches the vault (ADR 0140 §2, D7): all are `gate: "any"`, read no
  * vault key, prompt no unlock and write nothing to OPFS. On a locked or
@@ -55,7 +60,7 @@ import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/ru
 import { createActivation } from "../activation.js";
 import { ClaimRoute } from "./ClaimRoute.js";
 import { DeviceRoute } from "./DeviceRoute.js";
-import { ApproveRoute, InteractionRoute } from "./lazy-routes.js";
+import { ApproveRoute, InteractionRoute, InvokeRoute } from "./lazy-routes.js";
 
 export const CAPABILITY = "identity.ceremonies";
 
@@ -97,6 +102,14 @@ export const capabilityRuntime: CapabilityRuntime = {
       element: ApproveRoute,
       framed: true,
       order: 48,
+      gate: "any",
+    });
+    activation.register("route", {
+      id: "invoke",
+      path: "/invoke/:kind",
+      element: InvokeRoute,
+      framed: true,
+      order: 49,
       gate: "any",
     });
 

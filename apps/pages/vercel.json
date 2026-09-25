@@ -1,8 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && VITE_BASE=/ pnpm exec turbo run build --filter=@opensesame/pages && PAGES_CONNECT_CALLBACK_BASE=/ node apps/pages/scripts/write-runtime-config.mjs",
+  "buildCommand": "cd ../.. && VITE_BASE=/ pnpm exec turbo run build --filter=@opensesame/pages && PAGES_CONNECT_CALLBACK_BASE=/ node apps/pages/scripts/write-runtime-config.mjs && node apps/pages/scripts/write-authenticator-associations.mjs",
   "outputDirectory": "dist",
   "framework": null,
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|\\.well-known/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

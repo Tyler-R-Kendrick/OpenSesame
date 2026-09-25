@@ -1,0 +1,359 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchRequests": null
+        },
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "invoke/mfa?user_code=abcd-1234"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", "[data-testid=capability-apply]", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "measure": "main a.icon-btn"
+        },
+        {
+          "shot": "390-invoke-mfa"
+        },
+        {
+          "open": "Continue in this browser"
+        },
+        {
+          "address": null
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-invoke-fallback"
+        },
+        {
+          "arrive": "invoke/oid4vp?request_uri=https%3A%2F%2Fverifier.evidence.example%2Frequest%2Fr1"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-invoke-oid4vp"
+        },
+        {
+          "arrive": "invoke/totp?user_code=ABCD-1234"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", ".status-mark--err", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-invoke-unknown"
+        },
+        {
+          "arrive": "invoke/mfa?request_id=req_evidence&user_code=ABCD-1234"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", ".status-mark--err", ".note"]
+        },
+        {
+          "shot": "390-invoke-two-handles"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "watchRequests": null
+        },
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "invoke/mfa?user_code=abcd-1234"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", "[data-testid=capability-apply]", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "measure": "main a.icon-btn"
+        },
+        {
+          "shot": "1280-invoke-mfa"
+        },
+        {
+          "open": "Continue in this browser"
+        },
+        {
+          "address": null
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-invoke-fallback"
+        },
+        {
+          "arrive": "invoke/oid4vp?request_uri=https%3A%2F%2Fverifier.evidence.example%2Frequest%2Fr1"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-invoke-oid4vp"
+        },
+        {
+          "arrive": "invoke/totp?user_code=ABCD-1234"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", ".status-mark--err", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-invoke-unknown"
+        },
+        {
+          "arrive": "invoke/mfa?request_id=req_evidence&user_code=ABCD-1234"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "links": null
+        },
+        {
+          "count": [".unlock", ".status-mark--err", ".note"]
+        },
+        {
+          "shot": "1280-invoke-two-handles"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-invoke-mfa",
+      "width": 390,
+      "title": "An /invoke/mfa link on a device with no vault — 390 × 844",
+      "caption": "Before, the link met the front door with the code still in the address. After, the hand-off opens by itself — no unlock, no vault — and the query left the address before the first paint.",
+      "before": "front door (.unlock 1); first render …/invoke/mfa?user_code=abcd-1234; focus on the sign-in field",
+      "after": "first render …/invoke/mfa (query gone); .unlock 0, .note 0; h1 Approve with OpenSesame, Code ABCD-1234; .go 44×44 → opensesame://invoke/mfa?user_code=ABCD-1234, focused (focus-visible); fallback key 44×44 → /OpenSesame/device?user_code=ABCD-1234"
+    },
+    {
+      "shot": "390-invoke-fallback",
+      "width": 390,
+      "title": "Continue in this browser: /device with the code — 390 × 844",
+      "caption": "Continue in this browser opens /device, which takes the code from its own address into memory as it does for any device link; after Connect the approval form holds it.",
+      "before": "no fallback to follow: front door, focus on the sign-in field",
+      "after": "address …/OpenSesame/device (code gone); h1 Approve a device; User code field ABCD-1234 after Connect (stand-in provisional principal); Approve device key 44×44"
+    },
+    {
+      "shot": "390-invoke-oid4vp",
+      "width": 390,
+      "title": "An /invoke/oid4vp link: the hand-off only — 390 × 844",
+      "caption": "A wallet request is handed to the openid4vp scheme and nothing else: no fallback, and the request URI is never fetched.",
+      "before": "front door (.unlock 1); ?request_uri= still in the address",
+      "after": "address …/invoke/oid4vp; h1 Present a credential with OpenSesame, From verifier.evidence.example; one link → openid4vp://?request_uri=…; 0 requests to verifier.evidence.example; .go focused"
+    },
+    {
+      "shot": "390-invoke-unknown",
+      "width": 390,
+      "title": "An unknown kind, refused — 390 × 844",
+      "caption": "A kind the spec does not list is refused in ceremony-kit's words, on a mark (and in the tray); nothing to press.",
+      "before": "front door (.unlock 1); query still in the address; 0 marks",
+      "after": "address …/invoke/totp; h1 Authenticator request, OpenSesame did not open (err: Unknown authenticator request.); 0 links; refusal panel 358×41 focused"
+    },
+    {
+      "shot": "390-invoke-two-handles",
+      "width": 390,
+      "title": "A request id and a user code in one link, refused — 390 × 844",
+      "caption": "A request id and a user code in one link: ceremony-kit's parser takes exactly one handle, so the link is refused rather than guessed at.",
+      "before": "front door (.unlock 1); both handles still in the address",
+      "after": "address …/invoke/mfa; OpenSesame did not open (err: This link must contain exactly one request handle.); 0 links, .note 0"
+    },
+    {
+      "shot": "1280-invoke-mfa",
+      "width": 1280,
+      "title": "An /invoke/mfa link on a device with no vault — 1280 × 900",
+      "caption": "Before, the link met the front door with the code still in the address. After, the hand-off opens by itself — no unlock, no vault — and the query left the address before the first paint.",
+      "before": "front door (.unlock 1); first render …/invoke/mfa?user_code=abcd-1234; focus on the sign-in field",
+      "after": "first render …/invoke/mfa (query gone); .unlock 0, .note 0; h1 Approve with OpenSesame, Code ABCD-1234; .go 40×40 → opensesame://invoke/mfa?user_code=ABCD-1234, focused (focus-visible); fallback key 32×32 → /OpenSesame/device?user_code=ABCD-1234"
+    },
+    {
+      "shot": "1280-invoke-fallback",
+      "width": 1280,
+      "title": "Continue in this browser: /device with the code — 1280 × 900",
+      "caption": "Continue in this browser opens /device, which takes the code from its own address into memory as it does for any device link; after Connect the approval form holds it.",
+      "before": "no fallback to follow: front door, focus on the sign-in field",
+      "after": "address …/OpenSesame/device (code gone); h1 Approve a device; User code field ABCD-1234 after Connect (stand-in provisional principal); Approve device key 40×40"
+    },
+    {
+      "shot": "1280-invoke-oid4vp",
+      "width": 1280,
+      "title": "An /invoke/oid4vp link: the hand-off only — 1280 × 900",
+      "caption": "A wallet request is handed to the openid4vp scheme and nothing else: no fallback, and the request URI is never fetched.",
+      "before": "front door (.unlock 1); ?request_uri= still in the address",
+      "after": "address …/invoke/oid4vp; h1 Present a credential with OpenSesame, From verifier.evidence.example; one link → openid4vp://?request_uri=…; 0 requests to verifier.evidence.example; .go focused"
+    },
+    {
+      "shot": "1280-invoke-unknown",
+      "width": 1280,
+      "title": "An unknown kind, refused — 1280 × 900",
+      "caption": "A kind the spec does not list is refused in ceremony-kit's words, on a mark (and in the tray); nothing to press.",
+      "before": "front door (.unlock 1); query still in the address; 0 marks",
+      "after": "address …/invoke/totp; h1 Authenticator request, OpenSesame did not open (err: Unknown authenticator request.); 0 links; refusal panel 960×40 focused"
+    },
+    {
+      "shot": "1280-invoke-two-handles",
+      "width": 1280,
+      "title": "A request id and a user code in one link, refused — 1280 × 900",
+      "caption": "A request id and a user code in one link: ceremony-kit's parser takes exactly one handle, so the link is refused rather than guessed at.",
+      "before": "front door (.unlock 1); both handles still in the address",
+      "after": "address …/invoke/mfa; OpenSesame did not open (err: This link must contain exactly one request handle.); 0 links, .note 0"
+    }
+  ]
+}

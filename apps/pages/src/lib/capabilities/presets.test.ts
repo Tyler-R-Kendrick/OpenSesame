@@ -18,6 +18,7 @@ import {
 } from "@opensesame/capability-composition";
 import { describe, expect, it } from "vitest";
 import {
+  GENERATED_PUBLIC_FILES,
   HTML_ENTRY_OWNERSHIP,
   MODULE_OWNERSHIP,
   PLANNED_MODULE_ENTRIES,
@@ -94,8 +95,15 @@ describe("MODULE_OWNERSHIP", () => {
     expect(PUBLIC_FILE_OWNERSHIP["static-auth/**"]).toBe(
       "identity.site-broker",
     );
+    expect(PUBLIC_FILE_OWNERSHIP[".well-known/**"]).toBe("identity.ceremonies");
     for (const [file, owner] of Object.entries(PUBLIC_FILE_OWNERSHIP)) {
       if (owner !== null) expect(isKnownCapability(owner), file).toBe(true);
+      const writer = GENERATED_PUBLIC_FILES[file];
+      // A file a build step writes has its writer on disk instead.
+      if (writer !== undefined) {
+        expect(existsSync(join(pagesRoot, writer)), file).toBe(true);
+        continue;
+      }
       const onDisk = file.endsWith("/**") ? file.slice(0, -3) : file;
       expect(existsSync(join(pagesRoot, "public", onDisk)), file).toBe(true);
     }
