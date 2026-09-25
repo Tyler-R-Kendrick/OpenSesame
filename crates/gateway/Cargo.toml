@@ -26,6 +26,7 @@ opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-security-events = { path = "../../crates/security-events" }
 opensesame-breach-intel = { path = "../../crates/breach-intel" }
 opensesame-storage = { path = "../../crates/storage" }
+opensesame-bitwarden-server = { path = "../../crates/bitwarden-server" }
 opensesame-claims = { path = "../../crates/claims" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-client-core = { path = "../../crates/client-core" }
