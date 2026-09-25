@@ -10,7 +10,7 @@ it lists what is implemented and, with a reason each, what is not.
 
 ## Where it fits
 
-- **Used by:** [`apps/pages`](../../apps/pages) (`screens/SiopAuthorize.tsx`, the `identity.siop` capability module), [`packages/control-plane`](../../packages/control-plane) (`services/siop-verify.ts`, the hosted bridge), [`apps/example-siop-rp`](../../apps/example-siop-rp); [`packages/app-core`](../app-core) declares it for its tests.
+- **Used by:** [`apps/pages`](../../apps/pages) (`screens/SiopAuthorize.tsx`, the `identity.siop` capability module), [`packages/control-plane`](../../packages/control-plane) (`services/siop-verify.ts`, the hosted bridge), [`examples/siop-rp`](../../examples/siop-rp); [`packages/app-core`](../app-core) declares it for its tests.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), `jose`.
 - ES256 on P-256 only, `response_type=id_token`, `scope=openid`, `response_mode=fragment`, subject syntax `urn:ietf:params:oauth:jwk-thumbprint`. The JOSE header fence refuses `alg: none` and every other algorithm before a signature is checked.
 - A token is verified with the bare key in `sub_jwk` only, never a `jwks_uri`; a `sub_jwk` carrying a private `d` is refused.

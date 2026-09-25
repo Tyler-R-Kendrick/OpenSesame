@@ -19,7 +19,7 @@ OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
 |---|---|---|
 | [`rp-alpha`](rp-alpha) and [`rp-beta`](rp-beta) | Two React apps signing in through `@opensesame/sdk-browser`. Side by side they show **pairwise subjects**: the same person gets a different, unlinkable `sub` at each site. | `pnpm --filter @opensesame/example-rp-alpha dev` (`:5174`), `…-rp-beta dev` (`:5175`) |
 | [`static-rp`](static-rp) | A genuinely static site — no backend, no client secret. The browser talks to the token endpoint directly with an origin-derived client id and PKCE ([ADR 0050](../docs/adr/0050-origin-profile-static-site-issuer.md)). Run on two ports to see pairwise isolation across origins. | `pnpm --filter @opensesame/example-static-rp dev` (`:4101`) |
-| [`siop-rp`](../apps/example-siop-rp) | A relying party that treats the Pages app as a **Self-Issued OpenID Provider** (SIOPv2): the subject is a key thumbprint, not an account. Read its trust-model table before copying it. It lives at `apps/example-siop-rp` because the `open-sesame` Vercel project deploys it from that path. | `pnpm --filter @opensesame/example-siop-rp dev` |
+| [`siop-rp`](siop-rp) | A relying party that treats the Pages app as a **Self-Issued OpenID Provider** (SIOPv2): the subject is a key thumbprint, not an account. Read its trust-model table before copying it. | `pnpm --filter @opensesame/example-siop-rp dev` |
 
 ## Agents
 

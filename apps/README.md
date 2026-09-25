@@ -41,12 +41,6 @@ binary; the name a process starts under picks the program
 | [`browser-extension`](browser-extension) | `@opensesame/browser-extension` | — | WXT browser extension: Host API, sync cursor, optional daemon. Never exposes a secret to a web page. |
 | [`android`](android) | `@opensesame/android` | — | **The Android app** (was `authenticator-native`, [ADR 0138](../docs/adr/0138-self-issued-identity-one-native-host.md)): OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. Its `ios/` sources are the matching Apple wallet extension. |
 
-## Deployed example
-
-| App | Package | Purpose |
-|---|---|---|
-| [`example-siop-rp`](example-siop-rp) | `@opensesame/example-siop-rp` | The SIOPv2 relying-party example ([`examples/`](../examples/README.md) lists it with the others). It stays here because the `open-sesame` Vercel project's Root Directory is `apps/example-siop-rp`; move it only together with that setting. |
-
 The two MCP servers are packages served by the client CLI
 (`opensesame-id mcp host|client`): [`packages/mcp-host`](../packages/mcp-host)
 and [`packages/mcp-client`](../packages/mcp-client). Neither exposes
