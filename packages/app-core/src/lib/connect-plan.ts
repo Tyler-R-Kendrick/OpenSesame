@@ -123,26 +123,51 @@ export type ConnectMethod = z.infer<typeof MethodSchema>;
 export type ConnectMethodKind = ConnectMethod["kind"];
 export type ConnectPlan = z.infer<typeof ConnectPlanSchema>;
 
-let plans: ReadonlyMap<string, ConnectPlan> | null = null;
+const PlanKeySchema = ConnectPlanSchema.pick({ id: true, refused: true });
 
-function all(): ReadonlyMap<string, ConnectPlan> {
-  plans ??= new Map(
+type PlanEntry = { refused: boolean; json: string; plan?: ConnectPlan };
+
+let entries: ReadonlyMap<string, PlanEntry> | null = null;
+
+/**
+ * Plans are validated only when read: the index holds each plan's id and
+ * refusal, so asking whether a service is known costs no schema pass over
+ * every plan on the boot path.
+ */
+function index(): ReadonlyMap<string, PlanEntry> {
+  entries ??= new Map(
     CONNECT_PLAN_JSON.map((json) => {
-      const plan = ConnectPlanSchema.parse(JSON.parse(json));
-      return [plan.id, plan];
+      const key = PlanKeySchema.parse(JSON.parse(json));
+      return [key.id, { refused: key.refused, json }];
     }),
   );
-  return plans;
+  return entries;
+}
+
+function planOf(entry: PlanEntry): ConnectPlan {
+  entry.plan ??= ConnectPlanSchema.parse(JSON.parse(entry.json));
+  return entry.plan;
 }
 
 /** Every plan, registry order first. */
 export function connectPlans(): ConnectPlan[] {
-  return [...all().values()];
+  return [...index().values()].map(planOf);
 }
 
 /** The plan for a service, or `undefined` when nothing is known about it. */
 export function connectPlan(id: string): ConnectPlan | undefined {
-  return all().get(id);
+  const entry = index().get(id);
+  return entry ? planOf(entry) : undefined;
+}
+
+/** Whether a plan exists for a service, without validating it. */
+export function hasConnectPlan(id: string): boolean {
+  return index().has(id);
+}
+
+/** Whether a service is refused (ADR 0086 §6), without validating its plan. */
+export function isRefusedPlan(id: string): boolean {
+  return index().get(id)?.refused === true;
 }
 
 /** A plan can be connected when one of its methods needs nothing we lack. */

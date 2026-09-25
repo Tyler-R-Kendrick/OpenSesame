@@ -9,6 +9,8 @@
 import {
   type ConnectPlan,
   connectPlans,
+  hasConnectPlan,
+  isRefusedPlan,
   preferredMethod,
 } from "./connect-plan.js";
 import type { Connection, Provider } from "./connections.js";
@@ -72,26 +74,33 @@ function toProvider(plan: ConnectPlan): Provider {
   };
 }
 
-const PLANS = connectPlans().filter((plan) => !HOST_OWNED.has(plan.id));
-const BLOCKED = new Set(PLANS.filter((plan) => plan.refused).map((p) => p.id));
-const CATALOG = PLANS.map(toProvider);
-const CATALOG_IDS = new Set(CATALOG.map((row) => row.id));
+// Built on first use, never at import: this module sits on the boot path of
+// every page (the sign-in popup too), and the rows are only drawn by
+// Connections.
+let catalog: readonly Provider[] | null = null;
+
+function catalogRows(): readonly Provider[] {
+  catalog ??= connectPlans()
+    .filter((plan) => !HOST_OWNED.has(plan.id))
+    .map(toProvider);
+  return catalog;
+}
 
 export function isVercelCatalogId(id: string): boolean {
-  return CATALOG_IDS.has(id);
+  return !HOST_OWNED.has(id) && hasConnectPlan(id);
 }
 
 export function isVercelConnectable(id: string): boolean {
-  return isVercelCatalogId(id) && !BLOCKED.has(id);
+  return isVercelCatalogId(id) && !isRefusedPlan(id);
 }
 
 export function vercelConnectCatalog(): Provider[] {
-  return CATALOG.map((row) => ({ ...row }));
+  return catalogRows().map((row) => ({ ...row }));
 }
 
 /** Vercel browse catalog, then OpenSesame-only bundled rows Vercel does not list. */
 export function mergeVercelCatalog(bundled: readonly Provider[]): Provider[] {
-  const extra = bundled.filter((row) => !CATALOG_IDS.has(row.id));
+  const extra = bundled.filter((row) => !isVercelCatalogId(row.id));
   return [...vercelConnectCatalog(), ...extra];
 }
 
@@ -106,7 +115,7 @@ export function catalogTileNote(
   provider: Provider,
   connection: Connection | null,
 ): CatalogTileNote | null {
-  if (BLOCKED.has(provider.id)) {
+  if (isRefusedPlan(provider.id)) {
     return { label: "Not connectable", tone: "chip--err" };
   }
   const live =

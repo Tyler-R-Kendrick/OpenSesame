@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJsonObject } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderModule } from "../../scripts/emit-connect-presets.mjs";
 import {
   authorizeBody,
@@ -85,6 +85,22 @@ function filled(
 }
 
 describe("connector plans", () => {
+  it("validates no plan on import or on a lookup, only when the catalog is drawn", async () => {
+    // The catalog module is on every page's boot path, the sign-in popup's
+    // too: a schema pass over every plan there delayed first paint.
+    vi.resetModules();
+    const plans = await import("./connect-plan.js");
+    const parse = vi.spyOn(plans.ConnectPlanSchema, "parse");
+    const catalog = await import("./vercel-connect-catalog.js");
+    expect(catalog.isVercelConnectable("resend")).toBe(true);
+    expect(catalog.isVercelConnectable("stripe")).toBe(false);
+    expect(catalog.isVercelCatalogId("github")).toBe(false);
+    expect(parse).not.toHaveBeenCalled();
+    expect(catalog.vercelConnectCatalog().length).toBeGreaterThan(150);
+    expect(parse).toHaveBeenCalled();
+    parse.mockRestore();
+  });
+
   it("embeds exactly what the specs say", () => {
     const rendered = renderModule();
     expect(rendered).toContain(`"${services.pinned_at}"`);
