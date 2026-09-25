@@ -107,7 +107,21 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "auth.js": "identity.site-broker",
   "auth.js.sha384": "identity.site-broker",
   "static-auth/**": "identity.site-broker",
+  // Written into `dist/` by the Vercel build only (ADR 0140 D11): the
+  // authenticator app associations for `/invoke/<kind>`.
+  ".well-known/**": "identity.ceremonies",
 });
+
+/**
+ * Entries of `PUBLIC_FILE_OWNERSHIP` a deployment's build writes into
+ * `dist/` after Vite rather than copying from `public/`, and the script that
+ * writes each. A GitHub Pages build writes none of them: under a path it
+ * cannot serve host-root files (ADR 0140 D11).
+ */
+export const GENERATED_PUBLIC_FILES: Readonly<Record<string, string>> =
+  Object.freeze({
+    ".well-known/**": "scripts/write-authenticator-associations.mjs",
+  });
 
 export const WORKER_VARIANTS: readonly WorkerVariant[] = [
   { id: "core-only", scriptPath: "sw.js", satisfies: [] },

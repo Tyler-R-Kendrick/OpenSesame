@@ -18,7 +18,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | ceremonies `/inbox` | `GET /v1/authorization-requests?status=pending`, approve/deny | Access › Requests: `sections/access/HostedRequestsPanel.tsx` (`access.authority`, loaded only where an Identity API is configured) draws app-core `lib/approvals.ts`' hosted rows beside the local ones; every row opens `/approve/:ref`, none decides inline (step 9) | covered in Pages; the app's copy goes with it (step 14) |
 | ceremonies `/approve/:ref` | request, requirement, activation, decision, report | `/approve/:ref` route (`identity.ceremonies`, `gate: "any"`, before unlock, D7): `ApproveScreen.tsx` / `ApproveReview.tsx`, loaded only on the route, over ceremony-kit `approval-review.ts` and app-core `lib/approvals.ts`; the link is read at boot by ceremony-kit `readApprovalArrival` (`app-core/lib/approvals-link.ts`) (step 9) | covered in Pages; the app's copy goes with it (step 14) |
 | ceremonies `/notifications` | channels, bindings, preferences | model: app-core `lib/notification-routing/` (step 6) | partial: no provider, no panel (step 11) |
-| ceremonies `/invoke/:kind` + `.well-known` | — (parser) | none | missing |
+| ceremonies `/invoke/:kind` + `.well-known` | — (parser; nothing is fetched) | `/invoke/:kind` route (`identity.ceremonies`, `gate: "any"`, before unlock): `InvokeScreen.tsx`, loaded only on the route, over ceremony-kit `readInvocationArrival` → `parseAuthenticatorInvocation`; the handle leaves the query at boot and is held in memory (`app-core/lib/invoke-link.ts`, `invoke-route.ts`). The app link is a key the person presses; an MFA user code also offers `/device`, through the device link's own hand-off. `.well-known` associations: `apps/pages/scripts/write-authenticator-associations.mjs`, paths derived from the spec, run from the Vercel build only (D11) (step 10) | covered in Pages; the app's copy goes with it (step 14) |
 | mobile-mfa `/i/<ref>` | interaction resolve/read/activation/approve/deny, WebAuthn | `/i/:ref` route (`identity.ceremonies`, `gate: "any"`, before unlock, D7): `InteractionScreen.tsx`, loaded only on the route, over ceremony-kit `interaction-approval.ts` and app-core `lib/interactions.ts`; the link's fragment and credential query leave at boot (`app-core/lib/interactions-link.ts`) (step 9) | covered in Pages; the app's copy goes with it (step 14) |
 | mobile-mfa legacy links (`?user_code=`, `?code=`, `opensesame://invoke/mfa`, `opensesame-mfa://approve`) | `/v1/device/approve` | normalised to `/device` at boot by app-core `lib/device-link.ts` over ceremony-kit `readInteractionArrival`; `?code=` only on `/device`, never the sign-in callback at the base (step 7) | covered |
 | mobile-mfa enrolment | `/v1/mfa/passkey/*`, `/v1/mfa/totp/*` | vault authenticator only (ADR 0091) | missing (D10) |
@@ -38,7 +38,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | Legacy links | → `/device` or refusal | ceremony-kit | `identity.ceremonies` |
 | Approval review | `/approve/:ref` | ceremony-kit `authorization-request-client.ts`, `approval-review.ts`, `approval-copy.ts`, `approval-words.ts`; app-core `lib/approvals.ts` | `identity.ceremonies` |
 | Inbox | Access › Requests rows (`plane: "hosted"`) | as above | `access.authority` |
-| Authenticator hand-off | `/invoke/:kind` | ceremony-kit `authenticator-invocation.ts` | `identity.ceremonies` |
+| Authenticator hand-off | `/invoke/:kind`; `.well-known/**` on Vercel | ceremony-kit `authenticator-invocation.ts`, `invocation-link.ts` | `identity.ceremonies` (route and `.well-known/**`, step 10) |
 | Notification routing | Settings › Notifications | app-core `lib/notification-routing/` + a `VirtualFileProvider` | `notifications.routing` (optional) |
 | Account factors | Settings › Security rows | app-core `lib/account-factors.ts` — needs an Identity API factor listing first: neither app lists factors and `/v1/mfa/*` has no list route (step 6 found none) | `identity.federation` |
 | Organization sign-in | Identity › Organizations (new files) | app-core `lib/org-signin.ts` | `enterprise.directory-provisioning` |
@@ -58,7 +58,7 @@ profile fixture proving `minimal-local` resolves its routes.
 - **Drops:** `VITE_OPENSESAME_CEREMONIES` goes; `pagesClaimBase()` only.
 - **CORS / env:** ceremonies `:5181` and `OPENSESAME_CONSOLE_ORIGIN` go; association variables move to the Pages section of `.env.schema`.
 - **`mfaAppUrl`:** retired from settings, runtime config, the deploy workflow, settings files and WebMCP settings tools.
-- **`.well-known`:** `write-authenticator-associations.mjs` moves to `apps/pages/scripts/`, run from the Vercel build only (D11).
+- **`.well-known`:** `write-authenticator-associations.mjs` moves to `apps/pages/scripts/`, run from the Vercel build only (D11); the SPA rewrite in `apps/pages/vercel.json` excludes `/.well-known/` (done, step 10; the apps/ceremonies copy goes in step 14).
 - **Scripts, budgets, baselines, design lint:** root `dev` and `quality:bundle` filters, `tools/quality/bundle-budgets.json`, `quality-baseline.json` entries, `design-lint.mjs` roots, `task-security-battle-test.sh`.
 - **Docs:** AGENTS.md, READMEs, ADRs 0062/0086/0133, the native-host plan, the weekly agent-surface routine. Audits stay as history.
 
