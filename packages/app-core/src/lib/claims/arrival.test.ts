@@ -7,12 +7,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
+import { emitVaultLock } from "../vault/lock-events.js";
 import {
+  bindClaimLockReset,
   captureClaimArrivalFromPage,
   claimPath,
   forgetClaim,
-  forgetClaimOnLock,
-  markClaimShown,
   peekClaimArrival,
   resetClaimArrivalForTests,
   takeClaimArrival,
@@ -128,14 +128,23 @@ describe("forgetting a claim", () => {
     expect(claimStash.read()).toBeNull();
   });
 
-  it("a lock forgets only a claim the locked session was shown", () => {
+  it("every vault lock purges the arrival and the stash (D6)", () => {
+    const unbind = bindClaimLockReset();
+    history.replaceState(null, "", `/claim#token=${TOKEN}`);
+    captureClaimArrivalFromPage();
+    expect(claimStash.read()).not.toBeNull();
+    emitVaultLock();
+    expect(peekClaimArrival()).toEqual({ kind: "none" });
+    expect(claimStash.read()).toBeNull();
     history.replaceState(null, "", `/claim#token=${TOKEN}&key=${KEY}`);
     captureClaimArrivalFromPage();
-    // Locked when the link opened: the guest road can still reach it.
-    forgetClaimOnLock();
-    expect(peekClaimArrival().kind).toBe("drop");
-    markClaimShown();
-    forgetClaimOnLock();
+    emitVaultLock();
     expect(peekClaimArrival()).toEqual({ kind: "none" });
+    unbind();
+    // Unbound: a lock no longer reaches it.
+    history.replaceState(null, "", `/claim#token=${TOKEN}`);
+    captureClaimArrivalFromPage();
+    emitVaultLock();
+    expect(peekClaimArrival().kind).toBe("claim");
   });
 });

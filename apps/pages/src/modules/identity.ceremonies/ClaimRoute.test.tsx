@@ -1,12 +1,11 @@
 /** @vitest-environment jsdom */
 /**
  * `/claim`: a claim link is reviewed and accepted over the one claim model; a
- * drop link is handed to whatever `sharing.drops` contributed, or refused in
- * the tray where drops are absent; a leaked bearer is refused; and with
- * nothing arrived, a link can be pasted. Every failure is a mark and a tray
- * notice, never a box on the page.
+ * drop link is opened here too, on every installation (ADR 0140 D2); a
+ * leaked bearer is refused; and with nothing arrived, a link can be pasted.
+ * Every failure is a mark on the page (and a tray notice where the shell is
+ * mounted), never a box.
  */
-import type { ClaimOpenerProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import {
   captureClaimArrivalFromPage,
   peekClaimArrival,
@@ -19,30 +18,25 @@ import {
   json,
 } from "@opensesame/app-core/lib/claims/ceremony.fixture.js";
 import { CLAIM_WORDS } from "@opensesame/app-core/lib/claims/ceremony.js";
+import { dropOpenSeams } from "@opensesame/app-core/lib/claims/drop-open.js";
 import {
   CLAIM_ACCEPTED,
   CLAIM_NOTICE,
-  DROPS_UNAVAILABLE,
 } from "@opensesame/app-core/lib/claims/route-model.js";
-import {
-  registerContributionForTest,
-  resetContributionsForTest,
-} from "@opensesame/app-core/lib/contributions.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { overlapCast } from "@opensesame/os-domain";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../bindings/identity.js";
 import { useOnlineSeams } from "../../lib/use-online.js";
-import { ClaimRoute, claimRouteSeams } from "./ClaimRoute.js";
+import { ClaimRoute } from "./ClaimRoute.js";
 import { claimHookSeams } from "./useClaimCeremony.js";
 
 const KEY = "a2V5LW1hdGVyaWFs"; // gitleaks:allow -- synthetic drop key test vector
 const session: { current: IdentitySession | null } = { current: null };
-const drops: { approved: boolean | null } = { approved: true };
 let harness = claimHarness();
 
 Object.assign(identityHookSeams, {
@@ -51,7 +45,6 @@ Object.assign(identityHookSeams, {
 });
 Object.assign(useOnlineSeams, { useOnline: () => true });
 Object.assign(claimHookSeams, { ceremony: () => harness.ceremony });
-Object.assign(claimRouteSeams, { useDropsApproved: () => drops.approved });
 
 function arrive(address: string) {
   history.replaceState(null, "", address);
@@ -73,7 +66,6 @@ function trayed() {
 beforeEach(() => {
   harness = claimHarness();
   session.current = overlapCast({ accessToken: "t", principalId: "prn_1" });
-  drops.approved = true;
   harness.routes.present.mockResolvedValue(json(OPEN_CLAIM));
   harness.routes.complete.mockResolvedValue(json({ ok: true }));
   clearNotices();
@@ -81,7 +73,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  resetContributionsForTest();
   resetClaimArrivalForTests();
   sessionStorage.clear();
   history.replaceState(null, "", "/");
@@ -207,68 +198,31 @@ describe("no link arrived", () => {
 });
 
 describe("a drop link", () => {
-  function Opener({ token, fragmentKey, onSettled }: ClaimOpenerProps) {
-    return (
-      <button type="button" onClick={onSettled}>
-        {`${token}|${fragmentKey}`}
-      </button>
-    );
-  }
+  const presentClaim = dropOpenSeams.presentClaim;
+  afterEach(() => {
+    dropOpenSeams.presentClaim = presentClaim;
+  });
 
-  it("is handed to the opener sharing.drops contributed, and nothing is presented here", async () => {
-    registerContributionForTest("claim-opener", {
-      id: "drop",
-      link: "drop",
-      Opener,
-      order: 50,
+  it("opens here, with no capability behind it, and is forgotten once settled", async () => {
+    const present = vi.fn(async () => {
+      throw new Error("offline");
     });
+    dropOpenSeams.presentClaim = present;
     arrive(`/claim#token=${TOKEN}&key=${KEY}`);
     expect(location.hash).toBe("");
     show();
     expect(screen.getByRole("heading", { name: "Open a drop" })).toBeTruthy();
-    const opener = screen.getByRole("button", { name: `${TOKEN}|${KEY}` });
+    const code = await screen.findByLabelText("One-time code");
+    await waitFor(() => expect(document.activeElement).toBe(code));
+    // Nothing is presented until the person enters the sender's code.
+    expect(present).not.toHaveBeenCalled();
     expect(harness.routes.present).not.toHaveBeenCalled();
-    await userEvent.click(opener);
-    expect(peekClaimArrival()).toEqual({ kind: "none" });
-  });
-
-  it("waits for the opener while an approved module is still loading", () => {
-    arrive(`/claim#token=${TOKEN}&key=${KEY}`);
-    show();
-    expect(screen.queryByRole("button")).toBeNull();
-    expect(trayed()).toBeUndefined();
-    act(() => {
-      registerContributionForTest("claim-opener", {
-        id: "drop",
-        link: "drop",
-        Opener,
-        order: 50,
-      });
-    });
-    expect(
-      screen.getByRole("button", { name: `${TOKEN}|${KEY}` }),
-    ).toBeTruthy();
-  });
-
-  it("is refused in the tray where drops are not approved, and nothing is loaded", async () => {
-    drops.approved = false;
-    arrive(`/claim#token=${TOKEN}&key=${KEY}`);
-    show();
-    await waitFor(() => expect(trayed()?.body).toBe(DROPS_UNAVAILABLE));
-    expect(screen.getByRole("img", { name: DROPS_UNAVAILABLE })).toBeTruthy();
-    expect(harness.routes.present).not.toHaveBeenCalled();
-    // Held in memory for this sitting only; nothing was stored.
+    await userEvent.type(code, "ABCD{Enter}");
+    await waitFor(() => expect(present).toHaveBeenCalledWith(TOKEN, "ABCD"));
+    // Unreachable is worth another try: the link stays, in memory only.
     expect(peekClaimArrival().kind).toBe("drop");
     expect(
       JSON.stringify({ ...sessionStorage, ...localStorage }),
     ).not.toContain(KEY);
-  });
-
-  it("says nothing while no plan is resolved", () => {
-    drops.approved = null;
-    arrive(`/claim#token=${TOKEN}&key=${KEY}`);
-    show();
-    expect(trayed()).toBeUndefined();
-    expect(screen.queryByRole("img")).toBeNull();
   });
 });

@@ -1,11 +1,13 @@
 /**
- * Drop claim transport — Identity plane (remote or device-native, ADR 0118).
+ * Drop claim transport — Identity plane (remote or device-native, ADR 0118):
+ * the sender's side, creating and polling a drop's claim session. Opening
+ * one — the recipient's side — is `claims/drop-open.ts`, always-on under
+ * `identity.ceremonies` (ADR 0140 D2), and so are the errors both share.
  *
  * Deliberately avoids value imports from `drop.ts` (that module consumes
  * `dropSeams` from here).
  */
 
-import { type DropRefusalCode, dropRefusal } from "@opensesame/ceremony-kit";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -14,6 +16,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { env } from "../../host.js";
+import { DropTransportError } from "../claims/drop-open.js";
 import {
   ensureIdentitySession,
   identityBase,
@@ -33,29 +36,11 @@ export type DropTransportSession = {
 
 export type DropTransportState = "pending" | "consumed" | "expired";
 
-export type DropTransportPresented = {
-  targetManifest: JsonObject;
-};
-
-/**
- * What went wrong. Creating and polling a drop fail as `refused`; opening one
- * says why, in ceremony-kit's recipient terms (`DropRefusalCode`): a wrong
- * code, already opened, expired, or a link that is not valid.
- */
-export type DropTransportErrorCode =
-  | DropRefusalCode
-  | "refused"
-  | "limit_exceeded"
-  | "corrupt";
-
-export class DropTransportError extends Error {
-  readonly code: DropTransportErrorCode;
-  constructor(code: DropTransportErrorCode, message: string) {
-    super(message);
-    this.name = "DropTransportError";
-    this.code = code;
-  }
-}
+export {
+  DropTransportError,
+  type DropTransportErrorCode,
+  type DropTransportPresented,
+} from "../claims/drop-open.js";
 
 function obj(value: BoundaryValue): Record<string, BoundaryValue> {
   if (isTypeofObject(value) && !Array.isArray(value)) {
@@ -174,47 +159,8 @@ async function pollClaimDefault(
   return status;
 }
 
-async function presentClaimDefault(
-  bearerToken: string,
-  userCode: string,
-): Promise<DropTransportPresented> {
-  let res: Response;
-  try {
-    res = await identityFetch("/v1/claims/present", {
-      method: "POST",
-      body: JSON.stringify({ token: bearerToken, userCode }),
-    });
-  } catch {
-    throw new DropTransportError(
-      "unreachable",
-      `The Identity plane at ${identityBase()} could not be reached.`,
-    );
-  }
-  if (!res.ok) {
-    // The body's code says why, in the one wording every surface that opens
-    // a drop shares (ceremony-kit); a wrong code must read as "try again".
-    const detail = obj(await res.json().catch(() => null));
-    const refused = dropRefusal(
-      isString(detail.error) ? detail.error : "",
-      res.status,
-      isString(detail.hint) ? detail.hint : null,
-    );
-    throw new DropTransportError(refused.code, refused.words);
-  }
-  const body = obj(await res.json());
-  const manifest = body.targetManifest;
-  if (!isTypeofObject(manifest) || Array.isArray(manifest)) {
-    throw new DropTransportError(
-      "refused",
-      "The Identity plane did not return a sealed drop manifest.",
-    );
-  }
-  return { targetManifest: overlapCast(manifest) };
-}
-
 export const dropSeams = {
   createClaim: createClaimDefault,
   pollClaim: pollClaimDefault,
-  presentClaim: presentClaimDefault,
   ceremoniesBase: ceremoniesBaseDefault,
 };

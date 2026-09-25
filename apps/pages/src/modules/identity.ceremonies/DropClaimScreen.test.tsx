@@ -1,15 +1,15 @@
+import {
+  DropTransportError,
+  dropOpenSeams,
+} from "@opensesame/app-core/lib/claims/drop-open.js";
 /** @vitest-environment jsdom */
 /**
- * The drop opener `sharing.drops` hands the `/claim` route: the code, then
+ * The drop opener the `/claim` route draws (always-on): the code, then
  * the payload decrypted under the key the link carried. A refusal is a mark
  * and a tray notice; one the link cannot come back from settles it.
  */
 import { CLAIM_NOTICE } from "@opensesame/app-core/lib/claims/route-model.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import {
-  DropTransportError,
-  dropSeams,
-} from "@opensesame/app-core/lib/vault/drop-transport.js";
 import { sealDrop } from "@opensesame/app-core/lib/vault/drop.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DropClaimScreen } from "./DropClaimScreen.js";
 
 const TOKEN = "osc_clm_pub.secret"; // gitleaks:allow -- synthetic claim-shaped test vector
-const original = dropSeams.presentClaim;
+const original = dropOpenSeams.presentClaim;
 const onSettled = vi.fn();
 
 function trayed() {
@@ -31,7 +31,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  dropSeams.presentClaim = original;
+  dropOpenSeams.presentClaim = original;
 });
 
 describe("DropClaimScreen", () => {
@@ -42,7 +42,7 @@ describe("DropClaimScreen", () => {
       text: "correct horse",
     });
     const present = vi.fn(async () => ({ targetManifest: sealed.manifest }));
-    dropSeams.presentClaim = present;
+    dropOpenSeams.presentClaim = present;
     render(
       <DropClaimScreen
         token={TOKEN}
@@ -60,7 +60,7 @@ describe("DropClaimScreen", () => {
   });
 
   it("keeps the link after a wrong code, marked and in the tray", async () => {
-    dropSeams.presentClaim = vi.fn(async () => {
+    dropOpenSeams.presentClaim = vi.fn(async () => {
       throw new DropTransportError("invalid_code", "That code did not match.");
     });
     const { container } = render(
@@ -80,7 +80,7 @@ describe("DropClaimScreen", () => {
   });
 
   it("settles a drop that was already opened", async () => {
-    dropSeams.presentClaim = vi.fn(async () => {
+    dropOpenSeams.presentClaim = vi.fn(async () => {
       throw new DropTransportError("already_opened", "Already opened.");
     });
     render(

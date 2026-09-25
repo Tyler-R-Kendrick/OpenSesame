@@ -64,7 +64,7 @@ export const VAULT_LIB_RULES = [
     optional(
       p,
       "sharing.drops",
-      "drop sealing, claim transport, Pages-hosted claims",
+      "sending a drop: sealing, claim session create/poll, Pages-hosted claims (opening is claims/drop-open, ADR 0140 D2)",
     ),
   ),
   optional(

@@ -1,9 +1,11 @@
 /**
- * The always-on ceremonies module reaches drop code only through what an
- * approved `sharing.drops` module registered (ADR 0130, ADR 0140 plan step
- * 8): nothing in this directory imports the drop screen, the drop model or
- * the drops module, statically or lazily. `verify:capability-graph` proves
- * the same of the built chunks; this names the rule where it would break.
+ * The always-on ceremonies module carries the recipient's side of a drop and
+ * nothing of the sender's (ADR 0140 D2, ADR 0130): nothing in this directory
+ * imports the `sharing.drops` module, the sealing and claim-session code in
+ * `lib/vault/drop*` or the device-native claim plane, statically or lazily.
+ * Opening goes through `lib/claims/drop-open.ts`, which is core.
+ * `verify:capability-graph` proves the same of the built chunks; this names
+ * the rule where it would break.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -22,14 +24,18 @@ function specifiers(source: string): string[] {
   );
 }
 
-describe("identity.ceremonies imports no drop code", () => {
+describe("identity.ceremonies imports no drop-sending code", () => {
   const files = readdirSync(here).filter(
     (name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name),
   );
 
   it("sweeps every source file of the module", () => {
     expect(files).toEqual(
-      expect.arrayContaining(["ClaimRoute.tsx", "runtime.ts"]),
+      expect.arrayContaining([
+        "ClaimRoute.tsx",
+        "DropClaimScreen.tsx",
+        "runtime.ts",
+      ]),
     );
   });
 
@@ -37,7 +43,7 @@ describe("identity.ceremonies imports no drop code", () => {
     const found = specifiers(readFileSync(join(here, name), "utf8"));
     for (const specifier of found) {
       expect(specifier).not.toMatch(
-        /sharing\.drops|DropClaimScreen|lib\/vault\/drop|local-drop-claims/,
+        /sharing\.drops|lib\/vault\/drop|local-drop-claims/,
       );
     }
   });

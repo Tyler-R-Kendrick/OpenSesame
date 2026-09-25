@@ -350,4 +350,25 @@ export const identityManagementCapabilities: readonly Capability[] = [
       webmcp: AUTH_CEREMONY,
     },
   },
+  // A drop link (ADR 0062; ADR 0140 D2): the recipient opens it once, with
+  // the code the sender shared, and the payload is decrypted under the key
+  // the link carried. The bearer, code and key are a human's.
+  {
+    id: "identity.drop.open",
+    title: "Open a drop someone sent",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/claim",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
 ];

@@ -9,7 +9,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "sharing.drops",
     "Secret drops",
-    "Share a secret or a small file exactly once through a sealed claim session; the drop kind, its ceremonies and the claim screen.",
+    "Send a secret or a small file exactly once through a sealed claim session, and keep track of it as a drop item. Opening a drop someone sent needs nothing switched on.",
     {
       egress: [
         {
@@ -20,7 +20,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         },
         {
           class: "user-mediated-navigation",
-          purpose: "the drop link a person copies or opens",
+          purpose: "the drop link a person copies",
           automatic: false,
         },
       ],
@@ -28,7 +28,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       keyAccess: "item-plaintext",
       itemKinds: ["drop"],
       offlineLimits:
-        "Creating or opening a drop needs the claim host; sealed drops already in the vault still list.",
+        "Creating a drop needs the claim host; sealed drops already in the vault still list.",
     },
   ),
   optional(

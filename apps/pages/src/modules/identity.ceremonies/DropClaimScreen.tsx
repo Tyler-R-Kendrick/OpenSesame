@@ -1,33 +1,44 @@
 /**
- * Opening a drop (ADR 0062, ADR 0090): the one-time code the sender shared,
- * then the payload, decrypted here under the key the link carried.
+ * Opening a drop (ADR 0062, ADR 0090; ADR 0140 D2): the one-time code the
+ * sender shared, then the payload, decrypted here under the key the link
+ * carried.
  *
- * The `/claim` route (always-on `identity.ceremonies`, ADR 0140) takes the
- * link out of the address at boot and dispatches a drop — bearer and key —
- * to this opener, which `sharing.drops` hands over as a `claim-opener`
- * contribution. Nothing here reads the address: the fragment left it before
- * the first paint, and the key is held in memory only, never stored.
+ * The recipient's side of a drop is always-on: the `/claim` route takes the
+ * link out of the address at boot and draws this for a drop — bearer and
+ * key — on every installation, whether or not this device can *send* drops
+ * (`sharing.drops`). It is loaded lazily inside the ceremonies module, only
+ * when a drop arrives. Nothing here reads the address, and the key is held
+ * in memory only, never stored.
  *
  * Works without an Identity API: the sealed claim lives on this origin when
  * Pages is the claim host. A refusal's words are `dropRefusal`'s, shown as a
- * mark beside the code and in the notifications tray, never in a box.
+ * mark beside the code (and in the notifications tray, where the shell is
+ * mounted), never in a box.
  */
 
-import type { ClaimOpenerProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import {
-  clearClaimNotice,
-  reportClaim,
-} from "@opensesame/app-core/lib/claims/route-model.js";
 import {
   DropError,
   type DropPayload,
   openDrop,
   presentDrop,
-} from "@opensesame/app-core/lib/vault/drop.js";
+} from "@opensesame/app-core/lib/claims/drop-open.js";
+import {
+  clearClaimNotice,
+  reportClaim,
+} from "@opensesame/app-core/lib/claims/route-model.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { FormCommit } from "../components/FormCommit.js";
-import { IconDownload } from "../components/Icons.js";
-import { StatusMark } from "../components/StatusMark.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconDownload } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+
+/** What a drop link carried. */
+export type DropOpenerProps = Readonly<{
+  token: string;
+  /** The drop key from the link's `#key=`; never stored, never sent. */
+  fragmentKey: string;
+  /** The drop was opened, or refused for good: forget the arrival. */
+  onSettled: () => void;
+}>;
 
 const TITLE = "Drop";
 const OPENED = "Drop opened";
@@ -80,7 +91,7 @@ export function DropClaimScreen({
   token,
   fragmentKey,
   onSettled,
-}: ClaimOpenerProps) {
+}: DropOpenerProps) {
   const [userCode, setUserCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);

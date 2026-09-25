@@ -1,4 +1,3 @@
-import { forgetClaimOnLock } from "@opensesame/app-core/lib/claims/arrival.js";
 import { endSession } from "@opensesame/app-core/lib/identity.js";
 import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import { clearStagedClaimTokens } from "@opensesame/app-core/lib/queue.js";
@@ -45,8 +44,8 @@ function useSessionGuardsDefault(): void {
   const { prefs, status } = useVault();
 
   // Locking drops in-memory vault keys and clears secrets that left the vault
-  // (clipboard, staged claim tokens, a claim or drop link this session was
-  // shown). Identity stays signed in unless the
+  // (clipboard, staged claim tokens; a claim link's stash is purged by the
+  // core, `bindClaimLockReset`). Identity stays signed in unless the
   // operator opted into "sign out on lock" — idle vault lock must not kick
   // them out of every plane.
   useEffect(
@@ -54,7 +53,6 @@ function useSessionGuardsDefault(): void {
       vaultStore.onLock(() => {
         clearCopiedSecret();
         clearStagedClaimTokens();
-        forgetClaimOnLock();
         clearNotices();
         if (vaultStore.getSnapshot().prefs.signOutOnLock) {
           endSession();

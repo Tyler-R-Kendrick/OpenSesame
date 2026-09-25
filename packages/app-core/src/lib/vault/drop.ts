@@ -23,7 +23,6 @@ import {
  */
 
 import {
-  DropFormatError,
   type DropItem,
   type DropKeptCopy,
   type DropManifest,
@@ -33,15 +32,25 @@ import {
   bytesToB64,
   createItem,
   dropTerminal,
-  guardManifest as guardManifestFormat,
-  openDrop as openDropFormat,
   sealDrop as sealDropFormat,
 } from "@opensesame/vault-core";
 import {
-  DropTransportError,
-  type DropTransportErrorCode,
-  dropSeams,
-} from "./drop-transport.js";
+  DropError,
+  asDropError,
+  mapTransportError,
+} from "../claims/drop-open.js";
+import { dropSeams } from "./drop-transport.js";
+
+// Opening a drop is the recipient's side, always-on under
+// `identity.ceremonies` (ADR 0140 D2); re-exported for the sender's code.
+export {
+  DropError,
+  type DropErrorCode,
+  type PresentedDrop,
+  guardManifest,
+  openDrop,
+  presentDrop,
+} from "../claims/drop-open.js";
 
 export {
   DROP_CHUNK_BYTES,
@@ -66,58 +75,11 @@ export type DropSession = {
   expiresAt: string;
 };
 
-/**
- * Sealing and opening refusals from the format (`payload_too_large` …
- * `tampered`), and the transport's — which, on opening, say why the claim
- * plane refused (`invalid_code`, `already_opened`, `expired`, `invalid`).
- */
-export type DropErrorCode =
-  | "payload_too_large"
-  | "invalid_manifest"
-  | "invalid_key"
-  | "tampered"
-  | DropTransportErrorCode;
-
-export class DropError extends Error {
-  constructor(
-    readonly code: DropErrorCode,
-    message: string,
-  ) {
-    super(message);
-    this.name = "DropError";
-  }
-}
-
 /* ------------------------------------------------------ claim transport */
-
-/** A format refusal, restated as this side's error; anything else as is. */
-function asDropError(error: Error): never {
-  if (error instanceof DropFormatError)
-    throw new DropError(error.code, error.message);
-  throw error;
-}
 
 /** Seal a payload under a fresh drop key (see `@opensesame/vault-core`). */
 export function sealDrop(payload: DropPayload): Promise<SealedDrop> {
   return sealDropFormat(payload).catch(asDropError);
-}
-
-/** Guard the server-returned manifest before anything is decoded from it. */
-export function guardManifest(value: BoundaryValue): DropManifest {
-  try {
-    return guardManifestFormat(value);
-  } catch (error) {
-    if (error instanceof Error) asDropError(error);
-    throw error;
-  }
-}
-
-/** Decrypt and digest-verify a presented drop manifest. */
-export function openDrop(
-  value: BoundaryValue,
-  fragmentKey: string,
-): Promise<DropPayload> {
-  return openDropFormat(value, fragmentKey).catch(asDropError);
 }
 
 function obj(value: BoundaryValue): JsonObject {
@@ -147,18 +109,6 @@ export function dropStateFromClaim(status: string): DropState {
       );
   }
 }
-
-function mapTransportError(error: Error): DropError {
-  if (error instanceof DropError) return error;
-  if (error instanceof DropTransportError) {
-    return new DropError(error.code, error.message);
-  }
-  return new DropError("unreachable", error.message);
-}
-
-export type PresentedDrop = {
-  targetManifest: DropManifest;
-};
 
 /** Create the single-use, time-boxed claim session carrying this manifest. */
 export async function createDropSession(
@@ -190,21 +140,6 @@ export async function pollDrop(
   } catch (error) {
     throw mapTransportError(
       error instanceof Error ? error : new Error("drop claim poll failed"),
-    );
-  }
-}
-
-/** Open a drop once — user code + bearer; returns the sealed manifest. */
-export async function presentDrop(
-  bearerToken: string,
-  userCode: string,
-): Promise<PresentedDrop> {
-  try {
-    const presented = await dropSeams.presentClaim(bearerToken, userCode);
-    return { targetManifest: guardManifest(presented.targetManifest) };
-  } catch (error) {
-    throw mapTransportError(
-      error instanceof Error ? error : new Error("drop claim present failed"),
     );
   }
 }

@@ -148,28 +148,6 @@ export type ShellWrapperContribution = Readonly<{
   order: number;
 }>;
 
-/** What a `/claim` drop link carried, handed to the capability that opens it. */
-export type ClaimOpenerProps = Readonly<{
-  token: string;
-  /** The drop key from the link's `#key=`; never stored, never sent. */
-  fragmentKey: string;
-  /** The drop was opened, or refused for good: forget the arrival. */
-  onSettled: () => void;
-}>;
-
-/**
- * The opener for one kind of `/claim` link other than an ownership claim.
- * The route is always-on (`identity.ceremonies`, ADR 0140); what opens a
- * drop belongs to `sharing.drops`, so the route draws it only once an
- * approved module has handed it over — never by importing it.
- */
-export type ClaimOpenerContribution = Readonly<{
-  id: string;
-  link: "drop";
-  Opener: ComponentType<ClaimOpenerProps>;
-  order: number;
-}>;
-
 export type ContributionEntryMap = {
   section: SectionContribution;
   route: RouteContribution;
@@ -186,7 +164,6 @@ export type ContributionEntryMap = {
   "webmcp-tool": WebMcpToolSpec;
   "background-job": BackgroundJobContribution;
   "unlock-effect": UnlockEffectContribution;
-  "claim-opener": ClaimOpenerContribution;
 };
 
 export type ContributionEntry<K extends ContributionKind> =

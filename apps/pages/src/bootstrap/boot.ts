@@ -15,7 +15,10 @@ import {
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
-import { captureClaimArrivalFromPage } from "@opensesame/app-core/lib/claims/arrival.js";
+import {
+  bindClaimLockReset,
+  captureClaimArrivalFromPage,
+} from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
 import {
   captureInviteFromPage,
@@ -64,6 +67,8 @@ export async function bootCore(): Promise<CoreBoot> {
   // fragment the same way; the route behind unlock takes them from memory
   // (ADR 0140 plan step 8).
   captureClaimArrivalFromPage();
+  // Every lock purges it (ADR 0140 D6), whatever is on screen.
+  bindClaimLockReset();
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked

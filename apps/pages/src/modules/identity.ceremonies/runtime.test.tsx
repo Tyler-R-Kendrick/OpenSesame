@@ -28,14 +28,14 @@ describe("identity.ceremonies runtime", () => {
     });
   });
 
-  it("serves /device and /claim behind unlock, at the spec's paths", async () => {
+  it("serves /device and /claim before unlock, at the spec's paths", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(
       t.entries("route").map((r) => [r.id, r.path, r.framed, r.gate]),
     ).toEqual([
-      ["device", "/device", true, undefined],
-      ["claim", "/claim", true, undefined],
+      ["device", "/device", true, "any"],
+      ["claim", "/claim", true, "any"],
     ]);
     // `spec/config/ceremony-routes.json` names each path once (ADR 0139); the
     // literals above are what the registry parity sweep reads.
@@ -43,8 +43,6 @@ describe("identity.ceremonies runtime", () => {
       devicePath("/"),
       claimPath("/"),
     ]);
-    // It opens no drop itself: that is a contribution of sharing.drops.
-    expect(t.entries("claim-opener")).toEqual([]);
     await handle.dispose();
   });
 });

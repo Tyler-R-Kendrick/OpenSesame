@@ -201,6 +201,18 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+  {
+    // Opened by its link (`/claim#token=…&key=…`), never by a guide.
+    id: "identity.drop.open",
+    title: "Open a drop someone sent",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "identity.drop.open"',
+      'say "Open the drop link you were sent and enter the one-time code the sender shared another way. A drop opens once; nothing needs to be switched on to open one."',
+      "end",
+    ].join("\n"),
+  },
 ];
 
 export const IDENTITY_HELP: readonly HelpTopic[] = [

@@ -21,10 +21,6 @@ export const CLAIM_NOTICE = "identity.claim";
 /** The label the done mark carries. */
 export const CLAIM_ACCEPTED = "Claim accepted";
 
-/** A drop link on an installation that does not carry drops. */
-export const DROPS_UNAVAILABLE =
-  "Drops are not available on this installation, so this drop link was not opened.";
-
 const TITLE = "Claim";
 
 /**
@@ -67,16 +63,6 @@ export function claimEntry(raw: string): ClaimArrival | null {
  */
 export function reportClaim(words: string, title = TITLE): void {
   setStatusNotice({ id: CLAIM_NOTICE, tone: "err", title, body: words });
-}
-
-/** A drop link on an installation without drops, said once, in the tray. */
-export function reportDropsUnavailable(): void {
-  setStatusNotice({
-    id: CLAIM_NOTICE,
-    tone: "warn",
-    title: TITLE,
-    body: DROPS_UNAVAILABLE,
-  });
 }
 
 /** Take a failure down when the person starts over or it succeeds. */

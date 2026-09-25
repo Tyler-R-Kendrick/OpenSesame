@@ -49,6 +49,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- always-on: ceremonies a link opens (ADR 0140) --------------------
     "identity.device.approve": "identity.ceremonies",
     "identity.claim.accept": "identity.ceremonies",
+    "identity.drop.open": "identity.ceremonies",
 
     // --- core: settings and install -------------------------------------
     "setup.first_run": "settings.core",

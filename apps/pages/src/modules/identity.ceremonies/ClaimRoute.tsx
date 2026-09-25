@@ -1,42 +1,36 @@
 /**
  * `/claim` (ADR 0140 plan step 8): the one route a claim link opens, and a
  * dispatcher. `#token=osc_clm_…` is an ownership claim, reviewed and accepted
- * here over `createClaimCeremony`; `#token=…&key=…` is a drop, opened by
- * whatever `sharing.drops` handed over; a bearer in the query string is
- * refused. The link left the address before the first paint
- * (`app-core/lib/claims/arrival.ts`, run by `bootCore`); this screen takes
- * what arrived from memory.
+ * here over `createClaimCeremony`; `#token=…&key=…` is a drop, opened here
+ * too (D2: the recipient's side is always-on — only *sending* a drop is
+ * `sharing.drops`); a bearer in the query string is refused. The link left
+ * the address before the first paint (`app-core/lib/claims/arrival.ts`, run
+ * by `bootCore`); this screen takes what arrived from memory.
  *
- * Drops are optional. This module never imports their code: the opener is a
- * `claim-opener` contribution, registered only by an approved `sharing.drops`
- * module that the loader brought in under the current lease. On an
- * installation without drops the route says so, in the tray, and loads
- * nothing.
- *
- * Behind unlock like `/device`: the tray a failure is reported in lives in
- * the shell, and a locked device shows its sign-in and guest roads first.
+ * It never touches the vault (ADR 0140 §2): `gate: "any"`, so on a locked or
+ * empty device it opens by itself, with no unlock prompt, and needs only an
+ * Identity session — the Connect note and the guest road are on the route.
+ * The shell's notifications tray is not mounted there, so every refusal is
+ * also the mark on the page, in the model's words.
  */
-
-import { useComposition } from "../../bindings/capabilities.js";
-import { useContributions } from "../../bindings/contributions.js";
 
 import {
   captureClaimArrivalFromPage,
-  markClaimShown,
   peekClaimArrival,
   takeClaimArrival,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { CLAIM_WORDS } from "@opensesame/app-core/lib/claims/ceremony.js";
 import type { ClaimArrival } from "@opensesame/app-core/lib/claims/link.js";
+import { claimEntry } from "@opensesame/app-core/lib/claims/route-model.js";
 import {
-  DROPS_UNAVAILABLE,
-  claimEntry,
-  clearClaimNotice,
-  reportDropsUnavailable,
-} from "@opensesame/app-core/lib/claims/route-model.js";
-import { type RefObject, useEffect, useRef, useState } from "react";
+  type RefObject,
+  Suspense,
+  lazy,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocation, useNavigate } from "react-router";
-import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { useOnline } from "../../lib/use-online.js";
 import { ConnectIdentityNote } from "../../sections/identity/ConnectIdentityNote.js";
@@ -48,61 +42,11 @@ import {
 } from "./ClaimSteps.js";
 import { useClaimCeremony } from "./useClaimCeremony.js";
 
-const DROPS = "sharing.drops";
-
-/** Whether this plan approves drops; `null` while no plan is resolved. */
-function useDropsApprovedDefault(): boolean | null {
-  const { plan } = useComposition();
-  return plan === null ? null : plan.approvedCapabilities.includes(DROPS);
-}
-
-export const claimRouteSeams = { useDropsApproved: useDropsApprovedDefault };
-
-/** A drop: the opener `sharing.drops` registered, or why there is none. */
-function DropDispatch({
-  token,
-  fragmentKey,
-}: {
-  token: string;
-  fragmentKey: string;
-}) {
-  const approved = claimRouteSeams.useDropsApproved();
-  const opener = useContributions("claim-opener").find(
-    (entry) => entry.link === "drop",
-  );
-  // Approved, the opener arrives with the module; until then, nothing.
-  const unavailable = !opener && approved === false;
-
-  // Said in the tray, and nothing loaded. The link stays in memory only —
-  // never stored — until a lock or sign-out, so a plan that approves Drops
-  // later in this sitting (an unlock re-resolves it; so does switching
-  // Sharing on) still opens it, and takes the notice down.
-  useEffect(() => {
-    if (unavailable) reportDropsUnavailable();
-    else if (opener) clearClaimNotice();
-  }, [unavailable, opener]);
-
-  if (opener) {
-    const { Opener } = opener;
-    return (
-      <Opener
-        token={token}
-        fragmentKey={fragmentKey}
-        onSettled={() => takeClaimArrival()}
-      />
-    );
-  }
-  if (!unavailable) return null;
-  return (
-    <section className="panel" aria-label="Drop not opened">
-      <div className="panel__head">
-        <h2>
-          Drop not opened <StatusMark tone="warn" label={DROPS_UNAVAILABLE} />
-        </h2>
-      </div>
-    </section>
-  );
-}
+// The drop opener and the decryption it runs arrive only when a drop does:
+// a claim, a paste or a refusal never loads them.
+const DropClaimScreen = lazy(() =>
+  import("./DropClaimScreen.js").then((m) => ({ default: m.DropClaimScreen })),
+);
 
 /** An ownership claim, step by step; with nothing arrived, a place to paste. */
 function ClaimFlow({
@@ -121,10 +65,12 @@ function ClaimFlow({
   const { phase } = step;
 
   // A step that arrives after a load replaces the one that held the focus;
-  // when nothing holds it now, it lands on the new step's first key.
+  // when nothing holds it now — or only the page's own landmark, which the
+  // frame focuses on arrival — it lands on the new step's first key.
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new step is the trigger
   useEffect(() => {
-    if (keyboardIsIdle()) landFocus(firstControl(root.current));
+    const onLandmark = document.activeElement === root.current?.closest("main");
+    if (keyboardIsIdle() || onLandmark) landFocus(firstControl(root.current));
   }, [phase.kind, busy]);
 
   if (busy && phase.kind === "token") return null;
@@ -187,7 +133,6 @@ export function ClaimRoute() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on arrival
   useEffect(() => {
-    markClaimShown();
     if (location.search || location.hash) {
       navigate(location.pathname, { replace: true });
     }
@@ -200,7 +145,13 @@ export function ClaimRoute() {
         <h1>{drop ? "Open a drop" : "Accept a claim"}</h1>
       </div>
       {drop ? (
-        <DropDispatch token={drop.token} fragmentKey={drop.key} />
+        <Suspense fallback={null}>
+          <DropClaimScreen
+            token={drop.token}
+            fragmentKey={drop.key}
+            onSettled={() => takeClaimArrival()}
+          />
+        </Suspense>
       ) : (
         <ClaimFlow arrival={arrival} onArrival={setArrival} root={root} />
       )}

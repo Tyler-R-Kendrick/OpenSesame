@@ -14,24 +14,25 @@
  *   - a bearer that arrived in the query string is `leaked`: scrubbed,
  *     refused, never presented.
  *
- * Signing out forgets all of it (`session-exit.ts`), and so does locking a
- * vault the claim was shown in (`forgetClaimOnLock`). A lock before the route
- * ever showed it — the device was locked when the link opened — keeps it, so
- * the person can still take the guest road or sign in to reach it.
+ * The route that takes it never touches the vault (ADR 0140 §2), so nothing
+ * here waits on an unlock. Signing out forgets all of it (`session-exit.ts`),
+ * and so does every vault lock (D6, `bindClaimLockReset`, bound by the core
+ * boot): the stash exists only to carry a bearer across a federated sign-in
+ * redirect, not to outlive the sitting it arrived in.
  */
 
 import { ceremonyPath } from "@opensesame/ceremony-kit";
 import { env } from "../../host.js";
 import { maybePage } from "../../ports.js";
 import { underBase } from "../device-link.js";
+import { onVaultLock } from "../vault/lock-events.js";
 import { type ClaimArrival, captureClaimLink } from "./link.js";
 import { claimStash, clearClaimStash } from "./stash.js";
 
 const NONE: ClaimArrival = { kind: "none" };
 
 let held: ClaimArrival = NONE;
-/** Whether the route has shown the arrival to an unlocked session. */
-let shown = false;
+let unbindLock: (() => void) | null = null;
 
 /** `/OpenSesame/claim` under base `/OpenSesame/`; `/claim` under `/`. */
 export function claimPath(base: string): string {
@@ -75,24 +76,25 @@ export function takeClaimArrival(): ClaimArrival {
   return taken;
 }
 
-/** The route drew the arrival in an unlocked session. */
-export function markClaimShown(): void {
-  shown = true;
-}
-
-/** Forget the arrival and the stashed bearer: sign-out, and a spent claim. */
+/** Forget the arrival and the stashed bearer: sign-out, lock, a spent claim. */
 export function forgetClaim(): void {
   held = NONE;
-  shown = false;
   clearClaimStash();
 }
 
-/** On vault lock: forget a claim the locked session was shown. */
-export function forgetClaimOnLock(): void {
-  if (shown) forgetClaim();
+/**
+ * Purge on every vault lock (ADR 0140 D6). Bound once, by the core boot, on
+ * the store's lock bus — not by a component, because the ceremony routes
+ * render without the shell and a lock must purge whatever is on screen.
+ */
+export function bindClaimLockReset(): () => void {
+  unbindLock ??= onVaultLock(forgetClaim);
+  return () => {
+    unbindLock?.();
+    unbindLock = null;
+  };
 }
 
 export function resetClaimArrivalForTests(): void {
   held = NONE;
-  shown = false;
 }

@@ -193,8 +193,7 @@ export type ContributionKind =
   | "item-kind"
   | "webmcp-tool"
   | "background-job"
-  | "unlock-effect"
-  | "claim-opener";
+  | "unlock-effect";
 
 /** A revocable handle returned by every registrar. Idempotent `revoke`. */
 export type RegistrationHandle = Readonly<{

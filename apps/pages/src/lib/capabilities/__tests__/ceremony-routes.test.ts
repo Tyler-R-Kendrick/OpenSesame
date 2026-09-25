@@ -3,8 +3,8 @@
  * A link a device printed must open on every installation (ADR 0140): under
  * the smallest shipped profile, `minimal-local`, the ceremonies capability is
  * approved with nothing optional beside it, its module is in the plan, and
- * activating that module serves `/device` and `/claim` — a claim link opens
- * even where drops are absent.
+ * activating that module serves `/device` and `/claim` before unlock — a
+ * claim or drop link opens even where drops cannot be sent (ADR 0140 D2).
  */
 
 import {
@@ -42,6 +42,12 @@ describe("minimal-local serves the ceremony routes", () => {
       "/device",
       "/claim",
     ]);
+    expect(t.entries("route").every((route) => route.gate === "any")).toBe(
+      true,
+    );
+    // Opening a drop is approved with Drops off (ADR 0140 D2).
+    expect(plan.approvedOperations).toContain("identity.drop.open");
+    expect(plan.approvedOperations).toContain("identity.claim.accept");
     await handle.dispose();
   });
 });

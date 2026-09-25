@@ -8,12 +8,10 @@ import { clearNotices, listNotices } from "../notices.js";
 import { CLAIM_WORDS, type ClaimCeremony } from "./ceremony.js";
 import {
   CLAIM_NOTICE,
-  DROPS_UNAVAILABLE,
   claimEntry,
   claimStartFor,
   clearClaimNotice,
   reportClaim,
-  reportDropsUnavailable,
 } from "./route-model.js";
 import { claimStash } from "./stash.js";
 
@@ -91,10 +89,14 @@ describe("claimEntry", () => {
 describe("the claim notice", () => {
   it("is one notice: a failure, then a drop refusal, then nothing", () => {
     reportClaim("That code did not match.");
-    reportDropsUnavailable();
+    reportClaim("This drop was already opened.", "Drop");
     const notices = listNotices().filter((n) => n.id === CLAIM_NOTICE);
     expect(notices).toHaveLength(1);
-    expect(notices[0]).toMatchObject({ tone: "warn", body: DROPS_UNAVAILABLE });
+    expect(notices[0]).toMatchObject({
+      tone: "err",
+      title: "Drop",
+      body: "This drop was already opened.",
+    });
     clearClaimNotice();
     expect(listNotices().some((n) => n.id === CLAIM_NOTICE)).toBe(false);
   });

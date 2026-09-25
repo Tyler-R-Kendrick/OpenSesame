@@ -242,11 +242,6 @@ export const SHELL_RULES = [
   ),
   optional("src/screens/broker", "identity.site-broker", "broker stylesheet"),
   optional(
-    "src/screens/DropClaimScreen",
-    "sharing.drops",
-    "drop opener, handed to the /claim route as a claim-opener (ADR 0140)",
-  ),
-  optional(
     "src/screens/LocalAuthorize",
     "identity.local-iam",
     "local application sign-in",
