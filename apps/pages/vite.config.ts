@@ -9,6 +9,7 @@ import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { nobleDedupe } from "./scripts/noble-dedupe-plugin.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const osDomainBrowser = fileURLToPath(
@@ -145,8 +146,12 @@ export default defineConfig({
   // as a bare `error` event with no message. Emitting real ES modules is
   // what makes a module worker start at all. Every target engine here
   // (Chrome 100, Firefox 100, Safari 15) supports module workers.
-  worker: { format: "es" },
+  // The SOPS worker carries age too, so it folds the same duplicate copy.
+  worker: { format: "es", plugins: () => [nobleDedupe()] },
   plugins: [
+    // One `@noble/curves` and `@noble/hashes` 2.x in every chunk that
+    // carries age-encryption (see the plugin's header).
+    nobleDedupe(),
     githubAppRelayPlugin(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
