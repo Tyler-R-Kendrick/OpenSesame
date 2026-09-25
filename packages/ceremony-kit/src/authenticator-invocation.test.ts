@@ -43,6 +43,8 @@ describe("authenticator invocation links", () => {
   it("hands a request id to the app with no browser fallback", () => {
     expect(parseAuthenticatorInvocation("mfa", "?request_id=r-1.x")).toEqual({
       kind: "mfa",
+      handleName: "request_id",
+      handle: "r-1.x",
       appUrl: "opensesame://invoke/mfa?request_id=r-1.x",
       browserFallback: null,
       requestHost: null,
