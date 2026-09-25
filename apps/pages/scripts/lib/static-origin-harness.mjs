@@ -98,7 +98,10 @@ function serveFromDist(route, url, { dist, base, record }) {
       body: fs.readFileSync(file),
     });
   }
-  if (rel && /\.[a-z0-9]+$/i.test(rel)) {
+  // An interaction reference ends in `.<tag>` (`/i/i_<id>.<mac>`): a route,
+  // which GitHub Pages answers with 404.html like any path, not an asset.
+  const reference = /^i\/[^/]+$/.test(rel);
+  if (rel && !reference && /\.[a-z0-9]+$/i.test(rel)) {
     record("MISSING-ASSET", url.pathname);
     return route.fulfill({ status: 404, body: "not found" });
   }

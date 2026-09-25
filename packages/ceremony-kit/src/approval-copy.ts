@@ -180,6 +180,26 @@ export function assuranceSummary(assurance: ApprovalAssurance | null): string {
     : "Needs your decision — nothing extra.";
 }
 
+/** The names of a review's keys, fields and rows, one place for every surface. */
+export const APPROVAL_LABELS = {
+  title: "Review a request",
+  inbox: "Requests for you",
+  requester: "Asked by",
+  unnamed: "Not named",
+  expires: "Good until",
+  request: "Request",
+  grants: "Would allow",
+  requires: "Needs",
+  comparison: "Six-digit code from where this started",
+  confirm: "I have read what this would do, and I want to allow exactly that.",
+  approve: "Approve",
+  approveWithPasskey: "Touch your passkey to approve",
+  deny: "Deny",
+  report: "I don't recognize this request",
+  open: "Review request",
+  retry: "Try again",
+} as const;
+
 /** The fixed sentences of a review, one place for every surface. */
 export const APPROVAL_WORDS = {
   /** Why this browser cannot run the ceremony, said rather than skipped. */

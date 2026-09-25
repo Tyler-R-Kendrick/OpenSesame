@@ -10,6 +10,7 @@ import {
   LEGACY_LINKS,
   ceremonyPath,
   ceremonyRoutePrefix,
+  ceremonyRouterPath,
   invokeKind,
   matchCeremonyPath,
 } from "./ceremony-routes.js";
@@ -121,5 +122,12 @@ describe("ceremony routes (ADR 0139, ADR 0140 §3)", () => {
         ).appUrl,
       ).toBe(`${app}?${appParameter}=https%3A%2F%2Fr.example%2F1`);
     }
+  });
+
+  it("spells a route's parameters the way a client router does", () => {
+    expect(ceremonyRouterPath("interaction")).toBe("/i/:ref");
+    expect(ceremonyRouterPath("approve")).toBe("/approve/:ref");
+    expect(ceremonyRouterPath("device")).toBe("/device");
+    expect(ceremonyRouterPath("invoke")).toBe("/invoke/:kind");
   });
 });

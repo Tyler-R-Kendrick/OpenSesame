@@ -289,13 +289,13 @@ export const LIB_RULES = [
   core(
     `${L}interactions`,
     CEREMONIES,
-    "interaction approval: /i/<ref> link, resolve/read, activation, decide (ADR 0140)",
+    "/i/<ref>: approval model, -link (read at boot), -route (screen model) (ADR 0140)",
   ),
   // The hosted inbox rows it builds are Access › Requests' (plan step 9).
   core(
     `${L}approvals`,
     CEREMONIES,
-    "authorization-request review and hosted inbox rows (ADR 0084, ADR 0140)",
+    "/approve/<ref> review, hosted rows, -link (boot), -route (ADR 0084, 0140)",
   ),
   core(
     `${L}device-link`,

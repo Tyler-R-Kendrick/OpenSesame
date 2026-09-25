@@ -69,6 +69,11 @@ export const SECTION_RULES = [
     "access.authority",
     "grants, requests, sessions, policies",
   ),
+  optional(
+    "src/sections/access/HostedRequestsPanel",
+    "access.authority",
+    "Access › Requests' hosted rows, loaded only with an Identity API; each opens /approve/:ref (ADR 0140)",
+  ),
   ...each("src/sections/access/", ["Connector", "useConnectorDirectory"], (p) =>
     optional(p, CONNECTORS, "Access › Connectors tab (directory by reference)"),
   ),

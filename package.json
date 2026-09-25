@@ -145,7 +145,9 @@
       "ws": "8.21.3",
       "sharp": "0.35.4",
       "hono": "4.13.8",
-      "yaml": "2.8.4"
+      "yaml": "2.8.4",
+      "@noble/post-quantum>@noble/curves": "2.4.0",
+      "@noble/post-quantum>@noble/hashes": "2.4.0"
     }
   }
 }

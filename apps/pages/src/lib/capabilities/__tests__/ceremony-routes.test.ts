@@ -3,8 +3,10 @@
  * A link a device printed must open on every installation (ADR 0140): under
  * the smallest shipped profile, `minimal-local`, the ceremonies capability is
  * approved with nothing optional beside it, its module is in the plan, and
- * activating that module serves `/device` and `/claim` before unlock — a
- * claim or drop link opens even where drops cannot be sent (ADR 0140 D2).
+ * activating that module serves `/device`, `/claim`, `/i/:ref` and
+ * `/approve/:ref` before unlock — a claim or drop link opens even where drops
+ * cannot be sent (ADR 0140 D2), and an approval link opens with no vault
+ * (D7) and with zero optional capabilities approved.
  */
 
 import {
@@ -33,7 +35,7 @@ describe("minimal-local serves the ceremony routes", () => {
     );
   });
 
-  it("resolves /device and /claim from the module the plan approves", async () => {
+  it("resolves every ceremony route from the module the plan approves", async () => {
     const plan = profilePlan("minimal-local");
     expect(approved(plan, "sharing.drops")).toBe(false);
     const t = createTestContext();
@@ -41,6 +43,8 @@ describe("minimal-local serves the ceremony routes", () => {
     expect(t.entries("route").map((route) => route.path)).toEqual([
       "/device",
       "/claim",
+      "/i/:ref",
+      "/approve/:ref",
     ]);
     expect(t.entries("route").every((route) => route.gate === "any")).toBe(
       true,
@@ -48,6 +52,16 @@ describe("minimal-local serves the ceremony routes", () => {
     // Opening a drop is approved with Drops off (ADR 0140 D2).
     expect(plan.approvedOperations).toContain("identity.drop.open");
     expect(plan.approvedOperations).toContain("identity.claim.accept");
+    // Approving before unlock needs nothing optional (ADR 0140 D7).
+    for (const operation of [
+      "identity.interaction.approve",
+      "identity.interaction.deny",
+      "identity.approval.activation",
+      "identity.approval.comparison",
+      "identity.approval.report",
+    ]) {
+      expect(plan.approvedOperations, operation).toContain(operation);
+    }
     await handle.dispose();
   });
 });

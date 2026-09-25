@@ -10,6 +10,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { answerApprovals, approvalState } from "./capture-approval-steps.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
 function journeyDropManifest(journey, journeyPath) {
@@ -82,7 +83,9 @@ function answerClaims(at, request, dropManifest) {
  *   `POST /v1/claims/clm_evidence/complete` → one synthetic claim; a present
  *   carrying a user code is a drop's, answered with `dropManifest` (a sealed
  *   synthetic drop the journey names) when there is one;
- * - `GET /v1/health/live` → live.
+ * - `GET /v1/health/live` → live;
+ * - the interaction and authorization-request routes of `/i/:ref`,
+ *   `/approve/:ref` and Access › Requests (`capture-approval-steps.mjs`).
  *
  * Anything else is a 404, so a call the journey did not expect shows up as
  * a failure rather than quietly succeeding.
@@ -98,6 +101,7 @@ export async function identityStub(
       "authorization, content-type, accept, x-claim-token",
     "access-control-allow-methods": "GET, POST, OPTIONS",
   };
+  const approvals = approvalState();
   await page.route(`${origin}/**`, (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -128,6 +132,13 @@ export async function identityStub(
     if (at === "GET /v1/health/live") return json(200, { status: "live" });
     const claim = answerClaims(at, request, dropManifest);
     if (claim) return json(claim[0], claim[1]);
+    const approval = answerApprovals(
+      approvals,
+      `${at}${url.search}`,
+      request,
+      pagesOrigin,
+    );
+    if (approval) return json(approval[0], approval[1]);
     return json(404, { error: "not_found" });
   });
 }
