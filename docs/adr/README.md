@@ -180,3 +180,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0138](0138-self-issued-identity-one-native-host.md) | Self-issued identity by default, one native host, apps are packages | Proposed |
 | [0139](0139-one-definition-every-target.md) | One definition, every target | Accepted |
 | [0140](0140-pages-hosts-every-ceremony.md) | Pages hosts every ceremony | Accepted |
+| [0143](0143-travel-mode.md) | Travel mode | Accepted |
