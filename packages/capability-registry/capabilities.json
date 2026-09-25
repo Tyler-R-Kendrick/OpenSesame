@@ -3173,11 +3173,11 @@
     "excluded": {
       "pwa": {
         "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
-        "adr": "0143-tailnet-vault-sync.md"
+        "adr": "0144-tailnet-vault-sync.md"
       },
       "webmcp": {
         "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
-        "adr": "0143-tailnet-vault-sync.md"
+        "adr": "0144-tailnet-vault-sync.md"
       },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
@@ -3204,15 +3204,15 @@
     "excluded": {
       "webmcp": {
         "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
-        "adr": "0143-tailnet-vault-sync.md"
+        "adr": "0144-tailnet-vault-sync.md"
       },
       "mcp_host": {
         "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
-        "adr": "0143-tailnet-vault-sync.md"
+        "adr": "0144-tailnet-vault-sync.md"
       },
       "mcp_client": {
         "reason": "pairing a vault with a drive copies it to every device that holds the code, and on a new device adopts it before unlock; only the person the vault belongs to decides that",
-        "adr": "0143-tailnet-vault-sync.md"
+        "adr": "0144-tailnet-vault-sync.md"
       }
     }
   },
@@ -4296,6 +4296,33 @@
       "android": {
         "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
         "adr": "0139-one-definition-every-target.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.travel",
+    "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/travel/index.ts:packTravelDeparture",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      },
+      "mcp_client": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
+      },
+      "webmcp": {
+        "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
+        "adr": "0143-travel-mode.md"
       }
     }
   },

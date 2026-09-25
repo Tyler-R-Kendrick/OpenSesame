@@ -23,7 +23,7 @@ export const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
 export const ADR_INTERACTION_LAYER = "0086-wallet-native-interaction-layer.md";
 export const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
 export const ADR_PAGES_WITHOUT_HOST = "0128-pages-without-host.md";
-export const ADR_TAILNET_SYNC = "0143-tailnet-vault-sync.md";
+export const ADR_TAILNET_SYNC = "0144-tailnet-vault-sync.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:

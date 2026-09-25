@@ -47,7 +47,7 @@ enum DaemonCmd {
     Logs,
     /// SIGTERM via pidfile.
     Stop,
-    /// This machine's tailnet vault drive (ADR 0143).
+    /// This machine's tailnet vault drive (ADR 0144).
     #[command(subcommand)]
     Drive(daemon_drive::DriveCmd),
     #[command(flatten)]

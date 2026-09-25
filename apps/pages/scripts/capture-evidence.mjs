@@ -30,6 +30,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { menuSteps } from "./lib/capture-menu-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -96,15 +97,10 @@ async function press(locator) {
   else await locator.click();
 }
 
-/** Press what proposes a capability change, then Settings' own Apply. */
-async function applyCapability(page, control) {
-  await press(control);
-  await page.waitForTimeout(400);
-  await press(page.getByTestId("capability-apply"));
-  await page
-    .getByTestId("capability-review")
-    .waitFor({ state: "detached", timeout: 20_000 });
-  await page.waitForTimeout(600);
+/** Open a Settings page by name, the way a journey's own steps would. */
+async function openSettings(page, name) {
+  await STEPS.tab(page, "settings");
+  await STEPS.open(page, name);
 }
 
 const STEPS = {
@@ -214,6 +210,18 @@ const STEPS = {
     }
   },
   /**
+   * Tick a labelled checkbox when this build has it — an acknowledgement a
+   * person gives before a commit key enables. Absent in a base build is a
+   * legitimate difference, not a miss.
+   */
+  async checkOptional(page, name) {
+    const box = page.getByRole("checkbox", { name, exact: true }).first();
+    if ((await box.count()) && (await box.isEnabled())) {
+      await press(box);
+      await page.waitForTimeout(400);
+    }
+  },
+  /**
    * Print how many elements match each selector, so a sheet's before/after
    * numbers are read from the browser rather than from the diff.
    */
@@ -234,28 +242,7 @@ const STEPS = {
     });
     await page.waitForTimeout(600);
   },
-  /**
-   * Switch an optional capability on, through Settings › Capabilities' own
-   * Add and Apply — Access, Identity and Connections are capabilities, and a
-   * guest device has none of them until it chooses (ADR 0130).
-   */
-  async enable(page, title) {
-    await STEPS.tab(page, "settings");
-    await STEPS.open(page, "Capabilities");
-    const add = page.getByRole("button", { name: `Add ${title}`, exact: true });
-    if (await add.count()) await applyCapability(page, add.first());
-  },
-  /** A whole feature, by its own switch — what a person actually turns on. */
-  async feature(page, title) {
-    await STEPS.tab(page, "settings");
-    await STEPS.open(page, "Capabilities");
-    const toggle = page.getByRole("switch", { name: title, exact: true });
-    if (!(await toggle.count()))
-      throw new Error(
-        `capture-evidence feature("${title}"): no switch matched`,
-      );
-    await applyCapability(page, toggle.first());
-  },
+  ...capabilitySteps({ press, openSettings }),
   /** A new section loads with the app root, so a chosen one needs a reload. */
   async reload(page) {
     await page.reload({ waitUntil: "networkidle" });

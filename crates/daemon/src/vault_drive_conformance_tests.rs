@@ -1,4 +1,4 @@
-//! The drive against `spec/conformance/vault-drive-protocol.json` (ADR 0143):
+//! The drive against `spec/conformance/vault-drive-protocol.json` (ADR 0144):
 //! every exchange replayed, in order, against the real router and store. The
 //! Pages client is held to the same file, so a change on either side that the
 //! other does not follow fails a test rather than a sync.

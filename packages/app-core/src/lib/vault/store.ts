@@ -1247,7 +1247,7 @@ export class VaultStore {
   }
 
   /**
-   * Merge another device's sealed snapshot of this vault (ADR 0143). Reports
+   * Merge another device's sealed snapshot of this vault (ADR 0144). Reports
    * whether this device changed and whether the snapshot is now behind it.
    */
   async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {

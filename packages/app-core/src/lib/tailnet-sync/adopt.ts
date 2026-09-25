@@ -1,5 +1,5 @@
 /**
- * Set up a new device from a tailnet drive (ADR 0143) — Enpass's "restore
+ * Set up a new device from a tailnet drive (ADR 0144) — Enpass's "restore
  * from sync": write the drive's sealed body and portable header into this
  * device's personal tomb, then unlock it with the master password or a
  * synced passkey the way any vault opens.

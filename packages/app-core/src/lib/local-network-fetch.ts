@@ -73,7 +73,7 @@ export type LocalNetworkFetchInit = RequestInit & {
   skipAddressSpace?: boolean;
   /**
    * The request reads or writes ciphertext on a tailnet drive and carries no
-   * operator authority (ADR 0143), so the deployment fence — which exists to
+   * operator authority (ADR 0144), so the deployment fence — which exists to
    * keep local authority off a shared origin — does not apply to it.
    */
   ciphertextDrive?: boolean;

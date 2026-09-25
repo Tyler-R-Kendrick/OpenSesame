@@ -1,7 +1,7 @@
 # Enpass — craft bar (vault sync without a vendor cloud)
 
 > Competitive reference for how OpenSesame's **on-device human vault** reaches
-> a person's other devices ([ADR 0143](../../adr/0143-tailnet-vault-sync.md),
+> a person's other devices ([ADR 0144](../../adr/0144-tailnet-vault-sync.md),
 > [PRODUCT.md](../../../PRODUCT.md)). Never brand marks; never position
 > OpenSesame as an Enpass replacement.
 
@@ -9,7 +9,7 @@
 password manager most often cited for syncing a vault across devices with no
 vendor server in the path, and its model — the storage is a dumb drive, the
 merge happens on the device — is the one OpenSesame adopts
-([ADR 0143](../../adr/0143-tailnet-vault-sync.md)). The product category stays
+([ADR 0144](../../adr/0144-tailnet-vault-sync.md)). The product category stays
 an authorization fabric with a sealed human store: Enpass's other features are
 recorded below so parity decisions are made knowingly, not to be cloned.
 
@@ -162,7 +162,7 @@ The desktop app can act as the drive:
 - The Wi-Fi Sync Server keeps a household's vaults off every cloud.
 - One app with passkeys, TOTP, audit and autofill at a low flat price.
 
-## Sync: where OpenSesame stood, and what ADR 0143 changes
+## Sync: where OpenSesame stood, and what ADR 0144 changes
 
 Proof: [`spec/conformance/vault-drive-protocol.json`](../../../spec/conformance/vault-drive-protocol.json)
 (replayed by the daemon and the Pages client), the two-device suite
@@ -170,7 +170,7 @@ Proof: [`spec/conformance/vault-drive-protocol.json`](../../../spec/conformance/
 `pnpm --filter @opensesame/pages verify:tailnet-sync` (a real daemon and two
 browsers).
 
-| Enpass capability | OpenSesame before | OpenSesame after ADR 0143 |
+| Enpass capability | OpenSesame before | OpenSesame after ADR 0144 |
 |-------------------|-------------------|---------------------------|
 | Sync a vault to the person's other devices | **Gap.** Pages had a push-only encrypted backup to a git remote; no pull, no restore | **Closed.** Tailnet drive: the `opensesame` daemon holds one sealed snapshot per slot; each device pulls, merges and pushes |
 | Client-side merge, conflicts resolved on the device | Library only: `mergeVaultBodies` and `VaultStore.mergeSnapshot` had no caller | **Closed.** `tailnet-sync/engine.ts` runs read → merge → compare-and-set write, retrying when another device wins the race |

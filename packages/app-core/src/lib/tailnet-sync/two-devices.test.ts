@@ -1,5 +1,5 @@
 /**
- * Tailnet sync between two devices (ADR 0143), end to end inside the client:
+ * Tailnet sync between two devices (ADR 0144), end to end inside the client:
  * two `VaultStore`s with separate storage, one drive with the daemon's
  * compare-and-set rule, and nothing shared between the devices but the drive.
  * The daemon's own side of the protocol is proven against the same exchanges

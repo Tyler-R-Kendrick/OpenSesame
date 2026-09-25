@@ -1,6 +1,6 @@
 # Tailnet vault sync — a Settings › Vaults panel, and two devices in step
 
-Two kinds of evidence for [ADR 0143](../../adr/0143-tailnet-vault-sync.md):
+Two kinds of evidence for [ADR 0144](../../adr/0144-tailnet-vault-sync.md):
 
 1. **Before/after** from two real builds of `apps/pages` — `main` at
    `a82b57c` and this branch — walked the same way by

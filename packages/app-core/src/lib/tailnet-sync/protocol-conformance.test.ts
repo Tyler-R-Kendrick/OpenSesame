@@ -1,6 +1,6 @@
 /**
  * The Pages drive client against `spec/conformance/vault-drive-protocol.json`
- * (ADR 0143): for every exchange, the client must send exactly the request
+ * (ADR 0144): for every exchange, the client must send exactly the request
  * the spec records and read the recorded answer the way the protocol means
  * it. The daemon replays the same exchanges against its real router
  * (`crates/daemon/src/vault_drive_conformance_tests.rs`).

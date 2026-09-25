@@ -1,6 +1,6 @@
 /**
  * The pairing code a machine on the tailnet prints when it opens a drive slot
- * (`opensesame vault-drive create`, ADR 0143) — Enpass's Wi-Fi Sync QR, as text.
+ * (`opensesame vault-drive create`, ADR 0144) — Enpass's Wi-Fi Sync QR, as text.
  *
  * It carries where the drive is, which slot, and the slot's access key. The
  * key lets its holder read and replace one ciphertext snapshot; it opens

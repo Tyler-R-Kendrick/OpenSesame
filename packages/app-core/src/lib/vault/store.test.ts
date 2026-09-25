@@ -323,7 +323,7 @@ describe("VaultStore multi-method unlock", () => {
     await store.saveItem(createItem("login", "Personal only"));
 
     // Sealed with this vault's key (the Manage panel's "share" road).
-    const shared = await createProject("Work");
+    const shared = await createProject("Shared");
     await setActiveProject(shared.id);
     await store.forkUnlockedIntoActiveScope();
     await store.saveItem(createItem("login", "Work only"));

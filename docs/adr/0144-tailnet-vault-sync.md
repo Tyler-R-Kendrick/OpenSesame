@@ -1,4 +1,4 @@
-# ADR 0143 — Tailnet vault sync: a dumb drive, a device-side merge
+# ADR 0144 — Tailnet vault sync: a dumb drive, a device-side merge
 
 - Status: Accepted
 - Date: 2026-09-24

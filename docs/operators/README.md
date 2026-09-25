@@ -37,7 +37,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Credential helpers](credential-helpers.md) | git, Docker, AWS and kubectl authenticating with short-lived derived tokens. |
 | [Browser identity verification](host-browser-verification.md) | Pairing a browser to the Host and the one-use controls that follow. |
 | [Encrypted sync pages](sync-pages.md) | The sync page format and the legacy-ownership migration. |
-| [Tailnet vault sync](tailnet-sync.md) | Run a drive on the daemon, open slots, pair devices over Tailscale (ADR 0143). |
+| [Tailnet vault sync](tailnet-sync.md) | Run a drive on the daemon, open slots, pair devices over Tailscale (ADR 0144). |
 
 ## Transport and alerting
 

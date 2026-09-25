@@ -1,5 +1,5 @@
 /**
- * One sync pass against a tailnet drive (ADR 0143) — Enpass's client-side
+ * One sync pass against a tailnet drive (ADR 0144) — Enpass's client-side
  * merge, over a drive that only stores ciphertext:
  *
  *   1. read the drive's snapshot and its generation;

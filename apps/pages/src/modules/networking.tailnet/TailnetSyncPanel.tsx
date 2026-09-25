@@ -1,5 +1,5 @@
 /**
- * Settings › Vaults › Tailnet sync (ADR 0143): pair this vault with a drive
+ * Settings › Vaults › Tailnet sync (ADR 0144): pair this vault with a drive
  * on the tailnet, see whether it is in step, sync now, or stop.
  *
  * Contributed by `networking.tailnet`, so it exists only while Networking is

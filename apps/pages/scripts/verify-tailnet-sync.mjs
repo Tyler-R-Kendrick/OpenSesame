@@ -1,4 +1,4 @@
-// Tailnet vault sync, end to end (ADR 0143): a real `opensesame` daemon as
+// Tailnet vault sync, end to end (ADR 0144): a real `opensesame` daemon as
 // the drive, and two devices that share nothing but the pairing code.
 //
 //   cargo build -p opensesame-cli

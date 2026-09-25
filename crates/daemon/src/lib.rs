@@ -90,7 +90,7 @@ struct App {
     token_source_factory: TokenSourceFactory,
     /// Optional duress peer receiver state (default off / None).
     duress_peer: Option<duress_receiver::DuressReceiverState>,
-    /// The tailnet vault drive (ADR 0143); `None` when no state dir resolves.
+    /// The tailnet vault drive (ADR 0144); `None` when no state dir resolves.
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
 }
 

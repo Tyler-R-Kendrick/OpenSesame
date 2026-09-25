@@ -1,5 +1,5 @@
 {
-  "$comment": "The tailnet vault drive's wire protocol (ADR 0143), as literal exchanges. The daemon replays every exchange against its real router (crates/daemon/src/vault_drive_conformance_tests.rs); the Pages client sends every request and reads every answer through its real client (packages/app-core/src/lib/tailnet-sync/protocol-conformance.test.ts). A request's key is 'slot' (the slot's own key) or 'wrong' (well formed, not the slot's); a snapshot value '$name' refers to snapshots[name]. Change a case here and both sides must follow.",
+  "$comment": "The tailnet vault drive's wire protocol (ADR 0144), as literal exchanges. The daemon replays every exchange against its real router (crates/daemon/src/vault_drive_conformance_tests.rs); the Pages client sends every request and reads every answer through its real client (packages/app-core/src/lib/tailnet-sync/protocol-conformance.test.ts). A request's key is 'slot' (the slot's own key) or 'wrong' (well formed, not the slot's); a snapshot value '$name' refers to snapshots[name]. Change a case here and both sides must follow.",
   "version": 1,
   "path": "/v1/vault-drive/slots/{slot}/snapshot",
   "snapshotFormat": "opensesame-vault-drive-snapshot",

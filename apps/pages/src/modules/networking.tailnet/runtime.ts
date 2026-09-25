@@ -1,7 +1,7 @@
 /**
  * `networking.tailnet` — the Networking feature: binding this installation
  * to a Tailscale tailnet, and syncing the vault through a drive on it
- * (ADR 0143).
+ * (ADR 0144).
  *
  * The networking connector bindings (`networking` in the embedded catalogue)
  * are drawn by Settings › Capabilities under the Networking feature, and

@@ -12,6 +12,7 @@ export const CAPABILITY_TUTORIALS = {
   "transport.identity.reference": "settings.transport",
   "transport.capabilities.discover": "settings.transport",
   "vaults.switch": "vaults.switch",
+  "vaults.travel": "vaults.switch",
   "host.health.pages": "host.health.check",
   "host.whoami": "identity.account.add",
   "receipts.read": "access.sessions.review",

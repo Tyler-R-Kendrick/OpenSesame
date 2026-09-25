@@ -1,5 +1,5 @@
 /**
- * Where this device keeps its drive pairing (ADR 0143): sealed in the vault's
+ * Where this device keeps its drive pairing (ADR 0144): sealed in the vault's
  * own tomb, so the slot key is readable only while the vault is open, and
  * dropped with the tomb when the vault is destroyed.
  *

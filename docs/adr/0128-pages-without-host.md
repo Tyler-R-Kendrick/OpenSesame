@@ -46,7 +46,7 @@ and claim, public-session listing and join requests, under a browser grant
 the endpoint's operator approved and a passkey verified. It never configures
 the app's Host, and nothing else in Pages speaks Host.
 
-**Exception (2026-09-24, [ADR 0143](0143-tailnet-vault-sync.md)):** tailnet
+**Exception (2026-09-24, [ADR 0144](0144-tailnet-vault-sync.md)):** tailnet
 vault sync reads and replaces one sealed snapshot on the drive a person
 paired, through that daemon's two device routes, holding only the slot's
 access key. It sends no operator token, calls no slot or Host route, and

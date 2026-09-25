@@ -1,5 +1,5 @@
 /**
- * Open another device's sealed snapshot of the unlocked vault (ADR 0143).
+ * Open another device's sealed snapshot of the unlocked vault (ADR 0144).
  *
  * Split out of `store.ts`: the store decides when to merge; this file decides
  * whether what arrived is this vault at all. A snapshot opens only under this
