@@ -132,3 +132,47 @@ export {
   renderInteractionSummary,
   type RenderedInteractionSummary,
 } from "./interaction-summary.js";
+export {
+  APPROVAL_WORDS,
+  type ApprovalAssurance,
+  arrivedViaSentence,
+  assuranceSummary,
+  type AuthorizationDetailView,
+  CHANNEL_NAMES,
+  channelKindOf,
+  channelLabel,
+  channelName,
+  describeDetail,
+  needsCeremony,
+  requirementSentence,
+  requirementSentences,
+  riskSentence,
+} from "./approval-copy.js";
+export {
+  ApprovalError,
+  type ApprovalRefusal,
+  type ApprovalRefusalKind,
+  approvalRefusal,
+  approvalWords,
+  COMPARISON_MISMATCH,
+} from "./approval-words.js";
+export {
+  type ApprovalActivationChallenge,
+  type ApprovalRequirement,
+  type ApprovalVerb,
+  type AuthorizationRequestClient,
+  type AuthorizationRequestClientOptions,
+  type AuthorizationRequestView,
+  createAuthorizationRequestClient,
+  readAuthorizationRequest,
+  type SettleInput,
+} from "./authorization-request-client.js";
+export {
+  type ApprovalEnding,
+  type ApprovalPhase,
+  type ApprovalReview,
+  type ApprovalReviewDeps,
+  type ApprovalStep,
+  createApprovalReview,
+  type DecisionInput,
+} from "./approval-review.js";

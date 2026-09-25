@@ -2,7 +2,7 @@
   "$comment": "Mirrors apps/pages/tsconfig.json rather than the stricter tsconfig.base.json: the code relocated here was written under these options, and tightening is ratcheted per domain (ADR 0133).",
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,

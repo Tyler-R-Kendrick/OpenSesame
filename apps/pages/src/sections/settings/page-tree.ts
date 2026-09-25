@@ -81,12 +81,15 @@ function sectionsFor(
         panel("security", "transport", "Transport"),
       ];
     case "vaults":
-      return (snapshot.vaults ?? []).map((vault) => ({
-        id: vault.id,
-        label: vault.label,
-        href: settingsPath("vaults"),
-        keepEmpty: true,
-      }));
+      return [
+        ...(snapshot.vaults ?? []).map((vault) => ({
+          id: vault.id,
+          label: vault.label,
+          href: settingsPath("vaults"),
+          keepEmpty: true,
+        })),
+        panel("vaults", "travel", "Travel"),
+      ];
     case "capabilities":
       return capabilitiesSettingsSections(
         snapshot.guests ?? true,

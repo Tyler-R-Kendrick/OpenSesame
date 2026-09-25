@@ -1,4 +1,16 @@
 import {
+  APPROVAL_WORDS,
+  type ApprovalRefusalKind,
+  COMPARISON_MISMATCH,
+  approvalRefusal,
+  approvalWords,
+  channelLabel,
+  describeDetail,
+  requirementSentence,
+  requirementSentences,
+  riskSentence,
+} from "@opensesame/ceremony-kit";
+import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
@@ -105,22 +117,10 @@ export interface ActivationAssertion {
 export type ApprovalDecision = "approve" | "deny";
 
 /* ------------------------------------------------------------------ *
- * Failure vocabulary
+ * Failure vocabulary — ceremony-kit's, so Pages words a refusal the same way
  * ------------------------------------------------------------------ */
 
-export type ApprovalErrorCode =
-  | "signin"
-  | "not_found"
-  | "expired"
-  | "changed"
-  | "revoked"
-  | "already_decided"
-  | "activation_expired"
-  | "activation_unavailable"
-  | "comparison_mismatch"
-  | "comparison_exhausted"
-  | "unreachable"
-  | "failed";
+export type ApprovalErrorCode = ApprovalRefusalKind;
 
 export class ApprovalError extends Error {
   constructor(
@@ -136,16 +136,8 @@ export class ApprovalError extends Error {
  * Codes that end the page. There is nothing left to try, so the screen stops
  * offering buttons and says plainly what happened to the request.
  */
-const TERMINAL: readonly ApprovalErrorCode[] = [
-  "not_found",
-  "expired",
-  "changed",
-  "revoked",
-  "already_decided",
-];
-
 export function isTerminal(code: ApprovalErrorCode): boolean {
-  return TERMINAL.includes(code);
+  return approvalWords(code).ends;
 }
 
 /* ------------------------------------------------------------------ *
@@ -200,77 +192,16 @@ function errorCode(body: JsonObject): string {
 }
 
 /**
- * Turn a refusal into wording a person can act on.
- *
- * Every branch says what happened to the *request*, because "nothing was
- * decided" is the fact somebody standing at this screen needs, and a bare
- * status code does not carry it.
+ * Turn a refusal into wording a person can act on: ceremony-kit's
+ * `approvalRefusal`, keyed on the body's error code first and the status
+ * only when it names none.
  */
 export function refusalFor(status: number, body: JsonObject): ApprovalError {
-  const code = errorCode(body);
-  if (code === "comparison_mismatch") {
-    return new ApprovalError("comparison_mismatch", COMPARISON_MISMATCH);
-  }
-  if (code === "comparison_exhausted") {
-    return new ApprovalError(
-      "comparison_exhausted",
-      "Too many wrong codes, so this request is locked and nothing was decided. Ask whoever started it to begin again.",
-    );
-  }
-  if (code === "activation_expired" || code === "activation_not_found") {
-    return new ApprovalError(
-      "activation_expired",
-      "Your authenticator touch took too long, so it was not accepted and nothing was decided. Read the request again and touch your passkey once more.",
-    );
-  }
-  if (code === "binding_revoked" || code === "binding_not_usable") {
-    return new ApprovalError(
-      "revoked",
-      "The destination this request was sent to has been revoked, so it can no longer be decided from that link. Nothing was decided.",
-    );
-  }
-  if (status === 401) {
-    return new ApprovalError(
-      "signin",
-      "Sign in to decide requests addressed to you.",
-    );
-  }
-  if (status === 403) {
-    return new ApprovalError(
-      "failed",
-      "This request is not addressed to you, so it is not yours to decide.",
-    );
-  }
-  if (status === 404) {
-    return new ApprovalError(
-      "not_found",
-      "This link does not point at a request we can find. It may have been withdrawn. Ask whoever sent it for a fresh one.",
-    );
-  }
-  if (status === 409) {
-    return new ApprovalError(
-      "changed",
-      "This request changed since it was shown, so nothing was decided. Reload it and read the new version before deciding.",
-    );
-  }
-  if (status === 410) {
-    return new ApprovalError(
-      "expired",
-      "This request expired before it was decided. Nothing was approved — whoever asked will have to ask again.",
-    );
-  }
-  if (status === 422 || code === "request_not_pending") {
-    return new ApprovalError(
-      "already_decided",
-      "This request was already decided. Nothing changed just now.",
-    );
-  }
-  return new ApprovalError("failed", `That did not go through (${status}).`);
+  const refusal = approvalRefusal(errorCode(body), status);
+  return new ApprovalError(refusal.kind, refusal.words);
 }
 
-/** The comparison-mismatch wording. A security signal, not a form error. */
-export const COMPARISON_MISMATCH =
-  "That code doesn't match. Someone else may have started this request. Do not approve it — check with whoever you think asked, and deny it if nobody did.";
+export { COMPARISON_MISMATCH };
 
 /**
  * One authorized call to the Identity API.
@@ -426,92 +357,16 @@ export async function reportUnrecognized(
 }
 
 /* ------------------------------------------------------------------ *
- * Copy — reason codes and channels as sentences
+ * Copy — ceremony-kit's, so Pages reads a request the same way
  * ------------------------------------------------------------------ */
 
-/**
- * The reason codes minted by `requiredReasonCodes()` in
- * `@opensesame/trust-broker`, as sentences.
- *
- * A screen that prints `phishing_resistance` has told the person nothing.
- * Worse, a screen that prints "HIGH" has told them something they cannot
- * check: a scalar is a label somebody chose, while these each name a thing
- * that will actually happen in the next ten seconds.
- */
-const REASON_SENTENCES = new Map<string, string>(
-  Object.entries({
-    "subject_kind:human":
-      "A person has to decide this. An agent cannot approve it on your behalf.",
-    "subject_kind:agent": "This is decided by an agent, not by a person.",
-    "subject_kind:workload":
-      "This is decided by a workload identity, not by a person.",
-    user_verification:
-      "Your authenticator has to check that it is you — a fingerprint, a face, or a PIN — not just that the device is nearby.",
-    phishing_resistance:
-      "This asks for access that a typed code could never safely approve, so it needs a passkey bound to this site. Nothing you could copy out of a message counts.",
-    verifier_name_binding:
-      "The passkey has to be one registered with OpenSesame itself, so an approval made here cannot be replayed against another site.",
-    identity_proofing:
-      "Your identity has to have been checked to the standard your operator set before this can be approved.",
-    device_binding:
-      "The key has to live on a device rather than move between them.",
-    key_protection:
-      "The key has to be held in hardware your browser cannot export.",
-    authentication_freshness:
-      "You have to have signed in recently. An old session is not enough for this one.",
-    acr: "Your sign-in has to have met the authentication level your operator named for this kind of request.",
-    transaction_bound_activation:
-      "You have to touch your authenticator for this exact request, so a touch you gave to something else cannot be spent here.",
-    comparison:
-      "You have to type the six-digit code shown where the request started, so the thing you approve is the thing you started.",
-  }),
-);
-
-/** Anything the server adds later still reads as a sentence, not a token. */
-export function requirementSentence(code: string): string {
-  const known = REASON_SENTENCES.get(code);
-  if (known) return known;
-  return `Your operator requires "${code.replaceAll("_", " ")}" for this request.`;
-}
-
-export function requirementSentences(required: readonly string[]): string[] {
-  return required.map(requirementSentence);
-}
-
-const RISK_SENTENCES = new Map<string, string>(
-  Object.entries({
-    low: "This is a routine request. It still needs you, but not extra proof.",
-    moderate:
-      "This one carries real consequences, so it asks for more than a click.",
-    high: "This reaches something sensitive, so approving it takes a fresh, deliberate proof that it is you.",
-    critical:
-      "This is the most sensitive kind of request there is here. Everything below has to line up before it can go through.",
-  }),
-);
-
-export function riskSentence(riskClass: string): string {
-  return (
-    RISK_SENTENCES.get(riskClass) ??
-    "Your operator has classed this request as needing extra proof."
-  );
-}
-
-const CHANNEL_LABELS = new Map<string, string>(
-  Object.entries({
-    in_app: "the OpenSesame inbox",
-    native_push: "a push notification on one of your devices",
-    slack: "Slack",
-    teams: "Microsoft Teams",
-    telegram: "Telegram",
-    wechat: "WeChat",
-    sms: "a text message",
-    webhook: "a webhook",
-  }),
-);
-
-export function channelLabel(kind: string): string {
-  return CHANNEL_LABELS.get(kind) ?? kind.replaceAll("_", " ");
-}
+export {
+  channelLabel,
+  describeDetail,
+  requirementSentence,
+  requirementSentences,
+  riskSentence,
+};
 
 /**
  * A short "what this will take" line, for a list row.
@@ -543,14 +398,5 @@ export function needsCeremony(item: AuthorizationRequestView): boolean {
   );
 }
 
-export function describeDetail(detail: AuthorizationDetail): string {
-  const actions = detail.actions?.length ? detail.actions.join(", ") : "use";
-  const where = detail.locations?.length
-    ? detail.locations.join(", ")
-    : (detail.identifier ?? detail.type);
-  return `${actions} — ${where}`;
-}
-
 /** Why this browser cannot run the ceremony, said out loud rather than skipped. */
-export const NO_CREDENTIALS_API =
-  "This browser cannot run a passkey ceremony on this page — the credential API is missing, which usually means the page was not loaded over HTTPS, or the browser is too old. This request needs a passkey touch, so it cannot be decided here. Nothing has been approved. Open the same link on a device where passkeys work.";
+export const NO_CREDENTIALS_API = APPROVAL_WORDS.noCredentialsApi;
