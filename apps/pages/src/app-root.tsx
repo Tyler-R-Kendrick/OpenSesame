@@ -17,6 +17,7 @@ import {
   matchPath,
   useLocation,
 } from "react-router";
+import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
 import { Wrapped } from "./components/ShellWrappers.js";
 import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
 
@@ -142,7 +143,6 @@ export const appRootSeams = {
     "/connections",
     "/wallet",
     "/activity",
-    "/claim",
     "/broker",
   ],
 };
@@ -172,27 +172,6 @@ export function useCapabilityGate(id: string) {
     lifecycle: snapshot.lifecycle[id] ?? null,
     state,
   };
-}
-
-/**
- * Scrolling frame for every section except the vault, which owns its own
- * panes. Arriving here — `g s`, a rail row, a Back — lands the keyboard on
- * the section itself, so the next Tab is the section's first control rather
- * than the top of the document; a caret a section placed on its own field
- * is left where it is.
- */
-function Framed({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLElement>(null);
-  const location = useLocation();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the arrival itself; the effect runs once per navigation
-  useEffect(() => {
-    if (keyboardIsIdle()) landFocus(ref.current);
-  }, [location.key]);
-  return (
-    <main id="main" className="section" ref={ref} tabIndex={-1}>
-      {children}
-    </main>
-  );
 }
 
 /**
@@ -339,40 +318,28 @@ function VaultApp() {
   );
 }
 
-/** A contributed route allowed on a locked device, matching this location. */
-function ungatedRoute(
-  routes: readonly RouteContribution[],
-  pathname: string,
-): RouteContribution | null {
-  return (
-    routes.find(
-      (route) =>
-        route.gate === "any" && matchPath(route.path, pathname) !== null,
-    ) ?? null
-  );
-}
-
 /**
  * The federated return runs without unlocking the vault, as does any route a
- * module marked `gate: "any"` (a popup or claim page that holds no key).
- * Everything else stays behind the master-password gate.
+ * module marked `gate: "any"` (a popup, or a ceremony page that holds no
+ * key). Everything else stays behind the master-password gate, and the
+ * front door stays in front of every other path (ADR 0090).
  */
 export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
   const routes = resolved.useRouteContributions();
+  const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
 
   const ungated = isAuthCallback
     ? null
-    : ungatedRoute(routes, location.pathname);
-  const Ungated = ungated?.element;
+    : ungatedRoute(routes, location.pathname, status === "unlocked");
   const body = isAuthCallback ? (
     <resolved.FederationReturn />
-  ) : Ungated ? (
-    <Ungated />
+  ) : ungated ? (
+    <UngatedRoute route={ungated} />
   ) : (
     <VaultApp />
   );

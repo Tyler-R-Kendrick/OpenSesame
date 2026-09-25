@@ -57,6 +57,8 @@ export const CAPABILITY_TUTORIALS = {
   "identity.agent.register": "identity.agents.manage",
   "identity.agent.manage": "identity.agents.manage",
   "identity.device.approve": "identity.device.approve",
+  "identity.claim.accept": "identity.claim.accept",
+  "identity.drop.open": "identity.drop.open",
   "vault.items.search": "vault.item.create",
   "vault.items.read_meta": "vault.item.create",
   "vault.items.write_meta": "vault.item.create",

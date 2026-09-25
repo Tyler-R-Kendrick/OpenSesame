@@ -1,0 +1,534 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "dropManifest": "drop-manifest.json",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "claim#token=osc_clm_evidence.c2VjcmV0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            ".unlock",
+            "[data-testid=capability-apply]",
+            ".status-mark--ok",
+            ".note"
+          ]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-claim-arrival"
+        },
+        {
+          "pressNamedOptional": "Continue as guest"
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "focused": null
+        },
+        {
+          "fillOptional": {
+            "label": "Consent code",
+            "text": "WXYZ-1234"
+          }
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "shot": "390-claim-review"
+        },
+        {
+          "pressNamedOptional": "Accept claim"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-claim-done"
+        },
+        {
+          "arrive": "claim#token=osc_clm_drop.c2VjcmV0&key=P0w7ghFizCAzFYvXEizZjI9KExM5mCi7QeNboPBwZE0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            ".unlock",
+            "[data-testid=capability-apply]",
+            ".status-mark--ok",
+            ".note"
+          ]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-drop-arrival"
+        },
+        {
+          "fillOptional": {
+            "label": "One-time code",
+            "text": "ABCD-EFGH"
+          }
+        },
+        {
+          "pressNamedOptional": "Open drop"
+        },
+        {
+          "report": "pre"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "390-drop-open"
+        },
+        {
+          "arrive": "device?user_code=ABCD-EFGH"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "count": [
+            ".unlock",
+            "[data-testid=capability-apply]",
+            ".status-mark--ok",
+            ".note"
+          ]
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-device-arrival"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "pressNamedOptional": "Approve device"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "shot": "390-device-approved"
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "switchOptional": "Sharing"
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "wait": 30
+        },
+        {
+          "visit": "device"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "shot": "390-after-change"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "claim#token=osc_clm_evidence.c2VjcmV0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            ".unlock",
+            "[data-testid=capability-apply]",
+            ".status-mark--ok",
+            ".note"
+          ]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-claim-arrival"
+        },
+        {
+          "pressNamedOptional": "Continue as guest"
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "report": "main .kv"
+        },
+        {
+          "focused": null
+        },
+        {
+          "fillOptional": {
+            "label": "Consent code",
+            "text": "WXYZ-1234"
+          }
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "shot": "1280-claim-review"
+        },
+        {
+          "pressNamedOptional": "Accept claim"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-claim-done"
+        },
+        {
+          "arrive": "claim#token=osc_clm_drop.c2VjcmV0&key=P0w7ghFizCAzFYvXEizZjI9KExM5mCi7QeNboPBwZE0"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            ".unlock",
+            "[data-testid=capability-apply]",
+            ".status-mark--ok",
+            ".note"
+          ]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-drop-arrival"
+        },
+        {
+          "fillOptional": {
+            "label": "One-time code",
+            "text": "ABCD-EFGH"
+          }
+        },
+        {
+          "pressNamedOptional": "Open drop"
+        },
+        {
+          "report": "pre"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "address": null
+        },
+        {
+          "shot": "1280-drop-open"
+        },
+        {
+          "arrive": "device?user_code=ABCD-EFGH"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "count": [
+            ".unlock",
+            "[data-testid=capability-apply]",
+            ".status-mark--ok",
+            ".note"
+          ]
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-device-arrival"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "value": "User code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "measure": "main .go"
+        },
+        {
+          "pressNamedOptional": "Approve device"
+        },
+        {
+          "count": [".status-mark--ok", ".note"]
+        },
+        {
+          "shot": "1280-device-approved"
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "switchOptional": "Sharing"
+        },
+        {
+          "guestOptional": null
+        },
+        {
+          "wait": 30
+        },
+        {
+          "visit": "device"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": "main h1"
+        },
+        {
+          "shot": "1280-after-change"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-claim-arrival",
+      "width": 390,
+      "title": "A claim link on a device with no vault \u2014 390 \u00d7 844",
+      "caption": "Before, the link met the front door and kept its bearer in the address. After, the ceremony opens by itself: no unlock, no vault; it waits for someone to accept as, with the guest road and the Connect note on the route.",
+      "before": "first render \u2026/claim#token=osc_clm_\u2026; front door (.unlock 1); focus on the sign-in field",
+      "after": "first render \u2026/claim; .unlock 0; h1 Accept a claim, Claim waiting (warn mark); focus on Continue as guest (176\u00d744, focus-visible)"
+    },
+    {
+      "shot": "390-claim-review",
+      "width": 390,
+      "title": "After Continue as guest \u2014 390 \u00d7 844",
+      "caption": "Before, the guest road sealed a guest vault and landed on an empty shell. After, it mints a provisional principal only, and the claim is presented once and shown for review.",
+      "before": "empty shell, no h1, focus on body",
+      "after": "Kind resource_bundle \u00b7 Items 2 \u00b7 Manifest; focus on Consent code (352\u00d744); .go 44\u00d744"
+    },
+    {
+      "shot": "390-claim-done",
+      "width": 390,
+      "title": "Accepted \u2014 390 \u00d7 844",
+      "caption": "The answer is a StatusMark, and it holds the focus. Still no vault on this device.",
+      "before": "0 ok marks, focus on body",
+      "after": "1 ok mark (Claim accepted), 0 .note"
+    },
+    {
+      "shot": "390-drop-arrival",
+      "width": 390,
+      "title": "A drop link, Sharing off (the default) \u2014 390 \u00d7 844",
+      "caption": "Before, the unlock screen stood in front and the drop screen was not in this build's plan at all. After, the recipient side is always-on: the drop opens before unlock with nothing switched on.",
+      "before": "unlock screen (.unlock 1); bearer and key in the address; focus on Unlock",
+      "after": "first render \u2026/claim; .unlock 0; h1 Open a drop; focus on One-time code (352\u00d744, focus-visible)"
+    },
+    {
+      "shot": "390-drop-open",
+      "width": 390,
+      "title": "Opened \u2014 390 \u00d7 844",
+      "caption": "Decrypted here under the link's key; the key was never stored or sent.",
+      "before": "not reached: no drop screen",
+      "after": "payload shown, 1 ok mark (Drop opened), 0 .note; address \u2026/claim"
+    },
+    {
+      "shot": "390-device-arrival",
+      "width": 390,
+      "title": "/device on the same empty device \u2014 390 \u00d7 844",
+      "caption": "Before, the device route sat behind unlock. After, it opens by itself and asks only for an Identity session.",
+      "before": "unlock screen (.unlock 1); focus on Unlock",
+      "after": "h1 Approve a device, the Connect note; .unlock 0; focus on Connect"
+    },
+    {
+      "shot": "390-device-approved",
+      "width": 390,
+      "title": "Connected and approved \u2014 390 \u00d7 844",
+      "caption": "The code the link carried waited in memory across Connect; Approve device holds the focus.",
+      "before": "unlock screen, no code, 0 ok marks",
+      "after": "User code ABCD-EFGH, focus on Approve device (44\u00d744), 1 ok mark"
+    },
+    {
+      "shot": "390-after-change",
+      "width": 390,
+      "title": "30 s after switching Sharing on, follow a link to /device \u2014 390 \u00d7 844",
+      "caption": "The shell's denied-route fallback sent any navigation from a section to a non-section route back to the vault. Fixed in the shell; the route resolves.",
+      "before": "address \u2026/vault (bounced), no h1",
+      "after": "address \u2026/device, h1 Approve a device, inside the shell"
+    },
+    {
+      "shot": "1280-claim-arrival",
+      "width": 1280,
+      "title": "A claim link on a device with no vault \u2014 1280 \u00d7 900",
+      "caption": "Before, the link met the front door and kept its bearer in the address. After, the ceremony opens by itself: no unlock, no vault; it waits for someone to accept as, with the guest road and the Connect note on the route.",
+      "before": "first render \u2026/claim#token=osc_clm_\u2026; front door (.unlock 1); focus on the sign-in field",
+      "after": "first render \u2026/claim; .unlock 0; h1 Accept a claim, Claim waiting (warn mark); focus on Continue as guest (176\u00d736, focus-visible)"
+    },
+    {
+      "shot": "1280-claim-review",
+      "width": 1280,
+      "title": "After Continue as guest \u2014 1280 \u00d7 900",
+      "caption": "Before, the guest road sealed a guest vault and landed on an empty shell. After, it mints a provisional principal only, and the claim is presented once and shown for review.",
+      "before": "empty shell, no h1, focus on body",
+      "after": "Kind resource_bundle \u00b7 Items 2 \u00b7 Manifest; focus on Consent code (474\u00d732); .go 40\u00d740"
+    },
+    {
+      "shot": "1280-claim-done",
+      "width": 1280,
+      "title": "Accepted \u2014 1280 \u00d7 900",
+      "caption": "The answer is a StatusMark, and it holds the focus. Still no vault on this device.",
+      "before": "0 ok marks, focus on body",
+      "after": "1 ok mark (Claim accepted), 0 .note"
+    },
+    {
+      "shot": "1280-drop-arrival",
+      "width": 1280,
+      "title": "A drop link, Sharing off (the default) \u2014 1280 \u00d7 900",
+      "caption": "Before, the unlock screen stood in front and the drop screen was not in this build's plan at all. After, the recipient side is always-on: the drop opens before unlock with nothing switched on.",
+      "before": "unlock screen (.unlock 1); bearer and key in the address; focus on Unlock",
+      "after": "first render \u2026/claim; .unlock 0; h1 Open a drop; focus on One-time code (474\u00d732, focus-visible)"
+    },
+    {
+      "shot": "1280-drop-open",
+      "width": 1280,
+      "title": "Opened \u2014 1280 \u00d7 900",
+      "caption": "Decrypted here under the link's key; the key was never stored or sent.",
+      "before": "not reached: no drop screen",
+      "after": "payload shown, 1 ok mark (Drop opened), 0 .note; address \u2026/claim"
+    },
+    {
+      "shot": "1280-device-arrival",
+      "width": 1280,
+      "title": "/device on the same empty device \u2014 1280 \u00d7 900",
+      "caption": "Before, the device route sat behind unlock. After, it opens by itself and asks only for an Identity session.",
+      "before": "unlock screen (.unlock 1); focus on Unlock",
+      "after": "h1 Approve a device, the Connect note; .unlock 0; focus on Connect"
+    },
+    {
+      "shot": "1280-device-approved",
+      "width": 1280,
+      "title": "Connected and approved \u2014 1280 \u00d7 900",
+      "caption": "The code the link carried waited in memory across Connect; Approve device holds the focus.",
+      "before": "unlock screen, no code, 0 ok marks",
+      "after": "User code ABCD-EFGH, focus on Approve device (40\u00d740), 1 ok mark"
+    },
+    {
+      "shot": "1280-after-change",
+      "width": 1280,
+      "title": "30 s after switching Sharing on, follow a link to /device \u2014 1280 \u00d7 900",
+      "caption": "The shell's denied-route fallback sent any navigation from a section to a non-section route back to the vault. Fixed in the shell; the route resolves.",
+      "before": "address \u2026/vault (bounced), no h1",
+      "after": "address \u2026/device, h1 Approve a device, inside the shell"
+    }
+  ]
+}

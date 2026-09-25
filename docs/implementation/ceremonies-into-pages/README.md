@@ -10,10 +10,10 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | App › flow | API | Pages / app-core before | Status |
 |---|---|---|---|
 | ceremonies `/` index | — | `screens/FrontDoor.tsx` | covered; route dropped |
-| ceremonies `/claim#token=osc_clm_` (ownership claim, guest path) | `POST /v1/claims/present`, `GET /v1/claims/:id`, `POST /v1/claims/:id/complete`, `POST /v1/principals/provisional` | model: `app-core/lib/claims/` (step 4) | partial: no route (step 8) |
-| ceremonies `/claim#token&key` (drop) | `POST /v1/claims/present` | `screens/DropClaimScreen.tsx`, `app-core/lib/vault/drop.ts` | partial: optional capability, fragment not scrubbed on arrival (step 8); refusals worded by code (step 4) |
+| ceremonies `/claim#token=osc_clm_` (ownership claim, guest path) | `POST /v1/claims/present`, `GET /v1/claims/:id`, `POST /v1/claims/:id/complete`, `POST /v1/principals/provisional` | `/claim` route (`identity.ceremonies`, `ClaimRoute`, `gate: "any"`) over `app-core/lib/claims/` — the model (step 4), the boot-time capture `arrival.ts` and the route's `route-model.ts` (step 8) | covered in Pages; the apps' copies go with them (step 14) |
+| ceremonies `/claim#token&key` (drop) | `POST /v1/claims/present` | `/claim` opens a drop itself: `modules/identity.ceremonies/DropClaimScreen.tsx` (loaded lazily inside the module) over `app-core/lib/claims/drop-open.ts`, always-on (D2); sending stays in `sharing.drops` (`vault/drop.ts`, `vault/drop-transport.ts`). The fragment leaves the address at boot and the key is held in memory only (step 8) | covered |
 | ceremonies `/guest` | provisional principal | `guest-auth.ts` `continueAsGuest` | covered (D12) |
-| ceremonies `/device?user_code=`, console `/device` | `POST /v1/device/approve` | `/device` route (`identity.ceremonies`) and `DevicesPanel`, one form (`DeviceApproval`) over `app-core/lib/device-approval.ts` → `directory.ts` → ceremony-kit (step 7) | covered in Pages; the two apps' copies go with them (step 14) |
+| ceremonies `/device?user_code=`, console `/device` | `POST /v1/device/approve` | `/device` route (`identity.ceremonies`, `gate: "any"` since step 8) and `DevicesPanel`, one form (`DeviceApproval`) over `app-core/lib/device-approval.ts` → `directory.ts` → ceremony-kit (step 7) | covered in Pages; the two apps' copies go with them (step 14) |
 | ceremonies `/delegate#token=osc_dlg_` | Host delegations present/claim | Join (`lib/join/invite.ts`) | covered by Join (D5) |
 | ceremonies `/inbox` | `GET /v1/authorization-requests?status=pending`, approve/deny | Access › Requests (local only); model: app-core `lib/approvals.ts` hosted rows (step 6) | partial: no rows rendered (step 9) |
 | ceremonies `/approve/:ref` | request, requirement, activation, decision, report | model: ceremony-kit `approval-review.ts`, app-core `lib/approvals.ts` (step 6) | partial: no route (step 9); refusals worded by code (step 6) |
@@ -24,7 +24,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | mobile-mfa enrolment | `/v1/mfa/passkey/*`, `/v1/mfa/totp/*` | vault authenticator only (ADR 0091) | missing (D10) |
 | mobile-mfa token field | — | Identity session | dropped (D13) |
 | console `/` sign-in | OIDC, `/v1/federated/providers` | `SignInPanel` | covered |
-| console `/claim` | as ceremonies `/claim` | none | missing (second copy) |
+| console `/claim` | as ceremonies `/claim` | the `/claim` route (step 8) | covered in Pages; the console's copy goes with it (step 14) |
 | console `/task-access` | Host task read | CLI / MCP | not moved (D4) |
 | console `/organization` | organizations, domains, SCIM tokens | Identity › Organizations (create, members); model: app-core `lib/org-signin.ts` (step 6) | partial: no panels (step 12) |
 
@@ -32,7 +32,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 
 | Flow | Route | Logic | Capability |
 |---|---|---|---|
-| Claim + drop | `/claim` (fragment `key` → drop, else claim) | `app-core/lib/claims/` | `identity.ceremonies` (route leaves `sharing.drops`) |
+| Claim + drop | `/claim` (fragment `key` → drop, else claim) | `app-core/lib/claims/` (claim model, `drop-open.ts`); sending a drop stays in `sharing.drops` | `identity.ceremonies` (route and the recipient side left `sharing.drops`, step 8, D2) |
 | Device approval | `/device?user_code=` | ceremony-kit `approveDevice`; `directory.ts` delegates | `identity.ceremonies` |
 | Interaction approval | `/i/:ref` | ceremony-kit `interaction-approval.ts`; app-core `lib/interactions.ts` | `identity.ceremonies` |
 | Legacy links | → `/device` or refusal | ceremony-kit | `identity.ceremonies` |

@@ -172,13 +172,17 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "identity.ceremonies",
     "Ceremonies",
-    "The routes a link opens on this origin (ADR 0140): device and CLI sign-in approval at /device, and the older approval links that now open it.",
+    "The routes a link opens on this origin (ADR 0140): device and CLI sign-in approval at /device and the older approval links that now open it, and claim links at /claim — an ownership claim reviewed and accepted, or a drop opened with the sender's code. They open before unlock and never read the vault.",
     {
-      operationIds: ["identity.device.approve"],
+      operationIds: [
+        "identity.device.approve",
+        "identity.claim.accept",
+        "identity.drop.open",
+      ],
       egress: [IDENTITY_API_EGRESS],
       requiresService: true,
       offlineLimits:
-        "The route opens and shows its code offline; approving needs the Identity API.",
+        "The routes open and show what their link carried offline; approving a device, accepting a claim or opening a drop needs the claim host.",
     },
   ),
   alwaysOn(
