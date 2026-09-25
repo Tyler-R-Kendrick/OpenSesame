@@ -881,6 +881,37 @@
     }
   },
   {
+    "id": "host.bitwarden_compat",
+    "title": "Serve Bitwarden clients from the Host (bitwarden-compat)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame host run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+        "adr": "0141-bitwarden-compatible-server.md"
+      },
+      "mcp_client": {
+        "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+        "adr": "0141-bitwarden-compatible-server.md"
+      },
+      "webmcp": {
+        "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
+        "adr": "0141-bitwarden-compatible-server.md"
+      }
+    }
+  },
+  {
     "id": "sync.cursor.read",
     "title": "Read this device's sync cursor",
     "plane": "client_local",
