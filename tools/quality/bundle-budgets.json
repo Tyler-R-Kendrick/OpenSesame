@@ -83,11 +83,12 @@
         "TOML and the unlock guest chip. Measured CI 140 KiB; budget keeps ~5% headroom.",
         "2026-09-23: css 160->165 because Settings/Connections PageIndex + field-measure and key-home styling (#486) measured 161 KiB; keep ~2% headroom.",
         "2026-09-25: javascriptGzip 1240->1265 because ADR 0144 tailnet vault sync lands the lazy networking.tailnet chunk (drive client, sync engine, pairing, the Settings panel) and the device-side merge in the vault store: +6.8 KiB gzip net against main's 1235 (the chunk itself is 12 KiB, of which 7.2 KiB are shared modules Rollup moved out of cap-wallet.spending). The chunk loads only once Networking is switched on. Measured CI 1242 KiB; budget keeps ~2% headroom.",
-        "2026-09-25: javascriptGzip 1265->1290 because ADR 0146 connector plans embed what we know about 190 connectors (OAuth endpoints, client auth, PKCE, scopes with their meaning, API-key issuance and instructions, MCP discovery) so every Connections page opens filled in: ~22.5 KiB gzip of generated data after moving the relay-only verify targets out of the page, plus the connector panels. It loads with the Connections route. Measured 1265 KiB; budget keeps ~2% headroom."
+        "2026-09-25: javascriptGzip 1265->1290 because ADR 0146 connector plans embed what we know about 190 connectors (OAuth endpoints, client auth, PKCE, scopes with their meaning, API-key issuance and instructions, MCP discovery) so every Connections page opens filled in: ~22.5 KiB gzip of generated data after moving the relay-only verify targets out of the page, plus the connector panels. It loads with the Connections route. Measured 1265 KiB; budget keeps ~2% headroom.",
+        "2026-09-26: javascript 4330->4420 for the same ADR 0146 connector plans, measured uncompressed: main at cf655749 builds 4160 KiB of JS and this branch 4335 KiB, +175 KiB, of which 149 KiB is the generated plan data (190 connectors, plain JSON) and the rest the connector panels. It had fit inside 4330 until #519 took the last of that line's 0.3% headroom. Budget keeps ~2% headroom."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 4330,
+        "javascript": 4420,
         "javascriptGzip": 1290,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
