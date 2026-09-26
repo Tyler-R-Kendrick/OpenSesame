@@ -51,7 +51,7 @@ export function AccountTotpCeremony({
   const [uri, setUri] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const began = useRef(false);
-  const issued = useRef(false);
+  const issued = useRef<string | null>(null);
   const confirmed = useRef(false);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export function AccountTotpCeremony({
     void run(async () => {
       try {
         const link = await beginAccountTotp();
-        issued.current = true;
+        issued.current = link;
         setUri(link);
       } catch (error) {
         setRefusal(error instanceof Error ? error.message : String(error));
@@ -71,8 +71,9 @@ export function AccountTotpCeremony({
 
   useEffect(() => {
     return () => {
+      // The seed still in memory proves its own removal (ADR 0146).
       if (issued.current && !confirmed.current) {
-        void abandonAccountTotp().catch(() => {});
+        void abandonAccountTotp(issued.current).catch(() => {});
       }
     };
   }, []);
