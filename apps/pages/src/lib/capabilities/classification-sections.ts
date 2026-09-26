@@ -25,6 +25,11 @@ export const SECTION_RULES = [
     ["DropCeremony", "DropTtl", "NewDropCeremony"],
     (p) => optional(p, "sharing.drops", "drop ceremonies"),
   ),
+  optional(
+    "src/sections/vault/DraftSuggestions",
+    "support.local-ai",
+    "draft labels from the on-device model",
+  ),
 
   // --- connections -----------------------------------------------------------
   optional(

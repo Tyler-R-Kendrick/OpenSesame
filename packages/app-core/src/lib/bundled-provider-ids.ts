@@ -10,9 +10,9 @@ import {
   IDENTITY_PROVIDER_IDS,
   LLM_PROVIDER_IDS,
   NETWORKING_PROVIDER_IDS,
+  WALLET_ISSUER_PROVIDER_IDS,
   WALLET_PROVIDER_IDS,
 } from "./embedded-catalog-data.js";
-import { WALLET_ISSUER_IDS } from "./wallet-issuers.js";
 
 const DEVICE: ReadonlySet<string> = new Set(DEVICE_KEY_PROTECTORS);
 
@@ -30,7 +30,7 @@ export const BUNDLED_CATALOG_IDS: readonly string[] = [
   ...IDENTITY_PROVIDER_IDS,
   ...NETWORKING_PROVIDER_IDS,
   ...WALLET_PROVIDER_IDS,
-  ...WALLET_ISSUER_IDS,
+  ...WALLET_ISSUER_PROVIDER_IDS,
 ];
 
 let bundledIds: ReadonlySet<string> | null = null;

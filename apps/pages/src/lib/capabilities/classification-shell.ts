@@ -101,6 +101,50 @@ export const SHELL_RULES = [
     "wallet.spending",
     "wallet's webmcp-tool contribution",
   ),
+  // A capability's tool specs ship with the capability that registers them,
+  // as wallet's always have: inert data until `agents.webmcp` mounts a
+  // surface. What every group shares, and the stores core screens read,
+  // are core — none of them loads the WebMCP SDK.
+  optional(
+    "src/webmcp/connections-tools",
+    "connectors.external",
+    "connectors' webmcp-tool contribution",
+  ),
+  optional(
+    "src/webmcp/identity-tools",
+    "identity.federation",
+    "federation's webmcp-tool contribution",
+  ),
+  optional(
+    "src/webmcp/support-tools",
+    "support.guided-help",
+    "guided help's webmcp-tool contribution",
+  ),
+  optional(
+    "src/webmcp/settings-tools",
+    "support.local-ai",
+    "local AI's webmcp-tool contribution",
+  ),
+  core(
+    "src/webmcp/seams",
+    null,
+    "the navigation and support seams the shell binds; no tool, no SDK",
+  ),
+  core(
+    "src/webmcp/tool-shared",
+    null,
+    "argument readers every capability's tool group shares; no SDK",
+  ),
+  core(
+    "src/webmcp/registration",
+    null,
+    "registration status store the support panel reads; written by the registrar",
+  ),
+  core(
+    "src/webmcp/context",
+    null,
+    "editor-kind store the item editor publishes; read by session tools",
+  ),
   core(
     "src/lib/capabilities/",
     null,
@@ -156,10 +200,8 @@ export const SHELL_RULES = [
     "backup.cloud-secrets",
     "encryption connector ceremony",
   ),
-  optional(
-    "src/components/command-bar-mic",
-    "support.local-ai",
-    "speech capture control",
+  ...each("src/components/", ["command-bar-mic", "command-bar-voice"], (p) =>
+    optional(p, "support.local-ai", "speech capture control"),
   ),
   ...each(
     "src/components/",

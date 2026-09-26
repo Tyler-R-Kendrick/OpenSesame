@@ -69,6 +69,15 @@
       "tests": 6,
       "passed": 6,
       "failed": 0
+    },
+    {
+      "id": "run-profile-matrix",
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 node apps/pages/scripts/build-profile.mjs --all",
+      "date": "2026-09-26",
+      "builds": 8,
+      "passed": 8,
+      "failed": 0,
+      "note": "minimal-local and family-local in both modes, single-provider-selected, enterprise-selected and rich-explicit selective, enterprise-selected hardened; each emitted dist re-verified by verify-capability-graph.mjs with no violation. Before this run the three hardened builds failed (core statically reached drops, local AI, WebMCP and wallet modules) and every selective build reported entry reachability and mixed chunks."
     }
   ],
   "contracts": [
@@ -1440,9 +1449,16 @@
     {
       "id": "BUILD-07",
       "statement": "The profile matrix builds: minimal-local and family-local in both modes, single-provider-selected, enterprise-selected and rich-explicit selective, enterprise-selected hardened.",
-      "status": "pending",
+      "status": "covered",
       "owner": "S07 build (apps/pages/scripts/build-profile.mjs BUILD_MATRIX)",
-      "note": "The matrix is defined in build-profile.mjs and runs as a build, not as a unit test. No test names BUILD-07, and the matrix was not built in this session."
+      "tests": [
+        {
+          "file": "apps/pages/scripts/build-profile.mjs",
+          "name": "BUILD_MATRIX (--all), every build verified from disk",
+          "observed": "run-passed",
+          "run": "run-profile-matrix"
+        }
+      ]
     },
     {
       "id": "BUILD-08",

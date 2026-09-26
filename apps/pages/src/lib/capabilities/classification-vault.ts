@@ -60,12 +60,22 @@ export const VAULT_LIB_RULES = [
     "backup.local-encrypted",
     "encrypted file export/import",
   ),
-  ...each(V, ["drop", "drop-transport", "local-drop-claims"], (p) =>
+  ...each(V, ["drop", "drop-transport"], (p) =>
     optional(
       p,
       "sharing.drops",
-      "sending a drop: sealing, claim session create/poll, Pages-hosted claims (opening is claims/drop-open, ADR 0140 D2)",
+      "sending a drop: sealing, claim session create/poll (opening is claims/drop-open, ADR 0140 D2)",
     ),
+  ),
+  core(
+    `${V}local-drop-claims`,
+    null,
+    "the device-native claim plane the in-tab Identity API serves; presenting a claim is opening a drop (ADR 0140 D2)",
+  ),
+  optional(
+    `${V}draft-suggestions`,
+    "support.local-ai",
+    "draft labels from the on-device model",
   ),
   optional(
     `${V}import/`,
@@ -131,5 +141,10 @@ export const TUTORIAL_RULES = [
     "browser Prompt API agent",
   ),
   optional(`${T}agents/ag-ui/`, "support.remote-ai", "AG-UI transport agent"),
+  optional(
+    `${T}agents/ag-ui/consent`,
+    HELP,
+    "the consent handshake the support panel draws; remote AI asks through it",
+  ),
   optional(`${T}agents/provider/`, "support.remote-ai", "model-provider agent"),
 ];

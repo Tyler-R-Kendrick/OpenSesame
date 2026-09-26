@@ -49,6 +49,18 @@ export const WALLET_PROVIDER_IDS = [
 ] as const;
 
 /**
+ * Card issuers (catalog category `wallet`). Their rows are bundled on every
+ * installation; the spending flow that uses them (`wallet-issuers.ts`) is
+ * `wallet.spending`'s, so the list lives here where the catalog reads it.
+ */
+export const WALLET_ISSUER_PROVIDER_IDS = [
+  "privacy",
+  "lithic",
+  "marqeta",
+  "stripe-issuing",
+] as const;
+
+/**
  * Field sets this app collects that differ from the catalog row's. Each is a
  * known divergence from the one definition: `connector-catalog.test.ts` pins
  * the ids, so the list can shrink but never grow.

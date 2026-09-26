@@ -41,7 +41,6 @@ export const MIXED_SCREENS_AND_SECTIONS: readonly MixedModule[] = [
         capability: "connectors.external",
         what: "'connections' tab → settings-category contribution",
       },
-      { capability: "support.local-ai", what: "ModelProviderPanel slot" },
     ],
   },
   {
@@ -118,14 +117,6 @@ export const MIXED_SCREENS_AND_SECTIONS: readonly MixedModule[] = [
       {
         capability: "wallet.spending",
         what: "WALLET_TOOLS spread → webmcp-tool contributions",
-      },
-      {
-        capability: "connectors.external",
-        what: "opensesame_connections_read / open_connect_ceremony",
-      },
-      {
-        capability: "support.guided-help",
-        what: "opensesame_help / guide_start",
       },
       {
         capability: "access.authority",

@@ -201,3 +201,22 @@ gate is enforcing there and a diagnostic here.
 Anyone continuing this should not start from the violation list. Start from
 `capability-graph.json`: find the chunks in the entry's static closure, and
 decide for each whether it should be there at all.
+
+**Update, 2026-09-26.** Most of that number was not ownership at all but
+chunking. The plugin's `manualChunks` returned a `cap-<capability>` name for
+a module directory, and Rollup's function form then pulls every dependency
+of a named module into the same chunk — React, the vault ciphers, the WebMCP
+context — so `main` imported core code *from* an optional chunk and the whole
+chunk joined the entry's static closure. With `output.onlyExplicitManualChunks`
+only the named modules move, and the lazily imported leaves (the support
+agents, the WebMCP SDK, the AI SDK and the AG-UI client) are named into
+chunks of their own so Rollup no longer fuses them. The remaining edges were
+real ownership: core screens imported drop, local-AI and WebMCP modules
+directly. They now arrive as contributions (`item-kind` record and create
+views, `secret-share`, `item-draft-assist`, `command-assist`, a
+`settings-panel`, an `unlock-effect`), the tool specs are classified with the
+capability that registers them, and the stores and seams core screens read
+(`webmcp/seams`, `tool-shared`, `registration`, `context`,
+`local-drop-claims`) are classified core. The profile matrix (BUILD-07) now
+builds clean in every mode: every selective build reports no violation, and
+the three hardened builds emit none of their excluded modules.

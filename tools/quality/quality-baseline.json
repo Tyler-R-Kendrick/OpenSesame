@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 459,
-    "violations": 723,
-    "oversizedLines": 235094
+    "files": 458,
+    "violations": 722,
+    "oversizedLines": 235093
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -62,9 +62,6 @@
     },
     "apps/pages/src/components/CeremonyShell.tsx": {
       "complexity": 1
-    },
-    "apps/pages/src/components/CommandBar.tsx": {
-      "max-lines-per-function": 1
     },
     "apps/pages/src/components/Crumbs.tsx": {
       "complexity": 1
@@ -268,7 +265,7 @@
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 688
+      "max-lines": 687
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,

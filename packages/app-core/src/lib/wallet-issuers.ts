@@ -3,12 +3,9 @@
  * A payment method of that kind is offered only when one of these is connected.
  */
 
-export const WALLET_ISSUER_IDS = [
-  "privacy",
-  "lithic",
-  "marqeta",
-  "stripe-issuing",
-] as const;
+import { WALLET_ISSUER_PROVIDER_IDS } from "./embedded-catalog-data.js";
+
+export const WALLET_ISSUER_IDS = WALLET_ISSUER_PROVIDER_IDS;
 
 export type WalletIssuerId = (typeof WALLET_ISSUER_IDS)[number];
 
