@@ -44,7 +44,6 @@ export const SETTINGS_READ_TOOL: PagesWebMcpTool = {
     );
     return {
       identityApi: settings.identityApi,
-      mfaAppUrl: settings.mfaAppUrl,
       activeProjectId: settings.activeProjectId ?? null,
       capabilityConnectors: settings.capabilityConnectors,
       modelPlane: {

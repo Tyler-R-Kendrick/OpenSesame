@@ -2,6 +2,7 @@ export {
   onCompleteUnlockCodeSubmission,
   persistEnrollmentStateForUnlock,
 } from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";
+import { AccountFactorError } from "@opensesame/app-core/lib/account-factors.js";
 import { describeRecovery } from "@opensesame/app-core/lib/configuration/recovery-outcomes.js";
 import { loadSession } from "@opensesame/app-core/lib/federation.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
@@ -15,7 +16,7 @@ import {
   listAvailableUnlockMethods,
   listSecondSteps,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import {
@@ -25,11 +26,12 @@ import {
   IconSettings,
   IconTrash,
 } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { AccountFactorsPanel } from "./security/AccountFactorsPanel.js";
 import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
+import { MethodRow } from "./security/MethodRow.js";
 import {
   type MethodKind,
   MethodSheet,
@@ -71,6 +73,8 @@ function UnlockMethodsBody() {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
+  // Bumped when a sheet closes, so the account's rows read the list again.
+  const [closed, setClosed] = useState(0);
   const [webauthnHost, setWebauthnHost] = useState<WebauthnHostCheck>(() =>
     checkWebauthnHost(),
   );
@@ -96,7 +100,8 @@ function UnlockMethodsBody() {
       setMessage({
         tone: "err",
         text:
-          caught instanceof RemoteCodeError
+          caught instanceof RemoteCodeError ||
+          caught instanceof AccountFactorError
             ? caught.message
             : describeWebauthnError(
                 caught instanceof Error ? caught : "Unknown WebAuthn error",
@@ -122,6 +127,10 @@ function UnlockMethodsBody() {
   const open = (kind: MethodKind, view: SheetRequest["view"]) => () => {
     setMessage(null);
     setSheet({ kind, view });
+  };
+  const openAccount = (request: SheetRequest) => {
+    setMessage(null);
+    setSheet(request);
   };
 
   const keyRow = (kind: KeyKind, sub: string, enrolledSub: string) => {
@@ -330,6 +339,8 @@ function UnlockMethodsBody() {
         </div>
       </section>
 
+      <AccountFactorsPanel busy={busy} closed={closed} onOpen={openAccount} />
+
       {sheet ? (
         <MethodSheet
           request={sheet}
@@ -338,46 +349,13 @@ function UnlockMethodsBody() {
           busy={busy}
           run={run}
           accountEmail={accountEmail}
-          onClose={() => setSheet(null)}
+          onClose={() => {
+            setSheet(null);
+            setClosed((n) => n + 1);
+          }}
         />
       ) : null}
     </>
-  );
-}
-
-/** One row: glyph, name, state chip, one line, one action. Never an input. */
-function MethodRow({
-  kind,
-  label,
-  state,
-  on,
-  sub,
-  action,
-}: {
-  kind: MethodKind;
-  label: string;
-  state: string;
-  on: boolean;
-  sub: string;
-  action: ReactNode;
-}) {
-  return (
-    <div className="sw sw--method">
-      <div>
-        <div className="sw__name">
-          {methodIcon(kind)}
-          {label}
-          {/* A mark for what is set or what cannot be; "off" is the row's
-              + key already. The idle glyph is a lock, so an off PIN drew a
-              lock badge beside its own lock icon. */}
-          {on || state !== "Off" ? (
-            <StatusMark tone={on ? "ok" : "idle"} label={state} />
-          ) : null}
-        </div>
-        <p className="sw__sub">{sub}</p>
-      </div>
-      {action}
-    </div>
   );
 }
 

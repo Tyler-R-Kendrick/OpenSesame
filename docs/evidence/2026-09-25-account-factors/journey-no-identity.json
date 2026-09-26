@@ -1,0 +1,104 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "report": "main .set__security .hint"
+        },
+        {
+          "shot": "390-no-identity"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "report": "main .set__security .hint"
+        },
+        {
+          "shot": "1280-no-identity"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-no-identity",
+      "width": 390,
+      "title": "Settings › Security with no Identity API — 390 × 844",
+      "caption": "No Identity API configured (os-runtime-config.json is {}): the Security list is exactly the base build's, with no Your account panel and no copy about one.",
+      "before": "h2 Vault key protection…Transport (6); .sw--method 13",
+      "after": "identical: h2 6, no Your account; .sw--method 13; no account copy in any .hint"
+    },
+    {
+      "shot": "1280-no-identity",
+      "width": 1280,
+      "title": "Settings › Security with no Identity API — 1280 × 900",
+      "caption": "No Identity API configured (os-runtime-config.json is {}): the Security list is exactly the base build's, with no Your account panel and no copy about one.",
+      "before": "h2 Vault key protection…Transport (6); .sw--method 13",
+      "after": "identical: h2 6, no Your account; .sw--method 13; no account copy in any .hint"
+    }
+  ]
+}

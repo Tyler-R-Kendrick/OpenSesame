@@ -2,6 +2,7 @@ import {
   APPROVAL_CEREMONY,
   accessPortalCapabilities,
 } from "./access-portal.js";
+import { accountCapabilities } from "./account.js";
 import { backupSyncCapabilities } from "./backup-sync.js";
 import { connectorCapabilities } from "./connectors.js";
 import { enrollmentCapabilities } from "./enrollment.js";
@@ -1309,62 +1310,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: INTERACTION_APPROVAL,
     },
   },
-  {
-    id: "identity.login",
-    title: "Identity sign-in (device, loopback, anonymous)",
-    plane: "identity",
-    kind: "ceremony",
-    surfaces: {
-      cli: "opensesame-id login",
-      pwa: "lib/federation.ts:beginSignIn",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: AUTH_CEREMONY,
-      mcp_client: AUTH_CEREMONY,
-      webmcp: AUTH_CEREMONY,
-    },
-  },
-  {
-    id: "identity.signout",
-    title:
-      "Sign out of this device: end the Identity session, forget the upstream assertion, lock the vault",
-    plane: "identity",
-    kind: "ceremony",
-    surfaces: {
-      cli: "opensesame logout",
-      pwa: "lib/session-exit.ts:signOut",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: AUTH_CEREMONY,
-      mcp_client: AUTH_CEREMONY,
-      webmcp: AUTH_CEREMONY,
-    },
-  },
-  {
-    id: "identity.switch_account",
-    title:
-      "Switch account: sign out, then sign in afresh as somebody else (prompt=login on OIDC issuers)",
-    plane: "identity",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: "lib/session-exit.ts:switchAccount",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: AUTH_CEREMONY,
-      mcp_client: AUTH_CEREMONY,
-      webmcp: AUTH_CEREMONY,
-    },
-  },
+  ...accountCapabilities,
   {
     id: "identity.whoami",
     title: "Resolve the identity-plane principal",

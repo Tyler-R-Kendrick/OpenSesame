@@ -43,8 +43,6 @@ export type PagesSettings = {
   hostApi: string;
   identityApi: string;
   daemonApi: string;
-  /** Optional Mobile MFA PWA URL for passkey ceremony handoff QR. */
-  mfaAppUrl: string;
   /** Capability → Host connector bindings (encryption, git history, …). */
   capabilityConnectors: CapabilityConnectorMap;
   /**
@@ -68,7 +66,6 @@ type PersistedSettings = {
   hostApi: string;
   identityApi: string;
   daemonApi: string;
-  mfaAppUrl: string;
   capabilityConnectors: CapabilityConnectorMap;
   activeProjectId: string;
   signIn: SignInMethods;
@@ -81,7 +78,6 @@ type PersistedSettings = {
 export const shippedHostApi = ENDPOINTS.host.default;
 export const shippedIdentityApi = ENDPOINTS.identity.default;
 export const shippedDaemonApi = ENDPOINTS.daemon.default;
-export const shippedMfaAppUrl = "http://127.0.0.1:5177";
 
 /** Legacy loopback endpoints we replace when VITE_* is set at runtime. */
 const LEGACY_HOST_APIS = [
@@ -115,7 +111,6 @@ export type RuntimeEndpointConfig = {
   hostApi?: string;
   identityApi?: string;
   daemonApi?: string;
-  mfaAppUrl?: string;
   /**
    * Optional remote support endpoint (ADR 0087). A destination, never a
    * credential: the browser sends no authorization header to it, so an
@@ -131,7 +126,6 @@ export function applyRuntimeConfig(config: RuntimeEndpointConfig): void {
   if (config.hostApi?.trim()) next.hostApi = config.hostApi.trim();
   if (config.identityApi?.trim()) next.identityApi = config.identityApi.trim();
   if (config.daemonApi?.trim()) next.daemonApi = config.daemonApi.trim();
-  if (config.mfaAppUrl?.trim()) next.mfaAppUrl = config.mfaAppUrl.trim();
   if (config.supportAgentUrl?.trim()) {
     next.supportAgentUrl = config.supportAgentUrl.trim();
   }
@@ -149,10 +143,6 @@ function runtimeIdentityApiValue(): string | undefined {
 
 function runtimeDaemonApiValue(): string | undefined {
   return deployedConfig.daemonApi || built("VITE_DAEMON_API");
-}
-
-function runtimeMfaAppUrlValue(): string | undefined {
-  return deployedConfig.mfaAppUrl || built("VITE_MFA_APP_URL");
 }
 
 const listeners = new Set<() => void>();
@@ -205,7 +195,6 @@ function defaultsForPage(): PersistedSettings {
     hostApi: runtimeHostApiValue() || "",
     identityApi: defaultIdentityApi(),
     daemonApi: runtimeDaemonApiValue() || "",
-    mfaAppUrl: runtimeMfaAppUrlValue() || "",
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
     signIn: defaultSignInMethods(),
@@ -375,7 +364,6 @@ function loadPersisted(): PersistedSettings {
     const hostApi = optionalString(parsed.hostApi)?.trim() ?? "";
     const identityApi = optionalString(parsed.identityApi)?.trim() ?? "";
     const daemonApi = optionalString(parsed.daemonApi)?.trim() ?? "";
-    const mfaAppUrl = optionalString(parsed.mfaAppUrl);
     return {
       hostApi:
         hostApi &&
@@ -394,8 +382,6 @@ function loadPersisted(): PersistedSettings {
         return identityApi || defaults.identityApi;
       })(),
       daemonApi: daemonApi || defaults.daemonApi,
-      mfaAppUrl:
-        mfaAppUrl !== undefined ? mfaAppUrl.trim() : defaults.mfaAppUrl,
       capabilityConnectors: normalizeCapabilityConnectors(
         readCapabilityConnectors(parsed.capabilityConnectors),
       ),
@@ -432,7 +418,6 @@ function persistRecord(next: PagesSettings): PersistedSettings {
     hostApi: next.hostApi.trim() || defaults.hostApi,
     identityApi: next.identityApi.trim() || defaults.identityApi,
     daemonApi: next.daemonApi.trim() || defaults.daemonApi,
-    mfaAppUrl: next.mfaAppUrl?.trim() ?? "",
     capabilityConnectors: normalizeCapabilityConnectors(
       next.capabilityConnectors ?? defaults.capabilityConnectors,
     ),

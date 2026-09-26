@@ -158,8 +158,13 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "identity.federation",
     "Operator identity providers",
-    "Sign in through operator-registered OpenID providers, bring-your-own issuers and the Identity API's directory: the Providers tab, the setup identity and MFA tabs.",
+    "Sign in through operator-registered OpenID providers, bring-your-own issuers and the Identity API's directory: the Providers tab, the setup identity and MFA tabs, and the account's own passkeys and authenticator app as rows in Settings › Security.",
     {
+      operationIds: [
+        "identity.account_factors.list",
+        "identity.account_factors.enroll",
+        "identity.account_factors.remove",
+      ],
       egress: [
         IDENTITY_API_EGRESS,
         {

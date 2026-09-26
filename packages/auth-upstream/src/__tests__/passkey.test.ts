@@ -143,4 +143,25 @@ describe("passkey seam signature counter", () => {
       principalId: "prn_4",
     });
   });
+
+  it("lists and removes only the principal's own credentials", async () => {
+    const seam = createPasskeySeam({ verifyAssertion: async () => true });
+    const key = { publicKey: new Uint8Array([9]), counter: 0 };
+    await seam.register("prn_a", { credentialId: "a1", ...key });
+    await seam.register("prn_b", { credentialId: "b1", ...key });
+
+    const own = await seam.list("prn_a");
+    expect(own.map((c) => c.credentialId)).toEqual(["a1"]);
+    expect(own[0]?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    await expect(seam.remove("prn_a", "b1")).resolves.toBe(false);
+    await expect(seam.remove("prn_a", "zz")).resolves.toBe(false);
+    expect(await seam.list("prn_b")).toHaveLength(1);
+
+    await expect(seam.remove("prn_a", "a1")).resolves.toBe(true);
+    expect(await seam.list("prn_a")).toEqual([]);
+    await expect(
+      seam.verify({ ...assertion, credentialId: "a1" }),
+    ).resolves.toEqual({ ok: false });
+  });
 });

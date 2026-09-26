@@ -56,7 +56,6 @@ export function readDoc(category: string, state: SettingsState): SettingsDoc {
         hostApi: pages.hostApi,
         identityApi: pages.identityApi,
         daemonApi: pages.daemonApi,
-        mfaAppUrl: pages.mfaAppUrl,
       },
       keybindings: {},
     };
@@ -92,7 +91,6 @@ export function mergePages(doc: SettingsDoc): PagesSettings {
     hostApi: text("hostApi", current.hostApi),
     identityApi: text("identityApi", current.identityApi),
     daemonApi: text("daemonApi", current.daemonApi),
-    mfaAppUrl: text("mfaAppUrl", current.mfaAppUrl),
     activeProjectId: text("activeProjectId", current.activeProjectId ?? ""),
   };
 }
