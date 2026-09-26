@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-26-passkey-verify/`](2026-09-26-passkey-verify/README.md) | A new account passkey is tried once (ADR 0140 plan step 11c) |
 | [`2026-09-26-org-signin/`](2026-09-26-org-signin/README.md) | Organization sign-in in Identity › Organizations (ADR 0140 plan step 12) |
 | [`2026-09-26-aliases-config/`](2026-09-26-aliases-config/README.md) | `/guest` and `/delegate` aliases — before/after |
 | [`2026-09-25-notification-routing/`](2026-09-25-notification-routing/README.md) | Settings › Notifications: the `notifications.routing` capability (ADR 0140 step 11a) |
