@@ -8,6 +8,7 @@
  * checked after, inside the decrypt — so the dispatch is made here, once, for
  * every surface that opens a claim link.
  */
+import { matchCeremonyPath } from "./ceremony-routes.js";
 
 /** `osc_clm_<publicId>.<secret>`, both base64url (os-domain `parseClaimToken`). */
 const CLAIM_TOKEN = /^osc_clm_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -46,4 +47,40 @@ export function readClaimLink(hash: string): ClaimLink | null {
 export function fragmentCarriesBearer(hash: string): boolean {
   const params = fragmentParams(hash);
   return params.has("token") || params.has("key");
+}
+
+/**
+ * The complete claim link, RFC 8628's `verification_uri_complete` for a claim:
+ * `routeUrl#token=<bearer>`, where `routeUrl` is the claim route that
+ * `buildCeremonyUrl(base, "claim")` built.
+ *
+ * `buildCeremonyUrl` refuses every credential-shaped name in a query or
+ * fragment, and must go on refusing them. This is the one narrow exception,
+ * and it holds only when its inputs are exactly what it expects: a claim
+ * route with no query and no fragment of its own, and a bearer of the claim
+ * shape. The bearer rides the fragment, so it never reaches a request line,
+ * a server log or a `Referer`; Pages reads it at boot and scrubs it from the
+ * address bar (`app-core` `lib/claims/arrival.ts`). Throws on anything else,
+ * without naming the bearer.
+ */
+export function buildClaimLink(routeUrl: string, token: string): string {
+  if (!isClaimToken(token)) {
+    throw new Error("A claim link needs a claim bearer.");
+  }
+  let route: URL;
+  try {
+    route = new URL(routeUrl);
+  } catch {
+    throw new Error("A claim link needs a claim route URL.");
+  }
+  if (
+    routeUrl.includes("?") ||
+    routeUrl.includes("#") ||
+    route.username !== "" ||
+    route.password !== "" ||
+    matchCeremonyPath("claim", route.pathname) === null
+  ) {
+    throw new Error("A claim link needs a claim route URL.");
+  }
+  return `${route.href}#token=${token}`;
 }

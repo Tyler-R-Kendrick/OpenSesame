@@ -107,6 +107,41 @@ describe("a claim link", () => {
     );
   });
 
+  it("opens the Identity API's complete link: bearer gone before render, then code, then done", async () => {
+    // `verificationUriComplete` as the Identity API returns it
+    // (control-plane `claim-link-origin.test.ts` pins the same shape).
+    const complete = new URL(`${location.origin}/claim#token=${TOKEN}`);
+    arrive(`${complete.pathname}${complete.hash}`);
+    const seen: string[] = [];
+    function Probe() {
+      seen.push(location.href);
+      return null;
+    }
+    render(
+      <MemoryRouter initialEntries={["/claim"]}>
+        <Probe />
+        <ClaimRoute />
+      </MemoryRouter>,
+    );
+    // Presented on arrival: the person is asked only for the user code.
+    await userEvent.type(
+      await screen.findByLabelText("Consent code"),
+      "WXYZ-1234{Enter}",
+    );
+    expect(
+      await screen.findByRole("img", { name: CLAIM_ACCEPTED }),
+    ).toBeTruthy();
+    expect(harness.routes.present).toHaveBeenCalledTimes(1);
+    expect(harness.routes.present).toHaveBeenCalledWith(TOKEN);
+    expect(
+      JSON.parse(harness.routes.complete.mock.calls[0]?.[1] ?? ""),
+    ).toMatchObject({ userCode: "WXYZ-1234" });
+    // No render ever saw the bearer in the address.
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.filter((href) => href.includes(TOKEN))).toEqual([]);
+    expect(location.href).toBe(`${location.origin}${complete.pathname}`);
+  });
+
   it("marks a wrong code and reports it in the tray, never in a box", async () => {
     harness.routes.complete.mockResolvedValue(
       json({ error: "invalid_user_code" }, 400),

@@ -1,5 +1,5 @@
 import type { ControlPlaneConfig } from "./config.js";
-import { agentManagementPaths } from "./openapi-agents.js";
+import { agentManagementPaths, claimStarted } from "./openapi-agents.js";
 import { authorityPaths } from "./openapi-authority.js";
 import { mfaPaths } from "./openapi-mfa.js";
 import { publicAuthenticationPaths } from "./openapi-public-authentication.js";
@@ -572,7 +572,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             },
           ],
           responses: {
-            "201": { description: "Created" },
+            "201": claimStarted("Created"),
             "401": { description: "Missing principal bearer" },
             "403": { description: "Quota exceeded" },
           },
@@ -799,7 +799,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             },
           ],
           responses: {
-            "201": { description: "Created" },
+            "201": claimStarted("Created"),
             "401": { description: "Missing principal bearer" },
             "403": { description: "Quota exceeded" },
           },

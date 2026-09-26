@@ -27,7 +27,7 @@ import {
 import { type Context, Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { AppContext } from "../context.js";
-import { claimVerificationUri } from "../interactions/rendezvous.js";
+import { claimLinks } from "../interactions/rendezvous.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -252,7 +252,7 @@ claimRoutes.post(
           claimId: created.session.id,
           claimToken: created.token,
           userCode: created.userCode,
-          verificationUri: claimVerificationUri(ctx.config, created.session.id),
+          ...claimLinks(ctx.config, created),
           expiresAt: created.session.expiresAt.toISOString(),
           targetManifestDigest: created.session.targetManifestDigest,
           pollIntervalSeconds: 5,

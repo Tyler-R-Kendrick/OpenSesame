@@ -1,19 +1,37 @@
 /**
- * Local-first certificate client using WebCrypto.
- * Certificate issuance happens entirely in the browser — no remote authority required. The generated certificate is a self-signed X.509 PEM stored
- * in the vault; it can later be exported or re-issued without contacting
- * any external authority.
+ * Local, self-signed certificate issuance with WebCrypto.
  *
- * For production use, this generates an RSA key pair and a self-signed
- * certificate valid for the requested common name(s).  The private key
- * never leaves the browser and is sealed under the vault key.
+ * `issueCertificate` makes a real X.509 v3 certificate on this device: a
+ * fresh ECDSA P-256 key, a 16-byte CSPRNG serial, the common name as both
+ * subject and issuer, the requested DNS names and IP addresses as
+ * subjectAltName, and an end-entity profile (CA:FALSE, digitalSignature,
+ * serverAuth + clientAuth), signed ecdsa-with-SHA256 by its own key. It is
+ * for local development and device-to-device TLS: no certificate authority
+ * issued it, nothing trusts it until a person chooses to, and it chains to
+ * nothing. The private key is returned as PKCS#8 PEM for the caller to seal
+ * in the vault; no network is involved.
+ *
+ * Because the certificate is self-signed there is no issuing CA, so
+ * `caCertificate` is always empty rather than a copy of the leaf presented
+ * as a CA — the record's "Issuing CA" stays blank, which is the truth.
  */
+import {
+  randomSerial,
+  signSelfSignedCertificate,
+  toHex,
+} from "./x509/certificate.js";
+import { toPem } from "./x509/der.js";
+import { isDnsName, parseIpAddress } from "./x509/names.js";
 
-/** A certificate freshly issued locally via WebCrypto. */
+/** A certificate freshly issued on this device. */
 export type IssuedCertificate = {
+  /** The self-signed certificate, PEM. */
   certificate: string;
+  /** Its ECDSA P-256 private key, PKCS#8 PEM. */
   privateKey: string;
+  /** Always empty: a self-signed certificate has no issuing CA. */
   caCertificate: string;
+  /** The certificate's serial number, upper-case hex. */
   serial: string;
   commonName: string;
   dnsNames: string[];
@@ -22,188 +40,141 @@ export type IssuedCertificate = {
   deliveryId?: string;
 };
 
-/** Generate an RSA key pair and self-signed certificate via WebCrypto. */
-async function generateCertificateLocal({
-  commonName,
-  dnsNames = [],
-  ipAddrs = [],
-  ttlHours = 24,
-}: {
-  commonName: string;
-  dnsNames?: string[];
-  ipAddrs?: string[];
-  ttlHours?: number;
-}): Promise<IssuedCertificate> {
-  // Generate RSA key pair
-  const key = await crypto.subtle.generateKey(
-    {
-      name: "RSA-OAEP",
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: "SHA-256",
-    },
-    true,
-    ["encrypt", "decrypt"],
-  );
-
-  // Build a minimal self-signed certificate PEM
-  const now = Date.now();
-  const notAfterMs = now + ttlHours * 60 * 60 * 1000;
-
-  // Serialize the public key as SPKI
-  const spkiDer = await crypto.subtle.exportKey("spki", key.publicKey);
-  const spkiPem = encodeSpkiPem(new Uint8Array(spkiDer));
-
-  // Build certificate fields
-  const serial = Math.floor(Math.random() * 0xffffffff)
-    .toString(16)
-    .padStart(8, "0");
-  const dnsStr = dnsNames.join(", ") || undefined;
-  const ipStr =
-    ipAddrs.length > 0 ? ipAddrs.join(", ") || undefined : undefined;
-
-  // Build a minimal X.509 certificate in PEM format
-  const certPem = buildSelfSignedCertPem(
-    commonName,
-    dnsStr,
-    ipStr,
-    now,
-    notAfterMs,
-    spkiPem,
-    serial,
-  );
-
-  // Export the private key as PKCS#8 PEM
-  const pkcs8Der = await crypto.subtle.exportKey("pkcs8", key.privateKey);
-  const privateKeyPem = encodePkcs8Pem(new Uint8Array(pkcs8Der));
-
-  return {
-    certificate: certPem,
-    privateKey: privateKeyPem,
-    caCertificate: "",
-    serial,
-    commonName,
-    dnsNames: dnsNames.filter((s) => s.length > 0),
-    notBefore: new Date(now).toISOString(),
-    notAfter: new Date(notAfterMs).toISOString(),
-    deliveryId: `local-${commonName}-${serial}`,
-  };
-}
-
-/** Encode a SPKI DER buffer as PEM. */
-function encodeSpkiPem(der: Uint8Array): string {
-  return encodeDerPem(der, "PUBLIC KEY");
-}
-
-/** Encode a PKCS#8 DER buffer as PEM. */
-function encodePkcs8Pem(der: Uint8Array): string {
-  return encodeDerPem(der, "PRIVATE KEY");
-}
-
-function encodeDerPem(der: Uint8Array, label: string): string {
-  const base64 = btoa(String.fromCharCode(...der));
-  const lines = Math.ceil(base64.length / 64);
-  let pem = `-----BEGIN ${label}-----\n`;
-  for (let i = 0; i < lines; i++) {
-    const chunk = base64.substring(i * 64, (i + 1) * 64);
-    pem += `${chunk}\n`;
-  }
-  pem += `-----END ${label}-----\n`;
-  return pem;
-}
-
-/** Build a minimal self-signed X.509 certificate PEM. */
-function buildSelfSignedCertPem(
-  commonName: string,
-  dnsNames: string | undefined,
-  ipNames: string | undefined,
-  notBeforeMs: number,
-  notAfterMs: number,
-  spkiPem: string,
-  serial: string,
-): string {
-  const subj = `CN=${commonName}`;
-  const dnsPart = dnsNames ? `DNS=${dnsNames}` : "";
-  const ipPart = ipNames ? `IP=${ipNames}` : "";
-
-  const body = [
-    "-----BEGIN CERTIFICATE-----",
-    "MIIBqTCB+wYJKoZIhvcNAQcMIIBkTCB+wYJKoZIhvcNAQcMIIBkzCCAUQ",
-    "GCSqGSIb3DQEHAaCCAUExDDAKBgNVBAsTA0FDQzETMBEGA1UEChMK",
-    "FkFUTiBDRVJ serif QCMnKCf6KR0wGQYJYIZIAWUDBAEQMAoGCCqGSIb3",
-    "DQMCAgIwDDEaMBsGA1UEAwwG",
-    commonName,
-    "MIIBkTCB+wYJKoZIhvcNAQcMIIBkzCCAUwGCSqGSIb3DQEHAaCCAUIw",
-    "DAYJKoZIhvcNAQkOPQMCAwQgUFJ",
-    serial,
-    "MIIBkTCB+wYJKoZIhvcNAQcMIIBkzCCAUwGCSqGSIb3DQEHAaCCAUIw",
-    "DAYJKoZIhvcNAQkOPQMwDDEaMBsGA1UEAwwG",
-    commonName,
-    "MIIBkTCB+wYJKoZIhvcNAQcMIIBkzCCAUwGCSqGSIb3DQEHAaCCAUIw",
-    "DAYJKoZIhvcNAQkOPQMw",
-    "GCSqGSIb3DQEHA5CA",
-    notAfterMs.toString(16).toUpperCase().padStart(16, "0"),
-    "MIIBkzCCAUcGCSqGSIb3DQEHAaCCAUIw",
-    "DAYJKoZIhvcNAQkOPQQwMgQg",
-    spkiPem
-      .replace(/-----BEGIN PUBLIC Key-----/, "")
-      .replace(/-----END Public Key-----/, ""),
-    "-----END CERTIFICATE-----",
-  ].join("\n");
-
-  return body;
-}
-
-/**
- * Issue a certificate entirely locally using WebCrypto.
- * No remote authority is required — the key pair and certificate are
- * generated in the browser and the private key never leaves the device.
- */
-export async function issueCertificate({
-  commonName,
-  dnsNames,
-  ipAddrs,
-  ttlHours,
-  idempotencyKey,
-}: {
+export type CertificateRequest = {
   commonName: string;
   dnsNames?: string[];
   ipAddrs?: string[];
   ttlHours?: number;
   idempotencyKey?: string;
-}): Promise<IssuedCertificate> {
-  const result = await generateCertificateLocal({
-    commonName,
-    dnsNames: dnsNames || [],
-    ipAddrs: ipAddrs || [],
-    ttlHours: ttlHours || 24,
-  });
+};
 
-  // If there's an idempotency key, we could store a mapping locally,
-  // but for now the local deliveryId is sufficient.
-  if (idempotencyKey) {
-    // Store idempotency mapping locally — no-op in this local-first impl
-    // The deliveryId is already scoped to this device/vault.
+const HOUR_MS = 60 * 60 * 1000;
+const DEFAULT_TTL_HOURS = 24;
+/** RFC 5280 ub-common-name. */
+const MAX_COMMON_NAME = 64;
+/** GeneralizedTime has four year digits. */
+const LAST_EXPRESSIBLE_MS = Date.UTC(9999, 11, 31, 23, 59, 59);
+
+/** Trimmed, non-empty, first occurrence of each. */
+function tidy(values: readonly string[] | undefined): string[] {
+  const out: string[] = [];
+  for (const value of values ?? []) {
+    const trimmed = value.trim();
+    if (trimmed && !out.includes(trimmed)) out.push(trimmed);
   }
+  return out;
+}
 
-  return result;
+function checkCommonName(raw: string): string {
+  const commonName = raw.trim();
+  if (commonName.length === 0) {
+    throw new Error("Enter a common name for the certificate.");
+  }
+  if ([...commonName].length > MAX_COMMON_NAME) {
+    throw new Error(
+      `A certificate's common name can be at most ${MAX_COMMON_NAME} characters.`,
+    );
+  }
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point
+  if (/[\u0000-\u001f\u007f]/.test(commonName)) {
+    throw new Error(
+      "A certificate's common name cannot hold control characters.",
+    );
+  }
+  return commonName;
+}
+
+function checkLifetime(ttlHours: number, from: number): number {
+  const until = from + ttlHours * HOUR_MS;
+  if (
+    !Number.isFinite(ttlHours) ||
+    ttlHours <= 0 ||
+    !Number.isFinite(until) ||
+    until > LAST_EXPRESSIBLE_MS
+  ) {
+    throw new Error(
+      "Choose a certificate lifetime of more than zero hours that ends before the year 10000.",
+    );
+  }
+  return Math.floor(until / 1000) * 1000;
+}
+
+/** Validate a request and make its self-signed certificate. */
+async function issueSelfSignedCertificate(
+  request: CertificateRequest,
+): Promise<IssuedCertificate> {
+  const commonName = checkCommonName(request.commonName);
+  const dnsNames = tidy(request.dnsNames);
+  for (const dns of dnsNames) {
+    if (!isDnsName(dns)) throw new Error(`"${dns}" is not a valid DNS name.`);
+  }
+  const ipAddrs = tidy(request.ipAddrs);
+  const ipAddresses = ipAddrs.map((ip) => {
+    const octets = parseIpAddress(ip);
+    if (octets === null) throw new Error(`"${ip}" is not a valid IP address.`);
+    return octets;
+  });
+  // X.509 times carry whole seconds: the record states what the
+  // certificate says, not a millisecond-precise approximation of it.
+  const notBeforeMs = Math.floor(Date.now() / 1000) * 1000;
+  const notAfterMs = checkLifetime(
+    request.ttlHours ?? DEFAULT_TTL_HOURS,
+    notBeforeMs,
+  );
+
+  const serial = randomSerial();
+  const { der, pkcs8 } = await signSelfSignedCertificate({
+    serial,
+    commonName,
+    dnsNames,
+    ipAddresses,
+    notBefore: new Date(notBeforeMs),
+    notAfter: new Date(notAfterMs),
+  });
+  const serialHex = toHex(serial);
+  return {
+    certificate: toPem(der, "CERTIFICATE"),
+    privateKey: toPem(pkcs8, "PRIVATE KEY"),
+    caCertificate: "",
+    serial: serialHex,
+    commonName,
+    dnsNames,
+    notBefore: new Date(notBeforeMs).toISOString(),
+    notAfter: new Date(notAfterMs).toISOString(),
+    deliveryId: `local-${commonName}-${serialHex}`,
+  };
 }
 
 /**
- * Acknowledge delivery of a locally-issued certificate.
- * In the local-first model, acknowledgment is a no-op since the
- * certificate material is already in the browser's custody.
+ * Acknowledge delivery of a locally issued certificate. Local issuance has
+ * nobody to acknowledge to — the material is already in the caller's hands —
+ * so this resolves immediately; it keeps the issue-then-acknowledge shape a
+ * Host-issued certificate would need.
  */
-export async function acknowledgeCertificateDelivery(
-  deliveryId: string,
-): Promise<void> {
-  // Local-first: nothing to acknowledge — the certificate is already
-  // stored in the vault and sealed under the device key.
-  // This function exists for API compatibility; it resolves immediately.
-  return Promise.resolve();
+async function acknowledgeLocalDelivery(_deliveryId: string): Promise<void> {}
+
+/** Replaceable in tests; the exported functions always call through it. */
+export const certsSeams = {
+  issueCertificate: issueSelfSignedCertificate,
+  acknowledgeCertificateDelivery: acknowledgeLocalDelivery,
+};
+
+/**
+ * Issue a self-signed certificate on this device (see the module comment).
+ * Rejects with a readable message for an empty or over-long common name, an
+ * invalid DNS name or IP address, or a lifetime that is not positive.
+ * `idempotencyKey` is accepted for callers that retry; local issuance keeps
+ * no ledger, and the caller holds on to the result instead.
+ */
+export function issueCertificate(
+  request: CertificateRequest,
+): Promise<IssuedCertificate> {
+  return certsSeams.issueCertificate(request);
 }
 
-export const certsSeams = {
-  issueCertificate,
-  acknowledgeCertificateDelivery,
-};
+/** See `acknowledgeLocalDelivery`. */
+export function acknowledgeCertificateDelivery(
+  deliveryId: string,
+): Promise<void> {
+  return certsSeams.acknowledgeCertificateDelivery(deliveryId);
+}

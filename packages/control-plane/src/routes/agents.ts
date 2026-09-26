@@ -7,7 +7,7 @@ import {
 import type { Agent, AgentInstance } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { z } from "zod";
-import { claimVerificationUri } from "../interactions/rendezvous.js";
+import { claimLinks } from "../interactions/rendezvous.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -207,7 +207,7 @@ agentRoutes.post(
       claimId: claim.session.id,
       claimToken: claim.token,
       userCode: claim.userCode,
-      verificationUri: claimVerificationUri(ctx.config, claim.session.id),
+      ...claimLinks(ctx.config, claim),
       expiresAt: claim.session.expiresAt.toISOString(),
     });
     return c.json(body, 201);
@@ -259,7 +259,7 @@ agentRoutes.post(
         claimId: claim.session.id,
         claimToken: claim.token,
         userCode: claim.userCode,
-        verificationUri: claimVerificationUri(ctx.config, claim.session.id),
+        ...claimLinks(ctx.config, claim),
         expiresAt: claim.session.expiresAt.toISOString(),
       },
       201,

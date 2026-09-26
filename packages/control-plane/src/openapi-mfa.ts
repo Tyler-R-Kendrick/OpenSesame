@@ -21,6 +21,46 @@ const factorSchema = {
   },
 } as const;
 
+const encoded = {
+  type: "string",
+  minLength: 1,
+  maxLength: 16384,
+  pattern: "^[A-Za-z0-9+/_=-]+$",
+} as const;
+
+/** A fresh proof from one of the caller's own factors (ADR 0146). */
+const proofSchema = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "code"],
+      properties: {
+        kind: { type: "string", const: "totp" },
+        code: { type: "string", pattern: "^\\d{6}$" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "kind",
+        "credentialId",
+        "clientDataJSON",
+        "authenticatorData",
+        "signature",
+      ],
+      properties: {
+        kind: { type: "string", const: "passkey" },
+        credentialId: encoded,
+        clientDataJSON: encoded,
+        authenticatorData: encoded,
+        signature: encoded,
+      },
+    },
+  ],
+} as const;
+
 const factorId = {
   name: "id",
   in: "path",
@@ -67,16 +107,64 @@ export const mfaPaths = {
       },
     },
   },
-  "/v1/mfa/factors/{id}": {
-    delete: {
-      summary: "Remove one of the caller's own account factors",
+  "/v1/mfa/passkey/authentication-options": {
+    post: {
+      summary:
+        "Issue a one-time WebAuthn challenge; with a purpose, a step-up challenge bound to this principal and one factor",
       security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
-      parameters: [factorId],
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["purpose", "factorId"],
+              properties: {
+                purpose: { type: "string", const: "factor.remove" },
+                factorId: factorSchema.properties.id,
+              },
+            },
+          },
+        },
+      },
       responses: {
-        "200": { description: "Removed" },
-        "400": { description: "Not a factor id" },
+        "200": { description: "Challenge and request options" },
+        "400": { description: "Unknown purpose or not a factor id" },
         "401": { description: "Authentication required" },
         "404": { description: "No such factor on the caller's account" },
+      },
+    },
+  },
+  "/v1/mfa/factors/{id}": {
+    delete: {
+      summary:
+        "Remove one of the caller's own account factors, proved by a fresh step-up from one of them (ADR 0146)",
+      security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+      parameters: [factorId],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["proof"],
+              properties: { proof: proofSchema },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "Removed" },
+        "400": { description: "Not a factor id, or a malformed proof" },
+        "401": { description: "Authentication required" },
+        "403": {
+          description:
+            "`step_up_required` (no proof) or `step_up_failed` (a proof that did not verify); never 401, so a client keeps its session",
+        },
+        "404": { description: "No such factor on the caller's account" },
+        "429": { description: "Failure fence" },
       },
     },
   },

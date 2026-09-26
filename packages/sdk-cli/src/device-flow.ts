@@ -349,7 +349,10 @@ export class DeviceFlowClient {
   }
 }
 
-/** Redact secrets from objects before JSON logging. */
+/**
+ * Redact secrets from objects before JSON logging. A complete verification
+ * link counts: a claim's carries its bearer in the fragment.
+ */
 export function redactSecrets(
   value: JsonValue | undefined,
 ): JsonValue | undefined {
@@ -360,7 +363,7 @@ export function redactSecrets(
   const out: JsonObject = {};
   for (const [k, v] of Object.entries(value)) {
     if (
-      /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_key|signing_key|bearer/iu.test(
+      /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|verification_?uri_?complete|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_key|signing_key|bearer/iu.test(
         k,
       )
     ) {

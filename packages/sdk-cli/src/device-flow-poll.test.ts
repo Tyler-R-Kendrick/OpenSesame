@@ -277,6 +277,22 @@ describe("redactSecrets", () => {
     });
   });
 
+  it("redacts a complete verification link, which carries a bearer", () => {
+    const out = redactSecrets({
+      claimToken: "osc_clm_a.b",
+      verificationUri: "https://app.example/claim",
+      verificationUriComplete: "https://app.example/claim#token=osc_clm_a.b",
+      nested: { verification_uri_complete: "https://x/?user_code=ABCD" },
+    });
+    expect(out).toEqual({
+      claimToken: "[redacted]",
+      verificationUri: "https://app.example/claim",
+      verificationUriComplete: "[redacted]",
+      nested: { verification_uri_complete: "[redacted]" },
+    });
+    expect(JSON.stringify(out)).not.toContain("osc_clm_a.b");
+  });
+
   it("passes scalars through untouched", () => {
     expect(redactSecrets("plain")).toBe("plain");
     expect(redactSecrets(42)).toBe(42);

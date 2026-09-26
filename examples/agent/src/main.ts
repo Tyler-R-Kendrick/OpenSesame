@@ -30,6 +30,7 @@ function jkt(): string {
 
 export function createMockFetch(): typeof fetch {
   const claimId = "clm_demo";
+  const claimToken = "osc_clm_demo.secretvalue000000000000000000000000";
   let polls = 0;
   return overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -55,9 +56,10 @@ export function createMockFetch(): typeof fetch {
           projectId: "prj_demo_personal",
           state: "provisional",
           claimId,
-          claimToken: "osc_clm_demo.secretvalue000000000000000000000000",
+          claimToken,
           userCode: "AGNT-CLAIM",
           verificationUri: `${clientApp}/claim`,
+          verificationUriComplete: `${clientApp}/claim#token=${claimToken}`,
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
         }),
       );
@@ -106,15 +108,19 @@ export async function runAnonymousAgentDemo(
   });
   const registered = RegisterAgentResponseSchema.parse(raw);
   const safe = redactSecrets(registered);
-  process.stdout.write(
-    `Registered provisional agent ${registered.agentId}\n` +
-      `Claim at: ${registered.verificationUri}\n` +
-      `User code: ${registered.userCode}\n` +
-      `Safe payload: ${JSON.stringify(safe)}\n`,
-  );
   if (JSON.stringify(safe).includes(registered.claimToken)) {
     throw new Error("claimToken was not redacted");
   }
+  // The complete link is for the person, and it is the one place the bearer
+  // is printed: it rides the fragment, so opening it presents the claim and
+  // Pages asks only for the user code (ADR 0062). Without a client app there
+  // is no complete link, and the bare page is all there is to show.
+  process.stdout.write(
+    `Registered provisional agent ${registered.agentId}\n` +
+      `Claim at: ${registered.verificationUriComplete ?? registered.verificationUri}\n` +
+      `User code: ${registered.userCode}\n` +
+      `Safe payload: ${JSON.stringify(safe)}\n`,
+  );
 
   const sleep =
     options?.sleep ??

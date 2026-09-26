@@ -4,6 +4,7 @@
  * ceremony drop branch" cases (`DropAcceptance.test.tsx`), its fragment-first
  * pact, and the console's "strips it from the address bar" case.
  */
+import { buildCeremonyUrl, buildClaimLink } from "@opensesame/ceremony-kit";
 import { afterEach, describe, expect, it } from "vitest";
 import { captureClaimLink, readClaimArrival } from "./link.js";
 
@@ -24,6 +25,21 @@ describe("claim arrival", () => {
     // Fragment discipline: the bearer and key leave the URL immediately.
     expect(window.location.hash).toBe("");
     expect(window.location.pathname).toBe("/claim");
+  });
+
+  it("reads the Identity API's complete link as a claim, and scrubs it to the route", () => {
+    // `verificationUriComplete`, built by the same ceremony-kit builders the
+    // Identity API uses, under a deployment base path.
+    const link = new URL(
+      buildClaimLink(
+        buildCeremonyUrl("https://pages.example/OpenSesame/", "claim"),
+        "osc_clm_pub.secret",
+      ),
+    );
+    expect(readClaimArrival(link)).toEqual({
+      arrival: { kind: "claim", token: "osc_clm_pub.secret" },
+      scrubbed: "/OpenSesame/claim",
+    });
   });
 
   it("picks a claim token up from the fragment and strips it", () => {

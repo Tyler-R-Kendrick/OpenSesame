@@ -85,6 +85,22 @@ describe("contracts schemas", () => {
       pollIntervalSeconds: 5,
     });
     expect(res.claimId).toBe("abc");
+    expect(res.verificationUriComplete).toBeUndefined();
+
+    const complete = CreateClaimResponseSchema.parse({
+      ...res,
+      verificationUriComplete:
+        "https://auth.example.test/claim#token=osc_clm_abc.secret",
+    });
+    expect(complete.verificationUriComplete).toBe(
+      "https://auth.example.test/claim#token=osc_clm_abc.secret",
+    );
+    expect(() =>
+      CreateClaimResponseSchema.parse({
+        ...res,
+        verificationUriComplete: "not a url",
+      }),
+    ).toThrow();
   });
 
   it("parses principals/me", () => {

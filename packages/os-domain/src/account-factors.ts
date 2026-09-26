@@ -86,3 +86,34 @@ export function parseAccountFactorList(
     enrollable: ACCOUNT_FACTOR_KINDS.filter((kind) => kinds.includes(kind)),
   };
 }
+
+/**
+ * Removing a factor is authenticated at the account's own level (ADR 0146):
+ * the delete carries a fresh proof from one of the owner's enrolled factors
+ * — the one being removed counts — and the Identity API verifies it on that
+ * request. A passkey proof is an assertion over a challenge minted for this
+ * purpose, this principal and this factor; a code is the authenticator's
+ * current one, accepted once.
+ */
+export const ACCOUNT_FACTOR_REMOVE_PURPOSE = "factor.remove";
+
+export type AccountFactorProof =
+  | { kind: "totp"; code: string }
+  | {
+      kind: "passkey";
+      credentialId: string;
+      clientDataJSON: string;
+      authenticatorData: string;
+      signature: string;
+    };
+
+/** The body of `DELETE /v1/mfa/factors/:id`. */
+export interface AccountFactorRemoval {
+  proof: AccountFactorProof;
+}
+
+/** The body asking `/v1/mfa/passkey/authentication-options` for a step-up. */
+export interface AccountFactorStepUpRequest {
+  purpose: typeof ACCOUNT_FACTOR_REMOVE_PURPOSE;
+  factorId: string;
+}

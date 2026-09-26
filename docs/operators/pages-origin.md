@@ -34,7 +34,7 @@ API at the deployment that serves them:
 
 | Variable | Read by | Set to |
 | --- | --- | --- |
-| `OPENSESAME_CLIENT_APP_URL` | Identity API | This deployment's base, path included (`https://tyler-r-kendrick.github.io/OpenSesame/`). The `/i/<ref>` landing launches into it and a claim's `verificationUri` is its `/claim`; unset, the landing is an address and a claim points at the Identity API's zero-JS `/v1/claims/<id>/verify`. HTTPS only in production. |
+| `OPENSESAME_CLIENT_APP_URL` | Identity API | This deployment's base, path included (`https://tyler-r-kendrick.github.io/OpenSesame/`). The `/i/<ref>` landing launches into it, a claim's `verificationUri` is its `/claim`, and its `verificationUriComplete` is `/claim#token=osc_clm_…` — the link to hand the person: opening it presents the claim, and they type only the user code. Unset, the landing is an address, a claim points at the Identity API's zero-JS `/v1/claims/<id>/verify`, and there is no complete link. HTTPS only in production. |
 | `OPENSESAME_CORS_ORIGINS` | Identity API | The same origin (`https://tyler-r-kendrick.github.io`), so the ceremonies can call it. Naming the client app grants nothing by itself. |
 | `OPENSESAME_IOS_APP_IDENTIFIER`, `OPENSESAME_ANDROID_PACKAGE_NAME`, `OPENSESAME_ANDROID_SHA256_CERT_FINGERPRINTS` | Pages build (Vercel only) | All three or none: the `.well-known` associations for `/invoke/*` (ADR 0140 D11). |
 
