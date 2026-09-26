@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, memo, useEffect, useState } from "react";
 import { IconMark } from "./Icons.js";
 import "./wordmark.css";
 
@@ -81,8 +81,11 @@ function createSlots(): Slot[] {
  * `steps()` + transform stay on the compositor. The readable name is
  * visually hidden; the reels are decorative. The reel runs once per session:
  * a later mount renders the same reels already settled on their letters.
+ *
+ * Memoized: the reels are some six hundred spans that never change after
+ * mount, and every gate and the rail re-render around them on each keystroke.
  */
-export function Wordmark({
+export const Wordmark = memo(function Wordmark({
   className,
   size = 16,
   as: Tag = "p",
@@ -143,4 +146,4 @@ export function Wordmark({
       </span>
     </Tag>
   );
-}
+});
