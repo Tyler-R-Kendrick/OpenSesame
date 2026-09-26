@@ -65,13 +65,13 @@ export async function localDevicesJourney({
     path: `${captures}/local-devices-${width}.png`,
     fullPage: true,
   });
+  // The relying page answers a check with "Session active". Its sign-in
+  // text is what the output held before the click, so matching that passed
+  // only when it was read before the check returned.
   await page.getByRole("button", { name: "Check session" }).click();
-  await expect(page.locator("output")).toHaveText(
-    /^Signed in locally: local_/,
-    {
-      timeout: 30_000,
-    },
-  );
+  await expect(page.locator("output")).toHaveText("Session active", {
+    timeout: 30_000,
+  });
   expect(
     await management.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,

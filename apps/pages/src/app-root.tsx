@@ -42,6 +42,7 @@ import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 
 import { useComposition } from "./bindings/capabilities.js";
 import { useRegistryContributions as defaultUseContributions } from "./bindings/contributions.js";
+import { useShellReady as defaultUseShellReady } from "./bindings/shell-ready.js";
 // The core shell (ownership.md §5): unlock, the vault, Settings, and the
 // federation return. Every other section arrives as a `route` contribution
 // from an approved capability's runtime, so nothing optional is imported
@@ -92,6 +93,8 @@ export type AppSlots = {
   useRouteContributions: () => readonly RouteContribution[];
   useUnlockEffects: () => readonly UnlockEffectContribution[];
   useShellWrappers: () => readonly ShellWrapperContribution[];
+  /** Hold the shell until the unlocked vault's generation has activated. */
+  useShellReady: (status: string, tomb: string | undefined) => boolean;
   /** Core sign-in: raise a federated link a locked vault deferred (ADR 0033). */
   recoverPendingFederatedLink: () => void;
   AppShell: ComponentType<{ children?: ReactNode }>;
@@ -113,6 +116,7 @@ const defaultSlots: AppSlots = {
   useRouteContributions: () => defaultUseContributions("route"),
   useUnlockEffects: () => defaultUseContributions("unlock-effect"),
   useShellWrappers: () => defaultUseContributions("shell-wrapper"),
+  useShellReady: defaultUseShellReady,
   recoverPendingFederatedLink: defaultRecoverPendingFederatedLink,
   AppShell: DefaultAppShell,
   FederationReturn: DefaultFederationReturn,
@@ -257,6 +261,7 @@ function VaultApp() {
   const routes = slots.useRouteContributions();
   const wrappers = slots.useShellWrappers();
   const effects = slots.useUnlockEffects();
+  const shellReady = slots.useShellReady(status, tomb);
   slots.useTheme();
   slots.useSessionGuards();
   useAfterUnlock(
@@ -270,6 +275,10 @@ function VaultApp() {
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;
   }
+
+  // Mounting before the unlock's own generation has activated builds the
+  // shell from registrations that are about to be revoked (bindings/shell-ready).
+  if (!shellReady) return null;
 
   // Land on the vault before the shell mounts: the rail's sections open from
   // the route they first render under, and mounting on "/" would leave every
