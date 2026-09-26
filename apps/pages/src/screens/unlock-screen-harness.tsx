@@ -12,8 +12,8 @@ import {
   isFunction,
   overlapCast,
 } from "@opensesame/os-domain";
-import { fireEvent, screen, within } from "@testing-library/react";
-import { vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { expect, vi } from "vitest";
 
 export type TestVaultState = {
   status: "empty" | "locked";
@@ -200,6 +200,17 @@ Object.assign(setupScreenDependencies, {
 });
 
 export const STRONG = "correct horse battery staple";
+
+/**
+ * Waits until the passkey ceremony ran `calls` times and the form has left
+ * busy: the form drops a submit made while busy, so a retry must wait.
+ */
+export async function passkeySettled(calls: number): Promise<void> {
+  await waitFor(() => {
+    expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(calls);
+    expect(submitButton().getAttribute("aria-busy")).toBe("false");
+  });
+}
 
 export function submitButton(): HTMLButtonElement {
   // Scoped to the unlock form: on an existing vault the sign-in panel below it

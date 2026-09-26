@@ -18,7 +18,7 @@
   "totals": {
     "files": 475,
     "violations": 750,
-    "oversizedLines": 239673
+    "oversizedLines": 239670
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -176,7 +176,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1438
+      "max-lines": 1435
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
