@@ -20,6 +20,7 @@ import {
   accountFoot,
   isAccountMethod,
 } from "./AccountFactorCeremony.js";
+import type { RemovalFactor } from "./AccountFactorRemoval.js";
 import {
   KEY_SUBTITLE,
   KEY_TITLE,
@@ -50,7 +51,7 @@ export type MethodView = KeyView;
 export type SheetRequest = {
   kind: MethodKind;
   view: MethodView;
-  factor?: { id: string; name: string };
+  factor?: RemovalFactor;
 };
 
 const TITLE = {

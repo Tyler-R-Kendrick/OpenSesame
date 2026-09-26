@@ -66,6 +66,14 @@ const SESSION = {
 
 type Call = { path: string; method: string; body: string | null };
 
+/**
+ * Nothing goes on the session alone (ADR 0146): a delete carries a code or
+ * an assertion over the challenge the stand-in mints.
+ */
+function unproved(init: RequestInit): boolean {
+  return !(init.body && JSON.parse(String(init.body)).proof);
+}
+
 /** A stand-in Identity API: the factor routes, answered from memory. */
 function standIn(initial: JsonObject[], enrollable = ["passkey", "totp"]) {
   let factors = [...initial];
@@ -85,6 +93,9 @@ function standIn(initial: JsonObject[], enrollable = ["passkey", "totp"]) {
       return reply(200, { ok: true, factors, enrollable });
     }
     if (path.startsWith("/v1/mfa/factors/") && method === "DELETE") {
+      if (unproved(init)) {
+        return reply(403, { ok: false, error: "step_up_required" });
+      }
       const id = decodeURIComponent(path.slice("/v1/mfa/factors/".length));
       const before = factors.length;
       factors = factors.filter((factor) => factor.id !== id);
@@ -101,6 +112,9 @@ function standIn(initial: JsonObject[], enrollable = ["passkey", "totp"]) {
           "otpauth://totp/OpenSesame:prn_abcd?secret=JBSWY3DPEHPK3PXP&issuer=OpenSesame",
       });
     }
+    if (path === "/v1/mfa/passkey/authentication-options") {
+      return reply(200, { ok: true, options: { challenge: "cmVtb3Zl" } });
+    }
     if (path === "/v1/mfa/totp/verify") {
       const code = JSON.parse(String(init.body)).code;
       return code === "123456"
@@ -110,6 +124,28 @@ function standIn(initial: JsonObject[], enrollable = ["passkey", "totp"]) {
     return reply(404, { error: "not_found" });
   };
   return { calls, factors: () => factors };
+}
+
+/** A browser whose platform authenticator answers an assertion. */
+function assertingBrowser() {
+  const bytes = (n: number) => new Uint8Array([n]).buffer;
+  Object.defineProperty(navigator, "credentials", {
+    configurable: true,
+    value: {
+      get: async () => ({
+        id: "cred-1",
+        type: "public-key",
+        rawId: bytes(1),
+        response: {
+          clientDataJSON: bytes(3),
+          authenticatorData: bytes(4),
+          signature: bytes(5),
+        },
+        getClientExtensionResults: () => ({}),
+      }),
+    },
+  });
+  vi.stubGlobal("PublicKeyCredential", function PublicKeyCredential() {});
 }
 
 function row(name: string) {
@@ -136,6 +172,7 @@ afterEach(() => {
   Object.assign(deviceIdentitySeams, originalDevice);
   Object.assign(federationSeams, originalFederation);
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(navigator, "credentials");
 });
 
 afterAll(() => {
@@ -215,7 +252,8 @@ describe("account rows", () => {
 });
 
 describe("the one sheet", () => {
-  it("removes a passkey, confirmed in its card, and reads the list again", async () => {
+  it("removes a passkey, proved and confirmed in its card, and reads the list again", async () => {
+    assertingBrowser();
     const api = standIn([
       { id: PK1, kind: "passkey", createdAt: "2026-09-20T09:00:00.000Z" },
       { id: PK2, kind: "passkey" },
@@ -233,12 +271,14 @@ describe("the one sheet", () => {
     expect(sheet().getByText("Remove this passkey?")).toBeTruthy();
     expect(sheet().getByText(/untouched; its keys keep working/)).toBeTruthy();
     await user.click(sheet().getByRole("button", { name: "Remove passkey" }));
+    await user.click(await sheet().findByRole("button", { name: "Done" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(api.calls).toContainEqual({
-      path: `/v1/mfa/factors/${PK1}`,
-      method: "DELETE",
-      body: null,
+    const removal = api.calls.find((call) => call.method === "DELETE");
+    expect(removal?.path).toBe(`/v1/mfa/factors/${PK1}`);
+    expect(JSON.parse(String(removal?.body)).proof).toMatchObject({
+      kind: "passkey",
+      credentialId: "cred-1",
     });
     await waitFor(() => expect(screen.queryByText(/key 4f2a/)).toBeNull());
     expect(screen.getByText(/9c1e/)).toBeTruthy();
@@ -301,12 +341,16 @@ describe("the one sheet", () => {
     await sheet().findByTestId("qr");
     await user.click(sheet().getByRole("button", { name: "Close" }));
     await waitFor(() =>
-      expect(api.calls).toContainEqual({
-        path: "/v1/mfa/factors/totp",
-        method: "DELETE",
-        body: null,
-      }),
+      expect(api.calls.map((call) => `${call.method} ${call.path}`)).toContain(
+        "DELETE /v1/mfa/factors/totp",
+      ),
     );
+    // The seed still in memory proves its own removal with its code now.
+    const removal = api.calls.find((call) => call.method === "DELETE");
+    expect(JSON.parse(String(removal?.body)).proof).toMatchObject({
+      kind: "totp",
+      code: expect.stringMatching(/^\d{6}$/),
+    });
     expect(api.factors()).toEqual([]);
   });
 
