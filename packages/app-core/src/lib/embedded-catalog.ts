@@ -4,20 +4,14 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import parity from "../../../../spec/connectors/fnox-parity.json";
+import {
+  BUNDLED_CATALOG_IDS,
+  isDeviceKeyProtector,
+} from "./bundled-provider-ids.js";
 import type { Provider } from "./connections.js";
 import { CATALOG_REVISION, catalogProvider } from "./connector-catalog.js";
-import {
-  DEVICE_KEY_PROTECTORS,
-  FIELDS,
-  HOST_PROVIDER_IDS,
-  IDENTITY_PROVIDER_IDS,
-  LLM_PROVIDER_IDS,
-  NETWORKING_PROVIDER_IDS,
-  WALLET_PROVIDER_IDS,
-} from "./embedded-catalog-data.js";
+import { FIELDS } from "./embedded-catalog-data.js";
 import { bundledGitProvider } from "./embedded-git.js";
-import { WALLET_ISSUER_IDS } from "./wallet-issuers.js";
 
 /** A cached catalog from another revision is discarded, never merged. */
 export const BUNDLED_REVISION = CATALOG_REVISION;
@@ -42,22 +36,9 @@ function bundled(id: string, configured = false): Provider {
   return provider;
 }
 
-const DEVICE: ReadonlySet<string> = new Set(DEVICE_KEY_PROTECTORS);
-
-export const bundledProviders: Provider[] = [
-  ...DEVICE_KEY_PROTECTORS.map((id) => bundled(id, true)),
-  // fido2 is not a connector — WebAuthn PRF passkeys live under Unlock methods /
-  // Vault key protection. Keep the fnox parity list intact; omit the row here.
-  ...parity.providers
-    .filter((id) => id !== "fido2" && !DEVICE.has(id))
-    .map((id) => bundled(id)),
-  ...HOST_PROVIDER_IDS.map((id) => bundled(id)),
-  ...LLM_PROVIDER_IDS.map((id) => bundled(id)),
-  ...IDENTITY_PROVIDER_IDS.map((id) => bundled(id)),
-  ...NETWORKING_PROVIDER_IDS.map((id) => bundled(id)),
-  ...WALLET_PROVIDER_IDS.map((id) => bundled(id)),
-  ...WALLET_ISSUER_IDS.map((id) => bundled(id)),
-];
+export const bundledProviders: Provider[] = BUNDLED_CATALOG_IDS.map((id) =>
+  bundled(id, isDeviceKeyProtector(id)),
+);
 
 function validProvider(value: BoundaryValue): value is Provider {
   if (!isJsonObject(value)) return false;

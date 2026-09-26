@@ -77,6 +77,7 @@
     "test:mtls:browser": "node scripts/mtls/mtls-browser-test.mjs",
     "test:mtls:fixtures": "bash ./scripts/mtls/mtls-fixtures.sh fetch all && bash ./scripts/mtls/mtls-fixtures.sh verify",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
+    "test:connect-preflight": "node scripts/test/connect-preflight.mjs",
     "verify:experience": "pnpm --filter @opensesame/pages verify:experience",
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",

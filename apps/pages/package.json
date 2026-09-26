@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=4 && node --test server/test/*.test.mjs",
     "test:relay": "node --test server/test/*.test.mjs",
+    "generate:connect": "node scripts/emit-connect-verify-targets.mjs && biome format --write server/connect-verify-targets.generated.mjs",
     "verify:static": "node scripts/verify-static-origin.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Provider } from "./connections.js";
+import { getBundledProviders } from "./embedded-catalog.js";
 import {
   catalogTileNote,
+  hasConnectRoute,
+  isVercelCatalogId,
   isVercelConnectable,
   mergeVercelCatalog,
   vercelConnectCatalog,
@@ -106,5 +109,36 @@ describe("Vercel Connect browse catalog", () => {
       category: "backup_recovery",
       authKind: "oauth2_authorization_code",
     });
+  });
+
+  it("never replaces a bundled row Vercel does not list", () => {
+    const merged = mergeVercelCatalog(getBundledProviders());
+    for (const id of ["doppler", "huggingface"]) {
+      expect(isVercelCatalogId(id)).toBe(false);
+      expect(hasConnectRoute(id)).toBe(true);
+      const rows = merged.filter((row) => row.id === id);
+      expect(rows).toHaveLength(1);
+      // The bundled row, with its own operations, not a plan-built one.
+      expect(rows[0]).toEqual(
+        getBundledProviders().find((row) => row.id === id),
+      );
+    }
+  });
+
+  it("lists a plan with no bundled row of its own", () => {
+    const ids = vercelConnectCatalog().map((row) => row.id);
+    expect(ids).toEqual(expect.arrayContaining(["discord", "groq"]));
+  });
+
+  it("refuses card issuers on Connect and keeps their bundled road", () => {
+    const merged = mergeVercelCatalog(getBundledProviders());
+    for (const id of ["privacy", "lithic", "marqeta", "stripe-issuing"]) {
+      expect(hasConnectRoute(id)).toBe(false);
+      expect(isVercelConnectable(id)).toBe(false);
+      expect(merged.filter((row) => row.id === id)).toHaveLength(1);
+      const row = merged.find((item) => item.id === id);
+      expect(row?.category).toBe("wallet");
+      if (row) expect(catalogTileNote(row, null)).toBeNull();
+    }
   });
 });

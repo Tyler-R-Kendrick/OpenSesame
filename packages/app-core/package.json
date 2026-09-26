@@ -14,7 +14,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "generate:catalog": "node scripts/emit-connector-catalog.mjs && biome format --write src/lib/connector-catalog.generated.ts"
+    "generate:catalog": "node scripts/emit-connector-catalog.mjs && biome format --write src/lib/connector-catalog.generated.ts",
+    "generate:connect": "node scripts/emit-connect-presets.mjs && biome format --write src/lib/connect-presets.generated.ts"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

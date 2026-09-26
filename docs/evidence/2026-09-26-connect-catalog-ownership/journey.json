@@ -1,0 +1,70 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/doppler"
+        },
+        {
+          "count": [
+            "main h2",
+            "main section",
+            "button[aria-label='Create connector']"
+          ]
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "shot": "1280-doppler"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/privacy"
+        },
+        {
+          "count": ["main h2", "button[aria-label='Create connector']"]
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "shot": "390-privacy"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-doppler",
+      "width": 1280,
+      "title": "Doppler — 1280 × 900",
+      "caption": "Doppler is a bundled catalog row Vercel's registry does not list. Before: a plan-built Connect row replaced it, and its own panel was hidden. After: Doppler's own row and road, with the Connect connector beside it.",
+      "before": "Connect only: 3 sections (Vercel Connect, Create connector, Access)",
+      "after": "Doppler's own road first: 4 sections (Connect, Vercel Connect, Create connector, Access)"
+    },
+    {
+      "shot": "390-privacy",
+      "width": 390,
+      "title": "Privacy (card issuer) on a phone — 390 × 844",
+      "caption": "Card issuers are refused on Connect like the payment rails (ADR 0086 §6). Before: Privacy opened as a Connect connector page. After: only its bundled road, the lease-and-ledger flow of ADR 0123.",
+      "before": "Connect connector page: 3 sections, 1 Create connector",
+      "after": "bundled road only: 1 section (Connect), 0 Create connector"
+    }
+  ]
+}
