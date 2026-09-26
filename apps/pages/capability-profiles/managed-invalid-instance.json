@@ -20,6 +20,7 @@
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
         "networking.tailnet",
+        "notifications.routing",
         "notifications.web-push",
         "sharing.household",
         "support.remote-ai",

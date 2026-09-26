@@ -1,0 +1,349 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "centre": "feature-notifications"
+        },
+        {
+          "count": [
+            "#feature-notifications .conn-grid li",
+            "#feature-notifications [role=switch]"
+          ]
+        },
+        {
+          "report": "#feature-notifications"
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "390-capabilities-off"
+        },
+        {
+          "feature": "Notifications"
+        },
+        {
+          "centre": "feature-notifications"
+        },
+        {
+          "count": [
+            "#feature-notifications .conn-grid li",
+            "#feature-notifications [role=switch][aria-checked=true]"
+          ]
+        },
+        {
+          "report": "#feature-notifications"
+        },
+        {
+          "shot": "390-capabilities-on"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "settings/notifications"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "wait": 2
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            ".set__nav-link",
+            "#notif-channels .notif-row",
+            "#notif-destinations .notif-row",
+            ".note"
+          ]
+        },
+        {
+          "marks": null
+        },
+        {
+          "measure": "#notif-channels .icon-btn, .set__nav-link[aria-current=page]"
+        },
+        {
+          "shot": "390-notifications-channels"
+        },
+        {
+          "reveal": "Someone asks to use your authority"
+        },
+        {
+          "measure": "main .notif .icon-btn--sm, main select"
+        },
+        {
+          "shot": "390-notifications-order"
+        },
+        {
+          "pressNamedOptional": "Open routing.json"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ".vfiles__list"
+        },
+        {
+          "shot": "390-routing-file"
+        },
+        {
+          "fillFile": {
+            "path": "settings/notifications/routing.json",
+            "text": "{\n  \"version\": 1,\n  \"byClass\": {\n    \"authorization_request\": {\n      \"channels\": [\n        \"native_push\",\n        \"telegram\",\n        \"in_app\"\n      ],\n      \"fanOut\": false\n    },\n    \"security_event\": {\n      \"channels\": [\n        \"in_app\",\n        \"telegram\"\n      ],\n      \"fanOut\": true\n    }\n  }\n}\n"
+          }
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            ".vfile textarea[aria-invalid=true]",
+            ".vfile button[aria-label^='Save'][disabled]"
+          ]
+        },
+        {
+          "shot": "390-routing-refused"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "centre": "feature-notifications"
+        },
+        {
+          "count": [
+            "#feature-notifications .conn-grid li",
+            "#feature-notifications [role=switch]"
+          ]
+        },
+        {
+          "report": "#feature-notifications"
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "1280-capabilities-off"
+        },
+        {
+          "feature": "Notifications"
+        },
+        {
+          "centre": "feature-notifications"
+        },
+        {
+          "count": [
+            "#feature-notifications .conn-grid li",
+            "#feature-notifications [role=switch][aria-checked=true]"
+          ]
+        },
+        {
+          "report": "#feature-notifications"
+        },
+        {
+          "shot": "1280-capabilities-on"
+        },
+        {
+          "reload": null
+        },
+        {
+          "visit": "settings/notifications"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "wait": 2
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            ".set__nav-link",
+            "#notif-channels .notif-row",
+            "#notif-destinations .notif-row",
+            ".note"
+          ]
+        },
+        {
+          "marks": null
+        },
+        {
+          "measure": "#notif-channels .icon-btn, .set__nav-link[aria-current=page]"
+        },
+        {
+          "shot": "1280-notifications-channels"
+        },
+        {
+          "reveal": "Someone asks to use your authority"
+        },
+        {
+          "measure": "main .notif .icon-btn--sm, main select"
+        },
+        {
+          "shot": "1280-notifications-order"
+        },
+        {
+          "pressNamedOptional": "Open routing.json"
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ".vfiles__list"
+        },
+        {
+          "shot": "1280-routing-file"
+        },
+        {
+          "fillFile": {
+            "path": "settings/notifications/routing.json",
+            "text": "{\n  \"version\": 1,\n  \"byClass\": {\n    \"authorization_request\": {\n      \"channels\": [\n        \"native_push\",\n        \"telegram\",\n        \"in_app\"\n      ],\n      \"fanOut\": false\n    },\n    \"security_event\": {\n      \"channels\": [\n        \"in_app\",\n        \"telegram\"\n      ],\n      \"fanOut\": true\n    }\n  }\n}\n"
+          }
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            ".vfile textarea[aria-invalid=true]",
+            ".vfile button[aria-label^='Save'][disabled]"
+          ]
+        },
+        {
+          "shot": "1280-routing-refused"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-capabilities-off",
+      "width": 390,
+      "title": "Settings › Capabilities, Notifications off (the default) — 390 × 844",
+      "caption": "The Notifications section now carries two optional capabilities, so it draws a tile for each; both start off, and nothing of notification routing is loaded.",
+      "before": "#feature-notifications: 1 switch (the section's), 0 tiles",
+      "after": "#feature-notifications: 3 switches (section + Push notifications + Notification routing), 2 tiles, all off"
+    },
+    {
+      "shot": "390-capabilities-on",
+      "width": 390,
+      "title": "Switched on, after the consent review's Apply — 390 × 844",
+      "caption": "The section switch proposes both capabilities; Apply records the consent receipt and the plan approves them. Only then is the module loaded.",
+      "before": "1 switch on (Push notifications only)",
+      "after": "3 switches aria-checked=true: the section, Push notifications, Notification routing"
+    },
+    {
+      "shot": "390-notifications-channels",
+      "width": 390,
+      "title": "Settings › Notifications: channels and destinations — 390 × 844",
+      "caption": "A new Settings category. The Channels panel carries ADR 0084's standing sentence, each channel's capability from os-domain's closed record and a status glyph; Destinations lists the bound Telegram with no provider subject.",
+      "before": "/settings/notifications falls back to General (Appearance, Locking, Keybindings); 5 settings tabs",
+      "after": "6 settings tabs (Notifications current, 109×44); 4 channel rows, 1 destination row; head keys 44×44; .note 0"
+    },
+    {
+      "shot": "390-notifications-order",
+      "width": 390,
+      "title": "Each kind of request's order — 390 × 844",
+      "caption": "One panel per notification class: order rows with the route's verdict as a glyph, move/remove keys, and an Add select that offers only what policy allows for that class. A request you sent gets decided still lists Push from before policy tightened: its glyph is the policy refusal.",
+      "before": "General's panels; no order rows",
+      "after": "order keys 44×44; Add select 308×44; marks include “Your operator's policy does not allow this kind of prompt to go here…”"
+    },
+    {
+      "shot": "390-routing-file",
+      "width": 390,
+      "title": "The settings file in the file viewer — 390 × 844",
+      "caption": "The open-file key on a panel head opens settings/notifications/routing.json; channels.json and bindings.json sit beside it, read-only (lock glyph). There is no config.yaml: every setting here lives in the provider's files.",
+      "before": "no such file: the address stays /settings/notifications",
+      "after": "?file=settings/notifications/routing.json; files: routing.json, channels.json (lock glyph), bindings.json (lock glyph)"
+    },
+    {
+      "shot": "390-routing-refused",
+      "width": 390,
+      "title": "A refused preference: the file adds Push where policy refused it — 390 × 844",
+      "caption": "Adding native_push to authorization_request in the file is checked against the route the Identity API reported for that class. The refusal is the StatusMark's sentence, the textarea is aria-invalid and Save is disabled; nothing is sent.",
+      "before": "no such file",
+      "after": "mark: “Your operator's policy does not allow Push notification for \"Someone asks to use your authority\". A preference can reorder and narrow what policy allows; it cannot add to it.”; textarea[aria-invalid=true] 1; Save disabled 1; no PUT in the stand-in's log"
+    },
+    {
+      "shot": "1280-capabilities-off",
+      "width": 1280,
+      "title": "Settings › Capabilities, Notifications off (the default) — 1280 × 900",
+      "caption": "The Notifications section now carries two optional capabilities, so it draws a tile for each; both start off, and nothing of notification routing is loaded.",
+      "before": "#feature-notifications: 1 switch (the section's), 0 tiles",
+      "after": "#feature-notifications: 3 switches (section + Push notifications + Notification routing), 2 tiles, all off"
+    },
+    {
+      "shot": "1280-capabilities-on",
+      "width": 1280,
+      "title": "Switched on, after the consent review's Apply — 1280 × 900",
+      "caption": "The section switch proposes both capabilities; Apply records the consent receipt and the plan approves them. Only then is the module loaded.",
+      "before": "1 switch on (Push notifications only)",
+      "after": "3 switches aria-checked=true: the section, Push notifications, Notification routing"
+    },
+    {
+      "shot": "1280-notifications-channels",
+      "width": 1280,
+      "title": "Settings › Notifications: channels and destinations — 1280 × 900",
+      "caption": "A new Settings category. The Channels panel carries ADR 0084's standing sentence, each channel's capability from os-domain's closed record and a status glyph; Destinations lists the bound Telegram with no provider subject.",
+      "before": "/settings/notifications falls back to General (Appearance, Locking, Keybindings); 5 settings tabs",
+      "after": "6 settings tabs (Notifications current, 109×37); 4 channel rows, 1 destination row; head keys 24×24; .note 0"
+    },
+    {
+      "shot": "1280-notifications-order",
+      "width": 1280,
+      "title": "Each kind of request's order — 1280 × 900",
+      "caption": "One panel per notification class: order rows with the route's verdict as a glyph, move/remove keys, and an Add select that offers only what policy allows for that class. A request you sent gets decided still lists Push from before policy tightened: its glyph is the policy refusal.",
+      "before": "General's panels; no order rows",
+      "after": "order keys 24×24; Add select 442×32; marks include “Your operator's policy does not allow this kind of prompt to go here…”"
+    },
+    {
+      "shot": "1280-routing-file",
+      "width": 1280,
+      "title": "The settings file in the file viewer — 1280 × 900",
+      "caption": "The open-file key on a panel head opens settings/notifications/routing.json; channels.json and bindings.json sit beside it, read-only (lock glyph). There is no config.yaml: every setting here lives in the provider's files.",
+      "before": "no such file: the address stays /settings/notifications",
+      "after": "?file=settings/notifications/routing.json; files: routing.json, channels.json (lock glyph), bindings.json (lock glyph)"
+    },
+    {
+      "shot": "1280-routing-refused",
+      "width": 1280,
+      "title": "A refused preference: the file adds Push where policy refused it — 1280 × 900",
+      "caption": "Adding native_push to authorization_request in the file is checked against the route the Identity API reported for that class. The refusal is the StatusMark's sentence, the textarea is aria-invalid and Save is disabled; nothing is sent.",
+      "before": "no such file",
+      "after": "mark: “Your operator's policy does not allow Push notification for \"Someone asks to use your authority\". A preference can reorder and narrow what policy allows; it cannot add to it.”; textarea[aria-invalid=true] 1; Save disabled 1; no PUT in the stand-in's log"
+    }
+  ]
+}

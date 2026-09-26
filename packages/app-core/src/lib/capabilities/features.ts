@@ -129,7 +129,12 @@ export const FEATURES: readonly Feature[] = [
     models: true,
   },
   section("networking", "Networking", ["networking.tailnet"], ["networking"]),
-  section("notifications", "Notifications", ["notifications.web-push"], []),
+  section(
+    "notifications",
+    "Notifications",
+    ["notifications.web-push", "notifications.routing"],
+    [],
+  ),
   section("telemetry", "Telemetry", ["telemetry.external"], []),
 ];
 

@@ -19,6 +19,7 @@
         "agents.webmcp",
         "enterprise.ca-administration",
         "networking.tailnet",
+        "notifications.routing",
         "notifications.web-push",
         "sharing.household",
         "support.local-ai",

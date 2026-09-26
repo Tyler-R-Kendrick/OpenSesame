@@ -29,6 +29,8 @@ export {
   IconX,
   IconChevronRight,
   IconChevronLeft,
+  IconChevronUp,
+  IconChevronDown,
   IconSkip,
   IconSkipAll,
   IconDots,

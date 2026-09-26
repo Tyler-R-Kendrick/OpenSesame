@@ -19,6 +19,7 @@ import type {
 } from "@opensesame/capability-composition";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import type { ComponentType, ReactNode } from "react";
+import type { VirtualFileProvider } from "../../sections/settings/virtual-files.js";
 import type { GuideGoalDescriptor } from "../../tutorial/registry/goals.js";
 import type { GuideRouteDescriptor } from "../../tutorial/registry/routes.js";
 import type { GuideTargetDescriptor } from "../../tutorial/registry/targets.js";
@@ -82,6 +83,12 @@ export type SettingsCategoryContribution = Readonly<{
   guideId: string;
   Panel: ComponentType;
   order: number;
+  /**
+   * The category's files beyond its own `config.yaml` (ADR 0134): what
+   * Settings' file viewer lists and writes for it. The Form is drawn from
+   * the same files.
+   */
+  files?: VirtualFileProvider;
 }>;
 
 export type SetupPanelContribution = Readonly<{

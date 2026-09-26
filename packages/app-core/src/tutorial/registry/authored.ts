@@ -28,6 +28,11 @@ import {
 } from "./goals.js";
 import { IDENTITY_ROUTES, IDENTITY_TARGETS } from "./identity-catalog.js";
 import { IDENTITY_GOALS, IDENTITY_HELP } from "./identity-goals.js";
+import {
+  NOTIFICATIONS_GOALS,
+  NOTIFICATIONS_ROUTES,
+  NOTIFICATIONS_TARGETS,
+} from "./notifications-catalog.js";
 import { CORE_GUIDE_ROUTES, type GuideRouteDescriptor } from "./routes.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { WALLET_ROUTES, WALLET_TARGETS } from "./wallet-catalog.js";
@@ -85,6 +90,17 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     goals: [],
     help: [],
     routes: ACTIVITY_ROUTES,
+  },
+  {
+    capability: "notifications.routing",
+    files: {
+      targets: "notifications-catalog.ts",
+      goals: "notifications-catalog.ts",
+    },
+    targets: NOTIFICATIONS_TARGETS,
+    goals: NOTIFICATIONS_GOALS,
+    help: [],
+    routes: NOTIFICATIONS_ROUTES,
   },
 ];
 

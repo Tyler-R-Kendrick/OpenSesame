@@ -78,6 +78,8 @@ const ROUTE = {
     { kind: "slack", reason: "adapter_unavailable" },
     { kind: "sms", reason: "no_active_binding" },
     { kind: "webhook", reason: "not_allowed_by_policy" },
+    // Allowed and unlisted: the server names every channel policy allows.
+    { kind: "native_push", reason: "not_preferred" },
   ],
 };
 

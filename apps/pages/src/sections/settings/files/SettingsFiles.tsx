@@ -6,9 +6,9 @@
  * shows the document alone.
  */
 
-import type { SettingsCategory } from "@opensesame/app-core/lib/crumbs.js";
 import {
   SETTINGS_CONFIG_FILE,
+  settingsFields,
   settingsFilePath,
 } from "@opensesame/app-core/sections/settings/settings-files.js";
 import {
@@ -168,7 +168,8 @@ export function SettingsFiles({
   selected: asked,
   onSelect: select,
 }: {
-  category: SettingsCategory;
+  /** A core category, or one a capability contributed. */
+  category: string;
   /** The `?file=` value: `config.yaml` is the directory's own document. */
   selected: string | null;
   onSelect: (file: string | null) => void;
@@ -188,7 +189,13 @@ export function SettingsFiles({
     readOnly: false,
     removable: false,
   };
-  const listed = [own, ...provider.list()];
+  // A directory whose settings all live in its provider's files (a
+  // contributed category, such as Notifications) has no `config.yaml` of its
+  // own to list: `?file=config.yaml` opens its first file instead.
+  const provided = provider.list();
+  const ownListed =
+    settingsFields(category).length > 0 || provided.length === 0;
+  const listed = ownListed ? [own, ...provided] : [...provided];
   const draft = provider.creates?.draftPath;
   const open =
     listed.find((file) => file.path === selected) ??
@@ -199,7 +206,7 @@ export function SettingsFiles({
           readOnly: false,
           removable: false,
         }
-      : own);
+      : (listed[0] ?? own));
 
   return (
     <div className="vfiles">

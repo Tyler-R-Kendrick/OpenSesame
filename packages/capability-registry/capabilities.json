@@ -4140,7 +4140,7 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/settings",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4151,6 +4151,10 @@
         "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
+        "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
         "adr": "0084-external-authorization-notifications.md"
       }
@@ -4163,7 +4167,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/settings",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4174,6 +4178,10 @@
         "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
+        "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
         "adr": "0084-external-authorization-notifications.md"
       }
@@ -4186,7 +4194,7 @@
     "kind": "admin",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "route:/settings",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -4197,6 +4205,10 @@
         "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
+        "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
         "adr": "0084-external-authorization-notifications.md"
       }

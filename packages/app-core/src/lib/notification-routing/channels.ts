@@ -16,6 +16,9 @@
  */
 
 import { channelName } from "@opensesame/ceremony-kit";
+
+/** A channel's name in a list ("1. Telegram"), for a surface drawing one. */
+export { channelName };
 import {
   type BoundaryValue,
   type ChannelCapabilities,
@@ -61,7 +64,19 @@ export type EffectiveRoute = {
   steps: RouteStepRow[];
   fanOut: boolean;
   fanOutSentence: string;
-  excluded: { kind: NotificationChannelKind; name: string; why: string }[];
+  excluded: {
+    kind: NotificationChannelKind;
+    name: string;
+    why: string;
+    /** The operator's policy, not this deployment or this person, left it out. */
+    refusedByPolicy: boolean;
+  }[];
+  /**
+   * The channels policy allows for this class, as the route reports them:
+   * the inbox, every step, and every exclusion that was not policy's. A
+   * channel outside it is one a preference may not add (ADR 0084 §3).
+   */
+  allowed: NotificationChannelKind[];
 };
 
 const MODE_SENTENCES = {
@@ -215,6 +230,25 @@ export function readBindings(body: BoundaryValue): BindingRow[] {
   return rows;
 }
 
+/**
+ * What policy allows for a class, as its route reports it: the inbox, every
+ * step, and every exclusion that was not policy's own.
+ */
+function allowedByPolicy(
+  steps: readonly RouteStepRow[],
+  excluded: EffectiveRoute["excluded"],
+): NotificationChannelKind[] {
+  const allowed: NotificationChannelKind[] = ["in_app"];
+  const kinds = [
+    ...steps.map((step) => step.kind),
+    ...excluded.filter((entry) => !entry.refusedByPolicy).map((e) => e.kind),
+  ];
+  for (const kind of kinds) {
+    if (!allowed.includes(kind)) allowed.push(kind);
+  }
+  return allowed;
+}
+
 /** `GET /v1/notification-preferences/effective`, put into words. */
 export function readEffectiveRoute(body: BoundaryValue): EffectiveRoute {
   const read = isJsonObject(body) ? body : {};
@@ -241,11 +275,14 @@ export function readEffectiveRoute(body: BoundaryValue): EffectiveRoute {
       kind,
       name: channelName(kind),
       why: exclusionSentence(reason),
+      refusedByPolicy: reason === "not_allowed_by_policy",
     });
   }
   const fanOut = read.fanOut === true;
+  const allowed = allowedByPolicy(steps, excluded);
   return {
     steps,
+    allowed,
     fanOut,
     fanOutSentence: fanOut
       ? "Every step above is used."

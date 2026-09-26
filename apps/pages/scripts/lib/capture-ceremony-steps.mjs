@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { answerApprovals, approvalState } from "./capture-approval-steps.mjs";
 import { answerFactors, factorState } from "./capture-factor-steps.mjs";
+import { answerRouting, routingState } from "./capture-routing-steps.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
 function journeyDropManifest(journey, journeyPath) {
@@ -87,6 +88,8 @@ function answerClaims(at, request, dropManifest) {
  * - `GET /v1/health/live` → live;
  * - the interaction and authorization-request routes of `/i/:ref`,
  *   `/approve/:ref` and Access › Requests (`capture-approval-steps.mjs`);
+ * - the notification channels, destinations, preferences and effective
+ *   routes of Settings › Notifications (`capture-routing-steps.mjs`);
  * - the account-factor routes of Settings › Security's *Your account*
  *   rows (`capture-factor-steps.mjs`).
  *
@@ -102,9 +105,10 @@ export async function identityStub(
     "access-control-allow-credentials": "true",
     "access-control-allow-headers":
       "authorization, content-type, accept, x-claim-token",
-    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
   };
   const approvals = approvalState();
+  const routing = routingState();
   const factors = factorState();
   await page.route(`${origin}/**`, (route) => {
     const request = route.request();
@@ -136,6 +140,10 @@ export async function identityStub(
     if (at === "GET /v1/health/live") return json(200, { status: "live" });
     const claim = answerClaims(at, request, dropManifest);
     if (claim) return json(claim[0], claim[1]);
+    const routed = answerRouting(routing, at, url.search, request);
+    if (routed?.[0] === 204)
+      return route.fulfill({ status: 204, headers: cors });
+    if (routed) return json(routed[0], routed[1]);
     const approval = answerApprovals(
       approvals,
       `${at}${url.search}`,
