@@ -15,6 +15,12 @@ import {
   VERIFY_HOSTS,
   VERIFY_TARGETS,
 } from "./connect-verify-targets.generated.mjs";
+import {
+  isJsonObject,
+  isNumber,
+  isString,
+  readString,
+} from "./json-boundary.mjs";
 
 const CREATE_KEYS = [
   "service",
@@ -31,12 +37,10 @@ const METHODS = new Set(["oauth", "mcp", "api-key"]);
 const VERIFY_TIMEOUT_MS = 8000;
 const VERIFY_MAX_BYTES = 64_000;
 
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const isObject = isJsonObject;
 
 function text(value, max = 256) {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
+  return readString(value)?.trim().slice(0, max) ?? "";
 }
 
 /**
@@ -106,7 +110,7 @@ export function publicConnectorDetail(value, depth = 0) {
       .map((item) => publicConnectorDetail(item, depth + 1));
   }
   if (!isObject(value)) {
-    return typeof value === "string" ? value.slice(0, 2048) : value;
+    return isString(value) ? value.slice(0, 2048) : value;
   }
   const out = {};
   for (const [key, item] of Object.entries(value)) {
@@ -129,7 +133,7 @@ export function subjectOf(payload) {
 export function scopesOf(payload) {
   return Array.isArray(payload.scopes)
     ? payload.scopes
-        .filter((scope) => typeof scope === "string" && scope.length <= 256)
+        .filter((scope) => isString(scope) && scope.length <= 256)
         .slice(0, 64)
     : [];
 }
@@ -146,7 +150,7 @@ function pick(value, path) {
     else if (isObject(current)) current = current[part];
     else return "";
   }
-  return typeof current === "string" || typeof current === "number"
+  return isString(current) || isNumber(current)
     ? String(current).slice(0, 80)
     : "";
 }
@@ -213,7 +217,7 @@ export function recoverParams(target, connector) {
       : isObject(holder)
         ? holder[key]
         : undefined;
-    if (typeof filled !== "string") continue;
+    if (!isString(filled)) continue;
     const names = [];
     const pattern = source.template
       .split(/(\{[a-z_]+\})/)

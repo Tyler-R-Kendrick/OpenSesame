@@ -128,7 +128,7 @@ Object.assign(connectionSeams, {
   submitGithubAppManifest,
 });
 
-const bundledRef: { current: Provider[] } = { current: [] };
+const bundledRef = { current: new Array<Provider>() };
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 

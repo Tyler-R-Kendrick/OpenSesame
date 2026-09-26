@@ -38,6 +38,8 @@ export type ProviderProfile = {
     scheme: string | null;
     basic: { username: string; password: string } | null;
     headers: Record<string, string>;
+    /** The query parameter the key travels in (`?api_key={key}`), if any. */
+    keyQuery: string | null;
     accountField: string | null;
     mcp: boolean;
   } | null;
@@ -345,8 +347,11 @@ export class ProviderEmulator {
       if (request.headers.get(name) !== value) return null;
     }
     if (!verify.header) {
-      const path = new URL(request.url).pathname;
-      return [...this.apiKeys].find((key) => path.includes(key)) ?? null;
+      const url = new URL(request.url);
+      if (verify.keyQuery) return url.searchParams.get(verify.keyQuery);
+      return (
+        [...this.apiKeys].find((key) => url.pathname.includes(key)) ?? null
+      );
     }
     const raw = request.headers.get(verify.header) ?? "";
     if (verify.basic) return basicCredential(raw, verify.basic);

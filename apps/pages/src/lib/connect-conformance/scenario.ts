@@ -35,6 +35,12 @@ export const fill = (url: string) =>
     new Proxy({}, { get: (_t, name) => (name === "key" ? undefined : PARAM) }),
   );
 
+/** The query parameter a key travels in (`?api_key={key}`), or null. */
+function keyQueryOf(url: string): string | null {
+  const params = [...new URL(url).searchParams];
+  return params.find(([, value]) => value === "{key}")?.[0] ?? null;
+}
+
 /**
  * The verify call the provider emulator answers: the relay's own pinned
  * target for this service (`connect-verify-targets.generated.mjs`), with the
@@ -53,6 +59,7 @@ function verifyProfile(
     headers: Object.fromEntries(
       Object.entries(target.headers).map(([k, v]) => [k, fill(v)]),
     ),
+    keyQuery: keyQueryOf(fill(target.url)),
     accountField: target.accountField,
     mcp: false,
   };
@@ -91,6 +98,7 @@ function mcpScenario(
         scheme: "Bearer",
         basic: null,
         headers: {},
+        keyQuery: null,
         accountField: null,
         mcp: true,
       },

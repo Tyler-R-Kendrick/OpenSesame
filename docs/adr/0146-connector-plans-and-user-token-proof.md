@@ -129,9 +129,11 @@ Access › Resources already reads (ADR 0115). No second authority model.
 ## Consequences
 
 - 190 connectors (170 in Vercel's registry, 20 more from the integration
-  catalog) open filled in; 223 connector × method paths are proven to end in
-  a person's token in conformance, 215 of them confirmed by the service's own
-  verify call.
+  catalog) open filled in; 224 connector × method paths across 189 services
+  are proven to end in a person's token in conformance, every one confirmed
+  by the service's own verify call. Linq and Snowflake, run by Vercel with
+  its own app and publishing nothing a client can exercise, are the two
+  proven only against live Connect.
 - The presets are research, pinned: a provider that moves an endpoint fails
   `test:connect-preflight` rather than a person's first authorization.
 - Two managed rows (Linq, Snowflake) publish nothing a client can exercise and

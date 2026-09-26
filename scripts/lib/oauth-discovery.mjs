@@ -8,6 +8,8 @@
  * registers a client or asks for a token.
  */
 
+import { isJsonObject, isString } from "./json-boundary.mjs";
+
 /** RFC 9728 §3.1 / RFC 8414 §3.1: insert the well-known segment before the path. */
 export function wellKnownUrls(resourceUrl, suffix) {
   const url = new URL(resourceUrl);
@@ -21,13 +23,11 @@ export function wellKnownUrls(resourceUrl, suffix) {
 const PKCE_METHODS = new Set(["S256", "plain"]);
 
 function strings(value, max = 24) {
-  return Array.isArray(value)
-    ? value.filter((item) => typeof item === "string").slice(0, max)
-    : [];
+  return Array.isArray(value) ? value.filter(isString).slice(0, max) : [];
 }
 
 function https(value) {
-  if (typeof value !== "string") return null;
+  if (!isString(value)) return null;
   try {
     return new URL(value).protocol === "https:" ? value : null;
   } catch {
@@ -61,7 +61,7 @@ export function summarizeServerMetadata(meta) {
 async function firstJson(fetchJson, urls) {
   for (const url of urls) {
     const reply = await fetchJson(url);
-    if (reply.ok && reply.body && typeof reply.body === "object") {
+    if (reply.ok && isJsonObject(reply.body)) {
       return { url, body: reply.body };
     }
   }

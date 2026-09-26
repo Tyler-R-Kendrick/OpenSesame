@@ -2013,6 +2013,118 @@
       ]
     },
     {
+      "service": "photon",
+      "server_url": "https://app.photon.codes",
+      "discovery_url": null,
+      "authorization_endpoint": "https://app.photon.codes/api/auth/oauth2/authorize",
+      "token_endpoint": "https://app.photon.codes/api/auth/oauth2/token",
+      "revocation_endpoint": "https://app.photon.codes/api/auth/oauth2/revoke",
+      "userinfo_endpoint": "https://app.photon.codes/api/auth/oauth2/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "required",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Sign in and read the account ID",
+          "default": true
+        },
+        {
+          "name": "profile",
+          "description": "Read the account name",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Read the account email",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Issue a refresh token (refresh tokens rotate)",
+          "default": true
+        },
+        {
+          "name": "projects:read",
+          "description": "List and read projects",
+          "default": true
+        },
+        {
+          "name": "projects:write",
+          "description": "Create and change projects",
+          "default": false
+        },
+        {
+          "name": "spectrum:read",
+          "description": "Read Spectrum lines, users and platforms",
+          "default": false
+        },
+        {
+          "name": "spectrum:write",
+          "description": "Manage Spectrum lines, users and platforms",
+          "default": false
+        },
+        {
+          "name": "webhooks:read",
+          "description": "Read webhook settings",
+          "default": false
+        },
+        {
+          "name": "webhooks:write",
+          "description": "Change webhook settings",
+          "default": false
+        },
+        {
+          "name": "members:read",
+          "description": "Read project members",
+          "default": false
+        },
+        {
+          "name": "members:write",
+          "description": "Manage project members",
+          "default": false
+        },
+        {
+          "name": "billing:read",
+          "description": "Read billing and usage",
+          "default": false
+        },
+        {
+          "name": "billing:write",
+          "description": "Change billing",
+          "default": false
+        },
+        {
+          "name": "payments:read",
+          "description": "Read payments",
+          "default": false
+        },
+        {
+          "name": "payments:write",
+          "description": "Make payments",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.photon.codes",
+      "docs_url": "https://photon.codes/docs/api-reference/oauth",
+      "verify": {
+        "method": "GET",
+        "url": "https://app.photon.codes/api/auth/oauth2/userinfo",
+        "account_field": "email"
+      },
+      "probe_status": 400,
+      "confidence": "high",
+      "notes": "OAuth 2.1: apps are registered by hand in the dashboard (Developer → Apps); dynamic registration is disabled. S256 PKCE is required for every client, confidential ones included. No discovery document is published (all well-known paths 404).",
+      "sources": [
+        "https://photon.codes/docs/api-reference/oauth",
+        "https://photon.codes/docs/api-reference/dashboard-openapi.json"
+      ],
+      "template_params": []
+    },
+    {
       "service": "reddit",
       "server_url": "https://www.reddit.com",
       "discovery_url": null,
@@ -4585,6 +4697,33 @@
       "notes": "/v3/scopes works for any valid key regardless of its permissions.",
       "sources": [
         "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "similarweb",
+      "key_url": null,
+      "header": null,
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://mcp.similarweb.com",
+        "https://api.similarweb.com"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.similarweb.com/user-capabilities?api_key={key}",
+        "account_field": null
+      },
+      "instructions": "In Similarweb, open **Settings & Help → Account → Data Tools**, choose **REST API**, click **Generate a New API Key**, name it, click **Create**, then activate it in the **Generated Keys** table (admins only; up to 3 active keys per user).",
+      "docs_url": "https://developers.similarweb.com/docs/check-user-usage",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "The MCP server publishes no OAuth metadata and takes the key directly. The verify call, user-capabilities, costs no data credits; the key goes in the api_key query parameter.",
+      "sources": [
+        "https://developers.similarweb.com/docs/check-user-usage",
+        "https://developers.similarweb.com/docs/authentication"
       ],
       "template_params": []
     },

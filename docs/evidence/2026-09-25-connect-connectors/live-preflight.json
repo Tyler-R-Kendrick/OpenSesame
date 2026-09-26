@@ -1,12 +1,12 @@
 {
-  "ran_at": "2026-09-25T04:11:52.399Z",
+  "ran_at": "2026-09-26T16:53:35.083Z",
   "tally": {
-    "oauth:live": 44,
+    "oauth:live": 45,
     "oauth:needs_account_host": 6,
     "oauth:live_unknown_client_404": 2,
     "mcp:live": 98,
     "mcp:no_oauth_metadata": 1,
-    "api-key:live": 66,
+    "api-key:live": 67,
     "api-key:needs_account_host": 3
   },
   "results": [
@@ -71,7 +71,7 @@
     {
       "service": "canva",
       "kind": "oauth",
-      "authorize_status": 403,
+      "authorize_status": 400,
       "result": "live"
     },
     {
@@ -111,10 +111,10 @@
     {
       "service": "discord",
       "kind": "oauth",
-      "authorize_status": 400,
+      "authorize_status": 200,
       "result": "live",
       "discovery": {
-        "authorization_endpoint_matches": true,
+        "authorization_endpoint_matches": false,
         "token_endpoint_matches": true
       }
     },
@@ -259,6 +259,12 @@
       "service": "okta",
       "kind": "oauth",
       "result": "needs_account_host"
+    },
+    {
+      "service": "photon",
+      "kind": "oauth",
+      "authorize_status": 200,
+      "result": "live"
     },
     {
       "service": "reddit",
@@ -1467,6 +1473,12 @@
     },
     {
       "service": "sendgrid",
+      "kind": "api-key",
+      "verify_status": 401,
+      "result": "live"
+    },
+    {
+      "service": "similarweb",
       "kind": "api-key",
       "verify_status": 401,
       "result": "live"

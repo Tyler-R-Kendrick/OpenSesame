@@ -8,6 +8,7 @@ import {
   verifyWithToken,
 } from "../connect-manage.mjs";
 import { VERIFY_TARGETS } from "../connect-verify-targets.generated.mjs";
+import { isFunction, isString } from "../json-boundary.mjs";
 import { handleManage } from "../manage.mjs";
 
 const KEY = `${"k".repeat(24)}-operator-manage-key`;
@@ -35,7 +36,7 @@ function stub(routes) {
     for (const [key, answer] of Object.entries(routes)) {
       const [method, prefix] = key.split(" ");
       if (call.method === method && call.url.startsWith(prefix)) {
-        return typeof answer === "function" ? answer(call) : reply(answer);
+        return isFunction(answer) ? answer(call) : reply(answer);
       }
     }
     return reply({ error: { code: "not_found" } }, 404);
@@ -93,18 +94,12 @@ describe("configured create", () => {
   });
 
   it("refuses shapes Connect would misread", () => {
-    assert.equal(typeof createBodyOf({}), "string");
-    assert.equal(
-      typeof createBodyOf({ service: "x", type: "slack" }),
-      "string",
-    );
-    assert.equal(
-      typeof createBodyOf({ service: "x", uid: "no slash" }),
-      "string",
-    );
-    assert.equal(
-      typeof createBodyOf({ service: "x", connectionMethod: "managed" }),
-      "string",
+    // A refused body comes back as the refusal's message, a string.
+    assert.ok(isString(createBodyOf({})));
+    assert.ok(isString(createBodyOf({ service: "x", type: "slack" })));
+    assert.ok(isString(createBodyOf({ service: "x", uid: "no slash" })));
+    assert.ok(
+      isString(createBodyOf({ service: "x", connectionMethod: "managed" })),
     );
   });
 

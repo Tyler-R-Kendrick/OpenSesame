@@ -13,6 +13,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readString } from "../lib/json-boundary.mjs";
 import {
   discoverProtectedResource,
   makeFetchJson,
@@ -25,7 +26,7 @@ const REGISTRY = "https://api.vercel.com/v1/connect/services";
 const fetchJson = makeFetchJson();
 
 function text(value, max = 400) {
-  return typeof value === "string" ? value.trim().slice(0, max) : null;
+  return readString(value)?.trim().slice(0, max) ?? null;
 }
 
 function service(row) {

@@ -54,5 +54,5 @@ regression test).
 
 | Evidence | File |
 | --- | --- |
-| Every connector × method, created through the real relay, authorized for a person against a strict OAuth provider emulator, and its token acquired and accepted by the service's verify call — 223 paths, 188 services | [`conformance.json`](conformance.json) |
-| Every real endpoint answering live, read-only — 46 OAuth servers, 98 MCP servers, 66 API-key endpoints | [`live-preflight.json`](live-preflight.json) |
+| Every connector × method, created through the real relay, authorized for a person against a strict OAuth provider emulator, and its token acquired and accepted by the service's verify call — 224 paths, 189 services, all verified | [`conformance.json`](conformance.json) |
+| Every real endpoint answering live, read-only — 47 OAuth servers, 98 MCP servers, 67 API-key endpoints | [`live-preflight.json`](live-preflight.json) |

@@ -18,6 +18,12 @@ import {
   verifyWithToken,
 } from "./connect-manage.mjs";
 import {
+  isJsonObject,
+  isString,
+  objectOr,
+  readString,
+} from "./json-boundary.mjs";
+import {
   callbackAllowed,
   manageRefusal,
   publicConnectorList,
@@ -107,9 +113,7 @@ function invalid(cors, message) {
 }
 
 function connectorIdOf(payload) {
-  return typeof payload.connectorId === "string"
-    ? payload.connectorId.trim()
-    : "";
+  return readString(payload.connectorId)?.trim() ?? "";
 }
 
 async function listConnectors(_payload, cors) {
@@ -129,7 +133,7 @@ async function listConnectors(_payload, cors) {
 
 async function createConnector(payload, cors) {
   const body = createBodyOf(payload, projectId());
-  if (typeof body === "string") return invalid(cors, body);
+  if (isString(body)) return invalid(cors, body);
   const reply = await vercelFetch(`/v1/connect/connectors${teamQuery()}`, {
     method: "POST",
     body: JSON.stringify(body),
@@ -164,7 +168,7 @@ async function updateConnector(payload, cors) {
   const connectorId = connectorIdOf(payload);
   if (!connectorId) return invalid(cors, "connectorId is required.");
   const update = payload.update;
-  if (!update || typeof update !== "object" || Array.isArray(update)) {
+  if (!isJsonObject(update)) {
     return invalid(cors, "update must be an object.");
   }
   const body = {};
@@ -197,10 +201,9 @@ async function tokenCheck(payload, cors) {
   const meta = await vercelFetch(connectorPath(connectorId));
   if (meta.status >= 300)
     return json(meta.status, cors, publicError(meta.body));
-  const connector =
-    meta.body && typeof meta.body.connector === "object"
-      ? meta.body.connector
-      : meta.body;
+  const connector = isJsonObject(meta.body?.connector)
+    ? meta.body.connector
+    : objectOr(meta.body);
   const scopes = scopesOf(payload);
   const tokenBody = { subject };
   if (scopes.length) tokenBody.scopes = scopes;
@@ -208,10 +211,7 @@ async function tokenCheck(payload, cors) {
     `/v1/connect/token/${encodeURIComponent(connectorId)}${teamQuery()}`,
     { method: "POST", body: JSON.stringify(tokenBody) },
   );
-  const token =
-    reply.status < 300 && typeof reply.body?.token === "string"
-      ? reply.body.token
-      : "";
+  const token = reply.status < 300 ? (readString(reply.body?.token) ?? "") : "";
   if (!token) {
     return json(
       reply.status < 300 ? 502 : reply.status,
@@ -236,12 +236,9 @@ async function authorizeConnector(payload, cors, req) {
   const connectorId = connectorIdOf(payload);
   if (!connectorId) return invalid(cors, "connectorId is required.");
   const scopes = Array.isArray(payload.scopes)
-    ? payload.scopes.filter((scope) => typeof scope === "string")
+    ? payload.scopes.filter(isString)
     : undefined;
-  const callbackUrl =
-    typeof payload.callbackUrl === "string" && payload.callbackUrl.trim()
-      ? payload.callbackUrl.trim()
-      : undefined;
+  const callbackUrl = readString(payload.callbackUrl)?.trim() || undefined;
   if (callbackUrl && !callbackAllowed(callbackUrl, req.requestHost)) {
     return json(400, cors, {
       error: {
@@ -331,7 +328,7 @@ export async function handleManage(req) {
     const refusal = manageRefusal(req.authorization);
     if (refusal) return refuse(cors, refusal);
   }
-  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const payload = objectOr(req.body);
   return route.run(payload, cors, req);
 }
 
@@ -345,7 +342,7 @@ export function manageInput(req, path) {
     origin: req.headers.origin ?? "",
     authorization: req.headers.authorization ?? "",
     requestHost: requestHostOf(req.headers),
-    body: typeof body === "object" && body !== null ? body : {},
+    body: objectOr(body),
   };
 }
 

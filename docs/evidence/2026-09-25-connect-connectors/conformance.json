@@ -57,17 +57,17 @@
   },
   {
     "service": "asana",
-    "method": "mcp",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
-    "service": "asana",
     "method": "oauth",
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
+  },
+  {
+    "service": "asana",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
   },
   {
     "service": "attio",
@@ -120,17 +120,17 @@
   },
   {
     "service": "beehiiv",
-    "method": "mcp",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
-    "service": "beehiiv",
     "method": "oauth",
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
+  },
+  {
+    "service": "beehiiv",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
   },
   {
     "service": "beehiiv",
@@ -162,17 +162,17 @@
   },
   {
     "service": "box",
-    "method": "mcp",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
-    "service": "box",
     "method": "oauth",
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
+  },
+  {
+    "service": "box",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
   },
   {
     "service": "brand24",
@@ -493,8 +493,8 @@
     "service": "github",
     "method": "managed",
     "outcome": "token acquired",
-    "verified": 404,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "github",
@@ -654,8 +654,8 @@
     "service": "linear",
     "method": "managed",
     "outcome": "token acquired",
-    "verified": 404,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "linear",
@@ -745,8 +745,8 @@
     "service": "microsoft",
     "method": "managed",
     "outcome": "token acquired",
-    "verified": 404,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "microsoft",
@@ -759,8 +759,8 @@
     "service": "microsoft-teams",
     "method": "managed",
     "outcome": "token acquired",
-    "verified": 404,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "microsoft-teams",
@@ -934,8 +934,8 @@
     "service": "photon",
     "method": "oauth",
     "outcome": "token acquired",
-    "verified": null,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "pinecone",
@@ -1060,8 +1060,8 @@
     "service": "salesforce",
     "method": "managed",
     "outcome": "token acquired",
-    "verified": 404,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "salesforce",
@@ -1107,17 +1107,17 @@
   },
   {
     "service": "sentry",
-    "method": "mcp",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
-    "service": "sentry",
     "method": "oauth",
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
+  },
+  {
+    "service": "sentry",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
   },
   {
     "service": "serpstat",
@@ -1142,17 +1142,17 @@
   },
   {
     "service": "similarweb",
-    "method": "mcp",
+    "method": "api-key",
     "outcome": "token acquired",
-    "verified": null,
+    "verified": 200,
     "account": ""
   },
   {
     "service": "slack",
     "method": "managed",
     "outcome": "token acquired",
-    "verified": 404,
-    "account": ""
+    "verified": 200,
+    "account": "Acme Conformance Account"
   },
   {
     "service": "slack",
@@ -1289,17 +1289,17 @@
   },
   {
     "service": "webflow",
-    "method": "mcp",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
-    "service": "webflow",
     "method": "oauth",
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
+  },
+  {
+    "service": "webflow",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
   },
   {
     "service": "webflow",
@@ -1419,6 +1419,13 @@
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
+  },
+  {
+    "service": "origin",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
   },
   {
     "service": "assemblyai",
