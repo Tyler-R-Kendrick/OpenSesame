@@ -50,6 +50,12 @@ export const CAPABILITY_TUTORIALS = {
   "identity.whoami": "identity.account.add",
   "identity.admin": "identity.account.add",
   "identity.users.manage": "identity.users.manage",
+  // Organization sign-in shares the directory's walkthrough: /identity is at
+  // the support context's goal budget, and the panel is a target of its own.
+  "identity.org_signin.upstream.manage": "identity.users.manage",
+  "identity.org_signin.domains.manage": "identity.users.manage",
+  "identity.org_signin.scim_tokens.manage": "identity.users.manage",
+  "identity.org_signin.scim_token.mint": "identity.users.manage",
   "identity.local.directory.manage": "identity.local.directory.manage",
   "identity.local.access.manage": "identity.local.access.manage",
   "identity.local.policy.manage": "identity.local.policy.manage",

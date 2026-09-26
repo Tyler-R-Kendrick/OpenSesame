@@ -1,5 +1,6 @@
 import { AUTHENTICATOR_HANDOFF, AUTH_CEREMONY } from "./exclusions.js";
 import type { Capability } from "./index.js";
+import { orgSignInCapabilities } from "./org-signin.js";
 export const identityManagementCapabilities: readonly Capability[] = [
   {
     id: "identity.local.requests.manage",
@@ -393,4 +394,5 @@ export const identityManagementCapabilities: readonly Capability[] = [
       webmcp: AUTHENTICATOR_HANDOFF,
     },
   },
+  ...orgSignInCapabilities,
 ];

@@ -1,0 +1,17 @@
+/* Identity › Organizations' sign-in panels (enterprise.directory-provisioning).
+   Rows are the section's own `.identity-row`; this only spaces the fields of
+   the upstream form and the once-shown token block. */
+
+.org-signin__form,
+.org-signin__minted {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.org-signin__form {
+  margin-top: 0.75rem;
+}
+
+.org-signin__minted {
+  margin-bottom: 1.25rem;
+}

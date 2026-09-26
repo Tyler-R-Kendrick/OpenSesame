@@ -143,6 +143,12 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.agent.register": "enterprise.directory-provisioning",
     "identity.agent.manage": "enterprise.directory-provisioning",
     "identity.users.manage": "enterprise.directory-provisioning",
+    // Identity › Organizations' sign-in panels (ADR 0140 plan step 12).
+    "identity.org_signin.upstream.manage": "enterprise.directory-provisioning",
+    "identity.org_signin.domains.manage": "enterprise.directory-provisioning",
+    "identity.org_signin.scim_tokens.manage":
+      "enterprise.directory-provisioning",
+    "identity.org_signin.scim_token.mint": "enterprise.directory-provisioning",
     "certs.issue": "enterprise.ca-administration",
 
     // --- optional: support ----------------------------------------------

@@ -12,6 +12,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { answerApprovals, approvalState } from "./capture-approval-steps.mjs";
 import { answerFactors, factorState } from "./capture-factor-steps.mjs";
+import {
+  answerOrgSignIn,
+  orgSignInState,
+} from "./capture-org-signin-steps.mjs";
 import { answerRouting, routingState } from "./capture-routing-steps.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
@@ -91,7 +95,9 @@ function answerClaims(at, request, dropManifest) {
  * - the notification channels, destinations, preferences and effective
  *   routes of Settings › Notifications (`capture-routing-steps.mjs`);
  * - the account-factor routes of Settings › Security's *Your account*
- *   rows (`capture-factor-steps.mjs`).
+ *   rows (`capture-factor-steps.mjs`);
+ * - one owned organization, its domains and SCIM tokens, for Identity ›
+ *   Organizations (`capture-org-signin-steps.mjs`).
  *
  * Anything else is a 404, so a call the journey did not expect shows up as
  * a failure rather than quietly succeeding.
@@ -105,11 +111,12 @@ export async function identityStub(
     "access-control-allow-credentials": "true",
     "access-control-allow-headers":
       "authorization, content-type, accept, x-claim-token",
-    "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   };
   const approvals = approvalState();
   const routing = routingState();
   const factors = factorState();
+  const orgs = orgSignInState();
   await page.route(`${origin}/**`, (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -138,21 +145,19 @@ export async function identityStub(
     if (at === "POST /v1/device/approve")
       return json(200, { ok: true, status: 200 });
     if (at === "GET /v1/health/live") return json(200, { status: "live" });
-    const claim = answerClaims(at, request, dropManifest);
-    if (claim) return json(claim[0], claim[1]);
-    const routed = answerRouting(routing, at, url.search, request);
-    if (routed?.[0] === 204)
+    // The first stand-in that knows the route answers it.
+    const answer = [
+      () => answerClaims(at, request, dropManifest),
+      () => answerRouting(routing, at, url.search, request),
+      () =>
+        answerApprovals(approvals, `${at}${url.search}`, request, pagesOrigin),
+      () => answerFactors(factors, at, request, pagesOrigin),
+      () => answerOrgSignIn(orgs, at, request),
+    ].reduce((found, next) => found ?? next(), null);
+    if (answer?.[0] === 204) {
       return route.fulfill({ status: 204, headers: cors });
-    if (routed) return json(routed[0], routed[1]);
-    const approval = answerApprovals(
-      approvals,
-      `${at}${url.search}`,
-      request,
-      pagesOrigin,
-    );
-    if (approval) return json(approval[0], approval[1]);
-    const factor = answerFactors(factors, at, request, pagesOrigin);
-    if (factor) return json(factor[0], factor[1]);
+    }
+    if (answer) return json(answer[0], answer[1]);
     return json(404, { error: "not_found" });
   });
 }

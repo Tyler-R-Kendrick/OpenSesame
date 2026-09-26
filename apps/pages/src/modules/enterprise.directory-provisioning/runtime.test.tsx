@@ -81,6 +81,7 @@ describe("enterprise.directory-provisioning runtime", () => {
       "identity.people",
       "identity.agents",
       "identity.organization",
+      "identity.org-signin",
     ]);
     expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
       "identity.users.manage",
