@@ -28,12 +28,33 @@ describe("support.local-ai runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("support.local-ai");
   });
 
-  it("registers the AI setup tab and the settings tool (LOAD-09)", async () => {
+  it("registers the AI setup tab, the settings tool and its assists (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "support.local-ai",
-      kinds: ["setup-panel", "webmcp-tool"],
-      count: 2,
+      kinds: [
+        "command-assist",
+        "item-draft-assist",
+        "settings-panel",
+        "setup-panel",
+        "webmcp-tool",
+      ],
+      count: 5,
     });
+  });
+
+  it("owns the command bar's model and voice, draft suggestions and the model picker", async () => {
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const [assist] = t.entries("command-assist");
+    expect(assist?.interpret).toBeTypeOf("function");
+    expect(assist?.Voice).toBeTypeOf("function");
+    expect(t.entries("item-draft-assist").map((a) => a.id)).toEqual([
+      "on-device",
+    ]);
+    expect(t.entries("settings-panel").map((p) => p.id)).toEqual([
+      "model-provider",
+    ]);
+    await handle.dispose();
   });
 
   it("names the setup tab and the tool exactly", async () => {

@@ -10,7 +10,6 @@ import {
 } from "react-router";
 
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
-import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
   type VaultItem,
@@ -37,7 +36,7 @@ export function VaultSection() {
   const [params] = useSearchParams();
   const location = useLocation();
   const { itemId } = useParams();
-  const { items, folders, status } = useVault();
+  const { items, folders } = useVault();
   const store = useVaultStore();
   const copySecret = useCopySecret();
   const navigate = useNavigate();
@@ -47,11 +46,6 @@ export function VaultSection() {
 
   // Drop disposal (ADR 0062): every vault read sweeps the drop records, so a
   // drop that was opened or lapsed while away purges itself here.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the unlock transition is the trigger — items/store are read at that moment, not watched
-  useEffect(() => {
-    if (status !== "unlocked") return;
-    void sweepDrops(items, (id) => store.purgeItem(id));
-  }, [status]);
 
   const visible = useMemo(() => {
     const inTrash = filter === "trash";

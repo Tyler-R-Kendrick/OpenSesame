@@ -240,18 +240,17 @@ describe("ItemEditor", () => {
         hint.textContent?.trim(),
       ),
     }).toEqual({
+      // A core-only installation: model suggestions are the on-device
+      // model's (`item-contributions.test.tsx` draws them when it is on).
       actions: [
         "Pin item",
-        "Suggest names on device",
         "Add DNS names",
         "Add IP addresses",
         "Add notes",
         "Add custom field",
         "Create certificate",
       ],
-      guidance: [
-        "Uses only the item type. No vault contents. Your browser may download its model.",
-      ],
+      guidance: [],
       labels: ["Common name", "TTL (hours)"],
     });
   });

@@ -26,8 +26,13 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { interpretCommand } from "@opensesame/app-core/lib/command-bar/interpret.js";
 import { SETTINGS_READ_TOOL } from "@opensesame/app-core/webmcp/settings-tools.js";
+import { CommandBarVoice } from "../../components/command-bar-voice.js";
 import { AiStep } from "../../screens/setup/steps/AiStep.js";
+import { MODEL_PROVIDER_PANEL } from "../../sections/settings/CapabilitySections.js";
+import { EmbeddedModelProviderPanel } from "../../sections/settings/ModelProviderPanel.js";
+import { DraftSuggestions } from "../../sections/vault/DraftSuggestions.js";
 import { installSupportAgentLoaders } from "../../tutorial/agent-seams.js";
 import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
@@ -55,6 +60,26 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 20,
     });
     activation.register("webmcp-tool", tagWebMcpTool(SETTINGS_READ_TOOL));
+    // The command bar's model reading and its voice input.
+    activation.register("command-assist", {
+      id: "on-device",
+      order: 10,
+      interpret: interpretCommand,
+      Voice: CommandBarVoice,
+    });
+    activation.register("item-draft-assist", {
+      id: "on-device",
+      order: 10,
+      Suggestions: DraftSuggestions,
+    });
+    // Drawn by the AI section of Settings › Capabilities, found by id; the
+    // category is one no settings route renders on its own.
+    activation.register("settings-panel", {
+      id: MODEL_PROVIDER_PANEL,
+      category: "capabilities.ai-models",
+      Panel: EmbeddedModelProviderPanel,
+      order: 10,
+    });
 
     return activation.handle();
   },

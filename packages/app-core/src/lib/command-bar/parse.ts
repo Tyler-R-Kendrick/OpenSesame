@@ -1,7 +1,7 @@
 import { searchPalette } from "../configuration/palette.js";
 import { lookupConfigResource } from "../configuration/registry.js";
 import { isSettingsCategory, settingsConfigRoute } from "../crumbs.js";
-import type { AppCommand } from "./types.js";
+import type { AppCommand, InterpretResult } from "./types.js";
 
 const SECTION_ALIASES: ReadonlyArray<{
   path: Extract<AppCommand, { action: "navigate" }>["path"];
@@ -128,4 +128,20 @@ function parsePalette(text: string): AppCommand | null {
   const setting = hits.find((hit) => hit.kind === "setting" && hit.href);
   if (!setting?.href) return null;
   return { action: "open_path", path: setting.href, label: setting.label };
+}
+
+/**
+ * The parser alone: how the command bar reads an utterance when no
+ * `command-assist` contribution (the on-device model) is there to ask.
+ */
+export function readCommand(utterance: string): InterpretResult {
+  const trimmed = utterance.trim();
+  if (trimmed === "") return { source: "none", reason: "Empty command." };
+  const parsed = parseCommand(trimmed);
+  return parsed !== null
+    ? { source: "parse", command: parsed }
+    : {
+        source: "none",
+        reason: "No match. Try “copy password for …” or “go to vault”.",
+      };
 }

@@ -46,6 +46,11 @@ export type AppCommand =
   /** A path the registry refuses to open, with the reason to show. */
   | { action: "refuse"; message: string };
 
+/** A reading of an utterance: a command, or why there is none. */
+export type InterpretResult =
+  | { source: "parse" | "model"; command: AppCommand }
+  | { source: "none"; reason: string };
+
 export type CommandOutcome =
   | { ok: true; message: string }
   | { ok: false; message: string };

@@ -83,7 +83,6 @@ const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
   InstallPanel: () => <div data-testid="install-panel" />,
   VaultsPanel: () => <div data-testid="vaults-panel" />,
-  ModelProviderPanel: () => <div data-testid="model-provider-panel" />,
 };
 const endpoints = {
   hostApi: "http://127.0.0.1:8787",

@@ -15,6 +15,9 @@ import {
   withReceipt,
 } from "./capabilities-panel.test-support.js";
 
+import { activateForTest } from "../../modules/runtime-test-kit.js";
+import * as localAi from "../../modules/support.local-ai/runtime.js";
+
 installDoublePorts();
 
 installPanelFixture();
@@ -52,8 +55,10 @@ describe("what a switch cannot say is said beside it", () => {
     ).toBe("true");
   });
 
-  it("draws AI's model picks only while AI is on", () => {
-    // The fixture runs WebMCP tools, so AI is on.
+  it("draws AI's model picks only while AI is on", async () => {
+    // The fixture runs WebMCP tools, so AI is on — and the picker is the
+    // on-device model's own panel, so it arrives with that capability.
+    const revoke = await activateForTest(localAi, ["settings-panel"]);
     const on = renderPanel();
     expect(on.container.querySelector("#model-provider")).not.toBeNull();
     cleanup();
@@ -64,6 +69,7 @@ describe("what a switch cannot say is said beside it", () => {
     expect(
       screen.getByRole("list", { name: "AI providers" }).textContent,
     ).toContain("Anthropic");
+    revoke();
   });
 
   it("says when an operator withdrew an always-on capability", () => {

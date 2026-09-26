@@ -31,15 +31,14 @@ import {
 } from "../../components/Icons.js";
 import { PasswordGenerator } from "../../components/PasswordGenerator.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { DraftSuggestions } from "./DraftSuggestions.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { LoginWebsites } from "./LoginWebsites.js";
 import { NativeItemFields } from "./NativeItemFields.js";
-import { NewDropCeremony } from "./NewDropCeremony.js";
 import { TypedFieldInputs } from "./TypedFields.js";
+import { useEditorContributions } from "./item-contributions.js";
 import { useEditorPath } from "./useEditorPath.js";
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -103,6 +102,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     setError,
   );
   useWebMcpLoginDraft(draft, folders, patch);
+  const { Create, Suggestions } = useEditorContributions(draft?.kind);
 
   if (!draft) {
     return (
@@ -141,9 +141,9 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
   // A drop is a one-time share, not an editable item.
   if (draft.kind === "drop") {
-    if (mode === "new")
+    if (mode === "new" && Create)
       return (
-        <NewDropCeremony
+        <Create
           initialName={draft.name}
           initialFolder={selectedFolder}
           onTypeChange={onTypeChange}
@@ -284,8 +284,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           focusName
           onPin={(favorite) => patch({ favorite })}
         />
-        {mode === "new" ? (
-          <DraftSuggestions
+        {mode === "new" && Suggestions ? (
+          <Suggestions
             key={`${draftTypeId}:${draft.kind === "login" ? draft.uris[0]?.uri : ""}`}
             typeId={draftTypeId}
             website={draft.kind === "login" ? draft.uris[0]?.uri : undefined}

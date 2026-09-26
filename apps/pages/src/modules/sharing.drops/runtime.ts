@@ -18,9 +18,16 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
 import { LOCAL_DROP_CLAIM_KEYS } from "@opensesame/app-core/lib/vault/local-drop-claims.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { KIND_LABEL } from "@opensesame/vault-core";
 import { IconDrop } from "../../components/Icons.js";
+import {
+  DropRecord,
+  ShareSecretDrop,
+} from "../../sections/vault/DropCeremony.js";
+import { NewDropCeremony } from "../../sections/vault/NewDropCeremony.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "sharing.drops";
@@ -49,6 +56,21 @@ export const capabilityRuntime: CapabilityRuntime = {
       segment: "drops",
       Icon: IconDrop,
       order: 50,
+      Record: DropRecord,
+      Create: NewDropCeremony,
+    });
+    activation.register("secret-share", {
+      id: "drop",
+      order: 10,
+      Panel: ShareSecretDrop,
+    });
+    // Disposal on unlock: a claimed or lapsed drop leaves the vault.
+    activation.register("unlock-effect", {
+      id: "drop-sweep",
+      run: () =>
+        sweepDrops(vaultStore.getSnapshot().items, (id) =>
+          vaultStore.purgeItem(id),
+        ),
     });
 
     return activation.handle();
