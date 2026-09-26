@@ -21,11 +21,11 @@ describe("identity.ceremonies runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the five ceremony routes and nothing else (LOAD-09)", async () => {
+  it("registers the five ceremony routes and two aliases, nothing else (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "identity.ceremonies",
       kinds: ["route"],
-      count: 5,
+      count: 7,
     });
   });
 
@@ -40,6 +40,8 @@ describe("identity.ceremonies runtime", () => {
       ["interaction", "/i/:ref", true, "any"],
       ["approve", "/approve/:ref", true, "any"],
       ["invoke", "/invoke/:kind", true, "any"],
+      ["guest", "/guest", false, "any"],
+      ["delegate", "/delegate", false, "any"],
     ]);
     // `spec/config/ceremony-routes.json` names each path once (ADR 0139); the
     // literals above are what the registry parity sweep reads.
@@ -49,6 +51,8 @@ describe("identity.ceremonies runtime", () => {
       ceremonyRouterPath("interaction"),
       ceremonyRouterPath("approve"),
       ceremonyRouterPath("invoke"),
+      ceremonyRouterPath("guest"),
+      ceremonyRouterPath("delegate"),
     ]);
     await handle.dispose();
   });

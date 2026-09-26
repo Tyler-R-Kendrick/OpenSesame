@@ -26,6 +26,7 @@
     "@opensesame/agent-protocols": "workspace:*",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
+    "@opensesame/ceremony-kit": "workspace:*",
     "@opensesame/claims": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/database": "workspace:*",

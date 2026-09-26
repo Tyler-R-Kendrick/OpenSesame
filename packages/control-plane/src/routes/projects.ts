@@ -22,6 +22,7 @@ import {
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
+import { claimVerificationUri } from "../interactions/rendezvous.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -538,7 +539,6 @@ projectRoutes.post(
     const slug =
       parsed.data.slug ??
       (derivedSlug.length > 0 ? derivedSlug : `temp-${projectId.slice(4, 12)}`);
-
     const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
     const project: Project = {
       id: projectId,
@@ -583,7 +583,7 @@ projectRoutes.post(
       claimId: claim.session.id,
       claimToken: claim.token,
       userCode: claim.userCode,
-      verificationUri: `${ctx.config.publicUrl}/v1/claims/${claim.session.id}/verify`,
+      verificationUri: claimVerificationUri(ctx.config, claim.session.id),
       targetManifestDigest: claim.session.targetManifestDigest,
     });
 

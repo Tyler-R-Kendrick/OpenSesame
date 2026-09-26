@@ -4,6 +4,7 @@ import {
   createLocalDropClaim,
   localDropClaimSeams,
   pagesClaimBase,
+  pagesClaimUrl,
   pollLocalDropClaim,
   presentLocalDropClaim,
   resetLocalDropClaimsForTests,
@@ -28,6 +29,15 @@ describe("pagesClaimBase", () => {
       "https://pages.example",
     );
   });
+
+  it("names the spec's /claim route under that base, the one drop link", () => {
+    expect(pagesClaimUrl("http://localhost:5180/OpenSesame")).toBe(
+      "http://localhost:5180/OpenSesame/claim",
+    );
+    expect(pagesClaimUrl("https://pages.example")).toBe(
+      "https://pages.example/claim",
+    );
+  });
 });
 
 describe("local drop claims — no Identity API", () => {
@@ -43,7 +53,7 @@ describe("local drop claims — no Identity API", () => {
       true,
     );
     expect(session.userCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-    expect(session.verifyUrl.endsWith("/claim")).toBe(true);
+    expect(session.verifyUrl).toBe("http://localhost:5180/OpenSesame/claim");
 
     await expect(
       pollLocalDropClaim(session.claimId, session.bearerToken),

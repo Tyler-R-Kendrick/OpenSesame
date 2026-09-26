@@ -8,7 +8,7 @@
   },
   "scripts": {
     "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate && bash scripts/dev/setup-hooks.sh",
-    "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/console --filter=@opensesame/ceremonies --filter=@opensesame/identity-worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta --filter=@opensesame/example-static-rp",
+    "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/identity-worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta --filter=@opensesame/example-static-rp",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "pnpm lint:artifacts && node scripts/quality/lint-changed.mjs",

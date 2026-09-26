@@ -30,7 +30,6 @@ export type RuntimeEnv = {
   readonly VITE_DAEMON_API?: string;
   readonly VITE_HOST_API?: string;
   readonly VITE_IDENTITY_API?: string;
-  readonly VITE_OPENSESAME_CEREMONIES?: string;
   readonly VITE_SUPPORT_AGENT_URL?: string;
 };
 

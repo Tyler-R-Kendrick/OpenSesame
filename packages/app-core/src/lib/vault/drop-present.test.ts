@@ -130,7 +130,7 @@ describe("presenting a drop to this device's claim plane", () => {
     resetLocalDropClaimsForTests();
     resetDeviceIdentitySessionsForTests();
     localDropClaimSeams.claimBase = () => "http://localhost:5180/OpenSesame";
-    dropSeams.ceremoniesBase = () => "http://localhost:5180/OpenSesame";
+    dropSeams.claimBase = () => "http://localhost:5180/OpenSesame";
     live = null;
     Object.assign(identitySeams, {
       currentSession: () => live,

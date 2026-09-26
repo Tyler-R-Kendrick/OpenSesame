@@ -1,9 +1,11 @@
 import { FORBIDDEN_URL_PARAMS, isString } from "@opensesame/os-domain";
 import {
+  type CeremonyRouteId,
   LEGACY_LINKS,
   ceremonyPath,
   matchCeremonyPath,
 } from "./ceremony-routes.js";
+import { isAcceptableTransport } from "./link-transport.js";
 /**
  * The canonical cross-device interaction link (ADR 0086).
  *
@@ -83,20 +85,6 @@ const MAX_USER_CODE_LENGTH = 64;
 
 /** A user code is a display artifact, so its alphabet is display-safe too. */
 const USER_CODE_PATTERN = /^[A-Z0-9._-]{1,64}$/;
-
-/**
- * The three spellings of "this machine".
- *
- * Deliberately literal. `.localhost` subdomains, `10.`/`192.168.`/`172.16.`
- * addresses, `169.254.` link-local, `*.local` mDNS names and tailnet names are
- * all excluded even though a developer might reach a dev server on any of
- * them, because every one of those still puts the link on a wire.
- */
-const LOOPBACK_HOSTS: ReadonlySet<string> = new Set([
-  "127.0.0.1",
-  "[::1]",
-  "localhost",
-]);
 
 /**
  * The deny-list, normalized once.
@@ -245,53 +233,24 @@ export function isInteractionRef(ref: string): boolean {
 }
 
 /**
- * True for the three host spellings that never leave the machine.
- *
- * **Why the plaintext exception is safe here.** TLS on an interaction link
- * defends against an attacker on the network path: someone who can read or
- * rewrite the bytes between the two devices. For `127.0.0.1` and `[::1]` there
- * is no such path — the kernel loops the packets back without ever reaching an
- * interface — so the threat TLS answers does not exist, and requiring
- * certificates would only push developers toward disabled verification, which
- * is strictly worse.
- *
- * **Where it is not safe.** (1) It is not a "private addresses are fine" rule:
- * `10.0.0.5`, `192.168.1.10`, `169.254.169.254` and a tailnet name all cross a
- * wire and are refused here — see `authenticator-invocation.ts`,
- * whose `privateHost()` refuses that whole range for the same reason from the
- * other direction. (2) `localhost` is a *name*, not an address, and a host
- * whose resolver or hosts file has been tampered with can point it anywhere;
- * it is admitted only because browser cookie scoping and dev tooling depend on
- * it, and it is the weakest of the three. (3) Loopback keeps the link off the
- * network, not away from the machine: any other local process, browser
- * extension, or user on that host can still read it, so this is a
- * developer-workstation affordance and never a production posture.
- */
-function isLoopbackLiteral(hostname: string): boolean {
-  return LOOPBACK_HOSTS.has(hostname.toLowerCase());
-}
-
-function isAcceptableTransport(url: URL): boolean {
-  if (url.protocol === "https:") return true;
-  return url.protocol === "http:" && isLoopbackLiteral(url.hostname);
-}
-
-/**
- * Build the canonical link for an interaction: `<base>/i/<ref>`.
+ * Build the link to a ceremony route (`spec/config/ceremony-routes.json`)
+ * under a deployment base, `<base><path>`, the base path preserved (Pages
+ * serves under `/OpenSesame/`).
  *
  * Everything the receiving surface needs is in the path, so the query string
- * and the fragment stay empty and stay that way — a link with no parameters
- * has nowhere to hide a bearer, and `assertNoForbiddenParams` runs on both the
- * base and the finished link to keep it that way even if a future caller
- * decides otherwise.
- *
- * Throws `InteractionLinkError` for a base that is not parseable, is not
- * HTTPS (loopback excepted, see `isLoopbackLiteral`), carries userinfo — which
- * proxies log and which browsers have historically rendered as part of a
- * spoofed hostname — or already carries a query or fragment, and for a
- * reference that is not `i_<base64url>.<tag>` shaped.
+ * and the fragment stay empty — a link with no parameters has nowhere to hide
+ * a bearer, and `assertNoForbiddenParams` runs on both the base and the
+ * finished link to keep it that way. Throws `InteractionLinkError` for a base
+ * that is not parseable, is not HTTPS (loopback excepted, see
+ * `link-transport.ts`), carries userinfo — which proxies log and browsers
+ * have rendered as part of a spoofed hostname — or carries a query or
+ * fragment.
  */
-export function buildInteractionUrl(baseUrl: string, ref: string): string {
+export function buildCeremonyUrl(
+  baseUrl: string,
+  id: CeremonyRouteId,
+  params: Readonly<Record<string, string>> = {},
+): string {
   assertNoForbiddenParams(baseUrl);
   if (baseUrl.length > MAX_URL_LENGTH) {
     throw new InteractionLinkError(
@@ -326,21 +285,28 @@ export function buildInteractionUrl(baseUrl: string, ref: string): string {
       "An interaction base URL must not carry a query or fragment.",
     );
   }
+  // `URL` has already collapsed `.`/`..` and normalized the path, so the
+  // prefix cannot climb out of the deployment's base. Trailing slashes are
+  // stripped so `https://x/` and `https://x` produce one spelling — an audit
+  // trail split across two spellings of one link cannot be joined.
+  const prefix = base.pathname.replace(/\/+$/, "");
+  const built = `${base.origin}${prefix}${ceremonyPath(id, params)}`;
+  assertNoForbiddenParams(built);
+  return built;
+}
+
+/**
+ * The canonical link for an interaction, `<base>/i/<ref>`: a ceremony link
+ * that also refuses a reference not `i_<base64url>.<tag>` shaped.
+ */
+export function buildInteractionUrl(baseUrl: string, ref: string): string {
   if (!isInteractionRef(ref)) {
     throw new InteractionLinkError(
       "malformed_ref",
       "That is not an interaction reference.",
     );
   }
-  // `URL` has already collapsed `.`/`..` and normalized the path, so the
-  // prefix cannot climb out of the deployment's base (Pages serves under
-  // `/OpenSesame/`). Trailing slashes are stripped so `https://x/` and
-  // `https://x` produce one spelling — an audit trail split across two
-  // spellings of the same link is an audit trail that cannot be joined.
-  const prefix = base.pathname.replace(/\/+$/, "");
-  const built = `${base.origin}${prefix}${ceremonyPath("interaction", { ref })}`;
-  assertNoForbiddenParams(built);
-  return built;
+  return buildCeremonyUrl(baseUrl, "interaction", { ref });
 }
 
 /**

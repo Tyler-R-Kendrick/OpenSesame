@@ -15,6 +15,8 @@ import {
   matchCeremonyPath,
 } from "./ceremony-routes.js";
 import {
+  InteractionLinkError,
+  buildCeremonyUrl,
   buildInteractionUrl,
   parseInteractionUrl,
   parseLegacyInteractionLink,
@@ -70,6 +72,31 @@ describe("ceremony routes (ADR 0139, ADR 0140 §3)", () => {
     });
     expect(matchCeremonyPath("invoke", "/invoke/")).toBeNull();
     expect(matchCeremonyPath("claim", "/claimx")).toBeNull();
+  });
+
+  it("builds every route's link under a deployment base, and nothing else", () => {
+    for (const id of Object.keys(CEREMONY_ROUTES) as CeremonyRouteId[]) {
+      const path = ceremonyPath(id, { ref: REF, kind: "mfa" });
+      for (const base of [
+        "https://app.example/OpenSesame/",
+        "https://app.example/OpenSesame",
+      ]) {
+        expect(
+          buildCeremonyUrl(base, id, { ref: REF, kind: "mfa" }),
+          `${id} under ${base}`,
+        ).toBe(`https://app.example/OpenSesame${path}`);
+      }
+    }
+    expect(buildCeremonyUrl("http://localhost:5180/", "claim")).toBe(
+      "http://localhost:5180/claim",
+    );
+    expect(() => buildCeremonyUrl("http://app.example/", "claim")).toThrow(
+      InteractionLinkError,
+    );
+    expect(() =>
+      buildCeremonyUrl("https://app.example/?a=1", "device"),
+    ).toThrow(InteractionLinkError);
+    expect(() => buildCeremonyUrl("https://app.example/", "approve")).toThrow();
   });
 
   it("builds and reads the interaction link at the spec's path", () => {

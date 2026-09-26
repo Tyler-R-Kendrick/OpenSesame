@@ -16,6 +16,7 @@ import {
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { captureAliasArrivalFromPage } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import {
   bindClaimLockReset,
   captureClaimArrivalFromPage,
@@ -62,6 +63,10 @@ export async function bootCore(): Promise<CoreBoot> {
   // paints: history, a bookmark or a shared screen must never carry it.
   captureInviteFromPage();
   watchInviteArrivals();
+  // `/delegate#token=…` is Join's invite under the link the ceremonies app
+  // printed, and `/guest` the guest road's (ADR 0140 D5, D12): the alias
+  // leaves the address here, whole, and the base opens what it named.
+  captureAliasArrivalFromPage();
   // A device link's user code, and the older shapes that now open `/device`,
   // leave the address here too — before the router reads `?code=` as a
   // sign-in callback (ADR 0140 plan step 7).

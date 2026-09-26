@@ -40,7 +40,7 @@ function makeFetchImpl(options?: MockFetchOptions): typeof fetch {
           claimToken: CLAIM_TOKEN,
           userCode: "AGNT-CLAIM",
           verificationUri:
-            options?.verificationUri ?? "http://127.0.0.1:5173/claim",
+            options?.verificationUri ?? "http://localhost:5180/claim",
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
         }),
       );
@@ -103,7 +103,7 @@ describe("example-agent behavior", () => {
 
   it("fails closed if the redacted payload still leaks the claimToken", async () => {
     const fetchImpl = makeFetchImpl({
-      verificationUri: `http://127.0.0.1:5173/claim?token=${CLAIM_TOKEN}`,
+      verificationUri: `http://localhost:5180/claim?token=${CLAIM_TOKEN}`,
     });
     await expect(
       runAnonymousAgentDemo({ fetchImpl, sleep: async () => undefined }),

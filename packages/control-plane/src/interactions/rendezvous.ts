@@ -1,3 +1,9 @@
+import {
+  type CeremonyRouteId,
+  buildCeremonyUrl,
+  ceremonyPath,
+  ceremonyRoutePrefix,
+} from "@opensesame/ceremony-kit";
 import { FORBIDDEN_URL_PARAMS } from "@opensesame/os-domain";
 
 /**
@@ -125,29 +131,58 @@ export function assertClientAppUrl(
 }
 
 /**
- * The interaction route (`spec/config/ceremony-routes.json`, `interaction`;
- * ADR 0140 §3). The Identity API's short link and the client app's launcher
+ * The interaction route's fixed prefix (`spec/config/ceremony-routes.json`,
+ * `interaction`; ADR 0140 §3), read through ceremony-kit like every other
+ * ceremony path. The Identity API's short link and the client app's launcher
  * share it; `ceremony-routes.test.ts` holds it to the spec.
  */
-export const INTERACTION_ROUTE = "/i";
+export const INTERACTION_ROUTE = ceremonyRoutePrefix("interaction").replace(
+  /\/+$/,
+  "",
+);
 
 /** The path of a reference under {@link INTERACTION_ROUTE}. */
 export function interactionPath(ref: string): string {
-  return `${INTERACTION_ROUTE}/${encodeURIComponent(ref)}`;
+  return ceremonyPath("interaction", { ref });
 }
 
 /**
- * The canonical launcher URL for a reference under a client-app base.
- *
- * `URL` has already collapsed `.`/`..` and normalized the path before the
- * prefix is read, so the built link cannot climb out of the deployment's base
- * path. Trailing slashes are stripped so one base produces one spelling.
+ * A ceremony route's link on the client app (ADR 0140 §4:
+ * `OPENSESAME_CLIENT_APP_URL` is the one ceremony origin): `/i/<ref>`,
+ * `/approve/<ref>`, `/device`, `/claim`, under the deployment's base path.
+ * Built by ceremony-kit over `spec/config/ceremony-routes.json`, never by
+ * hand, so a link can carry nothing but its path. `null` when no client app
+ * is configured, or its base cannot be certified safe — the caller then
+ * falls back to its own zero-JS page.
  */
-function buildLauncherUrl(base: URL, ref: string): string {
-  const prefix = base.pathname.replace(/\/+$/, "");
-  const built = new URL(`${base.origin}${prefix}${interactionPath(ref)}`);
-  assertNoForbiddenParams(built);
-  return built.toString();
+export function clientAppLink(
+  clientAppUrl: string | undefined,
+  id: CeremonyRouteId,
+  params: Readonly<Record<string, string>> = {},
+): string | null {
+  const configured = clientAppUrl?.trim();
+  if (!configured) return null;
+  try {
+    const base = assertClientAppUrl(configured, { requireHttps: false });
+    return buildCeremonyUrl(base.href, id, params);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where a claim's `verificationUri` sends the person: the client app's
+ * `/claim` route when one is configured, otherwise this service's own
+ * server-rendered `/v1/claims/<id>/verify`, the zero-JS fallback.
+ */
+export function claimVerificationUri(
+  config: { publicUrl: string; clientAppUrl?: string | undefined },
+  claimId: string,
+): string {
+  return (
+    clientAppLink(config.clientAppUrl, "claim") ??
+    `${config.publicUrl}/v1/claims/${claimId}/verify`
+  );
 }
 
 /**
@@ -170,16 +205,10 @@ export function resolveContinuation(options: {
   clientAppUrl?: string | undefined;
   ref: string;
 }): Continuation {
-  const clientAppUrl = options.clientAppUrl?.trim();
-  if (clientAppUrl === undefined || clientAppUrl === "") {
-    return { mode: "address" };
-  }
-  try {
-    const base = assertClientAppUrl(clientAppUrl, { requireHttps: false });
-    return { mode: "launcher", url: buildLauncherUrl(base, options.ref) };
-  } catch {
-    return { mode: "address" };
-  }
+  const url = clientAppLink(options.clientAppUrl, "interaction", {
+    ref: options.ref,
+  });
+  return url === null ? { mode: "address" } : { mode: "launcher", url };
 }
 
 /**

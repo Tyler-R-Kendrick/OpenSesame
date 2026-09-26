@@ -11,7 +11,7 @@ const config = {
   serviceName: "OpenSesame",
   protectedResource: "https://api.opensesame.test",
   authorizationServer: "http://127.0.0.1:8788",
-  consoleOrigin: "http://127.0.0.1:5173",
+  consoleOrigin: "http://localhost:5180",
 };
 
 describe("PACT — agent-protocols", () => {

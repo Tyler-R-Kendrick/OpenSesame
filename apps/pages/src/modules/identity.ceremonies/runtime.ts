@@ -26,12 +26,17 @@
  *     the native app link ceremony-kit builds for an MFA user code or
  *     request id, or a wallet protocol's request URI, and for a user code
  *     the `/device` ceremony as its fallback. It calls nothing, and never
- *     fetches a request URI or a credential offer.
+ *     fetches a request URI or a credential offer;
+ *   - `/guest` and `/delegate`: aliases (D12, D5). `/guest` is the guest
+ *     road on the sign-in and unlock screens, which takes the keyboard where
+ *     the operator allows guests; `/delegate#token=osc_dlg_…` is a Join
+ *     invite (ADR 0136), taken the way Join takes one. Neither adds an
+ *     authority path, and `/delegate` mints no session.
  *
  * Every link is read at boot, not here: the address must be clean before
  * anything renders, and boot may not import a module to make it so
  * (`device-link.ts`, `claims/arrival.ts`, `interactions-link.ts`,
- * `approvals-link.ts`, `invoke-link.ts`). The `/i`, `/approve` and `/invoke`
+ * `approvals-link.ts`, `invoke-link.ts`, `ceremony-aliases.ts`). The `/i`, `/approve` and `/invoke`
  * screens load only when their route opens (`lazy-routes.tsx`).
  *
  * None touches the vault (ADR 0140 §2, D7): all are `gate: "any"`, read no
@@ -58,6 +63,7 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
+import { AliasRoute } from "./AliasRoute.js";
 import { ClaimRoute } from "./ClaimRoute.js";
 import { DeviceRoute } from "./DeviceRoute.js";
 import { ApproveRoute, InteractionRoute, InvokeRoute } from "./lazy-routes.js";
@@ -110,6 +116,23 @@ export const capabilityRuntime: CapabilityRuntime = {
       element: InvokeRoute,
       framed: true,
       order: 49,
+      gate: "any",
+    });
+    // Aliases: nothing of their own to draw, so no frame (AliasRoute.tsx).
+    activation.register("route", {
+      id: "guest",
+      path: "/guest",
+      element: AliasRoute,
+      framed: false,
+      order: 50,
+      gate: "any",
+    });
+    activation.register("route", {
+      id: "delegate",
+      path: "/delegate",
+      element: AliasRoute,
+      framed: false,
+      order: 51,
       gate: "any",
     });
 

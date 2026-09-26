@@ -18,7 +18,6 @@ import { bytesToB64url } from "@opensesame/sdk-browser";
 import {
   LocalDropClaimError,
   createLocalDropClaim,
-  pagesClaimBase,
   pollLocalDropClaim,
   presentLocalDropClaim,
 } from "./vault/local-drop-claims.js";
@@ -321,9 +320,4 @@ export async function deviceIdentityFetch(
 /** Test seam — wipe provisional sessions. */
 export function resetDeviceIdentitySessionsForTests(): void {
   sessionsByToken.clear();
-}
-
-/** Re-export for callers that need the claim host URL without importing claims. */
-export function deviceClaimVerifyBase(): string {
-  return pagesClaimBase();
 }

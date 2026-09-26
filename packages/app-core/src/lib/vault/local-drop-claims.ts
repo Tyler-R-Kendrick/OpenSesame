@@ -5,6 +5,7 @@
  * `/v1/claims*`. Deliberately does not import `drop.ts`.
  */
 
+import { ceremonyPath } from "@opensesame/ceremony-kit";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -223,6 +224,14 @@ export function pagesClaimBase(
   }
 }
 
+/**
+ * The `/claim` route under a claim host (`spec/config/ceremony-routes.json`):
+ * the one spelling of a drop's link, whoever minted its claim.
+ */
+export function pagesClaimUrl(base = pagesClaimBase()): string {
+  return `${base}${ceremonyPath("claim")}`;
+}
+
 export async function createLocalDropClaim(
   targetManifest: JsonObject,
   ttlMs: number,
@@ -250,7 +259,7 @@ export async function createLocalDropClaim(
     claimId: id,
     bearerToken,
     userCode,
-    verifyUrl: `${localDropClaimSeams.claimBase()}/claim`,
+    verifyUrl: pagesClaimUrl(localDropClaimSeams.claimBase()),
     expiresAt: new Date(record.expiresAtMs).toISOString(),
   };
 }

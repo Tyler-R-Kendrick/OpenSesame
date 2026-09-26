@@ -15,6 +15,11 @@ import { overlapCast } from "@opensesame/os-domain";
 import { createControlPlaneClient, redactSecrets } from "@opensesame/sdk-cli";
 
 const api = process.env.OPENSESAME_IDENTITY_API ?? "http://127.0.0.1:8788";
+// The Pages deployment every ceremony opens on (ADR 0140 §4), the same
+// value the Identity API is given; its dev server by default.
+const clientApp = (
+  process.env.OPENSESAME_CLIENT_APP_URL ?? "http://localhost:5180"
+).replace(/\/+$/, "");
 
 function jkt(): string {
   return createHash("sha256")
@@ -52,7 +57,7 @@ export function createMockFetch(): typeof fetch {
           claimId,
           claimToken: "osc_clm_demo.secretvalue000000000000000000000000",
           userCode: "AGNT-CLAIM",
-          verificationUri: "http://127.0.0.1:5173/claim",
+          verificationUri: `${clientApp}/claim`,
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
         }),
       );
@@ -140,7 +145,7 @@ export async function runAnonymousAgentDemo(
     serviceName: "OpenSesame",
     protectedResource: api,
     authorizationServer: api,
-    consoleOrigin: "http://127.0.0.1:5173",
+    consoleOrigin: clientApp,
   });
   const card = renderAgentCard({
     name: "OpenSesame Agent API",
