@@ -32,7 +32,10 @@ function appWith(clientAppUrl?: string): App {
   }).app;
 }
 
-async function bearer(app: App): Promise<Record<string, string>> {
+/** The request headers every mint sends: the provisional bearer and JSON. */
+type AuthHeaders = { authorization: string; "content-type": string };
+
+async function bearer(app: App): Promise<AuthHeaders> {
   const res = await app.request("/v1/principals/provisional", {
     method: "POST",
   });
@@ -54,22 +57,19 @@ type Minted = {
   verificationUriComplete?: string;
 };
 
+/** POST a JSON body -- already serialized, as it goes on the wire. */
 async function post(
   app: App,
   path: string,
-  body: object,
-  headers: Record<string, string>,
+  body: string,
+  headers: AuthHeaders,
 ): Promise<Minted & { agentId?: string }> {
-  const res = await app.request(path, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  const res = await app.request(path, { method: "POST", headers, body });
   expect(res.status, path).toBe(201);
   return overlapCast<unknown, Minted & { agentId?: string }>(await res.json());
 }
 
-async function mint(app: App, path: string, body: object): Promise<Minted> {
+async function mint(app: App, path: string, body: string): Promise<Minted> {
   return post(app, path, body, await bearer(app));
 }
 
@@ -77,23 +77,32 @@ async function mint(app: App, path: string, body: object): Promise<Minted> {
 async function mintAgentClaim(app: App): Promise<Minted> {
   const headers = await bearer(app);
   const { agentId } = await post(app, "/v1/agents", AGENT, headers);
-  return post(app, `/v1/agents/${String(agentId)}/claim`, {}, headers);
+  return post(
+    app,
+    `/v1/agents/${String(agentId)}/claim`,
+    JSON.stringify({}),
+    headers,
+  );
 }
 
-const AGENT = {
+const AGENT = JSON.stringify({
   displayName: "claim-link agent",
   publicKeyJkt: "jkt-claim-link",
-};
+});
 
-const MINTS: ReadonlyArray<readonly [string, object]> = [
+/** Every route that mints a claim, with the JSON body it is posted. */
+const MINTS: ReadonlyArray<readonly [string, string]> = [
   [
     "/v1/claims",
-    {
+    JSON.stringify({
       type: "resource_bundle",
       targetManifest: { kind: "secret-drop", name: "Deploy token" },
-    },
+    }),
   ],
-  ["/v1/projects/temporary", { name: "Short Lived", ttlSeconds: 600 }],
+  [
+    "/v1/projects/temporary",
+    JSON.stringify({ name: "Short Lived", ttlSeconds: 600 }),
+  ],
   ["/v1/agents", AGENT],
 ];
 
