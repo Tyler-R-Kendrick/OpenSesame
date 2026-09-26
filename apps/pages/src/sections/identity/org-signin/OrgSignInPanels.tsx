@@ -58,8 +58,8 @@ function useOrganizations(client: Client, offered: boolean, known: unknown) {
   const [refusal, setRefusal] = useState<string | null>(null);
   const [round, setRound] = useState(0);
   useEffect(() => {
-    if (!offered) return;
-    void known;
+    // Wait for the section to have listed: a read before it would repeat.
+    if (!offered || known === null) return;
     void round;
     let live = true;
     client.listOrganizations().then(
@@ -149,7 +149,10 @@ export function OrgSignInPanels({
   known,
 }: {
   online: boolean;
-  /** The section's own list of organizations: a change reads again. */
+  /**
+   * The section's own list of organizations: read after it arrives, and
+   * again whenever it changes. `null` while the section is still asking.
+   */
   known: unknown;
 }) {
   const offered = useOffered();

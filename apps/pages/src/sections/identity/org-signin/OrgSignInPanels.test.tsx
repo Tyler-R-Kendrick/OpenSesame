@@ -50,7 +50,7 @@ function panel(name: string) {
 }
 
 async function owner() {
-  render(<OrgSignInPanels online known={null} />);
+  render(<OrgSignInPanels online known={[]} />);
   await screen.findByRole("region", { name: "Email domains" });
 }
 
@@ -78,7 +78,7 @@ afterEach(() => {
 describe("gating (ADR 0090)", () => {
   it("draws nothing and asks nothing without an Identity API", async () => {
     deviceIdentitySeams.remoteIdentityApi = () => "";
-    const { container } = render(<OrgSignInPanels online known={null} />);
+    const { container } = render(<OrgSignInPanels online known={[]} />);
     await Promise.resolve();
     expect(container.textContent).toBe("");
     expect(server.seen).toEqual([]);
@@ -86,22 +86,33 @@ describe("gating (ADR 0090)", () => {
 
   it("draws nothing and asks nothing without a session", async () => {
     identitySeams.currentSession = () => null;
-    const { container } = render(<OrgSignInPanels online known={null} />);
+    const { container } = render(<OrgSignInPanels online known={[]} />);
     await Promise.resolve();
     expect(container.textContent).toBe("");
     expect(server.seen).toEqual([]);
   });
 
+  it("waits for the section's own list before asking, then asks once", async () => {
+    const view = render(<OrgSignInPanels online known={null} />);
+    await Promise.resolve();
+    expect(server.seen).toEqual([]);
+    view.rerender(<OrgSignInPanels online known={[ACME]} />);
+    await screen.findByRole("region", { name: "Email domains" });
+    expect(
+      server.seen.filter((call) => call.path === "/v1/organizations"),
+    ).toHaveLength(1);
+  });
+
   it("draws nothing when the session owns no organization", async () => {
     install(orgSignInServer({ organizations: [] }));
-    const { container } = render(<OrgSignInPanels online known={null} />);
+    const { container } = render(<OrgSignInPanels online known={[]} />);
     await waitFor(() => expect(server.seen).toHaveLength(1));
     expect(container.textContent).toBe("");
   });
 
   it("tells a member only an owner can change it, and asks nothing more", async () => {
     install(orgSignInServer({ organizations: [{ ...ACME, role: "member" }] }));
-    render(<OrgSignInPanels online known={null} />);
+    render(<OrgSignInPanels online known={[]} />);
     expect(
       await screen.findByRole("img", {
         name: "Only an owner of Acme can change its sign-in",
@@ -114,7 +125,7 @@ describe("gating (ADR 0090)", () => {
   it("marks a refused organization list on the panel, never a banner", async () => {
     identitySeams.identityFetch = async () =>
       new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
-    render(<OrgSignInPanels online known={null} />);
+    render(<OrgSignInPanels online known={[]} />);
     expect(
       await screen.findByRole("img", { name: /Sign in again as an owner/ }),
     ).toBeTruthy();

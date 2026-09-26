@@ -38,7 +38,7 @@ function tokens() {
 }
 
 async function owner() {
-  const view = render(<OrgSignInPanels online known={null} />);
+  const view = render(<OrgSignInPanels online known={[]} />);
   await screen.findByRole("region", { name: "Provisioning tokens" });
   return view;
 }
