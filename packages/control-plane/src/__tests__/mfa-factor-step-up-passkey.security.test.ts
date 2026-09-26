@@ -1,4 +1,4 @@
-import type { JsonObject } from "@opensesame/os-domain";
+import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { passkeyDigest } from "../routes/mfa-factors.js";
@@ -131,7 +131,8 @@ describe("a passkey proves a removal only over its own challenge", () => {
     const key = `pk_${passkeyDigest(credential)}`;
     const challenge = await removalChallenge(cp, alice.accessToken, key);
     const signed = assertionFor(challenge, credential);
-    const bytes = (value: unknown) => Buffer.from(String(value), "base64url");
+    const bytes = (value: JsonValue | undefined) =>
+      Buffer.from(String(value), "base64url");
     // The sign-in verifier expects an `authentication` challenge; a removal
     // challenge is a `transaction` one bound to a digest, and is refused.
     const res = await cp.ctx.hostAuthorizationPasskeys.verify({

@@ -253,9 +253,7 @@ describe("removing an account factor asks for a proof", () => {
     await waitFor(() =>
       expect(document.activeElement).toBe(sheet().getByLabelText("Six digits")),
     );
-    expect(
-      (sheet().getByLabelText("Six digits") as HTMLInputElement).value,
-    ).toBe("");
+    expect(sheet().getByLabelText("Six digits")).toHaveProperty("value", "");
     expect(screen.getByRole("region", { name: "Your account" })).toBeTruthy();
     expect(screen.queryByText(/session ended/i)).toBeNull();
 

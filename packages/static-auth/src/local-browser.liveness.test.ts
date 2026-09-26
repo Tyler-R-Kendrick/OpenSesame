@@ -84,11 +84,12 @@ async function open() {
 
 async function connected(version: string | null = "1") {
   const opened = await open();
-  const data: Record<string, string> = {
-    type: "opensesame:local:ready",
-    state: opened.request.state,
-  };
-  if (version !== null) data.version = version;
+  // An older issuer sends no version at all, not an empty one.
+  const { state } = opened.request;
+  const data =
+    version === null
+      ? { type: "opensesame:local:ready", state }
+      : { type: "opensesame:local:ready", state, version };
   browser.dispatchEvent(
     Object.assign(new Event("message"), { source: popup, origin, data }),
   );

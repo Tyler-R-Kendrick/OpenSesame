@@ -54,20 +54,23 @@ export class AccountFactorError extends Error {
   }
 }
 
-/** The service's error codes, by what the person is told. */
-const SERVICE_ERRORS: Readonly<Record<string, AccountFactorRefusal>> = {
-  unauthorized: "signed_out",
-  registration_verification_failed: "not_accepted",
-  registration_attestation_required: "not_accepted",
-  invalid_request: "not_accepted",
-  totp_dev_only: "totp_unavailable",
-  not_enrolled: "not_enrolled",
-  too_many_attempts: "too_many_attempts",
-  rate_limited: "rate_limited",
-  not_found: "not_found",
-  step_up_required: "step_up_required",
-  step_up_failed: "step_up_failed",
-};
+/**
+ * The service's error codes, by what the person is told. A Map, so a code is
+ * looked up among these entries only, never among an object's inherited keys.
+ */
+const SERVICE_ERRORS = new Map<string, AccountFactorRefusal>([
+  ["unauthorized", "signed_out"],
+  ["registration_verification_failed", "not_accepted"],
+  ["registration_attestation_required", "not_accepted"],
+  ["invalid_request", "not_accepted"],
+  ["totp_dev_only", "totp_unavailable"],
+  ["not_enrolled", "not_enrolled"],
+  ["too_many_attempts", "too_many_attempts"],
+  ["rate_limited", "rate_limited"],
+  ["not_found", "not_found"],
+  ["step_up_required", "step_up_required"],
+  ["step_up_failed", "step_up_failed"],
+]);
 
 /** A non-2xx answer, as the one sentence the person is told. */
 export function refusalOf(
@@ -76,9 +79,8 @@ export function refusalOf(
 ): AccountFactorError {
   const code =
     isJsonObject(body) && isString(body.error) ? body.error : undefined;
-  if (code !== undefined && SERVICE_ERRORS[code]) {
-    return new AccountFactorError(SERVICE_ERRORS[code]);
-  }
+  const refusal = code === undefined ? undefined : SERVICE_ERRORS.get(code);
+  if (refusal !== undefined) return new AccountFactorError(refusal);
   if (status === 401) return new AccountFactorError("signed_out");
   if (status === 429) return new AccountFactorError("rate_limited");
   return new AccountFactorError("failed");

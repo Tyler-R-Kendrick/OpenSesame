@@ -11,14 +11,14 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 197,
-    "violations": 623,
+    "files": 196,
+    "violations": 620,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 221,
+      "anti-slop/no-known-value-widening": 219,
       "anti-slop/no-module-mocking": 2,
-      "anti-slop/no-object-parameters": 13,
+      "anti-slop/no-object-parameters": 12,
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 173,
       "anti-slop/no-shape-in-symbol-names": 13,
@@ -273,7 +273,7 @@
       "anti-slop/no-unknown-returns": 1
     },
     "packages/app-core/src/lib/account-factors.ts": {
-      "anti-slop/no-known-value-widening": 2
+      "anti-slop/no-known-value-widening": 1
     },
     "packages/app-core/src/lib/approvals-route.ts": {
       "anti-slop/no-known-value-widening": 3
@@ -555,10 +555,6 @@
     },
     "packages/cli/src/mcp-commands.test.ts": {
       "anti-slop/no-runtime-typeof": 2
-    },
-    "packages/control-plane/src/__tests__/claim-link-origin.test.ts": {
-      "anti-slop/no-known-value-widening": 1,
-      "anti-slop/no-object-parameters": 1
     },
     "packages/control-plane/src/__tests__/mfa-factors.test.ts": {
       "anti-slop/no-conditional-empty-object-spread": 1
