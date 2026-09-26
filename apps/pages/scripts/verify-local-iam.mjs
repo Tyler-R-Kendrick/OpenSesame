@@ -133,13 +133,16 @@ async function openConsent(
   await popup.keyboard.insertText("Cedar-lantern-47-river!");
   await expect(password).toHaveValue("Cedar-lantern-47-river!");
   await popup.keyboard.press("Enter");
+  // The password unlock runs the vault KDF before the consent draws: give
+  // it the budget this suite gives every other slow step, not the 5 s
+  // default a loaded CI runner can exceed.
   await expect(
     popup.getByRole("heading", {
       name: agentMode
         ? "Authorize agent access to Test application"
         : "Sign in to Test application",
     }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30_000 });
   return { popup, device };
 }
 
