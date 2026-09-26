@@ -1,5 +1,5 @@
 /**
- * `PATCH /v1/connect/connectors/{id}` (ADR 0146): only what a person changed,
+ * `PATCH /v1/connect/connectors/{id}` (ADR 0147): only what a person changed,
  * against `held` — the settings as Connect read them back — in the shapes
  * Connect's update schema accepts.
  */
