@@ -2058,6 +2058,7 @@ function OrganizationPanel({
         </div>
       </section>
 
+      <Directory.DirectoryOrgSignIn online={online} known={orgs} />
       <CreateOrgForm online={online} onCreated={() => void load()} />
     </>
   );
@@ -2192,8 +2193,6 @@ function CreateOrgForm({
     </section>
   );
 }
-
-/* ------------------------------------------------------------ no principal */
 
 /* ----------------------------------------------------------------- helpers */
 

@@ -1,0 +1,94 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "identity?view=organization"
+        },
+        {
+          "wait": 2
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            "main section[aria-label^='Sign-in upstream']",
+            "main section[aria-label='Email domains']",
+            "main section[aria-label='Provisioning tokens']",
+            "main .note"
+          ]
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "390-no-identity"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "identity?view=organization"
+        },
+        {
+          "wait": 2
+        },
+        {
+          "report": "main h1, main h2"
+        },
+        {
+          "count": [
+            "main section[aria-label^='Sign-in upstream']",
+            "main section[aria-label='Email domains']",
+            "main section[aria-label='Provisioning tokens']",
+            "main .note"
+          ]
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "1280-no-identity"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-no-identity",
+      "width": 390,
+      "title": "No Identity API configured — 390 × 844",
+      "caption": "With no Identity API the Organizations tab stays the browser-local directory's, and the branch draws nothing of organization sign-in and names no service (ADR 0090). Identical to the base.",
+      "before": "h1 Identity, h2 Organizations; sign-in panels 0; .note 0",
+      "after": "h1 Identity, h2 Organizations; sign-in panels 0; .note 0"
+    },
+    {
+      "shot": "1280-no-identity",
+      "width": 1280,
+      "title": "No Identity API configured — 1280 × 900",
+      "caption": "With no Identity API the Organizations tab stays the browser-local directory's, and the branch draws nothing of organization sign-in and names no service (ADR 0090). Identical to the base.",
+      "before": "h1 Identity, h2 Organizations; sign-in panels 0; .note 0",
+      "after": "h1 Identity, h2 Organizations; sign-in panels 0; .note 0"
+    }
+  ]
+}
