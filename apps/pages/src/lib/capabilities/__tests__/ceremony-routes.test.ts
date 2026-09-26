@@ -4,7 +4,8 @@
  * the smallest shipped profile, `minimal-local`, the ceremonies capability is
  * approved with nothing optional beside it, its module is in the plan, and
  * activating that module serves `/device`, `/claim`, `/i/:ref`,
- * `/approve/:ref` and `/invoke/:kind` before unlock — a claim or drop link
+ * `/approve/:ref`, `/invoke/:kind` and the `/guest` and `/delegate`
+ * aliases before unlock — a claim or drop link
  * opens even where drops cannot be sent (ADR 0140 D2), an approval link opens
  * with no vault (D7), and an authenticator hand-off opens with zero optional
  * capabilities approved (plan step 10).
@@ -47,6 +48,8 @@ describe("minimal-local serves the ceremony routes", () => {
       "/i/:ref",
       "/approve/:ref",
       "/invoke/:kind",
+      "/guest",
+      "/delegate",
     ]);
     expect(t.entries("route").every((route) => route.gate === "any")).toBe(
       true,

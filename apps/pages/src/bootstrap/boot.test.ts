@@ -7,6 +7,7 @@ import {
   compositionStore,
   storeSeams,
 } from "@opensesame/app-core/lib/capabilities/store.js";
+import { takeGuestArrival } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import {
   peekClaimArrival,
   resetClaimArrivalForTests,
@@ -20,6 +21,7 @@ import {
   peekInvocationArrival,
   resetInvocationArrivalForTests,
 } from "@opensesame/app-core/lib/invoke-link.js";
+import { takeCapturedInvite } from "@opensesame/app-core/lib/join/invite.js";
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 /** @vitest-environment jsdom */
@@ -321,6 +323,24 @@ describe("pre-unlock boot path", () => {
     expect(location.href).not.toContain("leaked");
     expect(peekInvocationArrival().arrival.kind).toBe("refused");
     resetInvocationArrivalForTests();
+    history.replaceState(null, "", "/");
+  });
+
+  it("takes the /delegate and /guest aliases out before the first paint", async () => {
+    const token = `osc_dlg_offer1.${"a".repeat(40)}`; // gitleaks:allow -- synthetic invite-shaped test vector
+    history.replaceState(null, "", `/delegate#token=${token}`);
+    await boot();
+    expect(`${location.pathname}${location.search}${location.hash}`).toBe("/");
+    // Join's invite, held in memory for the unlock screen (ADR 0140 D5).
+    expect(takeCapturedInvite()).toEqual({
+      kind: "invite",
+      invite: { token, endpoint: null },
+    });
+    history.replaceState(null, "", "/guest?code=abc");
+    await boot();
+    // The base, with nothing a sign-in return could mistake for its own.
+    expect(`${location.pathname}${location.search}`).toBe("/");
+    expect(takeGuestArrival()).toBe(true);
     history.replaceState(null, "", "/");
   });
 });
