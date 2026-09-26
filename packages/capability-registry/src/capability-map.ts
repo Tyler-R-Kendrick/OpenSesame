@@ -47,6 +47,12 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.switch_account": "identity.brokered-signin",
     "identity.whoami": "identity.brokered-signin",
 
+    // --- always-on: the Identity account's own factors (ADR 0140 D10) ----
+    // Settings › Security rows beside the vault's keys.
+    "identity.account_factors.list": "identity.federation",
+    "identity.account_factors.enroll": "identity.federation",
+    "identity.account_factors.remove": "identity.federation",
+
     // --- always-on: ceremonies a link opens (ADR 0140) --------------------
     "identity.device.approve": "identity.ceremonies",
     "identity.claim.accept": "identity.ceremonies",

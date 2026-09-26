@@ -1,0 +1,527 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "390-security"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "shot": "390-passkey-sheet"
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "390-passkey-added"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account authenticator app",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "count": [
+            "[role=dialog] [data-testid=qr], [role=dialog] canvas, [role=dialog] svg[role=img], [role=dialog] img"
+          ]
+        },
+        {
+          "shot": "390-totp-scan"
+        },
+        {
+          "pressNamedOptional": "I scanned it"
+        },
+        {
+          "accountTotpCode": null
+        },
+        {
+          "pressNamedOptional": "Turn on"
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "shot": "390-totp-on"
+        },
+        {
+          "pressNamedOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "390-both"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Remove"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "shot": "390-remove"
+        },
+        {
+          "pressNamedOptional": "Remove passkey"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "390-removed"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "1280-security"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "shot": "1280-passkey-sheet"
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "1280-passkey-added"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account authenticator app",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "count": [
+            "[role=dialog] [data-testid=qr], [role=dialog] canvas, [role=dialog] svg[role=img], [role=dialog] img"
+          ]
+        },
+        {
+          "shot": "1280-totp-scan"
+        },
+        {
+          "pressNamedOptional": "I scanned it"
+        },
+        {
+          "accountTotpCode": null
+        },
+        {
+          "pressNamedOptional": "Turn on"
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "shot": "1280-totp-on"
+        },
+        {
+          "pressNamedOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "1280-both"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Remove"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "shot": "1280-remove"
+        },
+        {
+          "pressNamedOptional": "Remove passkey"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "main .set__security h2"
+        },
+        {
+          "count": [
+            ".set__security .sw--method",
+            "[aria-label='Your account'] .sw--method",
+            "[role=dialog]"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "measure": "[aria-label='Your account'] .sw--method"
+        },
+        {
+          "shot": "1280-removed"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-security",
+      "width": 390,
+      "title": "Settings › Security, signed in with an Identity API — 390 × 844",
+      "caption": "Signed in against an Identity API, the Security list gains a Your account panel after Recovery: one row per account factor and one action each, headed by who is signed in and saying none of them opens the vault.",
+      "before": "h2: Vault key protection, Unlock methods, Second step, Recovery, Formats, Transport; .sw--method 13; Your account rows 0",
+      "after": "h2 adds Your account; .sw--method 15; Your account rows 2 (Account passkey, Account authenticator app), 358×67 and 358×66px, one Add key each"
+    },
+    {
+      "shot": "390-passkey-sheet",
+      "width": 390,
+      "title": "Add on Account passkey: the one sheet — 390 × 844",
+      "caption": "Add on Account passkey opens the one Security sheet with a CeremonyShell card: what it proves, when it is asked, and that the vault is untouched.",
+      "before": "no row to press; [role=dialog] 0",
+      "after": "dialog h2 Account passkey; card Passkey · your account; facts Proves / Asked / Vault; Create passkey 44px tall"
+    },
+    {
+      "shot": "390-passkey-added",
+      "width": 390,
+      "title": "After Create passkey (virtual WebAuthn authenticator) — 390 × 844",
+      "caption": "Create passkey ran a real WebAuthn registration against the virtual authenticator over the stand-in's creation options; the list was read again and the new factor is a row with its created date and a four-character tail.",
+      "before": "Your account rows 0",
+      "after": "POST registration-options, POST register (attestation), GET factors; Your account rows 3 (Account passkey · Added … · key ####, Another account passkey, Account authenticator app)"
+    },
+    {
+      "shot": "390-totp-scan",
+      "width": 390,
+      "title": "Add on Account authenticator app: scan — 390 × 844",
+      "caption": "Add on Account authenticator app: the rail says Scan then Confirm before either is taken; the otpauth link is drawn as a QR, the setup key is one alternative away, and the foot says closing removes the setup.",
+      "before": "[role=dialog] 0; QR 0",
+      "after": "POST /v1/mfa/totp/enroll; rail 1 · Scan / 2 · Confirm; QR 1; I scanned it 44px tall"
+    },
+    {
+      "shot": "390-totp-on",
+      "width": 390,
+      "title": "A code from the app matched — 390 × 844",
+      "caption": "A code computed from the seed on screen (RFC 6238) was typed into Six digits and matched: the card says it is on and that the vault is untouched.",
+      "before": "[role=dialog] 0",
+      "after": "POST /v1/mfa/totp/verify {code} → 200; card Authenticator on / Your sign-in service asks for its code; Done 44px tall"
+    },
+    {
+      "shot": "390-both",
+      "width": 390,
+      "title": "Both account factors beside the vault's keys — 390 × 844",
+      "caption": "Both factors as rows in the one list, beside the vault's keys, each with one action.",
+      "before": "Your account rows 0",
+      "after": "Your account rows 3: Account passkey (Remove), Another account passkey (Add), Account authenticator app (Remove); 358×66–84px (a wrapped line)"
+    },
+    {
+      "shot": "390-remove",
+      "width": 390,
+      "title": "Remove on the account passkey: confirmed in its card — 390 × 844",
+      "caption": "Remove on the account passkey opens the same sheet with a confirmation card: what stops, and that the vault is untouched. No form under the row.",
+      "before": "[role=dialog] 0",
+      "after": "card Remove this passkey? / Passkey · Added … · key ####; facts After / Vault; Remove passkey + Keep it"
+    },
+    {
+      "shot": "390-removed",
+      "width": 390,
+      "title": "After Remove passkey — 390 × 844",
+      "caption": "Remove passkey sent DELETE /v1/mfa/factors/pk_… and the list was read again: the row is gone and Add is back.",
+      "before": "Your account rows 0",
+      "after": "DELETE /v1/mfa/factors/pk_…; Your account rows 2 (Account passkey Add, Account authenticator app Remove)"
+    },
+    {
+      "shot": "1280-security",
+      "width": 1280,
+      "title": "Settings › Security, signed in with an Identity API — 1280 × 900",
+      "caption": "Signed in against an Identity API, the Security list gains a Your account panel after Recovery: one row per account factor and one action each, headed by who is signed in and saying none of them opens the vault.",
+      "before": "h2: Vault key protection, Unlock methods, Second step, Recovery, Formats, Transport; .sw--method 13; Your account rows 0",
+      "after": "h2 adds Your account; .sw--method 15; Your account rows 2 (Account passkey, Account authenticator app), 960×66 and 960×65px, one Add key each"
+    },
+    {
+      "shot": "1280-passkey-sheet",
+      "width": 1280,
+      "title": "Add on Account passkey: the one sheet — 1280 × 900",
+      "caption": "Add on Account passkey opens the one Security sheet with a CeremonyShell card: what it proves, when it is asked, and that the vault is untouched.",
+      "before": "no row to press; [role=dialog] 0",
+      "after": "dialog h2 Account passkey; card Passkey · your account; facts Proves / Asked / Vault; Create passkey 36px tall"
+    },
+    {
+      "shot": "1280-passkey-added",
+      "width": 1280,
+      "title": "After Create passkey (virtual WebAuthn authenticator) — 1280 × 900",
+      "caption": "Create passkey ran a real WebAuthn registration against the virtual authenticator over the stand-in's creation options; the list was read again and the new factor is a row with its created date and a four-character tail.",
+      "before": "Your account rows 0",
+      "after": "POST registration-options, POST register (attestation), GET factors; Your account rows 3 (Account passkey · Added … · key ####, Another account passkey, Account authenticator app)"
+    },
+    {
+      "shot": "1280-totp-scan",
+      "width": 1280,
+      "title": "Add on Account authenticator app: scan — 1280 × 900",
+      "caption": "Add on Account authenticator app: the rail says Scan then Confirm before either is taken; the otpauth link is drawn as a QR, the setup key is one alternative away, and the foot says closing removes the setup.",
+      "before": "[role=dialog] 0; QR 0",
+      "after": "POST /v1/mfa/totp/enroll; rail 1 · Scan / 2 · Confirm; QR 1; I scanned it 36px tall"
+    },
+    {
+      "shot": "1280-totp-on",
+      "width": 1280,
+      "title": "A code from the app matched — 1280 × 900",
+      "caption": "A code computed from the seed on screen (RFC 6238) was typed into Six digits and matched: the card says it is on and that the vault is untouched.",
+      "before": "[role=dialog] 0",
+      "after": "POST /v1/mfa/totp/verify {code} → 200; card Authenticator on / Your sign-in service asks for its code; Done 36px tall"
+    },
+    {
+      "shot": "1280-both",
+      "width": 1280,
+      "title": "Both account factors beside the vault's keys — 1280 × 900",
+      "caption": "Both factors as rows in the one list, beside the vault's keys, each with one action.",
+      "before": "Your account rows 0",
+      "after": "Your account rows 3: Account passkey (Remove), Another account passkey (Add), Account authenticator app (Remove); 960×65–66px"
+    },
+    {
+      "shot": "1280-remove",
+      "width": 1280,
+      "title": "Remove on the account passkey: confirmed in its card — 1280 × 900",
+      "caption": "Remove on the account passkey opens the same sheet with a confirmation card: what stops, and that the vault is untouched. No form under the row.",
+      "before": "[role=dialog] 0",
+      "after": "card Remove this passkey? / Passkey · Added … · key ####; facts After / Vault; Remove passkey + Keep it"
+    },
+    {
+      "shot": "1280-removed",
+      "width": 1280,
+      "title": "After Remove passkey — 1280 × 900",
+      "caption": "Remove passkey sent DELETE /v1/mfa/factors/pk_… and the list was read again: the row is gone and Add is back.",
+      "before": "Your account rows 0",
+      "after": "DELETE /v1/mfa/factors/pk_…; Your account rows 2 (Account passkey Add, Account authenticator app Remove)"
+    }
+  ]
+}

@@ -25,7 +25,6 @@ const KEYS = {
   ...Object.fromEntries(
     Object.values(endpoints).map((e) => [e.setting, e.pagesRuntimeKey]),
   ),
-  mfaAppUrl: "PAGES_MFA_APP_URL",
   supportAgentUrl: "PAGES_SUPPORT_AGENT_URL",
   connectCallbackBase: "PAGES_CONNECT_CALLBACK_BASE",
 };

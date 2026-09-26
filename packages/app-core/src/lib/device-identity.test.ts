@@ -25,7 +25,6 @@ function emptyRemoteSettings(): void {
     hostApi: "",
     identityApi: "",
     daemonApi: "",
-    mfaAppUrl: "",
     capabilityConnectors: {
       ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
