@@ -42,7 +42,7 @@ crates/
   credential-helpers/ pm-bridges/   libraries behind argv[0] entry points
 packages/
   mcp/                the TypeScript MCP adapter over the same catalog
-  hosted-identity/*   what packages/control-plane, ceremonies, mobile-mfa and the TS worker become
+  hosted-identity/*   what packages/control-plane and the TS worker become
 ops/
   hosted-identity/    the optional hosted deployment recipe (own origin, ADR 0045)
 ```
@@ -183,9 +183,11 @@ host.
 
 - ~~Delete `apps/pwa`~~ — done: its registry entries now map to Pages or are
   excluded under ADR 0128, and its build, budget and lint wiring is gone.
-- Move the console's task-access page into Access and its organization
-  settings into Identity; sign-in and device approval already exist in
-  Pages. Delete `apps/console`.
+- ~~Move the console into Pages and delete `apps/console`~~ — done under
+  [ADR 0140](../../adr/0140-pages-hosts-every-ceremony.md): organization
+  settings are Identity › Organizations panels; sign-in and device approval
+  already existed; task access did not move (D4: `opensesame task inspect`
+  and MCP `task_status` cover it).
 - `packages/cli` (`opensesame-id`): move `vault verify` / `vault ls` into
   `opensesame` over the Rust vault reader from phase 1, checked against the
   golden vectors; delete the TypeScript CLI.
@@ -198,14 +200,15 @@ before/after evidence for the moved screens (`skills/visual-evidence`).
 - Split `packages/control-plane` along the gap table below: what is self-issued
   or host-side is already covered by phases 1–4; what is hosted-only becomes
   packages under `packages/hosted-identity/`.
-- `apps/ceremonies`, `apps/mobile-mfa` and `apps/console` become Pages routes
+- ~~`apps/ceremonies`, `apps/mobile-mfa` and `apps/console` become Pages
+  routes~~ — done, and the three apps are deleted
   ([ADR 0140](../../adr/0140-pages-hosts-every-ceremony.md),
-  [plan](../ceremonies-into-pages/README.md)); the TypeScript worker's outbox
+  [plan](../ceremonies-into-pages/README.md)). The TypeScript worker's outbox
   loop runs inside the hosted identity deployment.
 - `ops/hosted-identity/`: the deployment recipe (container and database),
   documented as optional in `docs/operators/`.
-- Delete `packages/control-plane`, `packages/identity-worker`, `apps/ceremonies`,
-  `apps/mobile-mfa`; `pnpm dev` no longer starts an Identity API.
+- Delete `packages/control-plane` and `packages/identity-worker`; `pnpm dev`
+  no longer starts an Identity API.
 
 **Exit:** the control-plane's test suite runs green against the hosted
 deployment; `pnpm --filter @opensesame/pages verify:static` still shows no

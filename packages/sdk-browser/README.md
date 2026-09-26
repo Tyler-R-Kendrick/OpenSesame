@@ -8,7 +8,7 @@ ceremony implementation ([ADR 0059](../../docs/adr/0059-free-passwordless-authen
 
 ## Where it fits
 
-- **Used by:** [`apps/pages`](../../apps/pages), [`apps/console`](../../apps/console), [`apps/ceremonies`](../../apps/ceremonies), [`apps/mobile-mfa`](../../apps/mobile-mfa), [`packages/app-core`](../app-core), [`packages/static-auth`](../static-auth), and the examples [`rp-alpha`](../../examples/rp-alpha), [`rp-beta`](../../examples/rp-beta), [`static-rp`](../../examples/static-rp).
+- **Used by:** [`apps/pages`](../../apps/pages), [`packages/app-core`](../app-core), [`packages/static-auth`](../static-auth), and the examples [`rp-alpha`](../../examples/rp-alpha), [`rp-beta`](../../examples/rp-beta), [`static-rp`](../../examples/static-rp).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), `jose`.
 - Tokens and the PKCE verifier default to `sessionStorage`, then memory — never `localStorage`, so they do not outlive the browser session as XSS-exfiltrable material. `returnTo` is restricted to same-origin relative paths.
 - With no `clientId`, the client derives the origin profile (`origin:<canonical origin>`, callback `<origin>/opensesame/callback`) and validates the ID token in the browser ([ADR 0050](../../docs/adr/0050-origin-profile-static-site-issuer.md) F7).

@@ -8,7 +8,7 @@ first.
 
 ## Where it fits
 
-- **Used by:** [`apps/pages`](../../apps/pages) (`components/QrCode.tsx`), [`apps/mobile-mfa`](../../apps/mobile-mfa), [`packages/app-core`](../app-core) (duress peer export), [`packages/sdk-cli`](../sdk-cli) (device-flow terminal handoff).
+- **Used by:** [`apps/pages`](../../apps/pages) (`components/QrCode.tsx`), [`packages/app-core`](../app-core) (duress peer export), [`packages/sdk-cli`](../sdk-cli) (device-flow terminal handoff).
 - **Builds on:** `uqr`; [`@opensesame/ceremony-kit`](../ceremony-kit) for `assertNoForbiddenParams` and `parseInteractionUrl`.
 - Dependency direction is one way: `qr` depends on `ceremony-kit`, never the reverse, so the kit stays free of an encoder. There is one definition of a forbidden link, in the kit.
 

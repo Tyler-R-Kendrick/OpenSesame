@@ -7,7 +7,7 @@ import {
 
 // The one device approval (ADR 0140 D3). The wording keyed on the body's
 // error code came from Pages' directory client; the status-keyed wording is
-// what the ceremonies app, the console and mobile MFA assert verbatim.
+// what the retired ceremonies app, console and Mobile MFA asserted verbatim.
 
 function answer(status: number, body?: object): typeof fetch {
   return async () =>

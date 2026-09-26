@@ -58,7 +58,7 @@ New item flow: name, text **or** file picker, TTL, keep-a-copy (default
 off) → seal → create → drop card. The payload never enters the vault body
 unless kept.
 
-### 5. Acceptance page (`apps/ceremonies`)
+### 5. Acceptance page (Pages `/claim`; was `apps/ceremonies` until [ADR 0140](../adr/0140-pages-hosts-every-ceremony.md))
 
 Drop branch on the claim acceptance page: detect `kind: "secret-drop"` in
 the presented manifest → user-code field → present (single-use) → decrypt

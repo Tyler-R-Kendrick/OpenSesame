@@ -1,14 +1,13 @@
 /**
- * Ceremony logic shared by every surface that runs one: the standalone
- * ceremonies app (ADR 0045), the Pages vault app dogfooding the same flows,
- * the console, mobile MFA, and the CLIs.
+ * Ceremony logic shared by every surface that runs one: Pages, which hosts
+ * every ceremony a link opens (ADR 0140), the Identity API's link builder,
+ * and the CLIs.
  *
  * Pure logic only — no React, no storage of its own, no ambient `fetch`. Each
- * surface passes in the pieces that differ: the ceremonies app resolves its
- * Identity API at build time, Pages resolves it at runtime from user settings,
- * and the two disagree about which storage a bearer may touch. Following the
- * `@opensesame/qr` convention, the logic is shared here and each app keeps its
- * own JSX.
+ * surface passes in the pieces that differ: Pages resolves its Identity API
+ * at runtime from the deployment's settings and decides which storage a
+ * bearer may touch. Following the `@opensesame/qr` convention, the logic is
+ * shared here and each app keeps its own JSX.
  *
  * Cross-device interaction links (ADR 0086) are built, parsed, driven and
  * rendered here and nowhere else. Four apps used to hold four private copies

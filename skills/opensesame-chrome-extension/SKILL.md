@@ -29,4 +29,4 @@ Set Host API base (default `http://127.0.0.1:8787`) in extension options / env u
 
 - Background checks Host `/health/live` and daemon `/health`.
 - Never requests secrets; invoke uses ConnectionRef via api-client when wired.
-- Pair with Mobile MFA / Identity for step-up.
+- Pair with Identity for step-up (account passkeys and the authenticator app are rows in Pages › Settings › Security).

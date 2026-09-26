@@ -27,11 +27,14 @@ binary; the name a process starts under picks the program
 
 ## Identity plane (TypeScript)
 
-| App | Package | Port | Purpose |
-|---|---|---|---|
-| [`console`](console) | `@opensesame/console` | 5173 | Operator console for the Identity API. |
-| [`ceremonies`](ceremonies) | `@opensesame/ceremonies` | 5181 | Hosted ceremony pages — one complete, shareable ceremony per route ([ADR 0045](../docs/adr/0045-hosted-ceremony-pages.md)). |
-| [`mobile-mfa`](mobile-mfa) | `@opensesame/mobile-mfa` | — | The phone half of a cross-device approval, and where its authenticators are enrolled. |
+No app. The Identity API is a package,
+[`packages/control-plane`](../packages/control-plane), with its worker
+[`packages/identity-worker`](../packages/identity-worker). Every ceremony a
+link opens (claim, drop, device approval, cross-device approval, the
+approval inbox and review, notification routing, the authenticator hand-off)
+and the identity console's sign-in and organization settings are routes and
+panels of [`pages`](pages)
+([ADR 0140](../docs/adr/0140-pages-hosts-every-ceremony.md)).
 
 ## Client plane
 
@@ -57,8 +60,8 @@ cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787   # Host API
 cargo run -p opensesame-cli -- --help                        # host CLI
 ```
 
-`pnpm dev` starts the Identity plane, the console, ceremonies, worker, mock
-IdP and example relying parties together. More in
+`pnpm dev` starts the Identity plane, its worker, the mock IdP and the
+example relying parties together. More in
 [getting started](../docs/getting-started/README.md).
 
 ## Adding an app

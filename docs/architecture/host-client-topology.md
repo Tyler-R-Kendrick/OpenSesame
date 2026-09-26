@@ -18,7 +18,7 @@ core (WIT + Rust)
         └── api-client → extension, cli[client], PWA, client MCP
 
 Identity SDKs (sdk-browser/cli/server) → Identity API only
-mobile-mfa → Identity API (passkey/TOTP step-up)
+PWA account factors → Identity API (passkey/TOTP step-up)
 toolbar → daemon only
 PWA optionally discovers daemon; degrades if absent
 ```

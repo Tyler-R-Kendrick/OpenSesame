@@ -180,8 +180,10 @@ above, this section is the record.
   unlock records, the item model and paths, TOTP, the offline-backup
   envelope, the vault-file reader and the secret-drop format, with the golden
   vectors. It depends on `os-domain` and `vault-item-types` only and compiles
-  under the strict repository base. The ceremonies app opens drops with it,
-  so the drop format has one implementation.
+  under the strict repository base. Pages' `/claim` route opens drops with
+  it (the ceremonies app did until it moved into Pages and was deleted,
+  [ADR 0140](0140-pages-hosts-every-ceremony.md)), so the drop format has one
+  implementation.
 - **Further splits are drawn where a consumer needs a subset,** not ahead of
   one. `vault-core` exists because the CLI and an Android isolate need the
   read path without the rest. The other domain packages listed in step 7

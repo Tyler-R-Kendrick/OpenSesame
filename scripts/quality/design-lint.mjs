@@ -46,10 +46,10 @@ const CONTROL_HOME = "apps/pages/src/styles.css";
  * cannot load another's stylesheet, so each has exactly one home — and a
  * second copy inside an app is still how two screens drift apart.
  */
-const GO_HOMES = [CONTROL_HOME, "apps/ceremonies/src/keys.css"];
+const GO_HOMES = [CONTROL_HOME];
 
 /** UI trees this lint owns. */
-const ROOTS = ["apps/pages/src", "apps/ceremonies/src"];
+const ROOTS = ["apps/pages/src"];
 
 const DOC = "docs/design/controls.md";
 

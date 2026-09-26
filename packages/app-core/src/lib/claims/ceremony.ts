@@ -2,8 +2,8 @@
  * The ownership-claim ceremony (ADR 0045; ADR 0140 plan step 4): present →
  * read → complete, with a guest path through a provisional principal.
  *
- * One model for what the console's `/claim` page and the ceremonies app's
- * claim page each did in their own component. No React and no page: a surface
+ * One model for what the retired console's `/claim` page and the ceremonies
+ * app's claim page each did in their own component. No React and no page: a surface
  * asks for a step and draws the phase it gets back; the transport and the
  * stash are injected.
  *

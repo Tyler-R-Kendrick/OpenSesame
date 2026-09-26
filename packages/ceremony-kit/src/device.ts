@@ -41,7 +41,7 @@ export type DeviceApproval = {
 
 export interface ApproveDeviceInput {
   /**
-   * Identity API origin. Build-time for the ceremonies app, runtime for Pages.
+   * Identity API origin, resolved at runtime from the deployment's settings.
    * Empty when `fetchImpl` resolves the origin itself (Pages' `identityFetch`
    * takes a path).
    */
@@ -49,7 +49,8 @@ export interface ApproveDeviceInput {
   userCode: string;
   /**
    * The surface's own fetch. Pages passes one that already carries its bearer
-   * and its local-network timeouts; the ceremonies app passes the global.
+   * and its local-network timeouts; a caller with nothing to add passes the
+   * global.
    */
   fetchImpl: typeof fetch;
   /** Whether to send cookies. Cookie-authenticated surfaces need `include`. */

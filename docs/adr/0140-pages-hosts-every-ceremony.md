@@ -1,6 +1,6 @@
 # ADR 0140 — Pages hosts every ceremony
 
-- Status: Accepted
+- Status: Accepted — implemented (2026-09-26: the three apps are deleted)
 - Date: 2026-09-24
 - Supersedes: [ADR 0045](0045-hosted-ceremony-pages.md) decision 1 and its
   2026-08-19 amendment (ceremonies stay off the Pages origin)
@@ -87,6 +87,12 @@ Decisions recorded with the plan (`docs/implementation/ceremonies-into-pages/`):
 | D11 | `.well-known` authenticator associations are served only by the Vercel deployment (host root); GitHub Pages under a path cannot serve them. |
 | D12 | `/guest` is the Pages guest road, which also seals a guest vault. |
 | D13 | Mobile MFA's paste-a-bearer-token field is dropped; Pages holds the Identity session. |
+| D14 | Authenticator-app enrolment returns only the `otpauth:` link; an answer without one is invalid, and the raw base64 seed is never shown. |
+| D15 | The hosted inbox never decides inline: every hosted row in Access › Requests opens `/approve/:ref`. |
+
+Mobile MFA's post-registration passkey check (register, then assert once, and
+keep a passkey whose try falls short rather than calling it failed) is carried
+over, not dropped: plan step 11c, `app-core/lib/account-passkey-check.ts`.
 
 ## Consequences
 

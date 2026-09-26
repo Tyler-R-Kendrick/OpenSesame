@@ -1,7 +1,8 @@
 # @opensesame/ceremony-kit
 
-UI-independent ceremony logic shared by every surface that runs one: the
-standalone ceremonies app, the console, mobile MFA and the QR encoder. It
+UI-independent ceremony logic shared by every surface that runs one: Pages
+(through `@opensesame/app-core`), the Identity API's link builder and the QR
+encoder. It
 builds and parses the canonical cross-device interaction link, drives an
 interaction (resolve, read, approve, deny), renders a display-safe summary,
 approves a device-authorization request, and holds a claim bearer between
@@ -10,10 +11,9 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 
 ## Where it fits
 
-- **Used by:** [`apps/ceremonies`](../../apps/ceremonies),
-  [`apps/console`](../../apps/console), [`apps/mobile-mfa`](../../apps/mobile-mfa),
-  [`packages/app-core`](../app-core) (Pages' device approval, claims,
-  interaction approval and authorization-request review) and
+- **Used by:** [`packages/app-core`](../app-core) (Pages' device approval, claims,
+  interaction approval and authorization-request review),
+  [`packages/control-plane`](../control-plane) (ceremony links, ADR 0140) and
   [`packages/qr`](../qr).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (interaction types and
   `FORBIDDEN_URL_PARAMS`).

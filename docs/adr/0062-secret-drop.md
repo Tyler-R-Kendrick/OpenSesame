@@ -5,7 +5,14 @@ Date: 2026-08-29
 References: ADR 0005 (never expose raw secrets), ADR 0044 (claimable
 delegation), ADR 0045 (hosted ceremony tier), ADR 0054 (file-attachment
 storage), ADR 0061 (ceremony per action), claim contracts
-(`packages/contracts/src/claims.ts`), ceremonies app (`apps/ceremonies`)
+(`packages/contracts/src/claims.ts`), ceremonies app (`apps/ceremonies`,
+since deleted)
+
+> **Note (2026-09-26):** the recipient side moved into Pages under
+> [ADR 0140](0140-pages-hosts-every-ceremony.md) (D2): a drop link opens on
+> the always-on `/claim` route, and `apps/ceremonies` was deleted. The
+> mentions of the ceremonies app below record where this decision first
+> landed.
 
 ## Context
 

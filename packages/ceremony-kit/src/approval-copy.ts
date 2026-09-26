@@ -5,8 +5,8 @@ import {
 
 /**
  * What an authorization-request review says, with no surface in it (ADR
- * 0084; ADR 0140 plan step 6). Moved out of `apps/ceremonies/src/lib/
- * approvals.ts` so the ceremonies app and Pages read a request the same way.
+ * 0084; ADR 0140 plan step 6). Moved out of the retired ceremonies
+ * app's `lib/approvals.ts` so every surface reads a request the same way.
  *
  * Two rules the wording keeps:
  *   - a reason code or a risk class is never printed raw. `phishing_resistance`
