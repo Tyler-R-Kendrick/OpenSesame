@@ -47,7 +47,6 @@ function StatusBubble({
     );
     bubble.style.left = `${left}px`;
     bubble.style.top = `${top}px`;
-    bubble.dataset.placed = "";
   }, [anchor]);
   return createPortal(
     <span ref={ref} className="status-bubble" aria-hidden="true">

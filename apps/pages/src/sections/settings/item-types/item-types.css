@@ -153,7 +153,7 @@
   margin-right: 0.25rem;
 }
 
-/* The same 0.25rem once the mark's touch target (status-mark.css) has taken
+/* The same 0.25rem once the mark's touch target (styles.css) has taken
    0.75rem of margin back on every side. */
 @media (pointer: coarse), (max-width: 900px) {
   .itype__end .status-mark[data-touch-twin] {

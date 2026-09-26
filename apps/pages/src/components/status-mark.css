@@ -1,52 +1,18 @@
-/* The status mark's touch twin (DESIGN.md § Status is a symbol, § Touch).
-   The glyph itself is drawn in styles.css; this is what a finger needs. */
-
-/* A mark that answers a tap says so to a mouse, too. */
-.status-mark[data-touch-twin] {
-  cursor: help;
-}
-
-/* The 44px floor, without moving anything. The glyph box stays 1.25rem and
-   the padding grows the target to 2.75rem; the negative margin gives the
-   same 1.25rem back to the row, so nothing around the mark reflows. The box
-   the padding draws is the element's own, so the phone audit measures the
-   target a thumb actually hits. */
-@media (pointer: coarse), (max-width: 900px) {
-  .status-mark[data-touch-twin] {
-    box-sizing: content-box;
-    padding: 0.75rem;
-    margin: -0.75rem;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    user-select: none;
-  }
-}
-
-/* The sentence, shown by a tap or a hold: the `title` a finger cannot hover
-   for. Elevated like a menu — the one place a shadow means behaviour — and
-   placed by the component once it has been measured. */
+/* The sentence a tap or a hold shows on a status mark: the `title` a finger
+   cannot hover for (DESIGN.md § Status is a symbol). Elevated like a menu —
+   the one place a shadow means behaviour — and placed by the component
+   before it is painted. The mark's 44px target is in styles.css, with the
+   rest of the floor. */
 .status-bubble {
   position: fixed;
   z-index: 70;
-  left: 0;
-  top: 0;
-  width: max-content;
   max-width: min(20rem, calc(100vw - 16px));
   padding: 0.35rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--ink);
   box-shadow: var(--shadow);
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  line-height: 1.4;
+  font: 0.8125rem var(--mono);
   overflow-wrap: anywhere;
   pointer-events: none;
-  visibility: hidden;
-}
-
-.status-bubble[data-placed] {
-  visibility: visible;
 }
