@@ -24,6 +24,7 @@ export function FieldShell({
   value,
   onValueChange,
   onCommit,
+  onEnter,
   type = "text",
   placeholder,
   autoComplete,
@@ -43,6 +44,11 @@ export function FieldShell({
   onValueChange?: (next: string) => void;
   /** Settings commit on blur — there is no Save button to press. */
   onCommit?: (next: string) => void;
+  /**
+   * Enter does this instead of submitting the form around the field — a
+   * field that adds to a list (a scope) inside a form that saves the whole.
+   */
+  onEnter?: () => void;
   type?: "text" | "url" | "password" | "email";
   placeholder?: string;
   autoComplete?: string;
@@ -93,7 +99,11 @@ export function FieldShell({
           onChange={(event) => onValueChange?.(event.target.value)}
           onBlur={(event) => onCommit?.(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && onCommit) {
+            if (event.key !== "Enter") return;
+            if (onEnter) {
+              event.preventDefault();
+              onEnter();
+            } else if (onCommit) {
               event.currentTarget.blur();
             }
           }}

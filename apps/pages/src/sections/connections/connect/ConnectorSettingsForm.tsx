@@ -71,16 +71,12 @@ export function ConnectorSettingsForm({
         toConnectorDraft(state),
         toConnectorDraft(held),
       );
-      // Secrets were sent once; the form never holds them after a save.
-      const kept: DraftState = {
-        ...state,
-        key: "",
-        mcpClientSecret: "",
-        oauth: { ...state.oauth, clientSecret: "" },
-      };
+      // What Connect stored, not what was sent: an edit it dropped shows
+      // as dropped, and no secret survives in the form.
+      const stored = draftStateFromDetail(plan, saved);
       setDetail(saved);
-      setState(kept);
-      setHeld(kept);
+      setState(stored);
+      setHeld(stored);
       onFlash({ tone: "ok", text: `${saved.name || plan.name} saved.` });
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });

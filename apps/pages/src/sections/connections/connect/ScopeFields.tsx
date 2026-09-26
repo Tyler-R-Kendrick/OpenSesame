@@ -1,3 +1,4 @@
+import type { OauthDraft } from "@opensesame/app-core/lib/connect-create.js";
 import {
   type DraftState,
   scopeChoices,
@@ -49,6 +50,7 @@ export function ScopeFields({
         value={extra}
         mono
         onValueChange={setExtra}
+        onEnter={add}
         tail={
           <button
             type="button"
@@ -66,7 +68,30 @@ export function ScopeFields({
   );
 }
 
-/** Extra query parameters every authorization URL carries. */
+type ParamRow = readonly [key: string, value: string];
+
+/**
+ * The object a request carries: named rows only, and the first row of a name
+ * wins, so typing a name that already exists into a new row never overwrites
+ * the value the earlier row holds.
+ */
+function paramsOf(
+  rows: readonly ParamRow[],
+): OauthDraft["authorizationParams"] {
+  const params: OauthDraft["authorizationParams"] = {};
+  for (const [key, value] of rows) {
+    if (key.trim() !== "" && !Object.hasOwn(params, key)) params[key] = value;
+  }
+  return params;
+}
+
+/**
+ * Extra query parameters every authorization URL carries. The rows are this
+ * field's own, so a blank row being typed into, or two rows naming the same
+ * param for a moment, survive until the person finishes; only the object
+ * built from them goes to the draft. A change from outside (a preset filled
+ * from a domain) replaces the rows.
+ */
 export function AuthorizationParams({
   params,
   onParams,
@@ -74,11 +99,25 @@ export function AuthorizationParams({
   params: Record<string, string>;
   onParams: (next: Record<string, string>) => void;
 }) {
-  const rows = Object.entries(params);
-  const set = (index: number, key: string, value: string) => {
-    const next = rows.map((row, at) => (at === index ? [key, value] : row));
-    onParams(Object.fromEntries(next));
+  const [rows, setRows] = useState<readonly ParamRow[]>(() =>
+    Object.entries(params),
+  );
+  const incoming = JSON.stringify(params);
+  const [seen, setSeen] = useState(incoming);
+  if (incoming !== seen && incoming !== JSON.stringify(paramsOf(rows))) {
+    setSeen(incoming);
+    setRows(Object.entries(params));
+  }
+  const update = (next: readonly ParamRow[]) => {
+    setRows(next);
+    const built = paramsOf(next);
+    setSeen(JSON.stringify(built));
+    onParams(built);
   };
+  const set = (index: number, key: string, value: string) =>
+    update(
+      rows.map((row, at): ParamRow => (at === index ? [key, value] : row)),
+    );
   return (
     <fieldset className="cx-block">
       <legend>Additional authorization params</legend>
@@ -102,9 +141,7 @@ export function AuthorizationParams({
             className="icon-btn"
             aria-label={`Remove ${key || "param"}`}
             title={`Remove ${key || "param"}`}
-            onClick={() =>
-              onParams(Object.fromEntries(rows.filter((_, at) => at !== index)))
-            }
+            onClick={() => update(rows.filter((_, at) => at !== index))}
           >
             <IconTrash size={16} />
           </button>
@@ -116,7 +153,7 @@ export function AuthorizationParams({
           className="icon-btn"
           aria-label="Add param"
           title="Add param"
-          onClick={() => onParams({ ...params, "": "" })}
+          onClick={() => setRows([...rows, ["", ""]])}
         >
           <IconPlus size={16} />
         </button>
