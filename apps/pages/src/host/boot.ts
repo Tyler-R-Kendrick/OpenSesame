@@ -21,7 +21,6 @@ configureHost(
       VITE_DAEMON_API: import.meta.env.VITE_DAEMON_API,
       VITE_HOST_API: import.meta.env.VITE_HOST_API,
       VITE_IDENTITY_API: import.meta.env.VITE_IDENTITY_API,
-      VITE_MFA_APP_URL: import.meta.env.VITE_MFA_APP_URL,
       VITE_OPENSESAME_CEREMONIES: import.meta.env.VITE_OPENSESAME_CEREMONIES,
       VITE_SUPPORT_AGENT_URL: import.meta.env.VITE_SUPPORT_AGENT_URL,
     },

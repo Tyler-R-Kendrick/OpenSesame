@@ -33,6 +33,12 @@ export function durablePasskeyCredentials(
       });
       return advanced;
     },
+    // Bounded by the store's capacity (DurableMap: 10,000 records).
+    listByPrincipal: async (principalId) =>
+      (await store.values()).filter(
+        (record) => record.principalId === principalId,
+      ),
+    remove: (id) => store.delete(id),
   };
 }
 

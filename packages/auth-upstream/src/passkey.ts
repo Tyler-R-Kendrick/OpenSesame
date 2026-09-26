@@ -9,6 +9,8 @@ export interface PasskeyCredential {
   publicKey: Uint8Array;
   counter: number;
   principalId: string;
+  /** ISO 8601, stamped at registration; absent on records made before it was. */
+  createdAt?: string;
 }
 
 export interface PasskeyAssertion {
@@ -64,12 +66,18 @@ export interface PasskeySeam {
   verify(
     assertion: PasskeyAssertion,
   ): Promise<{ ok: true; principalId: string } | { ok: false }>;
+  /** The principal's own credentials; never anyone else's. */
+  list(principalId: string): Promise<PasskeyCredential[]>;
+  /** Remove one of the principal's credentials; false when it is not theirs. */
+  remove(principalId: string, credentialId: string): Promise<boolean>;
 }
 
 export interface PasskeyCredentialStore {
   get(id: string): Promise<PasskeyCredential | undefined>;
   create(record: PasskeyCredential): Promise<boolean>;
   advance(id: string, counter: number): Promise<boolean>;
+  listByPrincipal(principalId: string): Promise<PasskeyCredential[]>;
+  remove(id: string): Promise<boolean>;
 }
 
 export function createMemoryPasskeyCredentialStore(): PasskeyCredentialStore {
@@ -89,6 +97,11 @@ export function createMemoryPasskeyCredentialStore(): PasskeyCredentialStore {
       credentials.set(id, { ...current, counter });
       return true;
     },
+    listByPrincipal: async (principalId) =>
+      [...credentials.values()].filter(
+        (record) => record.principalId === principalId,
+      ),
+    remove: async (id) => credentials.delete(id),
   };
 }
 
@@ -108,7 +121,11 @@ export function createPasskeySeam(options?: {
 
   return {
     async register(principalId, credential) {
-      const record: PasskeyCredential = { ...credential, principalId };
+      const record: PasskeyCredential = {
+        ...credential,
+        principalId,
+        createdAt: credential.createdAt ?? new Date().toISOString(),
+      };
       if (!(await credentials.create(record))) {
         throw new DomainError(
           "CONFLICT",
@@ -136,6 +153,13 @@ export function createPasskeySeam(options?: {
           return { ok: false };
       }
       return { ok: true, principalId: credential.principalId };
+    },
+    list: (principalId) => credentials.listByPrincipal(principalId),
+    async remove(principalId, credentialId) {
+      const credential = await credentials.get(credentialId);
+      // Someone else's credential answers exactly like a missing one.
+      if (!credential || credential.principalId !== principalId) return false;
+      return credentials.remove(credentialId);
     },
   };
 }

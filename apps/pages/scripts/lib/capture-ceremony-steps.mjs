@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { answerApprovals, approvalState } from "./capture-approval-steps.mjs";
+import { answerFactors, factorState } from "./capture-factor-steps.mjs";
 import { answerRouting, routingState } from "./capture-routing-steps.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
@@ -88,7 +89,9 @@ function answerClaims(at, request, dropManifest) {
  * - the interaction and authorization-request routes of `/i/:ref`,
  *   `/approve/:ref` and Access › Requests (`capture-approval-steps.mjs`);
  * - the notification channels, destinations, preferences and effective
- *   routes of Settings › Notifications (`capture-routing-steps.mjs`).
+ *   routes of Settings › Notifications (`capture-routing-steps.mjs`);
+ * - the account-factor routes of Settings › Security's *Your account*
+ *   rows (`capture-factor-steps.mjs`).
  *
  * Anything else is a 404, so a call the journey did not expect shows up as
  * a failure rather than quietly succeeding.
@@ -106,6 +109,7 @@ export async function identityStub(
   };
   const approvals = approvalState();
   const routing = routingState();
+  const factors = factorState();
   await page.route(`${origin}/**`, (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -147,6 +151,8 @@ export async function identityStub(
       pagesOrigin,
     );
     if (approval) return json(approval[0], approval[1]);
+    const factor = answerFactors(factors, at, request, pagesOrigin);
+    if (factor) return json(factor[0], factor[1]);
     return json(404, { error: "not_found" });
   });
 }

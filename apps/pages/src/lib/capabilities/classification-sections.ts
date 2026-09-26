@@ -171,6 +171,19 @@ export const SECTION_RULES = [
     ],
     (p) => core(p, "vault.local-unlock", "unlock methods and protectors"),
   ),
+  // The Identity account's rows and their ceremonies, in the same list and
+  // sheet as the vault's keys (ADR 0140 D10, ADR 0091 §8).
+  ...each(
+    "src/sections/settings/security/",
+    ["AccountFactorsPanel", "AccountFactorCeremony", "AccountTotpCeremony"],
+    (p) => core(p, "identity.federation", "Identity account factor rows"),
+  ),
+  // Their model: list, add a passkey or TOTP, remove.
+  core(
+    "src/lib/account-factors",
+    "identity.federation",
+    "Identity account factors model (ADR 0140 D10)",
+  ),
   ...each(
     "src/sections/settings/",
     [

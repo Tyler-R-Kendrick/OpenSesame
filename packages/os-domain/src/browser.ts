@@ -22,6 +22,8 @@ export * from "./trust.js";
 // Channel capability is one closed record (ADR 0084), and the browser reads
 // it too: a settings screen and an approval review name channels with it.
 export * from "./notifications.js";
+// An Identity-account factor as its owner sees it (ADR 0140 D10).
+export * from "./account-factors.js";
 export {
   canonicalize,
   digestManifest,

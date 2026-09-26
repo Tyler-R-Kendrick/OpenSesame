@@ -33,6 +33,7 @@ import {
   createInteractionLinkRoutes,
 } from "./routes/interaction-handoff.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
+import { mfaFactorRoutes } from "./routes/mfa-factors.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { notificationCallbackRoutes } from "./routes/notification-callbacks.js";
 import {
@@ -137,6 +138,8 @@ export function createHonoApp(
   app.route("/v1/agents", agentRoutes);
   app.route("/v1/authority", authorityRoutes);
   app.route("/v1/mfa", mfaRoutes);
+  // The caller's own factors, listed display-safe and removable (ADR 0140 D10).
+  app.route("/v1/mfa", mfaFactorRoutes);
   app.route("/v1/authentication", authenticationServiceRoutes);
   app.route("/v1/device", deviceRoutes);
   app.route("/v1/enrollment", enrollmentRoutes);

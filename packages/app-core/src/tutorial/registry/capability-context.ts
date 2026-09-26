@@ -36,6 +36,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "identity.switch-account": [],
     "vault.second-step.code": ["/unlock", "/settings/security"],
     "vault.recovery-codes": ["/unlock", "/settings/security"],
+    "identity.account-factors": ["/settings/security"],
     "identity.device.approve": ["/identity"],
     "identity.claim.accept": ["/identity"],
     "identity.drop.open": ["/identity"],

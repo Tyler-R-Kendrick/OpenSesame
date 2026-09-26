@@ -3533,6 +3533,87 @@
     }
   },
   {
+    "id": "identity.account_factors.list",
+    "title": "List the signed-in account's own passkeys and authenticator app (GET /v1/mfa/factors; never a key, seed or counter)",
+    "plane": "identity",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/account-factors.ts:listAccountFactors",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
+    "id": "identity.account_factors.enroll",
+    "title": "Add a passkey or an authenticator app to the signed-in account (POST /v1/mfa/passkey/*, /v1/mfa/totp/*)",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/account-factors.ts:enrollAccountPasskey",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
+    "id": "identity.account_factors.remove",
+    "title": "Remove one of the signed-in account's own factors (DELETE /v1/mfa/factors/:id)",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/account-factors.ts:removeAccountFactor",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
     "id": "identity.whoami",
     "title": "Resolve the identity-plane principal",
     "plane": "identity",
