@@ -68,9 +68,9 @@ export const TUTORIAL = {
 /**
  * The connection tools, each tagged with the operations it performs
  * (`connections.list` / `.inspect`, `connections.create` / `.bindings`).
- * The core keeps only those the plan approves before `agents.webmcp`
- * registers anything with the browser, so an unapproved operation has no
- * tool and the connection client is never imported by that surface.
+ * They exist only while this capability is active, and `agents.webmcp`
+ * registers the contributed set with the browser, so the connection client
+ * is never imported by that surface.
  */
 export const WEBMCP_TOOLS = [
   CONNECTIONS_READ_TOOL,

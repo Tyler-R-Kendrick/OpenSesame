@@ -10,6 +10,7 @@ import { COMMAND_SECTIONS, commandSections } from "../lib/command-bar/types.js";
 import { settingsCategories, settingsPath } from "../lib/crumbs.js";
 import { readDraftPrefill } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
+import { webmcpNavigationSeam } from "./seams.js";
 
 /**
  * The core sections a browser agent may name. Optional sections and their
@@ -18,11 +19,7 @@ import { vaultStore } from "../lib/vault/store.js";
  */
 export const SECTION_PATHS = COMMAND_SECTIONS;
 
-export const webmcpNavigationSeam = {
-  navigate: (_to: string): void => {
-    throw new Error("router_unavailable");
-  },
-};
+export { webmcpNavigationSeam };
 
 /** Authored destinations only: no external URLs, arbitrary query data or selectors. */
 export function navigationPaths(): string[] {
