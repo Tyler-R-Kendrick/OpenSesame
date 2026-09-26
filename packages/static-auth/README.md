@@ -26,6 +26,15 @@ into versioned, SRI-pinned artifacts under
 | `createLocalAgentKey`, `localAgentPublicKey`, `verifyLocalAgentChallenge` | P-256 local agent keys and `opensesame-local-agent+jws` challenges |
 | `exactOrigin`, `isLoopbackOrigin` | Origin checks shared by every profile |
 
+`signInLocalBrowser` fails as soon as the popup can no longer answer: a
+closed popup rejects with `popup_closed` on the next one-second check, and an
+issuer that announces `LOCAL_CHANNEL_VERSION` on `ready` must answer the
+relying party's `connect` with `connected` over the transferred port within
+10 s, or the sign-in rejects with `local_handshake_timeout`. It never
+reconnects to another port or origin. An issuer that announces no version is
+still accepted for one release, bounded by `popup_closed` and the 300 s
+deadline.
+
 `src/browser.ts` installs `window.OpenSesame` (`signIn`, `complete`) for the
 hosted artifact; `src/compatibility.ts` is the deprecated loopback-only root
 artifact.

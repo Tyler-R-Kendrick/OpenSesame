@@ -16,6 +16,14 @@ export type LocalAuthorizationRequest = {
   agent?: { principalId: string; keyId: string };
 };
 
+/**
+ * The popup channel version. An issuer announces it on `ready`; the relying
+ * party echoes it on `connect`; the issuer then answers `connected` over the
+ * transferred port before anything else, so a port nobody holds is detected
+ * in seconds instead of at the authorization deadline.
+ */
+export const LOCAL_CHANNEL_VERSION = "1";
+
 const FIELDS = [
   "client_id",
   "redirect_uri",

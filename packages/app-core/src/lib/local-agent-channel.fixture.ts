@@ -46,23 +46,32 @@ function channelFixture(tomb: string, request: LocalAuthorizationRequest) {
     Object.assign(new Event("message"), {
       origin: new URL(request.redirectUri).origin,
       source: opener,
-      data: { type: "opensesame:local:connect", state: request.state },
+      data: {
+        type: "opensesame:local:connect",
+        state: request.state,
+        version: "1",
+      },
       ports: [pipe.port2],
     }),
   );
 
-  return { issuer, pipe, take, status };
+  return { issuer, pipe, take, status, inbox };
 }
 
 export async function verifyAgentApplicationChannel(input: ChannelCase) {
   const { tomb, request, key, humanSession, agent, app, verifier, origin } =
     input;
-  const { issuer, pipe, take, status } = channelFixture(tomb, {
+  const { issuer, pipe, take, status, inbox } = channelFixture(tomb, {
     ...request,
     agent: { principalId: agent, keyId: key.keyId },
   });
   try {
     const challenge = await take("agent_challenge");
+    // The acknowledgement precedes the challenge on the one transferred port.
+    expect(inbox.map((row) => row.type).slice(0, 2)).toEqual([
+      "connected",
+      "agent_challenge",
+    ]);
     expect(status).not.toHaveBeenCalled();
     await expect(issuer.approveAgent(humanSession)).rejects.toThrow(
       "agent_proof_required",
