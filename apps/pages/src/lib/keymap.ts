@@ -17,6 +17,7 @@ import {
   currentVaultTarget,
   listingOf,
   movementTarget,
+  statusBubbleOpen,
   typing,
 } from "./keymap-targets.js";
 
@@ -262,6 +263,7 @@ export function createKeymapHandler(
     "/": verb(() => (currentSearchTarget() ?? currentVaultTarget())?.search()),
     Escape: (event) => {
       chord.count = 0;
+      if (statusBubbleOpen()) return;
       currentSearchTarget()?.closeSearch();
       currentVaultTarget()?.closeSearch();
       (

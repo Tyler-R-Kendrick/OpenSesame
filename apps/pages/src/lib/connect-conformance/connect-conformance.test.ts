@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Every connector, end to end (ADR 0146): the page's own builders create the
+ * Every connector, end to end (ADR 0147): the page's own builders create the
  * connector through the real relay, Connect (emulated, schema-strict) runs a
  * real authorization-code exchange against a strict provider emulator for a
  * person, and the relay's token proof acquires that person's token and gets

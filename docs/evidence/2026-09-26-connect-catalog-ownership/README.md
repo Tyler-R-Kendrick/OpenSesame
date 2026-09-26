@@ -1,4 +1,4 @@
-# Connections: which rows Connect owns (ADR 0146)
+# Connections: which rows Connect owns (ADR 0147)
 
 The connector plans cover every row of the integration catalog, and the
 previous head (`c67940e5`) let a plan replace any row it matched: bundled rows

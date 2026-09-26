@@ -1,4 +1,4 @@
-# Connections: every connector configurable, with a proven user token (ADR 0146)
+# Connections: every connector configurable, with a proven user token (ADR 0147)
 
 Before/after from two real builds — `main` and this branch — walked the same
 way by `apps/pages/scripts/capture-evidence.mjs` ([`journey.json`](journey.json)),

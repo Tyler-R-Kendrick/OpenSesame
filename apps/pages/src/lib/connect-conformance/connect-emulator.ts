@@ -1,5 +1,5 @@
 /**
- * Vercel Connect, emulated for conformance (ADR 0146): the create, read,
+ * Vercel Connect, emulated for conformance (ADR 0147): the create, read,
  * update, authorize, callback and token routes the relay calls. Every create
  * body is held to Vercel's published schema first. An OAuth connector runs a
  * real authorization-code exchange against the provider emulator with the

@@ -3588,7 +3588,7 @@
   },
   {
     "id": "identity.account_factors.remove",
-    "title": "Remove one of the signed-in account's own factors (DELETE /v1/mfa/factors/:id)",
+    "title": "Remove one of the signed-in account's own factors, proved by a fresh step-up from one of them (DELETE /v1/mfa/factors/:id; ADR 0146)",
     "plane": "identity",
     "kind": "ceremony",
     "surfaces": {
@@ -4183,7 +4183,7 @@
     "excluded": {
       "webmcp": {
         "reason": "creating or editing a connector registers an OAuth client or pastes a secret under the relay's management key; an agent surface that could do it could re-aim where people's tokens are minted",
-        "adr": "0146-connector-plans-and-user-token-proof.md"
+        "adr": "0147-connector-plans-and-user-token-proof.md"
       }
     }
   },
@@ -4202,7 +4202,7 @@
     "excluded": {
       "webmcp": {
         "reason": "authorizing a connector is the person's own consent at the provider, in their browser; an agent can ask for it through an interaction, never perform it",
-        "adr": "0146-connector-plans-and-user-token-proof.md"
+        "adr": "0147-connector-plans-and-user-token-proof.md"
       }
     }
   },
@@ -4221,7 +4221,7 @@
     "excluded": {
       "webmcp": {
         "reason": "the proof spends the relay's management key to acquire a real token; it answers metadata only, and stays with the person who holds that key",
-        "adr": "0146-connector-plans-and-user-token-proof.md"
+        "adr": "0147-connector-plans-and-user-token-proof.md"
       }
     }
   },

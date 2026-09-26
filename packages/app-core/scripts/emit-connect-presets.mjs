@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Emit `src/lib/connect-presets.generated.ts` (ADR 0146) from three specs:
+ * Emit `src/lib/connect-presets.generated.ts` (ADR 0147) from three specs:
  *
  * - `spec/connectors/connect-services.json` — Vercel Connect's public service
  *   registry and the live OAuth discovery of each MCP server it lists

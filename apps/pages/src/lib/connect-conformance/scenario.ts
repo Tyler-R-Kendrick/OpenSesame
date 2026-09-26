@@ -1,6 +1,6 @@
 /**
  * What a person types for each connector, and the provider its preset
- * describes (ADR 0146 conformance): the draft the page would submit, and the
+ * describes (ADR 0147 conformance): the draft the page would submit, and the
  * profile the provider emulator enforces.
  */
 import {

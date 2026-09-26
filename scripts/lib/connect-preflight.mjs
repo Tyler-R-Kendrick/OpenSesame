@@ -1,5 +1,5 @@
 /**
- * Live preflight of every connector's real endpoints (ADR 0146). Read-only:
+ * Live preflight of every connector's real endpoints (ADR 0147). Read-only:
  * an authorization request with a placeholder client (a live endpoint answers
  * with a login page, a redirect or `invalid_client` — never 404), the
  * provider's discovery document compared with the preset, each MCP server's

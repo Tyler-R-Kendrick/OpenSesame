@@ -110,7 +110,7 @@ export const accountCapabilities: readonly Capability[] = [
   {
     id: "identity.account_factors.remove",
     title:
-      "Remove one of the signed-in account's own factors (DELETE /v1/mfa/factors/:id)",
+      "Remove one of the signed-in account's own factors, proved by a fresh step-up from one of them (DELETE /v1/mfa/factors/:id; ADR 0146)",
     plane: "identity",
     kind: "ceremony",
     surfaces: {
