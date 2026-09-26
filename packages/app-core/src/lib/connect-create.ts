@@ -179,7 +179,7 @@ export function draftProblems(draft: ConnectorDraft): string[] {
   return [...problems, ...methodProblems(draft)];
 }
 
-function oauthData(o: OauthDraft, withSecret: boolean): JsonObject {
+export function oauthData(o: OauthDraft, withSecret: boolean): JsonObject {
   const serverConfig: JsonObject = {
     authorization_endpoint: o.authorizationEndpoint.trim(),
     token_endpoint: o.tokenEndpoint.trim(),
@@ -217,10 +217,8 @@ function oauthData(o: OauthDraft, withSecret: boolean): JsonObject {
   return data;
 }
 
-/** `values` on create; `toAdd` on update, where Connect appends a key. */
 function apiKeyData(
   draft: Extract<ConnectorDraft, { kind: "api-key" }>,
-  keyField: "values" | "toAdd" = "values",
 ): JsonObject {
   const data: JsonObject = {
     serviceUrls: draft.serviceUrls.filter(httpsUrl).slice(0, 8),
@@ -230,7 +228,7 @@ function apiKeyData(
     data.instructions = draft.instructions.trim().slice(0, 4000);
   }
   if (draft.subject === "app" && draft.key.trim()) {
-    data[keyField] = [{ value: draft.key.trim() }];
+    data.values = [{ value: draft.key.trim() }];
   }
   return data;
 }
@@ -287,85 +285,6 @@ export function createBody(
             data: apiKeyData(draft),
           };
   }
-}
-
-function methodData(draft: ConnectorDraft): JsonObject | null {
-  switch (draft.kind) {
-    case "managed":
-      return null;
-    case "oauth":
-      return oauthData(draft.oauth, true);
-    case "mcp": {
-      const data: JsonObject = {};
-      if (draft.clientId.trim()) data.clientId = draft.clientId.trim();
-      if (draft.clientSecret.trim()) {
-        data.clientSecret = draft.clientSecret.trim();
-      }
-      return data;
-    }
-    case "api-key":
-      return apiKeyData(draft, "toAdd");
-  }
-}
-
-/** Secrets Connect never reads back: sent only when a person typed one. */
-const WRITE_ONLY = new Set(["clientSecret", "toAdd"]);
-
-/**
- * `PATCH /v1/connect/connectors/{id}` — only what the person changed, as a
- * JSON merge patch against `held` (the settings as read back). Connect never
- * returns a secret, and may leave out what a preset set for it, so a field
- * the person did not touch is never sent: a rename cannot wipe the client,
- * PKCE or refresh settings. A cleared field is sent as `null`; a blank client
- * ID is never sent.
- */
-export function updateBody(
-  draft: ConnectorDraft,
-  held?: ConnectorDraft,
-): JsonObject {
-  const body: JsonObject = {};
-  if (draft.name.trim() !== held?.name.trim()) body.name = draft.name.trim();
-  if (draft.uid.trim() && draft.uid.trim() !== held?.uid.trim()) {
-    body.uid = draft.uid.trim();
-  }
-  const after = methodData(draft);
-  if (!after) return body;
-  const before = held?.kind === draft.kind ? methodData(held) : null;
-  const data = mergePatch(after, before);
-  if (Object.keys(data).length > 0) body.data = data;
-  return body;
-}
-
-/** The fields of `after` that differ from `before`, removals as `null`. */
-function mergePatch(after: JsonObject, before: JsonObject | null): JsonObject {
-  const patch: JsonObject = {};
-  for (const [key, value] of Object.entries(after)) {
-    if (key === "clientId" && value === "") continue;
-    const same =
-      before !== null &&
-      !WRITE_ONLY.has(key) &&
-      JSON.stringify(value) === JSON.stringify(before[key]);
-    if (!same) patch[key] = value;
-  }
-  for (const key of Object.keys(before ?? {})) {
-    if (!(key in after || WRITE_ONLY.has(key) || key === "clientId")) {
-      patch[key] = null;
-    }
-  }
-  return patch;
-}
-
-/**
- * Why an edit cannot be saved: the problems it introduces. What was already
- * true of the stored connector (a secret the page never holds, a preset field
- * Connect did not echo) is not the edit's to fix.
- */
-export function updateProblems(
-  draft: ConnectorDraft,
-  held: ConnectorDraft,
-): string[] {
-  const before = new Set(draftProblems(held));
-  return draftProblems(draft).filter((problem) => !before.has(problem));
 }
 
 export type ConnectSubject = { type: "user"; id: string } | { type: "app" };

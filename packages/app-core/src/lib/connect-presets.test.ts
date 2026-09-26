@@ -10,7 +10,6 @@ import {
   createBody,
   draftProblems,
   oauthDraftFrom,
-  updateBody,
 } from "./connect-create.js";
 import {
   connectSubjectId,
@@ -28,6 +27,7 @@ import {
   preferredMethod,
 } from "./connect-plan.js";
 import { CONNECT_PLAN_JSON } from "./connect-presets.generated.js";
+import { updateBody } from "./connect-update.js";
 
 function memoryStore(): WebStorage {
   const map = new Map<string, string>();
