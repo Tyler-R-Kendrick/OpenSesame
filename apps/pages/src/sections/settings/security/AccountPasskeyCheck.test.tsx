@@ -81,10 +81,14 @@ const CREATION = {
  * no bearer. `options` answers the request-options call, `assert` the
  * assertion.
  */
-function standIn(answers: {
-  options: () => Response;
-  assert: () => Response;
-}) {
+interface StandInAnswers {
+  /** The request-options call's answer. */
+  options(): Response;
+  /** The anonymous assertion's answer. */
+  assert(): Response;
+}
+
+function standIn(answers: StandInAnswers) {
   let factors: JsonObject[] = [];
   const calls: Call[] = [];
   identitySeams.identityFetch = async (
@@ -118,8 +122,16 @@ function standIn(answers: {
   return { calls };
 }
 
+/** An authenticator's response as `sdk-browser` reads it: buffers. */
+interface ResponseBuffers {
+  clientDataJSON: ArrayBuffer;
+  attestationObject?: ArrayBuffer;
+  authenticatorData?: ArrayBuffer;
+  signature?: ArrayBuffer;
+}
+
 /** Credentials as `sdk-browser` reads them: buffers, not base64. */
-function credential(response: Record<string, ArrayBuffer>): Credential {
+function credential(response: ResponseBuffers): Credential {
   return overlapCast({
     id: "cred-1",
     type: "public-key",
