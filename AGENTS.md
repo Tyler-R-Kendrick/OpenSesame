@@ -50,7 +50,7 @@ All scripts below are defined in the root `package.json` unless noted.
 
 ```bash
 pnpm bootstrap           # install + db:generate + db:migrate
-pnpm dev                 # turbo dev (control-plane, console, worker,
+pnpm dev                 # turbo dev (control-plane, worker,
                           #   mock-upstream-idp, example-rp-alpha/beta), parallel
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
@@ -64,7 +64,7 @@ pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both pl
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
-pnpm quality:bundle      # build apps/pages|pwa|console, check tools/quality/bundle-budgets.json
+pnpm quality:bundle      # build apps/pages|pwa, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
 pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
@@ -270,13 +270,11 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
 | `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
-| `apps/mobile-mfa` | Step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
-| `apps/console` | Vite Identity console (web UI) |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
 | `apps/browser-extension` | WXT browser extension |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
@@ -894,7 +892,7 @@ CI lives in `.github/workflows/`:
   (verified-commit signature preflight + frozen install + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
   `pnpm test`) and
   Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
-  Bundle budgets job that builds `apps/pages`/`pwa`/`console` and checks
+  Bundle budgets job that builds `apps/pages`/`pwa` and checks
   `tools/quality/bundle-budgets.json`. The default-branch ruleset requires all three checks
   and an up-to-date PR, with squash auto-merge; this personal-account repository
   does not support merge queues. Verify actual settings with

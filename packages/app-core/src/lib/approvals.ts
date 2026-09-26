@@ -6,8 +6,7 @@
  *
  * The protocol, the review's order and bindings and the words are
  * ceremony-kit's (`authorization-request-client.ts`, `approval-review.ts`,
- * `approval-copy.ts`, `approval-words.ts`), shared with the ceremonies app
- * until it goes. This module supplies only what differs in Pages:
+ * `approval-copy.ts`, `approval-words.ts`). This module supplies only what differs in Pages:
  *   - the transport: every call goes through `identityFetch` (its bearer,
  *     base and timeouts). There is no anonymous leg — every route here is
  *     the approver's;

@@ -17,8 +17,7 @@ cargo +1.88.0 check -p opensesame-gateway --quiet
 echo "== cli + proof + task-access =="
 cargo +1.88.0 test -p opensesame-proof -p opensesame-task-access -p opensesame-cli --quiet
 
-echo "== mcp-host + console =="
+echo "== mcp-host =="
 pnpm --filter @opensesame/mcp-host test
-pnpm --filter @opensesame/console test
 
 echo "task-security-battle-test: OK"

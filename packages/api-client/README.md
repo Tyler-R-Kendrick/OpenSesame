@@ -9,7 +9,6 @@ Responses are parsed with the `@opensesame/contracts` schemas.
 ## Where it fits
 
 - **Used by:** [`packages/app-core`](../app-core), [`packages/cli`](../cli),
-  [`apps/console`](../../apps/console),
   [`apps/browser-extension`](../../apps/browser-extension),
   [`packages/mcp-client`](../../packages/mcp-client) and
   [`packages/mcp-host`](../../packages/mcp-host).

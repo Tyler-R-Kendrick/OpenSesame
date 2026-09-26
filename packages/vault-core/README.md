@@ -9,7 +9,7 @@ CLI and a bare V8 isolate on Android all read vaults through the same code.
 
 ## Where it fits
 
-- **Used by:** [`packages/app-core`](../app-core), [`packages/cli`](../cli) (`vault verify` / `vault ls`), [`apps/pages`](../../apps/pages), [`apps/ceremonies`](../../apps/ceremonies) (opens secret drops, `src/lib/drop.ts`).
+- **Used by:** [`packages/app-core`](../app-core), [`packages/cli`](../cli) (`vault verify` / `vault ls`), [`apps/pages`](../../apps/pages).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) and [`@opensesame/vault-item-types`](../vault-item-types) — nothing else.
 - Cryptography is WebCrypto only: master password → PBKDF2-SHA256 → master key, which wraps a random 256-bit vault key with AES-GCM; PIN and passkey PRF are further wraps of the same key.
 - `openVaultFile` reads a sealed export or offline backup down to what may be shown — tomb, binding, revision, and each item's name, kind and path. No field value leaves the module.

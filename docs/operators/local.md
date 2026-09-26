@@ -39,7 +39,7 @@ DEVCONTAINER=1 cargo run -p opensesame-cli -- login --flow auto --no-browser \
   --server http://127.0.0.1:8787
 ```
 
-Approve the user code via Identity console `/device` (authenticated) which proxies to Host `/api/v1/device/approve` with a **server-side** operator token — browsers never receive `OPENSESAME_OPERATOR_TOKEN`. Direct Host approve still accepts `X-OpenSesame-Operator` for CLI/daemon tooling.
+Approve the user code at Pages' `/device` route (signed in to the Identity API), whose `POST /v1/device/approve` proxies to Host `/api/v1/device/approve` with a **server-side** operator token — browsers never receive `OPENSESAME_OPERATOR_TOKEN`. Direct Host approve still accepts `X-OpenSesame-Operator` for CLI/daemon tooling.
 
 Invoke with ConnectionRef:
 

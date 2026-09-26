@@ -6,7 +6,9 @@ Amended by: ADR 0045 (decision 10's ceremony host moved to the standalone
 ceremonies app; every other property of that decision stands);
 ADR 0046 (offer items gain an `execution_mode`, and post-claim controls —
 narrowing a live delegation — are specified there as attenuation-only
-revoke-and-replace, since this ADR's manifest digest is immutable)
+revoke-and-replace, since this ADR's manifest digest is immutable);
+ADR 0140 (the ceremonies app is deleted: `/delegate` is a Pages alias into
+Join a session)
 
 ## Context
 

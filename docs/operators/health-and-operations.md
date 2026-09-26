@@ -10,7 +10,7 @@
 | Identity control-plane | 8788 |
 | Mock upstream IdP | 9090 |
 | Authority gateway | 8787 |
-| Console / RP examples | Vite defaults (see `pnpm dev`) |
+| RP examples | Vite defaults (see `pnpm dev`) |
 
 ## Backup / restore
 - PostgreSQL logical dump is the identity store backup.

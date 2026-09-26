@@ -12,7 +12,7 @@ import { renderInteractionSummary } from "./interaction-summary.js";
 
 /**
  * The words and endings of an interaction approval (ADR 0086), with no
- * surface in them. Moved out of `apps/mobile-mfa/src/approval.ts` so the phone
+ * surface in them. Moved out of the retired Mobile MFA app's `approval.ts` so the phone
  * and Pages (ADR 0140 plan step 5) end the same question the same way: what
  * counts as settled, which authenticator is strong enough, which rendered line
  * is the one to compare with the other device, and what each refusal the

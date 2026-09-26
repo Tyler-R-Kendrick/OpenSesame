@@ -4,7 +4,7 @@
  * `#key=` fragment. Text is one sealed blob; a file is 1 MiB plaintext
  * chunks sealed on their own, each with a SHA-256 digest, and one for the
  * whole payload (the ADR 0054 attachment layout). v1 caps total ciphertext
- * at 1 MiB. Both sides share it: the vault seals, the ceremonies app opens.
+ * at 1 MiB. Both sides share it: the vault seals, Pages' `/claim` opens.
  */
 import {
   type BoundaryValue,

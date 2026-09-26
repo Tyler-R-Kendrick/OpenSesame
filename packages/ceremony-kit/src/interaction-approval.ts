@@ -20,8 +20,8 @@ import {
 /**
  * The cross-device approval ceremony (ADR 0086; ADR 0140 plan step 5):
  * load → review → activate → decide → outcome, as steps a surface asks for
- * and phases it draws. One model for what `apps/mobile-mfa`'s `Approval.tsx`
- * did in its component, so the phone and Pages cannot disagree about it. No
+ * and phases it draws. One model for what the retired Mobile MFA app's
+ * `Approval.tsx` did in its component, now Pages' `/i/:ref`. No
  * React, no page, no global: the interaction client and the authenticator are
  * injected.
  *

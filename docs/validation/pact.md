@@ -67,7 +67,6 @@ Do not add a suite that only documents the happy path.
 | os-domain | terminal claims stay terminal | malformed claim tokens parse as null | concurrent complete does not mutate the original session | fixtures have no secret fields |
 | agent-protocols | concurrent renders are deterministic | secret-shaped config refused | poisoned field yields no partial doc | `assertSafeConfig` before interpolate |
 | telemetry | allowlisted events only | forbidden values dropped not redacted | concurrent secret tracks never leak | sanitize before capture |
-| Pages PWA / console / mobile-mfa | loopback operator pin; b64url round-trip | remote operator headers empty; empty QR refused | claim stash stays in sessionStorage; QR encode stable | no `getSecret`; stash JSON only |
 | mock-upstream-idp | loopback listen | PKCE required | authorization code is single-use | `codes.delete` before PKCE verify |
 | example RPs / agent / headless | pairwise `sub` differs by sector | claimToken / `device_code` never printed | poll/device partition fails closed | mock `DO_NOT_PRINT` device_code |
 | redteam / visual-contract | corpus covers four classes; identical PNGs match | 404 mock has no secrets; dimension mismatch fails; live mcp-host confused-deputy / credential / malformed / injection-as-data | unmatched routes stay 404; inverted PNG exceeds budget | no `getSecret` tool; Playwright `test` vs `.impeccable/screenshots`; `VISUAL_UPDATE` opt-in |
