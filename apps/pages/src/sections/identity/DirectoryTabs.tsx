@@ -38,3 +38,17 @@ export function DirectoryPeople({ online }: { online: boolean }) {
   const directory = useDirectoryPanels();
   return directory ? <directory.People online={online} /> : null;
 }
+
+/** Organizations: an owner's sign-in settings, under the section's list. */
+export function DirectoryOrgSignIn({
+  online,
+  known,
+}: {
+  online: boolean;
+  known: unknown;
+}) {
+  const directory = useDirectoryPanels();
+  return directory ? (
+    <directory.OrgSignIn online={online} known={known} />
+  ) : null;
+}

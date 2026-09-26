@@ -3,7 +3,8 @@
  * to the Identity section.
  *
  * The section is `identity.local-iam`'s and always on (ADR 0142); People,
- * Agents and the directory's device approval are the directory's, and an
+ * Agents, the directory's device approval and an organization's sign-in
+ * settings (ADR 0140 plan step 12) are the directory's, and an
  * installation without it must not carry their code. So the section never
  * imports them: the directory's runtime puts them here in `activate` and
  * takes them back in `dispose`, beside the tabs it contributes
@@ -20,6 +21,8 @@ export type DirectoryPanels = {
     online: boolean;
     session: IdentitySession | null;
   }>;
+  /** Identity › Organizations' sign-in panels; `known` is the section's list. */
+  readonly OrgSignIn: ComponentType<{ online: boolean; known: unknown }>;
 };
 
 let current: DirectoryPanels | null = null;

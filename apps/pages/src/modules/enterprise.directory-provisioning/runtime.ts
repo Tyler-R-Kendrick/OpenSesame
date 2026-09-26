@@ -10,7 +10,13 @@
  * (`lib/identity-management.ts`, `sections/identity/UsersPanel.tsx`,
  * `AgentsPanel.tsx`, `DevicesPanel.tsx`) — user-initiated on tab open and
  * on each change, only when an Identity API is configured. Every directory
- * change needs it; nothing here is local.
+ * change needs it; nothing here is local. Organizations' sign-in panels
+ * (`sections/identity/org-signin/`, over app-core `lib/org-signin.ts`)
+ * read `GET /v1/organizations` and, for an organization the session owns,
+ * its `/domains` and `/scim/tokens`, on tab open; `PATCH
+ * /v1/organizations/:id`, domain claim, verify and release, and token mint
+ * and revoke only on a key press. A minted token's plaintext stays in that
+ * view's state and is never stored (ADR 0140 plan step 12).
  *
  * Side effects: none at import. The panels read on mount, and reach the
  * section through `directory-panel-slot.ts` only once this activates.
@@ -45,6 +51,7 @@ export const TUTORIAL = {
     "identity.people",
     "identity.agents",
     "identity.organization",
+    "identity.org-signin",
   ]),
   goals: pickById(IDENTITY_GOALS, [
     "identity.users.manage",

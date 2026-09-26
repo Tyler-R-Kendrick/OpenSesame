@@ -101,6 +101,11 @@ export const SECTION_RULES = [
         "Identity API directory admin",
       ),
   ),
+  optional(
+    "src/sections/identity/org-signin/",
+    "enterprise.directory-provisioning",
+    "Identity › Organizations' sign-in panels: upstream, email domains, SCIM tokens (ADR 0140 step 12)",
+  ),
   core(
     "src/sections/identity/DeviceApproval",
     "identity.ceremonies",

@@ -7,9 +7,11 @@ import { AgentsPanel } from "./AgentsPanel.js";
 import { DirectoryDevices } from "./DevicesPanel.js";
 import { UsersPanel } from "./UsersPanel.js";
 import type { DirectoryPanels } from "./directory-panel-slot.js";
+import { OrgSignInPanels } from "./org-signin/OrgSignInPanels.js";
 
 export const DIRECTORY_PANELS: DirectoryPanels = {
   People: UsersPanel,
   Agents: AgentsPanel,
   Devices: DirectoryDevices,
+  OrgSignIn: OrgSignInPanels,
 };
