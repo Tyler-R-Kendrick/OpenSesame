@@ -4023,6 +4023,114 @@
     }
   },
   {
+    "id": "identity.org_signin.upstream.manage",
+    "title": "Read and set an organization's sign-in upstream: OIDC issuer and client, or SAML IdP (PATCH /v1/organizations/:id)",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "which upstream an organization trusts and which addresses route to it decide who may sign in as its people; that is the organization owner's decision, and the upstream form carries a write-only client secret",
+        "adr": "0055-provider-registry-byo-and-org-signin.md"
+      },
+      "mcp_client": {
+        "reason": "which upstream an organization trusts and which addresses route to it decide who may sign in as its people; that is the organization owner's decision, and the upstream form carries a write-only client secret",
+        "adr": "0055-provider-registry-byo-and-org-signin.md"
+      },
+      "webmcp": {
+        "reason": "which upstream an organization trusts and which addresses route to it decide who may sign in as its people; that is the organization owner's decision, and the upstream form carries a write-only client secret",
+        "adr": "0055-provider-registry-byo-and-org-signin.md"
+      }
+    }
+  },
+  {
+    "id": "identity.org_signin.domains.manage",
+    "title": "Claim, verify and release an organization's email domains (/v1/organizations/:id/domains)",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "which upstream an organization trusts and which addresses route to it decide who may sign in as its people; that is the organization owner's decision, and the upstream form carries a write-only client secret",
+        "adr": "0055-provider-registry-byo-and-org-signin.md"
+      },
+      "mcp_client": {
+        "reason": "which upstream an organization trusts and which addresses route to it decide who may sign in as its people; that is the organization owner's decision, and the upstream form carries a write-only client secret",
+        "adr": "0055-provider-registry-byo-and-org-signin.md"
+      },
+      "webmcp": {
+        "reason": "which upstream an organization trusts and which addresses route to it decide who may sign in as its people; that is the organization owner's decision, and the upstream form carries a write-only client secret",
+        "adr": "0055-provider-registry-byo-and-org-signin.md"
+      }
+    }
+  },
+  {
+    "id": "identity.org_signin.scim_tokens.manage",
+    "title": "List and revoke an organization's SCIM provisioning tokens: ids and dates, never a value",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a provisioning token lets a directory create and remove an organization's people; listing and revoking them is the organization owner's administration",
+        "adr": "0056-native-saml-scim-and-directory-federation.md"
+      },
+      "mcp_client": {
+        "reason": "a provisioning token lets a directory create and remove an organization's people; listing and revoking them is the organization owner's administration",
+        "adr": "0056-native-saml-scim-and-directory-federation.md"
+      },
+      "webmcp": {
+        "reason": "a provisioning token lets a directory create and remove an organization's people; listing and revoking them is the organization owner's administration",
+        "adr": "0056-native-saml-scim-and-directory-federation.md"
+      }
+    }
+  },
+  {
+    "id": "identity.org_signin.scim_token.mint",
+    "title": "Mint a SCIM provisioning token; its plaintext is shown once, to the owner who asked",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
     "id": "connectors.directory.sync",
     "title": "Sync authorized connectors from a Nango-compatible directory",
     "plane": "client_local",

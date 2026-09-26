@@ -17,13 +17,17 @@ export const IDENTITY_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "enterprise.directory-provisioning",
     "Directory provisioning",
-    "Manage people, agents and devices in the Identity API's directory: users, agent registration, device approval and admin reads.",
+    "Manage people, agents and devices in the Identity API's directory: users, agent registration, device approval, admin reads, and an organization's sign-in: upstream, email domains and provisioning tokens.",
     {
       dependencies: ["identity.federation"],
       operationIds: [
         "identity.admin",
         "identity.agent.manage",
         "identity.agent.register",
+        "identity.org_signin.domains.manage",
+        "identity.org_signin.scim_token.mint",
+        "identity.org_signin.scim_tokens.manage",
+        "identity.org_signin.upstream.manage",
         "identity.users.manage",
       ],
       egress: [IDENTITY_API_EGRESS],

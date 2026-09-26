@@ -58,6 +58,14 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "identity.admin",
   },
   {
+    id: "identity.org-signin",
+    description:
+      "The Sign-in upstream panel under Organizations: the OIDC issuer or SAML IdP an organization's people sign in through, with its email domains and provisioning tokens below. Only an owner can change them.",
+    role: "action",
+    routes: ["/identity"],
+    capabilityId: "identity.org_signin.upstream.manage",
+  },
+  {
     id: "identity.register-idp",
     description:
       "Opens the ceremony that registers an identity provider, either from the shipped enterprise presets or as a custom OIDC issuer.",
