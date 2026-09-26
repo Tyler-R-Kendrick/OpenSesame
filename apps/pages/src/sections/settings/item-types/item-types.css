@@ -153,6 +153,14 @@
   margin-right: 0.25rem;
 }
 
+/* The same 0.25rem once the mark's touch target (styles.css) has taken
+   0.75rem of margin back on every side. */
+@media (pointer: coarse), (max-width: 900px) {
+  .itype__end .status-mark[data-touch-twin] {
+    margin-right: -0.5rem;
+  }
+}
+
 /* A compact list — the built-ins — is reference, not a place to act. */
 .itype-list--compact .itype__row {
   min-height: 2.5rem;

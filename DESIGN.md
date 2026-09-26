@@ -419,7 +419,11 @@ ledger in `tools/quality/design-button-baseline.json` is empty.
 ### Status is a symbol
 A status — connected, needs you, broken, revoked, saved, locked, authorized,
 enabled — is a glyph (`StatusMark`), never a pill or a label with the word
-painted on it. The sentence is `aria-label` and `title`. The glyph is one of
+painted on it. The sentence is `aria-label` and `title`, and the `title` has a
+touch twin: a tap or a long press on a mark shows that same sentence, and
+nothing else, in a transient `aria-hidden` bubble, over a 44px target that
+moves nothing around it (a mark inside a link, button or row leaves the tap
+to its parent). The glyph is one of
 the existing icons: check, alert, dismiss, lock. Colour carries the tone
 (ok, warn, err, idle). A name is not a status: a provider, a role, a person,
 or a platform may stay text. `pnpm lint:design` rejects a `.chip` whose face

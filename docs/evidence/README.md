@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-26-status-touch/`](2026-09-26-status-touch/README.md) | A status mark's touch twin |
 | [`2026-09-26-real-x509/`](2026-09-26-real-x509/README.md) | Local certificates are real X.509 now |
 | [`2026-09-26-passkey-verify/`](2026-09-26-passkey-verify/README.md) | A new account passkey is tried once (ADR 0140 plan step 11c) |
 | [`2026-09-26-org-signin/`](2026-09-26-org-signin/README.md) | Organization sign-in in Identity › Organizations (ADR 0140 plan step 12) |
