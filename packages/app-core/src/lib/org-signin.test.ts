@@ -4,12 +4,14 @@
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { deviceIdentitySeams } from "./device-identity.js";
 import { identitySeams } from "./identity.js";
 import {
   OrgSignInError,
   type OrgSignInOrganization,
   type OrgSignInTransport,
   orgSignInClient,
+  orgSignInOffered,
   upstreamPatch,
 } from "./org-signin.js";
 
@@ -265,6 +267,24 @@ describe("provisioning tokens", () => {
     );
   });
 
+  it("hands over the SCIM base address the Identity API names", async () => {
+    const { client, org } = await ownerOrg({
+      "POST /v1/organizations/org_1/scim/tokens": {
+        status: 201,
+        body: {
+          id: "sct_id_1",
+          token: "sct_plaintext_value",
+          scimBaseUrl: "https://id.example/v1/organizations/org_1/scim/v2",
+        },
+      },
+    });
+    expect(await client.mintToken(org)).toEqual({
+      id: "sct_id_1",
+      token: "sct_plaintext_value",
+      scimBaseUrl: "https://id.example/v1/organizations/org_1/scim/v2",
+    });
+  });
+
   it("refuses an answer with no plaintext rather than inventing one", async () => {
     const { client, org } = await ownerOrg({
       "POST /v1/organizations/org_1/scim/tokens": {
@@ -273,6 +293,38 @@ describe("provisioning tokens", () => {
       },
     });
     await expect(client.mintToken(org)).rejects.toThrow(/cannot read/);
+  });
+});
+
+describe("orgSignInOffered", () => {
+  const originalDevice = { ...deviceIdentitySeams };
+  afterEach(() => {
+    Object.assign(deviceIdentitySeams, originalDevice);
+  });
+  const SESSION = {
+    principalId: "prn_1",
+    accessToken: "at",
+    issuerOrigin: "https://id.example",
+  };
+
+  it("is offered only with an Identity API and a session", () => {
+    deviceIdentitySeams.remoteIdentityApi = () => "";
+    identitySeams.currentSession = () => SESSION;
+    expect(orgSignInOffered()).toBe(false);
+
+    deviceIdentitySeams.remoteIdentityApi = () => "https://id.example";
+    identitySeams.currentSession = () => null;
+    expect(orgSignInOffered()).toBe(false);
+
+    identitySeams.currentSession = () => SESSION;
+    expect(orgSignInOffered()).toBe(true);
+  });
+
+  it("is not offered through a transport that cannot say who is signed in", () => {
+    deviceIdentitySeams.remoteIdentityApi = () => "https://id.example";
+    expect(
+      orgSignInOffered({ fetch: vi.fn(), base: () => "https://id.example" }),
+    ).toBe(false);
   });
 });
 

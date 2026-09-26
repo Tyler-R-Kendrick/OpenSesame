@@ -26,19 +26,38 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { identityBase, identityFetch } from "./identity.js";
+import {
+  currentSession,
+  identityBase,
+  identityFetch,
+  isRemoteIdentityConfigured,
+} from "./identity.js";
 
 export interface OrgSignInTransport {
   /** An Identity API call; `path` is relative to the configured base. */
   fetch(path: string, init: RequestInit): Promise<Response>;
   /** The Identity API's base, for the redirect URI an owner registers. */
   base(): string;
+  /** Whether an Identity session is held. A double may leave it out. */
+  signedIn?(): boolean;
 }
 
 export const identityOrgSignInTransport: OrgSignInTransport = {
   fetch: (path, init) => identityFetch(path, init),
   base: () => identityBase(),
+  signedIn: () => currentSession() !== null,
 };
+
+/**
+ * Whether organization sign-in can be offered at all: an Identity API is
+ * configured and a session is held (ADR 0090). With either missing, a
+ * surface draws nothing and names no service.
+ */
+export function orgSignInOffered(
+  transport: OrgSignInTransport = identityOrgSignInTransport,
+): boolean {
+  return isRemoteIdentityConfigured() && (transport.signedIn?.() ?? false);
+}
 
 /** What an owner edits. The secret starts empty and is never seeded. */
 export type UpstreamForm = {
@@ -70,8 +89,16 @@ export type EmailDomainRow = {
 
 export type ScimTokenRow = { id: string; createdAt: string; revoked: boolean };
 
-/** A freshly minted token: shown once by whoever holds this, then dropped. */
-export type MintedScimToken = { id: string; token: string };
+/**
+ * A freshly minted token: shown once by whoever holds this, then dropped.
+ * `scimBaseUrl` is where the directory pushes with it, when the Identity API
+ * says so — an address, not a secret.
+ */
+export type MintedScimToken = {
+  id: string;
+  token: string;
+  scimBaseUrl?: string;
+};
 
 const WORDS: Readonly<Record<string, string>> = {
   unauthorized: "Sign in again as an owner to configure organization sign-in.",
@@ -319,7 +346,12 @@ function tokens(call: Call) {
       if (!isString(read.id) || !isString(read.token)) {
         throw new OrgSignInError(200, "malformed");
       }
-      return { id: read.id, token: read.token };
+      const base = read.scimBaseUrl;
+      return {
+        id: read.id,
+        token: read.token,
+        ...(isString(base) && base ? { scimBaseUrl: base } : {}),
+      };
     },
     async revokeToken(
       org: OrgSignInOrganization,
