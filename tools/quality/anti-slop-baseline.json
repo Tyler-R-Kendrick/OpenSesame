@@ -11,16 +11,16 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 196,
-    "violations": 620,
+    "files": 194,
+    "violations": 612,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 219,
+      "anti-slop/no-known-value-widening": 218,
       "anti-slop/no-module-mocking": 2,
       "anti-slop/no-object-parameters": 12,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 173,
+      "anti-slop/no-runtime-typeof": 166,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 40,
       "anti-slop/no-unknown-returns": 3,
@@ -109,9 +109,6 @@
     },
     "apps/pages/server/manage-auth.mjs": {
       "anti-slop/no-runtime-typeof": 10
-    },
-    "apps/pages/server/manage.mjs": {
-      "anti-slop/no-runtime-typeof": 7
     },
     "apps/pages/server/webhook-queue.mjs": {
       "anti-slop/no-runtime-typeof": 10
@@ -206,9 +203,6 @@
     },
     "apps/pages/src/modules/vault.interop-formats/runtime.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "anti-slop/no-known-value-widening": 1
     },
     "apps/pages/src/sections/access/ConnectorsPanel.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 3
