@@ -43,6 +43,7 @@ import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
 import { createActivation } from "../activation.js";
+import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 
@@ -131,7 +132,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("keymap-jump", { key: "c", path: "/connections" });
     registerTutorial(activation, TUTORIAL);
     for (const tool of WEBMCP_TOOLS) {
-      activation.register("webmcp-tool", tool);
+      activation.register("webmcp-tool", tagWebMcpTool(tool));
     }
     for (const effect of connectorUnlockEffects(ctx.lease.signal)) {
       activation.register("unlock-effect", effect);

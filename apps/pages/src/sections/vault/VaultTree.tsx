@@ -271,7 +271,7 @@ export function VaultTree({
       trash: withItem((item) => actionsRef.current.trash(item)),
       create: () => actionsRef.current.create(),
       favorite: withItem((item) => actionsRef.current.favorite(item)),
-      share: withItem((item) => actionsRef.current.share(item)),
+      share: withItem((item) => actionsRef.current.share?.(item)),
     });
   }, []);
 

@@ -114,6 +114,14 @@ describe("sharing.drops runtime", () => {
       });
       expect(purge).toHaveBeenCalledWith("itm_drop");
       expect(poll).not.toHaveBeenCalled();
+      // A run already superseded (its signal aborted) sweeps nothing.
+      purge.mockClear();
+      const aborted = new AbortController();
+      aborted.abort();
+      await sweep
+        ?.run({ tomb: "personal", guest: false, signal: aborted.signal })
+        .catch(() => undefined);
+      expect(purge).not.toHaveBeenCalled();
     } finally {
       await handle.dispose();
       Object.assign(dropSeams, { pollClaim: previous });

@@ -111,12 +111,12 @@ function contiguous(run) {
  */
 function checkArrangement(geometry, width, check) {
   const command = geometry.commandButtons;
-  // Run, and the mic beside it once the on-device model is on: speech is
-  // `support.local-ai`'s, which holds the microphone permission, so a device
-  // that never chose it draws Run alone.
+  // Run alone: speech is `support.local-ai`'s, which holds the microphone
+  // permission, and the guest this journey walks never chose it — a mic here
+  // would be optional code drawn without consent.
   check(
-    command.length === 1 || command.length === 2,
-    `the command cluster holds Run, and the mic only with the on-device model, at ${width}px`,
+    command.length === 1,
+    `the command cluster holds Run alone, no mic without the on-device model, at ${width}px`,
   );
   if (width < 900) {
     // Support and the command cluster, and nothing else: the plane keys and

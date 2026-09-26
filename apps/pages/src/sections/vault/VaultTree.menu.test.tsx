@@ -1,3 +1,4 @@
+import type { SecretItem, VaultItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import {
   act,
@@ -47,7 +48,7 @@ afterEach(() => {
   cleanup();
 });
 
-function draw(items = [makeLogin(), makeNote()]) {
+function draw(items: VaultItem[] = [makeLogin(), makeNote()]) {
   render(
     <MemoryRouter>
       <VaultTree
@@ -145,5 +146,37 @@ describe("the vault listing's context menu", () => {
       "Favorite",
       "Trash",
     ]);
+  });
+
+  it("offers Share once on a secret only when a capability contributed it", () => {
+    const secret: SecretItem = {
+      ...makeNote({ id: "itm_secret", name: "Deploy token" }),
+      kind: "secret",
+      value: "s3cr3t-value",
+      ceiling: [],
+      grantees: [],
+      connectionRef: "",
+    };
+    draw([secret]);
+    fireEvent.contextMenu(screen.getByText("Deploy token"));
+    const shared = screen.getByRole("menu", {
+      name: "Actions for Deploy token",
+    });
+    expect(
+      within(shared).getByRole("menuitem", { name: "Share once" }),
+    ).toBeTruthy();
+    act(() => closeContextMenu());
+    cleanup();
+
+    const { share: _share, ...withoutShare } = actions;
+    actions = withoutShare;
+    draw([secret]);
+    fireEvent.contextMenu(screen.getByText("Deploy token"));
+    const plain = screen.getByRole("menu", {
+      name: "Actions for Deploy token",
+    });
+    expect(
+      within(plain).queryByRole("menuitem", { name: "Share once" }),
+    ).toBeNull();
   });
 });

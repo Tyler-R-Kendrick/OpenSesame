@@ -26,10 +26,12 @@ afterEach(() => {
 });
 
 describe("the WebMCP surface exposes only what the plan approves", () => {
-  it("needs every operation a tool names", () => {
-    const both = tool("both", ["app.status", "vault.export"]);
-    expect(approvedTool(both, ["app.status", "vault.export"])).toBe(true);
-    expect(approvedTool(both, ["app.status"])).toBe(false);
+  it("needs the operation it is owned by, not every one it serves", () => {
+    // The identity summary is owned by identity.whoami and also serves
+    // identity.admin, which only directory provisioning approves.
+    const both = tool("both", ["identity.whoami", "identity.admin"]);
+    expect(approvedTool(both, ["identity.whoami"])).toBe(true);
+    expect(approvedTool(both, ["identity.admin"])).toBe(false);
   });
 
   it("never exposes an untagged tool", () => {

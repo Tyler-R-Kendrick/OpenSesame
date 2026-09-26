@@ -13,10 +13,12 @@ export function KeymapSheet({
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   useModalFocus(open, sheetRef, closeRef, close);
-  // Re-render when a jump is registered or revoked; the rows themselves come
+  // Re-render when a jump, the voice or the share is registered or revoked; the rows themselves come
   // from the same accessor the handler binds, so the sheet cannot advertise a
   // key the handler would swallow.
   useContributions("keymap-jump");
+  useContributions("command-assist");
+  useContributions("secret-share");
   const rows = keymapHelp();
 
   if (!open) return null;

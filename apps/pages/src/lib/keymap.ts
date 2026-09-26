@@ -6,7 +6,7 @@ import {
   handleCommandBarChord,
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
-import { keymapHelpRows } from "./keymap-help.js";
+import { contributedKeymapExtras, keymapHelpRows } from "./keymap-help.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 import {
@@ -46,9 +46,9 @@ export {
   showKeymapHelp,
 } from "./keymap-help.js";
 
-/** The sheet for the jumps registered right now. */
+/** The sheet for the jumps and controls registered right now. */
 export function keymapHelp() {
-  return keymapHelpRows(sectionJumpKeys());
+  return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras());
 }
 
 /**

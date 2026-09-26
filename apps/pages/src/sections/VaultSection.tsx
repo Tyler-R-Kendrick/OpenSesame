@@ -17,6 +17,7 @@ import {
   itemTypeRegistry,
   sortItems,
 } from "@opensesame/vault-core";
+import { useContributions } from "../bindings/contributions.js";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconPlus } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
@@ -101,6 +102,7 @@ export function VaultSection() {
   const previewable =
     location.pathname === "/vault" ||
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
+  const canShare = useContributions("secret-share").length > 0;
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) => {
@@ -130,12 +132,17 @@ export function VaultSection() {
       restore: (item: VaultItem) => void store.restoreItem(item.id),
       purge: (item: VaultItem) => void store.purgeItem(item.id),
       favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
-      share: (item: VaultItem) => {
-        if (item.kind === "secret") navigate(`/vault/${item.id}?share=drop`);
-      },
+      // Only a capability that contributes a way to share offers it.
+      share: canShare
+        ? (item: VaultItem) => {
+            if (item.kind === "secret")
+              navigate(`/vault/${item.id}?share=drop`);
+          }
+        : undefined,
       create: () => navigate(createPath),
     }),
     [
+      canShare,
       copySecret,
       createPath,
       itemId,

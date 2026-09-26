@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { suggestItemMetadata } from "../../webmcp/draft-suggestions.js";
 import {
+  registerContributionForTest,
+  resetContributionsForTest,
+} from "../contributions.js";
+import {
   draftSuggestionSeams,
   suggestDraftLabels,
 } from "./draft-suggestions.js";
@@ -10,6 +14,7 @@ const originalActivation = draftSuggestionSeams.userActivated;
 afterEach(() => {
   draftSuggestionSeams.model = original;
   draftSuggestionSeams.userActivated = originalActivation;
+  resetContributionsForTest();
 });
 
 function model(answer = '{"name":"Example login","username":"quiet_fox"}') {
@@ -116,6 +121,13 @@ describe("bounded on-device label suggestions", () => {
   });
   it("makes the same suggestion available through the metadata MCP tool", async () => {
     model();
+    // What support.local-ai contributes; the tool reaches the model only so.
+    registerContributionForTest("item-draft-assist", {
+      id: "on-device",
+      order: 10,
+      Suggestions: () => null,
+      suggest: (context, signal) => suggestDraftLabels({ ...context }, signal),
+    });
     expect(
       await suggestItemMetadata({
         action: "suggest",
