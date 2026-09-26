@@ -1130,6 +1130,11 @@ describe("UnlockScreen — passkey unlock", () => {
     await waitFor(() =>
       expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
     );
+    // The form ignores a submit while the first ceremony is still busy, so
+    // retry only once it has settled.
+    await waitFor(() =>
+      expect(submitButton().getAttribute("aria-busy")).toBe("false"),
+    );
     fireEvent.click(submitButton());
     await waitFor(() =>
       expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(2),
