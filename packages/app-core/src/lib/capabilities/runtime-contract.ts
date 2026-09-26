@@ -155,6 +155,11 @@ export type DraftAssistContribution = Readonly<{
   id: string;
   order: number;
   Suggestions: ComponentType<DraftAssistProps>;
+  /** The same labels for a caller with no editor: the WebMCP draft tools. */
+  suggest: (
+    context: Readonly<{ typeId: string; website?: string }>,
+    signal: AbortSignal,
+  ) => Promise<DraftLabels>;
 }>;
 
 export type CommandVoiceProps = Readonly<{

@@ -18,7 +18,7 @@
   "totals": {
     "files": 458,
     "violations": 722,
-    "oversizedLines": 235093
+    "oversizedLines": 235045
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -948,7 +948,7 @@
       "max-lines": 668
     },
     "packages/control-plane/src/__tests__/origin-profile-issuer.test.ts": {
-      "max-lines": 619
+      "max-lines": 617
     },
     "packages/control-plane/src/__tests__/pact-chaos.test.ts": {
       "complexity": 1
@@ -1078,7 +1078,7 @@
       "max-statements": 1
     },
     "packages/control-plane/src/routes/mfa.ts": {
-      "max-lines": 658,
+      "max-lines": 637,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/notification-callbacks.ts": {
@@ -1562,7 +1562,7 @@
     },
     "tools/oxlint/anti-slop/shared/dictionary-types.ts": {
       "complexity": 6,
-      "max-lines": 917,
+      "max-lines": 892,
       "max-lines-per-function": 1
     },
     "tools/oxlint/anti-slop/shared/lexical-type-parameters.ts": {

@@ -1,6 +1,6 @@
 import { type WebStorage, maybeLocalStore } from "../ports.js";
 /**
- * The connector page's form state (ADR 0146): which method, what the person
+ * The connector page's form state (ADR 0147): which method, what the person
  * typed, and the OAuth fields a preset filled in — one plain record the page
  * renders and `toConnectorDraft` turns into a create or update.
  */

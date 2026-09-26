@@ -220,3 +220,19 @@ capability that registers them, and the stores and seams core screens read
 `local-drop-claims`) are classified core. The profile matrix (BUILD-07) now
 builds clean in every mode: every selective build reports no violation, and
 the three hardened builds emit none of their excluded modules.
+
+Two consequences follow from that, both deliberate. The WebMCP surface
+registers a contributed tool only while the plan approves the operation the
+tool is owned by — the first of its `capabilityIds`; the rest are the other
+registry capabilities the same tool serves (ADR 0065) and neither admit nor
+hide it. And the model picker in Settings › Capabilities is drawn by
+`support.local-ai`, because choosing the plane (`model_plane.choose`) is that
+capability's operation: an installation that chose only `support.remote-ai`
+reads a model-provider record another choice wrote, and does not get the
+control that writes one. The WebMCP login-draft tool's `browser` source asks
+the on-device model through the same `item-draft-assist` contribution, and is
+refused without it. What remains coupled is the provider agent itself:
+`tutorial/agents/provider` (`support.remote-ai`) still reads
+`lib/model-provider` (`support.local-ai`), as `classification-mixed.ts`
+records. No shipped profile selects remote AI without local AI, so the
+profile matrix cannot see it yet.

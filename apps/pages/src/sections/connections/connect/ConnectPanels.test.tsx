@@ -200,7 +200,7 @@ describe("Resend", () => {
 describe("Linear", () => {
   it("creates the OAuth connector whole, with the scopes a person picks", async () => {
     // Pages no longer speaks Host (ADR 0128): the connector is created on
-    // Vercel Connect with its OAuth server, client and scopes (ADR 0146).
+    // Vercel Connect with its OAuth server, client and scopes (ADR 0147).
     const sent: string[] = [];
     vi.stubGlobal(
       "fetch",

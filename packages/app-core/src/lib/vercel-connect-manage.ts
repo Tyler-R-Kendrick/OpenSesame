@@ -1,5 +1,5 @@
 /**
- * Configured connectors on Vercel Connect (ADR 0146): create one with its
+ * Configured connectors on Vercel Connect (ADR 0147): create one with its
  * whole OAuth / MCP / API-key configuration, read it back, edit it, authorize
  * it on behalf of a person, and prove a person's token can be acquired.
  *

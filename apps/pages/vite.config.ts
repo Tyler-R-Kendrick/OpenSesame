@@ -99,7 +99,7 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
-    setupFiles: ["./src/host/test-setup.ts"],
+    setupFiles: ["./src/host/test-setup.ts", "./src/host/test-queries.ts"],
   },
   base,
   define: { "process.env.NODE_DEBUG_NATIVE": "false" },

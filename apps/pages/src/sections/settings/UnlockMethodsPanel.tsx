@@ -95,7 +95,7 @@ function UnlockMethodsBody() {
     setBusy(true);
     try {
       await action();
-      setMessage({ tone: "ok", text: ok });
+      if (ok !== null) setMessage({ tone: "ok", text: ok });
     } catch (caught) {
       setMessage({
         tone: "err",

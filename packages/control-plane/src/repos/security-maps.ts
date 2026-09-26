@@ -26,6 +26,8 @@ export function installDurableSecurityMaps(
     ttlMs,
   );
   stores.totpSecrets = new DurableMap(db, "OpenSesame:TotpSecret", false, null);
+  // Outlives the one step a code is good for; after that the step is past.
+  stores.totpSteps = new DurableMap(db, "OpenSesame:TotpStep", false, 120_000);
   stores.claimApprovalAttempts = new DurableMap(
     db,
     "OpenSesame:ClaimAttempt",

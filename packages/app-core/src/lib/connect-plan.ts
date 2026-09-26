@@ -1,5 +1,5 @@
 /**
- * Connector plans (ADR 0146): for each service, the ways it can be connected
+ * Connector plans (ADR 0147): for each service, the ways it can be connected
  * and everything known about each way — so a connector page opens already
  * filled in, and a person only supplies what is theirs (a client id, a
  * domain, a key).

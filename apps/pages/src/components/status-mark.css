@@ -1,0 +1,18 @@
+/* The sentence a tap or a hold shows on a status mark: the `title` a finger
+   cannot hover for (DESIGN.md § Status is a symbol). Elevated like a menu —
+   the one place a shadow means behaviour — and placed by the component
+   before it is painted. The mark's 44px target is in styles.css, with the
+   rest of the floor. */
+.status-bubble {
+  position: fixed;
+  z-index: 70;
+  max-width: min(20rem, calc(100vw - 16px));
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font: 0.8125rem var(--mono);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}

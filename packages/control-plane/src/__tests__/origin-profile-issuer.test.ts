@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
 type Started = Awaited<ReturnType<typeof startServer>>;
 const ORIGIN = "http://127.0.0.1:4101";
@@ -24,8 +24,13 @@ function authUrl(port: number, challenge: string): string {
   });
   return `http://127.0.0.1:${port}/auth?${params.toString()}`;
 }
+let start: typeof startServer;
+// The server graph's cold import (8.5 s measured under load) is setup, bounded
+// by hookTimeout; inside the first test it spent that test's whole budget.
+beforeAll(async () => {
+  ({ startServer: start } = await import("../server.js"));
+});
 async function startOriginServer(enabled: boolean): Promise<Started> {
-  const { startServer: start } = await import("../server.js");
   return start({
     config: {
       host: "127.0.0.1",
@@ -186,7 +191,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("does not CORS-restrict pre_registered clients (server-to-server token calls carry no Origin)", async () => {
     const started = await startOriginServer(true);
     try {
@@ -253,7 +257,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R3: code exchange from the exact persisted origin succeeds and yields a truthful pairwise sub", async () => {
     const started = await startOriginServer(true);
     try {
@@ -325,7 +328,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R4: authorization without a PKCE challenge does not issue a code", async () => {
     const started = await startOriginServer(true);
     try {
@@ -350,7 +352,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R5: token exchange without a code_verifier is refused", async () => {
     const started = await startOriginServer(true);
     try {
@@ -402,7 +403,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R6: authorization with PKCE method plain does not issue a code", async () => {
     const started = await startOriginServer(true);
     try {
@@ -430,7 +430,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R9: offline_access is not admitted on an origin-profile client", async () => {
     const started = await startOriginServer(true);
     try {
@@ -458,7 +457,6 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
-
   it("R10: pairwise subs differ across port-distinct origins", async () => {
     const started = await startOriginServer(true);
     try {

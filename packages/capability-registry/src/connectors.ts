@@ -1,7 +1,7 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 const ADR_CONNECTOR_DIRECTORY = "0115-front-door-and-connector-directory.md";
-const ADR_CONNECTOR_PLANS = "0146-connector-plans-and-user-token-proof.md";
+const ADR_CONNECTOR_PLANS = "0147-connector-plans-and-user-token-proof.md";
 
 const CLIENT_REGISTRATION_IS_HUMAN: CapabilityExclusion = {
   reason:
@@ -71,7 +71,7 @@ export const connectorDirectoryCapabilities: readonly Capability[] = [
 ];
 
 /**
- * Connectors on Vercel Connect, built from their plans (ADR 0146): created
+ * Connectors on Vercel Connect, built from their plans (ADR 0147): created
  * with their whole OAuth / MCP / API-key configuration, authorized by a
  * person for themselves, and proven by acquiring that person's token on the
  * relay — which answers a fingerprint and the service's own verdict, never

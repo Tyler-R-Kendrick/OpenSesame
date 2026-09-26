@@ -185,6 +185,38 @@ every installing device downloads. It is budgeted on `javascriptGzip` as well
 as `total` because 83% of that total is one 12.5 MiB Wasm file, and a
 JavaScript regression would be invisible inside it.
 
+## 5. Anti-slop ledger — `pnpm lint:anti-slop`
+
+The anti-slop rules in the root `oxlint.config.ts` apply at two scopes:
+
+- **Touched files, zero tolerance.** `pnpm lint:anti-slop:files <paths>` fails
+  on any finding. `.githooks/pre-commit` runs it on staged sources, so any file
+  a commit touches has to be clean.
+- **The whole tree, ratcheted.** `pnpm lint:anti-slop`
+  (`scripts/quality/anti-slop-gate.mjs`, in `pnpm verify` and the default
+  pre-push hook) lints every file and compares the per-file, per-rule counts
+  with `tools/quality/anti-slop-baseline.json`. That ledger records the findings
+  the tree still had when the full-repository gate was introduced.
+
+The gate fails on:
+
+- a file or rule with no entry;
+- a count above its recorded number;
+- an unused disable directive, which is never ledgered;
+- a count below its recorded number that has not been recorded yet.
+
+`pnpm lint:anti-slop --update` records improvements: it lowers counts, drops
+entries that reach zero, and drops deleted files. It refuses a run that would
+raise a count or add an entry, and it has no override. Fix a finding by
+rewriting the flagged construct, never with a disable comment.
+
+The full run takes several minutes. Most of that time is
+`anti-slop/no-unsafe-dictionary-type`, which builds a TypeScript program for
+each file. The gate therefore splits the file list across one single-threaded
+Oxlint process per core; `ANTI_SLOP_JOBS=<n>` overrides the number of
+processes. The comparison logic is tested in
+`scripts/lib/anti-slop-ledger.test.mjs`, which `pnpm quality:test` runs.
+
 ## Working with the gates
 
 Adding a feature to an already-oversized file:

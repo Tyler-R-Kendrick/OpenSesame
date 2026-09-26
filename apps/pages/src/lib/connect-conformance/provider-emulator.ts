@@ -1,6 +1,6 @@
 /**
  * A strict OAuth 2.0 authorization server standing in for one provider
- * (ADR 0146 conformance). It speaks RFC 6749 authorization code with the
+ * (ADR 0147 conformance). It speaks RFC 6749 authorization code with the
  * client authentication the connector was configured for, RFC 7636 PKCE when
  * the preset says the provider supports it, RFC 7591 registration for
  * self-registering servers, and answers the preset's own verify call — so a

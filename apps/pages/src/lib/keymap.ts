@@ -6,7 +6,7 @@ import {
   handleCommandBarChord,
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
-import { keymapHelpRows } from "./keymap-help.js";
+import { contributedKeymapExtras, keymapHelpRows } from "./keymap-help.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 import {
@@ -17,6 +17,7 @@ import {
   currentVaultTarget,
   listingOf,
   movementTarget,
+  statusBubbleOpen,
   typing,
 } from "./keymap-targets.js";
 
@@ -46,9 +47,9 @@ export {
   showKeymapHelp,
 } from "./keymap-help.js";
 
-/** The sheet for the jumps registered right now. */
+/** The sheet for the jumps and controls registered right now. */
 export function keymapHelp() {
-  return keymapHelpRows(sectionJumpKeys());
+  return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras());
 }
 
 /**
@@ -262,6 +263,7 @@ export function createKeymapHandler(
     "/": verb(() => (currentSearchTarget() ?? currentVaultTarget())?.search()),
     Escape: (event) => {
       chord.count = 0;
+      if (statusBubbleOpen()) return;
       currentSearchTarget()?.closeSearch();
       currentVaultTarget()?.closeSearch();
       (

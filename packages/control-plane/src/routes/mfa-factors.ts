@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   type AccountFactor,
@@ -10,7 +9,16 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import {
+  findOwnFactor,
+  passkeyDigest,
+  readRemovalProof,
+  refuseRemoval,
+  verifyRemovalProof,
+} from "./mfa-step-up.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+
+export { passkeyDigest } from "./mfa-step-up.js";
 
 /**
  * The signed-in principal's own account factors (ADR 0140 D10): list them,
@@ -26,15 +34,13 @@ import { authenticatedPrincipalId } from "./organizations.js";
  * Removal needs no "last factor" guard: these are second steps the Identity
  * API asks for on top of a session, not the way into the account — the
  * account is reached through its upstream sign-in, so removing the last one
- * cannot lock anybody out. A factor that is not the caller's answers exactly
- * like one that does not exist.
+ * cannot lock anybody out. It does need a step-up (ADR 0146): a fresh proof
+ * from one of the caller's own factors, the one being removed included,
+ * verified on the delete itself (`./mfa-step-up.ts`), so a stolen session
+ * cannot strip a person's second steps. A factor that is not the caller's
+ * answers exactly like one that does not exist.
  */
 export const mfaFactorRoutes = new Hono<{ Variables: Variables }>();
-
-/** The first 32 hex digits of the credential id's SHA-256, as `mfa.ts` fences it. */
-export function passkeyDigest(credentialId: string): string {
-  return createHash("sha256").update(credentialId).digest("hex").slice(0, 32);
-}
 
 function enrollable(ctx: AppContext): AccountFactorKind[] {
   // TOTP enrolment is the development build's only (`/totp/enroll` refuses
@@ -70,21 +76,27 @@ mfaFactorRoutes.delete("/factors/:id", requirePrincipal(), async (c) => {
   if (!isAccountFactorId(id)) {
     return c.json({ ok: false, error: "invalid_request" }, 400);
   }
-  let kind: AccountFactorKind;
-  let removed = false;
-  if (id === TOTP_FACTOR_ID) {
-    kind = "totp";
-    removed = await ctx.stores.totpSecrets.delete(principalId);
-  } else {
-    kind = "passkey";
-    const digest = id.slice("pk_".length);
-    const own = (await ctx.passkeys.list(principalId)).find(
-      (credential) => passkeyDigest(credential.credentialId) === digest,
-    );
-    removed = own
-      ? await ctx.passkeys.remove(principalId, own.credentialId)
-      : false;
+  const kind: AccountFactorKind = id === TOTP_FACTOR_ID ? "totp" : "passkey";
+  const target = { principalId, factorId: id, kind };
+  const proof = await readRemovalProof(c);
+  if (proof === "missing") {
+    return refuseRemoval(c, target, {
+      reason: "step_up_required",
+      status: 403,
+      error: "step_up_required",
+    });
   }
+  if (proof === "invalid") {
+    return c.json({ ok: false, error: "invalid_request" }, 400);
+  }
+  const own = await findOwnFactor(ctx, principalId, id);
+  if (!own) return c.json({ ok: false, error: "not_found" }, 404);
+  const refused = await verifyRemovalProof(c, target, proof);
+  if (refused) return refused;
+  const removed =
+    own.kind === "totp"
+      ? await ctx.stores.totpSecrets.delete(principalId)
+      : await ctx.passkeys.remove(principalId, own.credentialId);
   if (!removed) return c.json({ ok: false, error: "not_found" }, 404);
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "mfa.factor.remove",
@@ -93,7 +105,8 @@ mfaFactorRoutes.delete("/factors/:id", requirePrincipal(), async (c) => {
     correlationId: c.get("correlationId"),
     targetType: kind === "passkey" ? "passkey_digest" : "totp",
     targetId: id,
-    metadata: { action: "mfa.factor.remove", kind },
+    // `mechanism`: which of the account's factors proved the removal.
+    metadata: { action: "mfa.factor.remove", kind, mechanism: proof.kind },
   });
   return c.json({ ok: true, id, kind });
 });

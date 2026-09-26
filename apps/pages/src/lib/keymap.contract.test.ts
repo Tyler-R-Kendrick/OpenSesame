@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { registerLegacyShellData } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { describe, expect, it } from "vitest";
 import { keymapHelp } from "./keymap.js";
@@ -38,8 +39,25 @@ describe("listing keymap contract", () => {
   it("the in-app sheet spells out only the jumps that are registered", () => {
     expect(keymapHelp().at(-1)).toEqual(["g v/s", "Go to a section"]);
     const release = registerLegacyShellData();
+    const bare = keymapHelp().map(([keys]) => keys);
+    // The voice (support.local-ai) and the share (sharing.drops) are rows
+    // only while their capability contributed the control.
+    const voice = registerContributionForTest("command-assist", {
+      id: "voice",
+      order: 0,
+      interpret: async () => ({ source: "none", reason: "" }),
+      Voice: () => null,
+    });
+    const share = registerContributionForTest("secret-share", {
+      id: "drop",
+      order: 0,
+      Panel: () => null,
+    });
     const keys = keymapHelp().map(([keys]) => keys);
+    voice();
+    share();
     release();
+    expect(bare).toEqual(keys.filter((key) => key !== "m" && key !== "s"));
     expect(keys).toEqual([
       "Ctrl-l / :",
       "m",

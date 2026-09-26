@@ -27,6 +27,7 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { interpretCommand } from "@opensesame/app-core/lib/command-bar/interpret.js";
+import { suggestDraftLabels } from "@opensesame/app-core/lib/vault/draft-suggestions.js";
 import { SETTINGS_READ_TOOL } from "@opensesame/app-core/webmcp/settings-tools.js";
 import { CommandBarVoice } from "../../components/command-bar-voice.js";
 import { AiStep } from "../../screens/setup/steps/AiStep.js";
@@ -71,6 +72,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "on-device",
       order: 10,
       Suggestions: DraftSuggestions,
+      suggest: (context, signal) => suggestDraftLabels({ ...context }, signal),
     });
     // Drawn by the AI section of Settings › Capabilities, found by id; the
     // category is one no settings route renders on its own.

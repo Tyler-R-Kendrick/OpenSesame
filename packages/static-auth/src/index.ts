@@ -18,6 +18,7 @@ export {
   type LocalBrowserIdentity,
 } from "./local-browser.js";
 export {
+  LOCAL_CHANNEL_VERSION,
   parseLocalAuthorizationRequest,
   localAuthorizationQuery,
   localMessage,

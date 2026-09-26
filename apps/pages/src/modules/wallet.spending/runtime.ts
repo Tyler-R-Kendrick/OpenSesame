@@ -30,6 +30,7 @@ import {
 import { WALLET_TOOLS } from "@opensesame/app-core/webmcp/wallet-tools.js";
 import { WalletSection } from "../../sections/WalletSection.js";
 import { createActivation } from "../activation.js";
+import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { WalletTree } from "./WalletTree.js";
 
@@ -73,7 +74,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("keymap-jump", { key: "w", path: "/wallet" });
     registerTutorial(activation, TUTORIAL);
     for (const tool of WALLET_TOOLS) {
-      activation.register("webmcp-tool", tool);
+      activation.register("webmcp-tool", tagWebMcpTool(tool));
     }
 
     return activation.handle();

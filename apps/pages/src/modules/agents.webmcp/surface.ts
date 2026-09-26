@@ -9,7 +9,7 @@
  * in `SessionTools.tsx`, which is mounted exactly when the vault is open.
  *
  * Both register the *contributed* set, kept only where the plan approves
- * every operation a tool names (`approvedTool`), and both re-register when
+ * the operation a tool is owned by (`approvedTool`), and both re-register when
  * that set or the plan changes, so approving or disabling another
  * capability mid-session is reflected without a reload.
  */
@@ -31,7 +31,10 @@ function scopeOf(tool: WebMcpToolSpec): WebMcpScope | null {
 }
 
 /**
- * A tool the plan covers: every operation it names is approved. An untagged
+ * A tool the plan covers: the operation it is owned by — the first it names
+ * — is approved. The rest are the registry capabilities the same tool also
+ * serves (ADR 0065 parity), which may belong to capabilities this
+ * installation never chose, so they neither admit nor hide it. An untagged
  * tool names none and is never exposed, so a withdrawn operation — an
  * operator may withdraw even an always-on capability (ADR 0142) — takes its
  * tool off the page.
@@ -40,8 +43,8 @@ export function approvedTool(
   tool: WebMcpToolSpec,
   approved: readonly string[],
 ): boolean {
-  const ids = readOperationIds(tool);
-  return ids?.every((id) => approved.includes(id)) === true;
+  const owner = readOperationIds(tool)?.[0];
+  return owner !== undefined && approved.includes(owner);
 }
 
 /** Contributed tools of one scope the plan approves, in the registry's order. */

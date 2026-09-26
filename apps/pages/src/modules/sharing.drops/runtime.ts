@@ -29,6 +29,7 @@ import {
 } from "../../sections/vault/DropCeremony.js";
 import { NewDropCeremony } from "../../sections/vault/NewDropCeremony.js";
 import { createActivation } from "../activation.js";
+import { anySignal, runUnlessAborted } from "../signals.js";
 
 export const CAPABILITY = "sharing.drops";
 
@@ -64,13 +65,20 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 10,
       Panel: ShareSecretDrop,
     });
-    // Disposal on unlock: a claimed or lapsed drop leaves the vault.
+    // Disposal on unlock: a claimed or lapsed drop leaves the vault. It stops
+    // between drops once the lease or this run's own signal aborts.
     activation.register("unlock-effect", {
       id: "drop-sweep",
-      run: () =>
-        sweepDrops(vaultStore.getSnapshot().items, (id) =>
-          vaultStore.purgeItem(id),
-        ),
+      run: ({ signal }) => {
+        const stop = anySignal([ctx.lease.signal, signal]);
+        return runUnlessAborted(stop, () =>
+          sweepDrops(
+            vaultStore.getSnapshot().items,
+            (id) => vaultStore.purgeItem(id),
+            stop,
+          ),
+        );
+      },
     });
 
     return activation.handle();

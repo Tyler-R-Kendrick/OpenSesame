@@ -163,8 +163,12 @@ export const AUDIT =
     }
   }
 
+  // A status mark that answers a tap with its sentence (data-touch-twin,
+  // components/status-twin.ts) is a target like any key, and is held to the
+  // same floor by the same measure — its own box, not a pseudo-element.
   const CONTROLS = "a,button,input,select,textarea,summary,[role=button],[role=tab],"
-    + "[role=treeitem],[role=switch],[role=checkbox],[role=menuitem],[role=option]";
+    + "[role=treeitem],[role=switch],[role=checkbox],[role=menuitem],[role=option],"
+    + "[data-touch-twin]";
   const seen = new Set();
 
   for (const el of document.querySelectorAll(CONTROLS)) {

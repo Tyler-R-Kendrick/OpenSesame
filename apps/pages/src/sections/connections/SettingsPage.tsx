@@ -62,7 +62,7 @@ import { ConnectPanels } from "./connect/ConnectPanels.js";
 
 /**
  * Connectors Vercel's registry lists get the plan-built pages alone (ADR
- * 0146); a bundled catalog row with a plan keeps its own road and gets the
+ * 0147); a bundled catalog row with a plan keeps its own road and gets the
  * Connect panels beside it, as do the Git forges' backup form. GitHub keeps
  * its App flow; a refused service (ADR 0086 §6) gets no Connect road.
  */

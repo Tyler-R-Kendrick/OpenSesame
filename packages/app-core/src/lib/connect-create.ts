@@ -1,6 +1,6 @@
 /**
  * Connector plan + what a person typed → the Vercel Connect request bodies
- * (ADR 0146). A connector created with a bare `{ service, name }` has no
+ * (ADR 0147). A connector created with a bare `{ service, name }` has no
  * OAuth server, no client and no scopes — Connect applies a preset only when
  * `connectionMethod` names one — so every body here carries the whole
  * configuration: the standard OAuth authorization-code settings for a
