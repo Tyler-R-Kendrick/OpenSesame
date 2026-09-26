@@ -72,6 +72,7 @@ export {
 } from "./device.js";
 export {
   assertNoForbiddenParams,
+  buildCeremonyUrl,
   buildInteractionUrl,
   InteractionLinkError,
   type InteractionLinkErrorReason,

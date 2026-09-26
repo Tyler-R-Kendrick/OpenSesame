@@ -25,12 +25,13 @@ interface AgentAuthDiscovery {
 
 discoveryRoutes.get("/auth.md", (c) => {
   const ctx = c.get("ctx");
-  const { publicUrl, issuer, agentAuth } = ctx.config;
+  const { publicUrl, issuer, agentAuth, clientAppUrl } = ctx.config;
   const md = renderAuthMd({
     serviceName: "OpenSesame",
     protectedResource: publicUrl,
     authorizationServer: issuer,
-    consoleOrigin: publicUrl,
+    // The one ceremony origin (ADR 0140 §4): the client app when configured.
+    consoleOrigin: clientAppUrl ?? publicUrl,
     capabilities: {
       anonymous: agentAuth.enabled && agentAuth.anonymousEnabled,
       serviceAuth: agentAuth.enabled && agentAuth.serviceAuthEnabled,

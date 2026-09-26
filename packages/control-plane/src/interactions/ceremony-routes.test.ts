@@ -2,19 +2,21 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   INTERACTION_ROUTE,
+  claimVerificationUri,
+  clientAppLink,
   interactionPath,
   resolveContinuation,
 } from "./rendezvous.js";
 
 // The one list of ceremony routes (ADR 0139, ADR 0140 §3). The Identity API
-// does not depend on ceremony-kit, so it holds its one literal to the spec
-// here rather than reading the generated module.
+// reads its paths through ceremony-kit's builders; this holds what it emits
+// to the spec file itself, not to the generated module.
 const spec = JSON.parse(
   readFileSync(
     new URL("../../../../spec/config/ceremony-routes.json", import.meta.url),
     "utf8",
   ),
-) as { routes: { interaction: { path: string } } };
+) as { routes: Record<string, { path: string }> };
 
 const REF = `i_abc.${"a".repeat(32)}`;
 
@@ -36,6 +38,38 @@ describe("the interaction route agrees with spec/config/ceremony-routes.json", (
       mode: "launcher",
       url: `https://app.example/OpenSesame${spec.routes.interaction.path.replace("{ref}", REF)}`,
     });
+  });
+
+  it("links every Pages ceremony at the spec's path under the client app", () => {
+    const base = "https://app.example/OpenSesame/";
+    const at = (id: string, ref = "") =>
+      `https://app.example/OpenSesame${spec.routes[id]?.path.replace("{ref}", ref)}`;
+    expect(clientAppLink(base, "interaction", { ref: REF })).toBe(
+      at("interaction", REF),
+    );
+    expect(clientAppLink(base, "approve", { ref: "areq_1" })).toBe(
+      at("approve", "areq_1"),
+    );
+    expect(clientAppLink(base, "device")).toBe(at("device"));
+    expect(clientAppLink(base, "claim")).toBe(at("claim"));
+    expect(
+      claimVerificationUri(
+        { publicUrl: "https://id.example", clientAppUrl: base },
+        "clm_1",
+      ),
+    ).toBe(at("claim"));
+  });
+
+  it("links nothing without a client app, or with one that is unsafe", () => {
+    for (const clientAppUrl of [undefined, " ", "http://app.example/"]) {
+      expect(clientAppLink(clientAppUrl, "device")).toBeNull();
+      expect(
+        claimVerificationUri(
+          { publicUrl: "https://id.example", clientAppUrl },
+          "clm_1",
+        ),
+      ).toBe("https://id.example/v1/claims/clm_1/verify");
+    }
   });
 
   it("mounts the short link at the spec's interaction path", () => {
