@@ -1,5 +1,6 @@
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import {
+  LOCAL_CHANNEL_VERSION,
   type LocalAgentChallenge,
   type LocalAuthorizationRequest,
   localMessage,
@@ -64,7 +65,11 @@ export class LocalIssuerChannel {
     page().addEventListener("message", this.connect);
     page().addEventListener("pagehide", this.close);
     opener.postMessage(
-      { type: "opensesame:local:ready", state: this.request.state },
+      {
+        type: "opensesame:local:ready",
+        state: this.request.state,
+        version: LOCAL_CHANNEL_VERSION,
+      },
       this.origin,
     );
   }
@@ -104,6 +109,14 @@ export class LocalIssuerChannel {
     };
     this.port.onmessageerror = this.close;
     this.port.start();
+    // Acknowledge before anything else, and only to a relying party that
+    // asked: an older one would read an unknown first message as a failure.
+    if (message.version === LOCAL_CHANNEL_VERSION)
+      this.port.postMessage({
+        type: "connected",
+        state: this.request.state,
+        version: LOCAL_CHANNEL_VERSION,
+      });
     if (this.request.agent) void this.challengeAgent().catch(this.close);
     else this.status("connected");
   };
