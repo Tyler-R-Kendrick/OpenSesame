@@ -58,6 +58,7 @@ import { createSupportSession } from "@opensesame/support-agent";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
+import { beforeAll } from "vitest";
 import { accountSwitcherSeams } from "../../../components/AccountSwitcher.js";
 import { AppShell } from "../../../components/AppShell.js";
 import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
@@ -80,6 +81,12 @@ import {
   SupportSlotProvider,
 } from "../../ui/SupportLauncher.js";
 import type { JourneyUser } from "./harness-support.js";
+
+// The panel is `lazy()` behind the launcher; a journey's first open was a
+// cold import of its module graph inside a `findBy` window. Pay it once.
+beforeAll(async () => {
+  await import("../../ui/SupportPanel.js");
+});
 
 const lockHandlers = new Set<() => void>();
 let lockPresses = 0;

@@ -13,7 +13,7 @@ import type { FakeSupportAgent } from "@opensesame/support-agent";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { expect } from "vitest";
+import { beforeAll, expect } from "vitest";
 import {
   SupportProvider,
   type SupportTransport,
@@ -23,6 +23,14 @@ import { SupportLauncher } from "./SupportLauncher.js";
 import { type TestEngine, buildEngine } from "./support-test-engine.js";
 
 const original = { ...supportSessionSeams };
+
+// The panel is `lazy()` behind the launcher. Its first open in a file was a
+// cold import of the panel's module graph, raced against the one second
+// `findByRole("dialog")` allows; the suite pays for it once, here, instead.
+beforeAll(async () => {
+  await import("./SupportPanel.js");
+});
+
 // The identity help these answers cite belongs to the identity capability;
 // a panel on a deployment without it has nothing written to draw from.
 let revokeRealm: (() => void) | null = null;
