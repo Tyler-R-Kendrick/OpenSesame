@@ -1,0 +1,279 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "identity?view=organization"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "wait": 2
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "count": [
+            "main .identity-row",
+            "main section[aria-label^='Sign-in upstream'] .f",
+            "main .note"
+          ]
+        },
+        {
+          "marks": null
+        },
+        {
+          "scrollToOptional": "Sign-in upstream"
+        },
+        {
+          "measure": "main .panel__head .icon-btn, main .go, main .f__shell"
+        },
+        {
+          "shot": "390-organizations"
+        },
+        {
+          "fillOptional": {
+            "label": "Add a domain",
+            "text": "acme-corp.example"
+          }
+        },
+        {
+          "pressNamedOptional": "Claim this domain"
+        },
+        {
+          "scrollToOptional": "Email domains"
+        },
+        {
+          "report": "section[aria-label='Email domains'] .identity-row"
+        },
+        {
+          "marks": null
+        },
+        {
+          "measure": "section[aria-label='Email domains'] .icon-btn"
+        },
+        {
+          "shot": "390-domain-claimed"
+        },
+        {
+          "pressNamedOptional": "Mint a provisioning token"
+        },
+        {
+          "scrollToOptional": "Provisioning tokens"
+        },
+        {
+          "count": ["#org-scim-minted", "#org-scim-base"]
+        },
+        {
+          "storedCopies": "sct_evidence_standin_"
+        },
+        {
+          "marks": null
+        },
+        {
+          "measure": "section[aria-label='Provisioning tokens'] .icon-btn, #org-scim-minted"
+        },
+        {
+          "shot": "390-token-minted"
+        },
+        {
+          "pressNamedOptional": "Hide the token"
+        },
+        {
+          "count": ["#org-scim-minted"]
+        },
+        {
+          "storedCopies": "sct_evidence_standin_"
+        },
+        {
+          "report": "section[aria-label='Provisioning tokens'] .identity-row"
+        },
+        {
+          "shot": "390-token-hidden"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "identity?view=organization"
+        },
+        {
+          "pressNamedOptional": "Connect"
+        },
+        {
+          "wait": 2
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "count": [
+            "main .identity-row",
+            "main section[aria-label^='Sign-in upstream'] .f",
+            "main .note"
+          ]
+        },
+        {
+          "marks": null
+        },
+        {
+          "scrollToOptional": "Sign-in upstream"
+        },
+        {
+          "measure": "main .panel__head .icon-btn, main .go, main .f__shell"
+        },
+        {
+          "shot": "1280-organizations"
+        },
+        {
+          "fillOptional": {
+            "label": "Add a domain",
+            "text": "acme-corp.example"
+          }
+        },
+        {
+          "pressNamedOptional": "Claim this domain"
+        },
+        {
+          "scrollToOptional": "Email domains"
+        },
+        {
+          "report": "section[aria-label='Email domains'] .identity-row"
+        },
+        {
+          "marks": null
+        },
+        {
+          "measure": "section[aria-label='Email domains'] .icon-btn"
+        },
+        {
+          "shot": "1280-domain-claimed"
+        },
+        {
+          "pressNamedOptional": "Mint a provisioning token"
+        },
+        {
+          "scrollToOptional": "Provisioning tokens"
+        },
+        {
+          "count": ["#org-scim-minted", "#org-scim-base"]
+        },
+        {
+          "storedCopies": "sct_evidence_standin_"
+        },
+        {
+          "marks": null
+        },
+        {
+          "measure": "section[aria-label='Provisioning tokens'] .icon-btn, #org-scim-minted"
+        },
+        {
+          "shot": "1280-token-minted"
+        },
+        {
+          "pressNamedOptional": "Hide the token"
+        },
+        {
+          "count": ["#org-scim-minted"]
+        },
+        {
+          "storedCopies": "sct_evidence_standin_"
+        },
+        {
+          "report": "section[aria-label='Provisioning tokens'] .identity-row"
+        },
+        {
+          "shot": "1280-token-hidden"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-organizations",
+      "width": 390,
+      "title": "Identity › Organizations, an owner's organization — 390 × 844",
+      "caption": "The organization list is unchanged; under it, the branch draws the Sign-in upstream panel: the redirect URI to register (copy key), the OIDC issuer and client, the write-only client secret (a glyph says one is stored), SAML, and the FormCommit.",
+      "before": "h2: Organizations, Create an organization; 1 row; 0 sign-in fields; .note 0",
+      "after": "h2: Organizations, Sign-in upstream, Email domains, Provisioning tokens, Create an organization; 6 fields (358×45); head keys 44×44; marks: A client secret is stored, Verified, Active; .note 0"
+    },
+    {
+      "shot": "390-domain-claimed",
+      "width": 390,
+      "title": "A domain claimed, waiting for its TXT record — 390 × 844",
+      "caption": "Add a domain, then its key: the new row shows the TXT record to publish with copy, Verify and an armed Release on the row; the outcome is a StatusMark on the panel head, not a banner.",
+      "before": "no Email domains panel (0 rows)",
+      "after": "rows: acme.example (Verified), acme-corp.example + opensesame-domain-verify=tok_evidence_2 (Publish the TXT record, then verify); row keys 44×44"
+    },
+    {
+      "shot": "390-token-minted",
+      "width": 390,
+      "title": "A provisioning token, shown once — 390 × 844",
+      "caption": "The mint key on the panel head answers with the plaintext and the SCIM base URL, read-only, with copy keys and a key that hides it. The list gains the id and the date only.",
+      "before": "no Provisioning tokens panel",
+      "after": "#org-scim-minted 1, #org-scim-base 1; mark: Shown once: copy it now; stored copies of the plaintext in localStorage, sessionStorage, cookies and the address: 0"
+    },
+    {
+      "shot": "390-token-hidden",
+      "width": 390,
+      "title": "Hidden: nothing brings it back — 390 × 844",
+      "caption": "Hide the token, and the plaintext is gone from the page; the rows carry ids and dates.",
+      "before": "no Provisioning tokens panel",
+      "after": "#org-scim-minted 0; rows sct_evidence_1 (Sep 20, 2026), sct_evidence_2 (Sep 26, 2026), both Active; stored copies 0"
+    },
+    {
+      "shot": "1280-organizations",
+      "width": 1280,
+      "title": "Identity › Organizations, an owner's organization — 1280 × 900",
+      "caption": "The organization list is unchanged; under it, the branch draws the Sign-in upstream panel: the redirect URI to register (copy key), the OIDC issuer and client, the write-only client secret (a glyph says one is stored), SAML, and the FormCommit.",
+      "before": "h2: Organizations, Create an organization; 1 row; 0 sign-in fields; .note 0",
+      "after": "h2: Organizations, Sign-in upstream, Email domains, Provisioning tokens, Create an organization; 6 fields (480×36); head keys 24×24; marks: A client secret is stored, Verified, Active; .note 0"
+    },
+    {
+      "shot": "1280-domain-claimed",
+      "width": 1280,
+      "title": "A domain claimed, waiting for its TXT record — 1280 × 900",
+      "caption": "Add a domain, then its key: the new row shows the TXT record to publish with copy, Verify and an armed Release on the row; the outcome is a StatusMark on the panel head, not a banner.",
+      "before": "no Email domains panel (0 rows)",
+      "after": "rows: acme.example (Verified), acme-corp.example + opensesame-domain-verify=tok_evidence_2 (Publish the TXT record, then verify); row keys 24×24"
+    },
+    {
+      "shot": "1280-token-minted",
+      "width": 1280,
+      "title": "A provisioning token, shown once — 1280 × 900",
+      "caption": "The mint key on the panel head answers with the plaintext and the SCIM base URL, read-only, with copy keys and a key that hides it. The list gains the id and the date only.",
+      "before": "no Provisioning tokens panel",
+      "after": "#org-scim-minted 1, #org-scim-base 1; mark: Shown once: copy it now; stored copies of the plaintext in localStorage, sessionStorage, cookies and the address: 0"
+    },
+    {
+      "shot": "1280-token-hidden",
+      "width": 1280,
+      "title": "Hidden: nothing brings it back — 1280 × 900",
+      "caption": "Hide the token, and the plaintext is gone from the page; the rows carry ids and dates.",
+      "before": "no Provisioning tokens panel",
+      "after": "#org-scim-minted 0; rows sct_evidence_1 (Sep 20, 2026), sct_evidence_2 (Sep 26, 2026), both Active; stored copies 0"
+    }
+  ]
+}

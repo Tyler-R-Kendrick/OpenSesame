@@ -26,7 +26,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | console `/` sign-in | OIDC, `/v1/federated/providers` | `SignInPanel` | covered |
 | console `/claim` | as ceremonies `/claim` | the `/claim` route (step 8) | covered in Pages; the console's copy goes with it (step 14) |
 | console `/task-access` | Host task read | CLI / MCP | not moved (D4) |
-| console `/organization` | organizations, domains, SCIM tokens | Identity › Organizations (create, members); model: app-core `lib/org-signin.ts` (step 6) | partial: no panels (step 12) |
+| console `/organization` | organizations, domains, SCIM tokens | Identity › Organizations: under the section's list, an owner's *Sign-in upstream*, *Email domains* and *Provisioning tokens* panels (`sections/identity/org-signin/`, contributed by the optional `enterprise.directory-provisioning` through the directory-panel slot) over app-core `lib/org-signin.ts` (step 6; `orgSignInOffered`, and the SCIM base URL beside a minted token, step 12). Drawn only with an Identity API and a session; a minted token's plaintext lives in the view's state only and is dropped on hide, revoke, lock, sign-out and unmount (step 12) | covered in Pages; the app's copy goes with it (step 14) |
 
 ## Placement
 
@@ -41,7 +41,7 @@ and `@opensesame/app-core`, and the three apps are deleted.
 | Authenticator hand-off | `/invoke/:kind`; `.well-known/**` on Vercel | ceremony-kit `authenticator-invocation.ts`, `invocation-link.ts` | `identity.ceremonies` (route and `.well-known/**`, step 10) |
 | Notification routing | Settings › Notifications | app-core `lib/notification-routing/` + `sections/settings/notification-routing-files.ts` (a `VirtualFileProvider`) | `notifications.routing` (optional, step 11) |
 | Account factors | Settings › Security rows (*Your account*, beside the vault's keys) | app-core `lib/account-factors.ts` over the Identity API's `GET /v1/mfa/factors` (display-safe: kind, opaque id, created) and `DELETE /v1/mfa/factors/:id` (the caller's own only), added in step 11b; registry `identity.account_factors.{list,enroll,remove}` | `identity.federation` (covered, step 11b) |
-| Organization sign-in | Identity › Organizations (new files) | app-core `lib/org-signin.ts` | `enterprise.directory-provisioning` |
+| Organization sign-in | Identity › Organizations, under the section's list: `sections/identity/org-signin/` (`OrgSignInPanels.tsx`, `UpstreamPanel.tsx`, `DomainsPanel.tsx`, `TokensPanel.tsx`, `use-org-signin.ts`), drawn from `directory-panel-slot.ts`'s `OrgSignIn` | app-core `lib/org-signin.ts`; registry `identity.org_signin.{upstream,domains,scim_tokens}.manage` and `identity.org_signin.scim_token.mint` (every agent surface excluded; minting as `NEVER_AGENT_SECRET`, ADR 0005) | `enterprise.directory-provisioning` (covered, step 12) |
 | `/guest`, `/delegate` | aliases | — | `identity.ceremonies` |
 
 `identity.ceremonies` gets ADR 0130's five additions: an `alwaysOn` descriptor
