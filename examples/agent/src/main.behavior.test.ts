@@ -1,6 +1,10 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMockFetch, runAnonymousAgentDemo } from "./main.js";
+import {
+  type AnonymousAgentDemoResult,
+  createMockFetch,
+  runAnonymousAgentDemo,
+} from "./main.js";
 
 const CLAIM_ID = "clm_demo";
 const CLAIM_TOKEN = "osc_clm_demo.secretvalue000000000000000000000000";
@@ -71,7 +75,10 @@ function makeFetchImpl(options?: MockFetchOptions): typeof fetch {
   });
 }
 
-async function captureStdout(run: () => Promise<unknown>): Promise<string[]> {
+/** The lines the demo writes to stdout while `run` drives it. */
+async function captureStdout(
+  run: () => Promise<AnonymousAgentDemoResult>,
+): Promise<string[]> {
   const written: string[] = [];
   const spy = vi
     .spyOn(process.stdout, "write")

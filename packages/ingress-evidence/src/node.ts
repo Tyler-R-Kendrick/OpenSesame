@@ -179,11 +179,11 @@ export function verifyOriginatingChain(
         pathLength: path.length,
       };
     }
-    const index = pool.findIndex(
+    const issuer = pool.find(
       (candidate) => !path.includes(candidate) && issued(candidate, current),
     );
-    if (index === -1) break;
-    current = pool[index] as X509Certificate;
+    if (issuer === undefined) break;
+    current = issuer;
     path.push(current);
   }
   return fail("trust_unknown", "chain does not reach a trust anchor");

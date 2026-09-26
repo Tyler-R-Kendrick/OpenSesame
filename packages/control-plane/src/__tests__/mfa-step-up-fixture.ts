@@ -73,11 +73,10 @@ export function remove(
   id: string,
   proof?: JsonObject,
 ) {
-  return cp.app.request(`/v1/mfa/factors/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    headers: headers(token),
-    ...(proof ? { body: JSON.stringify({ proof }) } : {}),
-  });
+  const init: RequestInit = { method: "DELETE", headers: headers(token) };
+  // A removal with no proof sends no body at all, not an empty one.
+  if (proof) init.body = JSON.stringify({ proof });
+  return cp.app.request(`/v1/mfa/factors/${encodeURIComponent(id)}`, init);
 }
 
 /** A challenge minted for removing `factorId`, under `token`'s session. */

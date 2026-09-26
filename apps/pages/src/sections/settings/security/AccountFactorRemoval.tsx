@@ -80,6 +80,12 @@ function useLanding(
   }, [root, busy, landing, done]);
 }
 
+/** How the card answers a removal: the refusal's sentence, or done. */
+interface RemovalOutcome {
+  refused: (message: string) => void;
+  removed: () => void;
+}
+
 /**
  * Send the removal with its proof. The outcome is told by the card, so the
  * run carries no sentence of its own, and a refusal never reaches the
@@ -89,7 +95,7 @@ function attemptRemoval(
   run: Run,
   id: string,
   stepUp: AccountFactorStepUp,
-  outcome: { refused: (message: string) => void; removed: () => void },
+  outcome: RemovalOutcome,
 ): Promise<void> {
   return run(async () => {
     try {

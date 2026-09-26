@@ -23,12 +23,15 @@ import {
 
 const HOUR_MS = 60 * 60 * 1000;
 
-async function issueSample(): Promise<{
+/** One issued certificate, parsed, with the clock readings around its issue. */
+interface IssuedSample {
   issued: IssuedCertificate;
   cert: X509Certificate;
   before: number;
   after: number;
-}> {
+}
+
+async function issueSample(): Promise<IssuedSample> {
   const before = Date.now();
   const issued = await issueCertificate({
     commonName: "barber.local",

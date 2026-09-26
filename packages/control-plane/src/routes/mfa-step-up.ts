@@ -177,18 +177,29 @@ export interface RemovalTarget {
   kind: AccountFactorKind;
 }
 
+/** Why a factor removal was refused: what is audited, and what is answered. */
+export interface RemovalRefusal {
+  reason: string;
+  proof?: AccountFactorProof["kind"];
+  status: 403 | 429;
+  error: "step_up_required" | "step_up_failed" | "too_many_attempts";
+}
+
 /** Record a removal that did not happen, and answer the refusal. */
 export async function refuseRemoval(
   c: RouteContext,
   target: RemovalTarget,
-  refusal: {
-    reason: string;
-    proof?: AccountFactorProof["kind"];
-    status: 403 | 429;
-    error: "step_up_required" | "step_up_failed" | "too_many_attempts";
-  },
+  refusal: RemovalRefusal,
 ): Promise<Response> {
   const ctx = c.get("ctx");
+  // The mechanism is audited only when the refusal names one.
+  const metadata = refusal.proof
+    ? {
+        action: "mfa.factor.remove",
+        reason: refusal.reason,
+        mechanism: refusal.proof,
+      }
+    : { action: "mfa.factor.remove", reason: refusal.reason };
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "mfa.factor.remove",
     outcome: "denied",
@@ -196,11 +207,7 @@ export async function refuseRemoval(
     correlationId: c.get("correlationId"),
     targetType: target.kind === "passkey" ? "passkey_digest" : "totp",
     targetId: target.factorId,
-    metadata: {
-      action: "mfa.factor.remove",
-      reason: refusal.reason,
-      ...(refusal.proof ? { mechanism: refusal.proof } : {}),
-    },
+    metadata,
   });
   return c.json({ ok: false, error: refusal.error }, refusal.status);
 }
