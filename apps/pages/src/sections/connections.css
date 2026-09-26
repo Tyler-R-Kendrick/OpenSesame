@@ -635,6 +635,15 @@ button.conn-tile__link {
   margin-left: auto;
 }
 
+/* Still pushed to the row's end once the mark's touch target
+   (status-mark.css) has set its margins; the right one keeps the padding
+   from widening the row. */
+@media (pointer: coarse), (max-width: 900px) {
+  .conn-tile__link > .status-mark[data-touch-twin] {
+    margin-left: auto;
+  }
+}
+
 /* A tile opens its connector's page: the rail's and the vault list's
    chevron says so, where the tile read as a label with nothing behind it. */
 .conn-tile__go {
