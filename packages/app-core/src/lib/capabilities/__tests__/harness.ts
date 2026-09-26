@@ -130,12 +130,18 @@ export async function bootPersonalLocal(
   });
 }
 
+/** What a person is asked to sign: the selection and the receipt covering it. */
+export interface ConsentDraft {
+  draft: InstallationCapabilitySelection;
+  receipt: ConsentReceipt;
+}
+
 /** A draft selecting `selectedOptional`, plus the receipt covering exactly it. */
 export function draftFor(
   store: CompositionStore,
   selectedOptional: readonly string[],
   revision: string,
-): { draft: InstallationCapabilitySelection; receipt: ConsentReceipt } {
+): ConsentDraft {
   const plan = store.getSnapshot().plan;
   if (!plan) throw new Error("store not resolved");
   const draft: InstallationCapabilitySelection = {

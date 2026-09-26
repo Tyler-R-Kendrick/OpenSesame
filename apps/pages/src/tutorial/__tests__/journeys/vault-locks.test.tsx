@@ -39,7 +39,15 @@ async function letTheLateAnswerLand(): Promise<void> {
   }
 }
 
-describe("locking while support is busy", { timeout: 20_000 }, () => {
+/**
+ * The longest journey: the whole shell, two questions typed, a walkthrough,
+ * a lock. Profiled alone it takes ~2.0 s, all of it CPU (Testing Library's
+ * accessible-name work over the shell in jsdom, React's development build,
+ * user-event's dispatch) and none of it waiting on a clock, so it stretches
+ * with load: on 4 cores at load 23-30 the slowest runs took 17.6-19.1 s, and
+ * one run in 12 hit the old 20 s limit. 30 s gives that worst case margin.
+ */
+describe("locking while support is busy", { timeout: 30_000 }, () => {
   afterEach(resetJourney);
 
   it("drops the conversation, the walkthrough and the overlays together", async () => {
@@ -119,5 +127,5 @@ describe("locking while support is busy", { timeout: 20_000 }, () => {
     ).toBeNull();
     expect(screen.queryByText(ANSWER)).toBeNull();
     expect(screen.queryByText("How do I add a connection?")).toBeNull();
-  }, 20_000);
+  }, 30_000);
 });
