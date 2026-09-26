@@ -250,7 +250,7 @@ export function RecoveryCeremony({
 
 type TotpStage = "key" | "scan" | "confirm" | "done";
 
-function Rail({
+export function Rail({
   steps,
   now,
 }: {

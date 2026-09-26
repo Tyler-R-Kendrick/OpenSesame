@@ -111,6 +111,14 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.recovery_codes",
   },
   {
+    id: "settings.account-factors",
+    description:
+      "The Your account list under Security: the signed-in account's own passkeys and authenticator app, which the sign-in service asks for and which never open the vault. Add and Remove open the same sheet as the vault's keys.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: "identity.account_factors.enroll",
+  },
+  {
     id: "settings.capabilities",
     description:
       "The Capabilities settings category: which optional features this installation has selected, what each one would expose, and the way to add or remove one.",

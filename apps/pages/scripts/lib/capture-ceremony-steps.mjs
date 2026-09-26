@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { answerApprovals, approvalState } from "./capture-approval-steps.mjs";
+import { answerFactors, factorState } from "./capture-factor-steps.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
 function journeyDropManifest(journey, journeyPath) {
@@ -85,7 +86,9 @@ function answerClaims(at, request, dropManifest) {
  *   synthetic drop the journey names) when there is one;
  * - `GET /v1/health/live` → live;
  * - the interaction and authorization-request routes of `/i/:ref`,
- *   `/approve/:ref` and Access › Requests (`capture-approval-steps.mjs`).
+ *   `/approve/:ref` and Access › Requests (`capture-approval-steps.mjs`);
+ * - the account-factor routes of Settings › Security's *Your account*
+ *   rows (`capture-factor-steps.mjs`).
  *
  * Anything else is a 404, so a call the journey did not expect shows up as
  * a failure rather than quietly succeeding.
@@ -99,9 +102,10 @@ export async function identityStub(
     "access-control-allow-credentials": "true",
     "access-control-allow-headers":
       "authorization, content-type, accept, x-claim-token",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
   };
   const approvals = approvalState();
+  const factors = factorState();
   await page.route(`${origin}/**`, (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -139,6 +143,8 @@ export async function identityStub(
       pagesOrigin,
     );
     if (approval) return json(approval[0], approval[1]);
+    const factor = answerFactors(factors, at, request, pagesOrigin);
+    if (factor) return json(factor[0], factor[1]);
     return json(404, { error: "not_found" });
   });
 }

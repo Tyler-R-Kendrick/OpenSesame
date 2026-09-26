@@ -211,8 +211,8 @@ mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
       }
     | { response: RegistrationResponseBody }
   >();
-
-  if (!ctx.config.allowDevDefaults) {
+  // A real attestation is verified in every build; only stubs are dev-only.
+  if (!ctx.config.allowDevDefaults || "response" in body) {
     if (!("response" in body) || !body.response) {
       return c.json(
         {

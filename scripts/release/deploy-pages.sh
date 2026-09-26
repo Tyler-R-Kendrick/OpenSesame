@@ -26,7 +26,6 @@
 #                     dead on arrival. Example: https://id.example.com
 #   PAGES_HOST_API      Optional Host API base URL, same mechanism.
 #   PAGES_DAEMON_API    Optional daemon base URL, same mechanism.
-#   PAGES_MFA_APP_URL   Optional Mobile MFA PWA URL, same mechanism.
 #   PAGES_SUPPORT_AGENT_URL
 #                       Optional remote support endpoint (ADR 0087). A
 #                       destination, not a credential — the browser sends no

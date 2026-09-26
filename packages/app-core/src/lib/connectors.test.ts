@@ -45,7 +45,6 @@ function settings(over: Partial<PagesSettings> = {}): PagesSettings {
     hostApi: "",
     identityApi: "",
     daemonApi: "",
-    mfaAppUrl: "",
     capabilityConnectors: {
       ...defaultCapabilityConnectors(),
     },

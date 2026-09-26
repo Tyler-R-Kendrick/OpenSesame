@@ -136,8 +136,12 @@ describe("a claim link", () => {
     expect(harness.routes.present).not.toHaveBeenCalled();
     expect(trayed()).toBeUndefined();
     // The Connect note /device shows, and the guest road the model offers.
-    expect(screen.getByRole("button", { name: "Continue as guest" })).toBe(
-      document.activeElement,
+    // Focus lands in the effect that follows the step's commit, so wait for
+    // it rather than read it on the render that drew the mark.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Continue as guest" })).toBe(
+        document.activeElement,
+      ),
     );
 
     harness.signIn("prn_1");

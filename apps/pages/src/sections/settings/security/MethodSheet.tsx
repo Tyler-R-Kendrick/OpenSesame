@@ -13,6 +13,14 @@ import {
 } from "../../../components/Icons.js";
 import { useModalFocus } from "../../../lib/modal-focus.js";
 import {
+  ACCOUNT_SUBTITLE,
+  ACCOUNT_TITLE,
+  AccountFactorCeremony,
+  type AccountMethodKind,
+  accountFoot,
+  isAccountMethod,
+} from "./AccountFactorCeremony.js";
+import {
   KEY_SUBTITLE,
   KEY_TITLE,
   KeyCeremony,
@@ -27,11 +35,23 @@ import {
 } from "./SecondStepCeremonies.js";
 import type { Run } from "./run.js";
 
-export type MethodKind = KeyKind | "totp" | CodeChannel | "recovery";
+export type MethodKind =
+  | KeyKind
+  | "totp"
+  | CodeChannel
+  | "recovery"
+  | AccountMethodKind;
 export type MethodView = KeyView;
 
-/** What a row's action asked for: which method, and to do what with it. */
-export type SheetRequest = { kind: MethodKind; view: MethodView };
+/**
+ * What a row's action asked for: which method, and to do what with it —
+ * plus, for one of the account's factors, which one.
+ */
+export type SheetRequest = {
+  kind: MethodKind;
+  view: MethodView;
+  factor?: { id: string; name: string };
+};
 
 const TITLE = {
   ...KEY_TITLE,
@@ -39,6 +59,7 @@ const TITLE = {
   email: "Email code",
   sms: "Text message code",
   recovery: "Recovery codes",
+  ...ACCOUNT_TITLE,
 } satisfies Record<MethodKind, string>;
 
 const SUBTITLE = {
@@ -47,6 +68,7 @@ const SUBTITLE = {
   email: "For a lost phone. Sent by your sign-in service.",
   sms: "For a lost phone. Sent by your sign-in service.",
   recovery: "Each stands in for the second step once.",
+  ...ACCOUNT_SUBTITLE,
 } satisfies Record<MethodKind, string>;
 
 export function methodIcon(kind: MethodKind, size = 16): ReactNode {
@@ -59,6 +81,10 @@ export function methodIcon(kind: MethodKind, size = 16): ReactNode {
       return <IconMessage size={size} />;
     case "recovery":
       return <IconSecret size={size} />;
+    case "account-totp":
+      return <IconPhone size={size} />;
+    case "account-passkey":
+      return keyIcon("passkey", size);
     default:
       return keyIcon(kind, size);
   }
@@ -95,7 +121,19 @@ export function MethodSheet({
   const { kind, view } = request;
 
   let body: ReactNode;
-  if (kind === "passkey" || kind === "pin" || kind === "password") {
+  if (isAccountMethod(kind)) {
+    body = (
+      <AccountFactorCeremony
+        kind={kind}
+        view={view}
+        factor={request.factor}
+        busy={busy}
+        run={run}
+        onDone={onClose}
+        setFoot={setFoot}
+      />
+    );
+  } else if (kind === "passkey" || kind === "pin" || kind === "password") {
     body = (
       <KeyCeremony
         kind={kind}
@@ -179,6 +217,7 @@ export function MethodSheet({
 }
 
 function footFor(kind: MethodKind, view: MethodView): string {
+  if (isAccountMethod(kind)) return accountFoot(view);
   if (view === "remove") {
     return kind === "passkey" || kind === "pin" || kind === "password"
       ? "Removing a key does not touch the vault; it only stops opening it. The other keys keep working."

@@ -20,6 +20,23 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+  // Core: the account's rows are always-on `identity.federation` (ADR 0140 D10).
+  {
+    id: "identity.account-factors",
+    title: "Add a passkey or authenticator app to your account",
+    // Offered where the rows are, not on every route (the context budget).
+    routes: ["/settings"],
+    guide: [
+      "guide/1",
+      'goal "identity.account-factors"',
+      "say \"Your account's passkeys and authenticator app prove it is you to your sign-in service. They never open a vault: the vault's own keys are the lists above them.\"",
+      'wait state "vault.unlocked" is=true timeout=60000',
+      'navigate "/settings"',
+      'wait route "/settings" timeout=15000',
+      'focus "settings.account-factors" "Press Add on Account passkey or Account authenticator app; the sheet makes it with your sign-in service. Remove on a row takes one away." side=bottom',
+      "end",
+    ].join("\n"),
+  },
   {
     id: "setup.first-run",
     title: "Set up this deployment (optional)",

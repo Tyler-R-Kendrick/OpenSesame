@@ -1,6 +1,7 @@
 import type { ControlPlaneConfig } from "./config.js";
 import { agentManagementPaths } from "./openapi-agents.js";
 import { authorityPaths } from "./openapi-authority.js";
+import { mfaPaths } from "./openapi-mfa.js";
 import { publicAuthenticationPaths } from "./openapi-public-authentication.js";
 
 const authenticationUnauthorizedResponse = {
@@ -1017,17 +1018,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           responses: { "200": { description: "Metadata" } },
         },
       },
-      "/v1/mfa/passkey/assert": {
-        post: {
-          summary: "Verify a passkey assertion (unauthenticated, fenced)",
-          responses: {
-            "200": { description: "Assertion accepted" },
-            "400": { description: "Invalid request" },
-            "401": { description: "Assertion failed" },
-            "429": { description: "Rate fence" },
-          },
-        },
-      },
+      ...mfaPaths,
       "/v1/authentication/applications": {
         get: {
           summary: "List managed passwordless applications",

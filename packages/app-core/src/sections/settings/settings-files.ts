@@ -82,7 +82,6 @@ const CONNECTIVITY = [
   { key: "hostApi", kind: "string" },
   { key: "identityApi", kind: "string" },
   { key: "daemonApi", kind: "string" },
-  { key: "mfaAppUrl", kind: "string" },
 ] as const satisfies readonly SettingsField[];
 
 /**

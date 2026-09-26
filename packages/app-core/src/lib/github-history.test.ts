@@ -42,7 +42,6 @@ beforeEach(() => {
     hostApi: HOST,
     identityApi: "",
     daemonApi: "",
-    mfaAppUrl: "",
     capabilityConnectors: {
       ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
