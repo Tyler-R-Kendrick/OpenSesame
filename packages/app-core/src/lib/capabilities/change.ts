@@ -47,7 +47,7 @@ export function modularApproved(plan: EffectivePlan): CapabilityId[] {
   ];
 }
 
-function readVaultContext(): { tomb: string | null; guest: boolean } {
+function readVaultContext() {
   const state = vaultStore.getSnapshot();
   return { tomb: vaultIdOf(state), guest: state.guest };
 }
@@ -70,6 +70,34 @@ export const changeSeams = {
   activateApprovedCapability,
   deactivateGeneration,
 };
+
+/**
+ * The last generation whose activation pass finished: its predecessor's
+ * registrations revoked and every approved modular capability activated or
+ * refused. Until the current generation is here, what the registry holds is
+ * either the superseded generation's (about to be revoked) or a partial set
+ * — so a surface that mounts from it is torn down moments later. The shell
+ * waits for this after an unlock (`bindings/shell-ready.ts`), which is what
+ * keeps a consent popup's channel from being closed by its own unlock.
+ */
+let activated = -1;
+const activatedListeners = new Set<() => void>();
+
+export function activatedGeneration(): number {
+  return activated;
+}
+
+export function subscribeActivated(listener: () => void): () => void {
+  activatedListeners.add(listener);
+  return () => {
+    activatedListeners.delete(listener);
+  };
+}
+
+function markActivated(generation: number): void {
+  activated = generation;
+  for (const listener of [...activatedListeners]) listener();
+}
 
 /**
  * Drive activation for the store's current lease and deactivation on every
@@ -99,6 +127,7 @@ export function activatePlan(store: CompositionStore): () => void {
     }
     if (leaseIsCurrent(lease, store.getSnapshot().generation)) {
       startBackgroundJobs(lease.signal);
+      markActivated(generation);
     }
   };
 
