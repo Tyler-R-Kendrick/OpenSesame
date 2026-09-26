@@ -1,6 +1,7 @@
 import {
   type CeremonyRouteId,
   buildCeremonyUrl,
+  buildClaimLink,
   ceremonyPath,
   ceremonyRoutePrefix,
 } from "@opensesame/ceremony-kit";
@@ -179,10 +180,45 @@ export function claimVerificationUri(
   config: { publicUrl: string; clientAppUrl?: string | undefined },
   claimId: string,
 ): string {
-  return (
-    clientAppLink(config.clientAppUrl, "claim") ??
-    `${config.publicUrl}/v1/claims/${claimId}/verify`
-  );
+  return claimLinks(config, { session: { id: claimId } }).verificationUri;
+}
+
+/** A claim's links, as every claim-creation response carries them. */
+export interface ClaimLinks {
+  verificationUri: string;
+  /** `verificationUri` with the claim bearer in its fragment (RFC 8628 §3.3.1). */
+  verificationUriComplete?: string;
+}
+
+/**
+ * Both links for a freshly minted claim (ADR 0062: the bearer to present
+ * and the user code are separate factors).
+ *
+ * With a client app, `verificationUriComplete` is its `/claim` route with
+ * the bearer in the fragment — `…/claim#token=osc_clm_…` — so the person who
+ * opens it lands on a claim already presented and is asked only for the user
+ * code, as the auth.md flow's claim-attempt link does (ADR 0092). The
+ * fragment never reaches a server log or a `Referer`, and the response that
+ * carries this link already carries the bearer itself as `claimToken`.
+ * Without a client app the field is omitted: the zero-JS verify page cannot
+ * complete a claim, so there is nothing to open it with.
+ */
+export function claimLinks(
+  config: { publicUrl: string; clientAppUrl?: string | undefined },
+  claim: { session: { id: string }; token?: string },
+): ClaimLinks {
+  const route = clientAppLink(config.clientAppUrl, "claim");
+  if (route === null) {
+    return {
+      verificationUri: `${config.publicUrl}/v1/claims/${claim.session.id}/verify`,
+    };
+  }
+  return claim.token === undefined
+    ? { verificationUri: route }
+    : {
+        verificationUri: route,
+        verificationUriComplete: buildClaimLink(route, claim.token),
+      };
 }
 
 /**

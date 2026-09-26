@@ -25,6 +25,8 @@ export const LOG_REDACT_PATHS = [
   "token",
   "userCode",
   "user_code",
+  "verificationUriComplete",
+  "verification_uri_complete",
   "deviceCode",
   "device_code",
   "client_secret",
@@ -40,6 +42,8 @@ export const LOG_REDACT_PATHS = [
   "*.token",
   "*.userCode",
   "*.user_code",
+  "*.verificationUriComplete",
+  "*.verification_uri_complete",
   "*.deviceCode",
   "*.device_code",
   "*.client_secret",
@@ -50,11 +54,15 @@ export const LOG_REDACT_PATHS = [
 /**
  * Sensitive key names, matched at any depth.
  *
+ * `verification_uri_complete` carries a bearer or a code in the URL itself
+ * (a claim's `#token=osc_clm_…`, a device flow's `user_code`), so it is
+ * censored like the token it carries.
+ *
  * Pino's `redact.paths` wildcard only matches one level, so `*.token` misses
  * `ctx.session.access_token`. This pattern backs a deep walk instead.
  */
 export const SENSITIVE_KEY_PATTERN =
-  /^(?:authorization|cookie|set-cookie|access[_-]?token|refresh[_-]?token|id[_-]?token|claim[_-]?token|attempt[_-]?token|session[_-]?token|operator[_-]?token|bearer|token|user[_-]?code|device[_-]?code|client[_-]?secret|api[_-]?key|api[_-]?secret|secret|password|passphrase|pin|private[_-]?key|authorization[_-]?code|code[_-]?verifier|assertion|dpop|ciphertext)$/i;
+  /^(?:authorization|cookie|set-cookie|access[_-]?token|refresh[_-]?token|id[_-]?token|claim[_-]?token|attempt[_-]?token|session[_-]?token|operator[_-]?token|bearer|token|user[_-]?code|verification[_-]?uri[_-]?complete|device[_-]?code|client[_-]?secret|api[_-]?key|api[_-]?secret|secret|password|passphrase|pin|private[_-]?key|authorization[_-]?code|code[_-]?verifier|assertion|dpop|ciphertext)$/i;
 
 const CENSOR = "[Redacted]";
 /** Depth ceiling so a hostile/cyclic object cannot stall the logger. */
