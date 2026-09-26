@@ -181,7 +181,7 @@ describe("ItemEditor", () => {
     expect(await screen.findByText("navigated away")).toBeTruthy();
   });
 
-  it.skip("behavior: issues and seals a new certificate in one submit", async () => {
+  it("behavior: issues and seals a new certificate in one submit", async () => {
     renderNew("/vault/new/certificate");
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.clear(screen.getByLabelText(/Common name/i));
@@ -256,7 +256,7 @@ describe("ItemEditor", () => {
     });
   });
 
-  it.skip("adversarial: does not save when Host issuance fails", async () => {
+  it("adversarial: does not save when Host issuance fails", async () => {
     issueCertificateFromHost.mockRejectedValueOnce(new Error("issuer offline"));
     renderNew("/vault/new/certificate");
     await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
@@ -270,7 +270,7 @@ describe("ItemEditor", () => {
     expect(saveItem).not.toHaveBeenCalled();
   });
 
-  it.skip("retries vault sealing without issuing another certificate", async () => {
+  it("retries vault sealing without issuing another certificate", async () => {
     saveItem
       .mockRejectedValueOnce(new Error("vault temporarily locked"))
       .mockResolvedValueOnce(undefined);
@@ -290,7 +290,7 @@ describe("ItemEditor", () => {
     expect(saveItem.mock.calls[1]?.[0]).toEqual(saveItem.mock.calls[0]?.[0]);
   });
 
-  it.skip("issues a blank legacy certificate instead of saving it blank", async () => {
+  it("issues a blank legacy certificate instead of saving it blank", async () => {
     vault.current = { items: [makeCertificate()], folders: [] };
     render(
       <MemoryRouter initialEntries={["/vault/itm_cert/edit"]}>

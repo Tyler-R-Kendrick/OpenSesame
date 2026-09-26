@@ -1,0 +1,104 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/certificate" },
+        { "fill": { "label": "Common name", "text": "barber.local" } },
+        { "press": "Add DNS names" },
+        {
+          "fill": {
+            "label": "DNS names",
+            "text": "barber.local, www.barber.local"
+          }
+        },
+        { "press": "Add IP addresses" },
+        { "fill": { "label": "IP addresses", "text": "127.0.0.1, ::1" } },
+        { "press": "Create certificate" },
+        { "scrollTo": "Dev certificate" },
+        { "report": ".detail__group .frow" },
+        { "measure": ".detail__group .frow__value" },
+        { "shot": "390-issued" },
+        { "visit": "vault/new/certificate" },
+        { "fill": { "label": "Common name", "text": "shop.local" } },
+        { "press": "Add DNS names" },
+        { "fill": { "label": "DNS names", "text": "shop_front.local" } },
+        { "press": "Create certificate" },
+        { "report": "[role=alert]" },
+        { "report": ".detail__group .frow" },
+        { "address": null },
+        { "shot": "390-refused" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/certificate" },
+        { "fill": { "label": "Common name", "text": "barber.local" } },
+        { "press": "Add DNS names" },
+        {
+          "fill": {
+            "label": "DNS names",
+            "text": "barber.local, www.barber.local"
+          }
+        },
+        { "press": "Add IP addresses" },
+        { "fill": { "label": "IP addresses", "text": "127.0.0.1, ::1" } },
+        { "press": "Create certificate" },
+        { "scrollTo": "Dev certificate" },
+        { "report": ".detail__group .frow" },
+        { "measure": ".detail__group .frow__value" },
+        { "shot": "1280-issued" },
+        { "visit": "vault/new/certificate" },
+        { "fill": { "label": "Common name", "text": "shop.local" } },
+        { "press": "Add DNS names" },
+        { "fill": { "label": "DNS names", "text": "shop_front.local" } },
+        { "press": "Create certificate" },
+        { "report": "[role=alert]" },
+        { "report": ".detail__group .frow" },
+        { "address": null },
+        { "shot": "1280-refused" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-issued",
+      "width": 390,
+      "title": "A new certificate record — 390 × 844",
+      "caption": "Create certificate for barber.local with two DNS names and two IP addresses, then the record it saves.",
+      "before": "Serial 9f652e06 (8 hex, 32 bits); value box 324×23, one line; Expires …38.329Z",
+      "after": "Serial 62D29E0E…3766 (32 hex, 128 bits); value box 324×23, one line; Expires …36.000Z"
+    },
+    {
+      "shot": "1280-issued",
+      "width": 1280,
+      "title": "A new certificate record — 1280 × 900",
+      "caption": "The same walk at desktop width.",
+      "before": "Serial 50f44529 (8 hex); value box 606×23; Expires …57.484Z",
+      "after": "Serial 241C07CB…7540 (32 hex); value box 606×23; Expires …55.000Z"
+    },
+    {
+      "shot": "390-refused",
+      "width": 390,
+      "title": "An invalid DNS name — 390 × 844",
+      "caption": "Create certificate with the DNS name shop_front.local. A hostname cannot contain an underscore.",
+      "before": "no alert; saved at /vault/2f7ce1ff…, DNS names shop_front.local",
+      "after": "alert “\"shop_front.local\" is not a valid DNS name.”; stays on /vault/new/certificate"
+    },
+    {
+      "shot": "1280-refused",
+      "width": 1280,
+      "title": "An invalid DNS name — 1280 × 900",
+      "caption": "The same walk at desktop width.",
+      "before": "no alert; saved at /vault/7360cb98…, DNS names shop_front.local",
+      "after": "alert “\"shop_front.local\" is not a valid DNS name.”; stays on /vault/new/certificate"
+    }
+  ]
+}
