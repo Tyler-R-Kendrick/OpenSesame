@@ -39,9 +39,29 @@ export { buildGraph } from "./lib/capability-build-graph.mjs";
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+/**
+ * Rollup's `input` (`InputOption`) is a path, a list of paths, or a record of
+ * entry alias → path. Only the record names its entries, so only the record
+ * can lose one; the other two forms decode to null. `Object(input) === input`
+ * holds exactly for an object — a path string is boxed into a new one.
+ */
+function namedInputs(input) {
+  if (!input || Array.isArray(input) || Object(input) !== input) return null;
+  return input;
+}
+
+/**
+ * Rollup's `manualChunks` (`ManualChunksOption`) is a chunk function or a
+ * record of chunk alias → modules. The partition defers to the function form
+ * and supersedes the record form, so only a function decodes.
+ */
+function chunkFunction(manualChunks) {
+  return manualChunks instanceof Function ? manualChunks : null;
+}
+
 function pruneInputs(build, state) {
-  const input = build.rollupOptions?.input;
-  if (!input || typeof input !== "object" || Array.isArray(input)) return;
+  const input = namedInputs(build.rollupOptions?.input);
+  if (!input) return;
   for (const [name, file] of Object.entries(input)) {
     const rel = toPosix(relative(state.appRoot, file));
     const owner = state.htmlEntries.find((e) => e.path === rel);
@@ -87,8 +107,7 @@ function installManualChunks(build, state) {
     ? rollupOptions.output
     : [rollupOptions.output];
   for (const output of outputs) {
-    const previous =
-      typeof output.manualChunks === "function" ? output.manualChunks : null;
+    const previous = chunkFunction(output.manualChunks);
     output.manualChunks = (id, api) => {
       if (partitionable(id)) {
         const entry = state.classify(id);
