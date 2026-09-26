@@ -54,7 +54,7 @@ beforeEach(() => {
   });
   Object.assign(dropSeams, {
     ...originals,
-    ceremoniesBase: () => "https://ceremonies.example",
+    claimBase: () => "https://pages.example/OpenSesame",
   });
 });
 
@@ -302,7 +302,7 @@ describe("claim transport", () => {
       claimId: "clm_1",
       bearerToken: "osc_clm_clm_1.secret",
       userCode: "ABCD-EFGH",
-      verifyUrl: "https://ceremonies.example/claim",
+      verifyUrl: "https://pages.example/OpenSesame/claim",
       expiresAt: "2026-08-29T21:00:00.000Z",
     });
 
@@ -421,12 +421,12 @@ describe("claim transport", () => {
 describe("dropLink", () => {
   it("carries bearer and key in the fragment only", () => {
     const link = dropLink(
-      "https://ceremonies.example/claim",
+      "https://pages.example/OpenSesame/claim",
       "osc_clm_clm_1.secret",
       "keymaterial-_",
     );
     expect(link).toBe(
-      "https://ceremonies.example/claim#token=osc_clm_clm_1.secret&key=keymaterial-_",
+      "https://pages.example/OpenSesame/claim#token=osc_clm_clm_1.secret&key=keymaterial-_",
     );
     const fragment = new URLSearchParams(link.split("#")[1] ?? "");
     expect(fragment.get("token")).toBe("osc_clm_clm_1.secret");

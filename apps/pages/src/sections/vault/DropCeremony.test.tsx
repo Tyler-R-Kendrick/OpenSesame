@@ -70,7 +70,7 @@ function sessionFor(claimId = "clm_test") {
     claimId,
     bearerToken: `osc_clm_${claimId}.secret`,
     userCode: "ABCD-EFGH",
-    verifyUrl: "https://ceremonies.example/claim",
+    verifyUrl: "https://pages.example/OpenSesame/claim",
     expiresAt: "2026-08-30T10:00:00.000Z",
   };
 }
