@@ -8,6 +8,7 @@ const CLAIM_TOKEN = "osc_clm_demo.secretvalue000000000000000000000000";
 interface MockFetchOptions {
   claimStates?: string[];
   verificationUri?: string;
+  verificationUriComplete?: string;
 }
 
 function makeFetchImpl(options?: MockFetchOptions): typeof fetch {
@@ -41,6 +42,9 @@ function makeFetchImpl(options?: MockFetchOptions): typeof fetch {
           userCode: "AGNT-CLAIM",
           verificationUri:
             options?.verificationUri ?? "http://localhost:5180/claim",
+          ...(options?.verificationUriComplete
+            ? { verificationUriComplete: options.verificationUriComplete }
+            : undefined),
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
         }),
       );
@@ -65,6 +69,22 @@ function makeFetchImpl(options?: MockFetchOptions): typeof fetch {
     }
     throw new Error(`unexpected ${url}`);
   });
+}
+
+async function captureStdout(run: () => Promise<unknown>): Promise<string[]> {
+  const written: string[] = [];
+  const spy = vi
+    .spyOn(process.stdout, "write")
+    .mockImplementation((chunk: string | Uint8Array) => {
+      written.push(String(chunk));
+      return true;
+    });
+  try {
+    await run();
+  } finally {
+    spy.mockRestore();
+  }
+  return written.join("").split("\n");
 }
 
 describe("example-agent behavior", () => {
@@ -108,6 +128,36 @@ describe("example-agent behavior", () => {
     await expect(
       runAnonymousAgentDemo({ fetchImpl, sleep: async () => undefined }),
     ).rejects.toThrow("claimToken was not redacted");
+  });
+
+  it("prints the complete link and the user code, and the bearer nowhere else", async () => {
+    const complete = `http://localhost:5180/claim#token=${CLAIM_TOKEN}`;
+    const lines = await captureStdout(() =>
+      runAnonymousAgentDemo({
+        fetchImpl: makeFetchImpl({ verificationUriComplete: complete }),
+        sleep: async () => undefined,
+      }),
+    );
+    expect(lines).toContain(`Claim at: ${complete}`);
+    expect(lines).toContain("User code: AGNT-CLAIM");
+    // The link is the one line that carries the bearer; the logged payload
+    // has it and the link redacted.
+    expect(lines.filter((line) => line.includes(CLAIM_TOKEN))).toEqual([
+      `Claim at: ${complete}`,
+    ]);
+    const safe = lines.find((line) => line.startsWith("Safe payload: "));
+    expect(safe).toContain('"verificationUriComplete":"[redacted]"');
+  });
+
+  it("prints the bare page when there is no complete link", async () => {
+    const lines = await captureStdout(() =>
+      runAnonymousAgentDemo({
+        fetchImpl: makeFetchImpl(),
+        sleep: async () => undefined,
+      }),
+    );
+    expect(lines).toContain("Claim at: http://localhost:5180/claim");
+    expect(lines.some((line) => line.includes(CLAIM_TOKEN))).toBe(false);
   });
 
   it("uses the default sleep and poll count when options are omitted", async () => {

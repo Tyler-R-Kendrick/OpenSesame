@@ -35,6 +35,8 @@ export const CreateClaimResponseSchema = z.object({
   claimToken: z.string().regex(/^osc_clm_/),
   userCode: z.string().min(4),
   verificationUri: z.string().url(),
+  /** `verificationUri` with the claim bearer in its fragment (RFC 8628 §3.3.1); absent without a client app. */
+  verificationUriComplete: z.string().url().optional(),
   expiresAt: z.string().datetime(),
   targetManifestDigest: z.string(),
   pollIntervalSeconds: z.number().int().positive(),

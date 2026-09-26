@@ -2,7 +2,7 @@
 
 A command-line agent that registers itself anonymously with the Identity API
 and waits for a person to claim it. It mints a provisional principal, registers
-an agent under it, prints the claim URL and user code, then polls the claim
+an agent under it, prints the claim link and user code, then polls the claim
 until it is completed, denied or expired. It finishes by rendering an `auth.md`
 and an agent card for the same API.
 
@@ -16,9 +16,14 @@ and an agent card for the same API.
   [`@opensesame/contracts`](../../packages/contracts) (response schemas),
   [`@opensesame/agent-protocols`](../../packages/agent-protocols)
   (`renderAuthMd`, `renderAgentCard`).
-- The claim token authenticates the poll and is never printed: the payload it
-  shows goes through `redactSecrets`, and the run fails if the token survives
-  redaction.
+- The claim link it prints is `verificationUriComplete` when the Identity API
+  has a client app (`…/claim#token=osc_clm_…`): opening it presents the claim,
+  and the person types only the user code. Without one it prints the bare
+  `verificationUri`.
+- That link is the only place the claim token is printed. The token also
+  authenticates the poll; the payload the agent shows goes through
+  `redactSecrets` (which censors the token and the complete link), and the run
+  fails if the token survives redaction.
 
 ## Run
 
