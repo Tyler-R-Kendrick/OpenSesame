@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["rules/**/*.test.ts", "effect/rules/**/*.test.ts"],
+    include: ["rules/**/*.test.ts", "effect/rules/**/*.test.ts", "shared/**/*.test.ts"],
     // A type-aware case builds a TypeScript program first: 1–3 s locally and
     // past Vitest's 5 s default on a loaded CI runner.
     testTimeout: 30_000,

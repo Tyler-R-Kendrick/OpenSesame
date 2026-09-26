@@ -1,6 +1,7 @@
 import type { ESTree } from "@oxlint/plugins";
-import { resolve } from "node:path";
 import ts from "typescript";
+
+import { createSingleFileProgram } from "./typescript-program.ts";
 
 const BUILT_INS = new Set([
 	"Record",
@@ -180,38 +181,12 @@ function containsImportedReference(
 	return false;
 }
 
-function scriptKind(filename: string): ts.ScriptKind {
-	if (filename.endsWith(".tsx")) return ts.ScriptKind.TSX;
-	if (filename.endsWith(".jsx")) return ts.ScriptKind.JSX;
-	return ts.ScriptKind.TS;
-}
-
 function typeScriptProgram(analysis: TypeScriptAnalysis): ts.Program | null {
 	if (analysis.program !== undefined) return analysis.program;
 	try {
-		const filename = resolve(analysis.context.filename);
-		const options: ts.CompilerOptions = {
-			allowImportingTsExtensions: true,
-			module: ts.ModuleKind.NodeNext,
-			moduleResolution: ts.ModuleResolutionKind.NodeNext,
-			noEmit: true,
-			skipLibCheck: true,
-			target: ts.ScriptTarget.ESNext,
-		};
-		const host = ts.createCompilerHost(options, true);
-		const readSourceFile = host.getSourceFile.bind(host);
-		host.getSourceFile = (requestedFilename, languageVersion, onError, shouldCreate) =>
-			resolve(requestedFilename) === filename
-				? ts.createSourceFile(
-						filename,
-						analysis.context.source,
-						languageVersion,
-						true,
-						scriptKind(filename),
-					)
-				: readSourceFile(requestedFilename, languageVersion, onError, shouldCreate);
-		analysis.program = ts.createProgram({ rootNames: [filename], options, host });
-		analysis.sourceFile = analysis.program.getSourceFile(filename) ?? null;
+		const created = createSingleFileProgram(analysis.context.filename, analysis.context.source);
+		analysis.program = created.program;
+		analysis.sourceFile = created.sourceFile;
 	} catch {
 		analysis.program = null;
 		analysis.sourceFile = null;
