@@ -107,7 +107,7 @@
     "better-auth": "1.6.26",
     "drizzle-kit": "0.31.10",
     "drizzle-orm": "0.45.2",
-    "hono": "4.13.1",
+    "hono": "4.13.9",
     "jose": "6.2.8",
     "oidc-provider": "9.11.2",
     "oxlint": "1.79.0",
@@ -143,7 +143,7 @@
       "@xmldom/xmldom": "0.8.15",
       "ws": "8.21.3",
       "sharp": "0.35.4",
-      "hono": "4.13.8",
+      "hono": "4.13.9",
       "yaml": "2.8.4",
       "@noble/post-quantum>@noble/curves": "2.4.0",
       "@noble/post-quantum>@noble/hashes": "2.4.0"
