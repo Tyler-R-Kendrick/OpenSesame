@@ -298,8 +298,9 @@ export const LIB_RULES = [
     "/approve/<ref> review, hosted rows, -link (boot), -route (ADR 0084, 0140)",
   ),
   // A link's query, read at boot: `/device?user_code=` and the legacy links
-  // normalised to it; `/invoke/<kind>`'s handle and its screen model (ADR 0140).
-  ...each(L, ["device-link", "invoke-"], (p) =>
+  // normalised to it; `/invoke/<kind>`'s handle and its screen model; the
+  // `/guest` and `/delegate` aliases (ADR 0140).
+  ...each(L, ["device-link", "invoke-", "ceremony-aliases"], (p) =>
     core(p, CEREMONIES, "a ceremony link read at boot, and its model"),
   ),
   core(
