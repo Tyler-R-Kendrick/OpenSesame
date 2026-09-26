@@ -1,0 +1,1542 @@
+[
+  {
+    "service": "adobe",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "agentmail",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "agentmail",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "airtable",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "alchemy",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "algolia",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "amplitude",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "anthropic",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "asana",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "asana",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "attio",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "auth0",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "aweber",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "axiom",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "bamboohr",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "bamboohr",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "base44",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "beehiiv",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "beehiiv",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "beehiiv",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "better-stack",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "biorender",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "bitly",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "box",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "box",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "brand24",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "brex",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "calendly",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "calendly",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "candid",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "canva",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "checkly",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "circleci",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "clay",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "clerk",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "clickhouse",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "clickup",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "clickup",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "cloudflare",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "cloudinary",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "coda",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "cohere",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "common-room",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "contentful",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "convex",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "coupler-io",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "crossbeam",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "crowdin",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "crowdin",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "databricks",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "datadog",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "deepgram",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "deepseek",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "dex",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "docusign",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "dovetail",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "dropbox",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "egnyte",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "elevenlabs",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "embat",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "exa",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "exa",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "fathom",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "fathom",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "figma",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "firecrawl",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "fireflies",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "g2",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "gemini",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "gitee",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "github",
+    "method": "managed",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "github",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "gitlab",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "gitlab",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "google",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "granola",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "gusto",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "harmonic",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "harvest",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "honeycomb",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "hubspot",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "hugging-face",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "indeed",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "intercom",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "intuit-mailchimp",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "jev",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "jira",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "jira",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "jotform",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "kernel",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "kernel",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "langsmith",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "lemma",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "linear",
+    "method": "managed",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "linear",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "linear",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "linear",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "linkedin",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "local-falcon",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "logrocket",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "lovable",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "lucid",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "mailgun",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "make",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "manufact",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "mem0",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "microsoft",
+    "method": "managed",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "microsoft",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "microsoft-teams",
+    "method": "managed",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "microsoft-teams",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "miro",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "mixpanel",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "monday",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "monday",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "motherduck",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "n8n",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "neon",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "netlify",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "new-relic",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "ngrok",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "notion",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "notion",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "notion",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "npm",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "okta",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "openai",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "openrouter",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "oreilly",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "otter-ai",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "pagerduty",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "paypal",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "pendo",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "perplexity",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "photon",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "pinecone",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "planetscale",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "posthog",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "postman",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "pylon",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "quartr",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "quicknode",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "railway",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "read-ai",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "readwise",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "reclaim-ai",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "reddit",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "render",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "replicate",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "resend",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "resend",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "resend",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "salesforce",
+    "method": "managed",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "salesforce",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "sanity",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "sanity",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "sanity",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "segment",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "sendgrid",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "sentry",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "sentry",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "serpstat",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "shopify",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "signnow",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "similarweb",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "slack",
+    "method": "managed",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "slack",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "spotify",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "statsig",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "streak",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "supabase",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "superhuman-mail",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "telegram",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "ticket-tailor",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "ticktick",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "tinybird",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "todoist",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "twilio",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "twitch",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "typeform",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "typeform",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "vantage",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "vercel",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "vercel",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "vercel",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "webflow",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "webflow",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "webflow",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "whimsical",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "whoop",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "wix",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "workday",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "workos",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "x",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "xero",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "zapier",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "zeplin",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "zernio",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "zomato",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "zoom",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "zoominfo",
+    "method": "mcp",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "bitbucket",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "codeberg",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "discord",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "origin",
+    "method": "oauth",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "assemblyai",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "brevo",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "buildkite",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "cloudflare-origin-ca",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "digitalocean",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "doppler",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "fireworks",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "groq",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "huggingface",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "launchdarkly",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "messagebird",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "mistral",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "newsapi",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  },
+  {
+    "service": "postmark",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "stability",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": "Acme Conformance Account"
+  },
+  {
+    "service": "together",
+    "method": "api-key",
+    "outcome": "token acquired",
+    "verified": 200,
+    "account": ""
+  }
+]

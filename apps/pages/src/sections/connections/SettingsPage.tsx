@@ -16,6 +16,10 @@ import {
   providerVerb,
 } from "@opensesame/app-core/lib/identity-graph.js";
 import {
+  hasConnectRoute,
+  isVercelCatalogId,
+} from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import {
   CATEGORY_LABELS,
   type Flash,
   STATUS_CHIP,
@@ -54,6 +58,20 @@ import {
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { YubikeyConnectPanel } from "./YubikeyConnectPanel.js";
+import { ConnectPanels } from "./connect/ConnectPanels.js";
+
+/**
+ * Connectors Vercel's registry lists get the plan-built pages alone (ADR
+ * 0146); a bundled catalog row with a plan keeps its own road and gets the
+ * Connect panels beside it, as do the Git forges' backup form. GitHub keeps
+ * its App flow; a refused service (ADR 0086 §6) gets no Connect road.
+ */
+function connectOwned(providerId: string): "only" | "beside" | null {
+  if (!hasConnectRoute(providerId)) return null;
+  if (!isVercelCatalogId(providerId) || isGitBackupProvider(providerId))
+    return "beside";
+  return "only";
+}
 
 /** One connector's page: authorize it, then decide who can use it and how. */
 export function ConnectorSettingsPage({
@@ -155,6 +173,7 @@ export function ConnectorSettingsPage({
   }
 
   const automatic = canConfigureAutomatically(provider);
+  const onConnect = connectOwned(provider.id);
   // GitHub App already on this device — no Connect chrome.
   const githubAppReady =
     provider.id === "github" &&
@@ -323,7 +342,7 @@ export function ConnectorSettingsPage({
             </details>
           ) : null}
         </section>
-      ) : githubAppReady ? null : (
+      ) : githubAppReady || onConnect === "only" ? null : (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <h2>Connect</h2>
@@ -364,6 +383,15 @@ export function ConnectorSettingsPage({
           )}
         </section>
       )}
+      {onConnect ? (
+        <ConnectPanels
+          provider={provider}
+          connection={connection}
+          online={online}
+          onFlash={onFlash}
+          onChanged={onChanged}
+        />
+      ) : null}
     </div>
   );
 }

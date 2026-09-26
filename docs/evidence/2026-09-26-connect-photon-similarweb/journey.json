@@ -1,0 +1,95 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/photon"
+        },
+        {
+          "count": [
+            "main input",
+            "main select",
+            "main input[type='checkbox']",
+            "main a[href*='photon.codes']",
+            "button[aria-label='Create connector']"
+          ]
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "shot": "1280-photon"
+        },
+        {
+          "scrollToOptional": "Create connector"
+        },
+        {
+          "count": ["main input", "main input[type='checkbox']"]
+        },
+        {
+          "shot": "1280-photon-scopes"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/similarweb"
+        },
+        {
+          "count": [
+            "main input",
+            "main textarea",
+            "main textarea:placeholder-shown",
+            "main a[href*='similarweb.com']",
+            "button[aria-label='Create connector']"
+          ]
+        },
+        {
+          "scrollToOptional": "Create connector"
+        },
+        {
+          "shot": "390-similarweb"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-photon",
+      "width": 1280,
+      "title": "Photon \u2014 1280 \u00d7 900",
+      "caption": "Before: nothing was known about Photon, so its page offered the generic OAuth form with every endpoint blank. After: Photon's documented OAuth 2.1 server (app.photon.codes), S256 PKCE required, where to register the app, and its scopes with what each grants.",
+      "before": "generic OAuth form: 14 inputs, 1 checkbox, 1 link to photon.codes",
+      "after": "Photon's server filled in: 30 inputs, 17 checkboxes (16 scopes), 3 links to photon.codes"
+    },
+    {
+      "shot": "1280-photon-scopes",
+      "width": 1280,
+      "title": "Photon scopes \u2014 1280 \u00d7 900",
+      "caption": "The scope list a person chooses from, defaults ticked; the token proof reads the account from Photon's own userinfo endpoint.",
+      "before": "no scopes to choose (1 checkbox)",
+      "after": "16 scopes with their meaning, 5 ticked by default"
+    },
+    {
+      "shot": "390-similarweb",
+      "width": 390,
+      "title": "Similarweb on a phone \u2014 390 \u00d7 844",
+      "caption": "Similarweb's MCP server publishes no OAuth metadata and takes a key. Before: an empty instructions field. After: Similarweb's own steps to generate and activate a key, pre-filled, and the key proven against user-capabilities (a call that costs no credits).",
+      "before": "0 links to Similarweb's docs; instructions empty",
+      "after": "2 links to Similarweb's docs; instructions pre-filled"
+    }
+  ]
+}

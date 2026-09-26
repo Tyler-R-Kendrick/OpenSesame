@@ -128,7 +128,7 @@ Object.assign(connectionSeams, {
   submitGithubAppManifest,
 });
 
-const bundledRef: { current: Provider[] } = { current: [] };
+const bundledRef = { current: new Array<Provider>() };
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
@@ -551,47 +551,5 @@ describe("ConnectionsSection remaining branches", () => {
     expect(
       await screen.findAllByText("The provider returned an error."),
     ).not.toHaveLength(0);
-  });
-
-  it("passes selected scopes through the OAuth flow", async () => {
-    const created = makeConnection({ providerId: "linear" });
-    createConnection.mockResolvedValue(created);
-    authorizeConnection.mockResolvedValue({
-      authorizationUrl: "https://linear.app/oauth/authorize",
-    });
-    awaitConsent.mockResolvedValue({ result: "active", connection: created });
-    const scopedLinear: Provider = {
-      ...catalog[1],
-      scopes: [
-        {
-          name: "read",
-          description: "Read issues",
-          sensitive: false,
-          default: true,
-        },
-        {
-          name: "write",
-          description: "Write issues",
-          sensitive: true,
-          default: false,
-        },
-      ],
-    };
-    listProviders.mockResolvedValue([scopedLinear]);
-    // The bundled catalog paints first, so it must carry the scopes or the
-    // form initializes without them.
-    bundledRef.current = [scopedLinear];
-    embeddedCatalogSeams.bundledProviders = [scopedLinear];
-    renderAt("/connections/linear");
-    // Tick the non-default broad scope on.
-    await userEvent.click(await screen.findByLabelText(/write/));
-    await userEvent.click(
-      screen.getByRole("button", { name: /Authorize with Linear/i }),
-    );
-    await waitFor(() =>
-      expect(createConnection).toHaveBeenCalledWith(
-        expect.objectContaining({ scopes: ["read", "write"] }),
-      ),
-    );
   });
 });

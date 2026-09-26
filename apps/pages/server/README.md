@@ -11,7 +11,7 @@ the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
 | Path | What it holds |
 |------|---------------|
-| `server/` | The relay itself: the callback, management and GitHub App handlers, the `return_to` allowlist, the forge host guard and the pinned fetch. `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App handlers directly (`scripts/github-app-relay-plugin.mjs`). |
+| `server/` | The relay itself: the callback, management and GitHub App handlers, the `return_to` allowlist, the forge host guard, the pinned fetch, and the JSON boundary checks the connector handlers parse their input with (`json-boundary.mjs`). `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App handlers directly (`scripts/github-app-relay-plugin.mjs`). |
 | `api/` | Vercel serverless routes, one file per route. Each is a thin adapter over a handler in `server/`. |
 | `server/test/` | `node --test` suites (`pnpm --filter @opensesame/pages test:relay`, also part of `test`). |
 

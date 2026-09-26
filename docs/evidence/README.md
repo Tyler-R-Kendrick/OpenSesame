@@ -50,10 +50,13 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-26-real-x509/`](2026-09-26-real-x509/README.md) | Local certificates are real X.509 now |
 | [`2026-09-26-passkey-verify/`](2026-09-26-passkey-verify/README.md) | A new account passkey is tried once (ADR 0140 plan step 11c) |
 | [`2026-09-26-org-signin/`](2026-09-26-org-signin/README.md) | Organization sign-in in Identity › Organizations (ADR 0140 plan step 12) |
+| [`2026-09-26-connect-photon-similarweb/`](2026-09-26-connect-photon-similarweb/README.md) | Connections: Photon and Similarweb presets (ADR 0146) |
+| [`2026-09-26-connect-catalog-ownership/`](2026-09-26-connect-catalog-ownership/README.md) | Connections: which rows Connect owns (ADR 0146) |
 | [`2026-09-26-aliases-config/`](2026-09-26-aliases-config/README.md) | `/guest` and `/delegate` aliases — before/after |
 | [`2026-09-25-notification-routing/`](2026-09-25-notification-routing/README.md) | Settings › Notifications: the `notifications.routing` capability (ADR 0140 step 11a) |
 | [`2026-09-25-invoke-route/`](2026-09-25-invoke-route/README.md) | `/invoke/:kind`, the authenticator hand-off (ADR 0140 step 10) |
 | [`2026-09-25-device-route/`](2026-09-25-device-route/README.md) | `/device` — approve a device sign-in from its link (ADR 0140 step 7) |
+| [`2026-09-25-connect-connectors/`](2026-09-25-connect-connectors/README.md) | Connections: every connector configurable, with a proven user token (ADR 0146) |
 | [`2026-09-25-claim-route/`](2026-09-25-claim-route/README.md) | `/claim` and `/device` open before unlock (ADR 0140 step 8, §2, D2, D7) |
 | [`2026-09-25-approval-routes/`](2026-09-25-approval-routes/README.md) | `/i/:ref`, `/approve/:ref` and Access › Requests' hosted rows (ADR 0140 step 9) |
 | [`2026-09-25-account-factors/`](2026-09-25-account-factors/README.md) | Account factors in Settings › Security (ADR 0140 D10, plan step 11b) |

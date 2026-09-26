@@ -4169,6 +4169,63 @@
     }
   },
   {
+    "id": "connectors.connect.configure",
+    "title": "Create or edit a connector from its plan",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vercel-connect-manage.ts:createConfiguredConnector",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "creating or editing a connector registers an OAuth client or pastes a secret under the relay's management key; an agent surface that could do it could re-aim where people's tokens are minted",
+        "adr": "0146-connector-plans-and-user-token-proof.md"
+      }
+    }
+  },
+  {
+    "id": "connectors.connect.authorize_user",
+    "title": "Authorize a connector on behalf of the signed-in person",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vercel-connect-manage.ts:authorizeConnectorAs",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "authorizing a connector is the person's own consent at the provider, in their browser; an agent can ask for it through an interaction, never perform it",
+        "adr": "0146-connector-plans-and-user-token-proof.md"
+      }
+    }
+  },
+  {
+    "id": "connectors.connect.token_check",
+    "title": "Prove a person's connector token can be acquired",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vercel-connect-manage.ts:checkConnectorToken",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the proof spends the relay's management key to acquire a real token; it answers metadata only, and stays with the person who holds that key",
+        "adr": "0146-connector-plans-and-user-token-proof.md"
+      }
+    }
+  },
+  {
     "id": "identity.project.temporary",
     "title": "Create a temporary project",
     "plane": "identity",

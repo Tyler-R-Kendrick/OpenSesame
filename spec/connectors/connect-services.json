@@ -1,0 +1,5319 @@
+{
+  "schema_version": 1,
+  "source": "https://api.vercel.com/v1/connect/services",
+  "pinned_at": "2026-09-25",
+  "services": [
+    {
+      "service": "adobe",
+      "name": "Adobe",
+      "description": "Create and edit designs with Adobe Express.",
+      "website": "https://adobe.io",
+      "docsite": "https://adobe.io",
+      "categories": ["content"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://express-mcp-service.adobe.io/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://express-mcp-service.adobe.io/mcp",
+        "resource_metadata": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+        "scopes_supported": ["openid", "AdobeID"],
+        "discovery_url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+        "issuer": "https://express-mcp-service.adobe.io",
+        "authorization_endpoint": "https://express-mcp-service.adobe.io/authorize",
+        "token_endpoint": "https://ims-na1.adobelogin.com/ims/token/v3",
+        "revocation_endpoint": "https://ims-na1.adobelogin.com/ims/revoke",
+        "registration_endpoint": "https://express-mcp-service.adobe.io/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "agentcard",
+      "name": "Agentcard",
+      "description": "Issue virtual cards for AI agents and place orders they pay for.",
+      "website": "https://agentcard.sh",
+      "docsite": "https://docs.agentcard.sh",
+      "categories": ["commerce"],
+      "targets": [
+        {
+          "target": "api",
+          "label": "Agentcard API"
+        },
+        {
+          "target": "mcp",
+          "label": "Agentcard MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.agentcard.sh/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.agentcard.sh/mcp",
+        "resource_metadata": "https://mcp.agentcard.sh/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.agentcard.sh/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.agentcard.sh/",
+        "authorization_endpoint": "https://mcp.agentcard.sh/authorize",
+        "token_endpoint": "https://mcp.agentcard.sh/token",
+        "revocation_endpoint": "https://mcp.agentcard.sh/revoke",
+        "registration_endpoint": "https://mcp.agentcard.sh/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post", "none"]
+      }
+    },
+    {
+      "service": "agentmail",
+      "name": "AgentMail",
+      "description": "Email inboxes for AI agents",
+      "website": "https://agentmail.to",
+      "docsite": "https://docs.agentmail.to",
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.agentmail.to/mcp"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.agentmail.to"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.agentmail.to/mcp",
+        "resource_metadata": "https://mcp.agentmail.to/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "public_metadata",
+          "private_metadata",
+          "offline_access",
+          "user:org:read"
+        ],
+        "discovery_url": "https://clerk.console.agentmail.to/.well-known/oauth-authorization-server",
+        "issuer": "https://clerk.console.agentmail.to",
+        "authorization_endpoint": "https://clerk.console.agentmail.to/oauth/authorize",
+        "token_endpoint": "https://clerk.console.agentmail.to/oauth/token",
+        "revocation_endpoint": "https://clerk.console.agentmail.to/oauth/token/revoke",
+        "registration_endpoint": "https://clerk.console.agentmail.to/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "none",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "airtable",
+      "name": "Airtable",
+      "description": "Organize and automate data across bases, tables, and records.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.airtable.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.airtable.com",
+        "resource_metadata": "https://mcp.airtable.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "data.records:read",
+          "data.records:write",
+          "schema.bases:read",
+          "schema.bases:write",
+          "data.recordComments:read",
+          "data.recordComments:write",
+          "workspacesAndBases:read"
+        ],
+        "discovery_url": "https://airtable.com/.well-known/oauth-authorization-server/oauth2/v1",
+        "issuer": "https://airtable.com/oauth2/v1",
+        "authorization_endpoint": "https://airtable.com/oauth2/v1/authorize",
+        "token_endpoint": "https://airtable.com/oauth2/v1/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://airtable.com/oauth2/v1/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_basic", "none"]
+      }
+    },
+    {
+      "service": "alchemy",
+      "name": "Alchemy",
+      "description": "Access blockchain data and manage Alchemy apps.",
+      "website": "https://www.alchemy.com",
+      "docsite": "https://www.alchemy.com/docs/alchemy-mcp-server",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.alchemy.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.alchemy.com/mcp",
+        "resource_metadata": "https://mcp.alchemy.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://auth.alchemy.com/.well-known/oauth-authorization-server",
+        "issuer": "https://auth.alchemy.com",
+        "authorization_endpoint": "https://auth.alchemy.com/oauth/authorize",
+        "token_endpoint": "https://auth.alchemy.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://auth.alchemy.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": []
+      }
+    },
+    {
+      "service": "algolia",
+      "name": "Algolia",
+      "description": "Add search and discovery to your applications.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://algolia.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "amplitude",
+      "name": "Amplitude",
+      "description": "Explore product analytics and user behavior.",
+      "website": "https://amplitude.com",
+      "docsite": "https://amplitude.com",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.amplitude.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.amplitude.com",
+        "resource_metadata": "https://mcp.amplitude.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["mcp:read", "mcp:write", "offline_access"],
+        "discovery_url": "https://mcp.amplitude.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.amplitude.com",
+        "authorization_endpoint": "https://mcp.amplitude.com/authorize",
+        "token_endpoint": "https://mcp.amplitude.com/token",
+        "revocation_endpoint": "https://mcp.amplitude.com/revoke",
+        "registration_endpoint": "https://mcp.amplitude.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post", "none"]
+      }
+    },
+    {
+      "service": "anthropic",
+      "name": "Anthropic",
+      "description": "Anthropic Claude models and the Messages API",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.anthropic.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "asana",
+      "name": "Asana",
+      "description": "Coordinate tasks, projects, and goals.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.asana.com/v2/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.asana.com/v2/mcp",
+        "resource_metadata": "https://mcp.asana.com/.well-known/oauth-protected-resource/v2/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://app.asana.com/.well-known/oauth-authorization-server",
+        "issuer": "https://app.asana.com",
+        "authorization_endpoint": "https://app.asana.com/-/oauth_authorize",
+        "token_endpoint": "https://app.asana.com/-/oauth_token",
+        "revocation_endpoint": "https://app.asana.com/-/oauth_revoke",
+        "registration_endpoint": null,
+        "client_registration": "manual",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "attio",
+      "name": "Attio",
+      "description": "Work with CRM records and relationships.",
+      "website": "https://attio.com",
+      "docsite": "https://attio.com",
+      "categories": ["commerce"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.attio.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.attio.com/mcp",
+        "resource_metadata": "https://mcp.attio.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp", "offline_access", "openid"],
+        "discovery_url": "https://app.attio.com/.well-known/oauth-authorization-server",
+        "issuer": "https://app.attio.com",
+        "authorization_endpoint": "https://app.attio.com/oidc/authorize",
+        "token_endpoint": "https://app.attio.com/oidc/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://app.attio.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none", "client_secret_post"]
+      }
+    },
+    {
+      "service": "auth0",
+      "name": "Auth0",
+      "description": "Authenticate users and manage identity for your applications.",
+      "website": "https://auth0.com",
+      "docsite": "https://auth0.com/docs",
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "aweber",
+      "name": "AWeber",
+      "description": "Manage email lists, subscribers, and campaigns.",
+      "website": "https://aweber.com",
+      "docsite": "https://docs.aweber.com/api/api/connecting-and-using-the-aweber-mcp-server",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.aweber.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.aweber.com",
+        "resource_metadata": "https://mcp.aweber.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [
+          "account.read",
+          "list.read",
+          "list.write",
+          "subscriber.read",
+          "subscriber.write",
+          "email.read",
+          "email.write"
+        ],
+        "discovery_url": "https://mcp.aweber.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.aweber.com",
+        "authorization_endpoint": "https://mcp.aweber.com/oauth/authorize",
+        "token_endpoint": "https://mcp.aweber.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.aweber.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "axiom",
+      "name": "Axiom",
+      "description": "Query logs, traces, and observability data.",
+      "website": "https://axiom.co",
+      "docsite": "https://axiom.co/docs/console/intelligence/mcp-server",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.axiom.co/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.axiom.co/mcp",
+        "resource_metadata": "https://mcp.axiom.co/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://authorization.axiom.co/.well-known/oauth-authorization-server",
+        "issuer": "https://authorization.axiom.co",
+        "authorization_endpoint": "https://authorization.axiom.co/oauth2/authorize",
+        "token_endpoint": "https://authorization.axiom.co/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://authorization.axiom.co/oauth2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "bamboohr",
+      "name": "BambooHR",
+      "description": "Access employee records and HR data.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.bamboohr.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "base44",
+      "name": "Base44",
+      "description": "Build and manage apps in your Base44 workspace.",
+      "website": "https://base44.com",
+      "docsite": "https://github.com/base44/skills/blob/main/skills/base44-remote-dev/SKILL.md",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://app.base44.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://app.base44.com/mcp",
+        "resource_metadata": "https://app.base44.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "apps:read",
+          "apps:write",
+          "sandbox:write",
+          "offline",
+          "app:mcp"
+        ],
+        "discovery_url": "https://app.base44.com/.well-known/oauth-authorization-server",
+        "issuer": "https://app.base44.com",
+        "authorization_endpoint": "https://app.base44.com/oauth/authorize",
+        "token_endpoint": "https://app.base44.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://app.base44.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "beehiiv",
+      "name": "beehiiv",
+      "description": "Publish newsletters and manage subscribers and automations.",
+      "website": "https://www.beehiiv.com",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.beehiiv.com/mcp"]
+        },
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.beehiiv.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.beehiiv.com/mcp",
+        "resource_metadata": "https://mcp.beehiiv.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["read", "write"],
+        "discovery_url": "https://mcp.beehiiv.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.beehiiv.com",
+        "authorization_endpoint": "https://mcp.beehiiv.com/authorize",
+        "token_endpoint": "https://mcp.beehiiv.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.beehiiv.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "better-stack",
+      "name": "Better Stack",
+      "description": "Investigate logs, uptime, incidents, and telemetry.",
+      "website": "https://betterstack.com",
+      "docsite": "https://betterstack.com/docs/getting-started/integrations/mcp/",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.betterstack.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.betterstack.com",
+        "resource_metadata": "https://mcp.betterstack.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["read", "write"],
+        "discovery_url": "https://betterstack.com/.well-known/oauth-authorization-server",
+        "issuer": "https://betterstack.com",
+        "authorization_endpoint": "https://betterstack.com/oauth/authorize",
+        "token_endpoint": "https://betterstack.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://betterstack.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "biorender",
+      "name": "BioRender",
+      "description": "Find scientific illustrations and create figures.",
+      "website": "https://biorender.com",
+      "docsite": "https://help.biorender.com/hc/en-gb/articles/30870978672157-How-to-use-the-BioRender-MCP-connector",
+      "categories": ["content"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.services.biorender.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.services.biorender.com/mcp",
+        "resource_metadata": null,
+        "scopes_supported": ["profile", "email", "openid", "offline_access"],
+        "discovery_url": "https://mcp.services.biorender.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.services.biorender.com",
+        "authorization_endpoint": "https://mcp.services.biorender.com/oauth/authorize",
+        "token_endpoint": "https://mcp.services.biorender.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.services.biorender.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post"]
+      }
+    },
+    {
+      "service": "bitly",
+      "name": "Bitly",
+      "description": "Shorten links, generate QR codes, and track performance.",
+      "website": null,
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api-ssl.bitly.com/v4/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api-ssl.bitly.com/v4/mcp",
+        "resource_metadata": "https://api-ssl.bitly.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://api-ssl.bitly.com/.well-known/oauth-authorization-server",
+        "issuer": "https://bitly.com",
+        "authorization_endpoint": "https://bitly.com/oauth/authorize",
+        "token_endpoint": "https://api-ssl.bitly.com/oauth/access_token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://api-ssl.bitly.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "box",
+      "name": "Box",
+      "description": "Search, edit, and analyze Box content.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.box.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.box.com/",
+        "resource_metadata": "https://mcp.box.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://api.box.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.box.com",
+        "authorization_endpoint": "https://account.box.com/api/oauth2/authorize",
+        "token_endpoint": "https://api.box.com/oauth2/token",
+        "revocation_endpoint": "https://api.box.com/oauth2/revoke",
+        "registration_endpoint": null,
+        "client_registration": "manual",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "brand24",
+      "name": "Brand24",
+      "description": "Analyze brand mentions and social listening data.",
+      "website": "https://brand24.com",
+      "docsite": "https://help.brand24.com/en/articles/13011375-brand24-mcp",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.brand24.com/v1/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.brand24.com",
+        "resource_metadata": "https://mcp.brand24.com/.well-known/oauth-protected-resource/v1/mcp",
+        "scopes_supported": ["projects:read"],
+        "discovery_url": "https://oauth.brand24.com/.well-known/oauth-authorization-server/resources/res_99790078397645058",
+        "issuer": "https://oauth.brand24.com/resources/res_99790078397645058",
+        "authorization_endpoint": "https://oauth.brand24.com/resources/res_99790078397645058/oauth/authorize",
+        "token_endpoint": "https://oauth.brand24.com/resources/res_99790078397645058/oauth/token",
+        "revocation_endpoint": "https://oauth.brand24.com/revoke",
+        "registration_endpoint": "https://oauth.brand24.com/api/v1/resources/res_99790078397645058/clients:register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "brex",
+      "name": "Brex",
+      "description": "Manage cards, expenses, and financial workflows.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.brex.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.brex.com",
+        "resource_metadata": "https://api.brex.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "openid",
+          "offline_access",
+          "email",
+          "users.readonly",
+          "departments.readonly",
+          "locations.readonly",
+          "titles.readonly",
+          "legal_entities.readonly",
+          "cards.readonly",
+          "cards",
+          "companies.readonly",
+          "budgets.readonly",
+          "travel.trips.readonly",
+          "expenses.card.readonly",
+          "expenses.card",
+          "expenses.bill",
+          "accounts.cash.readonly",
+          "vendors.readonly",
+          "accounting.integration.read",
+          "accounting.record.read"
+        ],
+        "discovery_url": "https://api.brex.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.brex.com",
+        "authorization_endpoint": "https://accounts-api.brex.com/oauth2/default/v1/authorize",
+        "token_endpoint": "https://accounts-api.brex.com/oauth2/default/v1/token",
+        "revocation_endpoint": "https://accounts-api.brex.com/oauth2/default/v1/revoke",
+        "registration_endpoint": "https://api.brex.com/v3/clients",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none", "client_secret_post"]
+      }
+    },
+    {
+      "service": "calendly",
+      "name": "Calendly",
+      "description": "Calendly scheduling, event types, and invitees",
+      "website": "https://calendly.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.calendly.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "candid",
+      "name": "Candid",
+      "description": "Research nonprofits and funders.",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.candid.org/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.candid.org/mcp",
+        "resource_metadata": "https://mcp.candid.org/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["openid", "profile", "email", "claudeai"],
+        "discovery_url": "https://mcp.candid.org/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.candid.org/",
+        "authorization_endpoint": "https://mcp.candid.org/authorize",
+        "token_endpoint": "https://mcp.candid.org/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.candid.org/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post"]
+      }
+    },
+    {
+      "service": "canva",
+      "name": "Canva",
+      "description": "Canva designs, assets, and brand templates",
+      "website": "https://www.canva.com",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "checkly",
+      "name": "Checkly",
+      "description": "Inspect synthetic checks, test results, and incidents.",
+      "website": "https://www.checklyhq.com",
+      "docsite": "https://www.checklyhq.com/docs/ai/mcp-server/",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.checklyhq.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.checklyhq.com/mcp",
+        "resource_metadata": "https://api.checklyhq.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "offline_access",
+          "name",
+          "given_name",
+          "family_name",
+          "nickname",
+          "email",
+          "email_verified",
+          "picture",
+          "created_at",
+          "identities",
+          "phone",
+          "address"
+        ],
+        "discovery_url": "https://auth.checklyhq.com/.well-known/oauth-authorization-server",
+        "issuer": "https://auth.checklyhq.com/",
+        "authorization_endpoint": "https://auth.checklyhq.com/authorize",
+        "token_endpoint": "https://auth.checklyhq.com/oauth/token",
+        "revocation_endpoint": "https://auth.checklyhq.com/oauth/revoke",
+        "registration_endpoint": "https://auth.checklyhq.com/oidc/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "private_key_jwt",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "circleci",
+      "name": "CircleCI",
+      "description": "CircleCI pipelines, workflows, and jobs",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://circleci.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "clay",
+      "name": "Clay",
+      "description": "Enrich company and contact data.",
+      "website": "https://clay.com",
+      "docsite": "https://clay.com",
+      "categories": ["commerce"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.clay.com/v3/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.clay.com/v3/mcp",
+        "resource_metadata": "https://api.clay.com/.well-known/oauth-protected-resource/v3/mcp",
+        "scopes_supported": ["mcp"],
+        "discovery_url": "https://api.clay.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.clay.com",
+        "authorization_endpoint": "https://app.clay.com/oauth/authorize",
+        "token_endpoint": "https://api.clay.com/oauth/token",
+        "revocation_endpoint": "https://api.clay.com/oauth/revoke",
+        "registration_endpoint": "https://api.clay.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "clerk",
+      "name": "Clerk",
+      "description": "Clerk users, organizations, and sessions",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.clerk.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "clickhouse",
+      "name": "ClickHouse",
+      "description": "Query and explore cloud data.",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.clickhouse.cloud/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.clickhouse.cloud/mcp",
+        "resource_metadata": "https://mcp.clickhouse.cloud/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "mcp:access",
+          "clickstack:access",
+          "openid",
+          "profile",
+          "email"
+        ],
+        "discovery_url": "https://mcp.clickhouse.cloud/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.clickhouse.cloud",
+        "authorization_endpoint": "https://mcp.clickhouse.cloud/authorize",
+        "token_endpoint": "https://mcp.clickhouse.cloud/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.clickhouse.cloud/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "clickup",
+      "name": "ClickUp",
+      "description": "ClickUp tasks, lists, and workspaces",
+      "website": "https://clickup.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.clickup.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "cloudflare",
+      "name": "Cloudflare",
+      "description": "Build applications with compute, storage, and AI.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.cloudflare.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.cloudflare.com/mcp",
+        "resource_metadata": "https://mcp.cloudflare.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.cloudflare.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.cloudflare.com",
+        "authorization_endpoint": "https://mcp.cloudflare.com/authorize",
+        "token_endpoint": "https://mcp.cloudflare.com/token",
+        "revocation_endpoint": "https://mcp.cloudflare.com/token",
+        "registration_endpoint": "https://mcp.cloudflare.com/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "cloudinary",
+      "name": "Cloudinary",
+      "description": "Manage, transform, and deliver images and videos.",
+      "website": null,
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://asset-management.mcp.cloudinary.com/sse"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://asset-management.mcp.cloudinary.com/sse",
+        "resource_metadata": "https://asset-management.mcp.cloudinary.com/.well-known/oauth-protected-resource/sse",
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "offline_access",
+          "asset_management",
+          "upload",
+          "media_generation"
+        ],
+        "discovery_url": "https://asset-management.mcp.cloudinary.com/.well-known/oauth-authorization-server",
+        "issuer": "https://asset-management.mcp.cloudinary.com",
+        "authorization_endpoint": "https://asset-management.mcp.cloudinary.com/authorize",
+        "token_endpoint": "https://asset-management.mcp.cloudinary.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://asset-management.mcp.cloudinary.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "coda",
+      "name": "Coda",
+      "description": "Create, search, and update docs and tables.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://coda.io/apis/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://coda.io/apis/mcp",
+        "resource_metadata": "https://coda.io/.well-known/oauth-protected-resource/apis/mcp",
+        "scopes_supported": ["mcp:all"],
+        "discovery_url": "https://coda.io/.well-known/oauth-authorization-server",
+        "issuer": "https://coda.io",
+        "authorization_endpoint": "https://coda.io/v4/api/oauth2/authorize",
+        "token_endpoint": "https://coda.io/v4/api/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://coda.io/v4/api/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post"]
+      }
+    },
+    {
+      "service": "cohere",
+      "name": "Cohere",
+      "description": "Cohere command, embed, and rerank models",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.cohere.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "common-room",
+      "name": "Common Room",
+      "description": "Explore buyer signals and customer intelligence.",
+      "website": "https://commonroom.io",
+      "docsite": "https://commonroom.io",
+      "categories": ["commerce"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.commonroom.io/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.commonroom.io/mcp",
+        "resource_metadata": "https://mcp.commonroom.io/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "offline_access",
+          "name",
+          "given_name",
+          "family_name",
+          "nickname",
+          "email",
+          "email_verified",
+          "picture",
+          "created_at",
+          "identities",
+          "phone",
+          "address"
+        ],
+        "discovery_url": "https://login.commonroom.io/.well-known/oauth-authorization-server",
+        "issuer": "https://login.commonroom.io/",
+        "authorization_endpoint": "https://login.commonroom.io/authorize",
+        "token_endpoint": "https://login.commonroom.io/oauth/token",
+        "revocation_endpoint": "https://login.commonroom.io/oauth/revoke",
+        "registration_endpoint": "https://login.commonroom.io/oidc/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "private_key_jwt",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "contentful",
+      "name": "Contentful",
+      "description": "Contentful content entries, assets, and spaces",
+      "website": null,
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.contentful.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "convex",
+      "name": "Convex",
+      "description": "Convex projects, deployments, and team management",
+      "website": "https://www.convex.dev",
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "coupler-io",
+      "name": "Coupler.io",
+      "description": "Explore business data from your connected data flows.",
+      "website": "https://coupler.io",
+      "docsite": "https://blog.coupler.io/how-to-use-coupler-mcp-server/",
+      "categories": ["data"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.coupler.io/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.coupler.io/mcp",
+        "resource_metadata": "https://mcp.coupler.io/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp"],
+        "discovery_url": "https://auth.coupler.io/.well-known/oauth-authorization-server",
+        "issuer": "https://auth.coupler.io/",
+        "authorization_endpoint": "https://auth.coupler.io/oauth2/authorize",
+        "token_endpoint": "https://auth.coupler.io/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://auth.coupler.io/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "crossbeam",
+      "name": "Crossbeam",
+      "description": "Explore partner overlaps and ecosystem data.",
+      "website": "https://crossbeam.com",
+      "docsite": "https://help.crossbeam.com/en/articles/12601327-crossbeam-mcp-server",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.crossbeam.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.crossbeam.com/mcp",
+        "resource_metadata": "https://mcp.crossbeam.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://mcp.crossbeam.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.crossbeam.com",
+        "authorization_endpoint": "https://mcp.crossbeam.com/authorize",
+        "token_endpoint": "https://mcp.crossbeam.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.crossbeam.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": ["client_secret_basic"]
+      }
+    },
+    {
+      "service": "crowdin",
+      "name": "Crowdin",
+      "description": "Crowdin localization projects and translations",
+      "website": "https://crowdin.com",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.crowdin.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "databricks",
+      "name": "Databricks",
+      "description": "Query lakehouse data and manage analytics workloads.",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "datadog",
+      "name": "Datadog",
+      "description": "Monitor infrastructure, applications, and logs.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.datadoghq.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "deepgram",
+      "name": "Deepgram",
+      "description": "Deepgram speech-to-text and audio intelligence",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.deepgram.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "deepseek",
+      "name": "DeepSeek",
+      "description": "DeepSeek chat and reasoning models",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.deepseek.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "dex",
+      "name": "Dex",
+      "description": "Manage contacts, relationship notes, and reminders.",
+      "website": "https://getdex.com",
+      "docsite": "https://getdex.com/docs/ai/mcp-server",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.getdex.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.getdex.com/mcp",
+        "resource_metadata": "https://mcp.getdex.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["read", "write"],
+        "discovery_url": "https://mcp.getdex.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.getdex.com/",
+        "authorization_endpoint": "https://mcp.getdex.com/authorize",
+        "token_endpoint": "https://mcp.getdex.com/token",
+        "revocation_endpoint": "https://mcp.getdex.com/revoke",
+        "registration_endpoint": "https://mcp.getdex.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "docusign",
+      "name": "Docusign",
+      "description": "Send, sign, and manage agreements.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "dovetail",
+      "name": "Dovetail",
+      "description": "Search your customer research and insights.",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://dovetail.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "dropbox",
+      "name": "Dropbox",
+      "description": "Dropbox files, folders, and sharing",
+      "website": "https://www.dropbox.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "egnyte",
+      "name": "Egnyte",
+      "description": "Access and analyze business content.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp-server.egnyte.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp-server.egnyte.com/mcp",
+        "resource_metadata": "https://mcp-server.egnyte.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp-oauth.egnyte.com/.well-known/oauth-authorization-server/egnyte-connect",
+        "issuer": "https://mcp-oauth.egnyte.com/egnyte-connect",
+        "authorization_endpoint": "https://mcp-oauth.egnyte.com/external/oauth2/authorize/egnyte-connect",
+        "token_endpoint": "https://mcp-oauth.egnyte.com/egnyte-connect/oauth2/token",
+        "revocation_endpoint": "https://mcp-oauth.egnyte.com/egnyte-connect/oauth2/revoke",
+        "registration_endpoint": "https://mcp-oauth.egnyte.com/clients",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "elevenlabs",
+      "name": "ElevenLabs",
+      "description": "ElevenLabs text-to-speech and voice cloning",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.elevenlabs.io"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "embat",
+      "name": "Embat",
+      "description": "Review cash, debt, payments, and accounting data.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://tellme.embat.io/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://tellme.embat.io/mcp",
+        "resource_metadata": "https://tellme.embat.io/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://complete-book-76.authkit.app/.well-known/oauth-authorization-server",
+        "issuer": "https://complete-book-76.authkit.app",
+        "authorization_endpoint": "https://complete-book-76.authkit.app/oauth2/authorize",
+        "token_endpoint": "https://complete-book-76.authkit.app/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://complete-book-76.authkit.app/oauth2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "exa",
+      "name": "Exa",
+      "description": "Web search and content retrieval for AI agents.",
+      "website": "https://exa.ai",
+      "docsite": "https://docs.exa.ai",
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.exa.ai/mcp"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.exa.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.exa.ai/mcp",
+        "resource_metadata": "https://mcp.exa.ai/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp:tools"],
+        "discovery_url": "https://auth.exa.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://auth.exa.ai",
+        "authorization_endpoint": "https://auth.exa.ai/oauth/authorize",
+        "token_endpoint": "https://auth.exa.ai/api/oauth/token",
+        "revocation_endpoint": "https://auth.exa.ai/api/oauth/revoke",
+        "registration_endpoint": "https://auth.exa.ai/api/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "fathom",
+      "name": "Fathom",
+      "description": "Review meeting notes, transcripts, and summaries.",
+      "website": "https://fathom.video",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.fathom.ai/mcp", "https://api.fathom.ai"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.fathom.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.fathom.ai/mcp",
+        "resource_metadata": "https://api.fathom.ai/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp"],
+        "discovery_url": "https://api.fathom.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://api.fathom.ai",
+        "authorization_endpoint": "https://fathom.video/mcp/oauth/authorize",
+        "token_endpoint": "https://api.fathom.ai/mcp/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://api.fathom.ai/mcp/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "figma",
+      "name": "Figma",
+      "description": "Access design files and comments.",
+      "website": "https://www.figma.com",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "firecrawl",
+      "name": "Firecrawl",
+      "description": "Firecrawl web scraping and crawling for LLMs",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.firecrawl.dev"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "fireflies",
+      "name": "Fireflies",
+      "description": "Search meeting notes and transcripts.",
+      "website": "https://fireflies.ai",
+      "docsite": "https://fireflies.ai",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.fireflies.ai/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.fireflies.ai/mcp",
+        "resource_metadata": "https://api.fireflies.ai/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["profile", "email"],
+        "discovery_url": "https://api.fireflies.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://api.fireflies.ai/",
+        "authorization_endpoint": "https://api.fireflies.ai/authorize",
+        "token_endpoint": "https://api.fireflies.ai/token",
+        "revocation_endpoint": "https://api.fireflies.ai/revoke",
+        "registration_endpoint": "https://api.fireflies.ai/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post", "none"]
+      }
+    },
+    {
+      "service": "g2",
+      "name": "G2",
+      "description": "Bring buyer insights into sales workflows.",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.g2.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.g2.com/mcp",
+        "resource_metadata": "https://mcp.g2.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "openid",
+          "openid_admin",
+          "profile",
+          "profile_admin"
+        ],
+        "discovery_url": "https://www.g2.com/.well-known/oauth-authorization-server",
+        "issuer": "https://g2.com",
+        "authorization_endpoint": "https://www.g2.com/oauth/authorize",
+        "token_endpoint": "https://www.g2.com/oauth/token",
+        "revocation_endpoint": "https://www.g2.com/oauth/revoke",
+        "registration_endpoint": null,
+        "client_registration": "manual",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "gemini",
+      "name": "Google Gemini",
+      "description": "Google Gemini models and generation API",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://generativelanguage.googleapis.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "gitee",
+      "name": "Gitee",
+      "description": "Gitee repositories, issues, and pull requests",
+      "website": "https://gitee.com",
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "github",
+      "name": "GitHub",
+      "description": "Access repositories, issues, and pull requests.",
+      "website": "https://github.com",
+      "docsite": "https://docs.github.com/en/apps",
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": true,
+      "supports_triggers": true
+    },
+    {
+      "service": "gitlab",
+      "name": "GitLab",
+      "description": "GitLab projects, issues, and merge requests",
+      "website": "https://gitlab.com",
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://gitlab.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "google",
+      "name": "Google",
+      "description": "Google APIs - Gmail, Drive, Calendar, Sheets, YouTube, and more",
+      "website": "https://accounts.google.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "granola",
+      "name": "Granola",
+      "description": "Search meeting notes and summaries.",
+      "website": "https://granola.ai",
+      "docsite": "https://granola.ai",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.granola.ai/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.granola.ai/mcp",
+        "resource_metadata": "https://mcp.granola.ai/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://mcp-auth.granola.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp-auth.granola.ai",
+        "authorization_endpoint": "https://mcp-auth.granola.ai/oauth2/authorize",
+        "token_endpoint": "https://mcp-auth.granola.ai/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp-auth.granola.ai/oauth2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt"
+        ]
+      }
+    },
+    {
+      "service": "gusto",
+      "name": "Gusto",
+      "description": "Access payroll and workforce information.",
+      "website": "https://gusto.com",
+      "docsite": "https://gusto.com",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.api.gusto.com/anthropic"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.api.gusto.com/",
+        "resource_metadata": "https://mcp.api.gusto.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [
+          "companies:read",
+          "companies:write",
+          "company_bank_accounts:read",
+          "company_bank_accounts:write",
+          "company_federal_taxes:read",
+          "company_federal_taxes:write",
+          "company_onboarding_status:read",
+          "company_onboarding_status:write",
+          "company_reports:read",
+          "company_reports:read:excludes_sensitive_columns",
+          "company_reports:write",
+          "company_reports:write:excludes_sensitive_columns",
+          "compensations:read",
+          "contractors:read",
+          "contractors:write",
+          "departments:read",
+          "employee_benefits:read",
+          "employees:read",
+          "employees:write",
+          "employments:read",
+          "jobs:read",
+          "pay_schedules:read",
+          "payrolls:read",
+          "payrolls:run"
+        ],
+        "discovery_url": "https://mcp.api.gusto.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.api.gusto.com",
+        "authorization_endpoint": "https://mcp.api.gusto.com/oauth/authorize",
+        "token_endpoint": "https://mcp.api.gusto.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.api.gusto.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "harmonic",
+      "name": "Harmonic",
+      "description": "Explore company, investor, and people data.",
+      "website": "https://harmonic.ai",
+      "docsite": "https://support.harmonic.ai/en/articles/12785899-harmonic-mcp-server-getting-started-guide",
+      "categories": ["data"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.api.harmonic.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.api.harmonic.ai/",
+        "resource_metadata": "https://mcp.api.harmonic.ai/.well-known/oauth-protected-resource",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://login.harmonic.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://login.harmonic.ai",
+        "authorization_endpoint": "https://login.harmonic.ai/oauth2/authorize",
+        "token_endpoint": "https://login.harmonic.ai/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://login.harmonic.ai/oauth2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "harvest",
+      "name": "Harvest",
+      "description": "Harvest time tracking, projects, invoices, and reports",
+      "website": "https://www.getharvest.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "honeycomb",
+      "name": "Honeycomb",
+      "description": "Query telemetry and investigate application performance.",
+      "website": "https://www.honeycomb.io",
+      "docsite": "https://docs.honeycomb.io/integrations/mcp/configuration-guide",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://mcp.honeycomb.io/mcp",
+            "https://mcp.eu1.honeycomb.io/mcp"
+          ]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.honeycomb.io/mcp",
+        "resource_metadata": "https://mcp.honeycomb.io/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp:read", "mcp:write"],
+        "discovery_url": "https://ui.honeycomb.io/.well-known/oauth-authorization-server",
+        "issuer": "https://ui.honeycomb.io",
+        "authorization_endpoint": "https://ui.honeycomb.io/oauth/authorize",
+        "token_endpoint": "https://ui.honeycomb.io/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://ui.honeycomb.io/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "hubspot",
+      "name": "HubSpot",
+      "description": "HubSpot CRM contacts, companies, deals, and tickets",
+      "website": "https://www.hubspot.com",
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "hugging-face",
+      "name": "Hugging Face",
+      "description": "Explore models, datasets, and Gradio apps.",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://huggingface.co/mcp?login&gradio=none"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://huggingface.co/mcp",
+        "resource_metadata": "https://huggingface.co/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://huggingface.co/.well-known/oauth-authorization-server",
+        "issuer": "https://huggingface.co",
+        "authorization_endpoint": "https://huggingface.co/oauth/authorize",
+        "token_endpoint": "https://huggingface.co/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://huggingface.co/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "indeed",
+      "name": "Indeed",
+      "description": "Search jobs and explore hiring opportunities.",
+      "website": "https://indeed.com",
+      "docsite": "https://indeed.com",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.indeed.com/claude/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.indeed.com/claude/mcp",
+        "resource_metadata": "https://mcp.indeed.com/.well-known/oauth-protected-resource/claude/mcp",
+        "scopes_supported": [
+          "job_seeker.jobs.search",
+          "offline_access",
+          "job_seeker.profile.read",
+          "job_seeker.company.details.read"
+        ],
+        "discovery_url": "https://secure.indeed.com/.well-known/oauth-authorization-server",
+        "issuer": "https://secure.indeed.com",
+        "authorization_endpoint": "https://secure.indeed.com/oauth/v2/authorize",
+        "token_endpoint": "https://apis.indeed.com/oauth/v2/tokens",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://secure.indeed.com/oauth/v2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "intercom",
+      "name": "Intercom",
+      "description": "Intercom conversations, contacts, and articles",
+      "website": "https://www.intercom.com",
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "intuit-mailchimp",
+      "name": "Intuit Mailchimp",
+      "description": "Manage email campaigns and audiences.",
+      "website": "https://mailchimp.com",
+      "docsite": "https://mailchimp.com",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://ai-inc.mailchimp.com/claude/mcp/v2"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://ai-inc.mailchimp.com/claude/mcp/v2",
+        "resource_metadata": "https://ai-inc.mailchimp.com/.well-known/oauth-protected-resource/claude/mcp/v2",
+        "scopes_supported": [],
+        "discovery_url": "https://ai-inc.mailchimp.com/.well-known/oauth-authorization-server/claude",
+        "issuer": "https://ai-inc.mailchimp.com",
+        "authorization_endpoint": "https://ai-inc.mailchimp.com/claude/oauth/authorize",
+        "token_endpoint": "https://ai-inc.mailchimp.com/claude/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://ai-inc.mailchimp.com/claude/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "jev",
+      "name": "Jev",
+      "description": "TypeSafe AI decisions, classification, and scoring",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.typesafe.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "jira",
+      "name": "Jira",
+      "description": "Manage issues and projects in your Jira sites.",
+      "website": "https://www.atlassian.com/software/jira",
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://mcp.atlassian.com/v1/mcp/authv2",
+            "https://mcp.atlassian.com"
+          ]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.atlassian.com/v1/mcp/authv2",
+        "resource_metadata": "https://mcp.atlassian.com/.well-known/oauth-protected-resource/v1/mcp/authv2",
+        "scopes_supported": [],
+        "discovery_url": "https://auth.atlassian.com/.well-known/oauth-authorization-server/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3",
+        "issuer": "https://auth.atlassian.com/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3",
+        "authorization_endpoint": "https://auth.atlassian.com/authorize",
+        "token_endpoint": "https://auth.atlassian.com/oauth/token",
+        "revocation_endpoint": "https://auth.atlassian.com/oauth/revoke",
+        "registration_endpoint": "https://auth.atlassian.com/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3/dcr/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt"
+        ]
+      }
+    },
+    {
+      "service": "jotform",
+      "name": "Jotform",
+      "description": "Work with forms and submissions.",
+      "website": "https://jotform.com",
+      "docsite": "https://jotform.com",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.jotform.com/mcp-app"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.jotform.com/mcp-app",
+        "resource_metadata": "https://mcp.jotform.com/.well-known/oauth-protected-resource/mcp-app",
+        "scopes_supported": ["readOnly", "full"],
+        "discovery_url": "https://oauth2.jotform.com/.well-known/oauth-authorization-server",
+        "issuer": "https://oauth2.jotform.com",
+        "authorization_endpoint": "https://oauth2.jotform.com/authorize",
+        "token_endpoint": "https://oauth2.jotform.com/token",
+        "revocation_endpoint": "https://oauth2.jotform.com/revoke",
+        "registration_endpoint": "https://oauth2.jotform.com/register-public-client",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post", "none"]
+      }
+    },
+    {
+      "service": "kernel",
+      "name": "Kernel",
+      "description": "Run cloud browsers for AI agents.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://mcp.onkernel.com/mcp",
+            "https://mcp.onkernel.com"
+          ]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.onkernel.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.onkernel.com/mcp",
+        "resource_metadata": "https://mcp.onkernel.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["openid"],
+        "discovery_url": "https://auth.onkernel.com/.well-known/oauth-authorization-server",
+        "issuer": "https://auth.onkernel.com",
+        "authorization_endpoint": "https://auth.onkernel.com/authorize",
+        "token_endpoint": "https://auth.onkernel.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://auth.onkernel.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "langsmith",
+      "name": "LangSmith",
+      "description": "Inspect LLM traces, prompts, datasets, and evaluations.",
+      "website": "https://www.langchain.com/langsmith",
+      "docsite": "https://docs.langchain.com/langsmith/langsmith-remote-mcp",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://api.smith.langchain.com/mcp",
+            "https://eu.api.smith.langchain.com/mcp",
+            "https://apac.api.smith.langchain.com/mcp",
+            "https://aws.api.smith.langchain.com/mcp"
+          ]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.smith.langchain.com/mcp",
+        "resource_metadata": "https://api.smith.langchain.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://api.smith.langchain.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.smith.langchain.com",
+        "authorization_endpoint": "https://api.smith.langchain.com/oauth/authorize",
+        "token_endpoint": "https://api.smith.langchain.com/oauth/token",
+        "revocation_endpoint": "https://api.smith.langchain.com/oauth/revoke",
+        "registration_endpoint": "https://api.smith.langchain.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "lemma",
+      "name": "Lemma",
+      "description": "Banking for healthcare companies.",
+      "website": "https://getlemma.com",
+      "docsite": "https://getlemma.com/docs/api-reference",
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.getlemma.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "linear",
+      "name": "Linear",
+      "description": "Create and update issues in your workspace.",
+      "website": "https://linear.app",
+      "docsite": "https://linear.app/developers",
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.linear.app/mcp"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.linear.app"]
+        }
+      ],
+      "managed": true,
+      "supports_triggers": true,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.linear.app/mcp",
+        "resource_metadata": "https://mcp.linear.app/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["read", "write", "openid", "email"],
+        "discovery_url": "https://mcp.linear.app/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.linear.app",
+        "authorization_endpoint": "https://mcp.linear.app/authorize",
+        "token_endpoint": "https://mcp.linear.app/token",
+        "revocation_endpoint": "https://mcp.linear.app/token",
+        "registration_endpoint": "https://mcp.linear.app/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "linkedin",
+      "name": "LinkedIn",
+      "description": "LinkedIn profile data and content posting",
+      "website": "https://www.linkedin.com",
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "linq",
+      "name": "Linq",
+      "description": "iMessage, RCS, and SMS over a Linq shared line",
+      "website": "https://linqapp.com",
+      "docsite": "https://docs.linqapp.com",
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": true,
+      "supports_triggers": true
+    },
+    {
+      "service": "local-falcon",
+      "name": "Local Falcon",
+      "description": "Track local search rankings and AI visibility.",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.localfalcon.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.localfalcon.com",
+        "resource_metadata": "https://mcp.localfalcon.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["api", "offline_access"],
+        "discovery_url": "https://mcp.localfalcon.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.localfalcon.com",
+        "authorization_endpoint": "https://mcp.localfalcon.com/oauth/authorize",
+        "token_endpoint": "https://mcp.localfalcon.com/oauth/token",
+        "revocation_endpoint": "https://mcp.localfalcon.com/oauth/revoke",
+        "registration_endpoint": "https://mcp.localfalcon.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "logrocket",
+      "name": "LogRocket",
+      "description": "Investigate sessions, errors, and product analytics.",
+      "website": "https://logrocket.com",
+      "docsite": "https://docs.logrocket.com/docs/mcp",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.logrocket.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.logrocket.com/mcp",
+        "resource_metadata": "https://mcp.logrocket.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.logrocket.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.logrocket.com",
+        "authorization_endpoint": "https://mcp.logrocket.com/oauth/authorize",
+        "token_endpoint": "https://mcp.logrocket.com/oauth/token",
+        "revocation_endpoint": "https://mcp.logrocket.com/oauth/token",
+        "registration_endpoint": "https://mcp.logrocket.com/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "lovable",
+      "name": "Lovable",
+      "description": "Build and update web applications.",
+      "website": "https://lovable.dev",
+      "docsite": "https://lovable.dev",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.lovable.dev/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.lovable.dev",
+        "resource_metadata": "https://api.lovable.dev/.well-known/oauth-protected-resource",
+        "scopes_supported": [
+          "offline",
+          "openid",
+          "email",
+          "profile",
+          "projects:create",
+          "projects:read",
+          "projects:write",
+          "workspaces:create",
+          "workspaces:read",
+          "workspaces:write"
+        ],
+        "discovery_url": "https://lovable.dev/.well-known/oauth-authorization-server/oauth",
+        "issuer": "https://lovable.dev/oauth",
+        "authorization_endpoint": "https://lovable.dev/oauth/authorize",
+        "token_endpoint": "https://lovable.dev/oauth/token",
+        "revocation_endpoint": "https://lovable.dev/oauth/revoke",
+        "registration_endpoint": "https://lovable.dev/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "lucid",
+      "name": "Lucid",
+      "description": "Create and collaborate on diagrams.",
+      "website": "https://lucid.app",
+      "docsite": "https://lucid.app",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.lucid.app/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.lucid.app/mcp",
+        "resource_metadata": "https://mcp.lucid.app/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["offline_access"],
+        "discovery_url": "https://mcp.lucid.app/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.lucid.app",
+        "authorization_endpoint": "https://mcp.lucid.app/oauth/authorize",
+        "token_endpoint": "https://mcp.lucid.app/oauth/token",
+        "revocation_endpoint": "https://mcp.lucid.app/oauth/revoke",
+        "registration_endpoint": "https://mcp.lucid.app/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "private_key_jwt",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "mailgun",
+      "name": "Mailgun",
+      "description": "Send and receive email with Mailgun",
+      "website": null,
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.mailgun.net"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "make",
+      "name": "Make",
+      "description": "Run scenarios and manage automations.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.make.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.make.com/",
+        "resource_metadata": "https://mcp.make.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://www.make.com/.well-known/oauth-authorization-server/mcp",
+        "issuer": "https://www.make.com/mcp",
+        "authorization_endpoint": "https://www.make.com/oauth/v2/authorize",
+        "token_endpoint": "https://www.make.com/oauth/v2/token",
+        "revocation_endpoint": "https://www.make.com/oauth/v2/revoke",
+        "registration_endpoint": "https://www.make.com/oauth/v2/register/mcp",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post"]
+      }
+    },
+    {
+      "service": "manufact",
+      "name": "Manufact",
+      "description": "Deploy and monitor MCP servers.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.manufact.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.manufact.com/mcp",
+        "resource_metadata": "https://mcp.manufact.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["openid", "profile", "email", "offline_access"],
+        "discovery_url": "https://cloud.manufact.com/.well-known/oauth-authorization-server/api/auth",
+        "issuer": "https://cloud.manufact.com/api/auth",
+        "authorization_endpoint": "https://cloud.manufact.com/api/auth/oauth2/authorize",
+        "token_endpoint": "https://cloud.manufact.com/api/auth/oauth2/token",
+        "revocation_endpoint": "https://cloud.manufact.com/api/auth/oauth2/revoke",
+        "registration_endpoint": "https://cloud.manufact.com/api/auth/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "mem0",
+      "name": "Mem0",
+      "description": "Give AI agents persistent memory.",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.mem0.ai/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.mem0.ai/",
+        "resource_metadata": "https://mcp.mem0.ai/.well-known/oauth-protected-resource",
+        "scopes_supported": ["read", "write"],
+        "discovery_url": "https://mcp.mem0.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.mem0.ai/",
+        "authorization_endpoint": "https://mcp.mem0.ai/authorize",
+        "token_endpoint": "https://mcp.mem0.ai/token",
+        "revocation_endpoint": "https://mcp.mem0.ai/revoke",
+        "registration_endpoint": "https://mcp.mem0.ai/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "microsoft",
+      "name": "Microsoft",
+      "description": "Access Microsoft 365 data through Microsoft Graph.",
+      "website": "https://www.microsoft.com",
+      "docsite": "https://learn.microsoft.com/en-us/entra/identity-platform",
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": true,
+      "supports_triggers": false
+    },
+    {
+      "service": "microsoft-teams",
+      "name": "Microsoft Teams",
+      "description": "Send messages and alerts to your teams.",
+      "website": "https://www.microsoft.com/microsoft-teams",
+      "docsite": "https://learn.microsoft.com/en-us/microsoftteams/platform",
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": true,
+      "supports_triggers": true
+    },
+    {
+      "service": "miro",
+      "name": "Miro",
+      "description": "Access and create content on Miro boards.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.miro.com/"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.miro.com/",
+        "resource_metadata": "https://mcp.miro.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["boards:read", "boards:write", "openid", "email"],
+        "discovery_url": "https://mcp.miro.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.miro.com/",
+        "authorization_endpoint": "https://mcp.miro.com/authorize",
+        "token_endpoint": "https://mcp.miro.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.miro.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "mixpanel",
+      "name": "Mixpanel",
+      "description": "Analyze product usage and user behavior.",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.mixpanel.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.mixpanel.com/mcp",
+        "resource_metadata": "https://mcp.mixpanel.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "projects",
+          "analysis",
+          "events",
+          "insights",
+          "segmentation",
+          "retention",
+          "data:read",
+          "funnels",
+          "flows",
+          "data_definitions",
+          "alerts",
+          "annotations",
+          "bookmarks",
+          "business_context",
+          "cohorts",
+          "context",
+          "custom_alerts",
+          "custom_events",
+          "custom_properties",
+          "dashboard_reports",
+          "experiments",
+          "feature_flags",
+          "metrics",
+          "user_details"
+        ],
+        "discovery_url": "https://mcp.mixpanel.com/.well-known/oauth-authorization-server/mcp",
+        "issuer": "https://mcp.mixpanel.com/mcp",
+        "authorization_endpoint": "https://mixpanel.com/oauth/authorize",
+        "token_endpoint": "https://mixpanel.com/oauth/token/",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mixpanel.com/oauth/mcp/register/",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "monday",
+      "name": "monday.com",
+      "description": "monday.com boards, items, and workspaces",
+      "website": "https://monday.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.monday.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "motherduck",
+      "name": "MotherDuck",
+      "description": "Query and explore your cloud data warehouse.",
+      "website": "https://motherduck.com",
+      "docsite": "https://motherduck.com/docs/key-tasks/ai-and-motherduck/mcp-setup/",
+      "categories": ["data"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.motherduck.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.motherduck.com/mcp",
+        "resource_metadata": "https://api.motherduck.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp:connect"],
+        "discovery_url": "https://mcp-auth.motherduck.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp-auth.motherduck.com",
+        "authorization_endpoint": "https://mcp-auth.motherduck.com/authorize",
+        "token_endpoint": "https://mcp-auth.motherduck.com/token",
+        "revocation_endpoint": "https://mcp-auth.motherduck.com/revoke",
+        "registration_endpoint": "https://mcp-auth.motherduck.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "n8n",
+      "name": "n8n",
+      "description": "Build and run automated workflows.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://n8n.cloud"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "neon",
+      "name": "Neon",
+      "description": "Neon Postgres projects and branches",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://console.neon.tech"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "netlify",
+      "name": "Netlify",
+      "description": "Build and deploy websites.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://netlify-mcp.netlify.app/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://netlify-mcp.netlify.app/mcp",
+        "resource_metadata": "https://netlify-mcp.netlify.app/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["offline_access", "read", "write", "claudeai"],
+        "discovery_url": "https://netlify-mcp.netlify.app/.well-known/oauth-authorization-server",
+        "issuer": "https://netlify-mcp.netlify.app/",
+        "authorization_endpoint": "https://netlify-mcp.netlify.app/oauth-server/auth",
+        "token_endpoint": "https://netlify-mcp.netlify.app/oauth-server/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://netlify-mcp.netlify.app/oauth-server/reg",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "new-relic",
+      "name": "New Relic",
+      "description": "Investigate application performance, telemetry, and alerts.",
+      "website": "https://newrelic.com",
+      "docsite": "https://docs.newrelic.com/docs/agentic-ai/mcp/setup/",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://mcp.newrelic.com/mcp/",
+            "https://mcp.eu.newrelic.com/mcp/",
+            "https://mcp.jp.newrelic.com/mcp/"
+          ]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.newrelic.com/mcp/",
+        "resource_metadata": "https://mcp.newrelic.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "offline_access",
+          "offline",
+          "openid",
+          "observability:read"
+        ],
+        "discovery_url": "https://oauth2.service.newrelic.com/.well-known/oauth-authorization-server",
+        "issuer": "https://oauth2.service.newrelic.com",
+        "authorization_endpoint": "https://oauth2.service.newrelic.com/oauth2/auth",
+        "token_endpoint": "https://oauth2.service.newrelic.com/oauth2/token",
+        "revocation_endpoint": "https://oauth2.service.newrelic.com/oauth2/revoke",
+        "registration_endpoint": "https://dcr.service.newrelic.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "ngrok",
+      "name": "ngrok",
+      "description": "ngrok tunnels, endpoints, and edge configuration",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.ngrok.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "notion",
+      "name": "Notion",
+      "description": "Read and write pages in your workspace.",
+      "website": "https://www.notion.so",
+      "docsite": "https://developers.notion.com",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "api",
+          "label": "Notion API"
+        },
+        {
+          "target": "mcp",
+          "label": "Notion MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://mcp.notion.com/mcp",
+            "https://mcp.notion.com/sse"
+          ]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.notion.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.notion.com/mcp",
+        "resource_metadata": "https://mcp.notion.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["default"],
+        "discovery_url": "https://mcp.notion.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.notion.com",
+        "authorization_endpoint": "https://mcp.notion.com/authorize",
+        "token_endpoint": "https://mcp.notion.com/token",
+        "revocation_endpoint": "https://mcp.notion.com/token",
+        "registration_endpoint": "https://mcp.notion.com/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "npm",
+      "name": "npm",
+      "description": "Find and publish JavaScript packages.",
+      "website": "https://www.npmjs.com",
+      "docsite": "https://docs.npmjs.com",
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://registry.npmjs.org"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "okta",
+      "name": "Okta",
+      "description": "Manage users and groups in your Okta org.",
+      "website": "https://www.okta.com",
+      "docsite": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/main/",
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "openai",
+      "name": "OpenAI",
+      "description": "OpenAI models, chat completions, and embeddings",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.openai.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "openrouter",
+      "name": "OpenRouter",
+      "description": "Route requests across models with OpenRouter",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://openrouter.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "oreilly",
+      "name": "O’Reilly",
+      "description": "Discover expert books, courses, and learning content.",
+      "website": null,
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": [
+            "https://api.oreilly.com/api/content-discovery/v1/mcp/"
+          ]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.oreilly.com/api/content-discovery/v1/mcp",
+        "resource_metadata": "https://api.oreilly.com/.well-known/oauth-protected-resource/api/content-discovery/v1/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://api.oreilly.com/.well-known/oauth-authorization-server/api/content-discovery/v1",
+        "issuer": "https://api.oreilly.com/api/content-discovery/v1",
+        "authorization_endpoint": "https://api.oreilly.com/api/content-discovery/v1/authorize",
+        "token_endpoint": "https://api.oreilly.com/api/content-discovery/v1/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://api.oreilly.com/api/content-discovery/v1/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "otter-ai",
+      "name": "Otter.ai",
+      "description": "Search meeting transcripts and summaries.",
+      "website": "https://otter.ai",
+      "docsite": "https://otter.ai",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.otter.ai/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.otter.ai/",
+        "resource_metadata": "https://mcp.otter.ai/.well-known/oauth-protected-resource",
+        "scopes_supported": ["profile:read", "conversations:read"],
+        "discovery_url": "https://otter.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://otter.ai",
+        "authorization_endpoint": "https://otter.ai/oauth2/authorize",
+        "token_endpoint": "https://otter.ai/oauth/token",
+        "revocation_endpoint": "https://otter.ai/oauth/revoke_token",
+        "registration_endpoint": "https://otter.ai/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "pagerduty",
+      "name": "PagerDuty",
+      "description": "Manage incidents, services, and on-call schedules.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.pagerduty.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.pagerduty.com/mcp",
+        "resource_metadata": "https://mcp.pagerduty.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "incidents.read",
+          "extension_schemas.read",
+          "subscribers.write",
+          "users:sessions.write",
+          "recommendations.write",
+          "recommendations.read",
+          "none",
+          "users:contact_methods.read",
+          "users.write",
+          "templates.read",
+          "incident_types.read",
+          "jira_cloud_rules.read",
+          "workflow_integrations:connections.write",
+          "session_configurations.write",
+          "addons.write",
+          "oncalls.read",
+          "standards.write",
+          "users:contact_methods.write",
+          "users.read",
+          "incident_workflows.write",
+          "notifications.read",
+          "workflow_integrations:connections.read",
+          "copilot:chat.write",
+          "write"
+        ],
+        "discovery_url": "https://mcp.pagerduty.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.pagerduty.com/",
+        "authorization_endpoint": "https://app.pagerduty.com/global/oauth/authorize",
+        "token_endpoint": "https://app.pagerduty.com/global/oauth/token",
+        "revocation_endpoint": "https://app.pagerduty.com/global/oauth/revoke",
+        "registration_endpoint": null,
+        "client_registration": "manual",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "paypal",
+      "name": "PayPal",
+      "description": "Manage payments, invoices, and subscriptions.",
+      "website": "https://paypal.com",
+      "docsite": "https://paypal.com",
+      "categories": ["commerce"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.paypal.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.paypal.com/mcp",
+        "resource_metadata": "https://mcp.paypal.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.paypal.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.paypal.com",
+        "authorization_endpoint": "https://mcp.paypal.com/authorize",
+        "token_endpoint": "https://mcp.paypal.com/token",
+        "revocation_endpoint": "https://mcp.paypal.com/token",
+        "registration_endpoint": "https://mcp.paypal.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "pendo",
+      "name": "Pendo",
+      "description": "Explore product usage and customer insights.",
+      "website": "https://pendo.io",
+      "docsite": "https://pendo.io",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://app.pendo.io/mcp/v0/shttp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://app.pendo.io/mcp/v0/shttp",
+        "resource_metadata": "https://app.pendo.io/.well-known/oauth-protected-resource/mcp/v0/shttp",
+        "scopes_supported": [],
+        "discovery_url": "https://app.pendo.io/.well-known/oauth-authorization-server",
+        "issuer": "https://app.pendo.io",
+        "authorization_endpoint": "https://app.pendo.io/oauth/authorize",
+        "token_endpoint": "https://app.pendo.io/oauth/v1/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://app.pendo.io/oauth/v1/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "none",
+          "private_key_jwt"
+        ]
+      }
+    },
+    {
+      "service": "perplexity",
+      "name": "Perplexity",
+      "description": "Perplexity Sonar search-grounded models",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.perplexity.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "photon",
+      "name": "Photon",
+      "description": "Multi-platform messaging for AI agents",
+      "website": "https://photon.codes",
+      "docsite": "https://photon.codes/docs/webhooks/overview",
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": false,
+      "supports_triggers": true
+    },
+    {
+      "service": "pinecone",
+      "name": "Pinecone",
+      "description": "Pinecone vector database indexes and queries",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.pinecone.io"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "planetscale",
+      "name": "PlanetScale",
+      "description": "Query and manage Postgres and MySQL databases.",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.pscale.dev/mcp/planetscale"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.pscale.dev/mcp/planetscale",
+        "resource_metadata": "https://mcp.pscale.dev/.well-known/oauth-protected-resource/mcp/planetscale",
+        "scopes_supported": [
+          "read_databases",
+          "read_user",
+          "read_organization",
+          "read_organizations",
+          "email",
+          "openid",
+          "profile",
+          "write_databases",
+          "write_user",
+          "write_organization",
+          "branch:delete_backups",
+          "branch:delete_branch",
+          "branch:manage_passwords",
+          "branch:manage_read_only_passwords",
+          "branch:manage_topology",
+          "branch:read_backups",
+          "branch:read_branch",
+          "branch:restore_backups",
+          "branch:write_backups",
+          "branch:write_branch",
+          "database:approve_deploy_requests",
+          "database:delete_backups",
+          "database:delete_branches",
+          "database:delete_database"
+        ],
+        "discovery_url": "https://api.planetscale.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.planetscale.com",
+        "authorization_endpoint": "https://app.planetscale.com/oauth/authorize",
+        "token_endpoint": "https://auth.planetscale.com/oauth/token",
+        "revocation_endpoint": "https://auth.planetscale.com/oauth/revoke",
+        "registration_endpoint": "https://auth.planetscale.com/oauth/registration",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "posthog",
+      "name": "PostHog",
+      "description": "Analyze product usage, experiments, and insights.",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.posthog.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.posthog.com/mcp",
+        "resource_metadata": "https://mcp.posthog.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "email",
+          "introspection",
+          "action:read",
+          "action:write",
+          "access_control:read",
+          "access_control:write",
+          "account:read",
+          "account:write",
+          "activity_log:read",
+          "activity_log:write",
+          "alert:read",
+          "alert:write",
+          "annotation:read",
+          "annotation:write",
+          "approvals:read",
+          "approvals:write",
+          "autoresearch:read",
+          "autoresearch:write",
+          "batch_export:read",
+          "batch_export:write",
+          "batch_import:read",
+          "batch_import:write"
+        ],
+        "discovery_url": "https://oauth.posthog.com/.well-known/oauth-authorization-server",
+        "issuer": "https://oauth.posthog.com",
+        "authorization_endpoint": "https://oauth.posthog.com/oauth/authorize/",
+        "token_endpoint": "https://oauth.posthog.com/oauth/token/",
+        "revocation_endpoint": "https://oauth.posthog.com/oauth/revoke/",
+        "registration_endpoint": "https://oauth.posthog.com/oauth/register/",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "private_key_jwt"
+        ]
+      }
+    },
+    {
+      "service": "postman",
+      "name": "Postman",
+      "description": "Give coding agents context about your APIs.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.postman.com/minimal"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.postman.com/minimal",
+        "resource_metadata": "https://mcp.postman.com/.well-known/oauth-protected-resource/minimal",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.postman.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.postman.com",
+        "authorization_endpoint": "https://mcp.postman.com/authorize",
+        "token_endpoint": "https://mcp.postman.com/token",
+        "revocation_endpoint": "https://mcp.postman.com/revoke",
+        "registration_endpoint": "https://mcp.postman.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "pylon",
+      "name": "Pylon",
+      "description": "Work with support issues, accounts, and contacts.",
+      "website": "https://usepylon.com",
+      "docsite": "https://support.usepylon.com/articles/2407390554-connecting-to-the-pylon-mcp-server",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.usepylon.com/"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.usepylon.com",
+        "resource_metadata": "https://mcp.usepylon.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://o.auth.usepylon.com/.well-known/oauth-authorization-server",
+        "issuer": "https://o.auth.usepylon.com",
+        "authorization_endpoint": "https://o.auth.usepylon.com/oauth2/authorize",
+        "token_endpoint": "https://o.auth.usepylon.com/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://o.auth.usepylon.com/oauth2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "quartr",
+      "name": "Quartr",
+      "description": "Research company filings, earnings, and investor materials.",
+      "website": "https://quartr.com",
+      "docsite": "https://mcp.quartr.com/docs",
+      "categories": ["data"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.quartr.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.quartr.com/mcp",
+        "resource_metadata": "https://mcp.quartr.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["mcp:tools"],
+        "discovery_url": "https://mcp.quartr.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.quartr.com",
+        "authorization_endpoint": "https://mcp.quartr.com/oauth/authorize",
+        "token_endpoint": "https://mcp.quartr.com/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.quartr.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "quicknode",
+      "name": "Quicknode",
+      "description": "Access blockchain data and manage infrastructure.",
+      "website": "https://quicknode.com",
+      "docsite": "https://www.quicknode.com/docs/build-with-ai/quicknode-mcp",
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.quicknode.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.quicknode.com/",
+        "resource_metadata": "https://mcp.quicknode.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.quicknode.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.quicknode.com/",
+        "authorization_endpoint": "https://mcp.quicknode.com/authorize",
+        "token_endpoint": "https://mcp.quicknode.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.quicknode.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post", "none"]
+      }
+    },
+    {
+      "service": "railway",
+      "name": "Railway",
+      "description": "Railway projects, services, and deployments",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://backboard.railway.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "razorpay",
+      "name": "Razorpay",
+      "description": "Manage payments, settlements, and account data.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.razorpay.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.razorpay.com",
+        "resource_metadata": "https://mcp.razorpay.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.razorpay.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.razorpay.com",
+        "authorization_endpoint": "https://mcp.razorpay.com/authorize",
+        "token_endpoint": "https://mcp.razorpay.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.razorpay.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post"]
+      }
+    },
+    {
+      "service": "read-ai",
+      "name": "Read AI",
+      "description": "Search meeting summaries, transcripts, and action items.",
+      "website": "https://read.ai",
+      "docsite": "https://support.read.ai/hc/en-us/articles/49381158409491-MCP-Server",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.read.ai/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.read.ai/mcp",
+        "resource_metadata": "https://api.read.ai/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "offline_access",
+          "offline",
+          "openid",
+          "profile",
+          "email",
+          "mcp:execute",
+          "meeting:read"
+        ],
+        "discovery_url": "https://authn.read.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://authn.read.ai/",
+        "authorization_endpoint": "https://authn.read.ai/oauth2/auth",
+        "token_endpoint": "https://authn.read.ai/oauth2/token",
+        "revocation_endpoint": "https://authn.read.ai/oauth2/revoke",
+        "registration_endpoint": "https://api.read.ai/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "readwise",
+      "name": "Readwise",
+      "description": "Search saved highlights and documents.",
+      "website": "https://readwise.io",
+      "docsite": "https://readwise.io",
+      "categories": ["content"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp2.readwise.io/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp2.readwise.io/mcp",
+        "resource_metadata": "https://mcp2.readwise.io/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["openid", "read", "write"],
+        "discovery_url": "https://readwise.io/.well-known/oauth-authorization-server/o",
+        "issuer": "https://readwise.io/o/",
+        "authorization_endpoint": "https://readwise.io/o/authorize/",
+        "token_endpoint": "https://readwise.io/o/token/",
+        "revocation_endpoint": "https://readwise.io/o/revoke-token/",
+        "registration_endpoint": "https://readwise.io/o/register/",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "reclaim-ai",
+      "name": "Reclaim.ai",
+      "description": "Manage scheduling and calendar workflows.",
+      "website": "https://reclaim.ai",
+      "docsite": "https://help.reclaim.ai/en/articles/15265289-reclaim-2-0-claude-integration",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.reclaim.ai"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.reclaim.ai",
+        "resource_metadata": "https://mcp.reclaim.ai/.well-known/oauth-protected-resource",
+        "scopes_supported": ["read", "write", "mcp"],
+        "discovery_url": "https://mcp.reclaim.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.reclaim.ai",
+        "authorization_endpoint": "https://api.app.reclaim.ai/oauth2/authorize",
+        "token_endpoint": "https://api.app.reclaim.ai/oauth2/token",
+        "revocation_endpoint": "https://api.app.reclaim.ai/oauth2/revoke",
+        "registration_endpoint": "https://api.app.reclaim.ai/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "reddit",
+      "name": "Reddit",
+      "description": "Reddit posts, comments, and subreddits",
+      "website": "https://www.reddit.com",
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "render",
+      "name": "Render",
+      "description": "Render services, deploys, and environments",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.render.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "replicate",
+      "name": "Replicate",
+      "description": "Run and manage models on Replicate",
+      "website": null,
+      "docsite": null,
+      "categories": ["ai"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.replicate.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "resend",
+      "name": "Resend",
+      "description": "Send transactional emails from your apps.",
+      "website": "https://resend.com",
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": ["https://api.resend.com"]
+        },
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.resend.com"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.resend.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.resend.com",
+        "resource_metadata": "https://mcp.resend.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["full_access", "emails:send"],
+        "discovery_url": "https://api.resend.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.resend.com",
+        "authorization_endpoint": "https://api.resend.com/oauth/authorize",
+        "token_endpoint": "https://api.resend.com/oauth/token",
+        "revocation_endpoint": "https://api.resend.com/oauth/revoke",
+        "registration_endpoint": "https://api.resend.com/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "salesforce",
+      "name": "Salesforce",
+      "description": "Access leads, contacts, and CRM data.",
+      "website": "https://www.salesforce.com",
+      "docsite": "https://developer.salesforce.com",
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": true,
+      "supports_triggers": false
+    },
+    {
+      "service": "sanity",
+      "name": "Sanity",
+      "description": "Query and edit content in your datasets.",
+      "website": "https://www.sanity.io",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.sanity.io"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.sanity.io"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.sanity.io",
+        "resource_metadata": "https://mcp.sanity.io/.well-known/oauth-protected-resource",
+        "scopes_supported": ["global"],
+        "discovery_url": "https://mcp.sanity.io/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.sanity.io",
+        "authorization_endpoint": "https://mcp.sanity.io/authorize",
+        "token_endpoint": "https://mcp.sanity.io/token",
+        "revocation_endpoint": "https://mcp.sanity.io/revoke",
+        "registration_endpoint": "https://mcp.sanity.io/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "segment",
+      "name": "Segment",
+      "description": "Segment event tracking and customer data",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.segment.io"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "sendgrid",
+      "name": "SendGrid",
+      "description": "Send email with the SendGrid API",
+      "website": null,
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.sendgrid.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "sentry",
+      "name": "Sentry",
+      "description": "Investigate and debug application errors.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.sentry.dev/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.sentry.dev/mcp",
+        "resource_metadata": "https://mcp.sentry.dev/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "org:read",
+          "project:write",
+          "team:write",
+          "event:write",
+          "alerts:write"
+        ],
+        "discovery_url": "https://mcp.sentry.dev/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.sentry.dev",
+        "authorization_endpoint": "https://mcp.sentry.dev/oauth/authorize",
+        "token_endpoint": "https://mcp.sentry.dev/oauth/token",
+        "revocation_endpoint": "https://mcp.sentry.dev/oauth/token",
+        "registration_endpoint": "https://mcp.sentry.dev/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "serpstat",
+      "name": "Serpstat",
+      "description": "Research keywords, competitors, and search performance.",
+      "website": "https://serpstat.com",
+      "docsite": "https://serpstat.com/page/serpstat-mcp/",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.serpstat.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.serpstat.com/mcp",
+        "resource_metadata": "https://mcp.serpstat.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "offline_access",
+          "offline",
+          "openid",
+          "mcp:connect"
+        ],
+        "discovery_url": "https://auth.serpstat.com/.well-known/oauth-authorization-server",
+        "issuer": "https://auth.serpstat.com",
+        "authorization_endpoint": "https://auth.serpstat.com/oauth2/auth",
+        "token_endpoint": "https://auth.serpstat.com/oauth2/token",
+        "revocation_endpoint": "https://auth.serpstat.com/oauth2/revoke",
+        "registration_endpoint": "https://auth.serpstat.com/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "shopify",
+      "name": "Shopify",
+      "description": "Access products, orders, and store data.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "signnow",
+      "name": "SignNow",
+      "description": "Prepare documents and manage signature workflows.",
+      "website": "https://signnow.com",
+      "docsite": "https://helpcenter.signnow.com/en/articles/14020270-how-to-connect-signnow-to-chatgpt-and-claude",
+      "categories": ["productivity"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp-server.signnow.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp-server.signnow.com/mcp",
+        "resource_metadata": "https://mcp-server.signnow.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["offline_access", "*"],
+        "discovery_url": "https://mcp-server.signnow.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp-server.signnow.com/",
+        "authorization_endpoint": "https://mcp-server.signnow.com/authorize",
+        "token_endpoint": "https://mcp-server.signnow.com/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp-server.signnow.com/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none", "client_secret_post"]
+      }
+    },
+    {
+      "service": "similarweb",
+      "name": "Similarweb",
+      "description": "Analyze web, mobile app, and market performance.",
+      "website": null,
+      "docsite": null,
+      "categories": ["analytics"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.similarweb.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "no_metadata",
+        "resource": "https://mcp.similarweb.com",
+        "resource_metadata": "https://mcp.similarweb.com/.well-known/oauth-protected-resource"
+      }
+    },
+    {
+      "service": "slack",
+      "name": "Slack",
+      "description": "Send messages and alerts to your workspace.",
+      "website": "https://slack.com",
+      "docsite": "https://api.slack.com/docs",
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": true,
+      "supports_triggers": true
+    },
+    {
+      "service": "snowflake",
+      "name": "Snowflake",
+      "description": "Query your data warehouse.",
+      "website": "https://www.snowflake.com",
+      "docsite": "https://docs.snowflake.com",
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [],
+      "managed": true,
+      "supports_triggers": false
+    },
+    {
+      "service": "spotify",
+      "name": "Spotify",
+      "description": "Spotify playlists, library, and playback",
+      "website": "https://spotify.com",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "statsig",
+      "name": "Statsig",
+      "description": "Manage feature flags and experiments.",
+      "website": "https://statsig.com",
+      "docsite": "https://statsig.com",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.statsig.com/v1/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.statsig.com/v1/mcp",
+        "resource_metadata": "https://api.statsig.com/.well-known/oauth-protected-resource/v1/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://api.statsig.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.statsig.com",
+        "authorization_endpoint": "https://api.statsig.com/v1/oauth/authorize",
+        "token_endpoint": "https://api.statsig.com/v1/oauth/access_token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://api.statsig.com/v1/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["client_secret_post", "none"]
+      }
+    },
+    {
+      "service": "streak",
+      "name": "Streak",
+      "description": "Search and update your CRM pipelines and contacts.",
+      "website": "https://streak.com",
+      "docsite": "https://support.streak.com/en/articles/13931874-integrating-streak-with-gemini-claude-chatgpt-and-other-ai-tools",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://api.streak.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://api.streak.com/mcp",
+        "resource_metadata": "https://api.streak.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://api.streak.com/.well-known/oauth-authorization-server/mcp",
+        "issuer": "https://api.streak.com/mcp",
+        "authorization_endpoint": "https://api.streak.com/oauth2/start",
+        "token_endpoint": "https://api.streak.com/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://api.streak.com/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "stripe",
+      "name": "Stripe",
+      "description": "Manage payments and financial workflows.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.stripe.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.stripe.com",
+        "resource_metadata": "https://mcp.stripe.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["mcp"],
+        "discovery_url": "https://access.stripe.com/.well-known/oauth-authorization-server/mcp",
+        "issuer": "https://access.stripe.com/mcp",
+        "authorization_endpoint": "https://access.stripe.com/mcp/oauth2/authorize",
+        "token_endpoint": "https://access.stripe.com/mcp/oauth2/token",
+        "revocation_endpoint": "https://access.stripe.com/mcp/oauth2/revoke",
+        "registration_endpoint": "https://access.stripe.com/mcp/oauth2/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": ["none"]
+      }
+    },
+    {
+      "service": "supabase",
+      "name": "Supabase",
+      "description": "Manage databases, authentication, and storage.",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.supabase.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.supabase.com/mcp",
+        "resource_metadata": "https://mcp.supabase.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "analytics:read",
+          "analytics:write",
+          "analytics_config:read",
+          "analytics_config:write",
+          "auth:read",
+          "auth:write",
+          "database:read",
+          "database:write",
+          "domains:read",
+          "domains:write",
+          "edge_functions:read",
+          "edge_functions:write",
+          "environment:read",
+          "environment:write",
+          "organizations:read",
+          "organizations:write",
+          "projects:read",
+          "projects:write",
+          "rest:read",
+          "rest:write",
+          "secrets:read",
+          "secrets:write",
+          "storage:read",
+          "storage:write"
+        ],
+        "discovery_url": "https://api.supabase.com/.well-known/oauth-authorization-server",
+        "issuer": "https://api.supabase.com",
+        "authorization_endpoint": "https://api.supabase.com/v1/oauth/authorize",
+        "token_endpoint": "https://api.supabase.com/v1/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://api.supabase.com/platform/oauth/apps/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256", "plain"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "superhuman-mail",
+      "name": "Superhuman Mail",
+      "description": "Search and manage your email.",
+      "website": "https://superhuman.com",
+      "docsite": "https://superhuman.com",
+      "categories": ["communication"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.mail.superhuman.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.mail.superhuman.com/mcp",
+        "resource_metadata": "https://mcp.mail.superhuman.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": ["email", "offline_access", "openid", "profile"],
+        "discovery_url": "https://mcp.auth.mail.superhuman.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.auth.mail.superhuman.com",
+        "authorization_endpoint": "https://mcp.auth.mail.superhuman.com/oauth2/authorize",
+        "token_endpoint": "https://mcp.auth.mail.superhuman.com/oauth2/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp.auth.mail.superhuman.com/oauth2/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "telegram",
+      "name": "Telegram Bot",
+      "description": "Send messages via the Telegram Bot API",
+      "website": null,
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.telegram.org"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "ticket-tailor",
+      "name": "Ticket Tailor",
+      "description": "Manage tickets, orders, and attendees.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.tickettailor.ai/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.tickettailor.ai/mcp",
+        "resource_metadata": null,
+        "scopes_supported": ["mcp.access"],
+        "discovery_url": "https://mcp.tickettailor.ai/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.tickettailor.ai",
+        "authorization_endpoint": "https://mcp.tickettailor.ai/authorize",
+        "token_endpoint": "https://mcp.tickettailor.ai/token",
+        "revocation_endpoint": "https://mcp.tickettailor.ai/token",
+        "registration_endpoint": "https://mcp.tickettailor.ai/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "ticktick",
+      "name": "TickTick",
+      "description": "Search, create, and manage tasks and habits.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.ticktick.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.ticktick.com/",
+        "resource_metadata": "https://mcp.ticktick.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [],
+        "discovery_url": "https://ticktick.com/.well-known/oauth-authorization-server",
+        "issuer": "https://ticktick.com",
+        "authorization_endpoint": "https://ticktick.com/oauth/authorize",
+        "token_endpoint": "https://api.ticktick.com/oauth/token",
+        "revocation_endpoint": "https://api.ticktick.com/oauth/token",
+        "registration_endpoint": "https://api.ticktick.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": ["none", "client_secret_basic"]
+      }
+    },
+    {
+      "service": "tinybird",
+      "name": "Tinybird",
+      "description": "Query real-time pipes and data sources.",
+      "website": null,
+      "docsite": null,
+      "categories": ["data"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.tinybird.co"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "todoist",
+      "name": "Todoist",
+      "description": "Create, complete, and organize tasks.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://ai.todoist.net/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://ai.todoist.net/mcp",
+        "resource_metadata": "https://ai.todoist.net/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "task:add",
+          "data:read",
+          "data:read_write",
+          "data:delete",
+          "project:delete",
+          "dev:app_console",
+          "backups:read",
+          "billing:read",
+          "billing:read_write",
+          "user:read",
+          "user:write",
+          "workspaces:read",
+          "workspaces:write",
+          "comms:channels:read",
+          "comms:channels:write",
+          "comms:channels:delete",
+          "comms:content:read",
+          "comms:content:write",
+          "comms:content:delete",
+          "comms:messages:read",
+          "comms:messages:write",
+          "comms:messages:delete",
+          "automations:automations:read",
+          "automations:automations:write"
+        ],
+        "discovery_url": "https://todoist.com/.well-known/oauth-authorization-server",
+        "issuer": "https://todoist.com",
+        "authorization_endpoint": "https://todoist.com/oauth/authorize",
+        "token_endpoint": "https://todoist.com/oauth/access_token",
+        "revocation_endpoint": "https://todoist.com/api/v1/revoke",
+        "registration_endpoint": "https://todoist.com/oauth/register",
+        "client_registration": "cimd",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "twilio",
+      "name": "Twilio",
+      "description": "Send messages and build voice and video experiences.",
+      "website": null,
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "twitch",
+      "name": "Twitch",
+      "description": "Twitch streams, users, and channel data",
+      "website": "https://www.twitch.tv",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "typeform",
+      "name": "Typeform",
+      "description": "Typeform forms and response retrieval",
+      "website": "https://www.typeform.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.typeform.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "vantage",
+      "name": "Vantage",
+      "description": "Explore cloud costs and resource usage.",
+      "website": "https://vantage.sh",
+      "docsite": "https://github.com/vantage-sh/vantage-mcp-server",
+      "categories": ["analytics"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.vantage.sh/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.vantage.sh/mcp",
+        "resource_metadata": null,
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.vantage.sh/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.vantage.sh",
+        "authorization_endpoint": "https://mcp.vantage.sh/authorize",
+        "token_endpoint": "https://mcp.vantage.sh/token",
+        "revocation_endpoint": "https://mcp.vantage.sh/token",
+        "registration_endpoint": "https://mcp.vantage.sh/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "vercel",
+      "name": "Vercel",
+      "description": "Deploy agents and apps, manage projects, and more.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [
+        {
+          "target": "api",
+          "label": "Vercel API"
+        },
+        {
+          "target": "mcp",
+          "label": "Vercel MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": ["https://api.vercel.com"]
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.vercel.com"]
+        },
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.vercel.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.vercel.com/",
+        "resource_metadata": "https://mcp.vercel.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["openid", "email", "profile", "offline_access"],
+        "discovery_url": "https://vercel.com/.well-known/oauth-authorization-server",
+        "issuer": "https://vercel.com",
+        "authorization_endpoint": "https://vercel.com/oauth/authorize",
+        "token_endpoint": "https://api.vercel.com/login/oauth/token",
+        "revocation_endpoint": "https://api.vercel.com/login/oauth/token/revoke",
+        "registration_endpoint": "https://api.vercel.com/login/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "client_secret_jwt",
+          "private_key_jwt"
+        ]
+      }
+    },
+    {
+      "service": "webflow",
+      "name": "Webflow",
+      "description": "Manage CMS content, pages, assets, and sites.",
+      "website": "https://webflow.com",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.webflow.com/mcp"]
+        },
+        {
+          "method": "oauth",
+          "service_urls": []
+        },
+        {
+          "method": "api-key",
+          "service_urls": ["https://api.webflow.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.webflow.com/mcp",
+        "resource_metadata": "https://mcp.webflow.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.webflow.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.webflow.com",
+        "authorization_endpoint": "https://mcp.webflow.com/oauth/authorize",
+        "token_endpoint": "https://mcp.webflow.com/oauth/token",
+        "revocation_endpoint": "https://mcp.webflow.com/oauth/token",
+        "registration_endpoint": "https://mcp.webflow.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "whimsical",
+      "name": "Whimsical",
+      "description": "Create diagrams and work with your visual workspace.",
+      "website": "https://whimsical.com",
+      "docsite": "https://whimsical.com/learn/integrations/mcp",
+      "categories": ["content"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.whimsical.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.whimsical.com",
+        "resource_metadata": "https://mcp.whimsical.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["mcp:read", "mcp:write", "profile"],
+        "discovery_url": "https://mcp.whimsical.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.whimsical.com",
+        "authorization_endpoint": "https://api.whimsical.com/v1/oauth.authorize",
+        "token_endpoint": "https://api.whimsical.com/v1/oauth.token",
+        "revocation_endpoint": "https://api.whimsical.com/v1/oauth.revoke",
+        "registration_endpoint": "https://api.whimsical.com/v1/oauth.register-mcp-client",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "whoop",
+      "name": "WHOOP",
+      "description": "Access recovery, sleep, strain, and workout data.",
+      "website": "https://www.whoop.com",
+      "docsite": null,
+      "categories": ["other"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "wix",
+      "name": "Wix",
+      "description": "Build and manage sites and apps.",
+      "website": null,
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.wix.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.wix.com/mcp",
+        "resource_metadata": "https://mcp.wix.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://mcp.wix.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.wix.com",
+        "authorization_endpoint": "https://mcp.wix.com/authorize",
+        "token_endpoint": "https://mcp.wix.com/token",
+        "revocation_endpoint": "https://mcp.wix.com/token",
+        "registration_endpoint": "https://mcp.wix.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ]
+      }
+    },
+    {
+      "service": "workday",
+      "name": "Workday",
+      "description": "Access worker records and HR data.",
+      "website": "https://www.workday.com",
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "workos",
+      "name": "WorkOS",
+      "description": "Authenticate users with SSO and directory sync.",
+      "website": null,
+      "docsite": null,
+      "categories": ["developer-tools"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "x",
+      "name": "X",
+      "description": "Read and create posts, manage DMs, and access user data.",
+      "website": "https://x.com",
+      "docsite": "https://developer.x.com/en/docs",
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": ["https://api.x.com"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "xero",
+      "name": "Xero",
+      "description": "Review financials, invoices, and accounting data.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.xero.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.xero.com/mcp",
+        "resource_metadata": "https://mcp.xero.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [],
+        "discovery_url": "https://identity.xero.com/.well-known/oauth-authorization-server",
+        "issuer": "https://identity.xero.com",
+        "authorization_endpoint": "https://login.xero.com/identity/connect/authorize",
+        "token_endpoint": "https://identity.xero.com/connect/token",
+        "revocation_endpoint": "https://identity.xero.com/connect/revocation",
+        "registration_endpoint": null,
+        "client_registration": "manual",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "zapier",
+      "name": "Zapier",
+      "description": "Automate workflows across thousands of apps.",
+      "website": null,
+      "docsite": null,
+      "categories": ["productivity"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.zapier.com/api/v1/connect"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.zapier.com/api/v1/connect",
+        "resource_metadata": "https://mcp.zapier.com/.well-known/oauth-protected-resource/api/v1/connect",
+        "scopes_supported": ["openid", "profile", "email"],
+        "discovery_url": "https://mcp.zapier.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp.zapier.com",
+        "authorization_endpoint": "https://mcp.zapier.com/oauth/authorize",
+        "token_endpoint": "https://mcp.zapier.com/api/v1/oauth/token",
+        "revocation_endpoint": "https://mcp.zapier.com/api/v1/oauth/revoke",
+        "registration_endpoint": "https://mcp.zapier.com/api/v1/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["plain", "S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "zeplin",
+      "name": "Zeplin",
+      "description": "Zeplin design projects, screens, and styleguides",
+      "website": "https://zeplin.io",
+      "docsite": null,
+      "categories": ["content"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "zernio",
+      "name": "Zernio",
+      "description": "Publish, schedule, and measure social posts across 16 platforms.",
+      "website": "https://zernio.com",
+      "docsite": "https://docs.zernio.com",
+      "categories": ["content", "communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.zernio.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.zernio.com/mcp",
+        "resource_metadata": "https://mcp.zernio.com/.well-known/oauth-protected-resource/mcp",
+        "scopes_supported": [
+          "posts:read",
+          "posts:write",
+          "accounts:read",
+          "accounts:write",
+          "analytics:read",
+          "ads:write",
+          "messaging:write",
+          "automations:write"
+        ],
+        "discovery_url": "https://zernio.com/.well-known/oauth-authorization-server",
+        "issuer": "https://zernio.com",
+        "authorization_endpoint": "https://zernio.com/oauth/authorize",
+        "token_endpoint": "https://zernio.com/api/oauth/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://zernio.com/api/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ]
+      }
+    },
+    {
+      "service": "zomato",
+      "name": "Zomato",
+      "description": "Explore restaurants and food delivery options.",
+      "website": null,
+      "docsite": null,
+      "categories": ["commerce"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp-server.zomato.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp-server.zomato.com/mcp",
+        "resource_metadata": "https://mcp-server.zomato.com/.well-known/oauth-protected-resource",
+        "scopes_supported": ["mcp:tools", "mcp:resources", "mcp:prompts"],
+        "discovery_url": "https://mcp-server.zomato.com/.well-known/oauth-authorization-server",
+        "issuer": "https://mcp-server.zomato.com/",
+        "authorization_endpoint": "https://mcp-server.zomato.com/authorize",
+        "token_endpoint": "https://mcp-server.zomato.com/token",
+        "revocation_endpoint": null,
+        "registration_endpoint": "https://mcp-server.zomato.com/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    },
+    {
+      "service": "zoom",
+      "name": "Zoom",
+      "description": "Zoom meetings, webinars, and recordings",
+      "website": "https://www.zoom.com",
+      "docsite": null,
+      "categories": ["communication"],
+      "targets": [],
+      "connection_methods": [
+        {
+          "method": "oauth",
+          "service_urls": []
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false
+    },
+    {
+      "service": "zoominfo",
+      "name": "ZoomInfo",
+      "description": "Find company and contact information.",
+      "website": "https://zoominfo.com",
+      "docsite": "https://zoominfo.com",
+      "categories": ["commerce"],
+      "targets": [
+        {
+          "target": "mcp",
+          "label": "MCP"
+        }
+      ],
+      "connection_methods": [
+        {
+          "method": "mcp",
+          "service_urls": ["https://mcp.zoominfo.com/mcp"]
+        }
+      ],
+      "managed": false,
+      "supports_triggers": false,
+      "mcp_discovery": {
+        "status": "ok",
+        "resource": "https://mcp.zoominfo.com",
+        "resource_metadata": "https://mcp.zoominfo.com/.well-known/oauth-protected-resource",
+        "scopes_supported": [
+          "openid",
+          "profile",
+          "zi_api",
+          "email",
+          "offline_access",
+          "zi_mcp",
+          "api:data:mcp"
+        ],
+        "discovery_url": "https://mcp.zoominfo.com/.well-known/oauth-authorization-server",
+        "issuer": "https://okta-login.zoominfo.com/oauth2/default",
+        "authorization_endpoint": "https://mcp.zoominfo.com/oauth/authorize",
+        "token_endpoint": "https://okta-login.zoominfo.com/oauth2/default/v1/token",
+        "revocation_endpoint": "https://okta-login.zoominfo.com/oauth2/default/v1/revoke",
+        "registration_endpoint": "https://mcp.zoominfo.com/oauth/register",
+        "client_registration": "dcr",
+        "code_challenge_methods": ["S256"],
+        "token_endpoint_auth_methods": [
+          "client_secret_basic",
+          "client_secret_post"
+        ]
+      }
+    }
+  ]
+}

@@ -59,6 +59,7 @@ behaviour) and `shuttle` (concurrency). Each writes its report under
 | `battle-test.sh` | part of `verify` | The cross-plane battle test. |
 | `task-security-battle-test.sh` | `test:task-access` | Task-access engine under attack scenarios. |
 | `nats-dogfood-test.sh` | `test:nats-dogfood` | TaskBus against a real `nats-server`. |
+| `connect-preflight.mjs` | `test:connect-preflight` | Every connector's real endpoints, read-only: OAuth authorize and discovery, MCP metadata, API-key verify ([ADR 0146](../docs/adr/0146-connector-plans-and-user-token-proof.md)). Logic in `lib/connect-preflight.mjs`. |
 | `live-stack-test.sh` | `test:live-stack` | Live OpenFGA, OpenBao and gateway (start them with `dev/start-native-deps.sh`). |
 | `authority-fabric-gate.mjs` | `test:authority-fabric` | The general-authority scenario matrix across both planes. |
 | `rust-lint-contract-test.sh` | `test:rust-lint` | The rustfmt/Clippy wiring itself. |
@@ -84,6 +85,7 @@ behaviour) and `shuttle` (concurrency). Each writes its report under
 | `check-pr-signatures.mjs` | CI: every commit on a pull request is signed. |
 | `pages-release.mjs` | Deploy Pages: stamps `release.json` and verifies the live site serves that exact build. |
 | `deploy-pages.sh` | Manual fallback publisher for Pages. |
+| `pin-connect-services.mjs` | Re-pins [`spec/connectors/connect-services.json`](../spec/connectors/connect-services.json): Vercel Connect's public service registry and each MCP server's live OAuth discovery (`lib/oauth-discovery.mjs`). |
 | `pin-marketplace.mjs` | Re-pins the SHA-256 of every item type in [`.opensesame/marketplace.json`](../.opensesame/marketplace.json). |
 
 ## dev/

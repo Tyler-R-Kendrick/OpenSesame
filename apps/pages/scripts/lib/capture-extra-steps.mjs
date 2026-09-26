@@ -22,5 +22,17 @@ export function extraSteps({ press }) {
     ...placeSteps(),
     ...routingSteps(),
     ...orgSignInSteps(),
+    /**
+     * Pick a labelled radio when this build has it — a connector's
+     * connection method. A base build without the choice is a legitimate
+     * difference, not a miss.
+     */
+    async chooseOptional(page, name) {
+      const radio = page.getByRole("radio", { name, exact: true }).first();
+      if ((await radio.count()) && (await radio.isEnabled())) {
+        await press(radio);
+        await page.waitForTimeout(500);
+      }
+    },
   };
 }
