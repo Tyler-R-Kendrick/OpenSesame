@@ -1038,6 +1038,9 @@ importers:
       '@opensesame/auth-upstream':
         specifier: workspace:*
         version: link:../auth-upstream
+      '@opensesame/ceremony-kit':
+        specifier: workspace:*
+        version: link:../ceremony-kit
       '@opensesame/claims':
         specifier: workspace:*
         version: link:../claims

@@ -5,7 +5,7 @@ const authConfig = {
   serviceName: "OpenSesame",
   protectedResource: "https://api.opensesame.test",
   authorizationServer: "http://127.0.0.1:8788",
-  consoleOrigin: "http://127.0.0.1:5173",
+  consoleOrigin: "http://localhost:5180",
   registrationModes: ["anonymous", "pre_registered"],
   tokenAudiences: ["https://api.opensesame.test", "rp-alpha"],
 };

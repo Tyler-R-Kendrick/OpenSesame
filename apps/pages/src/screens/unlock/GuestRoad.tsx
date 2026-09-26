@@ -11,9 +11,34 @@
  * off. Every placement reads that switch here, so none can drift from it.
  */
 
+import {
+  peekGuestArrival,
+  takeGuestArrival,
+} from "@opensesame/app-core/lib/ceremony-aliases.js";
 import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
+import { type RefObject, useEffect, useRef } from "react";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
 import { IconUser } from "../../components/Icons.js";
+import { landFocus } from "../../lib/focus.js";
+
+/**
+ * A `/guest` link (ADR 0140 D12) lands the keyboard on the guest road the
+ * screen drew. It waits a frame so the screen's own landing runs first (the
+ * front door's first road, the unlock form's key field), then takes the
+ * arrival whether or not the road is drawn: with guests off, the link opens
+ * the ordinary sign-in screen and nothing else.
+ */
+function useGuestArrivalFocus(): RefObject<HTMLButtonElement | null> {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!peekGuestArrival()) return;
+    const frame = requestAnimationFrame(() => {
+      if (takeGuestArrival()) landFocus(ref.current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return ref;
+}
 
 /** The full-size button beside the social bar, on both sign-in placements. */
 export function GuestButton({
@@ -23,9 +48,11 @@ export function GuestButton({
   busy: boolean;
   onGuest: () => void;
 }) {
+  const ref = useGuestArrivalFocus();
   if (!useGuestsAllowed()) return null;
   return (
     <button
+      ref={ref}
       type="button"
       className="btn btn--block signin__provider"
       disabled={busy}
@@ -73,9 +100,11 @@ export function GuestUnlockSwitch({
   setBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
 }) {
+  const ref = useGuestArrivalFocus();
   if (!useGuestsAllowed()) return null;
   return (
     <button
+      ref={ref}
       type="button"
       className="unlock__switch"
       disabled={busy}

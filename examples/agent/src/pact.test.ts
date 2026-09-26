@@ -58,7 +58,7 @@ describe("PACT — example-agent", () => {
             claimId: "clm_demo",
             claimToken: "osc_clm_demo.secretvalue000000000000000000000000",
             userCode: "AGNT-CLAIM",
-            verificationUri: "http://127.0.0.1:5173/claim",
+            verificationUri: "http://localhost:5180/claim",
             expiresAt: new Date(Date.now() + 900_000).toISOString(),
           }),
         );

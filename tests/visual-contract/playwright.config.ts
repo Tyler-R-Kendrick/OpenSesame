@@ -4,9 +4,11 @@ import { join } from "node:path";
 import { isFunction } from "@opensesame/os-domain";
 import { defineConfig, devices } from "@playwright/test";
 
-// Pages development owns 5180. Visual tests use a dedicated strict port so
-// Playwright never reuses an unrelated long-running developer server.
-const PORT = 5181;
+// Pages development owns 5180. Visual tests preview the Pages build on a
+// dedicated strict port so Playwright never reuses an unrelated long-running
+// developer server. 5181 was the retired ceremonies app's (ADR 0140): every
+// ceremony is a Pages route now, so there is one app to preview, here.
+const PORT = 5182;
 const HOST = "127.0.0.1";
 const BASE_URL = `http://${HOST}:${PORT}`;
 

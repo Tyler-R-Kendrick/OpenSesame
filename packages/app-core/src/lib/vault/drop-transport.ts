@@ -15,14 +15,13 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { env } from "../../host.js";
 import { DropTransportError } from "../claims/drop-open.js";
 import {
   ensureIdentitySession,
   identityBase,
   identityFetch,
 } from "../identity.js";
-import { pagesClaimBase } from "./local-drop-claims.js";
+import { pagesClaimBase, pagesClaimUrl } from "./local-drop-claims.js";
 
 const DROP_CLAIM_TYPE = "resource_bundle";
 
@@ -47,14 +46,6 @@ function obj(value: BoundaryValue): Record<string, BoundaryValue> {
     return overlapCast(value);
   }
   return {};
-}
-
-function ceremoniesBaseDefault(): string {
-  const fromEnv: BoundaryValue = env().VITE_OPENSESAME_CEREMONIES;
-  if (isString(fromEnv) && fromEnv.trim()) {
-    return fromEnv.trim().replace(/\/$/, "");
-  }
-  return pagesClaimBase();
 }
 
 async function createClaimDefault(
@@ -116,7 +107,7 @@ async function createClaimDefault(
     claimId,
     bearerToken,
     userCode,
-    verifyUrl: `${dropSeams.ceremoniesBase()}/claim`,
+    verifyUrl: pagesClaimUrl(dropSeams.claimBase()),
     expiresAt,
   };
 }
@@ -162,5 +153,6 @@ async function pollClaimDefault(
 export const dropSeams = {
   createClaim: createClaimDefault,
   pollClaim: pollClaimDefault,
-  ceremoniesBase: ceremoniesBaseDefault,
+  /** The claim host a drop's link names: this Pages deployment, always. */
+  claimBase: (): string => pagesClaimBase(),
 };

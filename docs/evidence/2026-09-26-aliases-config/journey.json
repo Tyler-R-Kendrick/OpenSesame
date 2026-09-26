@@ -1,0 +1,405 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "guest"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "390-guest-door"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "guest"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "1280-guest-door"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "seal": null
+        },
+        {
+          "arrive": "guest"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "390-guest-unlock"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "switchOptional": "Allow guests"
+        },
+        {
+          "report": "[role=switch][aria-label=\"Allow guests\"]"
+        },
+        {
+          "count": [
+            "[role=switch][aria-label=\"Allow guests\"][aria-checked=\"false\"]"
+          ]
+        },
+        {
+          "arrive": "guest"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "390-guest-off"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "switchOptional": "Allow guests"
+        },
+        {
+          "report": "[role=switch][aria-label=\"Allow guests\"]"
+        },
+        {
+          "count": [
+            "[role=switch][aria-label=\"Allow guests\"][aria-checked=\"false\"]"
+          ]
+        },
+        {
+          "arrive": "guest"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "1280-guest-off"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "delegate#token=osc_dlg_evidence1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "390-delegate"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "delegate#token=osc_dlg_evidence1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "1280-delegate"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "watchFirstRender": null
+        },
+        {
+          "arrive": "delegate#token=not-an-invite"
+        },
+        {
+          "firstRenderAddress": null
+        },
+        {
+          "address": null
+        },
+        {
+          "report": ":focus"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "button:has-text(\"Continue as guest\")",
+            "button:has-text(\"Skip\")"
+          ]
+        },
+        {
+          "report": "h1, h2"
+        },
+        {
+          "shot": "390-delegate-malformed"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-guest-door",
+      "width": 390,
+      "title": "/guest on a device with no vault — 390 × 844",
+      "caption": "A /guest link on a fresh device. Before, there was no such route: the front door drew at …/OpenSesame/guest with the keyboard on Set up your own. After, the alias leaves the address before the first paint and the keyboard lands on the guest road — pointed at, not pressed.",
+      "before": "first render …/OpenSesame/guest; focus Set up your own (324×82)",
+      "after": "first render …/OpenSesame/ (alias gone); focus Continue as guest (324×44, focus-visible); guest 1, Skip 1; nothing pressed"
+    },
+    {
+      "shot": "1280-guest-door",
+      "width": 1280,
+      "title": "/guest on a device with no vault — 1280 × 800",
+      "caption": "The same arrival on a desktop.",
+      "before": "address …/OpenSesame/guest; focus Set up your own (236×77)",
+      "after": "address …/OpenSesame/; focus Continue as guest (480×42, focus-visible)"
+    },
+    {
+      "shot": "390-guest-unlock",
+      "width": 390,
+      "title": "/guest beside a sealed vault — 390 × 844",
+      "caption": "Beside a sealed vault the guest road is the unlock form's footer link; /guest lands the keyboard there instead of on the password field. The sealed vault is untouched: the guest runs in its own tomb only if the person presses it.",
+      "before": "address …/OpenSesame/guest; focus password field (284×44)",
+      "after": "address …/OpenSesame/; focus Continue as guest footer (133×44, focus-visible)"
+    },
+    {
+      "shot": "390-guest-off",
+      "width": 390,
+      "title": "/guest with Allow guests off — 390 × 844",
+      "caption": "The operator turned Allow guests off (Settings › Capabilities, switch aria-checked=false). /guest cannot bring the road back: the ordinary unlock screen, the keyboard on the password field, no guest road drawn.",
+      "before": "address …/OpenSesame/guest; guest 0; focus password field (284×44)",
+      "after": "address …/OpenSesame/; guest 0; focus password field (284×44) — unchanged"
+    },
+    {
+      "shot": "1280-guest-off",
+      "width": 1280,
+      "title": "/guest with Allow guests off — 1280 × 800",
+      "caption": "Allow guests off, desktop: the same.",
+      "before": "address …/OpenSesame/guest; guest 0; focus password field",
+      "after": "address …/OpenSesame/; guest 0; focus password field"
+    },
+    {
+      "shot": "390-delegate",
+      "width": 390,
+      "title": "/delegate#token=osc_dlg_… (stand-in invite) — 390 × 844",
+      "caption": "A /delegate link with a stand-in osc_dlg_ invite (synthetic token; nothing is fetched, and this shared-origin build cannot finish a join, so the ceremony says so without spending it). Main already took a well-formed bearer out of the fragment through Join's capture; the path stayed. After, the whole alias leaves the address and Join opens at the base with the invite in memory.",
+      "before": "address …/OpenSesame/delegate (fragment gone, path kept); Join a session; focus Invite (173×77)",
+      "after": "address …/OpenSesame/ (alias gone); Join a session; focus Invite (173×77); no request, no session minted"
+    },
+    {
+      "shot": "1280-delegate",
+      "width": 1280,
+      "title": "/delegate#token=osc_dlg_… (stand-in invite) — 1280 × 800",
+      "caption": "The same stand-in invite on a desktop.",
+      "before": "address …/OpenSesame/delegate; Join a session",
+      "after": "address …/OpenSesame/; Join a session"
+    },
+    {
+      "shot": "390-delegate-malformed",
+      "width": 390,
+      "title": "/delegate#token= that is not an invite — 390 × 844",
+      "caption": "A /delegate link whose token is not an invite. Before, Join's capture did not recognise it, so the bearer-shaped fragment stayed in the address bar. After, a /delegate fragment leaves the address whatever it holds, and nothing is held.",
+      "before": "address …/OpenSesame/delegate#token=not-an-invite (fragment kept); front door",
+      "after": "address …/OpenSesame/ (fragment gone); front door, nothing held"
+    }
+  ]
+}

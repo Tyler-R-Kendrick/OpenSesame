@@ -24,6 +24,25 @@ Meta CSP alone is insufficient. Verify custom domains in the GitHub account,
 configure DNS and HTTPS, and dedicate the origin to this application; a project
 path or domain name alone does not establish isolation.
 
+## Ceremony links
+
+Every ceremony a link opens is a Pages route
+([ADR 0140](../adr/0140-pages-hosts-every-ceremony.md)): `/claim`, `/device`,
+`/i/<ref>`, `/approve/<ref>`, `/invoke/<kind>`, and the `/guest` and
+`/delegate` aliases (`spec/config/ceremony-routes.json`). Point the Identity
+API at the deployment that serves them:
+
+| Variable | Read by | Set to |
+| --- | --- | --- |
+| `OPENSESAME_CLIENT_APP_URL` | Identity API | This deployment's base, path included (`https://tyler-r-kendrick.github.io/OpenSesame/`). The `/i/<ref>` landing launches into it and a claim's `verificationUri` is its `/claim`; unset, the landing is an address and a claim points at the Identity API's zero-JS `/v1/claims/<id>/verify`. HTTPS only in production. |
+| `OPENSESAME_CORS_ORIGINS` | Identity API | The same origin (`https://tyler-r-kendrick.github.io`), so the ceremonies can call it. Naming the client app grants nothing by itself. |
+| `OPENSESAME_IOS_APP_IDENTIFIER`, `OPENSESAME_ANDROID_PACKAGE_NAME`, `OPENSESAME_ANDROID_SHA256_CERT_FINGERPRINTS` | Pages build (Vercel only) | All three or none: the `.well-known` associations for `/invoke/*` (ADR 0140 D11). |
+
+The retired ceremonies (`:5181`) and console (`OPENSESAME_CONSOLE_ORIGIN`)
+origins are read by nothing, and a drop link is always this deployment's
+`/claim` (`VITE_OPENSESAME_CEREMONIES` is gone). `pnpm --filter
+@opensesame/pages dev` sets both Identity API variables for the local stack.
+
 ## Static authentication
 
 `@opensesame/static-auth` is the canonical browser implementation. The recommended

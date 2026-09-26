@@ -20,6 +20,11 @@ export interface AuthMdConfig {
   serviceName: string;
   protectedResource: string;
   authorizationServer: string;
+  /**
+   * Where a person completes a claim: the client app (the Pages deployment,
+   * `OPENSESAME_CLIENT_APP_URL`, ADR 0140 §4), or the Identity API's public
+   * URL where none is configured. The name predates the console's removal.
+   */
   consoleOrigin: string;
   resourceName?: string;
   resourceLogoUri?: string;
