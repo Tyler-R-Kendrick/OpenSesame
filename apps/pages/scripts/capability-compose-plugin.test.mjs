@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, test } from "vitest";
+import { capabilityCompose } from "./capability-compose-plugin.mjs";
 import {
   CATALOG,
   compose,
@@ -139,6 +140,58 @@ describe("chunk partition", () => {
       undefined,
       "stylesheets keep Vite's own placement",
     );
+  });
+});
+
+// Rollup's `input` and `manualChunks` each take more than one form; the
+// plugin edits only the forms it can edit and leaves the others as given.
+describe("rollup option forms", () => {
+  const household = () =>
+    profileFile(tree, "household", {
+      instancePolicy: policy([], ["sharing.household", "sharing.drops"]),
+      installationSelection: selection([], ["sharing.household"], {
+        transport: "sharing.drops",
+      }),
+    });
+  const configure = async (rollupOptions) => {
+    const [main] = capabilityCompose({
+      appRoot: tree.appRoot,
+      repoRoot: tree.tmpRoot,
+      inventory: tree.inventory,
+      logger: { warn() {} },
+      env: {},
+      mode: "hardened",
+      profilePath: household(),
+    });
+    const userConfig = { base: "/OpenSesame/", build: { rollupOptions } };
+    await main.config(userConfig, { command: "build", mode: "production" });
+    return userConfig.build.rollupOptions;
+  };
+  const excluded = () => join(tree.appRoot, "auth/redirect.html");
+  const moduleFile = () =>
+    `${tree.appRoot}/src/modules/sharing.drops/runtime.ts`;
+
+  test("a path or a list of paths names no entry, so none is dropped", async () => {
+    assert.equal((await configure({ input: excluded() })).input, excluded());
+    assert.deepEqual((await configure({ input: [excluded()] })).input, [
+      excluded(),
+    ]);
+  });
+
+  test("a chunk function is consulted after the partition", async () => {
+    const { output } = await configure({
+      output: { manualChunks: () => "vendor" },
+    });
+    assert.equal(output.manualChunks(moduleFile()), "cap-sharing.drops");
+    assert.equal(output.manualChunks(`${tree.appRoot}/src/a.ts`), "vendor");
+  });
+
+  test("a chunk record is superseded by the partition", async () => {
+    const { output } = await configure({
+      output: { manualChunks: { vendor: ["react"] } },
+    });
+    assert.equal(output.manualChunks(moduleFile()), "cap-sharing.drops");
+    assert.equal(output.manualChunks(`${tree.appRoot}/src/a.ts`), undefined);
   });
 });
 

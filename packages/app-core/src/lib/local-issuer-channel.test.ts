@@ -39,11 +39,11 @@ function connect(
 ) {
   const pipe = new MessageChannel();
   pipes.push(pipe);
-  const data: Record<string, string> = {
-    type: "opensesame:local:connect",
-    state,
-  };
-  if (version !== undefined) data.version = version;
+  // An older opener sends no version at all, not an empty one.
+  const data =
+    version === undefined
+      ? { type: "opensesame:local:connect", state }
+      : { type: "opensesame:local:connect", state, version };
   browser.dispatchEvent(
     Object.assign(new Event("message"), {
       origin,

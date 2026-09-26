@@ -16,7 +16,7 @@
     "lint:artifacts": "node apps/pages/scripts/build-static-auth.mjs --check && vitest run scripts/lib/static-auth-artifacts.test.mjs && pnpm --filter @opensesame/static-auth test && pnpm --filter @opensesame/pages exec vitest run src/lib/auth-client.test.ts",
     "lint:design": "node scripts/quality/design-lint.mjs",
     "docs:index": "node scripts/quality/docs-index.mjs",
-    "lint:anti-slop": "pnpm lint:anti-slop:files .",
+    "lint:anti-slop": "node scripts/quality/anti-slop-gate.mjs",
     "lint:anti-slop:files": "oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings --no-error-on-unmatched-pattern",
     "quality": "pnpm quality:test && pnpm quality:gate && pnpm quality:packages && pnpm quality:app-core",
     "quality:test": "vitest run scripts/lib",

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -5,7 +6,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { CompilerErrorCodeSchema } from "./evidence.js";
@@ -21,6 +22,24 @@ import {
 import { INVALID_FIXTURES } from "./invalid-fixtures.js";
 
 const EXAMPLES = join(dirname(fileURLToPath(import.meta.url)), "testdata");
+const REPO_ROOT = resolve(EXAMPLES, "../../../../..");
+
+/**
+ * `testdata/invalid/<code>.json` is generated from `INVALID_FIXTURES`. A
+ * normal run only compares the checked-in files with it and fails on drift;
+ * the flag rewrites them, formatted by the repository's Biome so the output
+ * is byte-for-byte what `pnpm lint` accepts:
+ *
+ *   UPDATE_DURESS_FIXTURES=1 pnpm --filter @opensesame/contracts exec \
+ *     vitest run src/duress/fixtures.test.ts
+ */
+const UPDATE = process.env.UPDATE_DURESS_FIXTURES !== undefined;
+
+const invalidFixturePath = (code: CompilerErrorCode) =>
+  join(EXAMPLES, "invalid", `${code}.json`);
+
+const invalidFixtureText = (code: CompilerErrorCode) =>
+  `${JSON.stringify({ expectedError: code, document: INVALID_FIXTURES[code] }, null, 2)}\n`;
 
 const catalog: CompilerCatalog = {
   ownerPrincipalRefs: ["owner-1"],
@@ -56,14 +75,16 @@ const catalog: CompilerCatalog = {
 };
 
 beforeAll(() => {
+  if (!UPDATE) return;
   mkdirSync(join(EXAMPLES, "invalid"), { recursive: true });
-  for (const code of CompilerErrorCodeSchema.options) {
-    const document = INVALID_FIXTURES[code];
-    writeFileSync(
-      join(EXAMPLES, "invalid", `${code}.json`),
-      `${JSON.stringify({ expectedError: code, document }, null, 2)}\n`,
-    );
-  }
+  const paths = CompilerErrorCodeSchema.options.map((code) => {
+    writeFileSync(invalidFixturePath(code), invalidFixtureText(code));
+    return invalidFixturePath(code);
+  });
+  execFileSync("pnpm", ["exec", "biome", "format", "--write", ...paths], {
+    cwd: REPO_ROOT,
+    stdio: "inherit",
+  });
 });
 
 describe("scenario fixtures", () => {
@@ -146,9 +167,15 @@ describe("examples directory coverage", () => {
     }
   });
 
-  it("writes invalid fixtures for every compiler error", () => {
-    for (const code of CompilerErrorCodeSchema.options) {
-      expect(existsSync(join(EXAMPLES, "invalid", `${code}.json`))).toBe(true);
-    }
-  });
+  it.each(CompilerErrorCodeSchema.options)(
+    "invalid/%s.json matches INVALID_FIXTURES",
+    (code: CompilerErrorCode) => {
+      const path = invalidFixturePath(code);
+      const hint = `${path} is stale; rerun with UPDATE_DURESS_FIXTURES=1`;
+      expect(existsSync(path), hint).toBe(true);
+      expect(JSON.parse(readFileSync(path, "utf8")), hint).toEqual(
+        JSON.parse(invalidFixtureText(code)),
+      );
+    },
+  );
 });

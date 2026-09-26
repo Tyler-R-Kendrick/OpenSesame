@@ -57,7 +57,8 @@ pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
 pnpm lint:design         # control contract (docs/design/controls.md)
 pnpm lint:all            # full-repository Biome + anti-slop audit
-pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail
+pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail;
+                          #   ratchets tools/quality/anti-slop-baseline.json
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes

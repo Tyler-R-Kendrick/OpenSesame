@@ -180,7 +180,14 @@ export function claimVerificationUri(
   config: { publicUrl: string; clientAppUrl?: string | undefined },
   claimId: string,
 ): string {
-  return claimLinks(config, { session: { id: claimId } }).verificationUri;
+  const subject: ClaimLinkSubject = { session: { id: claimId } };
+  return claimLinks(config, subject).verificationUri;
+}
+
+/** What a claim's links are built from: its session, and its bearer once minted. */
+export interface ClaimLinkSubject {
+  session: { id: string };
+  token?: string;
 }
 
 /** A claim's links, as every claim-creation response carries them. */
@@ -205,7 +212,7 @@ export interface ClaimLinks {
  */
 export function claimLinks(
   config: { publicUrl: string; clientAppUrl?: string | undefined },
-  claim: { session: { id: string }; token?: string },
+  claim: ClaimLinkSubject,
 ): ClaimLinks {
   const route = clientAppLink(config.clientAppUrl, "claim");
   if (route === null) {

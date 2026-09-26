@@ -193,15 +193,15 @@ describe("removeAccountFactor with a code", () => {
           transport: transport([json(status, { ok: false, error })]),
           authenticator: authenticator(),
         },
-      ).catch((caught: unknown) => caught);
-    expect(await answer(403, "step_up_failed")).toMatchObject({
+      );
+    await expect(answer(403, "step_up_failed")).rejects.toMatchObject({
       code: "step_up_failed",
       message: ACCOUNT_FACTOR_WORDS.step_up_failed,
     });
-    expect(await answer(403, "step_up_required")).toMatchObject({
+    await expect(answer(403, "step_up_required")).rejects.toMatchObject({
       code: "step_up_required",
     });
-    expect(await answer(429, "too_many_attempts")).toMatchObject({
+    await expect(answer(429, "too_many_attempts")).rejects.toMatchObject({
       code: "too_many_attempts",
     });
   });
@@ -233,20 +233,20 @@ describe("a refused proof and the session", () => {
     );
     await connectProvisional();
     expect(currentSession()).not.toBeNull();
-    return removeAccountFactor(PK, { kind: "totp", code: "000000" }).catch(
-      (caught: unknown) => caught,
-    );
+    return removeAccountFactor(PK, { kind: "totp", code: "000000" });
   }
 
   it("keeps the person signed in when the service refuses the proof", async () => {
-    expect(await signedInRemoving(403, "step_up_failed")).toMatchObject({
-      code: "step_up_failed",
-    });
+    await expect(signedInRemoving(403, "step_up_failed")).rejects.toMatchObject(
+      {
+        code: "step_up_failed",
+      },
+    );
     expect(currentSession()).not.toBeNull();
   });
 
   it("ends it only when the service refuses the session itself", async () => {
-    expect(await signedInRemoving(401, "unauthorized")).toMatchObject({
+    await expect(signedInRemoving(401, "unauthorized")).rejects.toMatchObject({
       code: "signed_out",
     });
     expect(currentSession()).toBeNull();
