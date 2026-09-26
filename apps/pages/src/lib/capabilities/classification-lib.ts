@@ -380,10 +380,8 @@ export const LIB_RULES = [
     "identity.site-broker",
     "pins the shipped static-auth SDK bytes",
   ),
-  optional(
-    `${L}certs`,
-    "vault.certificate-records",
-    "local WebCrypto certificate issuance",
+  ...each(L, ["certs", "x509/"], (p) =>
+    optional(p, "vault.certificate-records", "self-signed X.509 issuance"),
   ),
   optional(
     `${L}push`,
