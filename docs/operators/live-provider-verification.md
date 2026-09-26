@@ -62,8 +62,8 @@ removed rather than documented.
 
 **Organizations need client credentials too.** A tenant configuring `ssoIssuer` should also
 set `ssoClientId`, and `ssoClientSecret` when their IdP issues one, from a client they
-registered in their own console (the console's *Organization sign-in* page collects both and
-shows them the redirect URI to paste). Without them the leg falls back to this deployment's
+registered in their own console (Pages' Identity › Organizations *Sign-in upstream* panel
+collects both and shows them the redirect URI to paste). Without them the leg falls back to this deployment's
 origin-profile client id, which only an OpenSesame-shaped broker accepts — Okta, Entra ID,
 Google Workspace and Auth0 have never heard of an `origin:` client id and answer
 `invalid_client`. The secret is write-only: it is stored so it can be presented at the token

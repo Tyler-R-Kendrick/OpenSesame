@@ -12,6 +12,12 @@ ADR 0065 ([agent surface parity](0065-agent-surface-parity.md)),
 [protocol conformance](../reference/protocol-conformance.md),
 [threat model](../security/threat-model.md)
 
+> **Note (2026-09-26):** the ceremonies, Mobile MFA and console apps named
+> in the table below moved into Pages under
+> [ADR 0140](0140-pages-hosts-every-ceremony.md) and were deleted. The table
+> records the count that led to this decision; every row is now one
+> ceremony-kit implementation behind a Pages route.
+
 ## Context
 
 OpenSesame runs the same human moment over and over. Approve this device.

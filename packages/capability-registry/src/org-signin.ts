@@ -7,8 +7,8 @@ import type { Capability, CapabilityExclusion } from "./index.js";
  * people sign in through, the email domains that route work addresses to
  * it, and the SCIM tokens its directory provisions with. The PWA carries
  * all of it in Identity › Organizations, the optional
- * `enterprise.directory-provisioning` capability; `apps/console`'s
- * `/organization` page goes in step 14.
+ * `enterprise.directory-provisioning` capability; the retired console's
+ * `/organization` page is gone (ADR 0140).
  *
  * No agent surface does. Changing who may sign in to an organization is an
  * owner's decision, and minting a provisioning token hands its plaintext to

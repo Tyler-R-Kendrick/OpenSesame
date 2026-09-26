@@ -18,8 +18,8 @@ import {
 /**
  * The authorization-request review (ADR 0084; ADR 0140 plan step 6): load →
  * review → decide or report → outcome, as steps a surface asks for and phases
- * it draws. What `apps/ceremonies/src/pages/ApprovalReview.tsx` did in its
- * component, so the ceremonies app and Pages' `/approve/:ref` cannot disagree.
+ * it draws. What the retired ceremonies app's `ApprovalReview.tsx` did in its
+ * component, now Pages' `/approve/:ref` over this one model.
  * No React, no page, no global: the client and the authenticator are injected
  * (the authenticator is the interaction ceremony's port — the same WebAuthn
  * request options in, the same raw assertion out).

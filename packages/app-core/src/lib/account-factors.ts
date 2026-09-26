@@ -11,7 +11,10 @@
  *
  * The calls ride `identityFetch` (its bearer, base and timeouts). A passkey
  * is made over the service's own creation options, parsed and never altered,
- * through the host's WebAuthn port. Every refusal becomes one sentence from
+ * through the host's WebAuthn port, and then tried once (plan step 11c): the
+ * one assertion the Identity API accepts without a session, answered with no
+ * bearer. A try that does not finish leaves the passkey registered and says
+ * so, rather than calling it failed. Every refusal becomes one sentence from
  * `ACCOUNT_FACTOR_WORDS`; a transport failure, a refused code and an
  * unreadable answer are told apart only where the person can act on it.
  *
@@ -41,12 +44,24 @@ import {
 } from "@opensesame/sdk-browser";
 import { credentials, publicKeyCredentialApi } from "../ports.js";
 import {
+  type AccountPasskeyEnrolment,
+  type PasskeyAsserter,
+  tryAccountPasskey,
+} from "./account-passkey-check.js";
+import { identityPlaneRequest } from "./device-identity.js";
+import {
   currentSession,
   identityFetch,
   isRemoteIdentityConfigured,
 } from "./identity.js";
+import { hostInteractionAuthenticator } from "./interactions.js";
 
 export type { AccountFactor, AccountFactorKind, AccountFactorList };
+export {
+  ACCOUNT_PASSKEY_UNCHECKED_WORDS,
+  type AccountPasskeyEnrolment,
+  type PasskeyCheckMiss,
+} from "./account-passkey-check.js";
 
 /** Every way a factor ceremony can end short, as the person is told it. */
 export const ACCOUNT_FACTOR_WORDS = {
@@ -98,16 +113,24 @@ const SERVICE_ERRORS: Readonly<Record<string, AccountFactorRefusal>> = {
 export interface AccountFactorTransport {
   /** An Identity API call for the signed-in principal; `path` is base-relative. */
   fetch(path: string, init: RequestInit): Promise<Response>;
+  /** The same plane with no session and no cookie: the passkey assertion. */
+  anonymous(path: string, init: RequestInit): Promise<Response>;
   /** Whether a session is held to make it. */
   signedIn(): boolean;
 }
 
 export const identityAccountFactorTransport: AccountFactorTransport = {
   fetch: (path, init) => identityFetch(path, init),
+  anonymous: (path, init) =>
+    identityPlaneRequest(path, {
+      ...init,
+      headers: { "content-type": "application/json" },
+      credentials: "omit",
+    }),
   signedIn: () => currentSession() !== null,
 };
 
-export interface AccountPasskeyAuthenticator {
+export interface AccountPasskeyAuthenticator extends PasskeyAsserter {
   available(): boolean;
   /** Make a credential over the service's options; answer its JSON form. */
   create(options: BoundaryValue): Promise<JsonObject>;
@@ -140,6 +163,8 @@ export const hostAccountPasskeyAuthenticator: AccountPasskeyAuthenticator = {
       throw new AccountFactorError("invalid_credential");
     }
   },
+  // The one WebAuthn assertion wrapper Pages has (`interactions.ts`).
+  assert: (options) => hostInteractionAuthenticator.assert(options),
 };
 
 export interface AccountFactorBinding {
@@ -208,11 +233,12 @@ export async function listAccountFactors(
 
 /**
  * Add a passkey to the account: the service's creation options, the
- * browser's ceremony, the attestation back. Nothing is kept here.
+ * browser's ceremony, the attestation back — then one try of it
+ * (`tryAccountPasskey`). Nothing is kept here, and nothing is rolled back.
  */
 export async function enrollAccountPasskey(
   binding: AccountFactorBinding = PAGES_BINDING,
-): Promise<void> {
+): Promise<AccountPasskeyEnrolment> {
   if (!binding.authenticator.available()) {
     throw new AccountFactorError("unavailable");
   }
@@ -233,6 +259,10 @@ export async function enrollAccountPasskey(
   if (!registered.res.ok) {
     throw refusalOf(registered.res.status, registered.body);
   }
+  const miss = await tryAccountPasskey(binding);
+  return miss === null
+    ? { kind: "verified" }
+    : { kind: "registered_unverified", reason: miss };
 }
 
 /**

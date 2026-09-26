@@ -16,40 +16,13 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 475,
-    "violations": 750,
-    "oversizedLines": 239593
+    "files": 459,
+    "violations": 723,
+    "oversizedLines": 235094
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
-    },
-    "apps/ceremonies/src/lib/approvals.ts": {
-      "max-lines": 402
-    },
-    "apps/ceremonies/src/pages/ApprovalReview.tsx": {
-      "complexity": 1,
-      "max-lines": 414,
-      "max-lines-per-function": 1
-    },
-    "apps/ceremonies/src/pages/ClaimCeremony.tsx": {
-      "complexity": 1,
-      "max-lines": 439,
-      "max-lines-per-function": 1,
-      "max-statements": 1
-    },
-    "apps/ceremonies/src/pages/DelegateClaim.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/ceremonies/src/pages/DropAcceptance.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/ceremonies/src/pages/Inbox.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/ceremonies/src/pages/NotificationSettings.tsx": {
-      "max-lines": 447,
-      "max-lines-per-function": 1
     },
     "apps/cli/src/bridge.rs": {
       "max-lines": 514
@@ -68,38 +41,6 @@
     },
     "apps/cli/src/store.rs": {
       "max-lines": 950
-    },
-    "apps/console/src/pages/ClaimPage.test.tsx": {
-      "max-lines": 450
-    },
-    "apps/console/src/pages/ClaimPage.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1,
-      "max-statements": 1
-    },
-    "apps/console/src/pages/OrgSignInPage.tsx": {
-      "max-lines": 545,
-      "max-lines-per-function": 1
-    },
-    "apps/console/src/pages/SignInPage.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/console/src/pages/TaskAccessPage.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/mobile-mfa/src/App.interaction.test.tsx": {
-      "max-lines": 642
-    },
-    "apps/mobile-mfa/src/App.test.tsx": {
-      "max-lines": 681
-    },
-    "apps/mobile-mfa/src/Approval.tsx": {
-      "max-lines": 479,
-      "max-lines-per-function": 1
-    },
-    "apps/mobile-mfa/src/Enrolment.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
     },
     "apps/pages/scripts/lib/j-app-recipe-journey.mjs": {
       "max-statements": 1

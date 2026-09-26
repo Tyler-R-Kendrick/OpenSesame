@@ -43,15 +43,17 @@ function transport(
   signedIn = true,
 ): AccountFactorTransport & { calls: Call[] } {
   const calls: Call[] = [];
+  const answer = async (path: string, init: RequestInit) => {
+    calls.push({ path, init });
+    const next = answers.shift();
+    if (!next) throw new TypeError("offline");
+    return next;
+  };
   return {
     calls,
     signedIn: () => signedIn,
-    fetch: async (path, init) => {
-      calls.push({ path, init });
-      const next = answers.shift();
-      if (!next) throw new TypeError("offline");
-      return next;
-    },
+    fetch: answer,
+    anonymous: answer,
   };
 }
 
@@ -183,7 +185,8 @@ describe("enrollAccountPasskey", () => {
       authenticator: hostAccountPasskeyAuthenticator,
     });
 
-    expect(t.calls.map((call) => call.path)).toEqual([
+    // Then one try of it: account-factors-verify.test.ts.
+    expect(t.calls.slice(0, 2).map((call) => call.path)).toEqual([
       "/v1/mfa/passkey/registration-options",
       "/v1/mfa/passkey/register",
     ]);
@@ -259,6 +262,7 @@ describe("enrollAccountPasskey", () => {
     const authenticator = {
       available: () => true,
       create: async () => ({ id: "x" }),
+      assert: vi.fn(),
     };
     await expect(
       enrollAccountPasskey({
@@ -269,6 +273,8 @@ describe("enrollAccountPasskey", () => {
         authenticator,
       }),
     ).rejects.toThrow(ACCOUNT_FACTOR_WORDS.not_accepted);
+    // Nothing was saved, so nothing is tried.
+    expect(authenticator.assert).not.toHaveBeenCalled();
   });
 });
 

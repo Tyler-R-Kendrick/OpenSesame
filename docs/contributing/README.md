@@ -29,7 +29,7 @@ required.
 |---|---|
 | **TypeScript** | Commit-signature check, frozen install, `pnpm lint`, `pnpm quality`, `pnpm typecheck`, `pnpm test`, and the product-experience contracts (`pnpm verify:experience`). |
 | **Rust** | `cargo +1.88.0 test --workspace --all-targets`. |
-| **Bundle budgets** | Builds `apps/pages` and `apps/console`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. |
+| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. |
 
 `.github/workflows/deploy-pages.yml` publishes `apps/pages` on every push to
 `main`. Branch protection is kept as code in [`ops/github`](../../ops/github).

@@ -110,16 +110,6 @@
         "css": 168,
         "largestAsset": 12800
       }
-    },
-    "apps/console": {
-      "dist": "apps/console/dist",
-      "budgets": {
-        "total": 410,
-        "javascript": 400,
-        "javascriptGzip": 120,
-        "css": 16,
-        "largestAsset": 400
-      }
     }
   }
 }

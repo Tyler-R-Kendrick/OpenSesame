@@ -16,7 +16,7 @@ Upstream human authentication adapter for OpenSesame. Uses [`better-auth`](https
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OPENSESAME_AUTH_BASE_URL` | — | Better Auth `baseURL` (console / control-plane public URL) |
+| `OPENSESAME_AUTH_BASE_URL` | — | Better Auth `baseURL` (control-plane public URL) |
 | `OPENSESAME_AUTH_SECRET` | — | Better Auth secret (min 32 chars in production) |
 | `OPENSESAME_UPSTREAM_ISSUER` | `http://127.0.0.1:9090` | Default mock upstream issuer |
 | `OPENSESAME_UPSTREAM_CLIENT_ID` | `opensesame-upstream` | Upstream RP client id |

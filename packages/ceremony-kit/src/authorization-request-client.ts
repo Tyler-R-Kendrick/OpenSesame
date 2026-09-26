@@ -19,8 +19,8 @@ import type { InteractionAssertion } from "./interaction-approval.js";
  * The authorization-request routes a person decides from (ADR 0046, ADR
  * 0084): the pending list, one request, its requirement, the activation's
  * begin and complete, the two settle verbs and the "I don't recognize this"
- * report. Moved out of `apps/ceremonies/src/lib/approvals.ts` (ADR 0140 plan
- * step 6).
+ * report. Moved out of the retired ceremonies app's `lib/approvals.ts` (ADR 0140
+ * plan step 6).
  *
  * The transport is injected, so each surface brings its own session: Pages
  * passes `identityFetch`, which attaches the bearer itself. Nothing here holds
