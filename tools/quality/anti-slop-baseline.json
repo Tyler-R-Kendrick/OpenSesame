@@ -11,21 +11,21 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 194,
-    "violations": 612,
+    "files": 189,
+    "violations": 604,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 218,
+      "anti-slop/no-known-value-widening": 217,
       "anti-slop/no-module-mocking": 2,
-      "anti-slop/no-object-parameters": 12,
+      "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 166,
+      "anti-slop/no-runtime-typeof": 165,
       "anti-slop/no-shape-in-symbol-names": 13,
-      "anti-slop/no-unknown-parameters": 40,
+      "anti-slop/no-unknown-parameters": 38,
       "anti-slop/no-unknown-returns": 3,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 118
+      "anti-slop/require-safety-comment-for-type-assertion": 115
     }
   },
   "files": {
@@ -150,12 +150,6 @@
       "anti-slop/no-module-mocking": 1,
       "anti-slop/require-safety-comment-for-type-assertion": 3
     },
-    "apps/pages/src/modules/agents.webmcp/runtime.ts": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/modules/agents.webmcp/surface.ts": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
     "apps/pages/src/modules/connectors.external/runtime.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 2
     },
@@ -178,15 +172,6 @@
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
     "apps/pages/src/modules/identity.federation/runtime.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/modules/ports-b.ts": {
-      "anti-slop/no-object-parameters": 1,
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/src/modules/runtime-test-kit.ts": {
-      "anti-slop/no-known-value-widening": 1,
-      "anti-slop/no-unknown-parameters": 1,
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
     "apps/pages/src/modules/support.guided-help/runtime.test.tsx": {
@@ -296,9 +281,6 @@
       "anti-slop/no-unknown-parameters": 4,
       "anti-slop/no-unsafe-dictionary-type": 2,
       "anti-slop/require-safety-comment-for-type-assertion": 4
-    },
-    "packages/app-core/src/lib/capabilities/runtime-contract.ts": {
-      "anti-slop/no-unknown-parameters": 1
     },
     "packages/app-core/src/lib/capabilities/settling.test.ts": {
       "anti-slop/no-known-value-widening": 4,
