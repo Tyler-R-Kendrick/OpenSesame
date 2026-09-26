@@ -16,7 +16,7 @@ import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { incrementSecurityCounter } from "../repos/durable-map.js";
-import { totpCode } from "./mfa.js";
+import { spendTotpCode } from "./mfa-totp.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 const MAX_INTERACTION_TOTP_FAILURES = 5;
@@ -34,15 +34,6 @@ type TotpActivationDeps = {
     name: "interaction_not_found" | "invalid_request",
   ) => Response | Promise<Response>;
 };
-
-function totpCodesEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0;
-}
 
 function isHttpResponse(
   value: ApprovalActivation | Response,
@@ -122,7 +113,15 @@ async function completeTotp(
   if (prior >= MAX_INTERACTION_TOTP_FAILURES) {
     return c.json({ error: "too_many_attempts" }, 429);
   }
-  if (!totpCodesEqual(code, totpCode(secret))) {
+  // The step ledger `/v1/mfa/totp/verify` and factor removal share: a code
+  // accepted anywhere is accepted once.
+  const spent = await spendTotpCode(
+    ctx.stores.totpSteps,
+    principalId,
+    secret,
+    code,
+  );
+  if (spent !== "accepted") {
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "authority.activation.denied",
       principalId,

@@ -28,6 +28,13 @@ import { deviceIdentitySeams } from "./device-identity.js";
 import { identitySeams } from "./identity.js";
 
 const PK = `pk_${"b".repeat(32)}`;
+const SETUP =
+  "otpauth://totp/OpenSesame:prn_1?secret=JBSWY3DPEHPK3PXP&issuer=OpenSesame";
+const CODE = { kind: "totp", code: "123456" } as const;
+
+function binding(t: AccountFactorTransport) {
+  return { transport: t, authenticator: hostAccountPasskeyAuthenticator };
+}
 
 function json(status: number, body: BoundaryValue): Response {
   return new Response(JSON.stringify(body), {
@@ -336,13 +343,17 @@ describe("authenticator app", () => {
 
   it("removes an abandoned setup, and one already gone is fine", async () => {
     const t = transport([json(200, { ok: true })]);
-    await abandonAccountTotp(t);
+    await abandonAccountTotp(SETUP, t);
     expect(t.calls[0]).toMatchObject({
       path: "/v1/mfa/factors/totp",
       init: { method: "DELETE" },
     });
+    // The seed still in memory proves its own removal with its code now.
+    const sent = JSON.parse(String(t.calls[0]?.init.body));
+    expect(sent.proof).toMatchObject({ kind: "totp" });
+    expect(sent.proof.code).toMatch(/^\d{6}$/);
     await expect(
-      abandonAccountTotp(transport([json(404, { error: "not_found" })])),
+      abandonAccountTotp(SETUP, transport([json(404, { error: "not_found" })])),
     ).resolves.toBeUndefined();
   });
 });
@@ -350,17 +361,21 @@ describe("authenticator app", () => {
 describe("removeAccountFactor", () => {
   it("deletes by handle, and refuses anything else before a call", async () => {
     const t = transport([json(200, { ok: true })]);
-    await removeAccountFactor(PK, t);
+    await removeAccountFactor(PK, CODE, binding(t));
     expect(t.calls[0]?.path).toBe(`/v1/mfa/factors/${PK}`);
 
     const none = transport([]);
     await expect(
-      removeAccountFactor("../principals", none),
+      removeAccountFactor("../principals", CODE, binding(none)),
     ).rejects.toMatchObject({ code: "not_found" });
     expect(none.calls).toEqual([]);
 
     await expect(
-      removeAccountFactor(PK, transport([json(404, { error: "not_found" })])),
+      removeAccountFactor(
+        PK,
+        CODE,
+        binding(transport([json(404, { error: "not_found" })])),
+      ),
     ).rejects.toThrow(ACCOUNT_FACTOR_WORDS.not_found);
   });
 });

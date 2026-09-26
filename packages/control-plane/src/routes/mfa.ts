@@ -1,9 +1,4 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   issueAuthenticationChallenge,
@@ -24,8 +19,11 @@ import {
 import { MailerNotConfiguredError } from "../services/mailer.js";
 import { base32Encode } from "./mfa-base32.js";
 import { chargeCodeSend } from "./mfa-send-budget.js";
+import { stepUpOptions } from "./mfa-step-up.js";
+import { spendTotpCode } from "./mfa-totp.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 export { base32Encode } from "./mfa-base32.js";
+export { totpCode } from "./mfa-totp.js";
 
 /** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
 type RegistrationResponseBody = {
@@ -48,31 +46,6 @@ interface MfaDenial {
   correlationId?: string;
   targetType?: string;
   targetId?: string;
-}
-
-/** DEV/test TOTP: HMAC-SHA1 truncated to 6 digits (RFC 6238-style). */
-function totpCode(
-  secretB64: string,
-  step = 30,
-  digits = 6,
-  at = Date.now(),
-): string {
-  const key = Buffer.from(secretB64, "base64");
-  const counter = Math.floor(at / 1000 / step);
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64BE(BigInt(counter));
-  const hmac = createHmac("sha1", key).update(buf).digest();
-  const offset = (hmac.at(-1) ?? 0) & 0x0f;
-  const bin = hmac.readUInt32BE(offset) & 0x7fffffff;
-  const otp = bin % 10 ** digits;
-  return otp.toString().padStart(digits, "0");
-}
-
-function totpCodesEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
 }
 
 function rpFromConfig(publicUrl: string) {
@@ -266,6 +239,9 @@ mfaRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
+    // A body naming a purpose asks for a step-up challenge (ADR 0146).
+    const stepUp = await stepUpOptions(c, ctx, principalId);
+    if (stepUp) return stepUp;
     const rp = rpFromConfig(ctx.config.publicUrl);
     const { challenge, options } = await issueAuthenticationChallenge(
       ctx.passkeyChallenges,
@@ -404,12 +380,17 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
     });
     return c.json({ ok: false, error: "too_many_attempts" }, 429);
   }
-  const expected = totpCode(secret);
-  const ok = totpCodesEqual(body.code ?? "", expected);
+  const spent = await spendTotpCode(
+    ctx.stores.totpSteps,
+    principalId,
+    secret,
+    isString(body.code) ? body.code : "",
+  );
+  const ok = spent === "accepted";
   if (!ok) {
     await auditMfaDenial(ctx, {
       eventType: "mfa.totp.verify",
-      reason: "bad_code",
+      reason: spent === "replayed" ? "code_replayed" : "bad_code",
       principalId,
       correlationId: c.get("correlationId"),
     });
@@ -418,8 +399,6 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   await ctx.stores.mfaFailures.delete(fenceKey);
   return c.json({ ok }, 200);
 });
-
-export { totpCode };
 
 /* ------------------------------------------------------------------ *
  * One-time codes by email or text — the fallback second step

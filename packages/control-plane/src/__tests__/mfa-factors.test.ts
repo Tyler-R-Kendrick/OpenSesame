@@ -1,7 +1,8 @@
 import { overlapCast, parseAccountFactorList } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { passkeyDigest } from "../routes/mfa-factors.js";
+import { totpCode } from "../routes/mfa.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -55,10 +56,12 @@ async function list(app: App, token: string) {
   return { res, text: await res.text() };
 }
 
-function remove(app: App, token: string, id: string) {
+/** A removal, proved with the account authenticator's current code. */
+function remove(app: App, token: string, id: string, code = "000000") {
   return app.request(`/v1/mfa/factors/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: auth(token),
+    headers: auth(token, true),
+    body: JSON.stringify({ proof: { kind: "totp", code } }),
   });
 }
 
@@ -141,18 +144,26 @@ describe("DELETE /v1/mfa/factors/:id", () => {
     const token = await provisional(app);
     await registerPasskey(app, token, "cred_one");
     await registerPasskey(app, token, "cred_two");
-    await enrollTotp(app, token);
+    const secret = await enrollTotp(app, token);
     const id = `pk_${passkeyDigest("cred_one")}`;
-
-    const gone = await remove(app, token, id);
-    expect(gone.status).toBe(200);
-    expect(overlapCast(await gone.json())).toEqual({
-      ok: true,
-      id,
-      kind: "passkey",
-    });
-    const totp = await remove(app, token, "totp");
-    expect(totp.status).toBe(200);
+    // Mid-step, and a step apart: a code proves one removal, once.
+    const at = Date.UTC(2026, 8, 26, 12, 0, 10);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(at);
+      const gone = await remove(app, token, id, totpCode(secret));
+      expect(gone.status).toBe(200);
+      expect(overlapCast(await gone.json())).toEqual({
+        ok: true,
+        id,
+        kind: "passkey",
+      });
+      vi.setSystemTime(at + 30_000);
+      const totp = await remove(app, token, "totp", totpCode(secret));
+      expect(totp.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
 
     const { text } = await list(app, token);
     expect(
