@@ -1,0 +1,194 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "passkeyAssert": "refuse",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] .found__name"
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] .status-mark--warn",
+            "[role=dialog] output[aria-live] .status-mark"
+          ]
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "report": "[role=dialog] .found__name, [role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "measure": "[role=dialog] .status-mark"
+        },
+        {
+          "report": ".set__security .note"
+        },
+        {
+          "shot": "390-unverified"
+        },
+        {
+          "pressNamedOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "count": ["[role=dialog]", "[aria-label='Your account'] .sw--method"]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "390-unverified-rows"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] .found__name"
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] .status-mark--warn",
+            "[role=dialog] output[aria-live] .status-mark"
+          ]
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "report": "[role=dialog] .found__name, [role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "measure": "[role=dialog] .status-mark"
+        },
+        {
+          "report": ".set__security .note"
+        },
+        {
+          "shot": "1280-unverified"
+        },
+        {
+          "pressNamedOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "count": ["[role=dialog]", "[aria-label='Your account'] .sw--method"]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "1280-unverified-rows"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-unverified",
+      "width": 390,
+      "title": "Create passkey, the service turns its first try down \u2014 390 \u00d7 844",
+      "caption": "The passkey is registered either way. The base closed the sheet as if nothing was wrong (it never tried); the branch keeps the card open in its warn wash with the facts Saved / First try / Next, a warn StatusMark in a polite live region whose sentence steers away from a second passkey, and the keyboard on Done.",
+      "before": "[role=dialog] 0; focus on body; no assertion sent",
+      "after": "[role=dialog] 1; .status-mark--warn 1 in output[aria-live=polite], label 'Passkey added to your account, but your sign-in service turned down its first try. Remove it here rather than adding another.'; Done 75x44 focused"
+    },
+    {
+      "shot": "390-unverified-rows",
+      "width": 390,
+      "title": "Done \u2014 the passkey is still on the account \u2014 390 \u00d7 844",
+      "caption": "Nothing was rolled back: no DELETE was sent, and the list read after the sheet closed still holds the passkey.",
+      "before": "Your account rows 3, Account passkey \u00b7 Added \u2026",
+      "after": "Your account rows 3, Account passkey \u00b7 Added \u2026; no DELETE /v1/mfa/factors/*"
+    },
+    {
+      "shot": "1280-unverified",
+      "width": 1280,
+      "title": "Create passkey, the service turns its first try down \u2014 1280 \u00d7 900",
+      "caption": "The passkey is registered either way. The base closed the sheet as if nothing was wrong (it never tried); the branch keeps the card open in its warn wash with the facts Saved / First try / Next, a warn StatusMark in a polite live region whose sentence steers away from a second passkey, and the keyboard on Done.",
+      "before": "[role=dialog] 0; focus on body; no assertion sent",
+      "after": "[role=dialog] 1; .status-mark--warn 1 in output[aria-live=polite], label 'Passkey added to your account, but your sign-in service turned down its first try. Remove it here rather than adding another.'; Done 75x36 focused"
+    },
+    {
+      "shot": "1280-unverified-rows",
+      "width": 1280,
+      "title": "Done \u2014 the passkey is still on the account \u2014 1280 \u00d7 900",
+      "caption": "Nothing was rolled back: no DELETE was sent, and the list read after the sheet closed still holds the passkey.",
+      "before": "Your account rows 3, Account passkey \u00b7 Added \u2026",
+      "after": "Your account rows 3, Account passkey \u00b7 Added \u2026; no DELETE /v1/mfa/factors/*"
+    }
+  ]
+}

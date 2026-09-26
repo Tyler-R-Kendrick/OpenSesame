@@ -1,0 +1,193 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] .found__name"
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] .status-mark--warn",
+            "[role=dialog] output[aria-live] .status-mark"
+          ]
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "report": "[role=dialog] .found__name, [role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "measure": "[role=dialog] .status-mark"
+        },
+        {
+          "report": ".set__security .note"
+        },
+        {
+          "shot": "390-verified"
+        },
+        {
+          "pressNamedOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "count": ["[role=dialog]", "[aria-label='Your account'] .sw--method"]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "390-verified-rows"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "report": "[role=dialog] .found__name"
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] .status-mark--warn",
+            "[role=dialog] output[aria-live] .status-mark"
+          ]
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "report": "[role=dialog] .found__name, [role=dialog] dl"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "measure": "[role=dialog] .status-mark"
+        },
+        {
+          "report": ".set__security .note"
+        },
+        {
+          "shot": "1280-verified"
+        },
+        {
+          "pressNamedOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "count": ["[role=dialog]", "[aria-label='Your account'] .sw--method"]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "1280-verified-rows"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-verified",
+      "width": 390,
+      "title": "Create passkey, the service accepts its first try \u2014 390 \u00d7 844",
+      "caption": "The one try runs after registration and, accepted, the sheet closes as before. The difference is in the requests, not the pixels: the branch sends authentication-options and an anonymous assert after register.",
+      "before": "requests: registration-options, register, factors; [role=dialog] 0; note 'Passkey added to your account.'",
+      "after": "requests: registration-options, register, authentication-options, assert (no bearer, 200), factors; [role=dialog] 0; note 'Passkey added to your account.'"
+    },
+    {
+      "shot": "390-verified-rows",
+      "width": 390,
+      "title": "The account rows afterwards \u2014 390 \u00d7 844",
+      "caption": "One account passkey row, as before.",
+      "before": "Your account rows 3: Account passkey \u00b7 Added \u2026 \u00b7 key ####, Another account passkey, Account authenticator app",
+      "after": "Your account rows 3: the same three"
+    },
+    {
+      "shot": "1280-verified",
+      "width": 1280,
+      "title": "Create passkey, the service accepts its first try \u2014 1280 \u00d7 900",
+      "caption": "The one try runs after registration and, accepted, the sheet closes as before. The difference is in the requests, not the pixels: the branch sends authentication-options and an anonymous assert after register.",
+      "before": "requests: registration-options, register, factors; [role=dialog] 0; note 'Passkey added to your account.'",
+      "after": "requests: registration-options, register, authentication-options, assert (no bearer, 200), factors; [role=dialog] 0; note 'Passkey added to your account.'"
+    },
+    {
+      "shot": "1280-verified-rows",
+      "width": 1280,
+      "title": "The account rows afterwards \u2014 1280 \u00d7 900",
+      "caption": "One account passkey row, as before.",
+      "before": "Your account rows 3: Account passkey \u00b7 Added \u2026 \u00b7 key ####, Another account passkey, Account authenticator app",
+      "after": "Your account rows 3: the same three"
+    }
+  ]
+}
