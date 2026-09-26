@@ -89,6 +89,7 @@ Decisions recorded with the plan (`docs/implementation/ceremonies-into-pages/`):
 | D13 | Mobile MFA's paste-a-bearer-token field is dropped; Pages holds the Identity session. |
 | D14 | Authenticator-app enrolment returns only the `otpauth:` link; an answer without one is invalid, and the raw base64 seed is never shown. |
 | D15 | The hosted inbox never decides inline: every hosted row in Access › Requests opens `/approve/:ref`. |
+| D16 | (2026-09-26) A claim-creation response carries `verificationUriComplete` beside `verificationUri`: the client app's `/claim#token=osc_clm_…` (RFC 8628 §3.3.1), built by ceremony-kit `buildClaimLink` over `buildCeremonyUrl`'s route, so the person who opens it is asked only for the user code (ADR 0062). The bearer rides only the fragment (§2); the user code never rides a link; with no client app the field is omitted. |
 
 Mobile MFA's post-registration passkey check (register, then assert once, and
 keep a passkey whose try falls short rather than calling it failed) is carried

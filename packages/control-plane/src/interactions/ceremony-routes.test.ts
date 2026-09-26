@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   INTERACTION_ROUTE,
+  claimLinks,
   claimVerificationUri,
   clientAppLink,
   interactionPath,
@@ -70,6 +71,37 @@ describe("the interaction route agrees with spec/config/ceremony-routes.json", (
         ),
       ).toBe("https://id.example/v1/claims/clm_1/verify");
     }
+  });
+
+  it("completes a claim link with the bearer in the fragment only", () => {
+    const token = "osc_clm_pub.secret";
+    const claim = { session: { id: "clm_1" }, token };
+    const base = "https://app.example/OpenSesame/";
+    expect(
+      claimLinks(
+        { publicUrl: "https://id.example", clientAppUrl: base },
+        claim,
+      ),
+    ).toEqual({
+      verificationUri: `https://app.example/OpenSesame${spec.routes.claim?.path}`,
+      verificationUriComplete: `https://app.example/OpenSesame${spec.routes.claim?.path}#token=${token}`,
+    });
+    // No client app, or an unsafe one: the zero-JS page, and no complete
+    // link, because that page cannot complete a claim.
+    for (const clientAppUrl of [undefined, "http://app.example/"]) {
+      expect(
+        claimLinks({ publicUrl: "https://id.example", clientAppUrl }, claim),
+      ).toEqual({
+        verificationUri: "https://id.example/v1/claims/clm_1/verify",
+      });
+    }
+    // A bearer that is not claim-shaped is refused, never put in a link.
+    expect(() =>
+      claimLinks(
+        { publicUrl: "https://id.example", clientAppUrl: base },
+        { session: { id: "clm_1" }, token: "osc_clm_x&key=k" },
+      ),
+    ).toThrow("A claim link needs a claim bearer.");
   });
 
   it("mounts the short link at the spec's interaction path", () => {

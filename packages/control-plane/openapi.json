@@ -821,7 +821,49 @@
         ],
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing principal bearer"
@@ -1156,7 +1198,49 @@
         ],
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing principal bearer"
@@ -1470,7 +1554,49 @@
         ],
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing principal bearer"
@@ -1501,7 +1627,49 @@
         ],
         "responses": {
           "201": {
-            "description": "Claim started"
+            "description": "Claim started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing principal bearer"
