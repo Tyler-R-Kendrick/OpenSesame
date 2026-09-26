@@ -951,7 +951,7 @@
       "max-lines": 668
     },
     "packages/control-plane/src/__tests__/origin-profile-issuer.test.ts": {
-      "max-lines": 619
+      "max-lines": 617
     },
     "packages/control-plane/src/__tests__/pact-chaos.test.ts": {
       "complexity": 1
