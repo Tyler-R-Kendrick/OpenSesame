@@ -8,26 +8,51 @@
  * by the route the person is on, so they are bound from the shell wrapper
  * in `SessionTools.tsx`, which is mounted exactly when the vault is open.
  *
- * Both register the *contributed* set — what the core kept after filtering
- * `webmcp-tool` entries by the plan's approved operations — and both
- * re-register when that set changes, so approving or disabling another
+ * Both register the *contributed* set, kept only where the plan approves
+ * the operation a tool is owned by (`approvedTool`), and both re-register when
+ * that set or the plan changes, so approving or disabling another
  * capability mid-session is reflected without a reload.
  */
 
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import {
   contributionsSnapshot,
   subscribeContributions,
 } from "@opensesame/app-core/lib/contributions.js";
 import { webmcpNavigationSeam } from "@opensesame/app-core/webmcp/navigation.js";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
+import { readOperationIds } from "../ports-b.js";
 import { type WebMcpScope, registerWebMcpScope } from "./registrar.js";
 
-type Scoped = WebMcpToolSpec & { readonly scope?: string };
+/** The scope a tagged tool registers under, or null when it names none. */
+function scopeOf(tool: WebMcpToolSpec): WebMcpScope | null {
+  if (!("scope" in tool)) return null;
+  return tool.scope === "boot" || tool.scope === "session" ? tool.scope : null;
+}
 
-/** Contributed tools of one scope, in the registry's order. */
+/**
+ * A tool the plan covers: the operation it is owned by — the first it names
+ * — is approved. The rest are the registry capabilities the same tool also
+ * serves (ADR 0065 parity), which may belong to capabilities this
+ * installation never chose, so they neither admit nor hide it. An untagged
+ * tool names none and is never exposed, so a withdrawn operation — an
+ * operator may withdraw even an always-on capability (ADR 0142) — takes its
+ * tool off the page.
+ */
+export function approvedTool(
+  tool: WebMcpToolSpec,
+  approved: readonly string[],
+): boolean {
+  const owner = readOperationIds(tool)?.[0];
+  return owner !== undefined && approved.includes(owner);
+}
+
+/** Contributed tools of one scope the plan approves, in the registry's order. */
 export function contributedTools(scope: WebMcpScope): WebMcpToolSpec[] {
+  const approved =
+    compositionStore.getSnapshot().plan?.approvedOperations ?? [];
   return contributionsSnapshot("webmcp-tool").filter(
-    (tool) => (tool as Scoped).scope === scope,
+    (tool) => scopeOf(tool) === scope && approvedTool(tool, approved),
   );
 }
 
@@ -77,10 +102,13 @@ export function holdScope(
   };
 
   const stopContributions = subscribeContributions(sync);
+  // A plan change can withdraw an operation without touching the registry.
+  const stopPlan = compositionStore.subscribe(sync);
   signal.addEventListener(
     "abort",
     () => {
       stopContributions();
+      stopPlan();
       generation += 1;
       unregister?.();
       unregister = null;

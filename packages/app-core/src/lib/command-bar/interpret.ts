@@ -11,7 +11,7 @@ import {
 } from "../model-provider.js";
 import { parseCommand } from "./parse.js";
 import { createPromptLanguageModel } from "./prompt-model.js";
-import type { AppCommand } from "./types.js";
+import type { InterpretResult } from "./types.js";
 
 type GenerateObject = typeof import("ai").generateObject;
 
@@ -34,9 +34,7 @@ async function generateObjectFn(): Promise<GenerateObject> {
   return mod.generateObject;
 }
 
-export type InterpretResult =
-  | { source: "parse" | "model"; command: AppCommand }
-  | { source: "none"; reason: string };
+export type { InterpretResult } from "./types.js";
 
 /** Names only — never passwords, TOTP seeds, or notes. */
 export function itemNameCatalog(names: readonly string[]): string {

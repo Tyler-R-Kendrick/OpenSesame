@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-26-factor-stepup/`](2026-09-26-factor-stepup/README.md) | Removing an account factor takes a step-up (ADR 0146) |
 | [`2026-09-26-connect-photon-similarweb/`](2026-09-26-connect-photon-similarweb/README.md) | Connections: Photon and Similarweb presets (ADR 0147) |
 | [`2026-09-26-connect-catalog-ownership/`](2026-09-26-connect-catalog-ownership/README.md) | Connections: which rows Connect owns (ADR 0147) |
+| [`2026-09-26-capability-isolation/`](2026-09-26-capability-isolation/README.md) | Capability isolation: controls arrive with their capability (ADR 0130) |
 | [`2026-09-26-aliases-config/`](2026-09-26-aliases-config/README.md) | `/guest` and `/delegate` aliases — before/after |
 | [`2026-09-25-notification-routing/`](2026-09-25-notification-routing/README.md) | Settings › Notifications: the `notifications.routing` capability (ADR 0140 step 11a) |
 | [`2026-09-25-invoke-route/`](2026-09-25-invoke-route/README.md) | `/invoke/:kind`, the authenticator hand-off (ADR 0140 step 10) |

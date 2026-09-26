@@ -154,3 +154,8 @@ export function ModelProviderPanel({
     </div>
   );
 }
+
+/** The picker as the AI section of Settings › Capabilities draws it. */
+export function EmbeddedModelProviderPanel() {
+  return <ModelProviderPanel embedded />;
+}

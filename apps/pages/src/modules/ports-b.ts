@@ -11,14 +11,17 @@
  * through `activation.register`; `navigate` is on the context itself. All
  * four fail loudly rather than optionally.
  *
- * Also here: the tag every `webmcp-tool` contribution carries so the core
- * (and the surface's own job) can filter by `approvedOperations`
- * (SURFACE-05). An entry without `operationIds` is never registered.
+ * Also here: the tag every `webmcp-tool` contribution carries, naming the
+ * operations its dispatch performs (SURFACE-05). A tool is registered by
+ * the capability that owns those operations, so it exists exactly while
+ * that capability is active.
  */
 
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import type { PagesWebMcpTool } from "@opensesame/app-core/webmcp/tool-shared.js";
 import type { RegistrationHandle } from "@opensesame/capability-composition";
+import { isString } from "@opensesame/os-domain";
+import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import type { ComponentType, ReactNode } from "react";
 
 /** Kept as the name the wave-B runtimes import; the contract carries it all now. */
@@ -39,13 +42,15 @@ export function tagWebMcpTool(tool: PagesWebMcpTool): TaggedWebMcpTool {
 }
 
 /** The operation ids a contributed entry was tagged with, or null when untagged. */
-export function readOperationIds(entry: object): readonly string[] | null {
+export function readOperationIds(
+  entry: WebMcpToolSpec,
+): readonly string[] | null {
   if (!("operationIds" in entry)) return null;
   const value = entry.operationIds;
   if (!Array.isArray(value)) return null;
   const ids: string[] = [];
   for (const id of value) {
-    if (typeof id !== "string") return null;
+    if (!isString(id)) return null;
     ids.push(id);
   }
   return ids.length > 0 ? ids : null;

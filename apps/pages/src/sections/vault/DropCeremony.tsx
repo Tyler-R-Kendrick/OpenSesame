@@ -24,6 +24,7 @@ import {
 import {
   type DropItem,
   type SecretItem,
+  type VaultItem,
   b64ToBytes,
 } from "@opensesame/vault-core";
 import {
@@ -39,13 +40,7 @@ import { IconDownload, IconDrop, IconX } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { DROP_TTL_OPTIONS, TtlPicker } from "./DropTtl.js";
-
-export function formatExpiry(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
+import { formatExpiry } from "./expiry.js";
 
 /** What a finished ceremony shows: link, code, QR, expiry — never the payload. */
 export function DropCard({ drop }: { drop: CreatedDrop }) {
@@ -232,6 +227,11 @@ function downloadKeptFile(copy: {
 }
 
 /** Drop record detail: state, countdown, optional kept copy, disposal poll. */
+/** The drop kind's record view (`item-kind` contribution). */
+export function DropRecord({ item }: { item: VaultItem }) {
+  return item.kind === "drop" ? <DropRecordFields item={item} /> : null;
+}
+
 export function DropRecordFields({ item }: { item: DropItem }) {
   const store = useVaultStore();
   const [now, setNow] = useState(() => Date.now());

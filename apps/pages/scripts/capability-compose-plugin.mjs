@@ -99,6 +99,34 @@ function partitionable(id) {
   return toPosix(id).includes("/src/modules/");
 }
 
+/**
+ * Leaves a capability's runtime reaches only through `import()` on first use
+ * — the support agents and the WebMCP SDK. Each gets its own chunk: left to
+ * Rollup, the four were merged into one, so loading the WebMCP SDK evaluated
+ * both AI agents' code too. A module is named only when its classification
+ * is the leaf's capability, so a core file that happens to sit in the
+ * directory (the consent store in `ag-ui/`), or a package the leaf shares
+ * with the core, stays where it was.
+ */
+const LAZY_LEAVES = [
+  ["/src/tutorial/agents/prompt-api/", "support.local-ai", "agent-prompt-api"],
+  ["/src/tutorial/agents/ag-ui/", "support.remote-ai", "agent-ag-ui"],
+  ["/src/tutorial/agents/provider/", "support.remote-ai", "agent-provider"],
+  ["/packages/webmcp/src/", "agents.webmcp", "webmcp-sdk"],
+  // The SDKs behind the agents, which Rollup fused the same way.
+  ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
+  ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
+  ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
+];
+
+function lazyLeafChunk(id, entry) {
+  const path = toPosix(id);
+  for (const [dir, capability, name] of LAZY_LEAVES) {
+    if (path.includes(dir) && entry.capability === capability) return name;
+  }
+  return undefined;
+}
+
 function installManualChunks(build, state) {
   if (!build.rollupOptions) build.rollupOptions = {};
   const rollupOptions = build.rollupOptions;
@@ -108,11 +136,21 @@ function installManualChunks(build, state) {
     : [rollupOptions.output];
   for (const output of outputs) {
     const previous = chunkFunction(output.manualChunks);
+    // Only the modules named below go into a `cap-*` chunk. Rollup's
+    // default would also pull every dependency a named module has into its
+    // chunk — React, the vault ciphers, the WebMCP context — so the entry
+    // would import core code from an optional chunk, and the chunk would be
+    // statically reachable from the first page load.
+    output.onlyExplicitManualChunks = true;
     output.manualChunks = (id, api) => {
       if (partitionable(id)) {
         const entry = state.classify(id);
         if (entry.classification === "optional" && entry.capability)
           return `cap-${entry.capability}`;
+      }
+      if (!id.startsWith("\0")) {
+        const leaf = lazyLeafChunk(id, state.classify(id));
+        if (leaf) return leaf;
       }
       return previous ? previous(id, api) : undefined;
     };

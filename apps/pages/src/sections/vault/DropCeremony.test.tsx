@@ -61,7 +61,6 @@ Object.assign(vaultHooksSeams, {
 });
 Object.assign(dropSeams, { createClaim, pollClaim });
 
-import { VaultSection } from "../VaultSection.js";
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
 import { NewDropCeremony } from "./NewDropCeremony.js";
 
@@ -352,26 +351,5 @@ describe("disposal", () => {
     await screen.findByText("Waiting to be opened");
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(store.purgeItem).not.toHaveBeenCalled();
-  });
-
-  it("sweeps terminal drop records on vault open", async () => {
-    vault.current = {
-      ...vault.current,
-      items: [makeDrop({ state: "consumed" })],
-      status: "unlocked",
-    };
-    render(
-      <MemoryRouter initialEntries={["/vault"]}>
-        <Routes>
-          <Route path="/vault" element={<VaultSection />}>
-            <Route index element={<div>welcome pane</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    );
-    await waitFor(() =>
-      expect(store.purgeItem).toHaveBeenCalledWith("itm_drop"),
-    );
-    expect(pollClaim).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,7 @@ import {
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useComposition } from "../../bindings/capabilities.js";
+import { useContributions } from "../../bindings/contributions.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -37,8 +38,10 @@ import {
   GuestSection,
   SectionHead,
 } from "./CapabilitySwitch.js";
-import { ModelProviderPanel } from "./ModelProviderPanel.js";
 import { ProviderTiles } from "./ProviderTiles.js";
+
+/** `support.local-ai`'s model picker, drawn in the AI section once AI is on. */
+export const MODEL_PROVIDER_PANEL = "model-provider";
 
 type Propose = (proposal: FeatureProposal) => void;
 
@@ -222,6 +225,9 @@ function CapabilitySection({
   // mount: they are AI's own code, drawn once AI is on — unlike a provider
   // tile, which is a connector configured by reference.
   const models = feature.models === true && featureState(feature, plan).on;
+  const ModelPanel = useContributions("settings-panel").find(
+    (panel) => panel.id === MODEL_PROVIDER_PANEL,
+  )?.Panel;
   return (
     <section
       className="conn-group capsection"
@@ -252,9 +258,9 @@ function CapabilitySection({
           ))}
         </ul>
       ) : null}
-      {models ? (
+      {models && ModelPanel ? (
         <GuideTarget id="settings.model-provider">
-          <ModelProviderPanel embedded />
+          <ModelPanel />
         </GuideTarget>
       ) : null}
       {feature.providerCategories.map((category) => (

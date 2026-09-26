@@ -10,7 +10,6 @@ import {
 } from "react-router";
 
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
-import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
   type VaultItem,
@@ -18,6 +17,7 @@ import {
   itemTypeRegistry,
   sortItems,
 } from "@opensesame/vault-core";
+import { useContributions } from "../bindings/contributions.js";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconPlus } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
@@ -37,7 +37,7 @@ export function VaultSection() {
   const [params] = useSearchParams();
   const location = useLocation();
   const { itemId } = useParams();
-  const { items, folders, status } = useVault();
+  const { items, folders } = useVault();
   const store = useVaultStore();
   const copySecret = useCopySecret();
   const navigate = useNavigate();
@@ -47,11 +47,6 @@ export function VaultSection() {
 
   // Drop disposal (ADR 0062): every vault read sweeps the drop records, so a
   // drop that was opened or lapsed while away purges itself here.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the unlock transition is the trigger — items/store are read at that moment, not watched
-  useEffect(() => {
-    if (status !== "unlocked") return;
-    void sweepDrops(items, (id) => store.purgeItem(id));
-  }, [status]);
 
   const visible = useMemo(() => {
     const inTrash = filter === "trash";
@@ -107,6 +102,7 @@ export function VaultSection() {
   const previewable =
     location.pathname === "/vault" ||
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
+  const canShare = useContributions("secret-share").length > 0;
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) => {
@@ -136,12 +132,17 @@ export function VaultSection() {
       restore: (item: VaultItem) => void store.restoreItem(item.id),
       purge: (item: VaultItem) => void store.purgeItem(item.id),
       favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
-      share: (item: VaultItem) => {
-        if (item.kind === "secret") navigate(`/vault/${item.id}?share=drop`);
-      },
+      // Only a capability that contributes a way to share offers it.
+      share: canShare
+        ? (item: VaultItem) => {
+            if (item.kind === "secret")
+              navigate(`/vault/${item.id}?share=drop`);
+          }
+        : undefined,
       create: () => navigate(createPath),
     }),
     [
+      canShare,
       copySecret,
       createPath,
       itemId,

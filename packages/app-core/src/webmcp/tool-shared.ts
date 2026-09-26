@@ -11,24 +11,9 @@ import { type JsonObject, isString } from "@opensesame/os-domain";
 import type { VaultItem } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { vaultStore } from "../lib/vault/store.js";
-import { webmcpNavigationSeam } from "./navigation.js";
+import { webmcpNavigationSeam } from "./seams.js";
 
-export type WebMcpSupportSeam = {
-  openSupport: (topic: string | null) => void;
-  startGuide: (goal: string) => void;
-};
-
-/**
- * Support seam: the support panel binds its live open/start functions here
- * while it is mounted, the way the lifecycle hook binds the router. The
- * defaults are silent no-ops so both guidance tools stay callable — and keep
- * rejecting arguments that are not authored ids — in a build that ships no
- * support UI, and in tests that drive them without one.
- */
-export const webmcpSupportSeam: WebMcpSupportSeam = {
-  openSupport: () => {},
-  startGuide: () => {},
-};
+export { type WebMcpSupportSeam, webmcpSupportSeam } from "./seams.js";
 
 export type PagesWebMcpTool = WebMcpToolSpec & {
   capabilityIds: readonly string[];

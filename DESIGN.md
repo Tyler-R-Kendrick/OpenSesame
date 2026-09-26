@@ -241,7 +241,7 @@ keys: `y` copies the secret, `u` the username, `e` edits, `x` trashes, `n`
 creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/w/s`
 jumps between sections (`g` times out like vim so a stray `g` does not
 swallow the next key). `Ctrl-l` / `:` focuses the command bar (browser
-URL-bar style); `m` toggles push-to-speak on the mic. `?` shows the keymap. A mono status line always
+URL-bar style); `m` toggles push-to-speak on the mic, which is the on-device model's and drawn once it is on. `?` shows the keymap. A mono status line always
 shows the focused path, item count, and active filter (or the live query).
 Pointer access remains complete: rows click, directories toggle, a `⋯` menu
 on the cursor or hovered row carries the verbs, and the `/` and `?` key

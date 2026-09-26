@@ -133,10 +133,13 @@ fields, which the module supplies already-imported):
 - `command-path`: `{ path, label }`
 - `keymap-jump`: `{ key, path }`
 - `tutorial-target` / `tutorial-goal` / `tutorial-route`: the existing descriptor types
-- `item-kind`: `{ kind, label, segment, Icon?: ComponentType, order }`
-- `webmcp-tool`: `WebMcpToolSpec` (already fenced by the core; the core filters by `approvedOperations` before registration)
+- `item-kind`: `{ kind, label, segment, Icon?: ComponentType, order, Record?: ComponentType<{ item }>, Create?: ComponentType<ItemCreateProps> }` — the record view and creation form of a contributed kind (a drop's, `sharing.drops`)
+- `webmcp-tool`: `WebMcpToolSpec` tagged with `operationIds` (`tagWebMcpTool`; already fenced by the core). A tool is registered by the capability that owns its operations, so it exists exactly while that capability is active; the `agents.webmcp` surface registers the contributed set with the browser, keeping a tool only while the plan approves the operation it is owned by (its first id), and never an untagged one
 - `background-job`: `{ id, start(signal): void }`
 - `unlock-effect`: `{ id, run(ctx: { tomb: string; guest: boolean; signal: AbortSignal }): Promise<void> }`
+- `secret-share`: `{ id, order, Panel: ComponentType<{ item: SecretItem; initialOpen? }> }` — an offer to share a stored secret (a drop)
+- `item-draft-assist`: `{ id, order, Suggestions: ComponentType<{ typeId, website?, onApply }>, suggest(context, signal): Promise<DraftLabels> }` — labels for a new item from a model, beside the editor and for the WebMCP draft tools
+- `command-assist`: `{ id, order, interpret(utterance, { itemNames }): Promise<InterpretResult>, Voice?: ComponentType }` — what the command bar asks when its own parser finds no command, and its voice input
 
 ### 4.3 Module entry contract (S11–S16)
 

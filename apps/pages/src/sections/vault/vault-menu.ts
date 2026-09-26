@@ -16,7 +16,8 @@ export type VaultTreeActions = {
   edit: (item: VaultItem) => void;
   trash: (item: VaultItem) => void;
   favorite: (item: VaultItem) => void;
-  share: (item: VaultItem) => void;
+  /** Absent when no capability contributes a way to share a secret. */
+  share?: (item: VaultItem) => void;
   create: () => void;
   /** A trashed item's two ways out; absent, the menu offers neither. */
   restore?: (item: VaultItem) => void;
@@ -91,7 +92,7 @@ export function vaultItemMenu(
         ".",
         actions.favorite,
       ),
-      ...(item.kind === "secret"
+      ...(item.kind === "secret" && actions.share
         ? [verb("share", "Share once", "s", actions.share)]
         : []),
     ],

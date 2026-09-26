@@ -12,6 +12,8 @@ import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { activateForTest } from "../../modules/runtime-test-kit.js";
+import * as drops from "../../modules/sharing.drops/runtime.js";
 import { ItemEditor } from "./ItemEditor.js";
 
 const original = { ...vaultHooksSeams };
@@ -23,11 +25,14 @@ const folders = [{ id: "work", name: "Work", createdAt: "2026-01-01" }];
  * Passkey, drop and certificate records are `item-kind` contributions from
  * the capabilities that own them (SURFACE-08), so the type picker and the
  * `?f=` filters only offer them while those capabilities are in the plan.
- * This suite registers the same kinds their runtimes do.
+ * This suite registers the same kinds their runtimes do, and the drop kind's
+ * creation form from `sharing.drops` itself.
  */
 let revokeItemKinds: () => void;
-beforeEach(() => {
+let revokeDrops: () => void;
+beforeEach(async () => {
   revokeItemKinds = registerLegacyItemKinds();
+  revokeDrops = await activateForTest(drops, ["item-kind"]);
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ items: [existing], folders }),
     useVaultStore: () => ({ saveItem }),
@@ -35,6 +40,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   revokeItemKinds();
+  revokeDrops();
   cleanup();
   Object.assign(vaultHooksSeams, original);
   vi.clearAllMocks();

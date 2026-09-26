@@ -1,6 +1,11 @@
 /** In-app `?` sheet rows — must stay in lockstep with DESIGN.md and the handler. */
 
-/** Every row but the section jumps, which depend on what is registered. */
+import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
+
+/**
+ * Every row but the section jumps, which depend on what is registered. The
+ * `GATED` rows are dropped unless their capability contributed the control.
+ */
 export const KEYMAP_HELP_CORE = [
   ["Ctrl-l / :", "Command bar"],
   ["m", "Push to speak"],
@@ -28,11 +33,37 @@ export function keymapJumpHelpRow(jumpKeys: readonly string[]): KeymapHelpRow {
   return [`g ${jumpKeys.join("/")}`, "Go to a section"];
 }
 
-/** The whole sheet for a given set of registered jump keys. */
+/** What a capability brought that the sheet names: its row shows only then. */
+export type KeymapExtras = Readonly<{ voice: boolean; share: boolean }>;
+
+const NO_EXTRAS: KeymapExtras = { voice: false, share: false };
+
+/** The extras registered right now: a voice control, a way to share. */
+export function contributedKeymapExtras(): KeymapExtras {
+  return {
+    voice: contributionsSnapshot("command-assist").some(
+      (assist) => assist.Voice !== undefined,
+    ),
+    share: contributionsSnapshot("secret-share").length > 0,
+  };
+}
+
+/** `m` belongs to the on-device model's voice, `s` to secret drops. */
+const GATED = new Map<string, keyof KeymapExtras>([
+  ["m", "voice"],
+  ["s", "share"],
+]);
+
+/** The whole sheet for a given set of registered jump keys and extras. */
 export function keymapHelpRows(
   jumpKeys: readonly string[],
+  extras: KeymapExtras = NO_EXTRAS,
 ): readonly KeymapHelpRow[] {
-  return [...KEYMAP_HELP_CORE, keymapJumpHelpRow(jumpKeys)];
+  const rows = KEYMAP_HELP_CORE.filter(([keys]) => {
+    const gate = GATED.get(keys);
+    return gate === undefined || extras[gate];
+  });
+  return [...rows, keymapJumpHelpRow(jumpKeys)];
 }
 
 let helpTarget: (() => void) | null = null;

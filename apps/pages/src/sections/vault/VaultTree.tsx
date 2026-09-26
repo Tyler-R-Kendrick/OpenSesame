@@ -25,8 +25,8 @@ import { ContextMenuList } from "../../components/context-menu/ContextMenuList.j
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
-import { formatExpiry } from "./DropCeremony.js";
 import { VaultPathbar } from "./VaultPathbar.js";
+import { formatExpiry } from "./expiry.js";
 import {
   type VaultTreeActions,
   vaultItemMenu,
@@ -271,7 +271,7 @@ export function VaultTree({
       trash: withItem((item) => actionsRef.current.trash(item)),
       create: () => actionsRef.current.create(),
       favorite: withItem((item) => actionsRef.current.favorite(item)),
-      share: withItem((item) => actionsRef.current.share(item)),
+      share: withItem((item) => actionsRef.current.share?.(item)),
     });
   }, []);
 

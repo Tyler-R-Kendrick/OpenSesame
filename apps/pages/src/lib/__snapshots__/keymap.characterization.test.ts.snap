@@ -7,10 +7,6 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
     "Command bar",
   ],
   [
-    "m",
-    "Push to speak",
-  ],
-  [
     "j / k or arrows",
     "Move",
   ],
@@ -61,10 +57,6 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
   [
     "n / .",
     "New or favorite",
-  ],
-  [
-    "s",
-    "Share once",
   ],
   [
     "Shift-F10 / Shift-Enter",

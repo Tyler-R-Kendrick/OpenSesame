@@ -1,5 +1,8 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
+import { dropSeams } from "@opensesame/app-core/lib/vault/drop.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import type { DropItem } from "@opensesame/vault-core";
+import { describe, expect, it, vi } from "vitest";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -18,12 +21,23 @@ describe("sharing.drops runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the drop item kind and nothing else (LOAD-09)", async () => {
+  it("registers the drop kind, the share offer and the sweep (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.drops",
-      kinds: ["item-kind"],
-      count: 1,
+      kinds: ["item-kind", "secret-share", "unlock-effect"],
+      count: 3,
     });
+  });
+
+  it("owns every drop surface the vault draws, so a build without drops draws none", async () => {
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const [kind] = t.entries("item-kind");
+    expect(kind?.Record).toBeTypeOf("function");
+    expect(kind?.Create).toBeTypeOf("function");
+    expect(t.entries("secret-share").map((s) => s.id)).toEqual(["drop"]);
+    expect(t.entries("unlock-effect").map((e) => e.id)).toEqual(["drop-sweep"]);
+    await handle.dispose();
   });
 
   it("serves no route: opening a drop at /claim is identity.ceremonies' (ADR 0140 D2)", async () => {
@@ -63,5 +77,56 @@ describe("sharing.drops runtime", () => {
     const handle = await pending;
     expect(t.registered).toHaveLength(0);
     await handle.dispose();
+  });
+
+  it("sweeps a terminal drop record when the vault opens, without polling it", async () => {
+    const consumed: DropItem = {
+      id: "itm_drop",
+      kind: "drop",
+      name: "Deploy token",
+      folderId: null,
+      favorite: false,
+      notes: "",
+      fields: [],
+      createdAt: "2026-08-01T00:00:00Z",
+      updatedAt: "2026-08-01T00:00:00Z",
+      deletedAt: null,
+      state: "consumed",
+      claimId: "clm_test",
+      bearerToken: "osc_clm_clm_test.secret",
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    };
+    const snapshot = vi
+      .spyOn(vaultStore, "getSnapshot")
+      .mockReturnValue({ ...vaultStore.getSnapshot(), items: [consumed] });
+    const purge = vi.spyOn(vaultStore, "purgeItem").mockResolvedValue();
+    const poll = vi.fn();
+    const previous = dropSeams.pollClaim;
+    Object.assign(dropSeams, { pollClaim: poll });
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    try {
+      const [sweep] = t.entries("unlock-effect");
+      await sweep?.run({
+        tomb: "personal",
+        guest: false,
+        signal: new AbortController().signal,
+      });
+      expect(purge).toHaveBeenCalledWith("itm_drop");
+      expect(poll).not.toHaveBeenCalled();
+      // A run already superseded (its signal aborted) sweeps nothing.
+      purge.mockClear();
+      const aborted = new AbortController();
+      aborted.abort();
+      await sweep
+        ?.run({ tomb: "personal", guest: false, signal: aborted.signal })
+        .catch(() => undefined);
+      expect(purge).not.toHaveBeenCalled();
+    } finally {
+      await handle.dispose();
+      Object.assign(dropSeams, { pollClaim: previous });
+      snapshot.mockRestore();
+      purge.mockRestore();
+    }
   });
 });

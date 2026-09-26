@@ -1,5 +1,5 @@
 import { type JsonObject, isString } from "@opensesame/os-domain";
-import { suggestDraftLabels } from "../lib/vault/draft-suggestions.js";
+import { contributionsSnapshot } from "../lib/contributions.js";
 import { generateDraftLabels } from "../lib/vault/new-draft.js";
 
 export function assertMetadataOnlyWrite(args: JsonObject): void {
@@ -28,13 +28,21 @@ export async function suggestItemMetadata(args: JsonObject) {
     throw new Error("invalid_suggestion_arguments");
   const labels =
     args.source === "browser"
-      ? await suggestDraftLabels(
-          {
-            typeId: args.kind,
-            website: isString(args.url) ? args.url : undefined,
-          },
-          AbortSignal.timeout(30_000),
+      ? await suggestOnDevice(
+          args.kind,
+          isString(args.url) ? args.url : undefined,
         )
       : generateDraftLabels(args.kind);
   return { status: "suggested", source: args.source ?? "random", ...labels };
+}
+
+/**
+ * The on-device model is `support.local-ai`'s, reached only through what it
+ * contributed: without that capability a caller is refused, and its code is
+ * never imported here.
+ */
+async function suggestOnDevice(typeId: string, website: string | undefined) {
+  const [assist] = contributionsSnapshot("item-draft-assist");
+  if (!assist) throw new Error("on_device_model_not_enabled");
+  return assist.suggest({ typeId, website }, AbortSignal.timeout(30_000));
 }

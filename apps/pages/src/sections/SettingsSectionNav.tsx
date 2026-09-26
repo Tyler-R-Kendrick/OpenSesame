@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import { useStripItem } from "../lib/strip.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js";
-import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
 
@@ -51,14 +50,12 @@ export function CategoryLink({
 export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
   InstallPanel: ComponentType;
-  ModelProviderPanel: ComponentType;
   VaultsPanel: ComponentType;
 };
 
 export const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
   InstallPanel: DefaultInstallPanel,
-  ModelProviderPanel: DefaultModelProviderPanel,
   VaultsPanel: DefaultVaultsPanel,
 };
 

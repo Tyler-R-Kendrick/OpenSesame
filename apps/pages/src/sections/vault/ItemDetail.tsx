@@ -37,9 +37,9 @@ import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
 import { StrengthBar } from "./StrengthBar.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
+import { KindRecord, SecretShares } from "./item-contributions.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -846,7 +846,7 @@ function ItemFields({
             )}
           </div>
 
-          <ShareSecretDrop item={item} initialOpen={shareInitiallyOpen} />
+          <SecretShares item={item} initialOpen={shareInitiallyOpen} />
 
           <div className="note">
             <span>
@@ -859,7 +859,7 @@ function ItemFields({
       );
 
     case "drop":
-      return <DropRecordFields item={item} />;
+      return <KindRecord item={item} />;
 
     case "note":
       return (

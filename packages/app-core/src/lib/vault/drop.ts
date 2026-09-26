@@ -243,8 +243,11 @@ export async function sweepDrop(
 export async function sweepDrops(
   items: VaultItem[],
   purge: (id: string) => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<void> {
   for (const item of items) {
+    // A sweep superseded or disabled mid-flight polls and purges no more.
+    if (signal?.aborted) return;
     if (item.kind !== "drop" || item.deletedAt !== null) continue;
     await sweepDrop(item, () => purge(item.id));
   }

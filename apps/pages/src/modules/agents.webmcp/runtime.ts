@@ -4,9 +4,9 @@
  * fallback), so an in-browser agent can read and navigate the app.
  *
  * This capability owns the *surface*, not the tools. Every optional
- * capability contributes its own `webmcp-tool` entries and the core keeps
- * only those whose operations the plan approves; this module registers that
- * filtered set with the browser and takes it all back on dispose.
+ * capability contributes its own `webmcp-tool` entries; this module
+ * registers those whose operations the plan approves with the browser
+ * (`surface.ts`) and takes them all back on dispose.
  *
  * Two groups are registered here because nothing else can. The boot tools
  * (status, navigate, health) describe the app itself rather than a feature.
@@ -54,12 +54,12 @@ export const CAPABILITY = "agents.webmcp";
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(context) {
-    const ctx = context as ContextWithPorts;
+    const ctx: ContextWithPorts = context;
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    // The app's own tools and the core's, tagged so the core filters them by
-    // the plan's approved operations exactly as it does everyone else's.
+    // The app's own tools and the core's, tagged so the surface filters them
+    // by the plan's approved operations exactly as it does everyone else's.
     for (const tool of [
       ...BOOT_TOOLS,
       ...VAULT_TOOLS,

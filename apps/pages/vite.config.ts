@@ -126,6 +126,15 @@ export default defineConfig({
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
     rollupOptions: {
+      output: {
+        // Merge a chunk under 5 KB into one that every path loading it
+        // already loads, so the explicit capability chunks (see
+        // `capability-compose-plugin.mjs`) do not leave dozens of tiny
+        // shared chunks that gzip worse apart than together. Larger values
+        // fold small optional chunks (Tailnet sync's) into `main`, which
+        // is "safe" to Rollup — everything loads `main` — and wrong here.
+        experimentalMinChunkSize: 5_000,
+      },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
       // removes the ones owned by a capability a hardened build excludes
       // (`auth/redirect.html` → identity.ambient-sso) and partitions optional

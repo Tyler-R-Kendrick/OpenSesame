@@ -9,6 +9,8 @@ import type {
   CapabilityModule,
   CapabilityRuntime,
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
+import type { ContributionKind } from "@opensesame/capability-composition";
 import { expect, vi } from "vitest";
 import { type TestContextOptions, createTestContext } from "./test-context.js";
 
@@ -39,9 +41,15 @@ export const NO_SIDE_EFFECTS: ImportSideEffects = Object.freeze({
  * is spied. The loader must be a dynamic import the test file has not
  * imported statically anywhere, or the graph is already evaluated.
  */
+/** A module evaluated under spies, and what its evaluation touched. */
+export type SpiedImport<T> = Readonly<{
+  module: T;
+  effects: ImportSideEffects;
+}>;
+
 export async function importUnderSpies<T>(
   load: () => Promise<T>,
-): Promise<{ module: T; effects: ImportSideEffects }> {
+): Promise<SpiedImport<T>> {
   const serviceWorkerRegister = vi.fn(async () => {
     throw new Error("service worker registration during import");
   });
@@ -92,12 +100,13 @@ export async function importUnderSpies<T>(
   }
 }
 
-export function runtimeOf(module: unknown): CapabilityRuntime {
-  const candidate = module as Partial<CapabilityModule>;
-  if (!candidate.capabilityRuntime) {
+export function runtimeOf(
+  module: Partial<CapabilityModule>,
+): CapabilityRuntime {
+  if (!module.capabilityRuntime) {
     throw new Error("module has no capabilityRuntime export");
   }
-  return candidate.capabilityRuntime;
+  return module.capabilityRuntime;
 }
 
 export type LifecycleExpectation = Readonly<{
@@ -157,4 +166,27 @@ export async function expectLifecycle(
   const none = await runtime.activate(stale.ctx);
   expect(stale.registered).toHaveLength(0);
   await none.dispose();
+}
+
+/**
+ * Test-only: activate a capability's real runtime and put what it registered
+ * beside the registry's — what an installation that approved it draws. A
+ * suite that proves a surface a capability contributes uses this rather
+ * than hand-writing the entry. `kinds` narrows what is put in place.
+ * Returns the revoke, which also disposes the runtime.
+ */
+export async function activateForTest(
+  module: Partial<CapabilityModule>,
+  kinds?: readonly ContributionKind[],
+): Promise<() => void> {
+  const t = createTestContext();
+  const handle = await runtimeOf(module).activate(t.ctx);
+  const revokes = t
+    .live()
+    .filter((record) => !kinds || kinds.includes(record.kind))
+    .map((record) => registerContributionForTest(record.kind, record.entry));
+  return () => {
+    for (const revoke of revokes) revoke();
+    void handle.dispose();
+  };
 }

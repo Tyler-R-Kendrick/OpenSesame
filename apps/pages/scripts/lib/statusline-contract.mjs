@@ -15,7 +15,7 @@
  * let either arrangement pass for the other. The keys and the command cluster
  * are checked as separate clusters because they are separate in the DOM and
  * separate in the design: the keys are icon-btns of one box, the command
- * cluster is its own pair of affordances.
+ * cluster is its own run of affordances.
  */
 export async function checkStatusline(page, check) {
   const original = page.viewportSize();
@@ -111,9 +111,12 @@ function contiguous(run) {
  */
 function checkArrangement(geometry, width, check) {
   const command = geometry.commandButtons;
+  // Run alone: speech is `support.local-ai`'s, which holds the microphone
+  // permission, and the guest this journey walks never chose it — a mic here
+  // would be optional code drawn without consent.
   check(
-    command.length === 2,
-    `the command cluster holds its own two controls at ${width}px`,
+    command.length === 1,
+    `the command cluster holds Run alone, no mic without the on-device model, at ${width}px`,
   );
   if (width < 900) {
     // Support and the command cluster, and nothing else: the plane keys and

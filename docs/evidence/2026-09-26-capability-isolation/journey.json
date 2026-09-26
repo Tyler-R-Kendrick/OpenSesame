@@ -1,0 +1,105 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "count": [".command-bar button", ".command-bar__mic"]
+        },
+        {
+          "shot": "390-command-bar"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/login"
+        },
+        {
+          "count": [
+            "button[aria-label='Suggest names on device']",
+            ".command-bar button"
+          ]
+        },
+        {
+          "shot": "1280-new-login"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Deploy key"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Secret value",
+            "text": "sk_live_example"
+          }
+        },
+        {
+          "pressNamedOptional": "Save item"
+        },
+        {
+          "count": ["button[aria-label='Share once']"]
+        },
+        {
+          "shot": "1280-secret"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-command-bar",
+      "width": 390,
+      "title": "Command bar on a phone — 390 × 844",
+      "caption": "A fresh guest device has chosen no optional capability. The mic is the on-device model's (support.local-ai holds the microphone permission and reads command-bar utterances), so before it was drawn anyway; now it arrives with that capability and Run stands alone until then.",
+      "before": "2 controls in the command cluster: mic + Run",
+      "after": "1 control: Run (mic 1 → 0)"
+    },
+    {
+      "shot": "1280-new-login",
+      "width": 1280,
+      "title": "New login — 1280 × 900",
+      "caption": "Suggesting names on device is the on-device model's; before, a device that never chose it was offered the model anyway.",
+      "before": "1 Suggest names on device key",
+      "after": "0 Suggest names on device keys"
+    },
+    {
+      "shot": "1280-secret",
+      "width": 1280,
+      "title": "A stored secret — 1280 × 900",
+      "caption": "Sharing a secret once is sending a drop, sharing.drops's. Before, the offer was drawn on a device that had not chosen drops, whose New menu already had no drop kind.",
+      "before": "1 Share once key under the saved secret",
+      "after": "0 Share once keys; the secret saved and drawn as before"
+    }
+  ]
+}
