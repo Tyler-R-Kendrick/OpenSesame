@@ -14,6 +14,9 @@ export VITE_HOST_API="${VITE_HOST_API:-$OPENSESAME_PUBLIC_URL}"
 export OPENSESAME_RESOURCE="${OPENSESAME_RESOURCE:-$OPENSESAME_PUBLIC_URL}"
 export OPENSESAME_ISSUER="${OPENSESAME_ISSUER:-http://127.0.0.1:18788}"
 export OPENSESAME_CORS_ORIGINS="${OPENSESAME_CORS_ORIGINS:-http://127.0.0.1:5180,http://localhost:5180}"
+# Every ceremony link the Identity API prints opens on this Vite server
+# (ADR 0140 §4): the /i/<ref> launcher and a claim's verificationUri.
+export OPENSESAME_CLIENT_APP_URL="${OPENSESAME_CLIENT_APP_URL:-http://localhost:5180${VITE_BASE:-/OpenSesame/}}"
 export OPENSESAME_DEV_BOOTSTRAP="${OPENSESAME_DEV_BOOTSTRAP:-false}"
 # Persist local keys across restarts without committing or printing them.
 umask 077
@@ -72,6 +75,7 @@ OPENSESAME_ISSUER="$IDENTITY_URL" \
 OPENSESAME_HOST_API="$VITE_HOST_API" \
 OPENSESAME_CONTROL_PLANE_PORT="$OPENSESAME_CONTROL_PLANE_PORT" \
 OPENSESAME_CORS_ORIGINS="$OPENSESAME_CORS_ORIGINS" \
+OPENSESAME_CLIENT_APP_URL="$OPENSESAME_CLIENT_APP_URL" \
 pnpm --filter @opensesame/control-plane start &
 IDENTITY_PID=$!
 export OPENSESAME_MOCK_IDP_PORT="${OPENSESAME_MOCK_IDP_PORT:-9090}"

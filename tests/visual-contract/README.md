@@ -43,7 +43,8 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
 
 1. Starts `apps/pages` for real via its own `webServer` — `pnpm --filter
    @opensesame/pages build && pnpm --filter @opensesame/pages preview` on
-   port `5180`, the app's own dev/preview port — with `VITE_BASE=/`
+   its own strict port `5182`, so it never reuses a developer's `5180`
+   dev server — with `VITE_BASE=/`
    overriding that app's GitHub-Pages default of `/OpenSesame/` (Playwright's
    `baseURL` + a leading-`/` `page.goto()` resolves against the origin, not a
    non-root base path, so serving at `/` keeps every test's navigation
