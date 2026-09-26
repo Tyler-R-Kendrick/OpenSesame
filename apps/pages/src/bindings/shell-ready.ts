@@ -17,7 +17,9 @@
  * and for that generation's activation pass to finish. After that it stays
  * mounted: a later generation is a real authority change and its own
  * fallbacks (`useDeniedRouteFallback`, the router's) answer it. A store that
- * has not resolved a plan has nothing to wait for.
+ * has not resolved a plan has nothing to wait for, and the wait is bounded
+ * (`maxWaitMs`): a module whose import stalls delays its own section, never
+ * the whole vault.
  */
 
 import {
@@ -31,6 +33,7 @@ export const shellReadySeams = {
   useComposition,
   activatedGeneration,
   subscribeActivated,
+  maxWaitMs: 10_000,
 };
 
 const subscribe = (listener: () => void) =>
@@ -53,6 +56,11 @@ export function useShellReady(
   useEffect(() => {
     if (vault === undefined) setOpened(undefined);
     else if (ready) setOpened(vault);
+  }, [vault, ready]);
+  useEffect(() => {
+    if (vault === undefined || ready) return;
+    const timer = setTimeout(() => setOpened(vault), shellReadySeams.maxWaitMs);
+    return () => clearTimeout(timer);
   }, [vault, ready]);
   return ready || (vault !== undefined && opened === vault);
 }

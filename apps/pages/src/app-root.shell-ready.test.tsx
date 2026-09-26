@@ -17,7 +17,7 @@ import {
 } from "@opensesame/app-core/lib/capabilities/store-types.js";
 import type { EffectivePlan } from "@opensesame/capability-composition";
 import { overlapCast } from "@opensesame/os-domain";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -174,5 +174,17 @@ describe("shell after unlock", () => {
     env.status = "unlocked";
     renderConsent();
     expect(screen.getByText("consent screen")).toBeTruthy();
+  });
+
+  it("mounts anyway once the wait runs out, so a stalled module never blanks the vault", async () => {
+    shellReadySeams.maxWaitMs = 20;
+    renderConsent();
+    // The vault's generation resolved, but its activation pass never ends.
+    publish({ status: "unlocked", snapshot: snapshotAt(2, "personal") });
+    expect(screen.queryByText("consent screen")).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByText("consent screen")).toBeTruthy(),
+    );
+    expect(counts).toEqual({ mounts: 1, unmounts: 0 });
   });
 });
