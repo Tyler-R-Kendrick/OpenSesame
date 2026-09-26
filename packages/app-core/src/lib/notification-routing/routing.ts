@@ -14,6 +14,10 @@
  *     read back, exclusions and all, rather than computed here — a screen that
  *     shows only what a person asked for, and not what the server discarded,
  *     is the polite kind of lie.
+ *
+ * And one refusal (`policy.ts`): an edit that would add a channel the
+ * server's route says policy refused for that class is refused before
+ * anything is sent. A preference reorders and narrows; it never admits.
  */
 
 import {
@@ -32,6 +36,11 @@ import {
   setFanOut,
 } from "./document.js";
 import {
+  type RoutesByClass,
+  admitsRefusedChannel,
+  policyAllows,
+} from "./policy.js";
+import {
   type BegunBinding,
   type RoutingClient,
   RoutingError,
@@ -47,6 +56,8 @@ export type RoutingState = {
   document: NotificationRoutingDocument;
   routeClass: NotificationClass;
   route: EffectiveRoute | null;
+  /** Every class's route, read after each change: what policy allows. */
+  routes: RoutesByClass;
 };
 
 /** The state after a step, and what to tell the person about it. */
@@ -102,9 +113,10 @@ function applied(
 }
 
 /**
- * The channels a class may still add: configured here, able to notify, and
- * not already listed. Offering a channel with no adapter would be offering a
- * switch that does nothing.
+ * The channels a class may still add: configured here, able to notify, not
+ * already listed, and not refused by policy for this class. Offering a
+ * channel with no adapter would be offering a switch that does nothing; one
+ * policy refused, a preference that could never be honoured.
  */
 export function addableChannels(
   state: RoutingState,
@@ -115,13 +127,63 @@ export function addableChannels(
     (row) =>
       row.configured &&
       row.capabilities.canNotify &&
-      !listed.includes(row.kind),
+      !listed.includes(row.kind) &&
+      policyAllows(state.routes[cls], row.kind) !== false,
   );
 }
 
 /** The channels a person may connect a destination for here. */
 export function connectableChannels(state: RoutingState): ChannelRow[] {
   return state.channels.filter((row) => row.bindable && row.configured);
+}
+
+/**
+ * The state's reads and its one write: every route read back after a change,
+ * and the save that is refused before it is sent when it admits a channel
+ * policy refused.
+ */
+function routingCore(client: RoutingClient, state: RoutingState) {
+  const snapshot = (): RoutingState => ({ ...state });
+  const done = (status: string | null, error: string | null): RoutingStep => ({
+    state: snapshot(),
+    status,
+    error,
+  });
+
+  /** Every class's route; the shown one is the selected class's. */
+  async function readRoute(): Promise<string | null> {
+    try {
+      const routes: RoutesByClass = {};
+      for (const cls of NOTIFICATION_CLASSES) {
+        routes[cls] = await client.effectiveRoute(cls);
+      }
+      state.routes = routes;
+      state.route = routes[state.routeClass] ?? null;
+      return null;
+    } catch (error) {
+      state.routes = {};
+      state.route = null;
+      return wordsOf(error instanceof Error ? error : null);
+    }
+  }
+
+  /** Save a whole document, refused first if it admits what policy refused. */
+  async function save(
+    next: NotificationRoutingDocument,
+    note: string,
+  ): Promise<RoutingStep> {
+    const refusal = admitsRefusedChannel(state.document, next, state.routes);
+    if (refusal !== null) return done(null, refusal);
+    try {
+      await client.savePreferences(next);
+    } catch (error) {
+      return done(null, wordsOf(error instanceof Error ? error : null));
+    }
+    state.document = next;
+    return done(note, await readRoute());
+  }
+
+  return { snapshot, done, readRoute, save };
 }
 
 export function createNotificationRouting(
@@ -134,23 +196,9 @@ export function createNotificationRouting(
     document: emptyRoutingDocument(),
     routeClass: "authorization_request",
     route: null,
+    routes: {},
   };
-  const snapshot = (): RoutingState => ({ ...state });
-  const done = (status: string | null, error: string | null): RoutingStep => ({
-    state: snapshot(),
-    status,
-    error,
-  });
-
-  async function readRoute(): Promise<string | null> {
-    try {
-      state.route = await client.effectiveRoute(state.routeClass);
-      return null;
-    } catch (error) {
-      state.route = null;
-      return wordsOf(error instanceof Error ? error : null);
-    }
-  }
+  const { snapshot, done, readRoute, save } = routingCore(client, state);
 
   return {
     state: snapshot,
@@ -172,19 +220,21 @@ export function createNotificationRouting(
     async showRoute(cls: NotificationClass): Promise<RoutingStep> {
       if (!NOTIFICATION_CLASSES.includes(cls)) return done(null, null);
       state.routeClass = cls;
-      return done(null, await readRoute());
+      state.route = state.routes[cls] ?? null;
+      return done(null, state.route ? null : await readRoute());
     },
     /** Apply one edit; the document changes only once the save landed. */
     async edit(edit: RoutingEdit): Promise<RoutingStep> {
       const { next, note } = applied(state.document, edit);
       if (next === state.document) return done(null, null);
-      try {
-        await client.savePreferences(next);
-      } catch (error) {
-        return done(null, wordsOf(error instanceof Error ? error : null));
-      }
-      state.document = next;
-      return done(note, await readRoute());
+      return save(next, note);
+    },
+    /**
+     * Replace the whole document — a write to the settings file. The same
+     * refusal and the same save as an edit: the file is not a second road.
+     */
+    async replace(next: NotificationRoutingDocument): Promise<RoutingStep> {
+      return save(next, "Saved.");
     },
     async bind(kind: NotificationChannelKind): Promise<RoutingStep> {
       let begun: BegunBinding;

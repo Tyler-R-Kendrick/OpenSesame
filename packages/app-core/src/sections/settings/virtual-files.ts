@@ -17,6 +17,11 @@ export type VirtualFile = {
   readonly language: FileLanguage;
   /** Shipped with the build (a built-in type): readable, never written. */
   readonly readOnly: boolean;
+  /**
+   * Why a read-only file is read-only, when it is not part of the build
+   * (a listing the service keeps, a record a ceremony changes).
+   */
+  readonly readOnlyLabel?: string;
   /** Removing it means something (uninstalling a type). */
   readonly removable: boolean;
 };

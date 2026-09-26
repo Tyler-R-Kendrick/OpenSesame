@@ -145,6 +145,24 @@ export function IconChevronLeft(props: IconProps) {
   );
 }
 
+/** Earlier in an order. */
+export function IconChevronUp(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.5 14.5L12 8l6.5 6.5" />
+    </Svg>
+  );
+}
+
+/** Later in an order. */
+export function IconChevronDown(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.5 9.5L12 16l6.5-6.5" />
+    </Svg>
+  );
+}
+
 /** Skip one step — chevron past a stop. */
 export function IconSkip(props: IconProps) {
   return (

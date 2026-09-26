@@ -8,6 +8,7 @@ import {
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import {
@@ -15,6 +16,7 @@ import {
   NEW_TYPE_PATH,
   installedPath,
 } from "@opensesame/app-core/sections/settings/item-type-files.js";
+import type { VirtualFileProvider } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import {
   installItemType,
   installedDefinitions,
@@ -60,8 +62,14 @@ function manifest(id: string) {
   );
 }
 
-function Viewer({ category = "vaults" as const }) {
-  const [selected, setSelected] = useState<string | null>(null);
+function Viewer({
+  category = "vaults",
+  initial = null,
+}: {
+  category?: string;
+  initial?: string | null;
+}) {
+  const [selected, setSelected] = useState<string | null>(initial);
   return (
     <SettingsFiles
       category={category}
@@ -172,5 +180,55 @@ describe("Settings' file viewer", () => {
     expect(
       screen.getByRole("img", { name: "Part of the build; read-only" }),
     ).toBeTruthy();
+  });
+
+  it("lists a contributed category's own files, and opens its first for config.yaml", async () => {
+    const written: string[] = [];
+    const files: VirtualFileProvider = {
+      list: () => [
+        {
+          path: "settings/notes/order.json",
+          language: "json",
+          readOnly: false,
+          removable: false,
+        },
+        {
+          path: "settings/notes/listing.json",
+          language: "json",
+          readOnly: true,
+          removable: false,
+          readOnlyLabel: "Kept by the service; read-only",
+        },
+      ],
+      read: async (path) => `{"path":"${path}"}\n`,
+      check: () => ({ ok: true }),
+      write: async (path, text) => {
+        written.push(text);
+        return { ok: true, path };
+      },
+      remove: async () => ({ ok: false, message: "no" }),
+    };
+    const revoke = registerContributionForTest("settings-category", {
+      id: "notes",
+      label: "Notes",
+      guideId: "settings.capabilities",
+      Panel: () => null,
+      order: 300,
+      files,
+    });
+    try {
+      render(<Viewer category="notes" initial="config.yaml" />);
+      const list = screen.getByRole("navigation", { name: "Files" });
+      expect(list.textContent).not.toContain("config.yaml");
+      await waitFor(() =>
+        expect(editor("settings/notes/order.json").value).toContain("order"),
+      );
+      fireEvent.click(screen.getByRole("button", { name: /^listing\.json/ }));
+      expect(
+        screen.getByRole("img", { name: "Kept by the service; read-only" }),
+      ).toBeTruthy();
+    } finally {
+      revoke();
+    }
   });
 });

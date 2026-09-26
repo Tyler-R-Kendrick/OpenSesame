@@ -121,6 +121,13 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "sync_targets.read": "backup.git-remote",
     "sync_targets.trigger": "backup.git-remote",
 
+    // --- optional: notification routing (ADR 0084, ADR 0140 D9) ---------
+    // Settings › Notifications: where the Identity API tells a person about
+    // requests. Where they are told never changes what it takes to approve.
+    "identity.notification.channels.read": "notifications.routing",
+    "identity.notification.bindings.manage": "notifications.routing",
+    "identity.notification.preferences.manage": "notifications.routing",
+
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
 

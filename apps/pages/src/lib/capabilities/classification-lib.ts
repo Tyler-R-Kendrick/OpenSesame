@@ -307,13 +307,12 @@ export const LIB_RULES = [
     CEREMONIES,
     "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
   ),
-  // Core until `notifications.routing` exists (ADR 0140 plan step 11), which
-  // takes it with the Settings › Notifications file provider; no capability
-  // of the Notifications feature owns channel routing yet.
-  core(
+  // Settings › Notifications' model (ADR 0140 plan step 11, D9): reached
+  // only through the notifications.routing module and its file provider.
+  optional(
     `${L}notification-routing/`,
-    "settings.core",
-    "notification routing document, channel words, Identity API routes (ADR 0084)",
+    "notifications.routing",
+    "notification routing document, channel words, policy narrowing, Identity API routes (ADR 0084)",
   ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),

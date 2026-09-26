@@ -170,6 +170,25 @@ describe("capability profiles", () => {
     });
   }
 
+  it("minimal-local proves notifications.routing absent: no module, no operation", () => {
+    const plan = resolve("minimal-local");
+    const state = plan.capabilities["notifications.routing"];
+    expect(state?.distributed).toBe(true);
+    expect(state?.selected).toBe(false);
+    expect(state?.approved).toBe(false);
+    expect(plan.approvedModules).not.toContain("notifications.routing/runtime");
+    for (const operation of [
+      "identity.notification.bindings.manage",
+      "identity.notification.channels.read",
+      "identity.notification.preferences.manage",
+    ]) {
+      expect(plan.approvedOperations).not.toContain(operation);
+    }
+    // Selected with consent, it resolves its own module and nothing else.
+    const rich = resolve("rich-explicit");
+    expect(rich.approvedModules).toContain("notifications.routing/runtime");
+  });
+
   it("family profiles keep enterprise, agents, remote AI and telemetry unapproved", () => {
     for (const name of ["family-local", "family-sharing-selected"]) {
       const plan = resolve(name);

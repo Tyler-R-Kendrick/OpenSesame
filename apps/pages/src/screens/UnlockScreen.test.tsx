@@ -24,6 +24,7 @@ import {
   lookupOrgTenant,
   masterInput,
   openSignIn,
+  passkeySettled,
   requestEmailMagicLink,
   resetUnlockHarness,
   resumeGuestSession,
@@ -1127,13 +1128,9 @@ describe("UnlockScreen — passkey unlock", () => {
     render(<UnlockScreen />);
     expect(v.store.unlockWithPasskey).not.toHaveBeenCalled();
     fireEvent.click(submitButton());
-    await waitFor(() =>
-      expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
-    );
+    await passkeySettled(1);
     fireEvent.click(submitButton());
-    await waitFor(() =>
-      expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(2),
-    );
+    await passkeySettled(2);
   });
 
   it("switching methods cancels a blocking passkey prompt and frees the form", async () => {

@@ -95,6 +95,29 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
+    "notifications.routing",
+    "Notification routing",
+    "Choose where the Identity API tells you about requests: its channels, the destinations you connect, and the order each kind of prompt tries them. Where you are told never changes what it takes to approve.",
+    {
+      operationIds: [
+        "identity.notification.bindings.manage",
+        "identity.notification.channels.read",
+        "identity.notification.preferences.manage",
+      ],
+      egress: [
+        {
+          class: "external-service",
+          purpose:
+            "the configured Identity API's channels, destinations and notification preferences",
+          automatic: false,
+        },
+      ],
+      requiresService: true,
+      offlineLimits:
+        "Reading or changing where you are told needs the Identity API; requests still wait in the inbox.",
+    },
+  ),
+  optional(
     "telemetry.external",
     "External telemetry",
     "Send anonymous usage and error telemetry to an operator-configured collector.",
