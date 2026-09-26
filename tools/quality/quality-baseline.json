@@ -18,7 +18,7 @@
   "totals": {
     "files": 458,
     "violations": 722,
-    "oversizedLines": 235072
+    "oversizedLines": 235045
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1562,7 +1562,7 @@
     },
     "tools/oxlint/anti-slop/shared/dictionary-types.ts": {
       "complexity": 6,
-      "max-lines": 917,
+      "max-lines": 892,
       "max-lines-per-function": 1
     },
     "tools/oxlint/anti-slop/shared/lexical-type-parameters.ts": {
