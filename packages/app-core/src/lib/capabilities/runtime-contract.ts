@@ -17,13 +17,16 @@ import type {
   RegistrationHandle,
   RuntimeHandle,
 } from "@opensesame/capability-composition";
+import type { Folder, SecretItem, VaultItem } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import type { ComponentType, ReactNode } from "react";
 import type { VirtualFileProvider } from "../../sections/settings/virtual-files.js";
 import type { GuideGoalDescriptor } from "../../tutorial/registry/goals.js";
 import type { GuideRouteDescriptor } from "../../tutorial/registry/routes.js";
 import type { GuideTargetDescriptor } from "../../tutorial/registry/targets.js";
+import type { InterpretResult } from "../command-bar/types.js";
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
+import type { DraftLabels } from "../vault/new-draft.js";
 
 /** Icon keys the shell knows how to draw (`components/Icons.tsx`). */
 export type IconName =
@@ -115,12 +118,65 @@ export type SettingsPanelContribution = Readonly<{
 export type CommandPathContribution = Readonly<{ path: string; label: string }>;
 export type KeymapJumpContribution = Readonly<{ key: string; path: string }>;
 
+/** The form that creates an item of a contributed kind (a drop's ceremony). */
+export type ItemCreateProps = Readonly<{
+  initialName?: string;
+  initialFolder?: Folder;
+  onTypeChange?: (typeId: string, name: string, folder: Folder | null) => void;
+}>;
+
 export type ItemKindContribution = Readonly<{
   kind: string;
   label: string;
   segment: string;
   Icon?: ComponentType;
   order: number;
+  /** The record view for a stored item of this kind. */
+  Record?: ComponentType<{ item: VaultItem }>;
+  /** Creating one opens this form in place of the item editor. */
+  Create?: ComponentType<ItemCreateProps>;
+}>;
+
+/** An offer to share a stored secret, drawn under its fields. */
+export type SecretShareContribution = Readonly<{
+  id: string;
+  order: number;
+  Panel: ComponentType<{ item: SecretItem; initialOpen?: boolean }>;
+}>;
+
+export type DraftAssistProps = Readonly<{
+  typeId: string;
+  website?: string;
+  onApply: (labels: DraftLabels) => void;
+}>;
+
+/** Labels a new item's draft from a model, beside the editor's fields. */
+export type DraftAssistContribution = Readonly<{
+  id: string;
+  order: number;
+  Suggestions: ComponentType<DraftAssistProps>;
+}>;
+
+export type CommandVoiceProps = Readonly<{
+  setValue: (text: string) => void;
+  setNotice: (text: string | null) => void;
+  run: (utterance: string) => Promise<void>;
+  busy: boolean;
+}>;
+
+/**
+ * What the command bar asks when its own parser finds no command: a reading
+ * of the utterance, and a voice control. Without one, a sentence the parser
+ * cannot place is handed to Support or answered with the parser's hint.
+ */
+export type CommandAssistContribution = Readonly<{
+  id: string;
+  order: number;
+  interpret: (
+    utterance: string,
+    options: { itemNames: readonly string[] },
+  ) => Promise<InterpretResult>;
+  Voice?: ComponentType<CommandVoiceProps>;
 }>;
 
 export type BackgroundJobContribution = Readonly<{
@@ -171,6 +227,9 @@ export type ContributionEntryMap = {
   "webmcp-tool": WebMcpToolSpec;
   "background-job": BackgroundJobContribution;
   "unlock-effect": UnlockEffectContribution;
+  "secret-share": SecretShareContribution;
+  "item-draft-assist": DraftAssistContribution;
+  "command-assist": CommandAssistContribution;
 };
 
 export type ContributionEntry<K extends ContributionKind> =
@@ -244,6 +303,8 @@ export class CapabilityDenied extends Error {
 }
 
 /** Narrow a caught value without trusting its shape. */
-export function isCapabilityDenied(error: unknown): error is CapabilityDenied {
+export function isCapabilityDenied<Thrown>(
+  error: Thrown,
+): error is Thrown & CapabilityDenied {
   return error instanceof CapabilityDenied;
 }
