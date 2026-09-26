@@ -12,7 +12,6 @@ export async function callQa(page, fnSource, ...args) {
   return page.evaluate(
     async ({ src, args }) => {
       const api = window.__duressQa;
-      // eslint-disable-next-line no-new-func
       const fn = new Function("api", "args", `return (${src})(api, ...args);`);
       return await fn(api, args);
     },
