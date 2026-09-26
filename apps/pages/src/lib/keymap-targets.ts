@@ -121,6 +121,15 @@ export function contextMenuOpen(): boolean {
   return document.querySelector('.ctxmenu[role="menu"]') !== null;
 }
 
+/**
+ * A status mark's sentence is showing (`components/status-twin.ts`). The
+ * next Escape is that bubble's: the Escape ladder and the keymap's Escape
+ * stand down for it, so one press dismisses one thing.
+ */
+export function statusBubbleOpen(): boolean {
+  return document.querySelector(".status-bubble") !== null;
+}
+
 export function typing(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.closest("[data-config-source]")) return true;

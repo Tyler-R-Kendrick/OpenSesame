@@ -18,7 +18,7 @@
   "totals": {
     "files": 459,
     "violations": 723,
-    "oversizedLines": 235136
+    "oversizedLines": 235115
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1081,7 +1081,7 @@
       "max-statements": 1
     },
     "packages/control-plane/src/routes/mfa.ts": {
-      "max-lines": 658,
+      "max-lines": 637,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/notification-callbacks.ts": {

@@ -2,6 +2,13 @@ import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { createPkcePair } from "@opensesame/sdk-browser";
 import type { LocalAgentChallenge } from "./local-agent.js";
 import {
+  type LocalEnvelope as Envelope,
+  type LocalBrowserIdentity,
+  validChallengeExpiry,
+  verifiedIdentity,
+} from "./local-identity.js";
+import {
+  LOCAL_CHANNEL_VERSION,
   type LocalAuthorizationRequest,
   localAuthorizationQuery,
   localMessage,
@@ -20,40 +27,13 @@ export type LocalBrowserProfile = {
     signChallenge: (challenge: LocalAgentChallenge) => Promise<string>;
   };
 };
-export type LocalBrowserIdentity = Readonly<{
-  subject: string;
-  audience: string;
-  issuer: string;
-  authTime: number;
-  expiresAt: number;
-}>;
-type Envelope = NonNullable<ReturnType<typeof localMessage>>;
+export type { LocalBrowserIdentity };
 type ExchangeFields = {
   code?: string;
   verifier?: string;
   scope?: string;
   proof?: string;
 };
-
-function validChallengeExpiry(expiresAt: number) {
-  const now = Date.now();
-  return (
-    Number.isSafeInteger(expiresAt) &&
-    expiresAt > now &&
-    expiresAt - now <= 120_000
-  );
-}
-
-function matchesSubject(
-  sub: BoundaryValue,
-  agent: LocalAuthorizationRequest["agent"],
-): sub is string {
-  return (
-    isString(sub) &&
-    /^local_[0-9a-f-]{36}$/.test(sub) &&
-    (!agent || sub === agent.principalId)
-  );
-}
 
 /** Call directly from a human click. No tokens or verifier enter URLs/storage. */
 export async function signInLocalBrowser(profile: LocalBrowserProfile) {
@@ -118,6 +98,7 @@ class LocalBrowserChannel {
   private deadline = performance.now() + 300_000;
   private expiresAt: number | null = null;
   private readonly timer: ReturnType<typeof setInterval>;
+  private handshake: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly popup: Window,
@@ -158,6 +139,7 @@ class LocalBrowserChannel {
     if (this.closed) return;
     this.closed = true;
     clearInterval(this.timer);
+    clearTimeout(this.handshake);
     window.removeEventListener("message", this.ready);
     window.removeEventListener("pagehide", this.close);
     this.channel.port1.close();
@@ -177,18 +159,38 @@ class LocalBrowserChannel {
       event.origin !== this.origin
     )
       return;
-    if (
-      localMessage(event.data, this.request.state)?.type !==
-      "opensesame:local:ready"
-    )
-      return;
+    const message = localMessage(event.data, this.request.state);
+    if (message?.type !== "opensesame:local:ready") return;
     this.connected = true;
+    // An issuer that announces a version answers `connect` at once. One that
+    // announces none predates the acknowledgement and is tolerated for one
+    // release; `popup_closed` and the overall deadline still bound it.
+    if (message.version !== undefined)
+      this.handshake = setTimeout(
+        () => this.fail("local_handshake_timeout"),
+        10_000,
+      );
     this.popup.postMessage(
-      { type: "opensesame:local:connect", state: this.request.state },
+      {
+        type: "opensesame:local:connect",
+        state: this.request.state,
+        version: LOCAL_CHANNEL_VERSION,
+      },
       this.origin,
       [this.channel.port2],
     );
   };
+
+  /** Until the issuer acknowledges `connect`, nothing else is accepted. */
+  private acknowledge(message: Envelope) {
+    if (
+      message.type !== "connected" ||
+      message.version !== LOCAL_CHANNEL_VERSION
+    )
+      return this.fail("invalid_response");
+    clearTimeout(this.handshake);
+    this.handshake = undefined;
+  }
 
   private async receive(data: BoundaryValue) {
     const message = localMessage(data, this.request.state);
@@ -198,6 +200,7 @@ class LocalBrowserChannel {
       );
     }
     if (message.type === "closed") return this.close();
+    if (this.handshake !== undefined) return this.acknowledge(message);
     if (message.type === "agent_challenge") {
       try {
         await this.proveAgent(message);
@@ -206,35 +209,36 @@ class LocalBrowserChannel {
       }
       return;
     }
-    if (message.type === "code") {
-      if (!this.acceptCode(message.code)) return this.close();
-      this.receivedCode = true;
-      try {
-        const response = await this.rpc("redeem", {
-          code: message.code,
-          verifier: this.verifier,
-        });
-        const receivedAt = performance.now();
-        const now = Date.now();
-        const identity = this.identity(response, "openid", now);
-        this.expiresAt = identity.expiresAt;
-        // Clock corrections cannot lengthen an already-issued session.
-        this.deadline = receivedAt + identity.expiresAt - now;
-        this.approve?.(identity);
-      } catch (error) {
-        this.fail(
-          error instanceof Error && error.message === "invalid_identity"
-            ? "invalid_identity"
-            : "local_session_unavailable",
-        );
-      }
-      return;
-    }
+    if (message.type === "code") return this.redeem(message.code);
     if (this.reply && message.id === this.reply.id) {
       const reply = this.reply;
       this.reply = null;
       reply.resolve(message);
     } else this.close();
+  }
+
+  private async redeem(code: BoundaryValue) {
+    if (!this.acceptCode(code)) return this.close();
+    this.receivedCode = true;
+    try {
+      const response = await this.rpc("redeem", {
+        code,
+        verifier: this.verifier,
+      });
+      const receivedAt = performance.now();
+      const now = Date.now();
+      const identity = this.identity(response, "openid", now);
+      this.expiresAt = identity.expiresAt;
+      // Clock corrections cannot lengthen an already-issued session.
+      this.deadline = receivedAt + identity.expiresAt - now;
+      this.approve?.(identity);
+    } catch (error) {
+      this.fail(
+        error instanceof Error && error.message === "invalid_identity"
+          ? "invalid_identity"
+          : "local_session_unavailable",
+      );
+    }
   }
 
   private acceptCode(code: BoundaryValue): code is string {
@@ -307,35 +311,8 @@ class LocalBrowserChannel {
     });
   }
 
-  private identity(
-    message: Envelope,
-    scope: string,
-    now: number,
-  ): LocalBrowserIdentity {
-    const expiresAt = Number(message.expiresAt);
-    const authTime = Number(message.authTime);
-    if (
-      message.type !== "identity" ||
-      message.issuer !== this.origin ||
-      message.audience !== this.request.applicationId ||
-      message.nonce !== this.request.nonce ||
-      message.scope !== scope ||
-      !matchesSubject(message.sub, this.request.agent) ||
-      !Number.isSafeInteger(expiresAt) ||
-      !Number.isSafeInteger(authTime) ||
-      authTime > now ||
-      authTime < 0 ||
-      expiresAt <= now ||
-      expiresAt - authTime > 900_000
-    )
-      throw new Error("invalid_identity");
-    return Object.freeze({
-      subject: message.sub,
-      audience: this.request.applicationId,
-      issuer: this.origin,
-      authTime,
-      expiresAt,
-    });
+  private identity(message: Envelope, scope: string, now: number) {
+    return verifiedIdentity(message, this.request, this.origin, scope, now);
   }
 
   async authorize() {
