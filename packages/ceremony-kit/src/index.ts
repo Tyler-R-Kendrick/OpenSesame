@@ -49,6 +49,7 @@ export {
   type StashStorage,
 } from "./claim-stash.js";
 export {
+  buildClaimLink,
   type ClaimLink,
   fragmentCarriesBearer,
   isClaimToken,
