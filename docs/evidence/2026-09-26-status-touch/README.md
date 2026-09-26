@@ -38,7 +38,7 @@ margin box — what the row lays out — is still 20×20.
 ![390 long press](390-mark-held.png)
 
 Before: no bubble — the sentence exists only for a screen reader and a
-hover. After: bubble 254×31 @128,27, "Unknown authenticator request.", placed
+hover. After: bubble 254×28 @128,30, "Unknown authenticator request.", placed
 above the target and clamped 8px inside the viewport.
 
 ## Tap, 390
@@ -46,7 +46,7 @@ above the target and clamped 8px inside the viewport.
 ![390 tap](390-mark-tapped.png)
 
 Escape closed the held bubble first (`bubble: none` after the key), then a
-plain tap showed it again, 254×31. Nothing is gesture-only.
+plain tap showed it again, 254×28. Nothing is gesture-only.
 
 ## Click, 1280
 
@@ -54,7 +54,7 @@ plain tap showed it again, 254×31. Nothing is gesture-only.
 
 A mouse keeps the `title` tooltip on hover and the 20×20 mark (the 44px rule
 is under `(pointer: coarse), (max-width: 900px)`); a click shows the same
-bubble, 254×31 @151,48.
+bubble, 254×28 @151,51.
 
 ## Layout across the app (not a sheet)
 

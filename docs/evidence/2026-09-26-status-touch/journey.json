@@ -58,7 +58,7 @@
       "title": "Long press on the mark — 390 × 844, touch",
       "caption": "A finger held on the mark for 700ms, then lifted.",
       "before": "bubble: none — the reason cannot be read by touch",
-      "after": "bubble 254×31 @128,27: “Unknown authenticator request.”"
+      "after": "bubble 254×28 @128,30: “Unknown authenticator request.”"
     },
     {
       "shot": "390-mark-tapped",
@@ -66,7 +66,7 @@
       "title": "Tap on the mark — 390 × 844, touch",
       "caption": "Escape closed the held bubble (bubble: none), then a plain tap: nothing is gesture-only.",
       "before": "bubble: none",
-      "after": "bubble 254×31 @128,27 · h2 unchanged 256×27"
+      "after": "bubble 254×28 @128,30 · h2 unchanged 256×27"
     },
     {
       "shot": "1280-mark-clicked",
@@ -74,7 +74,7 @@
       "title": "Click on the mark — 1280 × 900, mouse",
       "caption": "A mouse keeps its title on hover and its 20px mark; a click shows the same sentence.",
       "before": "mark 20×20 @268,86 · bubble: none",
-      "after": "mark 20×20 @268,86 · bubble 254×31 @151,48"
+      "after": "mark 20×20 @268,86 · bubble 254×28 @151,51"
     }
   ]
 }
