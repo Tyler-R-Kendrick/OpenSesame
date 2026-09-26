@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { gestureLimits } from "../lib/gestures.js";
+import { handlePaneEscape } from "../lib/pane-escape.js";
 import { StatusMark } from "./StatusMark.js";
 import { STATUS_BUBBLE_MS, placeBubble } from "./status-twin.js";
 
@@ -112,6 +113,33 @@ describe("StatusMark", () => {
     fireEvent.click(mark());
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(bubble()).toBeNull();
+  });
+
+  it("takes the Escape before the pane ladder: one press closes one thing", () => {
+    // The ladder is registered first, as the app registers it at mount.
+    window.addEventListener("keydown", handlePaneEscape, true);
+    try {
+      const closed = vi.fn();
+      render(
+        <section className="panel" tabIndex={-1} aria-label="Refused">
+          <StatusMark tone="err" label={LABEL} />
+          <button type="button" data-pane-close onClick={closed}>
+            x
+          </button>
+        </section>,
+      );
+      const pane = screen.getByRole("region", { name: "Refused" });
+      pane.focus();
+      fireEvent.click(mark());
+      fireEvent.keyDown(pane, { key: "Escape" });
+      expect(bubble()).toBeNull();
+      expect(closed).not.toHaveBeenCalled();
+      // With the bubble gone, the ladder has its Escape back.
+      fireEvent.keyDown(pane, { key: "Escape" });
+      expect(closed).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener("keydown", handlePaneEscape, true);
+    }
   });
 
   it("dismisses on its own after the timeout, counted from the lift", () => {

@@ -116,16 +116,22 @@ export function useStatusTwin(ref: RefObject<HTMLElement | null>): StatusTwin {
       if (at instanceof Node && ref.current?.contains(at)) return;
       close();
     };
+    // Escape is the bubble's while it shows: the Escape ladder and the
+    // keymap stand down (statusBubbleOpen), and nothing after this runs, so
+    // one press closes one thing.
     const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      close();
     };
     document.addEventListener("pointerdown", outside, true);
-    document.addEventListener("keydown", key, true);
+    window.addEventListener("keydown", key, true);
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("pointerdown", outside, true);
-      document.removeEventListener("keydown", key, true);
+      window.removeEventListener("keydown", key, true);
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", close);
     };
