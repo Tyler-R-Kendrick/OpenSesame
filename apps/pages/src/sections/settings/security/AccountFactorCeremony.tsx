@@ -1,9 +1,14 @@
 import {
+  ACCOUNT_PASSKEY_UNCHECKED_WORDS,
+  type PasskeyCheckMiss,
   enrollAccountPasskey,
   hostAccountPasskeyAuthenticator,
   removeAccountFactor,
 } from "@opensesame/app-core/lib/account-factors.js";
+import { useEffect, useRef, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
+import { StatusMark } from "../../../components/StatusMark.js";
+import { firstControl, landFocus } from "../../../lib/focus.js";
 import { AccountTotpCeremony } from "./AccountTotpCeremony.js";
 import type { Run } from "./run.js";
 
@@ -110,6 +115,10 @@ function AccountPasskeyCard({
   run: Run;
   onDone: () => void;
 }) {
+  const [missed, setMissed] = useState<PasskeyCheckMiss | null>(null);
+  if (missed) {
+    return <PasskeySavedCard missed={missed} busy={busy} onDone={onDone} />;
+  }
   if (!hostAccountPasskeyAuthenticator.available()) {
     return (
       <CeremonyShell
@@ -136,8 +145,10 @@ function AccountPasskeyCard({
         busy,
         onClick: () =>
           void run(async () => {
-            await enrollAccountPasskey();
-            onDone();
+            const added = await enrollAccountPasskey();
+            // Saved but not tried to the end: the card says so and stays.
+            if (added.kind === "registered_unverified") setMissed(added.reason);
+            else onDone();
           }, "Passkey added to your account."),
       }}
     >
@@ -146,5 +157,66 @@ function AccountPasskeyCard({
         Create. Nothing is typed here.
       </p>
     </CeremonyShell>
+  );
+}
+
+/** What the first try came to, as a fact, and what to do next. */
+const TRIED = {
+  cancelled: "dismissed",
+  assert_refused: "turned down by your sign-in service",
+  assert_failed: "did not finish",
+} satisfies Record<PasskeyCheckMiss, string>;
+
+const NEXT = {
+  cancelled: "keep it; do not add another",
+  assert_refused: "remove it here, not add another",
+  assert_failed: "keep it; do not add another",
+} satisfies Record<PasskeyCheckMiss, string>;
+
+/**
+ * A passkey the service saved but whose first try did not finish (plan step
+ * 11c). It is not a failure and is never rolled back: the mark is a warning
+ * whose sentence steers away from a second passkey, announced in a live
+ * region, and the keyboard lands on Done, since the key that pressed Create
+ * is gone. It waits for the run to settle and then a frame, so the sheet's
+ * own landing on Close, which runs again when the panel redraws, goes first.
+ */
+function PasskeySavedCard({
+  missed,
+  busy,
+  onDone,
+}: {
+  missed: PasskeyCheckMiss;
+  busy: boolean;
+  onDone: () => void;
+}) {
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (busy) return;
+    const frame = requestAnimationFrame(() => {
+      landFocus(firstControl(root.current));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [busy]);
+  return (
+    <div ref={root}>
+      <CeremonyShell
+        ok={false}
+        name="Passkey · your account"
+        facts={[
+          { key: "Saved", value: "on your account" },
+          { key: "First try", value: TRIED[missed] },
+          { key: "Next", value: NEXT[missed] },
+        ]}
+        primary={{ label: "Done", onClick: onDone }}
+      >
+        <output aria-live="polite">
+          <StatusMark
+            tone="warn"
+            label={ACCOUNT_PASSKEY_UNCHECKED_WORDS[missed]}
+          />
+        </output>
+      </CeremonyShell>
+    </div>
   );
 }

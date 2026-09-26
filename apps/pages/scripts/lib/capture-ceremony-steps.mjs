@@ -37,6 +37,7 @@ export async function stubJourneyIdentity(page, journey, journeyPath, origin) {
     pagesOrigin: origin,
     calls: { push: (call) => console.log(`  identity: ${call}`) },
     dropManifest: journeyDropManifest(journey, journeyPath),
+    passkeyAssert: journey.passkeyAssert,
   });
 }
 
@@ -104,7 +105,7 @@ function answerClaims(at, request, dropManifest) {
  */
 export async function identityStub(
   page,
-  { origin, pagesOrigin, calls, dropManifest = null },
+  { origin, pagesOrigin, calls, dropManifest = null, passkeyAssert },
 ) {
   const cors = {
     "access-control-allow-origin": pagesOrigin,
@@ -115,7 +116,7 @@ export async function identityStub(
   };
   const approvals = approvalState();
   const routing = routingState();
-  const factors = factorState();
+  const factors = factorState({ assert: passkeyAssert });
   const orgs = orgSignInState();
   await page.route(`${origin}/**`, (route) => {
     const request = route.request();

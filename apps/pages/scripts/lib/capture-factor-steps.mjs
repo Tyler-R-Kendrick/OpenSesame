@@ -12,6 +12,13 @@
  * `clientDataJSON` is a `webauthn.create` over the challenge it was given;
  * a TOTP seed is written at enroll, as the service does, and a code is
  * accepted only when it is RFC 6238's for that seed now.
+ *
+ * A new passkey's one try (plan step 11c): request options over the
+ * credential just registered, and an assertion accepted only when its
+ * `clientDataJSON` is a `webauthn.get` over the challenge handed out — or,
+ * when the journey says `"passkeyAssert": "refuse"`, turned down with the
+ * Identity API's own 401 `{ ok: false }`, to show a passkey saved but not
+ * tried to the end.
  */
 
 import { createHash, createHmac, randomBytes } from "node:crypto";
@@ -50,25 +57,70 @@ function bodyOf(request) {
   }
 }
 
-/** One page's account: its factors and the challenge last handed out. */
-export function factorState() {
-  return { factors: [], challenge: null };
+/** One page's account: its factors and the challenges last handed out. */
+export function factorState({ assert = "accept" } = {}) {
+  return {
+    factors: [],
+    challenge: null,
+    assertChallenge: null,
+    credentialIds: [],
+    assert,
+  };
+}
+
+function clientData(encoded) {
+  try {
+    return JSON.parse(Buffer.from(encoded, "base64url").toString());
+  } catch {
+    return null;
+  }
+}
+
+/** The one try of a passkey just added: its options, then its assertion. */
+function answerTry(state, at, body, rpId) {
+  if (at === "POST /v1/mfa/passkey/authentication-options") {
+    state.assertChallenge = randomBytes(32).toString("base64url");
+    return [
+      200,
+      {
+        ok: true,
+        challenge: state.assertChallenge,
+        options: {
+          challenge: state.assertChallenge,
+          rpId,
+          allowCredentials: state.credentialIds.map((id) => ({
+            id,
+            type: "public-key",
+          })),
+          userVerification: "required",
+          timeout: 60_000,
+        },
+      },
+    ];
+  }
+  if (at === "POST /v1/mfa/passkey/assert") {
+    const client = clientData(body.clientDataJSON ?? "");
+    const fresh =
+      client?.type === "webauthn.get" &&
+      client.challenge === state.assertChallenge;
+    state.assertChallenge = null;
+    if (state.assert === "refuse" || !fresh) return [401, { ok: false }];
+    return [200, { ok: true, principalId: "prn_evidence" }];
+  }
+  return null;
 }
 
 function registered(state, body) {
   const response = body.response;
   if (!response?.response?.attestationObject) return null;
-  let client;
-  try {
-    client = JSON.parse(
-      Buffer.from(response.response.clientDataJSON, "base64url").toString(),
-    );
-  } catch {
-    return null;
-  }
-  if (client.type !== "webauthn.create" || client.challenge !== state.challenge)
+  const client = clientData(response.response.clientDataJSON);
+  if (
+    client?.type !== "webauthn.create" ||
+    client.challenge !== state.challenge
+  )
     return null;
   state.challenge = null;
+  state.credentialIds.push(response.rawId);
   const digest = createHash("sha256").update(response.id).digest("hex");
   return { id: `pk_${digest.slice(0, 32)}`, kind: "passkey" };
 }
@@ -79,6 +131,8 @@ function registered(state, body) {
  */
 export function answerFactors(state, at, request, pagesOrigin) {
   const body = bodyOf(request);
+  const tried = answerTry(state, at, body, new URL(pagesOrigin).hostname);
+  if (tried) return tried;
   if (at === "GET /v1/mfa/factors") {
     return [
       200,
@@ -163,6 +217,18 @@ export function factorSteps({ press }) {
       if (!(await target.count()) || !(await target.isEnabled())) return;
       await press(target);
       await page.waitForTimeout(1200);
+    },
+    /** Print what each status mark in the open sheet says, and its tone. */
+    async sheetMarks(page) {
+      const marks = await page
+        .locator("[role=dialog] .status-mark")
+        .evaluateAll((nodes) =>
+          nodes.map(
+            (node) =>
+              `${node.className.replace("status-mark ", "")}: ${node.getAttribute("aria-label")} (live: ${node.closest("[aria-live]")?.getAttribute("aria-live") ?? "none"})`,
+          ),
+        );
+      console.log(`  sheet marks: ${marks.join(" | ") || "none"}`);
     },
     /**
      * Type the stand-in seed's current code into the sheet's six digits,
