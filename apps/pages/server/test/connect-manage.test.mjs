@@ -189,6 +189,34 @@ describe("authorize", () => {
   });
 });
 
+describe("team scope", () => {
+  it("authorizes and revokes in the operator's team, like every other route", async () => {
+    process.env.VERCEL_TEAM_ID = "team_ops";
+    try {
+      stub({
+        "POST https://api.vercel.com/v1/connect/authorize/scl_1": {
+          url: "https://provider.example/authorize",
+        },
+        "DELETE https://api.vercel.com/v1/connect/connectors/scl_1/tokens": {},
+      });
+      await manage("/api/connect/authorize", {
+        connectorId: "scl_1",
+        subject: { type: "user", id: "prn_abc" },
+      });
+      await manage("/api/connect/revoke", {
+        connectorId: "scl_1",
+        subject: { type: "user", id: "prn_abc" },
+      });
+      assert.equal(calls.length, 2);
+      for (const call of calls) {
+        assert.equal(new URL(call.url).searchParams.get("teamId"), "team_ops");
+      }
+    } finally {
+      Reflect.deleteProperty(process.env, "VERCEL_TEAM_ID");
+    }
+  });
+});
+
 describe("revoke", () => {
   it("revokes a person's tokens, and refuses a subject that does not parse", async () => {
     stub({
