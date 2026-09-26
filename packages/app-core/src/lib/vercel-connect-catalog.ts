@@ -6,19 +6,35 @@
  * generic OAuth integration). Payment rails stay refused (ADR 0086 §6).
  */
 
+import { isBundledProviderId } from "./bundled-provider-ids.js";
 import {
   type ConnectPlan,
   connectPlans,
   hasConnectPlan,
   isRefusedPlan,
+  isRegistryPlan,
   preferredMethod,
 } from "./connect-plan.js";
 import type { Connection, Provider } from "./connections.js";
+import { isGitBackupProvider } from "./git-backup-forges.js";
 
 /** Host-owned rows keep their own flow (GitHub's App, ADR 0126). */
 const HOST_OWNED = new Set(["github"]);
 
 const EMPTY_STRING_LIST: string[] = [];
+
+/**
+ * Connect owns a row — draws it from the plan, and is its only road — when
+ * Vercel's registry lists the service, when it is a git forge the relay backs
+ * up to (Bitbucket, Codeberg, Cursor Origin), or when Pages bundles no row of
+ * its own for it. A bundled row keeps its own road, with Connect beside it.
+ */
+function connectOwns(id: string): boolean {
+  if (HOST_OWNED.has(id) || !hasConnectPlan(id)) return false;
+  return (
+    isRegistryPlan(id) || isGitBackupProvider(id) || !isBundledProviderId(id)
+  );
+}
 
 function hostsOf(plan: ConnectPlan): string[] {
   const urls: string[] = [];
@@ -81,13 +97,23 @@ let catalog: readonly Provider[] | null = null;
 
 function catalogRows(): readonly Provider[] {
   catalog ??= connectPlans()
-    .filter((plan) => !HOST_OWNED.has(plan.id))
+    .filter((plan) => connectOwns(plan.id))
     .map(toProvider);
   return catalog;
 }
 
+/**
+ * A row Connect owns: it comes from the plan. Any other bundled catalog row
+ * with a plan keeps its own row and road, and gets Connect beside it
+ * (`hasConnectRoute`).
+ */
 export function isVercelCatalogId(id: string): boolean {
-  return !HOST_OWNED.has(id) && hasConnectPlan(id);
+  return connectOwns(id);
+}
+
+/** Any service a connector can be created for on Vercel Connect. */
+export function hasConnectRoute(id: string): boolean {
+  return !HOST_OWNED.has(id) && hasConnectPlan(id) && !isRefusedPlan(id);
 }
 
 export function isVercelConnectable(id: string): boolean {
@@ -115,7 +141,7 @@ export function catalogTileNote(
   provider: Provider,
   connection: Connection | null,
 ): CatalogTileNote | null {
-  if (isRefusedPlan(provider.id)) {
+  if (isVercelCatalogId(provider.id) && isRefusedPlan(provider.id)) {
     return { label: "Not connectable", tone: "chip--err" };
   }
   const live =

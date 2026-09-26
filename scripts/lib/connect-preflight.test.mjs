@@ -66,4 +66,29 @@ describe("connect preflight", () => {
     );
     expect(result.result).toBe("live");
   });
+
+  it("names itself and follows no redirect, whatever headers a probe adds", async () => {
+    const seen = [];
+    await preflightApiKey(
+      {
+        service: "k",
+        verify: {
+          method: "POST",
+          url: "https://api.example.com/q",
+          body: "{}",
+        },
+      },
+      {
+        fetchImpl: async (url, init) => {
+          seen.push(init);
+          return new Response(null, { status: 401 });
+        },
+      },
+    );
+    expect(seen[0].headers["user-agent"]).toBe(
+      "opensesame-connect-preflight/1",
+    );
+    expect(seen[0].headers["content-type"]).toBe("application/json");
+    expect(seen[0].redirect).toBe("manual");
+  });
 });

@@ -9,7 +9,8 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
-import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 import {
@@ -35,7 +36,11 @@ Object.assign(vaultHooksSeams, {
 const KEY = "k".repeat(40);
 
 function provider(id: string): Provider {
-  const found = vercelConnectCatalog().find((row) => row.id === id);
+  // Every row the Connections page lists: Connect's own, then the bundled
+  // rows that keep their road and get Connect beside it.
+  const found = mergeVercelCatalog(getBundledProviders()).find(
+    (row) => row.id === id,
+  );
   if (!found) throw new Error(`${id} not in catalog`);
   return found;
 }

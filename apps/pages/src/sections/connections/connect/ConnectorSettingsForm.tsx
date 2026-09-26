@@ -36,6 +36,8 @@ export function ConnectorSettingsForm({
 }) {
   const [detail, setDetail] = useState<ConnectorDetail | null>(null);
   const [state, setState] = useState<DraftState | null>(null);
+  // The settings as Connect last answered them: a save sends only the change.
+  const [held, setHeld] = useState<DraftState | null>(null);
   const [failure, setFailure] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -45,8 +47,10 @@ export function ConnectorSettingsForm({
     void readConnector(connectorId)
       .then((read) => {
         if (!live) return;
+        const fromRead = draftStateFromDetail(plan, read);
         setDetail(read);
-        setState(draftStateFromDetail(plan, read));
+        setState(fromRead);
+        setHeld(fromRead);
         setFailure("");
       })
       .catch((error) => {
@@ -59,11 +63,24 @@ export function ConnectorSettingsForm({
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!state) return;
+    if (!state || !held) return;
     setBusy(true);
     try {
-      const saved = await updateConnector(connectorId, toConnectorDraft(state));
+      const saved = await updateConnector(
+        connectorId,
+        toConnectorDraft(state),
+        toConnectorDraft(held),
+      );
+      // Secrets were sent once; the form never holds them after a save.
+      const kept: DraftState = {
+        ...state,
+        key: "",
+        mcpClientSecret: "",
+        oauth: { ...state.oauth, clientSecret: "" },
+      };
       setDetail(saved);
+      setState(kept);
+      setHeld(kept);
       onFlash({ tone: "ok", text: `${saved.name || plan.name} saved.` });
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });

@@ -1,4 +1,3 @@
-import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
@@ -16,6 +15,10 @@ import {
   connectionVerb,
   providerVerb,
 } from "@opensesame/app-core/lib/identity-graph.js";
+import {
+  hasConnectRoute,
+  isVercelCatalogId,
+} from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import {
   CATEGORY_LABELS,
   type Flash,
@@ -58,12 +61,16 @@ import { YubikeyConnectPanel } from "./YubikeyConnectPanel.js";
 import { ConnectPanels } from "./connect/ConnectPanels.js";
 
 /**
- * Connectors Vercel Connect carries get the plan-built pages (ADR 0146);
- * GitHub keeps its App flow and the Git forges their backup form beside it.
+ * Connectors Vercel's registry lists get the plan-built pages alone (ADR
+ * 0146); a bundled catalog row with a plan keeps its own road and gets the
+ * Connect panels beside it, as do the Git forges' backup form. GitHub keeps
+ * its App flow; a refused service (ADR 0086 §6) gets no Connect road.
  */
 function connectOwned(providerId: string): "only" | "beside" | null {
-  if (providerId === "github" || !connectPlan(providerId)) return null;
-  return isGitBackupProvider(providerId) ? "beside" : "only";
+  if (!hasConnectRoute(providerId)) return null;
+  if (!isVercelCatalogId(providerId) || isGitBackupProvider(providerId))
+    return "beside";
+  return "only";
 }
 
 /** One connector's page: authorize it, then decide who can use it and how. */

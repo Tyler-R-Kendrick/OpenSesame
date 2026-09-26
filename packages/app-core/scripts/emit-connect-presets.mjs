@@ -57,8 +57,17 @@ const CATEGORY_OVERRIDE = {
   tailscale: "networking",
 };
 
-/** Payment rails and card issuing: OpenSesame never connects them (ADR 0086 §6). */
+/** Payment processors and agent card issuing: never connected (ADR 0086 §6). */
 const REFUSED = new Set(["stripe", "razorpay", "agentcard"]);
+
+/**
+ * Refused on Connect: payment rails, and the catalog's card-issuing rows
+ * (category `wallet`), whose keys reach a spend only through the wallet's
+ * leases and conserved ledger (ADR 0123) — never as a raw delegated key.
+ */
+function refused(id, row) {
+  return REFUSED.has(id) || row?.category === "wallet";
+}
 
 function oauthPreset(row) {
   return {
@@ -196,7 +205,7 @@ function planFor(id, service, row, oauth, apiKey) {
     docsUrl: docsFor(service, row, oauth, apiKey),
     category: categoryFor(id, service, row),
     registry: Boolean(service),
-    refused: REFUSED.has(id),
+    refused: refused(id, row),
     methods: methodsFor(service, oauth, apiKey),
   };
 }

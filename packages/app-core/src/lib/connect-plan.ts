@@ -123,9 +123,18 @@ export type ConnectMethod = z.infer<typeof MethodSchema>;
 export type ConnectMethodKind = ConnectMethod["kind"];
 export type ConnectPlan = z.infer<typeof ConnectPlanSchema>;
 
-const PlanKeySchema = ConnectPlanSchema.pick({ id: true, refused: true });
+const PlanKeySchema = ConnectPlanSchema.pick({
+  id: true,
+  refused: true,
+  registry: true,
+});
 
-type PlanEntry = { refused: boolean; json: string; plan?: ConnectPlan };
+type PlanEntry = {
+  refused: boolean;
+  registry: boolean;
+  json: string;
+  plan?: ConnectPlan;
+};
 
 let entries: ReadonlyMap<string, PlanEntry> | null = null;
 
@@ -138,7 +147,7 @@ function index(): ReadonlyMap<string, PlanEntry> {
   entries ??= new Map(
     CONNECT_PLAN_JSON.map((json) => {
       const key = PlanKeySchema.parse(JSON.parse(json));
-      return [key.id, { refused: key.refused, json }];
+      return [key.id, { refused: key.refused, registry: key.registry, json }];
     }),
   );
   return entries;
@@ -163,6 +172,11 @@ export function connectPlan(id: string): ConnectPlan | undefined {
 /** Whether a plan exists for a service, without validating it. */
 export function hasConnectPlan(id: string): boolean {
   return index().has(id);
+}
+
+/** Whether Vercel's own registry lists the service, without validating its plan. */
+export function isRegistryPlan(id: string): boolean {
+  return index().get(id)?.registry === true;
 }
 
 /** Whether a service is refused (ADR 0086 §6), without validating its plan. */

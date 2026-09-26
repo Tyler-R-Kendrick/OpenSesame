@@ -50,6 +50,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-26-passkey-verify/`](2026-09-26-passkey-verify/README.md) | A new account passkey is tried once (ADR 0140 plan step 11c) |
 | [`2026-09-26-org-signin/`](2026-09-26-org-signin/README.md) | Organization sign-in in Identity › Organizations (ADR 0140 plan step 12) |
 | [`2026-09-26-connect-photon-similarweb/`](2026-09-26-connect-photon-similarweb/README.md) | Connections: Photon and Similarweb presets (ADR 0146) |
+| [`2026-09-26-connect-catalog-ownership/`](2026-09-26-connect-catalog-ownership/README.md) | Connections: which rows Connect owns (ADR 0146) |
 | [`2026-09-26-aliases-config/`](2026-09-26-aliases-config/README.md) | `/guest` and `/delegate` aliases — before/after |
 | [`2026-09-25-notification-routing/`](2026-09-25-notification-routing/README.md) | Settings › Notifications: the `notifications.routing` capability (ADR 0140 step 11a) |
 | [`2026-09-25-invoke-route/`](2026-09-25-invoke-route/README.md) | `/invoke/:kind`, the authenticator hand-off (ADR 0140 step 10) |

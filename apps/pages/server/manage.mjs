@@ -263,12 +263,16 @@ async function authorizeConnector(payload, cors, req) {
 async function revokeConnector(payload, cors) {
   const connectorId = connectorIdOf(payload);
   if (!connectorId) return invalid(cors, "connectorId is required.");
+  // No subject revokes the app's tokens; a subject that does not parse is
+  // refused, never widened to the app's.
+  const subject =
+    payload.subject === undefined ? { type: "app" } : subjectOf(payload);
+  if (!subject) {
+    return invalid(cors, "subject must be app or user with an id.");
+  }
   const reply = await vercelFetch(
     `/v1/connect/connectors/${encodeURIComponent(connectorId)}/tokens`,
-    {
-      method: "DELETE",
-      body: JSON.stringify({ subject: subjectOf(payload) ?? { type: "app" } }),
-    },
+    { method: "DELETE", body: JSON.stringify({ subject }) },
   );
   if (reply.status >= 200 && reply.status < 300) {
     return json(200, cors, { revoked: true });

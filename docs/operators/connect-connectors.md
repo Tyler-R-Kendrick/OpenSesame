@@ -77,7 +77,7 @@ These are the same `connection` shares Access › Resources lists (ADR 0115).
 
 | Check | Command | Covers |
 | --- | --- | --- |
-| Every plan × method ends in a person's token | `pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance` | 224 paths across 189 services, through the real relay handlers, a schema-strict Connect emulator and a strict OAuth provider emulator; every one confirmed by the service's verify call (Linq and Snowflake, Vercel-only, excepted). Negative controls fail as a provider would. |
+| Every plan × method ends in a person's token | `pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance` | 220 paths across 185 services, through the real relay handlers, a schema-strict Connect emulator and a strict OAuth provider emulator; every one confirmed by the service's verify call (Linq and Snowflake, Vercel-only, excepted). Negative controls fail as a provider would. |
 | Every real endpoint is live | `pnpm test:connect-preflight` | 47 OAuth authorization servers, 98 MCP servers, 67 API-key verify endpoints; 9 need the customer's own host. |
 | The presets agree with the catalog | `pnpm --filter @opensesame/app-core exec vitest run src/lib/connect-presets.test.ts` | Endpoints and client authentication match `catalog.json` wherever both describe a provider; every create body satisfies Vercel's create schema. |
 | A live user token | Steps 1–4 above | Needs a person at the provider's consent screen; nothing in the repository can stand in for that. |

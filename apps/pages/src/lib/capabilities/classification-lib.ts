@@ -107,6 +107,7 @@ const CONNECTOR_FILES = [
   "nango-directory",
   "embedded-catalog",
   "embedded-catalog-data",
+  "bundled-provider-ids",
   "managed-connectors",
   "vercel-connect",
   "github-app-",

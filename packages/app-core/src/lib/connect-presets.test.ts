@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readJsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { renderModule } from "../../scripts/emit-connect-presets.mjs";
+import type { WebStorage } from "../ports.js";
 import {
   authorizeBody,
   createBody,
@@ -27,6 +28,19 @@ import {
   preferredMethod,
 } from "./connect-plan.js";
 import { CONNECT_PLAN_JSON } from "./connect-presets.generated.js";
+
+function memoryStore(): WebStorage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    key: (index) => [...map.keys()][index] ?? null,
+    getItem: (key) => map.get(key) ?? null,
+    setItem: (key, value) => void map.set(key, value),
+    removeItem: (key) => void map.delete(key),
+  };
+}
 import { assertConnectAccepts } from "./vercel-connect-schema.test-support.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -217,10 +231,18 @@ describe("drafts", () => {
     });
   });
 
-  it("keys a person's tokens by principal, or by the vault when signed out", () => {
-    expect(connectSubjectId("prn_1", "tomb")).toBe("prn_1");
-    expect(connectSubjectId(null, "t0mb/x")).toBe("local-t0mbx");
-    expect(connectSubjectId(" ", "")).toBeNull();
+  it("keys a person's tokens by principal, or by a device-random id when signed out", () => {
+    const store = memoryStore();
+    expect(connectSubjectId("prn_1", "tomb", store)).toBe("prn_1");
+    const mine = connectSubjectId(null, "personal", store);
+    expect(mine).toMatch(/^local-[0-9a-f]{32}$/);
+    // Stable for this vault on this device…
+    expect(connectSubjectId(null, "personal", store)).toBe(mine);
+    // …but never the vault's name, which every device's personal vault shares.
+    expect(connectSubjectId(null, "personal", memoryStore())).not.toBe(mine);
+    expect(connectSubjectId(null, "project-x", store)).not.toBe(mine);
+    expect(connectSubjectId(" ", "", store)).toBeNull();
+    expect(connectSubjectId(null, "personal", undefined)).toBeNull();
   });
 });
 

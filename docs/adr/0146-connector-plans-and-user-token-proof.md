@@ -128,8 +128,8 @@ Access › Resources already reads (ADR 0115). No second authority model.
 
 ## Consequences
 
-- 190 connectors (170 in Vercel's registry, 20 more from the integration
-  catalog) open filled in; 224 connector × method paths across 189 services
+- 186 connectors (166 in Vercel's registry, 20 more from the integration
+  catalog) open filled in; 220 connector × method paths across 185 services
   are proven to end in a person's token in conformance, every one confirmed
   by the service's own verify call. Linq and Snowflake, run by Vercel with
   its own app and publishing nothing a client can exercise, are the two
@@ -140,6 +140,20 @@ Access › Resources already reads (ADR 0115). No second authority model.
   are proven only against live Connect.
 - GitHub keeps its GitHub App flow (ADR 0126); the Git forges keep their
   backup form beside the Connect panels.
+- Connect draws a row from its plan, and is its only road, when Vercel's
+  registry lists the service, when it is a Git forge, or when Pages bundles no
+  row of its own. A bundled row Vercel does not list (Doppler, Hugging Face)
+  keeps its own row and road, with Connect beside it.
+- Card issuers (Privacy, Lithic, Marqeta, Stripe Issuing — catalog category
+  `wallet`) are refused on Connect like the payment rails (ADR 0086 §6); their
+  bundled rows keep the lease-and-ledger road of ADR 0123.
+- Signed out, a person's Connect subject is a random id the device keeps for
+  the vault, never the vault's name: every device's personal vault shares
+  that name, and two people must never share a token.
+- Saving a connector's settings sends only what the person changed, as a
+  merge patch against what Connect read back, and refuses an edit that
+  introduces a problem; Connect never returns a secret or, sometimes, a
+  preset's defaults, so an untouched field is never resent or wiped.
 - New relay routes: `POST /api/connect/connector/read`,
   `/api/connect/connector/update`, `/api/connect/token-check`, all behind the
   management key; `POST /api/connect/connectors` now forwards the whole

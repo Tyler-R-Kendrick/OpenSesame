@@ -12,6 +12,7 @@
 import {
   type BoundaryValue,
   type JsonObject,
+  isBoolean,
   isJsonObject,
   isNumber,
   isString,
@@ -24,6 +25,7 @@ import {
   createBody,
   draftProblems,
   updateBody,
+  updateProblems,
 } from "./connect-create.js";
 import type { ConnectPlan } from "./connect-plan.js";
 import type { Connection } from "./connections.js";
@@ -56,10 +58,12 @@ export type ConnectorDetail = {
   revocationEndpoint: string;
   userinfoEndpoint: string;
   tokenAuth: string;
-  pkce: "S256" | "none" | "required";
+  /** `null` when Connect's answer does not say. */
+  pkce: "S256" | "none" | "required" | null;
   authorizationParams: Record<string, string>;
   scopes: string[];
-  refreshTokens: boolean;
+  /** `null` when Connect's answer does not say. */
+  refreshTokens: boolean | null;
   /** Where the provider must send the browser back; register it there. */
   redirectUri: string;
   serviceUrls: string[];
@@ -92,6 +96,15 @@ function stringRecord(value: BoundaryValue | undefined) {
   );
 }
 
+function pkceOf(data: JsonObject): ConnectorDetail["pkce"] {
+  if (data.pkceRequired === true) return "required";
+  if (text(data.codeChallengeMethod)) return "S256";
+  // Only an explicit answer says there is no PKCE; silence says nothing.
+  return data.pkceRequired === false || data.codeChallengeMethod === null
+    ? "none"
+    : null;
+}
+
 /** Connect's connector JSON → the fields a settings page shows. */
 export function connectorDetailFrom(
   value: BoundaryValue,
@@ -103,12 +116,7 @@ export function connectorDetailFrom(
   const data = object(row.data);
   const server = object(data.serverConfig);
   const user = object(data.userAuthorization);
-  const pkce =
-    data.pkceRequired === true
-      ? "required"
-      : text(data.codeChallengeMethod) === ""
-        ? "none"
-        : "S256";
+  const pkce = pkceOf(data);
   return {
     id,
     uid: text(row.uid, 128),
@@ -125,9 +133,10 @@ export function connectorDetailFrom(
     pkce,
     authorizationParams: stringRecord(data.authorizationUrlParams),
     scopes: strings(user.scopes),
-    refreshTokens: isJsonObject(data.refreshTokens)
-      ? data.refreshTokens.enabled === true
-      : false,
+    refreshTokens:
+      isJsonObject(data.refreshTokens) && isBoolean(data.refreshTokens.enabled)
+        ? data.refreshTokens.enabled
+        : null,
     redirectUri:
       text(row.redirectUri) ||
       text(row.redirectUrl) ||
@@ -207,12 +216,21 @@ export async function readConnector(id: string): Promise<ConnectorDetail> {
   return detail;
 }
 
-/** Save edited settings. A blank client secret keeps the stored one. */
+/**
+ * Save what a person changed against `held`, the settings as read back. A
+ * blank client secret keeps the stored one; an edit that introduces a problem
+ * is refused before anything is sent.
+ */
 export async function updateConnector(
   id: string,
   draft: ConnectorDraft,
+  held: ConnectorDraft,
 ): Promise<ConnectorDetail> {
-  const body = updateBody(draft);
+  const problems = updateProblems(draft, held);
+  if (problems.length > 0) {
+    throw new ConnectError(0, "invalid_draft", problems.join(" "));
+  }
+  const body = updateBody(draft, held);
   const reply = connectRelayConfigured()
     ? await relayFetch(
         "/api/connect/connector/update",

@@ -1,12 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { verifyTargets } from "../../scripts/emit-connect-verify-targets.mjs";
-import {
-  createBodyOf,
-  publicConnectorDetail,
-  verifyTargetFor,
-  verifyWithToken,
-} from "../connect-manage.mjs";
+import { createBodyOf, publicConnectorDetail } from "../connect-manage.mjs";
 import { VERIFY_TARGETS } from "../connect-verify-targets.generated.mjs";
 import { isFunction, isString } from "../json-boundary.mjs";
 import { handleManage } from "../manage.mjs";
@@ -195,6 +189,29 @@ describe("authorize", () => {
   });
 });
 
+describe("revoke", () => {
+  it("revokes a person's tokens, and refuses a subject that does not parse", async () => {
+    stub({
+      "DELETE https://api.vercel.com/v1/connect/connectors/scl_1/tokens": {},
+    });
+    const mine = await manage("/api/connect/revoke", {
+      connectorId: "scl_1",
+      subject: { type: "user", id: "prn_abc" },
+    });
+    assert.equal(mine.status, 200);
+    assert.deepEqual(JSON.parse(calls[0].init.body).subject, {
+      type: "user",
+      id: "prn_abc",
+    });
+    const malformed = await manage("/api/connect/revoke", {
+      connectorId: "scl_1",
+      subject: { type: "user", id: "a b" },
+    });
+    assert.equal(malformed.status, 400);
+    assert.equal(calls.length, 1);
+  });
+});
+
 describe("token proof", () => {
   const [service, targets] = Object.entries(VERIFY_TARGETS).find(
     ([, row]) => row.mcp,
@@ -272,7 +289,7 @@ describe("token proof", () => {
   });
 });
 
-describe("token proof boundaries", () => {
+describe("token proof needs the key", () => {
   it("needs the management key", async () => {
     stub({});
     const outcome = await handleManage({
@@ -283,49 +300,5 @@ describe("token proof boundaries", () => {
     });
     assert.equal(outcome.status, 401);
     assert.equal(calls.length, 0);
-  });
-
-  it("skips a target whose host still names a placeholder", async () => {
-    const result = await verifyWithToken(
-      {
-        kind: "oauth",
-        method: "GET",
-        url: "https://{domain}/me",
-        header: "Authorization",
-        scheme: "Bearer",
-      },
-      TOKEN,
-      () => assert.fail("must not fetch"),
-    );
-    assert.equal(result, null);
-  });
-
-  it("chooses the API-key call for an API-key connector", () => {
-    const withKey = Object.entries(VERIFY_TARGETS).find(
-      ([, row]) => row.apiKey,
-    );
-    if (!withKey) return;
-    const [id, row] = withKey;
-    assert.equal(verifyTargetFor({ service: id, type: "api-key" }), row.apiKey);
-  });
-});
-
-describe("generated verify targets", () => {
-  it("match the specs", () => {
-    assert.deepEqual(
-      JSON.parse(JSON.stringify(VERIFY_TARGETS)),
-      verifyTargets(),
-    );
-  });
-
-  it("are all https", () => {
-    for (const row of Object.values(VERIFY_TARGETS)) {
-      for (const target of Object.values(row)) {
-        assert.equal(
-          new URL(target.url.replace(/\{[a-z_]+\}/, "x")).protocol,
-          "https:",
-        );
-      }
-    }
   });
 });

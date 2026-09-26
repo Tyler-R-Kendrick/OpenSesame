@@ -1,3 +1,4 @@
+import { type WebStorage, maybeLocalStore } from "../ports.js";
 /**
  * The connector page's form state (ADR 0146): which method, what the person
  * typed, and the OAuth fields a preset filled in — one plain record the page
@@ -120,7 +121,24 @@ export function initialDraftState(
   };
 }
 
-/** Fill a placeholder and re-derive every endpoint that used it. */
+const TEMPLATED_OAUTH = [
+  "serverUrl",
+  "authorizationEndpoint",
+  "tokenEndpoint",
+  "revocationEndpoint",
+  "userinfoEndpoint",
+] as const;
+
+/** Re-fill `next` where `current` still holds what `previous` filled in. */
+function refill<T>(current: T, previous: T, next: T): T {
+  return JSON.stringify(current) === JSON.stringify(previous) ? next : current;
+}
+
+/**
+ * Fill a placeholder and re-derive every field that used it — only where the
+ * field still holds the preset's fill. A field the person edited by hand is
+ * theirs, and a placeholder never overwrites it.
+ */
 export function withParam(
   state: DraftState,
   plan: ConnectPlan,
@@ -128,24 +146,33 @@ export function withParam(
   value: string,
 ): DraftState {
   const params = { ...state.params, [name]: value };
+  const previous = oauthFor(plan, state.params);
   const refreshed = oauthFor(plan, params);
+  const oauth: OauthDraft = { ...state.oauth };
+  for (const field of TEMPLATED_OAUTH) {
+    oauth[field] = refill(
+      state.oauth[field],
+      previous[field],
+      refreshed[field],
+    );
+  }
+  oauth.authorizationParams = refill(
+    state.oauth.authorizationParams,
+    previous.authorizationParams,
+    refreshed.authorizationParams,
+  );
   const keyUrls = apiKeyFor(plan).serviceUrls;
   return {
     ...state,
     params,
     serviceUrls: keyUrls.some((url) => url.includes("{"))
-      ? keyUrls.map((url) => fillTemplate(url, params))
+      ? refill(
+          state.serviceUrls,
+          keyUrls.map((url) => fillTemplate(url, state.params)),
+          keyUrls.map((url) => fillTemplate(url, params)),
+        )
       : state.serviceUrls,
-    oauth: {
-      ...refreshed,
-      scopes: state.oauth.scopes,
-      clientId: state.oauth.clientId,
-      clientSecret: state.oauth.clientSecret,
-      tokenAuth: state.oauth.tokenAuth,
-      pkce: state.oauth.pkce,
-      refreshTokens: state.oauth.refreshTokens,
-      registration: state.oauth.registration,
-    },
+    oauth,
   };
 }
 
@@ -188,16 +215,13 @@ export function draftStateFromDetail(
         detail.tokenAuth === "none"
           ? detail.tokenAuth
           : base.oauth.tokenAuth,
-      pkce: detail.type === "oauth" ? detail.pkce : base.oauth.pkce,
+      pkce: detail.pkce ?? base.oauth.pkce,
       authorizationParams:
         Object.keys(detail.authorizationParams).length > 0
           ? detail.authorizationParams
           : base.oauth.authorizationParams,
       scopes: detail.scopes.length > 0 ? detail.scopes : base.oauth.scopes,
-      refreshTokens:
-        detail.type === "oauth"
-          ? detail.refreshTokens
-          : base.oauth.refreshTokens,
+      refreshTokens: detail.refreshTokens ?? base.oauth.refreshTokens,
       clientId: detail.clientId,
       clientSecret: "",
       registration: base.oauth.registration,
@@ -266,16 +290,37 @@ export function toggleScope(state: DraftState, scope: string): DraftState {
   };
 }
 
-/** The subject id Connect keys a person's tokens by. */
+const SUBJECT_PREFIX = "opensesame.connect-subject.";
+const LOCAL_SUBJECT = /^local-[0-9a-f]{32}$/;
+
+function randomLocalSubject(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return `local-${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * The subject id Connect keys a person's tokens by: their principal when
+ * signed in, else a random id this device keeps for the vault. A vault's
+ * name is not an identity (every device's personal vault shares one), so it
+ * never becomes the subject — two people must never share a token.
+ */
 export function connectSubjectId(
   principalId: string | null | undefined,
   tomb: string | null | undefined,
+  store: WebStorage | undefined = maybeLocalStore(),
 ): string | null {
   const id = principalId?.trim();
   if (id && /^[A-Za-z0-9_.:@-]{1,128}$/.test(id)) return id;
-  const local = tomb
-    ?.trim()
-    .replace(/[^A-Za-z0-9_-]/g, "")
-    .slice(0, 48);
-  return local ? `local-${local}` : null;
+  const vault = tomb?.trim();
+  if (!vault || !store) return null;
+  const key = `${SUBJECT_PREFIX}${vault}`;
+  try {
+    const kept = store.getItem(key);
+    if (kept && LOCAL_SUBJECT.test(kept)) return kept;
+    const fresh = randomLocalSubject();
+    store.setItem(key, fresh);
+    return store.getItem(key) === fresh ? fresh : null;
+  } catch {
+    return null;
+  }
 }

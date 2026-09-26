@@ -23,14 +23,16 @@ async function probe(fetchImpl, url, init = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12_000);
   try {
+    // The caller's init first: its headers are merged under ours, and it can
+    // never follow a redirect or outlive the timeout.
     const response = await fetchImpl(url, {
-      redirect: "manual",
-      signal: controller.signal,
+      ...init,
       headers: {
         "user-agent": "opensesame-connect-preflight/1",
         ...init.headers,
       },
-      ...init,
+      redirect: "manual",
+      signal: controller.signal,
     });
     await response.body?.cancel?.();
     return response.status;

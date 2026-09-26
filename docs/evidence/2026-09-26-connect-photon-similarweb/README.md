@@ -4,8 +4,9 @@ These two connectors were the last conformance paths that reached a token
 without the service confirming it: nothing was known about Photon's OAuth
 server, and Similarweb's MCP server publishes no OAuth metadata and takes a
 key. With both presets in `spec/connectors/connect-presets.json`, every
-conformance path (224 across 189 services) ends in a token the service's own
-verify call accepts.
+conformance path (224 across 189 services when this was captured; 220 across
+185 once card issuers were refused on Connect) ends in a token the service's
+own verify call accepts.
 
 Before is this pull request's previous head (`ae30640a`), not `main`: `main`
 has no connector pages of this kind, and the change shown is these two
@@ -47,5 +48,5 @@ steps to generate and activate a key. The relay proves the key against
 
 | Evidence | Where |
 | --- | --- |
-| Photon and Similarweb each end in a person's token accepted by the service's verify call (Photon's `userinfo`; Similarweb's `user-capabilities`), with the rest of the 224 paths | [`../2026-09-25-connect-connectors/conformance.json`](../2026-09-25-connect-connectors/conformance.json) |
+| Photon and Similarweb each end in a person's token accepted by the service's verify call (Photon's `userinfo`; Similarweb's `user-capabilities`), with the rest of the conformance paths | [`../2026-09-25-connect-connectors/conformance.json`](../2026-09-25-connect-connectors/conformance.json) |
 | Photon's authorize endpoint and Similarweb's verify endpoint answer live, read-only | [`../2026-09-25-connect-connectors/live-preflight.json`](../2026-09-25-connect-connectors/live-preflight.json) |

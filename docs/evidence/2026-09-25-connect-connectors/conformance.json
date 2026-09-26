@@ -1498,20 +1498,6 @@
     "account": "Acme Conformance Account"
   },
   {
-    "service": "lithic",
-    "method": "api-key",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
-    "service": "marqeta",
-    "method": "api-key",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
     "service": "messagebird",
     "method": "api-key",
     "outcome": "token acquired",
@@ -1540,25 +1526,11 @@
     "account": "Acme Conformance Account"
   },
   {
-    "service": "privacy",
-    "method": "api-key",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
-  },
-  {
     "service": "stability",
     "method": "api-key",
     "outcome": "token acquired",
     "verified": 200,
     "account": "Acme Conformance Account"
-  },
-  {
-    "service": "stripe-issuing",
-    "method": "api-key",
-    "outcome": "token acquired",
-    "verified": 200,
-    "account": ""
   },
   {
     "service": "together",
