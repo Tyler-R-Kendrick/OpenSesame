@@ -24,10 +24,9 @@ import {
   authorizeBody,
   createBody,
   draftProblems,
-  updateBody,
-  updateProblems,
 } from "./connect-create.js";
 import type { ConnectPlan } from "./connect-plan.js";
+import { updateBody, updateProblems } from "./connect-update.js";
 import type { Connection } from "./connections.js";
 import { connectorOf, iso, toConnectConnection } from "./vercel-connect-map.js";
 import {

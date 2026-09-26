@@ -286,4 +286,48 @@ describe("a person's token", () => {
     );
     expect(check?.body.subject).toEqual({ type: "user", id: "prn_person" });
   });
+
+  it("keeps a token proof with the connector it was made for", async () => {
+    applyConnectCallbackBase("https://relay.test");
+    setVercelConnectAuth({ token: "", manageKey: KEY });
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/connect/connector/read")) {
+        return reply({ connector: { id: "scl_1", type: "oauth", data: {} } });
+      }
+      if (url.endsWith("/api/connect/token-check")) {
+        return reply({
+          subject: "user",
+          fingerprint: "0123456789ab",
+          verified: { status: 200, ok: true, account: "alice@resend" },
+        });
+      }
+      return reply({});
+    });
+    const first = connectConnection("resend");
+    const view = render(
+      <ConnectPanels
+        provider={provider("resend")}
+        connection={first}
+        online
+        onFlash={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Test user token" }),
+    );
+    await waitFor(() => expect(screen.getByText("alice@resend")).toBeTruthy());
+    view.rerender(
+      <ConnectPanels
+        provider={provider("resend")}
+        connection={{ ...first, connectionId: "scl_2" }}
+        online
+        onFlash={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("alice@resend")).toBeNull();
+    expect(screen.queryByText("sha256:0123456789ab…")).toBeNull();
+  });
 });

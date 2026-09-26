@@ -75,6 +75,7 @@ export function ConnectPanels({
       </section>
       {connected ? (
         <UserTokenPanel
+          key={connected.connectionId}
           connectorId={connected.connectionId}
           subjectId={connectSubjectId(session?.principalId, tomb)}
           scopes={connected.grantedScopes}

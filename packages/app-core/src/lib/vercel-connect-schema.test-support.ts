@@ -110,3 +110,54 @@ export function assertConnectAccepts(body: JsonObject): void {
     if (!body.name) throw new Error("API key connectors require name");
   }
 }
+
+/** A server-metadata override, or `""` — the update schema's "stop overriding". */
+const overrideUrl = z.union([z.string().url(), z.literal("")]);
+
+/**
+ * `PATCH /v1/connect/connectors/{id}`, `type:oauth` data: every field
+ * optional, a string cleared with `""`, the extra params an object. No field
+ * accepts `null`.
+ */
+export const OauthUpdateDataSchema = OauthDataSchema.extend({
+  clientId: z.string().min(1).optional(),
+  serverConfig: z
+    .object({
+      authorization_endpoint: overrideUrl.optional(),
+      token_endpoint: overrideUrl.optional(),
+      revocation_endpoint: overrideUrl.optional(),
+      userinfo_endpoint: overrideUrl.optional(),
+      code_challenge_methods_supported: z.array(z.string()).optional(),
+    })
+    .passthrough()
+    .optional(),
+}).strict();
+
+/** `type:api-key` update data: instructions and keys, nothing else. */
+export const ApiKeyUpdateDataSchema = z
+  .object({
+    instructions: z.string().max(4000).optional(),
+    toAdd: z
+      .array(z.object({ value: z.string().min(1) }).passthrough())
+      .optional(),
+    toDelete: z.array(z.string()).optional(),
+    toUpdate: z.array(z.object({ id: z.string() }).passthrough()).optional(),
+  })
+  .strict();
+
+/** Throws with Connect's own words for the first thing an update would refuse. */
+export function assertConnectAcceptsUpdate(
+  body: JsonObject,
+  kind: "oauth" | "api-key" | "mcp" | "managed",
+): void {
+  z.object({
+    name: z.string().min(1).optional(),
+    uid: common.uid,
+    data: z.record(z.string(), z.unknown()).optional(),
+  })
+    .strict()
+    .parse(body);
+  if (body.data === undefined) return;
+  if (kind === "oauth") OauthUpdateDataSchema.parse(body.data);
+  if (kind === "api-key") ApiKeyUpdateDataSchema.parse(body.data);
+}

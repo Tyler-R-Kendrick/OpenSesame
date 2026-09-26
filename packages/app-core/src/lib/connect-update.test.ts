@@ -1,6 +1,5 @@
 import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import { updateBody, updateProblems } from "./connect-create.js";
 import {
   draftStateFromDetail,
   initialDraftState,
@@ -8,7 +7,9 @@ import {
   withParam,
 } from "./connect-draft.js";
 import { type ConnectPlan, connectPlan } from "./connect-plan.js";
+import { updateBody, updateProblems } from "./connect-update.js";
 import { connectorDetailFrom } from "./vercel-connect-manage.js";
+import { assertConnectAcceptsUpdate } from "./vercel-connect-schema.test-support.js";
 
 function planOf(id: string): ConnectPlan {
   const plan = connectPlan(id);
@@ -45,44 +46,73 @@ describe("saving a connector's settings", () => {
     expect(JSON.stringify(body)).not.toMatch(/clientId/);
   });
 
-  it("sends what changed, and a cleared field as null", () => {
+  it("sends what changed, clearing a field the way Connect's update schema does", () => {
     const before = held(notion, {
       clientId: "cid",
       codeChallengeMethod: "S256",
       pkceRequired: false,
       refreshTokens: { enabled: true },
+      authorizationUrlParams: { prompt: "consent" },
+      serverConfig: {
+        authorization_endpoint: "https://api.notion.com/v1/oauth/authorize",
+        token_endpoint: "https://api.notion.com/v1/oauth/token",
+        revocation_endpoint: "https://api.notion.com/v1/oauth/revoke",
+      },
     });
     const after = {
       ...before,
-      oauth: { ...before.oauth, pkce: "none" as const, refreshTokens: false },
+      oauth: {
+        ...before.oauth,
+        pkce: "none" as const,
+        refreshTokens: false,
+        authorizationParams: {},
+        revocationEndpoint: "",
+      },
     };
     const body = updateBody(toConnectorDraft(after), toConnectorDraft(before));
     expect(body.data).toMatchObject({
-      codeChallengeMethod: null,
+      codeChallengeMethod: "",
+      authorizationUrlParams: {},
       refreshTokens: { enabled: false },
+      serverConfig: { revocation_endpoint: "" },
     });
-    expect(Object.keys(body)).toEqual(["data"]);
+    expect(JSON.stringify(body)).not.toContain("null");
+    assertConnectAcceptsUpdate(body, "oauth");
   });
 
-  it("sends an API key connector's URL and subject edits", () => {
+  it("sends an API key connector's instructions and key, and refuses a URL or subject edit", () => {
     const openai = planOf("openai");
     const before = held(
       openai,
-      { serviceUrls: ["https://api.openai.com"], subjectType: "user" },
+      {
+        serviceUrls: ["https://api.openai.com"],
+        subjectType: "app",
+        instructions: "old",
+      },
       "api-key",
     );
-    const after = {
-      ...before,
-      keySubject: "app" as const,
-      key: "sk-new",
-      serviceUrls: ["https://api.openai.com/v1"],
-    };
-    const body = updateBody(toConnectorDraft(after), toConnectorDraft(before));
+    const keyed = { ...before, key: "sk-new", instructions: "Paste yours." };
+    const body = updateBody(toConnectorDraft(keyed), toConnectorDraft(before));
     expect(body.data).toEqual({
-      serviceUrls: ["https://api.openai.com/v1"],
-      subjectType: "app",
+      instructions: "Paste yours.",
       toAdd: [{ value: "sk-new" }],
     });
+    assertConnectAcceptsUpdate(body, "api-key");
+    const moved = {
+      ...before,
+      keySubject: "user" as const,
+      serviceUrls: ["https://api.openai.com/v1"],
+    };
+    expect(
+      updateProblems(toConnectorDraft(moved), toConnectorDraft(before)),
+    ).toEqual([
+      "The API and whose key are set when the connector is created; create another to change them.",
+    ]);
+    expect(
+      JSON.stringify(
+        updateBody(toConnectorDraft(moved), toConnectorDraft(before)),
+      ),
+    ).not.toMatch(/serviceUrls|subjectType/);
   });
 
   it("refuses an edit that introduces a problem, and only that", () => {

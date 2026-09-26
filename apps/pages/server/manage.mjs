@@ -254,7 +254,7 @@ async function authorizeConnector(payload, cors, req) {
   if (scopes?.length) authorizeBody.scopes = scopes;
   if (callbackUrl) authorizeBody.returnUrl = callbackUrl;
   const reply = await vercelFetch(
-    `/v1/connect/authorize/${encodeURIComponent(connectorId)}`,
+    `/v1/connect/authorize/${encodeURIComponent(connectorId)}${teamQuery()}`,
     { method: "POST", body: JSON.stringify(authorizeBody) },
   );
   return json(reply.status, cors, reply.body);
@@ -271,7 +271,7 @@ async function revokeConnector(payload, cors) {
     return invalid(cors, "subject must be app or user with an id.");
   }
   const reply = await vercelFetch(
-    `/v1/connect/connectors/${encodeURIComponent(connectorId)}/tokens`,
+    `/v1/connect/connectors/${encodeURIComponent(connectorId)}/tokens${teamQuery()}`,
     { method: "DELETE", body: JSON.stringify({ subject }) },
   );
   if (reply.status >= 200 && reply.status < 300) {

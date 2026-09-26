@@ -72,8 +72,9 @@ function authorizationFor(target, token) {
 }
 
 /**
- * A 200 is not always a yes: GraphQL answers a bad token with `errors`, and
- * some APIs answer an anonymous caller with an empty object.
+ * A 200 is not always a yes: GraphQL answers a bad token with `errors`,
+ * Slack's Web API answers one with `{ "ok": false, "error": … }`, and some
+ * APIs answer an anonymous caller with an empty object.
  */
 function answered(body, kind) {
   if (kind === "mcp") return true;
@@ -81,6 +82,7 @@ function answered(body, kind) {
   if (isObject(body) && Array.isArray(body.errors) && body.errors.length > 0) {
     return false;
   }
+  if (isObject(body) && body.ok === false) return false;
   return !(isObject(body) && Object.keys(body).length === 0);
 }
 

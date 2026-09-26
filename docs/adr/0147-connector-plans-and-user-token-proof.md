@@ -150,10 +150,15 @@ Access › Resources already reads (ADR 0115). No second authority model.
 - Signed out, a person's Connect subject is a random id the device keeps for
   the vault, never the vault's name: every device's personal vault shares
   that name, and two people must never share a token.
-- Saving a connector's settings sends only what the person changed, as a
-  merge patch against what Connect read back, and refuses an edit that
-  introduces a problem; Connect never returns a secret or, sometimes, a
-  preset's defaults, so an untouched field is never resent or wiped.
+- Saving a connector's settings sends only what the person changed, against
+  what Connect read back, and refuses an edit that introduces a problem;
+  Connect never returns a secret or, sometimes, a preset's defaults, so an
+  untouched field is never resent or wiped. A cleared field is sent the way
+  Connect's update schema clears it — an empty string, an empty override in
+  `serverConfig`, an empty params object — never `null`. An API-key
+  connector's service URLs and subject are fixed once it exists (its update
+  takes only instructions and keys), so the page refuses to edit them, and
+  after a save the form shows what Connect stored, not what was sent.
 - New relay routes: `POST /api/connect/connector/read`,
   `/api/connect/connector/update`, `/api/connect/token-check`, all behind the
   management key; `POST /api/connect/connectors` now forwards the whole

@@ -25,6 +25,27 @@ describe("token proof boundaries", () => {
     );
     assert.equal(result, null);
   });
+});
+
+describe("what a verify answer says", () => {
+  it("reads Slack's 200 with ok:false as the refusal it is", async () => {
+    const target = VERIFY_TARGETS.slack?.oauth ?? {
+      kind: "oauth",
+      method: "GET",
+      url: "https://slack.com/api/auth.test",
+      header: "Authorization",
+      scheme: "Bearer",
+    };
+    const revoked = await verifyWithToken(target, TOKEN, async () =>
+      Response.json({ ok: false, error: "invalid_auth" }),
+    );
+    assert.equal(revoked.status, 200);
+    assert.equal(revoked.ok, false);
+    const live = await verifyWithToken(target, TOKEN, async () =>
+      Response.json({ ok: true, user: "alice" }),
+    );
+    assert.equal(live.ok, true);
+  });
 
   it("reads a large 2xx answer as an answer, not a refusal", async () => {
     const big = JSON.stringify({ items: "x".repeat(200_000) });
@@ -48,7 +69,9 @@ describe("token proof boundaries", () => {
     );
     assert.equal(refused.ok, false);
   });
+});
 
+describe("where the token goes", () => {
   it("sends the token only to the host that issued it", () => {
     const target = VERIFY_TARGETS.okta.oauth;
     const connector = (authorize, token) => ({
