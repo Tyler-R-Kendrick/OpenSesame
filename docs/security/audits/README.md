@@ -152,3 +152,4 @@ here. The architecture-level documents they refine live one level up in
 | 2026-09-21 | [Audit 2026-09-21 — Vault seal binding and session boundary](2026-09-21-vault-seal-binding.md) |
 | 2026-09-23 | [Audit 2026-09-23 — Sealed-store root protection and CLI secret handling](2026-09-23-sealed-store-root-protection.md) |
 | 2026-09-23 | [Audit 2026-09-23 — Security architecture review](2026-09-23-security-architecture-review.md) |
+| 2026-09-26 | [Audit 2026-09-26 — Local certificate issuance](2026-09-26-local-certificate-issuance.md) |

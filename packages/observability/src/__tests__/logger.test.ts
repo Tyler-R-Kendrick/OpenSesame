@@ -76,6 +76,8 @@ describe("createLogger", () => {
     log.info({
       claimToken: "osc_clm_secret.token",
       userCode: "ABCD-EFGH",
+      verificationUriComplete: "https://app.example/claim#token=osc_clm_x.leak",
+      nested: { verification_uri_complete: "https://x/?user_code=WXYZ-1234" },
       safe: "ok",
     });
     await new Promise((r) => setImmediate(r));
@@ -83,6 +85,8 @@ describe("createLogger", () => {
     expect(line).toContain("[Redacted]");
     expect(line).not.toContain("osc_clm_secret");
     expect(line).not.toContain("ABCD-EFGH");
+    expect(line).not.toContain("osc_clm_x.leak");
+    expect(line).not.toContain("WXYZ-1234");
     expect(line).toContain("ok");
   });
 });

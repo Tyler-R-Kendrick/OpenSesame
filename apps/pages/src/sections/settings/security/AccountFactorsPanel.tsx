@@ -1,5 +1,6 @@
 import {
   type AccountFactor,
+  type AccountFactorKind,
   type AccountFactorList,
   accountFactorsOffered,
   listAccountFactors,
@@ -7,9 +8,16 @@ import {
 import { describeAccount } from "@opensesame/app-core/lib/account.js";
 import { subscribeIdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { subscribeSettings } from "@opensesame/app-core/lib/settings.js";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconPlus, IconTrash } from "../../../components/Icons.js";
+import { firstControl, landFocus } from "../../../lib/focus.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { ACCOUNT_TITLE } from "./AccountFactorCeremony.js";
 import { MethodRow } from "./MethodRow.js";
@@ -61,6 +69,8 @@ export function AccountFactorsPanel({
   const offered = useOffered();
   const guideRef = useGuideTarget<HTMLElement>("settings.account-factors");
   const { list, refusal } = useFactorList(offered, closed);
+  const body = useRef<HTMLDivElement>(null);
+  useRefocusAfterRemoval(body, list, closed);
   if (!offered) return null;
   const account = describeAccount();
   return (
@@ -78,12 +88,31 @@ export function AccountFactorsPanel({
           </p>
         </div>
       </div>
-      <div className="panel__body">
+      <div className="panel__body" ref={body}>
         {refusal ? <p className="hint">{refusal}</p> : null}
         {list ? <AccountRows list={list} busy={busy} onOpen={onOpen} /> : null}
       </div>
     </section>
   );
+}
+
+/**
+ * The sheet hands focus back to the row that opened it; when that row is
+ * the factor just removed, the redrawn list takes it away and focus falls
+ * to the page. Only then — never from a person who has moved on — the
+ * keyboard lands on the panel's first remaining action.
+ */
+function useRefocusAfterRemoval(
+  body: RefObject<HTMLDivElement | null>,
+  list: AccountFactorList | null,
+  closed: number,
+) {
+  useEffect(() => {
+    if (closed === 0 || !list) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    landFocus(firstControl(body.current));
+  }, [body, list, closed]);
 }
 
 /** Read on open and after every sheet closes; `closed` is that signal. */
@@ -138,6 +167,11 @@ function AccountRows({
   const passkeys = list.factors.filter((f) => f.kind === "passkey");
   const totp = list.factors.find((f) => f.kind === "totp");
   const can = (kind: "passkey" | "totp") => list.enrollable.includes(kind);
+  // What can prove a removal (ADR 0146): any factor the account holds.
+  const proofs: AccountFactorKind[] = [
+    ...(passkeys.length > 0 ? (["passkey"] as const) : []),
+    ...(totp ? (["totp"] as const) : []),
+  ];
   return (
     <>
       {passkeys.map((factor) => (
@@ -152,7 +186,11 @@ function AccountRows({
             onOpen({
               kind: "account-passkey",
               view: "remove",
-              factor: { id: factor.id, name: `Passkey · ${added(factor)}` },
+              factor: {
+                id: factor.id,
+                name: `Passkey · ${added(factor)}`,
+                proofs,
+              },
             }),
           )}
         />
@@ -193,6 +231,7 @@ function AccountRows({
                     factor: {
                       id: totp.id,
                       name: "Authenticator app · your account",
+                      proofs,
                     },
                   }
                 : { kind: "account-totp", view: "add" },

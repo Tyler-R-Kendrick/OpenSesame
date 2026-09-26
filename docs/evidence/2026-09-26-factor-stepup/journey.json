@@ -1,0 +1,453 @@
+{
+  "out": ".",
+  "identityStub": "https://identity.evidence.example",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account authenticator app",
+            "action": "Add"
+          }
+        },
+        {
+          "pressNamedOptional": "I scanned it"
+        },
+        {
+          "accountTotpCode": null
+        },
+        {
+          "pressNamedOptional": "Turn on"
+        },
+        {
+          "sheetPressOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Remove"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] .picker__opt",
+            "[role=dialog] input"
+          ]
+        },
+        {
+          "measure": "[role=dialog] .picker__opt"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-remove"
+        },
+        {
+          "sheetPressOptional": "Authenticator code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "fillOptional": {
+            "label": "Six digits",
+            "text": "000000"
+          }
+        },
+        {
+          "sheetPressOptional": "Remove passkey"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            ".note",
+            "[aria-label='Your account'] .sw--method"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "390-refused"
+        },
+        {
+          "sheetPressOptional": "Passkey"
+        },
+        {
+          "sheetPressOptional": "Remove passkey"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "count": ["[role=dialog]", ".note"]
+        },
+        {
+          "shot": "390-removed-card"
+        },
+        {
+          "sheetPressOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": ["[role=dialog]", "[aria-label='Your account'] .sw--method"]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "390-removed"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account authenticator app",
+            "action": "Remove"
+          }
+        },
+        {
+          "count": ["[role=dialog] .picker__opt", "[role=dialog] input"]
+        },
+        {
+          "accountTotpFreshCode": null
+        },
+        {
+          "sheetPressOptional": "Remove authenticator"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "count": ["[role=dialog]", ".note"]
+        },
+        {
+          "shot": "390-totp-removed"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "passkey": null
+        },
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Add"
+          }
+        },
+        {
+          "pressNamedOptional": "Create passkey"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account authenticator app",
+            "action": "Add"
+          }
+        },
+        {
+          "pressNamedOptional": "I scanned it"
+        },
+        {
+          "accountTotpCode": null
+        },
+        {
+          "pressNamedOptional": "Turn on"
+        },
+        {
+          "sheetPressOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account passkey",
+            "action": "Remove"
+          }
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] .picker__opt",
+            "[role=dialog] input"
+          ]
+        },
+        {
+          "measure": "[role=dialog] .picker__opt"
+        },
+        {
+          "measure": "[role=dialog] .found__do .btn"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-remove"
+        },
+        {
+          "sheetPressOptional": "Authenticator code"
+        },
+        {
+          "focused": null
+        },
+        {
+          "fillOptional": {
+            "label": "Six digits",
+            "text": "000000"
+          }
+        },
+        {
+          "sheetPressOptional": "Remove passkey"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            ".note",
+            "[aria-label='Your account'] .sw--method"
+          ]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "1280-refused"
+        },
+        {
+          "sheetPressOptional": "Passkey"
+        },
+        {
+          "sheetPressOptional": "Remove passkey"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "focused": null
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "count": ["[role=dialog]", ".note"]
+        },
+        {
+          "shot": "1280-removed-card"
+        },
+        {
+          "sheetPressOptional": "Done"
+        },
+        {
+          "scrollTo": "Recovery"
+        },
+        {
+          "focused": null
+        },
+        {
+          "count": ["[role=dialog]", "[aria-label='Your account'] .sw--method"]
+        },
+        {
+          "report": "[aria-label='Your account'] .sw__name, [aria-label='Your account'] .sw__sub"
+        },
+        {
+          "shot": "1280-removed"
+        },
+        {
+          "rowActionOptional": {
+            "row": "Account authenticator app",
+            "action": "Remove"
+          }
+        },
+        {
+          "count": ["[role=dialog] .picker__opt", "[role=dialog] input"]
+        },
+        {
+          "accountTotpFreshCode": null
+        },
+        {
+          "sheetPressOptional": "Remove authenticator"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "report": "[role=dialog] h2, [role=dialog] .found__top, [role=dialog] .found__name"
+        },
+        {
+          "count": ["[role=dialog]", ".note"]
+        },
+        {
+          "shot": "1280-totp-removed"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-remove",
+      "width": 390,
+      "title": "Remove on the account passkey — 390 × 844",
+      "caption": "Remove opens the one sheet. On main the card only confirms; on this branch it names the proof the sign-in service will ask for and, since this account holds both kinds, offers the choice of which to prove with.",
+      "before": "card facts After / Vault; no proof named; .picker__opt 0; Remove passkey 161×44 + Keep it 101×44",
+      "after": "facts After / Vault / Proof (a passkey on your account); .picker__opt 2 (Passkey, Authenticator code) 322×44 each; Remove passkey 161×44 + Keep it 101×44"
+    },
+    {
+      "shot": "390-refused",
+      "width": 390,
+      "title": "A wrong authenticator code — 390 × 844",
+      "caption": "On this branch: Authenticator code, a wrong code, Remove passkey. The service answers 403 step_up_failed; the card shows an error mark in its live region, clears the code and puts the keyboard back in the field. The session holds and nothing is removed. On main the same presses remove the passkey with no proof at all.",
+      "before": "no choice, no field: Remove passkey sent DELETE /v1/mfa/factors/pk_… with no body and it was removed; sheet 0, .note 1, focus on BODY; account rows 2",
+      "after": "DELETE …/pk_… {proof:{kind:totp, code:000000}} → 403 step_up_failed; sheet 1, err StatusMark in output[aria-live=polite], .note 0; focus in the cleared Six digits field 286×44 (focus-visible); account rows 3, still signed in"
+    },
+    {
+      "shot": "390-removed-card",
+      "width": 390,
+      "title": "Proved with the passkey — 390 × 844",
+      "caption": "Passkey, then Remove passkey: the browser's virtual authenticator asserts over the challenge minted for removing this one factor, the delete carries the assertion, and the card says Removed with an ok mark and the keyboard on Done.",
+      "before": "sheet 0 (already removed with no proof); focus on BODY; .note 1",
+      "after": "POST authentication-options {purpose:factor.remove, factorId:pk_…}; DELETE …/pk_… {proof:{kind:passkey, …assertion}} → 200; card Removed, ok StatusMark (live polite), focus on Done 75×44; .note 0"
+    },
+    {
+      "shot": "390-removed",
+      "width": 390,
+      "title": "Back in the list — 390 × 844",
+      "caption": "Done closes the sheet; the row that opened it is gone, and the keyboard lands on the panel's next action instead of falling to the page.",
+      "before": "account rows 2; focus on BODY",
+      "after": "account rows 2; focus on the panel's Add key 44×44, not the page"
+    },
+    {
+      "shot": "390-totp-removed",
+      "width": 390,
+      "title": "The last factor proves itself — 390 × 844",
+      "caption": "With only the authenticator left, Remove asks for its own current code (the next one: a code is accepted once) and removes it.",
+      "before": "DELETE /v1/mfa/factors/totp with no body → removed; sheet 0; .note 1",
+      "after": "one kind left: .picker__opt 0, Six digits 1; DELETE /v1/mfa/factors/totp {proof:{kind:totp, code:<next step's>}} → 200; card Removed, ok mark; .note 0"
+    },
+    {
+      "shot": "1280-remove",
+      "width": 1280,
+      "title": "Remove on the account passkey — 1280 × 900",
+      "caption": "Remove opens the one sheet. On main the card only confirms; on this branch it names the proof the sign-in service will ask for and, since this account holds both kinds, offers the choice of which to prove with.",
+      "before": "card facts After / Vault; no proof named; .picker__opt 0; Remove passkey 161×36 + Keep it 101×36",
+      "after": "facts After / Vault / Proof; .picker__opt 2, 355×39 each; Remove passkey 161×36 + Keep it 101×36"
+    },
+    {
+      "shot": "1280-refused",
+      "width": 1280,
+      "title": "A wrong authenticator code — 1280 × 900",
+      "caption": "On this branch: Authenticator code, a wrong code, Remove passkey. The service answers 403 step_up_failed; the card shows an error mark in its live region, clears the code and puts the keyboard back in the field. The session holds and nothing is removed. On main the same presses remove the passkey with no proof at all.",
+      "before": "DELETE /v1/mfa/factors/pk_… with no body → removed; sheet 0, .note 1, focus on BODY",
+      "after": "DELETE {proof:{kind:totp, code:000000}} → 403 step_up_failed; err StatusMark (live polite), .note 0; focus in the cleared field 319×34 (focus-visible); account rows 3"
+    },
+    {
+      "shot": "1280-removed-card",
+      "width": 1280,
+      "title": "Proved with the passkey — 1280 × 900",
+      "caption": "Passkey, then Remove passkey: the browser's virtual authenticator asserts over the challenge minted for removing this one factor, the delete carries the assertion, and the card says Removed with an ok mark and the keyboard on Done.",
+      "before": "sheet 0; focus on BODY; .note 1",
+      "after": "factor.remove challenge → assertion on the DELETE → 200; card Removed, ok mark, focus on Done 75×36; .note 0"
+    },
+    {
+      "shot": "1280-removed",
+      "width": 1280,
+      "title": "Back in the list — 1280 × 900",
+      "caption": "Done closes the sheet; the row that opened it is gone, and the keyboard lands on the panel's next action instead of falling to the page.",
+      "before": "account rows 2; focus on BODY",
+      "after": "account rows 2; focus on the panel's Add key"
+    },
+    {
+      "shot": "1280-totp-removed",
+      "width": 1280,
+      "title": "The last factor proves itself — 1280 × 900",
+      "caption": "With only the authenticator left, Remove asks for its own current code (the next one: a code is accepted once) and removes it.",
+      "before": "DELETE /v1/mfa/factors/totp with no body → removed; .note 1",
+      "after": "the authenticator proves itself: DELETE {proof:{kind:totp}} → 200; card Removed, ok mark; .note 0"
+    }
+  ]
+}

@@ -3287,6 +3287,14 @@ body {
   gap: 0.35rem;
 }
 
+/* A picker grouped for assistive tech draws no fieldset box of its own. */
+fieldset.picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .picker__opt {
   appearance: none;
   display: flex;
@@ -3550,7 +3558,8 @@ body {
   }
 
   /* A choice in a ceremony is a row you tap, not a line you click. */
-  .alt__btn {
+  .alt__btn,
+  .picker__opt {
     min-height: 2.75rem;
   }
 

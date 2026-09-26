@@ -19,6 +19,15 @@
  * when the journey says `"passkeyAssert": "refuse"`, turned down with the
  * Identity API's own 401 `{ ok: false }`, to show a passkey saved but not
  * tried to the end.
+ *
+ * Removal (ADR 0146). A delete that carries a proof is verified the way the
+ * Identity API does: a code must be the seed's current one, and a step is
+ * accepted once (shared with `/totp/verify`); an assertion must be a
+ * `webauthn.get` over the challenge minted for removing that one factor
+ * (`authentication-options` with `{purpose: "factor.remove", factorId}`),
+ * spent once. A wrong proof is the service's 403 `step_up_failed`. A delete
+ * with no proof at all is answered as the service before ADR 0146 answered
+ * it — removed — so a capture of the base build walks the base's own flow.
  */
 
 import { createHash, createHmac, randomBytes } from "node:crypto";
@@ -37,6 +46,16 @@ function base32Decode(text) {
     bytes.push(Number.parseInt(bits.slice(i, i + 8), 2));
   }
   return Buffer.from(bytes);
+}
+
+/** The last RFC 6238 step the stand-in accepted a code for (RFC 6238 §5.2). */
+let spentStep = -1;
+
+function spendCode(code) {
+  const step = Math.floor(Date.now() / 30_000);
+  if (code !== totpNow() || step <= spentStep) return false;
+  spentStep = step;
+  return true;
 }
 
 /** RFC 6238, SHA-1, six digits, 30-second steps. */
@@ -64,6 +83,7 @@ export function factorState({ assert = "accept" } = {}) {
     challenge: null,
     assertChallenge: null,
     credentialIds: [],
+    removal: null,
     assert,
   };
 }
@@ -78,6 +98,24 @@ function clientData(encoded) {
 
 /** The one try of a passkey just added: its options, then its assertion. */
 function answerTry(state, at, body, rpId) {
+  if (
+    at === "POST /v1/mfa/passkey/authentication-options" &&
+    body.purpose === "factor.remove"
+  ) {
+    if (!state.factors.some((factor) => factor.id === body.factorId)) {
+      return [404, { ok: false, error: "not_found" }];
+    }
+    const challenge = randomBytes(32).toString("base64url");
+    state.removal = { challenge, factorId: body.factorId };
+    return [
+      200,
+      {
+        ok: true,
+        challenge,
+        options: { challenge, rpId, userVerification: "required" },
+      },
+    ];
+  }
   if (at === "POST /v1/mfa/passkey/authentication-options") {
     state.assertChallenge = randomBytes(32).toString("base64url");
     return [
@@ -185,12 +223,15 @@ export function answerFactors(state, at, request, pagesOrigin) {
     ];
   }
   if (at === "POST /v1/mfa/totp/verify") {
-    return body.code === totpNow() ? [200, { ok: true }] : [401, { ok: false }];
+    return spendCode(body.code) ? [200, { ok: true }] : [401, { ok: false }];
   }
   const removal = /^DELETE \/v1\/mfa\/factors\/(totp|pk_[0-9a-f]{32})$/.exec(
     at,
   );
   if (removal) {
+    if (body.proof && !proved(state, removal[1], body.proof)) {
+      return [403, { ok: false, error: "step_up_failed" }];
+    }
     const before = state.factors.length;
     state.factors = state.factors.filter((factor) => factor.id !== removal[1]);
     return state.factors.length === before
@@ -198,6 +239,20 @@ export function answerFactors(state, at, request, pagesOrigin) {
       : [200, { ok: true, id: removal[1] }];
   }
   return null;
+}
+
+/** A removal's proof, checked as the Identity API checks it (ADR 0146). */
+function proved(state, factorId, proof) {
+  if (proof.kind === "totp") return spendCode(proof.code);
+  const minted = state.removal;
+  state.removal = null;
+  const client = clientData(proof.clientDataJSON ?? "");
+  return (
+    proof.kind === "passkey" &&
+    minted?.factorId === factorId &&
+    client?.type === "webauthn.get" &&
+    client.challenge === minted.challenge
+  );
 }
 
 export function factorSteps({ press }) {
@@ -213,6 +268,19 @@ export function factorSteps({ press }) {
           has: page.locator(".sw__name", { hasText: row }),
         })
         .getByRole("button", { name: action, exact: true })
+        .first();
+      if (!(await target.count()) || !(await target.isEnabled())) return;
+      await press(target);
+      await page.waitForTimeout(1200);
+    },
+    /**
+     * Press the key with exactly this name inside the open sheet, when there
+     * is one and it has that key — never a same-named key behind it.
+     */
+    async sheetPressOptional(page, name) {
+      const target = page
+        .locator("[role=dialog]")
+        .getByRole("button", { name, exact: true })
         .first();
       if (!(await target.count()) || !(await target.isEnabled())) return;
       await press(target);
@@ -237,6 +305,20 @@ export function factorSteps({ press }) {
     async accountTotpCode(page) {
       const field = page.getByLabel("Six digits", { exact: true }).first();
       if (!(await field.count())) return;
+      await field.fill(totpNow());
+      await page.waitForTimeout(300);
+    },
+    /**
+     * The same, once the authenticator shows a code the stand-in has not
+     * accepted yet: a step is good once (RFC 6238 §5.2), so a person
+     * waits for the next code rather than typing the one just used.
+     */
+    async accountTotpFreshCode(page) {
+      const field = page.getByLabel("Six digits", { exact: true }).first();
+      if (!(await field.count())) return;
+      while (Math.floor(Date.now() / 30_000) <= spentStep) {
+        await page.waitForTimeout(1000);
+      }
       await field.fill(totpNow());
       await page.waitForTimeout(300);
     },
