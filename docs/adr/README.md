@@ -185,4 +185,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0143](0143-travel-mode.md) | Travel mode | Accepted |
 | [0144](0144-tailnet-vault-sync.md) | Tailnet vault sync: a dumb drive, a device-side merge | Accepted |
 | [0145](0145-nats-feature-usage.md) | Using NATS fully: delivery semantics, services, mixed-mode callout | Accepted |
-| [0146](0146-connector-plans-and-user-token-proof.md) | Connector plans, whole-configuration connectors, and the user-token proof | Accepted |
+| [0146](0146-account-factor-removal-step-up.md) | Removing an account factor takes a step-up | Accepted |
+| [0147](0147-connector-plans-and-user-token-proof.md) | Connector plans, whole-configuration connectors, and the user-token proof | Accepted |

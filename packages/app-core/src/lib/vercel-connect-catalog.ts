@@ -1,5 +1,5 @@
 /**
- * The Connections catalog on Vercel Connect (ADR 0146): one row per connector
+ * The Connections catalog on Vercel Connect (ADR 0147): one row per connector
  * plan — every service in Vercel's registry, plus the catalog rows it does
  * not list — each configurable, because each plan carries a way in (Vercel's
  * app, a self-registering MCP server, an OAuth preset, an API key, or the

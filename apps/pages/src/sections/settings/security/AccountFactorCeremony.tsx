@@ -3,12 +3,15 @@ import {
   type PasskeyCheckMiss,
   enrollAccountPasskey,
   hostAccountPasskeyAuthenticator,
-  removeAccountFactor,
 } from "@opensesame/app-core/lib/account-factors.js";
 import { useEffect, useRef, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { firstControl, landFocus } from "../../../lib/focus.js";
+import {
+  AccountFactorRemoval,
+  type RemovalFactor,
+} from "./AccountFactorRemoval.js";
 import { AccountTotpCeremony } from "./AccountTotpCeremony.js";
 import type { Run } from "./run.js";
 
@@ -57,39 +60,20 @@ export function AccountFactorCeremony({
 }: {
   kind: AccountMethodKind;
   view: View;
-  factor: { id: string; name: string } | undefined;
+  factor: RemovalFactor | undefined;
   busy: boolean;
   run: Run;
   onDone: () => void;
   setFoot: Setter;
 }) {
   if (view === "remove" && factor) {
-    const passkey = kind === "account-passkey";
     return (
-      <CeremonyShell
-        ok={false}
-        top={passkey ? "Remove this passkey?" : "Remove the authenticator?"}
-        name={factor.name}
-        facts={[
-          {
-            key: "After",
-            value: passkey
-              ? "your sign-in service stops accepting it"
-              : "your sign-in service stops asking for its codes",
-          },
-          { key: "Vault", value: "untouched; its keys keep working" },
-        ]}
-        primary={{
-          label: passkey ? "Remove passkey" : "Remove authenticator",
-          tone: "danger",
-          busy,
-          onClick: () =>
-            void run(async () => {
-              await removeAccountFactor(factor.id);
-              onDone();
-            }, `${ACCOUNT_TITLE[kind]} removed.`),
-        }}
-        secondary={{ label: "Keep it", onClick: onDone }}
+      <AccountFactorRemoval
+        passkey={kind === "account-passkey"}
+        factor={factor}
+        busy={busy}
+        run={run}
+        onDone={onDone}
       />
     );
   }

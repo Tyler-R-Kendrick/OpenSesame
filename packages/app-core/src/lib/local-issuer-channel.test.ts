@@ -35,24 +35,77 @@ function connect(
   origin = "https://rp.example.test",
   source = opener,
   state = request.state,
+  version?: string,
 ) {
   const pipe = new MessageChannel();
   pipes.push(pipe);
+  const data: Record<string, string> = {
+    type: "opensesame:local:connect",
+    state,
+  };
+  if (version !== undefined) data.version = version;
   browser.dispatchEvent(
     Object.assign(new Event("message"), {
       origin,
       source,
-      data: { type: "opensesame:local:connect", state },
+      data,
       ports: [pipe.port2],
     }),
   );
   return pipe.port1;
 }
+function inbox(port: MessagePort) {
+  const messages: unknown[] = [];
+  port.onmessage = (event: MessageEvent) => {
+    messages.push(event.data);
+  };
+  return messages;
+}
 it("addresses readiness only to the expected relying-party origin", () => {
   expect(opener.postMessage).toHaveBeenCalledWith(
-    { type: "opensesame:local:ready", state: request.state },
+    { type: "opensesame:local:ready", state: request.state, version: "1" },
     "https://rp.example.test",
   );
+});
+it("acknowledges a versioned connect first, on the transferred port only", async () => {
+  const port = connect("https://rp.example.test", opener, request.state, "1");
+  const messages = inbox(port);
+  port.postMessage({ type: "userinfo", state: request.state, id: "1" });
+  await vi.waitFor(() => expect(messages).toHaveLength(3));
+  expect(messages).toMatchObject([
+    { type: "connected", state: request.state, version: "1" },
+    { type: "error", id: "1", error: "authorization_unavailable" },
+    { type: "closed", state: request.state },
+  ]);
+  expect(opener.postMessage).toHaveBeenCalledOnce();
+});
+it("sends no acknowledgement to a relying party that did not ask for one", async () => {
+  for (const version of [undefined, "2"]) {
+    issuer.close();
+    issuer = new LocalIssuerChannel("test", request, status);
+    const port = connect(
+      "https://rp.example.test",
+      opener,
+      request.state,
+      version,
+    );
+    const messages = inbox(port);
+    port.postMessage({ type: "userinfo", state: request.state, id: "1" });
+    await vi.waitFor(() => expect(messages).toHaveLength(2));
+    expect(messages).toMatchObject([{ type: "error" }, { type: "closed" }]);
+  }
+});
+it("never acknowledges a connect it refused", async () => {
+  const refused = connect(
+    "https://attacker.example.test",
+    opener,
+    request.state,
+    "1",
+  );
+  const messages = inbox(refused);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(messages).toEqual([]);
+  expect(status).not.toHaveBeenCalled();
 });
 it("refuses wrong origin, source and state before accepting one channel", () => {
   connect("https://attacker.example.test");

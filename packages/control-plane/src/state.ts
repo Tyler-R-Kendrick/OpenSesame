@@ -170,6 +170,8 @@ export interface AppStores {
   idempotency: Map<string, IdempotencyRecord>;
   /** principalId → base64 TOTP secret */
   totpSecrets: SecurityMap<string>;
+  /** principalId → the last TOTP step accepted (RFC 6238 §5.2 replay ledger) */
+  totpSteps: SecurityMap<number>;
   /** claimId → failed user-code approval attempts (brute-force fence) */
   claimApprovalAttempts: SecurityMap<number>;
   /** mfa subject → failed verification attempts (brute-force fence) */
@@ -260,6 +262,7 @@ export function createAppStores(options?: {
     usage: new Map(),
     idempotency: new Map(),
     totpSecrets: new Map(),
+    totpSteps: new Map(),
     claimApprovalAttempts: new Map(),
     mfaFailures: new Map(),
     mfaCodes: new Map(),

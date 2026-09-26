@@ -59,7 +59,7 @@ behaviour) and `shuttle` (concurrency). Each writes its report under
 | `battle-test.sh` | part of `verify` | The cross-plane battle test. |
 | `task-security-battle-test.sh` | `test:task-access` | Task-access engine under attack scenarios. |
 | `nats-dogfood-test.sh` | `test:nats-dogfood` | TaskBus against a real `nats-server`. |
-| `connect-preflight.mjs` | `test:connect-preflight` | Every connector's real endpoints, read-only: OAuth authorize and discovery, MCP metadata, API-key verify ([ADR 0146](../docs/adr/0146-connector-plans-and-user-token-proof.md)). Logic in `lib/connect-preflight.mjs`. |
+| `connect-preflight.mjs` | `test:connect-preflight` | Every connector's real endpoints, read-only: OAuth authorize and discovery, MCP metadata, API-key verify ([ADR 0147](../docs/adr/0147-connector-plans-and-user-token-proof.md)). Logic in `lib/connect-preflight.mjs`. |
 | `live-stack-test.sh` | `test:live-stack` | Live OpenFGA, OpenBao and gateway (start them with `dev/start-native-deps.sh`). |
 | `authority-fabric-gate.mjs` | `test:authority-fabric` | The general-authority scenario matrix across both planes. |
 | `rust-lint-contract-test.sh` | `test:rust-lint` | The rustfmt/Clippy wiring itself. |

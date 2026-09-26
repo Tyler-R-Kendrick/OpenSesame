@@ -1,0 +1,80 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "arrive": "invoke/totp" },
+        { "address": null },
+        { "report": "main h2" },
+        { "marks": null },
+        { "measure": "main .status-mark" },
+        { "measure": "main .status-mark svg" },
+        { "measure": "main h2" },
+        { "shot": "390-mark-at-rest" },
+        { "holdMark": null },
+        { "bubble": null },
+        { "measure": ".status-bubble" },
+        { "shot": "390-mark-held" },
+        { "escape": null },
+        { "bubble": null },
+        { "tapMark": null },
+        { "bubble": null },
+        { "measure": ".status-bubble" },
+        { "measure": "main h2" },
+        { "shot": "390-mark-tapped" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "arrive": "invoke/totp" },
+        { "report": "main h2" },
+        { "marks": null },
+        { "measure": "main .status-mark" },
+        { "measure": "main h2" },
+        { "tapMark": null },
+        { "bubble": null },
+        { "measure": ".status-bubble" },
+        { "shot": "1280-mark-clicked" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-mark-at-rest",
+      "width": 390,
+      "title": "/invoke/totp at rest — 390 × 844, touch",
+      "caption": "The refusal's reason is carried by one mark. The target grows; nothing drawn moves.",
+      "before": "mark 20×20 @252,76 · glyph 14×14 @255,79 · h2 256×27",
+      "after": "mark 44×44 @240,64 · glyph 14×14 @255,79 · h2 256×27"
+    },
+    {
+      "shot": "390-mark-held",
+      "width": 390,
+      "title": "Long press on the mark — 390 × 844, touch",
+      "caption": "A finger held on the mark for 700ms, then lifted.",
+      "before": "bubble: none — the reason cannot be read by touch",
+      "after": "bubble 254×28 @128,30: “Unknown authenticator request.”"
+    },
+    {
+      "shot": "390-mark-tapped",
+      "width": 390,
+      "title": "Tap on the mark — 390 × 844, touch",
+      "caption": "Escape closed the held bubble (bubble: none), then a plain tap: nothing is gesture-only.",
+      "before": "bubble: none",
+      "after": "bubble 254×28 @128,30 · h2 unchanged 256×27"
+    },
+    {
+      "shot": "1280-mark-clicked",
+      "width": 1280,
+      "title": "Click on the mark — 1280 × 900, mouse",
+      "caption": "A mouse keeps its title on hover and its 20px mark; a click shows the same sentence.",
+      "before": "mark 20×20 @268,86 · bubble: none",
+      "after": "mark 20×20 @268,86 · bubble 254×28 @151,51"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Emit `server/connect-verify-targets.generated.mjs` (ADR 0146): for each
+ * Emit `server/connect-verify-targets.generated.mjs` (ADR 0147): for each
  * service, the one read-only call the relay's token proof may make with a
  * freshly acquired token — per connection method, from
  * `spec/connectors/connect-presets.json` and the MCP servers in

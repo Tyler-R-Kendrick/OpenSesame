@@ -1,4 +1,4 @@
-# Connectors on Vercel Connect (ADR 0146)
+# Connectors on Vercel Connect (ADR 0147)
 
 Every service on the Connections page opens with its whole configuration
 filled in — the OAuth server, client authentication, PKCE, scopes and their

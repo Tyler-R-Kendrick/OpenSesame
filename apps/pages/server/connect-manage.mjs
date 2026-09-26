@@ -1,5 +1,5 @@
 /**
- * Configured connectors (ADR 0146): the create body the page built from a
+ * Configured connectors (ADR 0147): the create body the page built from a
  * connector plan, reading and editing a connector, and proving a person's
  * token can be acquired. Every route here sits behind the management key
  * (`manage-auth.mjs`); the relay holds the Vercel token, never the page.

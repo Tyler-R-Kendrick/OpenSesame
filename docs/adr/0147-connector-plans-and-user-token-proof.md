@@ -1,4 +1,4 @@
-# ADR 0146 — Connector plans, whole-configuration connectors, and the user-token proof
+# ADR 0147 — Connector plans, whole-configuration connectors, and the user-token proof
 
 - Status: Accepted
 - Date: 2026-09-25

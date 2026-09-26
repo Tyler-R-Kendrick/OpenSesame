@@ -14,19 +14,25 @@
  * through the host's WebAuthn port, and then tried once (plan step 11c): the
  * one assertion the Identity API accepts without a session, answered with no
  * bearer. A try that does not finish leaves the passkey registered and says
- * so, rather than calling it failed. Every refusal becomes one sentence from
- * `ACCOUNT_FACTOR_WORDS`; a transport failure, a refused code and an
- * unreadable answer are told apart only where the person can act on it.
+ * so, rather than calling it failed. Removing a factor is proved first (ADR
+ * 0146): a passkey assertion over a challenge minted for that one removal,
+ * or the authenticator's current code, sent on the delete itself. Every
+ * refusal becomes one sentence from `ACCOUNT_FACTOR_WORDS`
+ * (`./account-factor-words.ts`).
  *
  * Shown only where an Identity API is configured and a session is held
  * (`accountFactorsOffered`): with neither, the Security list draws no row and
  * says nothing (ADR 0090).
  */
 
+import { InteractionStepUpError } from "@opensesame/ceremony-kit";
 import {
+  ACCOUNT_FACTOR_REMOVE_PURPOSE,
   type AccountFactor,
   type AccountFactorKind,
   type AccountFactorList,
+  type AccountFactorProof,
+  type AccountFactorStepUpRequest,
   type BoundaryValue,
   type JsonObject,
   TOTP_FACTOR_ID,
@@ -42,7 +48,9 @@ import {
   parsePublicKeyCredentialCreationOptionsJson,
   registrationResponseJson,
 } from "@opensesame/sdk-browser";
+import { parseTotp, totpCode } from "@opensesame/vault-core";
 import { credentials, publicKeyCredentialApi } from "../ports.js";
+import { AccountFactorError, refusalOf } from "./account-factor-words.js";
 import {
   type AccountPasskeyEnrolment,
   type PasskeyAsserter,
@@ -63,52 +71,11 @@ export {
   type PasskeyCheckMiss,
 } from "./account-passkey-check.js";
 
-/** Every way a factor ceremony can end short, as the person is told it. */
-export const ACCOUNT_FACTOR_WORDS = {
-  signed_out: "Your session ended. Sign in again, then try once more.",
-  unreachable: "Your sign-in service did not answer. Nothing changed.",
-  invalid_response:
-    "Your sign-in service answered with something this app cannot read. Nothing changed.",
-  unavailable: "This browser cannot make a passkey.",
-  cancelled: "No passkey was made. Nothing changed.",
-  invalid_credential:
-    "The passkey the browser made could not be read. Nothing was saved.",
-  not_accepted:
-    "Your sign-in service did not accept that passkey. Nothing was saved.",
-  totp_unavailable: "Your sign-in service does not offer authenticator codes.",
-  not_enrolled: "No authenticator setup is waiting. Start again.",
-  wrong_code:
-    "That code did not match. Wait for the next one, then enter it before it changes.",
-  too_many_attempts:
-    "Too many codes tried. Wait a few minutes, then start again.",
-  rate_limited: "Too many tries. Wait a minute, then try again.",
-  not_found: "That factor is already gone.",
-  failed: "That did not work. Nothing changed.",
-} as const;
-
-export type AccountFactorRefusal = keyof typeof ACCOUNT_FACTOR_WORDS;
-
-export class AccountFactorError extends Error {
-  readonly code: AccountFactorRefusal;
-  constructor(code: AccountFactorRefusal) {
-    super(ACCOUNT_FACTOR_WORDS[code]);
-    this.name = "AccountFactorError";
-    this.code = code;
-  }
-}
-
-/** The service's error codes, by what the person is told. */
-const SERVICE_ERRORS: Readonly<Record<string, AccountFactorRefusal>> = {
-  unauthorized: "signed_out",
-  registration_verification_failed: "not_accepted",
-  registration_attestation_required: "not_accepted",
-  invalid_request: "not_accepted",
-  totp_dev_only: "totp_unavailable",
-  not_enrolled: "not_enrolled",
-  too_many_attempts: "too_many_attempts",
-  rate_limited: "rate_limited",
-  not_found: "not_found",
-};
+export {
+  ACCOUNT_FACTOR_WORDS,
+  AccountFactorError,
+  type AccountFactorRefusal,
+} from "./account-factor-words.js";
 
 export interface AccountFactorTransport {
   /** An Identity API call for the signed-in principal; `path` is base-relative. */
@@ -190,17 +157,6 @@ async function bodyOf(res: Response): Promise<BoundaryValue> {
   } catch {
     return null;
   }
-}
-
-function refusalOf(status: number, body: BoundaryValue): AccountFactorError {
-  const code =
-    isJsonObject(body) && isString(body.error) ? body.error : undefined;
-  if (code !== undefined && SERVICE_ERRORS[code]) {
-    return new AccountFactorError(SERVICE_ERRORS[code]);
-  }
-  if (status === 401) return new AccountFactorError("signed_out");
-  if (status === 429) return new AccountFactorError("rate_limited");
-  return new AccountFactorError("failed");
 }
 
 async function call(
@@ -310,16 +266,69 @@ export async function confirmAccountTotp(
   throw refusalOf(res.status, body);
 }
 
-/** Remove one of the account's factors by its handle. */
+/** How the person proves it is them before a factor goes (ADR 0146). */
+export type AccountFactorStepUp =
+  | { kind: "passkey" }
+  | { kind: "totp"; code: string };
+
+async function gatherRemovalProof(
+  id: string,
+  stepUp: AccountFactorStepUp,
+  binding: AccountFactorBinding,
+): Promise<AccountFactorProof> {
+  if (stepUp.kind === "totp") {
+    const code = stepUp.code.replace(/\D/g, "");
+    if (code.length !== 6) throw new AccountFactorError("wrong_code");
+    return { kind: "totp", code };
+  }
+  if (!binding.authenticator.available()) {
+    throw new AccountFactorError("unavailable");
+  }
+  const request: AccountFactorStepUpRequest = {
+    purpose: ACCOUNT_FACTOR_REMOVE_PURPOSE,
+    factorId: id,
+  };
+  const minted = await call(
+    binding.transport,
+    "/v1/mfa/passkey/authentication-options",
+    { method: "POST", body: JSON.stringify(request) },
+  );
+  if (!minted.res.ok) throw refusalOf(minted.res.status, minted.body);
+  const options = isJsonObject(minted.body) ? minted.body.options : null;
+  if (!isJsonObject(options)) throw new AccountFactorError("invalid_response");
+  try {
+    return {
+      kind: "passkey",
+      ...(await binding.authenticator.assert(options)),
+    };
+  } catch (error) {
+    // A dismissed sheet and a timeout are one fact: there is no proof, and
+    // nothing is sent after this.
+    const dismissed =
+      error instanceof InteractionStepUpError && error.reason === "cancelled";
+    throw new AccountFactorError(dismissed ? "step_up_cancelled" : "failed");
+  }
+}
+
+/**
+ * Remove one of the account's factors by its handle, proved first (ADR
+ * 0146): the service strips nothing on the strength of the session alone.
+ * The proof is gathered here — an assertion over a challenge the service
+ * minted for removing this one factor, or the authenticator's current code
+ * — and sent on the delete itself. A refused proof answers 403, which the
+ * session plane does not read as a dead session.
+ */
 export async function removeAccountFactor(
   id: string,
-  transport: AccountFactorTransport = identityAccountFactorTransport,
+  stepUp: AccountFactorStepUp,
+  binding: AccountFactorBinding = PAGES_BINDING,
 ): Promise<void> {
   if (!isAccountFactorId(id)) throw new AccountFactorError("not_found");
+  const proof = await gatherRemovalProof(id, stepUp, binding);
   const { res, body } = await call(
-    transport,
+    binding.transport,
     `/v1/mfa/factors/${encodeURIComponent(id)}`,
-    { method: "DELETE" },
+    { method: "DELETE", body: JSON.stringify({ proof }) },
   );
   if (!res.ok) throw refusalOf(res.status, body);
 }
@@ -327,13 +336,21 @@ export async function removeAccountFactor(
 /**
  * Close an authenticator setup that never matched a code. The service wrote
  * the seed when it made it, so an abandoned setup is removed rather than left
- * as a factor nobody scanned; one already gone is not an error.
+ * as a factor nobody scanned; one already gone is not an error. The setup
+ * link is still in memory, so the seed proves its own removal with the
+ * code it computes now.
  */
 export async function abandonAccountTotp(
+  link: string,
   transport: AccountFactorTransport = identityAccountFactorTransport,
 ): Promise<void> {
   try {
-    await removeAccountFactor(TOTP_FACTOR_ID, transport);
+    const code = await totpCode(parseTotp(link));
+    await removeAccountFactor(
+      TOTP_FACTOR_ID,
+      { kind: "totp", code },
+      { transport, authenticator: hostAccountPasskeyAuthenticator },
+    );
   } catch (error) {
     if (error instanceof AccountFactorError && error.code === "not_found") {
       return;

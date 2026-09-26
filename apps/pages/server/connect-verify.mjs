@@ -1,5 +1,5 @@
 /**
- * The token proof's second half (ADR 0146): which of a service's pinned
+ * The token proof's second half (ADR 0147): which of a service's pinned
  * verify calls fits a connector, the values its `{placeholders}` take from the
  * connector's own stored endpoints, and the call itself — the pinned URL, the
  * token, no redirects, a bounded read. The target comes from the pinned

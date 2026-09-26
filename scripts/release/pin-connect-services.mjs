@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Re-pin `spec/connectors/connect-services.json` (ADR 0146): Vercel Connect's
+ * Re-pin `spec/connectors/connect-services.json` (ADR 0147): Vercel Connect's
  * public service registry (`GET https://api.vercel.com/v1/connect/services`,
  * no credential), icons dropped, plus the live OAuth discovery of every MCP
  * server it lists (RFC 9728 → RFC 8414 / OIDC). Reads only well-known
