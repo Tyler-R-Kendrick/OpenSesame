@@ -122,9 +122,13 @@ hold: a blank secret keeps the stored one.
 
 ### 5. Access is the share ledger
 
-A connector page's Access panel writes `connection` shares
+A connector is configured on its Connections page; who may use it is decided
+on Access › Connectors, which lists every connector the Connections page
+lists (the same `listConnections()`, Vercel Connect, Host or device) beside
+any synced directory's. A binding there writes a `connection` share
 (`local-share-grants.ts`) — person or agent, policy, duration — the ledger
-Access › Resources already reads (ADR 0115). No second authority model.
+Access › Resources already reads (ADR 0115). The connector page carries no
+access panel of its own: one place to grant, no second authority model.
 
 ## Consequences
 
