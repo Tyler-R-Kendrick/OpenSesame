@@ -129,7 +129,7 @@
       "title": "Front door, reset opened — 390 × 844, touch",
       "caption": "Pressing the question opens the consequence and two keys: erase, or keep. Focus lands on Keep.",
       "before": "nothing to open",
-      "after": "panel 277×179 @57,484 · keys 44×44 @72,604 and @124,604"
+      "after": "panel 277×159 @57,484 · keys 44×44 @72,585 and @124,585"
     },
     {
       "shot": "390-unlock",
@@ -145,7 +145,7 @@
       "title": "Unlock form, reset opened — 390 × 844, touch",
       "caption": "The guest road stays on screen while the panel is open (AGENTS.md §5).",
       "before": "nothing to open",
-      "after": "panel 277×179 @53,500 · keys 44×44 @68,621 and @120,621"
+      "after": "panel 277×159 @53,500 · keys 44×44 @68,602 and @120,602"
     },
     {
       "shot": "1280-front-door",
@@ -161,7 +161,7 @@
       "title": "Unlock form, reset opened — 1280 × 900, mouse",
       "caption": "Desktop unlock form with the panel open. The keys match the existing \"Forgotten how to unlock?\" panel: a danger key and a small Keep key.",
       "before": "foot: guest @157,561 · forgotten @157,589, nothing to open",
-      "after": "panel 277×167 @157,529 · erase 32×32, keep 24×24"
+      "after": "panel 277×147 @157,539 · erase 32×32, keep 24×24"
     }
   ]
 }

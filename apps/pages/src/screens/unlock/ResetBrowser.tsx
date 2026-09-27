@@ -73,8 +73,8 @@ export function ResetBrowser() {
     >
       <p>
         Resetting erases every vault, sign-in and setting this app keeps in this
-        browser, and its offline copy, then starts again as a first visit.
-        Anything not backed up elsewhere is gone.
+        browser, then starts again as a first visit. Anything not backed up
+        elsewhere is gone.
       </p>
       <div className="actions">
         <IconKey

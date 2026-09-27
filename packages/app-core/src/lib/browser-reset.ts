@@ -10,6 +10,11 @@
  * registration goes. Other tabs of this origin are told, so they reload
  * rather than write what they hold in memory back into an emptied origin.
  *
+ * Offline, the app shell stays: the Cache API holds only the service
+ * worker's release assets, never anything a person stored, and removing them
+ * with no network would leave the reload that follows nothing to load. Those
+ * two areas are reported as kept, and the next online reset removes them.
+ *
  * Not forensic erasure: what the browser keeps beyond the app's reach (the
  * HttpOnly cookie the Identity API sets, the HTTP cache, a granted storage
  * persistence) stays, and ciphertext already pushed to a backup remote is
@@ -18,6 +23,7 @@
 
 import {
   type WebStorage,
+  isOnline,
   maybeCacheStorage,
   maybeIndexedDatabases,
   maybeLocalStore,
@@ -37,11 +43,21 @@ export type BrowserResetArea =
   | "caches"
   | "service_workers";
 
-/** What went, and what could not be removed. Every area is attempted. */
+/**
+ * What went, what could not be removed, and what was kept on purpose (the
+ * app shell, offline). Every other area is attempted.
+ */
 export type BrowserResetReport = Readonly<{
   cleared: readonly BrowserResetArea[];
   failed: readonly BrowserResetArea[];
+  kept: readonly BrowserResetArea[];
 }>;
+
+/** The app shell: code the reload needs, never anything a person stored. */
+const SHELL: ReadonlySet<BrowserResetArea> = new Set([
+  "caches",
+  "service_workers",
+]);
 
 async function endSession(): Promise<void> {
   signOut();
@@ -136,7 +152,13 @@ const STEPS: readonly (readonly [
 export async function resetBrowser(): Promise<BrowserResetReport> {
   const cleared: BrowserResetArea[] = [];
   const failed: BrowserResetArea[] = [];
+  const kept: BrowserResetArea[] = [];
+  const online = isOnline();
   for (const [area, step] of STEPS) {
+    if (!online && SHELL.has(area)) {
+      kept.push(area);
+      continue;
+    }
     try {
       await step();
       cleared.push(area);
@@ -145,5 +167,5 @@ export async function resetBrowser(): Promise<BrowserResetReport> {
     }
   }
   announceBrowserReset();
-  return { cleared, failed };
+  return { cleared, failed, kept };
 }

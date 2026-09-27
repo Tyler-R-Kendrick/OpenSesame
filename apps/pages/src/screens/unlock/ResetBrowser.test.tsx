@@ -58,7 +58,7 @@ describe("ResetBrowser", () => {
     resetBrowserSeams.reset = () =>
       new Promise((resolve) => {
         order.push("reset");
-        finish = () => resolve({ cleared: [], failed: [] });
+        finish = () => resolve({ cleared: [], failed: [], kept: [] });
       });
     resetBrowserSeams.firstVisit = () => {
       order.push("firstVisit");

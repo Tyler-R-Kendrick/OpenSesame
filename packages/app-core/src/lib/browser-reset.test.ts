@@ -145,6 +145,7 @@ describe("resetBrowser", () => {
     const report = await resetBrowser();
 
     expect(report.failed).toEqual([]);
+    expect(report.kept).toEqual([]);
     expect(report.cleared).toEqual([
       "session",
       "origin_files",
@@ -182,6 +183,36 @@ describe("resetBrowser", () => {
     expect(report.failed).toEqual(["origin_files"]);
     expect(report.cleared).toContain("web_storage");
     expect(local.map.size).toBe(0);
+  });
+
+  it("offline, keeps the app shell so the reload has something to load", async () => {
+    const local = memoryStorage(["opensesame:settings", "{}"]);
+    const cacheNames = new Set(["shell-v1"]);
+    const unregister = vi.fn(async () => true);
+    sessionExitSeams.signOut = () => undefined;
+    configureHost(
+      createTestHost({
+        ...NO_PORTS,
+        storage: { local },
+        cacheStorage: overlapCast({
+          keys: async () => [...cacheNames],
+          delete: async (name: string) => cacheNames.delete(name),
+        }),
+        serviceWorker: overlapCast({
+          getRegistrations: async () => [{ unregister }],
+        }),
+        environment: overlapCast({ online: false }),
+      }),
+    );
+
+    const report = await resetBrowser();
+
+    expect(report.kept).toEqual(["caches", "service_workers"]);
+    expect(report.cleared).toContain("web_storage");
+    expect(report.failed).toEqual([]);
+    expect(local.map.size).toBe(0);
+    expect(cacheNames.size).toBe(1);
+    expect(unregister).not.toHaveBeenCalled();
   });
 
   it("another tab hears the reset; the tab that ran it does not", async () => {
