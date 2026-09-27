@@ -119,6 +119,8 @@ async function ensureConnectorShares(
   tomb: string,
   ownerId: string | null,
 ): Promise<void> {
+  // An unreadable trail fails open here, as the directory it seeds must still
+  // load: a damaged log should not lock a person out of Identity and Access.
   const trail = await listAccessAuditEvents(tomb).catch(() => []);
   for (const providerId of configuredProviderIds()) {
     const grants: [string, string][] = [[SUPPORT_AGENT_ID, "use"]];

@@ -140,6 +140,60 @@ export type RecordAccessAuditInput = {
  * Append one redacted Access audit event to the sealed vault ledger.
  * Uses the same allowlist as Identity-plane audit (ADR 0015).
  */
+/** Connector, principal and policy a grant or revocation decided, if named. */
+function decisionKey(event: LocalAccessAuditEvent): string | null {
+  if (
+    event.targetType !== "connection" ||
+    (event.eventType !== "access.connection.granted" &&
+      event.eventType !== "access.connection.revoked")
+  )
+    return null;
+  const { subject, policy } = event.metadata;
+  if (!isString(subject)) return null;
+  return JSON.stringify([
+    event.targetId,
+    subject,
+    isString(policy) ? policy : null,
+  ]);
+}
+
+/**
+ * Keep the newest MAX_EVENTS, newest first — except that a revocation which is
+ * still the newest decision for its connector, principal and policy is never
+ * the one trimmed: standing grants read it to stay revoked, and an aged-out
+ * revocation would quietly re-issue what a person took away. Trimming a grant
+ * is harmless — with no decision on the trail a standing grant is issued,
+ * which is what the grant said — and since the oldest events go first, a
+ * revocation a newer grant superseded is trimmed before that grant. The cap
+ * still holds.
+ */
+function retainEvents(
+  events: readonly LocalAccessAuditEvent[],
+): LocalAccessAuditEvent[] {
+  if (events.length <= MAX_EVENTS) return [...events];
+  const seen = new Set<string>();
+  const standing = new Set<LocalAccessAuditEvent>();
+  for (const event of events) {
+    const key = decisionKey(event);
+    if (key === null || seen.has(key)) continue;
+    seen.add(key);
+    if (event.eventType === "access.connection.revoked") standing.add(event);
+  }
+  // Slots left for everything else once every standing revocation is kept.
+  let room = Math.max(0, MAX_EVENTS - standing.size);
+  const kept: LocalAccessAuditEvent[] = [];
+  for (const event of events) {
+    if (kept.length === MAX_EVENTS) break;
+    if (standing.has(event)) {
+      kept.push(event);
+    } else if (room > 0) {
+      room -= 1;
+      kept.push(event);
+    }
+  }
+  return kept;
+}
+
 export async function recordAccessAuditEvent(
   tomb: string,
   input: RecordAccessAuditInput,
@@ -156,7 +210,7 @@ export async function recordAccessAuditEvent(
     metadata,
   };
   const current = await readAll(tomb);
-  const next = [event, ...current].slice(0, MAX_EVENTS);
+  const next = retainEvents([event, ...current]);
   await writeAll(tomb, next);
   const outcome =
     event.outcome === "succeeded" || event.outcome === "denied"
