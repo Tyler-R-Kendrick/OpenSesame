@@ -24,7 +24,11 @@ import {
   keys,
   recoveryRequest,
 } from "./recovery.fixture.js";
-import { LocalShareMaterialGuard, splitRecoverySecret } from "./shares.js";
+import {
+  LocalShareMaterialGuard,
+  combineRecoveryShares,
+  splitRecoverySecret,
+} from "./shares.js";
 
 const context = {
   vaultRef: "v1",
@@ -248,7 +252,13 @@ describe("authorizeReenrollment", () => {
       reconstructed: true,
       armed: false,
     });
-    expect([...kept].some((b) => b !== 0)).toBe(true);
+    // The new generation's shares carry the same secret, not a fresh one.
+    const again = await combineRecoveryShares({
+      shares: out.newShares.slice(0, 2),
+      macKey,
+      expect: { generation: 2, threshold: 2, ...context },
+    });
+    expect([...again]).toEqual([...kept]);
   });
 });
 

@@ -227,14 +227,16 @@ describe("ApprovalQuorumLedger", () => {
     expect(
       await ledger.submit({ ...signed, request: edited, nowMs: NOW }),
     ).toMatchObject({ reason: "authority_mismatch: request digest" });
-    const forged = await approve(request, approver, keys(), "x3");
-    const forgedResult = await ledger.submit({
-      ...forged,
+    // The right device, but an approval sealed under another MAC key.
+    const forged = await approve(
       request,
-      nowMs: NOW,
-    });
-    // The device key differs too, so the proof fails before the MAC.
-    expect(forgedResult).toMatchObject({ kind: "approval_rejected" });
+      approver,
+      { ...secrets, approval: key() },
+      "x3",
+    );
+    expect(
+      await ledger.submit({ ...forged, request, nowMs: NOW }),
+    ).toMatchObject({ reason: "tampered_approval" });
     const tampered = await ledger.submit({
       ...signed,
       approval: { ...signed.approval, approverRef: "someone-else" },
