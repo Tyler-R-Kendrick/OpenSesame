@@ -1,6 +1,6 @@
 /**
  * The complete WebMCP tool catalog, aggregated in registration order for the
- * parity and lifecycle tests and for the legacy `useWebMcp` hook.
+ * registry-parity and agent-boundary tests. Nothing at runtime imports it.
  *
  * Runtime registration no longer goes through this list. Each group is
  * contributed as `webmcp-tool` entries by the capability that owns its

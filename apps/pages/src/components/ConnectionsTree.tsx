@@ -17,29 +17,8 @@ import {
 } from "../sections/connections/page-tree.js";
 import { useRailConnections } from "./ConnectionsNavigation.js";
 import { PageTreeBranch } from "./PageTreeBranch.js";
-import { SectionRow, type SectionTreeProps, TreeRow } from "./RailRows.js";
+import { TreeRow } from "./RailRows.js";
 import "./connections-tree.css";
-
-/**
- * The section row plus its entries — what the shell rendered before rail
- * sections became contributions. The `connectors.external` runtime
- * contributes `ConnectionsTreeEntries` alone; the shell draws the row.
- */
-export function ConnectionsTree({ section, open, onToggle }: SectionTreeProps) {
-  const { pathname } = useLocation();
-  return (
-    <>
-      <SectionRow
-        section={section}
-        open={open}
-        active={pathname.startsWith("/connections")}
-        branch={open}
-        onToggle={onToggle}
-      />
-      {open ? <ConnectionsTreeEntries pathname={pathname} /> : null}
-    </>
-  );
-}
 
 /** The entries under connections/: connected, attention, and the catalog. */
 export function ConnectionsTreeEntries({ pathname }: { pathname: string }) {

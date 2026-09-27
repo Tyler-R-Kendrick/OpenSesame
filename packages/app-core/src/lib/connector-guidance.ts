@@ -1,37 +1,8 @@
 import { isString } from "@opensesame/os-domain";
 import { isSettingsEncryptionKey } from "./capabilities.js";
-import type {
-  ConfigurationField,
-  Provider,
-  ProviderCategory,
-} from "./connections.js";
+import type { ConfigurationField, Provider } from "./connections.js";
 
 type FieldGuidance = { help: string; placeholder: string };
-
-const CATEGORY_SUMMARY = {
-  identity: "Use this identity device or service with OpenSesame.",
-  backup_recovery:
-    "Use this repository or database as a backup and recovery target.",
-  encryption: "Use this connection to protect a vault key.",
-  password_managers: "Use secrets already managed by this password service.",
-  agent_harnesses:
-    "Give approved agents a runtime without exposing the credential.",
-  networking: "Configure this network so OpenSesame can reach machines on it.",
-  wallet:
-    "Connect a card issuer or pass wallet. OpenSesame does not mint cards.",
-  cloud_secret_storage: "Read secrets from a centralized cloud service.",
-  local_storage: "Use credentials available on this machine.",
-  developer:
-    "Give approved projects and agents access without exposing the credential.",
-  productivity: "Authorize selected actions in your workspace account.",
-  communication: "Authorize selected actions in your communication account.",
-  storage: "Authorize selected files and storage actions.",
-  crm: "Authorize selected customer-data actions.",
-  testing: "Exercise the connection flow without a production provider.",
-  certificates:
-    "Issue and renew certificates from this authority without exposing account keys.",
-  custom: "Authorize selected actions in a service this organization defined.",
-} satisfies Record<ProviderCategory, string>;
 
 const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
   Object.entries({
@@ -201,73 +172,6 @@ const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
     },
   }),
 );
-
-export function connectorSummary(provider: Provider): string {
-  return `${CATEGORY_SUMMARY[provider.category]} ${provider.displayName} setup stays on this device; secret values are never returned to this browser.`;
-}
-
-export function connectorSteps(provider: Provider): string[] {
-  if (provider.id === "openrouter") {
-    return [
-      "Choose Connect to open OpenRouter's secure sign-in page.",
-      "Approve access; OpenRouter generates a user-controlled API key in the web response.",
-      "Return here; OpenSesame seals the generated key without showing it in this page.",
-    ];
-  }
-  if (
-    provider.id.startsWith("aws-") ||
-    provider.id.startsWith("azure-") ||
-    provider.id.startsWith("gcp-")
-  ) {
-    return [
-      `OpenSesame first uses the ${provider.displayName} identity already available on this device.`,
-      "Fill only the resource location and any credential overrides this device cannot discover.",
-      "Save the configuration; no long-lived secret is needed when workload identity is available.",
-    ];
-  }
-  if (["1password", "bitwarden"].includes(provider.id)) {
-    return [
-      `OpenSesame first reuses the signed-in ${provider.displayName} CLI session on this device.`,
-      "Add a token only when this device has no delegated session to reuse.",
-      "Save the configuration; secret overrides are sealed and never shown again.",
-    ];
-  }
-  if (provider.id === "better-auth") {
-    return [
-      "Enable Better Auth's API Key plugin and create a least-privilege key for this device.",
-      "Enter the Better Auth base URL and paste the key once.",
-      "The default x-api-key header and default configuration ID are filled automatically.",
-    ];
-  }
-  if (provider.id === "auth0") {
-    return [
-      "Create an Auth0 machine-to-machine application and authorize only the Management API permissions this connection needs.",
-      "Enter the tenant domain, client ID, and client secret from that application.",
-      "Leave Audience blank to derive the tenant's Management API identifier automatically.",
-    ];
-  }
-  if (provider.authKind === "oauth2_authorization_code") {
-    return [
-      `Review the access requested from ${provider.displayName}.`,
-      `Sign in to ${provider.displayName} in the consent window and approve it.`,
-      provider.supportsRefresh
-        ? "Return here; OpenSesame renews the authorization when needed."
-        : "Return here; reconnect when the provider authorization expires.",
-    ];
-  }
-  if (provider.authKind === "api_key") {
-    return [
-      `Open the ${provider.displayName} setup guide and create a least-privilege API key.`,
-      "Copy the key while the provider still shows it.",
-      "Paste it below once; OpenSesame seals it on arrival.",
-    ];
-  }
-  return [
-    `Open the ${provider.displayName} setup guide and prepare the required values.`,
-    "Enter values from the machine or account OpenSesame will use.",
-    "Save once; secret fields are sealed and never shown again.",
-  ];
-}
 
 export function fieldGuidance(field: ConfigurationField): FieldGuidance {
   if (field.required && field.name === "session_token") {

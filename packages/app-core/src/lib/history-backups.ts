@@ -53,16 +53,6 @@ export const HISTORY_BACKUP_GROUPS: readonly HistoryBackupGroupDef[] = [
   },
 ];
 
-export function historyRequiresHostAuth(providerId: string): boolean {
-  return (
-    providerId === "github" ||
-    providerId === "gitlab" ||
-    providerId === "bitbucket" ||
-    providerId === "codeberg" ||
-    providerId === "origin"
-  );
-}
-
 export function normalizeHistorySelections(
   binding: CapabilityConnectorBinding | null | undefined,
 ): HistoryBackupSelection[] {

@@ -6,7 +6,11 @@ import {
 } from "@opensesame/os-domain";
 import { itemTypeRegistry } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import { COMMAND_SECTIONS, commandSections } from "../lib/command-bar/types.js";
+import {
+  COMMAND_SECTIONS,
+  commandPathAuthorized,
+  commandSections,
+} from "../lib/command-bar/types.js";
 import { settingsCategories, settingsPath } from "../lib/crumbs.js";
 import { readDraftPrefill } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
@@ -133,6 +137,10 @@ export const navigationTool: WebMcpToolSpec = {
       : `/${args.section}`;
     if (!navigationPaths().includes(section))
       throw new Error("unknown_section");
+    // A contributed destination moves only while its capability still
+    // holds authority, not merely because it was listed (ownership.md §4.2).
+    if (commandSections().includes(section) && !commandPathAuthorized(section))
+      throw new Error("section_not_authorized");
     let location = section;
     if (args.itemId !== undefined) {
       location += await itemDestination(section, args);

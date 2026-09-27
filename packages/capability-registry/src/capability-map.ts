@@ -31,6 +31,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vault.item_types.list": "vault.passwords",
     "vault.item_types.install": "vault.passwords",
     "vault.item_types.marketplace": "vault.passwords",
+    "vault.sample_data": "vault.passwords",
 
     // --- core: unlock and vaults ----------------------------------------
     "vaults.switch": "vault.local-unlock",
@@ -40,6 +41,12 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
 
     // --- core: encrypted backup -----------------------------------------
     "vault.export": "backup.local-encrypted",
+
+    // --- always-on: other managers' formats (the vault's Import key) -----
+    "vault.import": "vault.interop-formats",
+    // The sealed-store bridge's path manifest (ADR 0037 §6).
+    "vault.store_manifest.export": "vault.interop-formats",
+    "vault.store_manifest.import": "vault.interop-formats",
 
     // --- core: front door / identity session ----------------------------
     "identity.login": "identity.brokered-signin",
@@ -80,7 +87,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "transport.status.view": "access.authority",
     "transport.verify.run": "access.authority",
     "transport.identity.reference": "access.authority",
-    "transport.capabilities.discover": "access.authority",
     "delegations.claim": "access.authority",
     "shared_sessions.join_request": "access.authority",
     "agent_identities.read": "access.authority",
@@ -94,11 +100,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "browser.pairing.begin": "access.authority",
     "browser.identity.authenticate": "access.authority",
     "browser.grant.renew": "access.authority",
-    "browser.client.revoke": "access.authority",
-    "configs.browse": "access.authority",
-    "configs.set": "access.authority",
-    "configs.permissions.read": "access.authority",
-    "changelog.read": "access.authority",
 
     // --- optional: external connectors ----------------------------------
     "providers.list": "connectors.external",
@@ -106,7 +107,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "connections.inspect": "connectors.external",
     "connections.create": "connectors.external",
     "connections.credential.set": "connectors.external",
-    "connections.bindings": "connectors.external",
     "connections.remove": "connectors.external",
     "integrations.read": "connectors.external",
     "connectors.directory.sync": "connectors.external",
@@ -118,8 +118,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: git remote backup ------------------------------------
     "backup.status": "backup.git-remote",
     "backup.target.set": "backup.git-remote",
-    "sync_targets.read": "backup.git-remote",
-    "sync_targets.trigger": "backup.git-remote",
 
     // --- optional: notification routing (ADR 0084, ADR 0140 D9) ---------
     // Settings › Notifications: where the Identity API tells a person about

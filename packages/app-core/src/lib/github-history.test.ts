@@ -4,9 +4,7 @@ import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
   createGithubPasswordRepo,
-  defaultCreateRepoRequest,
   listGithubRepos,
-  remoteFromRepo,
 } from "./github-history.js";
 import { clearHostSession, clearSession, identitySeams } from "./identity.js";
 import { saveSettings, shippedHostApi } from "./settings.js";
@@ -55,28 +53,6 @@ afterEach(() => {
   clearSession();
   clearHostSession();
   vi.unstubAllGlobals();
-});
-
-describe("github history capability", () => {
-  it("defaults password-store remotes to a private repo name", () => {
-    const req = defaultCreateRepoRequest();
-    expect(req.name).toBe(DEFAULT_PASSWORD_REPO_NAME);
-    expect(req.private).toBe(true);
-    expect(req.description.toLowerCase()).toMatch(/private/);
-  });
-
-  it("uses https clone URLs as the sealed-store remote", () => {
-    expect(
-      remoteFromRepo({
-        fullName: "alice/opensesame-passwords",
-        name: "opensesame-passwords",
-        private: true,
-        cloneUrl: "https://github.com/alice/opensesame-passwords.git",
-        htmlUrl: "https://github.com/alice/opensesame-passwords",
-        defaultBranch: "main",
-      }),
-    ).toBe("https://github.com/alice/opensesame-passwords.git");
-  });
 });
 
 describe("listGithubRepos", () => {
@@ -262,20 +238,5 @@ describe("createGithubPasswordRepo", () => {
     await expect(
       createGithubPasswordRepo("conn_1", { private: false }),
     ).resolves.toMatchObject({ private: false });
-  });
-});
-
-describe("remoteFromRepo", () => {
-  it("trims a trailing slash", () => {
-    expect(
-      remoteFromRepo({
-        fullName: "acme/store",
-        name: "store",
-        private: true,
-        cloneUrl: "https://github.com/acme/store.git/",
-        htmlUrl: "https://github.com/acme/store",
-        defaultBranch: "main",
-      }),
-    ).toBe("https://github.com/acme/store.git");
   });
 });

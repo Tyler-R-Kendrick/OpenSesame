@@ -1,8 +1,8 @@
 /**
  * `notifications.routing` — where the Identity API tells a person about
- * requests (ADR 0084; ADR 0140 D9): Settings › Notifications, which replaces
- * `apps/ceremonies`' `/notifications` page. Optional, in the Notifications
- * feature: nothing of it reaches the page before the plan approved it and a
+ * requests (ADR 0084; ADR 0140 D9): Settings › Notifications. Optional, in
+ * the Notifications feature: nothing of it reaches the page before the plan
+ * approved it and a
  * consent receipt covered its exposure (ADR 0130).
  *
  * Contributed: the Notifications settings category — its panel, and its

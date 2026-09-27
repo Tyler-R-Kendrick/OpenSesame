@@ -16,8 +16,8 @@ import {
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
-import { kvGet, kvSet, kvSetDurable } from "./kv.js";
-import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+import { kvGet, kvSet } from "./kv.js";
+import { isLoopbackUrl } from "./urls.js";
 
 /** Operator-configured IdP (browser OIDC + PKCE, ADR 0078) — not Identity API. */
 export type OperatorIdp = {
@@ -432,26 +432,6 @@ function persistRecord(next: PagesSettings): PersistedSettings {
 function saveSettingsDefault(next: PagesSettings): void {
   kvSet(PERSIST_KEY, JSON.stringify(persistRecord(next)));
   emitSettings();
-}
-
-/** Persist pairing and wait for OPFS so a reload in this browser keeps Host. */
-export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
-  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistRecord(next)));
-  emitSettings();
-}
-
-/**
- * Host/daemon already pointed at a reachable-from-github.io endpoint — do not
- * demand "Connect this machine" again until the operator clears Settings.
- */
-export function hasRemoteHostPairing(
-  settings: PagesSettings = loadSettings(),
-): boolean {
-  const host = settings.hostApi.trim();
-  if (host && !isLoopbackUrl(host)) return true;
-  const daemon = settings.daemonApi.trim();
-  if (!daemon || isLoopbackUrl(daemon)) return false;
-  return normalizeTailnetBase(daemon) !== null;
 }
 
 /** Auto-connect Identity only when this page can actually reach it. */

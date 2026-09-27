@@ -19,8 +19,9 @@ import {
   ConnectionsNavigation,
   usePublishConnections,
 } from "./ConnectionsNavigation.js";
-import { ConnectionsTree } from "./ConnectionsTree.js";
+import { ConnectionsTreeEntries } from "./ConnectionsTree.js";
 import { IconConnection } from "./Icons.js";
+import { SectionRow } from "./RailRows.js";
 import { setRailCursor } from "./rail-cursor.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
@@ -115,13 +116,15 @@ function Page({ catalog }: { catalog: Provider[] | null }) {
         // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
         tabIndex={0}
       >
-        <ConnectionsTree
+        {/* Composed the way NavTree composes a contributed section tree. */}
+        <SectionRow
           section={CONNECTIONS_SECTION}
           open={open}
           active={location.pathname.startsWith("/connections")}
+          branch={open}
           onToggle={() => setOpen(!open)}
-          pathname={location.pathname}
         />
+        {open ? <ConnectionsTreeEntries pathname={location.pathname} /> : null}
       </nav>
       <output aria-label="Current route">
         {location.pathname + location.hash}

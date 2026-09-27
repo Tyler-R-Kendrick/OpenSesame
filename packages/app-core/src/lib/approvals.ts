@@ -14,7 +14,7 @@
  *     (`hostInteractionAuthenticator`): the authority's options unaltered in,
  *     the raw assertion out;
  *   - the inbox: pending requests as `plane: "hosted"` rows, each saying
- *     whether it may be decided in the list or must open the review.
+ *     what its review will ask for; every row opens that review.
  *
  * The `/approve/:ref` route is `identity.ceremonies`', and the hosted rows
  * are drawn by Access › Requests (plan step 9); the link is read at boot by
@@ -26,11 +26,9 @@ import {
   APPROVAL_WORDS,
   ApprovalError,
   type ApprovalReview,
-  type ApprovalVerb,
   type AuthorizationRequestClient,
   type AuthorizationRequestView,
   type InteractionAuthenticator,
-  approvalWords,
   assuranceSummary,
   ceremonyPath,
   createApprovalReview,
@@ -91,12 +89,11 @@ export function approvalReview(
 /**
  * One waiting request as an Access › Requests row.
  *
- * `decide` is the ADR 0084 split: a row whose summary asks for nothing beyond
- * a decision may be settled in the list; one that asks for a passkey touch or
- * a comparison code — or whose server sent no summary at all — opens the
- * review instead. There is no honest way to run those ceremonies inside a
- * list, and an inline Approve that did less than the policy demands would
- * leave a person believing they had approved while the server refused.
+ * `decide` is the ADR 0084 split: `inline` when the summary asks for nothing
+ * beyond a decision, `review` when it asks for a passkey touch or a
+ * comparison code — or when the server sent no summary at all. The list
+ * settles neither: every row opens `/approve/<ref>` (#512), where the whole
+ * request is read and the decision is bound to its digest, verb and policy.
  */
 export type HostedRequestRow = {
   plane: "hosted";
@@ -106,7 +103,7 @@ export type HostedRequestRow = {
   /** What approving would let them do, one line per detail. */
   details: string[];
   expiresAt: string;
-  /** Echoed exactly on an inline decision. */
+  /** What the review binds its decision to. */
   requestDigest: string;
   /** The first twelve characters, for a person to compare by eye. */
   digestPrefix: string;
@@ -160,26 +157,4 @@ export async function listHostedRequests(
     }
     throw error;
   }
-}
-
-/**
- * Decide a row from the list, echoing the digest exactly as it was shown. A
- * row that must open the review is refused here, before any call — the list
- * never approves with less than the policy asks.
- */
-export async function decideHostedRequest(
-  row: HostedRequestRow,
-  verb: ApprovalVerb,
-  transport: ApprovalTransport = identityApprovalTransport,
-): Promise<void> {
-  if (row.decide !== "inline") {
-    throw new ApprovalError({
-      ...approvalWords("assurance"),
-      words:
-        "This request needs a passkey touch or a code, so it is decided on its own page, not from the list. Nothing was decided.",
-    });
-  }
-  await approvalClient(transport).settle(row.id, verb, {
-    requestDigest: row.requestDigest,
-  });
 }

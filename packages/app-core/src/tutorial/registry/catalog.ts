@@ -167,15 +167,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
 
-  // ── Statusline detail: the two planes and the health notice ───────────
-  {
-    id: "connectivity.host",
-    description:
-      "The identity glyph on the statusline. Its colour reports reachability, and pressing it opens the ceremony that repairs the connection.",
-    role: "ceremony",
-    routes: [],
-    capabilityId: "host.health.pages",
-  },
+  // ── Statusline detail: the identity plane and the health notice ───────
   {
     id: "connectivity.identity",
     description:

@@ -32,6 +32,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "vault.items.search",
         "vault.items.write_meta",
         "vault.login_draft",
+        "vault.sample_data",
         "vault.totp.code",
       ],
       egress: [

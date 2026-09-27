@@ -8,15 +8,12 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 
-import { vaultHooksSeams } from "../lib/vault/hooks.js";
-import { contributeIdentityViews } from "../sections/identity/identity-views.js";
-import { IconUser } from "./Icons.js";
-import { IdentityTree } from "./IdentityTree.js";
-import type { SectionRowModel } from "./RailRows.js";
-import { registerLegacyShell } from "./legacy-sections.test-support.js";
+import { registerLegacyShell } from "../../components/legacy-sections.test-support.js";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
+import { IdentityRailTree } from "./IdentityRailTree.js";
 
 import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
-// the Identity section's rail targets are the identity capability's, so the row only exists on a plan that approved it.
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning) and each contributes its own; this subtree is the
 // one a deployment that approved all of them draws.
@@ -30,17 +27,6 @@ beforeAll(() => {
 afterAll(() => {
   for (const revoke of revokeShell) revoke();
 });
-
-const IDENTITY_SECTION: SectionRowModel = {
-  id: "identity",
-  to: "/identity",
-  label: "Identity",
-  segment: "identity",
-  guide: "nav.identity",
-  jump: "i",
-  order: 40,
-  Icon: IconUser,
-};
 
 const originalVault = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
@@ -63,13 +49,7 @@ function countOf(name: string): string | null {
 function renderTree() {
   return render(
     <MemoryRouter>
-      <IdentityTree
-        section={IDENTITY_SECTION}
-        open
-        active
-        onToggle={() => undefined}
-        pathname="/identity"
-      />
+      <IdentityRailTree pathname="/identity" />
     </MemoryRouter>,
   );
 }

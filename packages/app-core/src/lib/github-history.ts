@@ -102,24 +102,9 @@ async function createGithubPasswordRepoDefault(
   return repo;
 }
 
-/** Pure helpers for UI/tests — default private password-store remote. */
-export function defaultCreateRepoRequest(name = DEFAULT_PASSWORD_REPO_NAME) {
-  return {
-    name,
-    private: true as const,
-    description:
-      "OpenSesame sealed-store ciphertext (passwords) — private by default",
-  };
-}
-
-function remoteFromRepoDefault(repo: GithubRepoSummary): string {
-  return repo.cloneUrl.replace(/\/$/, "");
-}
-
 export const githubHistorySeams = {
   listGithubRepos: listGithubReposDefault,
   createGithubPasswordRepo: createGithubPasswordRepoDefault,
-  remoteFromRepo: remoteFromRepoDefault,
 };
 
 export async function listGithubRepos(
@@ -132,8 +117,4 @@ export async function createGithubPasswordRepo(
   ...args: Parameters<typeof createGithubPasswordRepoDefault>
 ): Promise<GithubRepoSummary> {
   return githubHistorySeams.createGithubPasswordRepo(...args);
-}
-
-export function remoteFromRepo(repo: GithubRepoSummary): string {
-  return githubHistorySeams.remoteFromRepo(repo);
 }

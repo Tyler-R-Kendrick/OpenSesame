@@ -1,48 +1,28 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 
-import { AccessTree } from "./AccessTree.js";
-import { IconAuthority } from "./Icons.js";
-import type { SectionRowModel } from "./RailRows.js";
-import { registerLegacyShell } from "./legacy-sections.test-support.js";
+import { registerLegacyShell } from "../../components/legacy-sections.test-support.js";
+import { AccessRailTree } from "./AccessRailTree.js";
 
 import {
   ACCESS_LABELS,
   ACCESS_VIEWS,
 } from "@opensesame/app-core/lib/section-view-names.js";
-// the Access section's rail targets are the access capability's, so the row only exists on a plan that approved it.
+// The Access section's rail entries, as `access.authority` contributes
+// them: the shell draws the section row; this is what opens beneath it.
 let revokeShell = () => {};
 beforeAll(() => {
   revokeShell = registerLegacyShell();
 });
 afterAll(() => revokeShell());
 
-const ACCESS_SECTION: SectionRowModel = {
-  id: "access",
-  to: "/access",
-  label: "Access",
-  segment: "access",
-  guide: "nav.access",
-  jump: "a",
-  order: 30,
-  Icon: IconAuthority,
-};
-
 function Page() {
   const location = useLocation();
-  const [open, setOpen] = useState(true);
   return (
     <>
-      <AccessTree
-        section={ACCESS_SECTION}
-        open={open}
-        active={location.pathname.startsWith("/access")}
-        onToggle={() => setOpen((previous) => !previous)}
-        pathname={location.pathname}
-      />
+      <AccessRailTree pathname={location.pathname} />
       <output aria-label="Current route">
         {location.pathname + location.search + location.hash}
       </output>

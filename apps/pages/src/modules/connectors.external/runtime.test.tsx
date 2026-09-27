@@ -131,7 +131,7 @@ describe("connectors.external runtime", () => {
       tools.map((tool) => (tool as PagesWebMcpTool).capabilityIds),
     ).toEqual([
       ["connections.list", "connections.inspect"],
-      ["connections.create", "connections.bindings"],
+      ["connections.create"],
     ]);
     for (const id of tools.flatMap(
       (tool) => (tool as PagesWebMcpTool).capabilityIds,
@@ -232,6 +232,34 @@ describe("connectors.external runtime", () => {
         }),
       ).rejects.toBeInstanceOf(LeaseAbortedError);
       expect(seal).not.toHaveBeenCalled();
+      await handle.dispose();
+    } finally {
+      Object.assign(effects.connectorUnlockSeams, original);
+    }
+  });
+
+  it("takes the Connect bearer out of memory when the unlock ends", async () => {
+    const disarm = vi.fn();
+    const original = { ...effects.connectorUnlockSeams };
+    Object.assign(effects.connectorUnlockSeams, {
+      hydrateVercelConnectAuth: vi.fn(async () => true),
+      disarmVercelConnectAuth: disarm,
+    });
+    try {
+      const t = createTestContext({ tomb: "personal" });
+      const handle = await runtime.capabilityRuntime.activate(t.ctx);
+      const hydrateEffect = t
+        .entries("unlock-effect")
+        .find((effect) => effect.id === "hydrate-vercel-connect");
+      const unlock = new AbortController();
+      await hydrateEffect?.run({
+        tomb: "personal",
+        guest: false,
+        signal: unlock.signal,
+      });
+      expect(disarm).not.toHaveBeenCalled();
+      unlock.abort("lock");
+      expect(disarm).toHaveBeenCalledOnce();
       await handle.dispose();
     } finally {
       Object.assign(effects.connectorUnlockSeams, original);

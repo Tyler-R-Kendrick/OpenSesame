@@ -34,6 +34,26 @@
       "note": "The one failure is src/lib/capabilities/classification.test.ts > 'matches every source module the build sees', reporting src/modules/ports-b.ts, src/modules/tutorial-pick-b.ts and src/modules/tutorial-test-realm.ts as unclassified. Those three files were written by concurrent module-owner work minutes before the run and have no SOURCE_CLASSIFICATION rule yet. The count includes src/lib/capabilities.test.ts (17 tests), which is the pre-existing connector-capability suite and is unrelated to composition."
     },
     {
+      "id": "run-app-core-dispatch",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities/authority.test.ts src/lib/capabilities/dispatch.test.ts",
+      "vitest": "4.1.11",
+      "testFiles": 2,
+      "tests": 28,
+      "passed": 28,
+      "failed": 0,
+      "note": "2026-09-27. authority.test.ts moved to packages/app-core with the client core (ADR 0133); earlier LIFE-04 rows named its old apps/pages path."
+    },
+    {
+      "id": "run-pages-dispatch",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/modules/agents.webmcp/authority.test.ts src/lib/keymap-jumps.test.ts",
+      "vitest": "4.1.11",
+      "testFiles": 2,
+      "tests": 11,
+      "passed": 11,
+      "failed": 0,
+      "note": "2026-09-27. With the WebMCP execute wrapper's authorizeToolCall call removed, the five refusal cases of agents.webmcp/authority.test.ts fail and the two admissions pass: the tests hold the enforcement, not only the function."
+    },
+    {
       "id": "run-pages-boot",
       "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/runtime-config.test.ts src/App.test.tsx",
       "vitest": "4.1.10",
@@ -716,36 +736,133 @@
       "status": "covered",
       "tests": [
         {
-          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/authority.test.ts",
           "name": "admitOperation (LIFE-04) admits when the durable generation matches and the lease is current",
           "observed": "run-passed",
-          "run": "run-pages-capabilities"
+          "run": "run-app-core-dispatch"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/authority.test.ts",
           "name": "admitOperation (LIFE-04) refuses when another context advanced the durable generation",
           "observed": "run-passed",
-          "run": "run-pages-capabilities"
+          "run": "run-app-core-dispatch"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/authority.test.ts",
           "name": "admitOperation (LIFE-04) refuses a stale lease even when storage agrees",
           "observed": "run-passed",
-          "run": "run-pages-capabilities"
+          "run": "run-app-core-dispatch"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/authority.test.ts",
           "name": "admitOperation (LIFE-04) refuses an unapproved operation",
           "observed": "run-passed",
-          "run": "run-pages-capabilities"
+          "run": "run-app-core-dispatch"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/authority.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/authority.test.ts",
           "name": "admitOperation (LIFE-04) fails closed without Web Locks",
           "observed": "run-passed",
-          "run": "run-pages-capabilities"
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper runs a read-only tool whose operation is approved",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper admits a mutating tool across tabs, then runs it",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper refuses a tool the browser still holds after its capability was disabled",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper refuses every tool once the realm is locked",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper fails a mutating tool closed without Web Locks, and still answers a lookup",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper refuses a tool owned by an operation the plan does not approve",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.webmcp/authority.test.ts",
+          "name": "the WebMCP execute wrapper refuses an untagged tool",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "admitSensitiveOperation (LIFE-04 at the call) refuses when another tab committed a newer generation",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "admitSensitiveOperation (LIFE-04 at the call) fails closed without Web Locks",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "assertToolAuthority refuses a tool owned by an operation the plan does not approve",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "assertNavigationAuthority refuses once the owning capability is emergency-disabled",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "the command bar's section command opens a contributed section while its capability is approved",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "the command bar's section command refuses without moving once the capability is disabled",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/dispatch.test.ts",
+          "name": "the WebMCP navigation tool refuses without moving once the capability is disabled",
+          "observed": "run-passed",
+          "run": "run-app-core-dispatch"
+        },
+        {
+          "file": "apps/pages/src/lib/keymap-jumps.test.ts",
+          "name": "contributed section jumps move while the registering capability is approved",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
+        },
+        {
+          "file": "apps/pages/src/lib/keymap-jumps.test.ts",
+          "name": "contributed section jumps are swallowed, not followed, once the capability is disabled",
+          "observed": "run-passed",
+          "run": "run-pages-dispatch"
         }
-      ]
+      ],
+      "note": "Enforced at the boundary since 2026-09-27 (ownership.md §4.2 dispatch gates): the WebMCP execute wrapper takes assertCurrentOperationAuthority under the registering lease and admits every tool not declared read-only with admitOperation — those refusals are observed through the wrapper an agent calls and fail when the wrapper's check is removed. Command paths (command bar, WebMCP navigation) and g-jumps take the capability-level check; their end-to-end refusals after a disable are also produced by generation fencing (a revoked registration is no longer listed), so for them the gate is defence in depth, exercised directly by dispatch.test.ts. Before this date both functions had no caller and the row rested on unit tests alone."
     },
     {
       "id": "LIFE-05",

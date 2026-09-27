@@ -2,7 +2,6 @@
  * Settings › Notifications (ADR 0084; ADR 0140 D9): where the Identity API
  * tells you about requests — the channels this deployment has, the
  * destinations you connected, and the order each kind of prompt tries them.
- * It replaces `apps/ceremonies`' `/notifications` page.
  *
  * The Form is a view of the category's files (ADR 0134): every key here is a
  * write through the routing session, the same road the file viewer's save

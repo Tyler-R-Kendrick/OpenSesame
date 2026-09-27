@@ -46,7 +46,7 @@ loader, registry or vocabulary.
 |---|---|---|
 | capability ID | `family.name[-name]` e.g. `connectors.external` | `packages/app-core/src/lib/capabilities/catalog.ts` |
 | operation ID | existing `@opensesame/capability-registry` ids, unchanged | `packages/capability-registry` |
-| module ID | `<capability-id>/<unit>` e.g. `connectors.external/section` | `packages/app-core/src/lib/capabilities/ownership.ts` |
+| module ID | `<capability-id>/<unit>` e.g. `connectors.external/section` | `apps/pages/src/lib/capabilities/ownership.ts` |
 | asset ID | dist-relative path e.g. `assets/ConnectionsSection-x.js` | build plugin output `dist/capability-graph.json` |
 
 Types for all four live in `packages/capability-composition/src/types.ts`
@@ -120,8 +120,25 @@ export async function activateApprovedCapability(id: CapabilityId, lease: Activa
 export function registerContribution<K extends ContributionKind>(kind: K, entry: ContributionEntry<K>, lease: ActivationLease): RegistrationHandle;
 export function useContributions<K extends ContributionKind>(kind: K): readonly ContributionEntry<K>[];  // generation-fenced, sorted by `order` then id
 export function assertCurrentOperationAuthority(op: OperationId, lease: ActivationLease): void;  // throws CapabilityDenied before any handler import
+export function assertCurrentCapabilityAuthority(id: CapabilityId, lease: ActivationLease): void;  // the same, for a destination (no operation)
 export async function admitOperation(op: OperationId, lease: ActivationLease): Promise<AdmissionDecision>;  // Web Locks + durable generation compare
 ```
+
+**Dispatch gates** (`lib/capabilities/dispatch.ts`). Listing an entry is not
+authority to use it: each surface re-resolves the entry's live registration
+(current generation, the registering lease) at the moment it acts, and throws
+`CapabilityDenied` before the handler runs.
+
+| Surface | Where | Check |
+|---|---|---|
+| WebMCP tool call | `apps/pages/src/modules/agents.webmcp/registrar.ts` execute wrapper → `authority.ts` `authorizeToolCall` | `assertCurrentOperationAuthority(owner op, registering lease)`; a tool not declared `readOnly` is **sensitive** and is then admitted with `admitOperation` (refused on a newer durable generation, a stale lease, an unapproved op, or no Web Locks) |
+| Command path | `lib/command-bar/execute.ts` section command; `webmcp/navigation.ts` (`commandPathAuthorized`) | `assertCurrentCapabilityAuthority(registering capability, lease)` — a destination names no operation (`activity.log` owns none and still owns `/activity`) |
+| Keymap jump | `apps/pages/src/lib/keymap-jumps.ts` `sectionJumpPath` | the same; a refused jump is swallowed like an unbound letter |
+
+No live registration is `NOT_REGISTERED`. Core destinations (`/vault`,
+`/settings`) are core tier and not gated. An entry on the jsdom test channel
+(`registerContributionForTest`) stands in for a lease; `dispatch.test.ts`
+fails if any non-test source writes that channel.
 
 `ContributionEntry<K>` shapes (all serializable except component/handler
 fields, which the module supplies already-imported):
@@ -140,6 +157,7 @@ fields, which the module supplies already-imported):
 - `secret-share`: `{ id, order, Panel: ComponentType<{ item: SecretItem; initialOpen? }> }` — an offer to share a stored secret (a drop)
 - `item-draft-assist`: `{ id, order, Suggestions: ComponentType<{ typeId, website?, onApply }>, suggest(context, signal): Promise<DraftLabels> }` — labels for a new item from a model, beside the editor and for the WebMCP draft tools
 - `command-assist`: `{ id, order, interpret(utterance, { itemNames }): Promise<InterpretResult>, Voice?: ComponentType }` — what the command bar asks when its own parser finds no command, and its voice input
+- `vault-command`: `{ id, order, Command: ComponentType }` — an icon key in the vault path strip's command group, after New item (Import, `vault.interop-formats`)
 
 ### 4.3 Module entry contract (S11–S16)
 

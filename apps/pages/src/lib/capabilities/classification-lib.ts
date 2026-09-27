@@ -36,12 +36,10 @@ const CORE_INFRA = [
   "page-to-tree",
   "notices",
   "use-online",
-  "use-status-notice",
   "use-configured",
   "use-settings",
   "use-install",
   "identifier",
-  "host-ids",
   "probe-failure",
   "opener-policy",
   "bounded-response",
@@ -151,8 +149,6 @@ const ACCESS_FILES = [
   "local-share-reach",
   "host-authorization",
   "browser-pairing",
-  "secret-config-access",
-  "changelog",
 ];
 const LOCAL_IAM_FILES = [
   "local-agent-auth",

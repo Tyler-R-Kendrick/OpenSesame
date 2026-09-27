@@ -77,34 +77,6 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
-  {
-    id: "settings.secret-config",
-    title: "Set a secret-config value",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.secret-config"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/capabilities"',
-      'wait route "/settings/capabilities" timeout=15000',
-      'focus "settings.secret-configs" "Values go in and never come back out. The list is keys and metadata only." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.sync",
-    title: "Replicate the sealed store",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.sync"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/capabilities"',
-      'wait route "/settings/capabilities" timeout=15000',
-      'focus "settings.sync-targets" "Each target is a replica of ciphertext. Triggering a run copies; it does not decrypt." side=bottom',
-      "end",
-    ].join("\n"),
-  },
 ];
 
 export const CONNECTIONS_HELP: readonly HelpTopic[] = [
@@ -174,7 +146,7 @@ export const CONNECTIONS_HELP: readonly HelpTopic[] = [
     id: "help.backup",
     title: "How do I back up the vault?",
     answer:
-      "Settings → Capabilities → Backups. Choose the git provider — GitHub, GitLab, Bitbucket, Codeberg or any git remote — the encrypted vault backs up to, and switch that provider on.",
+      "Export, in the Vault's path strip, saves one encrypted backup file that the master password opens and Import restores. To keep a copy off this device, Settings → Capabilities → Backups: choose the git provider — GitHub, GitLab, Bitbucket, Codeberg or any git remote — the encrypted vault backs up to, and switch that provider on.",
     routes: [],
     goal: "settings.backup",
     keywords: [

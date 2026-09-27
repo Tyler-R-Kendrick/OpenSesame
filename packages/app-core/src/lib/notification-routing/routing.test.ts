@@ -1,7 +1,6 @@
 /**
- * Settings › Notifications as a model, ported from
- * `apps/ceremonies/src/pages/NotificationSettings.test.tsx`: the honesty
- * surface, ordering and fan-out, a refused save, and destinations.
+ * Settings › Notifications as a model: the honesty surface, ordering and
+ * fan-out, a refused save, and destinations.
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";

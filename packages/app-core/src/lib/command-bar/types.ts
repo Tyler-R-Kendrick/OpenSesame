@@ -7,7 +7,11 @@
  * vault that never speaks to a model never downloads either.
  */
 
-import { contributionsSnapshot } from "../contributions.js";
+import { isCapabilityDenied } from "../capabilities/runtime-contract.js";
+import {
+  assertNavigationContribution,
+  contributionsSnapshot,
+} from "../contributions.js";
 
 /**
  * The destinations the core shell can always open. Every other one is a
@@ -27,6 +31,26 @@ export function commandSections(): readonly string[] {
 
 export function isCommandSection(path: string): boolean {
   return commandSections().includes(path);
+}
+
+/**
+ * The dispatch gate for a destination (ownership.md §4.2): a core section
+ * always opens; a contributed one only while the capability that registered
+ * it is approved under a current lease. The command bar and the WebMCP
+ * navigation tool ask this before they move, not just whether it is listed.
+ */
+export function commandPathAuthorized(path: string): boolean {
+  if (COMMAND_SECTIONS.some((core) => core === path)) return true;
+  try {
+    assertNavigationContribution(
+      "command-path",
+      (entry) => entry.path === path,
+    );
+    return true;
+  } catch (error) {
+    if (isCapabilityDenied(error)) return false;
+    throw error;
+  }
 }
 
 export const COMMAND_FIELDS = ["password", "username", "otp", "url"] as const;

@@ -19,11 +19,7 @@ import {
   type LocalIdentity,
   readLocalDirectory,
 } from "./local-directory.js";
-import {
-  guestMembershipError,
-  hasClaimedOperatorEntry,
-  isGuestPersonEntry,
-} from "./local-guest.js";
+import { hasClaimedOperatorEntry, isGuestPersonEntry } from "./local-guest.js";
 import { vaultStore } from "./vault/store.js";
 
 export type AccessRole = "operator" | "member" | "guest";
@@ -224,22 +220,4 @@ export async function assertDirectoryChangeAllowed(
     tomb,
     change.action === "membership" ? "manage_memberships" : "manage_identity",
   );
-}
-
-/** Refuse elevating the guest principal when a claimed operator path exists. */
-export function assertGuestMembershipAllowed(
-  directory: LocalDirectory,
-  principalId: string,
-  role: "owner" | "admin" | "member" | null,
-): void {
-  if (role === null) return;
-  const entry = directory.entries.find((row) => row.id === principalId);
-  if (!entry) return;
-  const message = guestMembershipError(
-    directory.entries,
-    directory.memberships,
-    entry,
-    role,
-  );
-  if (message) throw new LocalDirectoryError(message);
 }

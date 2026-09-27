@@ -82,6 +82,8 @@ const TARGET_SOURCES = [
 
 const GOALS_SOURCES = [
   "goals.ts",
+  // The shell's help topics close the core list (`SHELL_HELP`).
+  "shell-goals.ts",
   "connections-goals.ts",
   "access-goals.ts",
   "authority-help.ts",
@@ -368,7 +370,7 @@ describe("mount bookkeeping", () => {
     try {
       const element = document.createElement("button");
       const detach = mountGuideTarget("vault.definitely-not", element);
-      expect(typeof detach).toBe("function");
+      expect(detach).toBeTypeOf("function");
       expect(isMountedGuideTarget("vault.definitely-not")).toBe(false);
       expect(resolveGuideTargetElement("vault.definitely-not")).toBeNull();
       expect(undeclaredGuideTargetMounts()).toContain("vault.definitely-not");

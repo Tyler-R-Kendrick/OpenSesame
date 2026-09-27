@@ -176,21 +176,6 @@ export const SHELL_RULES = [
     "QR renderer used by drops, pairing and second steps",
   ),
   optional(
-    "src/components/AccessTree",
-    "access.authority",
-    "Access rail subtree",
-  ),
-  optional(
-    "src/components/HostAuthorizationCeremony",
-    "access.authority",
-    "Host pairing ceremony",
-  ),
-  optional(
-    "src/components/IdentityTree",
-    "identity.local-iam",
-    "Identity rail subtree; MIXED",
-  ),
-  optional(
     "src/components/IdentityCeremony",
     "identity.federation",
     "connect-identity ceremony",

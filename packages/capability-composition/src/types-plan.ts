@@ -196,7 +196,8 @@ export type ContributionKind =
   | "unlock-effect"
   | "secret-share"
   | "item-draft-assist"
-  | "command-assist";
+  | "command-assist"
+  | "vault-command";
 
 /** A revocable handle returned by every registrar. Idempotent `revoke`. */
 export type RegistrationHandle = Readonly<{

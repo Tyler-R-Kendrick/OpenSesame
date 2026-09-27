@@ -1,7 +1,7 @@
 /**
- * The authorization-request review, ported from
- * `apps/ceremonies/src/pages/ApprovalReview.test.tsx`: the order of the
- * ceremony, what never goes on the wire, and the endings.
+ * The authorization-request review Pages' `/approve` screen runs
+ * (`apps/pages/src/modules/identity.ceremonies/ApproveScreen.tsx`): the order
+ * of the ceremony, what never goes on the wire, and the endings.
  */
 import { describe, expect, it } from "vitest";
 import {
