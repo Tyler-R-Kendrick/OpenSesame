@@ -1,0 +1,114 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "goOffline": null
+        },
+        {
+          "pressOptional": "Erase everything in this browser"
+        },
+        {
+          "wait": 4
+        },
+        {
+          "address": null
+        },
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "report": ".unlock__left"
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__left li"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "shot": "390-offline-reset-left"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "goOffline": null
+        },
+        {
+          "pressOptional": "Erase everything in this browser"
+        },
+        {
+          "wait": 4
+        },
+        {
+          "address": null
+        },
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "report": ".unlock__left"
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__left li"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "shot": "1280-offline-reset-left"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-offline-reset-left",
+      "width": 390,
+      "title": "Offline reset beside a sealed vault — 390 × 844, touch",
+      "caption": "Beside a sealed vault, taken offline, then Erase. The vault, sign-in and settings go; the offline app is kept so the next load has something to load. Before, the tab left for a first visit as if everything had gone. After, the panel stays and names what remains, with erase again and start as a first visit as the two keys.",
+      "before": "left for /OpenSesame/ as if clean · no panel",
+      "after": "panel 168×127 @53,500 · rows 137×20 @68,514 and @68,540 (Offline app, Offline worker) · keys 44×44 @68,569 and @120,569"
+    },
+    {
+      "shot": "1280-offline-reset-left",
+      "width": 1280,
+      "title": "Offline reset beside a sealed vault — 1280 × 900, mouse",
+      "caption": "Beside a sealed vault, taken offline, then Erase. The vault, sign-in and settings go; the offline app is kept so the next load has something to load. Before, the tab left for a first visit as if everything had gone. After, the panel stays and names what remains, with erase again and start as a first visit as the two keys.",
+      "before": "left for /OpenSesame/ as if clean · no panel",
+      "after": "panel 168×115 @157,555 · rows 137×20 @172,569 and @172,594 · keys 32×32 @172,624 and 24×24 @212,628"
+    }
+  ]
+}

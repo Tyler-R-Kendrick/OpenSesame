@@ -15,6 +15,12 @@
  * erased at build time and load nothing on a host without a DOM.
  */
 import { host } from "./host.js";
+import { storageWritesHalted } from "./lib/storage-halt.js";
+import {
+  type WebStorageArea,
+  ownsDatabase,
+  ownsWebStorageKey,
+} from "./lib/storage-ownership.js";
 
 /** Web Storage, as `localStorage` and `sessionStorage` expose it. */
 export type WebStorage = {
@@ -134,8 +140,38 @@ function missing(port: string): Error {
   return new Error(`app-core: this host has no ${port}`);
 }
 
+/**
+ * A store as the core writes it: a key the app does not own
+ * (`lib/storage-ownership.ts`) is refused in a development build, so it
+ * cannot silently outlive "Reset this browser"; and once this browser is
+ * being reset (`lib/storage-halt.ts`) a write does nothing.
+ */
+function owned(
+  store: WebStorage | undefined,
+  area: WebStorageArea,
+): WebStorage | undefined {
+  if (!store) return undefined;
+  return {
+    get length() {
+      return store.length;
+    },
+    key: (index) => store.key(index),
+    getItem: (key) => store.getItem(key),
+    setItem(key, value) {
+      if (storageWritesHalted()) return;
+      if (host().env.DEV && !ownsWebStorageKey(key, area)) {
+        throw new Error(
+          `app-core: ${area} storage key "${key}" is not one this app owns (lib/storage-ownership.ts)`,
+        );
+      }
+      store.setItem(key, value);
+    },
+    removeItem: (key) => store.removeItem(key),
+  };
+}
+
 export function maybeLocalStore(): WebStorage | undefined {
-  return host().storage?.local;
+  return owned(host().storage?.local, "local");
 }
 
 export function localStore(): WebStorage {
@@ -145,7 +181,7 @@ export function localStore(): WebStorage {
 }
 
 export function maybeSessionStore(): WebStorage | undefined {
-  return host().storage?.session;
+  return owned(host().storage?.session, "session");
 }
 
 export function sessionStore(): WebStorage {
@@ -236,10 +272,22 @@ export function originFiles(): Ports["originFiles"] {
   return host().originFiles;
 }
 
-export function indexedDatabases(): IDBFactory {
+/**
+ * Open one of the app's own databases. A name `lib/storage-ownership.ts` does
+ * not list is refused, so no database escapes "Reset this browser".
+ */
+export function openOwnedDatabase(
+  name: string,
+  version: number,
+): IDBOpenDBRequest {
+  if (!ownsDatabase(name)) {
+    throw new Error(
+      `app-core: IndexedDB "${name}" is not one this app owns (lib/storage-ownership.ts)`,
+    );
+  }
   const factory = host().indexedDB;
   if (!factory) throw missing("IndexedDB");
-  return factory;
+  return factory.open(name, version);
 }
 
 export function maybeIndexedDatabases(): IDBFactory | undefined {

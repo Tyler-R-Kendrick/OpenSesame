@@ -1,5 +1,6 @@
 import { bytesToB64 } from "@opensesame/vault-core";
-import { indexedDatabases } from "../ports.js";
+import { openOwnedDatabase } from "../ports.js";
+import { HISTORY_BACKUP_DATABASE } from "./storage-ownership.js";
 
 /**
  * Store for provisional Postgres-family history accounts and entries.
@@ -27,7 +28,6 @@ export type HistoryEntryRecord = {
   createdAt: string;
 };
 
-const DB_NAME = "opensesame-history-backups";
 const DB_VERSION = 1;
 const ACCOUNTS = "accounts";
 const ENTRIES = "entries";
@@ -48,7 +48,7 @@ export function randomHistoryId(prefix: string): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDatabases().open(DB_NAME, DB_VERSION);
+    const req = openOwnedDatabase(HISTORY_BACKUP_DATABASE, DB_VERSION);
     req.onerror = () => reject(req.error ?? new Error("indexedDB open failed"));
     req.onupgradeneeded = () => {
       const db = req.result;

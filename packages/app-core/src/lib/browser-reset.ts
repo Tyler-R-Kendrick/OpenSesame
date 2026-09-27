@@ -1,19 +1,26 @@
 /**
- * Reset this browser: everything the app keeps on this origin, removed, so
- * the next load is a first visit. Mostly a testing and hand-over tool.
+ * Reset this browser: everything this app keeps here removed, so the next
+ * load is a first visit. Mostly a testing and hand-over tool.
  *
  * Deleting a vault (`VaultStore.destroy`) removes one tomb and leaves the
  * device's other vaults, its sign-in, its settings and its offline shell.
- * This removes all of it. The session is signed out first, while the bearer
- * its revocation sends is still in memory; then every origin-private file,
- * IndexedDB database, Web Storage key, Cache API cache and service-worker
- * registration goes. Other tabs of this origin are told, so they reload
- * rather than write what they hold in memory back into an emptied origin.
+ * This removes all of it — and only it. The origin is shared (in production
+ * with every GitHub Pages project site of the account), so each area goes
+ * by the names the app owns (`storage-ownership.ts`, the service worker's
+ * scope-prefixed caches), never by clearing the area whole.
  *
- * Offline, the app shell stays: the Cache API holds only the service
- * worker's release assets, never anything a person stored, and removing them
- * with no network would leave the reload that follows nothing to load. Those
- * two areas are reported as kept, and the next online reset removes them.
+ * In order: other tabs are told first, so they stop writing; the
+ * session is signed out while the bearer its revocation sends is still in
+ * memory; the writes this tab already started are waited for and then no
+ * more are allowed; then the stores go, a second pass catches anything
+ * another tab had in the air, and the others are told it is done, and
+ * reload onto the emptied storage.
+ *
+ * The app shell stays unless the network answers: the Cache API holds only
+ * the service worker's release assets, never anything a person stored, and
+ * removing them with no network would leave the reload nothing to load.
+ * Kept, the worker's push subscription still ends, so the previous
+ * account's notifications stop.
  *
  * Not forensic erasure: what the browser keeps beyond the app's reach (the
  * HttpOnly cookie the Identity API sets, the HTTP cache, a granted storage
@@ -21,31 +28,35 @@
  * untouched. The caller navigates afterwards; nothing here reloads.
  */
 
+import { isOnline } from "../ports.js";
 import {
-  type WebStorage,
-  isOnline,
-  maybeCacheStorage,
-  maybeIndexedDatabases,
-  maybeLocalStore,
-  maybeSessionStore,
-  originFiles,
-  serviceWorkerContainer,
-} from "../ports.js";
+  clearCaches,
+  clearDatabases,
+  clearOriginFiles,
+  clearWebStorage,
+  networkAnswers,
+  unregisterServiceWorkers,
+  unsubscribePush,
+} from "./browser-reset-areas.js";
 import { announceBrowserReset } from "./browser-reset-channel.js";
 import { settleRevokes } from "./identity.js";
+import { kvFlush } from "./kv.js";
 import { signOut } from "./session-exit.js";
+import { haltStorageWrites } from "./storage-halt.js";
+import { vaultStore } from "./vault/store.js";
 
 export type BrowserResetArea =
   | "session"
   | "origin_files"
   | "databases"
   | "web_storage"
+  | "push_subscription"
   | "caches"
   | "service_workers";
 
 /**
  * What went, what could not be removed, and what was kept on purpose (the
- * app shell, offline). Every other area is attempted.
+ * app shell, while the network does not answer). Every area is attempted.
  */
 export type BrowserResetReport = Readonly<{
   cleared: readonly BrowserResetArea[];
@@ -53,11 +64,21 @@ export type BrowserResetReport = Readonly<{
   kept: readonly BrowserResetArea[];
 }>;
 
-/** The app shell: code the reload needs, never anything a person stored. */
-const SHELL: ReadonlySet<BrowserResetArea> = new Set([
-  "caches",
-  "service_workers",
-]);
+export type BrowserResetOptions = Readonly<{
+  /** The app's scope URL, absolute: its worker registration's `scope`. */
+  scope: string;
+  /** Whether a Cache API name is this app's (the worker's own naming). */
+  ownsCache: (name: string) => boolean;
+}>;
+
+/** Every write this tab has started: vault persists, then the kv queue. */
+async function flushWrites(): Promise<void> {
+  await vaultStore.flushPendingWrites();
+  await kvFlush();
+}
+
+/** Replaceable in tests. */
+export const browserResetSeams = { flushWrites, networkAnswers };
 
 async function endSession(): Promise<void> {
   signOut();
@@ -66,106 +87,77 @@ async function endSession(): Promise<void> {
   await settleRevokes();
 }
 
-async function clearOriginFiles(): Promise<void> {
-  const open = originFiles();
-  if (!open) return;
-  const root = await open();
-  const names: string[] = [];
-  for await (const name of root.keys()) names.push(name);
-  await Promise.all(
-    names.map((name) => root.removeEntry(name, { recursive: true })),
-  );
-}
-
-function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const request = factory.deleteDatabase(name);
-    request.onsuccess = () => resolve();
-    // A connection in this tab is still open: the deletion is queued and
-    // completes when the navigation that follows closes it.
-    request.onblocked = () => resolve();
-    request.onerror = () =>
-      reject(request.error ?? new Error(`could not delete ${name}`));
-  });
-}
-
-async function clearDatabases(): Promise<void> {
-  const factory = maybeIndexedDatabases();
-  if (!factory) return;
-  const databases = await factory.databases();
-  await Promise.all(
-    databases.flatMap(({ name }) =>
-      name ? [deleteDatabase(factory, name)] : [],
-    ),
-  );
-}
-
-function clearStore(store: WebStorage | undefined): void {
-  if (!store) return;
-  const keys: string[] = [];
-  for (let index = 0; index < store.length; index += 1) {
-    const key = store.key(index);
-    if (key !== null) keys.push(key);
+async function attempt(step: () => void | Promise<void>): Promise<boolean> {
+  try {
+    await step();
+    return true;
+  } catch {
+    return false;
   }
-  for (const key of keys) store.removeItem(key);
 }
 
-function clearWebStorage(): void {
-  clearStore(maybeLocalStore());
-  clearStore(maybeSessionStore());
+class Ledger {
+  readonly cleared: BrowserResetArea[] = [];
+  readonly failed: BrowserResetArea[] = [];
+  readonly kept: BrowserResetArea[] = [];
+
+  async run(area: BrowserResetArea, step: () => void | Promise<void>) {
+    ((await attempt(step)) ? this.cleared : this.failed).push(area);
+  }
+
+  /** A second pass over an area already cleared; a refusal now is a failure. */
+  async sweep(area: BrowserResetArea, step: () => void | Promise<void>) {
+    if (!this.cleared.includes(area) || (await attempt(step))) return;
+    this.cleared.splice(this.cleared.indexOf(area), 1);
+    this.failed.push(area);
+  }
+
+  report(): BrowserResetReport {
+    return { cleared: this.cleared, failed: this.failed, kept: this.kept };
+  }
 }
 
-async function clearCaches(): Promise<void> {
-  const caches = maybeCacheStorage();
-  if (!caches) return;
-  const names = await caches.keys();
-  await Promise.all(names.map((name) => caches.delete(name)));
-}
-
-async function unregisterServiceWorkers(): Promise<void> {
-  const container = serviceWorkerContainer();
-  if (!container) return;
-  const registrations = await container.getRegistrations();
-  await Promise.all(
-    registrations.map((registration) => registration.unregister()),
+async function removeShell(ledger: Ledger, options: BrowserResetOptions) {
+  // Unregistering ends the subscription too; ending it first means a worker
+  // that will not unregister still stops delivering.
+  const unsubscribed = await attempt(() => unsubscribePush(options.scope));
+  await ledger.run("caches", () => clearCaches(options.ownsCache));
+  await ledger.run("service_workers", () =>
+    unregisterServiceWorkers(options.scope),
   );
+  const pushGone = unsubscribed || ledger.cleared.includes("service_workers");
+  (pushGone ? ledger.cleared : ledger.failed).push("push_subscription");
 }
 
-/**
- * In order: the session before storage (sign-out writes the outcome the
- * sign-in panel reads, and that write must not survive), and Web Storage
- * after the stores whose absence it would otherwise describe.
- */
-const STEPS: readonly (readonly [
-  BrowserResetArea,
-  () => void | Promise<void>,
-])[] = [
-  ["session", endSession],
-  ["origin_files", clearOriginFiles],
-  ["databases", clearDatabases],
-  ["web_storage", clearWebStorage],
-  ["caches", clearCaches],
-  ["service_workers", unregisterServiceWorkers],
-];
+async function keepShell(ledger: Ledger, options: BrowserResetOptions) {
+  const unsubscribed = await attempt(() => unsubscribePush(options.scope));
+  (unsubscribed ? ledger.cleared : ledger.kept).push("push_subscription");
+  ledger.kept.push("caches", "service_workers");
+}
 
 /** Remove everything this app keeps in this browser. Never throws. */
-export async function resetBrowser(): Promise<BrowserResetReport> {
-  const cleared: BrowserResetArea[] = [];
-  const failed: BrowserResetArea[] = [];
-  const kept: BrowserResetArea[] = [];
-  const online = isOnline();
-  for (const [area, step] of STEPS) {
-    if (!online && SHELL.has(area)) {
-      kept.push(area);
-      continue;
-    }
-    try {
-      await step();
-      cleared.push(area);
-    } catch {
-      failed.push(area);
-    }
-  }
-  announceBrowserReset();
-  return { cleared, failed, kept };
+export async function resetBrowser(
+  options: BrowserResetOptions,
+): Promise<BrowserResetReport> {
+  const ledger = new Ledger();
+  announceBrowserReset("start");
+  await ledger.run("session", endSession);
+  // A write this tab started before now (the lock's last-vault pointer, a
+  // vault persist) lands before the files are listed; none starts after.
+  await attempt(browserResetSeams.flushWrites);
+  haltStorageWrites();
+  await ledger.run("origin_files", clearOriginFiles);
+  await ledger.run("databases", () => clearDatabases());
+  await ledger.run("web_storage", clearWebStorage);
+  const shellGoes =
+    isOnline() && (await browserResetSeams.networkAnswers(options.scope));
+  await (shellGoes ? removeShell : keepShell)(ledger, options);
+  // Another tab may have had a write in the air when it heard the reset,
+  // and the worker may have saved a shell before it was unregistered.
+  await ledger.sweep("origin_files", clearOriginFiles);
+  await ledger.sweep("web_storage", clearWebStorage);
+  if (shellGoes)
+    await ledger.sweep("caches", () => clearCaches(options.ownsCache));
+  announceBrowserReset("done");
+  return ledger.report();
 }

@@ -1,4 +1,6 @@
 import { originFiles } from "../ports.js";
+import { haltedWriteError, storageWritesHalted } from "./storage-halt.js";
+import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
 /**
  * Same-origin KV with OPFS primary + in-memory fallback.
  * Never uses localStorage/sessionStorage (XSS-exfiltrable; banned by ast-grep).
@@ -44,7 +46,31 @@ async function opfsRoot(
 }
 
 function fileName(key: string): string {
-  return `opensesame-pages-${key.replace(/[^a-zA-Z0-9._-]/g, "_")}.json`;
+  return `${ORIGIN_FILE_PREFIX}${key.replace(/[^a-zA-Z0-9._-]/g, "_")}.json`;
+}
+
+/** Origin-file writes and deletes this tab has started and not yet seen land. */
+const inFlight = new Set<Promise<unknown>>();
+
+function track<T>(work: Promise<T>): Promise<T> {
+  inFlight.add(work);
+  const settle = () => {
+    inFlight.delete(work);
+  };
+  work.then(settle, settle);
+  return work;
+}
+
+/**
+ * Wait until every origin-file write or delete this tab has started has
+ * landed (or failed), including ones started while waiting. Resetting this
+ * browser lists the origin's files only after this, so a write already in
+ * the air cannot recreate a file the reset has just removed.
+ */
+export async function kvFlush(): Promise<void> {
+  while (inFlight.size > 0) {
+    await Promise.allSettled([...inFlight]);
+  }
 }
 
 /**
@@ -75,13 +101,19 @@ async function opfsRead(key: string): Promise<string | null> {
   }
 }
 
-async function opfsWrite(key: string, value: string): Promise<void> {
+async function opfsWriteNow(key: string, value: string): Promise<void> {
   const root = await opfsRoot(true);
   if (!root) return;
   const handle = await root.getFileHandle(fileName(key), { create: true });
   const writable = await handle.createWritable();
   await writable.write(value);
   await writable.close();
+}
+
+function opfsWrite(key: string, value: string): Promise<void> {
+  // Refused before it starts, so nothing is in flight to wait for.
+  if (storageWritesHalted()) return Promise.reject(haltedWriteError());
+  return track(opfsWriteNow(key, value));
 }
 
 /** Sync read from hydrated memory. */
@@ -130,15 +162,17 @@ export async function kvSetDurable(key: string, value: string): Promise<void> {
 
 export function kvDelete(key: string): void {
   memory.delete(key);
-  void (async () => {
-    try {
-      const root = await opfsRoot();
-      if (!root) return;
-      await root.removeEntry(fileName(key));
-    } catch {
-      /* ignore */
-    }
-  })();
+  void track(
+    (async () => {
+      try {
+        const root = await opfsRoot();
+        if (!root) return;
+        await root.removeEntry(fileName(key));
+      } catch {
+        /* ignore */
+      }
+    })(),
+  );
 }
 
 /**

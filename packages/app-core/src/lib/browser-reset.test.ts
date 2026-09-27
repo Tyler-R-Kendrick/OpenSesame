@@ -1,225 +1,252 @@
 /**
- * Reset this browser: every store the app keeps on the origin is emptied,
- * the session is signed out before any of it, a store that refuses does not
- * stop the others, and other tabs hear about it — this one does not.
+ * Reset this browser: what the app keeps on the origin is emptied and
+ * nothing else is — the origin is shared with other sites — the session is
+ * signed out before any of it, other tabs are told before the first store
+ * goes and again after the last, and this tab's own writes land before the
+ * files are listed and are refused after.
  */
 
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
-import type { BroadcastLike, Ports, WebStorage } from "../ports.js";
+import { maybeLocalStore } from "../ports.js";
 import { createTestHost } from "../test-host.js";
-import { onBrowserReset } from "./browser-reset-channel.js";
-import { resetBrowser } from "./browser-reset.js";
+import {
+  FOREIGN_SCOPE,
+  NO_PORTS,
+  SCOPE,
+  broadcastHub,
+  cacheStore,
+  databaseFactory,
+  memoryStorage,
+  originRoot,
+  ownsCache,
+  registration,
+  workerContainer,
+} from "./browser-reset.fixture.js";
+import { browserResetSeams, resetBrowser } from "./browser-reset.js";
+import { kvSet, kvSetDurable } from "./kv.js";
 import { sessionExitSeams } from "./session-exit.js";
+import { resumeStorageWritesForTest } from "./storage-halt.js";
 
-const originalSignOut = sessionExitSeams.signOut;
+const original = {
+  signOut: sessionExitSeams.signOut,
+  ...browserResetSeams,
+};
 
 afterEach(() => {
-  sessionExitSeams.signOut = originalSignOut;
+  sessionExitSeams.signOut = original.signOut;
+  browserResetSeams.flushWrites = original.flushWrites;
+  browserResetSeams.networkAnswers = original.networkAnswers;
+  resumeStorageWritesForTest();
   configureHost(createTestHost());
 });
 
-/** What a fake tab posts on the reset channel. */
-type Posted = Readonly<{ kind: string; tab: string }> | string | null;
+const OURS = { scope: SCOPE, ownsCache } as const;
 
-/** No port at all: the reset has nothing to clear there. */
-const NO_PORTS: Partial<Ports> = {
-  storage: {},
-  originFiles: undefined,
-  indexedDB: undefined,
-  cacheStorage: undefined,
-  serviceWorker: undefined,
-  broadcast: undefined,
-};
+/** Lands a held origin-file write when the test says so. */
+type LandingGate = { land?: () => void };
 
-function memoryStorage(
-  ...entries: (readonly [string, string])[]
-): WebStorage & {
-  map: Map<string, string>;
-} {
-  const map = new Map(entries);
-  return {
-    map,
-    get length() {
-      return map.size;
-    },
-    key: (index) => [...map.keys()][index] ?? null,
-    getItem: (key) => map.get(key) ?? null,
-    setItem: (key, value) => void map.set(key, value),
-    removeItem: (key) => void map.delete(key),
-  };
+function quiet(): void {
+  sessionExitSeams.signOut = () => undefined;
+  browserResetSeams.networkAnswers = async () => true;
 }
 
-function originRoot(names: string[]) {
-  const files = new Set(names);
-  return {
-    files,
-    async *keys() {
-      yield* [...files];
-    },
-    removeEntry: vi.fn(async (name: string) => {
-      files.delete(name);
-    }),
-  };
-}
-
-type DeleteRequest = { onsuccess?: () => void; error: null };
-
-function databaseFactory(names: string[]) {
-  const live = new Set(names);
-  return {
-    live,
-    databases: async () => [...live].map((name) => ({ name, version: 1 })),
-    deleteDatabase(name: string): DeleteRequest {
-      const request: DeleteRequest = { error: null };
-      queueMicrotask(() => {
-        live.delete(name);
-        request.onsuccess?.();
-      });
-      return request;
-    },
-  };
-}
-
-function broadcastHub() {
-  const listeners = new Set<(event: MessageEvent) => void>();
-  const posted: Posted[] = [];
-  const open = (): BroadcastLike =>
-    overlapCast({
-      postMessage(data: Posted) {
-        posted.push(data);
-        const event: MessageEvent = overlapCast({ data });
-        for (const listener of listeners) listener(event);
-      },
-      close() {},
-      addEventListener(_type: string, listener: (event: MessageEvent) => void) {
-        listeners.add(listener);
-      },
-      removeEventListener(
-        _type: string,
-        listener: (event: MessageEvent) => void,
-      ) {
-        listeners.delete(listener);
-      },
-      onmessage: null,
-    });
-  return { open, posted, listeners };
-}
-
-describe("resetBrowser", () => {
-  it("signs out, then empties every store the app keeps on this origin", async () => {
-    const order: string[] = [];
-    const local = memoryStorage(["opensesame:settings", "{}"], ["other", "x"]);
-    const session = memoryStorage(["opensesame:federation", "{}"]);
-    const root = originRoot(["opensesame-pages-a.json", "tomb"]);
-    const databases = databaseFactory(["opensesame-history-backups"]);
-    const cacheNames = new Set(["shell-v1", "shell-v2"]);
-    const unregister = vi.fn(async () => true);
+describe("resetBrowser: only what the app owns", () => {
+  it("empties the app's own stores and leaves every other site's", async () => {
+    const local = memoryStorage(
+      ["opensesame:settings", "{}"],
+      ["opensesame.keybindings.v1", "{}"],
+      ["join.presented.v1", "{}"],
+      ["other", "x"],
+      ["msal.3.account.keys", "[]"],
+    );
+    const session = memoryStorage(
+      ["opensesame:federation:session", "{}"],
+      ["join.pending.v2", "{}"],
+      ["msal.3.token.keys.client", "{}"],
+      ["theirs", "y"],
+    );
+    const root = originRoot([
+      "opensesame-pages-settings.v1.json",
+      "opensesame-pages-tomb_personal_vault.body.v1.json",
+      "tomb",
+      "their-notes.json",
+    ]);
+    const databases = databaseFactory([
+      "opensesame-history-backups",
+      "their-db",
+    ]);
+    const caches = cacheStore([
+      "opensesame-pages:/OpenSesame/:r1:core-only",
+      "opensesame-pages:/OpenSesame/:r2:staging",
+      "opensesame-pages:/other-site/:r1:core-only",
+      "workbox-precache-v2",
+    ]);
+    const ours = registration(SCOPE, { subscribed: true });
+    const theirs = registration(FOREIGN_SCOPE, { subscribed: true });
     const hub = broadcastHub();
-    sessionExitSeams.signOut = () => {
-      order.push("signOut");
-      // Sign-out records its outcome; the reset must not leave it behind.
-      local.setItem("opensesame:auth-outcome", "signed_out");
-    };
-    root.removeEntry.mockImplementation(async (name: string) => {
-      order.push(`file:${name}`);
-      root.files.delete(name);
-    });
+    quiet();
     configureHost(
       createTestHost({
         storage: { local, session },
         originFiles: async () => overlapCast(root),
         indexedDB: overlapCast(databases),
-        cacheStorage: overlapCast({
-          keys: async () => [...cacheNames],
-          delete: async (name: string) => cacheNames.delete(name),
-        }),
-        serviceWorker: overlapCast({
-          getRegistrations: async () => [{ unregister }, { unregister }],
-        }),
+        cacheStorage: caches.port,
+        serviceWorker: workerContainer(ours, theirs),
         broadcast: hub.open,
       }),
     );
 
-    const report = await resetBrowser();
+    const report = await resetBrowser(OURS);
 
     expect(report.failed).toEqual([]);
     expect(report.kept).toEqual([]);
-    expect(report.cleared).toEqual([
-      "session",
-      "origin_files",
-      "databases",
-      "web_storage",
+    expect([...report.cleared].sort()).toEqual([
       "caches",
+      "databases",
+      "origin_files",
+      "push_subscription",
       "service_workers",
+      "session",
+      "web_storage",
     ]);
-    expect(order[0]).toBe("signOut");
-    expect(root.files.size).toBe(0);
-    expect(root.removeEntry).toHaveBeenCalledWith("tomb", { recursive: true });
-    expect(databases.live.size).toBe(0);
-    expect(local.map.size).toBe(0);
-    expect(session.map.size).toBe(0);
-    expect(cacheNames.size).toBe(0);
-    expect(unregister).toHaveBeenCalledTimes(2);
-    expect(hub.posted).toEqual([{ kind: "reset", tab: expect.any(String) }]);
+    expect([...local.map.keys()]).toEqual(["other", "msal.3.account.keys"]);
+    expect([...session.map.keys()]).toEqual(["theirs"]);
+    expect([...root.files]).toEqual(["tomb", "their-notes.json"]);
+    expect(databases.deleted).toEqual(["opensesame-history-backups"]);
+    expect([...databases.live]).toEqual(["their-db"]);
+    expect([...caches.live]).toEqual([
+      "opensesame-pages:/other-site/:r1:core-only",
+      "workbox-precache-v2",
+    ]);
+    expect(ours.unregister).toHaveBeenCalledTimes(1);
+    expect(ours.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(theirs.unregister).not.toHaveBeenCalled();
+    expect(theirs.unsubscribe).not.toHaveBeenCalled();
   });
+});
 
-  it("keeps going past a store that refuses, and names it", async () => {
-    const local = memoryStorage(["key", "value"]);
-    sessionExitSeams.signOut = () => undefined;
-    configureHost(
-      createTestHost({
-        ...NO_PORTS,
-        storage: { local },
-        originFiles: async () => {
-          throw new DOMException("denied", "SecurityError");
-        },
-      }),
-    );
-
-    const report = await resetBrowser();
-
-    expect(report.failed).toEqual(["origin_files"]);
-    expect(report.cleared).toContain("web_storage");
-    expect(local.map.size).toBe(0);
-  });
-
-  it("offline, keeps the app shell so the reload has something to load", async () => {
+describe("resetBrowser: other tabs and this tab's own writes", () => {
+  it("announces first, signs out, flushes, halts, clears, sweeps, announces again", async () => {
+    const order: string[] = [];
     const local = memoryStorage(["opensesame:settings", "{}"]);
-    const cacheNames = new Set(["shell-v1"]);
-    const unregister = vi.fn(async () => true);
-    sessionExitSeams.signOut = () => undefined;
+    const root = originRoot(["opensesame-pages-a.json"]);
+    const hub = broadcastHub(() => order.push("announce"));
+    quiet();
+    sessionExitSeams.signOut = () => order.push("signOut");
+    browserResetSeams.flushWrites = async () => {
+      order.push("flush");
+    };
+    root.removeEntry.mockImplementation(async (name: string) => {
+      order.push(`remove:${name}`);
+      root.files.delete(name);
+      // Writes after the flush are refused: the Web Storage port does
+      // nothing, and an origin-file write rejects before it starts.
+      maybeLocalStore()?.setItem("opensesame:late", "1");
+      await expect(kvSetDurable("late", "1")).rejects.toThrow(/reset/);
+    });
     configureHost(
       createTestHost({
         ...NO_PORTS,
         storage: { local },
-        cacheStorage: overlapCast({
-          keys: async () => [...cacheNames],
-          delete: async (name: string) => cacheNames.delete(name),
-        }),
-        serviceWorker: overlapCast({
-          getRegistrations: async () => [{ unregister }],
-        }),
-        environment: overlapCast({ online: false }),
+        originFiles: async () => overlapCast(root),
+        broadcast: hub.open,
       }),
     );
 
-    const report = await resetBrowser();
+    await resetBrowser(OURS);
 
-    expect(report.kept).toEqual(["caches", "service_workers"]);
-    expect(report.cleared).toContain("web_storage");
-    expect(report.failed).toEqual([]);
+    expect(order).toEqual([
+      "announce",
+      "signOut",
+      "flush",
+      "remove:opensesame-pages-a.json",
+      "announce",
+    ]);
+    expect(local.map.has("opensesame:late")).toBe(false);
     expect(local.map.size).toBe(0);
-    expect(cacheNames.size).toBe(1);
-    expect(unregister).not.toHaveBeenCalled();
   });
 
-  it("another tab hears the reset; the tab that ran it does not", async () => {
+  it("waits for a write this tab already started before listing the files", async () => {
+    const events: string[] = [];
+    const files = new Set<string>();
+    const gate: LandingGate = {};
+    const root = {
+      async *keys() {
+        events.push("list");
+        yield* [...files];
+      },
+      removeEntry: vi.fn(async (name: string) => {
+        files.delete(name);
+      }),
+      getFileHandle: async (name: string) => ({
+        createWritable: async () => ({
+          write: async () => undefined,
+          close: () =>
+            new Promise<void>((resolve) => {
+              gate.land = () => {
+                files.add(name);
+                events.push("landed");
+                resolve();
+              };
+            }),
+        }),
+      }),
+    };
+    quiet();
+    // Signing out locks, and the lock writes the last-vault pointer: in flight.
+    sessionExitSeams.signOut = () => kvSet("opensesame.last-vault.v1", "p");
+    configureHost(
+      createTestHost({
+        ...NO_PORTS,
+        originFiles: async () => overlapCast(root),
+      }),
+    );
+
+    const running = resetBrowser(OURS);
+    await vi.waitFor(() => expect(gate.land).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(events).toEqual([]);
+    gate.land?.();
+    const report = await running;
+
+    expect(events.slice(0, 2)).toEqual(["landed", "list"]);
+    expect(files.size).toBe(0);
+    expect(report.cleared).toContain("origin_files");
+  });
+
+  it("a second pass removes what another tab wrote while the first ran", async () => {
+    const root = originRoot(["opensesame-pages-a.json", "theirs.bin"]);
+    let first = true;
+    root.removeEntry.mockImplementation(async (name: string) => {
+      root.files.delete(name);
+      if (first) root.files.add("opensesame-pages-late.json");
+      first = false;
+    });
+    quiet();
+    configureHost(
+      createTestHost({
+        ...NO_PORTS,
+        originFiles: async () => overlapCast(root),
+      }),
+    );
+
+    const report = await resetBrowser(OURS);
+
+    expect([...root.files]).toEqual(["theirs.bin"]);
+    expect(report.cleared).toContain("origin_files");
+  });
+
+  it("another tab hears the reset and stops writing; the tab that ran it does not hear it", async () => {
     const hub = broadcastHub();
-    sessionExitSeams.signOut = () => undefined;
+    const { onBrowserReset } = await import("./browser-reset-channel.js");
+    quiet();
     configureHost(createTestHost({ ...NO_PORTS, broadcast: hub.open }));
-    const heard = vi.fn();
+    const heard = vi.fn(() =>
+      // Halted before the handler runs: the reload never races a write.
+      expect(kvSetDurable("x", "1")).rejects.toThrow(/reset/),
+    );
     const stop = onBrowserReset(heard);
 
     hub.open().postMessage({ kind: "reset", tab: "another-tab" });
@@ -227,11 +254,15 @@ describe("resetBrowser", () => {
     hub.open().postMessage("reset");
     hub.open().postMessage(null);
     expect(heard).toHaveBeenCalledTimes(1);
+    await heard.mock.results[0]?.value;
 
-    // This tab's own announcement is not a reason to reload over its own
-    // navigation.
-    await resetBrowser();
-    expect(hub.posted.at(-1)).toMatchObject({ kind: "reset" });
+    resumeStorageWritesForTest();
+    await resetBrowser(OURS);
+    // Before the first store and after the last.
+    expect(hub.posted.slice(-2)).toEqual([
+      { kind: "reset", tab: expect.any(String), phase: "start" },
+      { kind: "reset", tab: expect.any(String), phase: "done" },
+    ]);
     expect(heard).toHaveBeenCalledTimes(1);
 
     stop();
