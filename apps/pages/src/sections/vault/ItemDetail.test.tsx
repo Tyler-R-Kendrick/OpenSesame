@@ -171,7 +171,7 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it.skip("shows folder membership, sample marker, and update time", () => {
+  it("shows folder membership, sample marker, and update time", () => {
     vault.current = {
       items: [makeLogin({ folderId: "fld_1", sample: true })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
@@ -180,7 +180,7 @@ describe("ItemDetail", () => {
     expect(
       screen.getByRole("link", { name: "Work" }).getAttribute("href"),
     ).toBe("/vault?folder=fld_1");
-    expect(screen.getByText("SYNTHETIC")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Synthetic" })).toBeTruthy();
     expect(screen.getByText(/^Updated /)).toBeTruthy();
   });
 
@@ -338,13 +338,13 @@ describe("ItemDetail", () => {
     expect(store.trashItem).toHaveBeenCalledWith("itm_login");
   });
 
-  it.skip("restores or purges a trashed item with confirmation", async () => {
+  it("restores or purges a trashed item with confirmation", async () => {
     vault.current = {
       items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
       folders: [],
     };
     renderAt("itm_login");
-    expect(screen.getByText("In trash")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "In trash" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: /^Restore$/i }));
     expect(store.restoreItem).toHaveBeenCalledWith("itm_login");
 
@@ -387,13 +387,7 @@ describe("ItemDetail", () => {
     expect(screen.getByText("4111 1111 1111 4242")).toBeTruthy();
   });
 
-  it.skip("renders a secret with grantees, ceiling, and receipt lookup", async () => {
-    listConnections.mockResolvedValue([
-      { connectionId: "con_1", connectionRef: "conn/github/pat" },
-    ]);
-    connectionEvents.mockResolvedValue([
-      { kind: "invoke", at: "2026-08-10T10:00:00Z", detail: "200 OK" },
-    ]);
+  it("renders a secret with grantees, ceiling, and receipt line", async () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Deploy hook"),
       value: "whsec_123",
@@ -414,9 +408,13 @@ describe("ItemDetail", () => {
     expect(
       screen.getByText("https://deploy.example.com/hooks/release"),
     ).toBeTruthy();
+    // Receipts lived on a server plane Pages no longer speaks (ed1d403d,
+    // ADR 0090/0128): the line says so and no lookup is attempted.
     expect(
-      await screen.findByText("invoke · 2026-08-10T10:00:00Z · 200 OK"),
+      screen.getByText("Connection receipts are unavailable on this device."),
     ).toBeTruthy();
+    expect(listConnections).not.toHaveBeenCalled();
+    expect(connectionEvents).not.toHaveBeenCalled();
     expect(
       screen.getByRole("link", { name: /^Grant or invoke$/i }),
     ).toBeTruthy();
@@ -444,7 +442,7 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it.skip("reports when the Host has no connection for the ref", async () => {
+  it("reports when the Host has no connection for the ref", async () => {
     listConnections.mockResolvedValue([]);
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Deploy hook"),
@@ -458,7 +456,7 @@ describe("ItemDetail", () => {
     expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
   });
 
-  it.skip("reports when the Host is disconnected", async () => {
+  it("reports when the Host is disconnected", async () => {
     planes.value = { host: "degraded", identity: "connected" };
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Deploy hook"),
@@ -630,7 +628,7 @@ describe("ItemDetail edge branches", () => {
     expect(screen.getByText("09/----")).toBeTruthy();
   });
 
-  it.skip("reports when a connection has no receipts yet", async () => {
+  it("reports when a connection has no receipts yet", async () => {
     listConnections.mockResolvedValue([
       { connectionId: "con_1", connectionRef: "conn/github/pat" },
     ]);
@@ -647,7 +645,7 @@ describe("ItemDetail edge branches", () => {
     expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
   });
 
-  it.skip("degrades gracefully when the receipt lookup fails", async () => {
+  it("degrades gracefully when the receipt lookup fails", async () => {
     listConnections.mockRejectedValue(new Error("host exploded"));
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Hook"),

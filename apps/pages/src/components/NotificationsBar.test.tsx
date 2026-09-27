@@ -84,7 +84,7 @@ describe("NotificationsBar", () => {
     ).toBe("/vault/health");
   });
 
-  it.skip("shows a status notice with its retry, repair, and dismiss actions", () => {
+  it("shows a status notice with its retry, repair, and dismiss actions", () => {
     const retry = vi.fn();
     setStatusNotice({
       id: "host-down",
@@ -106,10 +106,11 @@ describe("NotificationsBar", () => {
     );
     expect(screen.getByText("Service unavailable")).toBeTruthy();
     expect(screen.getByText("Authorization needs a connection.")).toBeTruthy();
-    // Repair opens the Host ceremony in place — never a route change.
+    // Repair opens the Identity ceremony in place — never a route change —
+    // and carries the notice's own label, not the generic fallback.
     expect(screen.queryByRole("link")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Repair the connection" }),
+      screen.getByRole("button", { name: "Repair the Identity connection" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledTimes(1);

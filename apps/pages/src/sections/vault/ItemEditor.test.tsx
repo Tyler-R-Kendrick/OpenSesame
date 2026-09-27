@@ -485,37 +485,30 @@ describe("ItemEditor", () => {
     expect(saved.passwordChangedAt).toBe("2026-08-01T00:00:00Z");
   });
 
-  it.skip("compiles secret grants to the Host after saving", async () => {
+  it("saves a secret's connection reference on this device alone", async () => {
+    // Grant compilation left Pages with the rest of its server plane
+    // (ed1d403d, ADR 0128): the save seals the reference locally and
+    // nothing is compiled or sent anywhere.
     renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: "Add connection reference" }),
     );
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
+    await userEvent.clear(screen.getByLabelText(/Secret value/i));
     await userEvent.type(screen.getByLabelText(/Secret value/i), "whsec_1");
     await userEvent.type(
       screen.getByLabelText(/Connection reference/i),
       "conn/github/pat",
     );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    await waitFor(() => expect(compileSecretToHost).toHaveBeenCalled());
     expect(await screen.findByText("navigated away")).toBeTruthy();
-  });
-
-  it.skip("warns but still saves when the Host grant compile fails", async () => {
-    compileSecretToHost.mockRejectedValue(new Error("host down"));
-    renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add connection reference" }),
-    );
-    await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
-    await userEvent.type(
-      screen.getByLabelText(/Connection reference/i),
-      "conn/github/pat",
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    await waitFor(() => expect(compileSecretToHost).toHaveBeenCalled());
-    expect(await screen.findByText("navigated away")).toBeTruthy();
-    expect(saveItem).toHaveBeenCalled();
+    const saved = savedItem();
+    if (saved.kind !== "secret") throw new Error("expected saved secret");
+    expect(saved.name).toBe("Deploy hook");
+    expect(saved.value).toBe("whsec_1");
+    expect(saved.connectionRef).toBe("conn/github/pat");
+    expect(compileSecretToHost).not.toHaveBeenCalled();
   });
 
   it("keeps grantee editing out of secret ceremonies and preserves grants", async () => {

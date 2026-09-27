@@ -63,7 +63,7 @@ function withEdit(relPath: string, edit: (source: string) => string): string[] {
 }
 
 describe("the shipped screens satisfy the control contract", () => {
-  it.skip("passes a full sweep", () => {
+  it("passes a full sweep", () => {
     const result = runLint();
     expect(result.output).toContain("OK");
     expect(result.code).toBe(0);

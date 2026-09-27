@@ -149,7 +149,7 @@ describe("public link prefills", () => {
       ),
     ).toMatchObject({ connectionRef: "conn/github/pat" });
   });
-  it.skip("validates typed public fields against their manifest and rejects secret fields", () => {
+  it("validates typed public fields against their manifest and rejects secret fields", () => {
     expect(
       prefillNewDraft(
         "database",

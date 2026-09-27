@@ -127,10 +127,7 @@ describe("buildConnectors", () => {
       snapshot({ offline: true }),
       settings(),
     );
-    const tones = Object.fromEntries(
-      built.map((row) => [row.id, row.tone]),
-    ) as Record<string, string>;
-    expect(tones.identity).toBe("offline");
+    expect(built.find((row) => row.id === "identity")?.tone).toBe("offline");
   });
 });
 
@@ -149,8 +146,10 @@ describe("offline set", () => {
 });
 
 describe("re-exports", () => {
-  it.skip("keeps the origin helpers on the bar module", () => {
-    expect(briefOrigin("https://id.example/path")).toBe("id.example");
-    expect(repoHint("https://github.com/octo/vault")).toContain("octo");
+  it("keeps the origin helpers on the bar module", () => {
+    // The os-domain contract: drop the scheme, keep the path a person typed.
+    expect(briefOrigin("https://id.example/path")).toBe("id.example/path");
+    expect(briefOrigin("https://id.example/")).toBe("id.example");
+    expect(repoHint("https://github.com/octo/vault.git")).toBe("octo/vault");
   });
 });

@@ -72,7 +72,7 @@ async function seeded() {
   return fixture;
 }
 
-it.skip("lists the directory's connectors with their source and health", async () => {
+it("lists the directory's connectors with their source and health", async () => {
   const fixture = await seeded();
   render(<ConnectorsPanel tomb={fixture.tomb} />);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
@@ -80,10 +80,16 @@ it.skip("lists the directory's connectors with their source and health", async (
     screen.getByText(/^api\.nango\.dev · 2 connectors · synced /),
   ).toBeTruthy();
   const rows = screen.getAllByRole("listitem");
+  // Health is a StatusMark glyph whose sentence is its accessible name
+  // (DESIGN.md § Status is a symbol), never a text pill.
   // SAFETY: fixture constructed in this test matches the declared contract.
-  expect(within(rows[0] as HTMLElement).getByText("Authorized")).toBeTruthy();
+  const healthy = within(rows[0] as HTMLElement);
+  expect(healthy.getByRole("img", { name: "Authorized" })).toBeTruthy();
+  expect(healthy.queryByText("Authorized")).toBeNull();
   // SAFETY: fixture constructed in this test matches the declared contract.
-  expect(within(rows[1] as HTMLElement).getByText("1 error")).toBeTruthy();
+  const failing = within(rows[1] as HTMLElement);
+  expect(failing.getByRole("img", { name: "1 error" })).toBeTruthy();
+  expect(failing.queryByRole("img", { name: "Authorized" })).toBeNull();
   // One source only: a chip on every row would say nothing.
   expect(screen.queryByText("directory")).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
@@ -177,7 +183,7 @@ it("re-syncs with the sealed key from the command strip", async () => {
   );
 });
 
-it.skip("configures a connector: alias, disable, and bind defaults", async () => {
+it("configures a connector: alias, disable, and bind defaults", async () => {
   const fixture = await seeded();
   render(<ConnectorsPanel tomb={fixture.tomb} />);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
@@ -201,10 +207,11 @@ it.skip("configures a connector: alias, disable, and bind defaults", async () =>
   await waitFor(() =>
     expect(screen.getByRole("heading", { name: "CI mirror" })).toBeTruthy(),
   );
-  expect(row.getByText("Disabled")).toBeTruthy();
+  expect(await row.findByRole("img", { name: "Disabled" })).toBeTruthy();
+  expect(row.queryByRole("img", { name: "Authorized" })).toBeNull();
   // A disabled connector refuses new binds.
   expect(
-    (row.getByRole("button", { name: "Bind" }) as HTMLButtonElement).disabled,
+    row.getByRole<HTMLButtonElement>("button", { name: "Bind" }).disabled,
   ).toBe(true);
 
   // Its bind form opens on the configured defaults once re-enabled.
@@ -214,11 +221,11 @@ it.skip("configures a connector: alias, disable, and bind defaults", async () =>
   await userEvent.click(within(reopened).getByRole("button", { name: "Save" }));
   await waitFor(() =>
     expect(
-      (row.getByRole("button", { name: "Bind" }) as HTMLButtonElement).disabled,
+      row.getByRole<HTMLButtonElement>("button", { name: "Bind" }).disabled,
     ).toBe(false),
   );
   await userEvent.click(row.getByRole("button", { name: "Bind" }));
-  expect((screen.getByLabelText("Policy") as HTMLSelectElement).value).toBe(
+  expect(screen.getByLabelText<HTMLSelectElement>("Policy").value).toBe(
     "invoke",
   );
 });
