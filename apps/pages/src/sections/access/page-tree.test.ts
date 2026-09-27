@@ -13,23 +13,34 @@ describe("access page tree", () => {
     expect(tree.map((node) => node.label)).toEqual(
       ACCESS_VIEWS.map((id) => ACCESS_LABELS[id]),
     );
-    // A tab whose one panel lists nothing is that panel, not its parent.
+    // Every tab is the same kind of row: a sibling that opens onto its panels.
     expect(
       tree.filter((node) => node.children.length > 0).map((node) => node.id),
-    ).toEqual(["grants", "sessions"]);
+    ).toEqual([...ACCESS_VIEWS]);
     const headings = (id: string) =>
       tree.find((node) => node.id === id)?.children.map((node) => node.label);
     expect(headings("grants")).toEqual([
       "Local application grants",
       "Identity shares",
     ]);
-    expect(headings("resources")).toEqual([]);
-    expect(headings("connectors")).toEqual([]);
+    expect(headings("requests")).toEqual(["Local requests"]);
+    expect(headings("resources")).toEqual(["Local resources"]);
+    expect(headings("connectors")).toEqual(["Connectors"]);
+    expect(headings("policies")).toEqual(["Local application policies"]);
+    // No tab is nested under another: panels are the only second level.
+    const views: readonly string[] = ACCESS_VIEWS;
     expect(
       tree
-        .find((node) => node.id === "grants")
-        ?.children.every((node) => node.branch),
-    ).toBe(true);
+        .flatMap((node) => node.children)
+        .filter((node) => views.includes(node.id)),
+    ).toEqual([]);
+    // Only the shares list records; a panel with none to list opens onto nothing.
+    expect(
+      tree
+        .flatMap((node) => node.children)
+        .filter((node) => node.collection)
+        .map((node) => node.id),
+    ).toEqual(["identity-shares"]);
     expect(pageTreeLeaves(tree)).toEqual([]);
     expect(tree.every((node) => pageTreeItemCount(node) === 0)).toBe(true);
   });
@@ -54,6 +65,7 @@ describe("access page tree", () => {
       "Vault share sessions",
       "Host shared sessions",
       "Host task sessions",
+      "Connectors",
       "Local resources",
       "Sites",
       "Local application policies",

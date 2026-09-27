@@ -18,11 +18,16 @@ function leaf(view: string, id: string, label: string): PageTreeLeaf {
   return { id, label, href: `/access?view=${view}#${id}` };
 }
 
+/**
+ * A panel is a heading on the tab's page. Only one that lists records (the
+ * identity shares) is a directory; the rest are places to jump to, drawn
+ * without a caret that would open onto nothing.
+ */
 function panel(
   view: string,
   id: string,
   label: string,
-  items: PageTreeLeaf[] = [],
+  items?: PageTreeLeaf[],
 ): PageTreeSource {
   return {
     id,
@@ -34,21 +39,21 @@ function panel(
 }
 
 /**
- * A tab whose one panel has nothing under it is that panel: listing it
- * drew "Connectors › Connectors" and "Policies › Local application
- * policies", a row that only said its parent again.
+ * Every tab is the same kind of row: a sibling under Access that opens onto
+ * the panels its page shows. Collapsing a one-panel tab into a caret-less
+ * row drew some tabs as places and others as directories, one indent
+ * apart, so a tab read as the child of the tab above it.
  */
 function tab(
   id: (typeof ACCESS_VIEWS)[number],
   sections: PageTreeSource[],
 ): PageTreeSource {
-  const only = sections.length === 1 && !sections[0]?.items?.length;
   return {
     id,
     label: ACCESS_LABELS[id],
     href: `/access?view=${id}`,
     keepEmpty: true,
-    sections: only ? [] : sections,
+    sections,
   };
 }
 

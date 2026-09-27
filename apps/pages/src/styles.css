@@ -1047,6 +1047,14 @@ input[type="radio"] {
   transform: rotate(90deg);
 }
 
+/* Siblings share one indent: a row with nothing to open, beside rows that
+   carry a caret, keeps the caret's width so its name lines up with theirs
+   instead of reading as a level above them. */
+.railtree__kids:has(> .railtree__row[aria-expanded])
+  > .railtree__row:not([aria-expanded]) {
+  padding-left: calc(0.55rem + 12px + 0.4rem);
+}
+
 .railtree__name {
   min-width: 0;
   overflow: hidden;

@@ -1,0 +1,93 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "expand": "Grants"
+        },
+        {
+          "measure": "#access-tree > .railtree__row > .railtree__name"
+        },
+        {
+          "measure": "#grants-tree > .railtree__row > .railtree__name"
+        },
+        {
+          "shot": "1280-access-rail"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "expand": "Requests"
+        },
+        {
+          "expand": "Sessions"
+        },
+        {
+          "measure": "#access-tree > .railtree__row > .railtree__name"
+        },
+        {
+          "shot": "1280-access-rail-sessions"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "measure": ".railtree__kids > .railtree__row[aria-level='2'] > .railtree__name"
+        },
+        {
+          "shot": "1280-settings-rail"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "press": "Sections"
+        },
+        {
+          "shot": "390-access-drawer"
+        }
+      ]
+    }
+  ],
+  "sheets": []
+}
