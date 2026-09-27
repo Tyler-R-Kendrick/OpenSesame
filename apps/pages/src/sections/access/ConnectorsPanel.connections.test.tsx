@@ -3,7 +3,10 @@ import {
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
-import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
+import {
+  createLocalShare,
+  listLocalShares,
+} from "@opensesame/app-core/lib/local-share-grants.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
@@ -98,4 +101,27 @@ it("binds a Connections-page connector on the one share ledger", async () => {
   expect(shares[0]?.resourceKind).toBe("connection");
   expect(shares[0]?.resourceId).toBe("host:scn_slack");
   expect(shares[0]?.resourceLabel).toBe("Slack");
+});
+
+it("lists a provider-wide grant on the connection it covers, and revokes it there", async () => {
+  const fixture = await localRequestFixture();
+  // Keyed by provider id — the standing grants' shape — not by connection.
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "slack",
+    resourceLabel: "Slack",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "Slack" });
+  const bound = within(
+    await screen.findByRole("list", { name: /Bound to Slack/ }),
+  );
+  expect(bound.getByText("all Slack")).toBeTruthy();
+  expect(screen.getByText("1 bound")).toBeTruthy();
+  await userEvent.click(bound.getByRole("button", { name: "Revoke" }));
+  await waitFor(() => expect(screen.getByText("0 bound")).toBeTruthy());
+  expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });

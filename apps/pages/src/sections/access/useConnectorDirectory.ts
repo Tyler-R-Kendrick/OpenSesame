@@ -235,8 +235,13 @@ export function useConnectorDirectory(tomb: string) {
     error: reads.error,
     message,
     reload: reads.reload,
+    // This connection's own bindings, then the provider-wide grants that
+    // cover it (the standing grants, keyed by provider id).
     bindingsFor: (row: ConnectorRow) =>
-      shares.filter((share) => share.resourceId === row.id),
+      shares.filter(
+        (share) =>
+          share.resourceId === row.id || share.resourceId === row.providerId,
+      ),
     bind: (row: ConnectorRow, input: BindInput) =>
       run(async () => {
         await createLocalShare(tomb, {
