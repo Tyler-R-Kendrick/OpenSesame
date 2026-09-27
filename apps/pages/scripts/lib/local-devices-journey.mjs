@@ -25,10 +25,15 @@ export async function localDevicesJourney({
   );
   const panel = management.getByRole("region", { name: "Devices" });
   await expect(panel).toBeVisible();
-  const mine = panel.getByRole("listitem").filter({ hasText: "This device" });
+  // This device is named by its status mark, not a text pill.
+  const mine = panel.getByRole("listitem").filter({
+    has: management.getByRole("img", { name: "This device", exact: true }),
+  });
   await expect(mine).toBeVisible();
   await expect(panel.getByText("Passkeys", { exact: true })).toHaveCount(0);
-  const rename = mine.getByRole("button", { name: /^Rename / });
+  // The device you are on is edited, never removed.
+  await expect(mine.getByRole("button", { name: /^Remove / })).toHaveCount(0);
+  const rename = mine.getByRole("button", { name: /^Edit / });
   await rename.focus();
   await management.keyboard.press("Enter");
   const name = management.getByLabel("Name", { exact: true });
@@ -38,7 +43,7 @@ export async function localDevicesJourney({
   await management.keyboard.press("ControlOrMeta+A");
   await management.keyboard.insertText("Desk laptop");
   await management
-    .getByRole("button", { name: "Save name", exact: true })
+    .getByRole("button", { name: "Save changes", exact: true })
     .focus();
   await management.keyboard.press("Enter");
   await expect(
