@@ -1,9 +1,9 @@
 import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import {
-  type SettingsCategory,
-  settingsPath,
-} from "@opensesame/app-core/lib/crumbs.js";
-import { settingsTabsSnapshot } from "@opensesame/app-core/sections/settings-section-nav-model.js";
+  type SettingsTab,
+  settingsTabsSnapshot,
+} from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import {
   SETTINGS_CONFIG_FILE,
   settingsConfigRoute,
@@ -29,13 +29,25 @@ export type SettingsRailSnapshot = {
    * `useDeviceOperator`); unlisted when not. Defaults to unlisted.
    */
   instancePolicy?: boolean;
+  /**
+   * The panels capabilities contribute to core tabs (`settings-panel`), as
+   * `SettingsSection` draws them: a tab lists exactly the active ones.
+   */
+  contributed?: readonly ContributedPanel[];
+  /** Security › Duress profiles draws (duress mode is not off). */
+  duress?: boolean;
+  /** Security › Your account draws (an Identity session is held). */
+  account?: boolean;
 };
 
-function panel(
-  category: SettingsCategory,
-  id: string,
-  label: string,
-): PageTreeSource {
+export type ContributedPanel = Readonly<{
+  id: string;
+  label: string;
+  category: string;
+  order: number;
+}>;
+
+function panel(category: string, id: string, label: string): PageTreeSource {
   return {
     id,
     label,
@@ -64,11 +76,23 @@ export function capabilitiesSettingsSections(
   ];
 }
 
-function sectionsFor(
+/** A category's contributed panels, in the order `SettingsSection` draws them. */
+function contributedTo(
   category: string,
   snapshot: SettingsRailSnapshot,
 ): PageTreeSource[] {
-  switch (category) {
+  return (snapshot.contributed ?? [])
+    .filter((entry) => entry.category === category)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+    .map((entry) => panel(category, entry.id, entry.label));
+}
+
+function sectionsFor(
+  tab: SettingsTab,
+  snapshot: SettingsRailSnapshot,
+): PageTreeSource[] {
+  const contributed = contributedTo(tab.id, snapshot);
+  switch (tab.id) {
     case "general":
       return [
         ...(snapshot.install
@@ -77,11 +101,23 @@ function sectionsFor(
         panel("general", "settings-appearance", "Appearance"),
         panel("general", "settings-locking", "Locking"),
         panel("general", "settings-keybindings", "Keybindings and views"),
+        ...contributed,
       ];
     case "security":
+      // SecurityPanels' order: a capability's panels take the slot after
+      // the unlock methods and the account's own factors.
       return [
         panel("security", "vault-key-protection", "Vault key protection"),
-        panel("security", "formats-interoperability", "Formats"),
+        ...(snapshot.duress
+          ? [panel("security", "duress-profiles", "Duress profiles")]
+          : []),
+        panel("security", "unlock-methods", "Unlock methods"),
+        panel("security", "second-step", "Second step"),
+        panel("security", "recovery", "Recovery"),
+        ...(snapshot.account
+          ? [panel("security", "account-factors", "Your account")]
+          : []),
+        ...contributed,
         panel("security", "age-keys", "Age keys"),
         panel("security", "transport", "Transport"),
       ];
@@ -94,18 +130,31 @@ function sectionsFor(
           keepEmpty: true,
         })),
         panel("vaults", "travel", "Travel"),
+        panel("vaults", "item-types", "Item types"),
         panel("vaults", "sample-data", "Sample data"),
-        panel("vaults", "sealed-store", "Sealed store"),
+        ...contributed,
       ];
     case "capabilities":
-      return capabilitiesSettingsSections(
-        snapshot.guests ?? true,
-        snapshot.instancePolicy ?? false,
-      );
+      return [
+        ...contributed,
+        ...capabilitiesSettingsSections(
+          snapshot.guests ?? true,
+          snapshot.instancePolicy ?? false,
+        ),
+      ];
     case "danger":
-      return [panel("danger", "settings-delete-vault", "Delete this vault")];
+      return [
+        ...contributed,
+        panel("danger", "settings-delete-vault", "Delete this vault"),
+      ];
     default:
-      return [];
+      // A contributed tab: the panels its module says it always draws.
+      return [
+        ...(tab.panels ?? []).map((entry) =>
+          panel(tab.id, entry.id, entry.label),
+        ),
+        ...contributed,
+      ];
   }
 }
 
@@ -124,7 +173,7 @@ export function settingsPageSources(
     href: settingsPath(tab.id),
     keepEmpty: true,
     config: settingsConfigRoute(tab.id),
-    sections: sectionsFor(tab.id, snapshot),
+    sections: sectionsFor(tab, snapshot),
     items:
       snapshot.showHidden || snapshot.current === settingsConfigRoute(tab.id)
         ? [

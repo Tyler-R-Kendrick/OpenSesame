@@ -24,9 +24,8 @@ const KEY = "access.book.v1";
 
 export const accessBookSeams = {
   read: (): string | null => kvGet(KEY),
-  write: (raw: string): void => {
-    kvSetDurable(KEY, raw);
-  },
+  /** Durable: settles once storage holds `raw`, rejects if it would not. */
+  write: (raw: string): Promise<void> | void => kvSetDurable(KEY, raw),
 };
 
 function isTimestamp(value: string): boolean {
@@ -56,8 +55,16 @@ function parseGrant(value: BoundaryValue): LocalGrant | null {
   };
 }
 
+/**
+ * The book as last written, until storage settles. A durable write puts the
+ * value in memory only once storage has it, so reading back straight after
+ * a write saw the old book: a listener read the grant it was told about as
+ * missing, and an import kept only its last row.
+ */
+let pending: string | null = null;
+
 function load(): LocalGrant[] {
-  const raw = accessBookSeams.read();
+  const raw = pending ?? accessBookSeams.read();
   if (!raw) return [];
   try {
     const parsed: BoundaryValue = JSON.parse(raw);
@@ -75,8 +82,42 @@ function load(): LocalGrant[] {
   }
 }
 
+const listeners = new Set<() => void>();
+let version = 0;
+
+/**
+ * Called after every write to the book, and again once storage settles it
+ * (a refused write falls back to what storage holds), so a view can follow.
+ */
+export function subscribeAccessBook(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Moves on every change a subscriber is told about; a stable snapshot. */
+export function accessBookVersion(): number {
+  return version;
+}
+
+function notify(): void {
+  version += 1;
+  for (const listener of [...listeners]) listener();
+}
+
 function save(rows: LocalGrant[]): void {
-  accessBookSeams.write(JSON.stringify({ version: 1, grants: rows }));
+  const raw = JSON.stringify({ version: 1, grants: rows });
+  pending = raw;
+  notify();
+  const settle = () => {
+    if (pending !== raw) return;
+    pending = null;
+    notify();
+  };
+  void Promise.resolve()
+    .then(() => accessBookSeams.write(raw))
+    .then(settle, settle);
 }
 
 export function listLocalGrants(): LocalGrant[] {
@@ -92,11 +133,11 @@ export type LocalGrantDraft = {
   expiresInSeconds?: number;
 };
 
-export function addLocalGrant(input: LocalGrantDraft): LocalGrant {
+function draftGrant(input: LocalGrantDraft): LocalGrant {
   const title = input.title.trim();
   if (!title) throw new Error("A grant needs a title.");
   const ttl = (input.expiresInSeconds ?? 3_600) * 1000;
-  const record: LocalGrant = {
+  return {
     id: `gr_local_${crypto.randomUUID()}`,
     title,
     claimant: input.claimant?.trim() || "local",
@@ -105,6 +146,10 @@ export function addLocalGrant(input: LocalGrantDraft): LocalGrant {
     mode: input.mode?.trim() || "broker",
     expiresAt: new Date(Date.now() + ttl).toISOString(),
   };
+}
+
+export function addLocalGrant(input: LocalGrantDraft): LocalGrant {
+  const record = draftGrant(input);
   save([...load(), record]);
   return record;
 }
@@ -126,6 +171,22 @@ export function exportAccessBook(): string {
 
 export type AccessImportResult = { added: number };
 
+/** A row with a title but no usable id: kept as a new grant of that name. */
+function importedDraft(row: BoundaryValue): LocalGrant | null {
+  if (!isJsonObject(row) || !isString(row.title) || !row.title.trim()) {
+    return null;
+  }
+  return draftGrant({
+    title: row.title,
+    claimant: isString(row.claimant) ? row.claimant : undefined,
+    resource: isString(row.resource) ? row.resource : undefined,
+    actions: Array.isArray(row.actions)
+      ? row.actions.filter(isString)
+      : undefined,
+    mode: isString(row.mode) ? row.mode : undefined,
+  });
+}
+
 export function importAccessBook(raw: string): AccessImportResult {
   let parsed: BoundaryValue;
   try {
@@ -139,26 +200,16 @@ export function importAccessBook(raw: string): AccessImportResult {
       : Array.isArray(parsed)
         ? parsed
         : [];
+  // One write for the whole file: row by row, each save told every
+  // subscriber and each read parsed the book again.
+  const book = load();
   let added = 0;
   for (const row of rows) {
-    const record = parseGrant(row);
-    if (!record) {
-      if (isJsonObject(row) && isString(row.title) && row.title.trim()) {
-        const draft: LocalGrantDraft = {
-          title: row.title,
-          claimant: isString(row.claimant) ? row.claimant : undefined,
-          resource: isString(row.resource) ? row.resource : undefined,
-          actions: Array.isArray(row.actions)
-            ? row.actions.filter(isString)
-            : undefined,
-          mode: isString(row.mode) ? row.mode : undefined,
-        };
-        addLocalGrant(draft);
-        added += 1;
-      }
-      continue;
-    }
-    if (putLocalGrant(record)) added += 1;
+    const record = parseGrant(row) ?? importedDraft(row);
+    if (!record || book.some((held) => held.id === record.id)) continue;
+    book.push(record);
+    added += 1;
   }
+  if (added > 0) save(book);
   return { added };
 }

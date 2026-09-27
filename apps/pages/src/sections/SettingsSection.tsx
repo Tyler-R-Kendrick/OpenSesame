@@ -1,7 +1,7 @@
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
-import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
+import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 
 import {
@@ -32,9 +32,7 @@ import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
-import { useGuestRowShown } from "./settings/CapabilitySwitch.js";
-import { useInstallPanelShown } from "./settings/InstallPanel.js";
-import { useDeviceOperator } from "./settings/useDeviceOperator.js";
+import { useSettingsPanels } from "./settings/rail-snapshot.js";
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>
   import("./settings/transport/TransportPanel.js").then((module) => ({
@@ -67,14 +65,10 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
 
   // Every tab's rail entries are links to its panels; only Security used to
   // follow one, so General › Locking or Vaults › Travel changed the address
-  // and left the page where it was.
-  useEffect(() => {
-    const id = hash.replace(/^#/, "");
-    if (!id) return;
-    if (category === "security" && SECURITY_FRAGMENT_REDIRECT.has(id)) return;
-    const target = panelFromHash(hash);
-    if (target) scrollToPanel(target);
-  }, [category, hash]);
+  // and left the page where it was. useHashTarget waits for a panel that
+  // mounts late (Transport is lazy, a capability's panel arrives with its
+  // module) rather than looking once and giving up.
+  useHashTarget();
 }
 
 export function SettingsSection({
@@ -160,13 +154,9 @@ export function SettingsSection({
 
 /** The rail's entries for one category, for the phone's page index. */
 function SettingsPageIndex({ category }: { category: string }) {
-  const install = useInstallPanelShown();
-  const guests = useGuestRowShown();
-  const instancePolicy = useDeviceOperator();
   const entries =
-    settingsPageSources({ install, guests, instancePolicy }).find(
-      (tab) => tab.id === category,
-    )?.sections ?? [];
+    settingsPageSources(useSettingsPanels()).find((tab) => tab.id === category)
+      ?.sections ?? [];
   return <PageIndex entries={entries} />;
 }
 

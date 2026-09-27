@@ -1,8 +1,10 @@
 import {
+  accessBookVersion,
   listLocalGrants,
   removeLocalGrant,
+  subscribeAccessBook,
 } from "@opensesame/app-core/lib/access-book.js";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { IconTrash } from "../../components/Icons.js";
 
 /**
@@ -16,12 +18,11 @@ import { IconTrash } from "../../components/Icons.js";
  * device yet" above twelve of them was untrue. Empty, it draws nothing:
  * the book fills from the path bar, where its keys are.
  */
-export function AccessBookPanel({ epoch }: { epoch: number }) {
-  const [localEpoch, setLocalEpoch] = useState(0);
+export function AccessBookPanel() {
+  // Every write to the book re-renders this, wherever it came from: the
+  // path bar's import, a remove here, or anything else that holds the book.
+  useSyncExternalStore(subscribeAccessBook, accessBookVersion);
   const grants = listLocalGrants();
-  // Parent remounts on bookEpoch; localEpoch refreshes after remove.
-  void epoch;
-  void localEpoch;
 
   if (grants.length === 0) return null;
   return (
@@ -48,7 +49,6 @@ export function AccessBookPanel({ epoch }: { epoch: number }) {
                   title={`Remove ${grant.title}`}
                   onClick={() => {
                     removeLocalGrant(grant.id);
-                    setLocalEpoch((value) => value + 1);
                   }}
                 >
                   <IconTrash />

@@ -12,6 +12,10 @@ import {
 export type AccessPlanes = {
   /** An Identity API is configured, so Requests draws its inbox. */
   identity?: boolean;
+  /** The access book holds a grant, so Grants draws Portable grants. */
+  book?: boolean;
+  /** An Identity session is held, so Sessions draws its receipts. */
+  receipts?: boolean;
   shares?: readonly { id: string; label: string }[];
 };
 
@@ -65,11 +69,13 @@ function tab(
  */
 export function accessPageSources({
   identity = false,
+  book = false,
+  receipts = false,
   shares = [],
 }: AccessPlanes = {}): PageTreeSource[] {
   return [
     tab("grants", [
-      panel("grants", "access-book", "Portable grants"),
+      ...(book ? [panel("grants", "access-book", "Portable grants")] : []),
       panel("grants", "local-grants", "Local application grants"),
       panel(
         "grants",
@@ -90,6 +96,7 @@ export function accessPageSources({
       panel("sessions", "local-sessions", "Local sessions"),
       panel("sessions", "local-authority-templates", "Audience templates"),
       panel("sessions", "vault-share-sessions", "Vault share sessions"),
+      ...(receipts ? [panel("sessions", "access-receipts", "Receipts")] : []),
     ]),
     tab("connectors", [panel("connectors", "local-connectors", "Connectors")]),
     tab("resources", [

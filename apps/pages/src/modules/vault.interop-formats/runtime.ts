@@ -59,12 +59,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("vault-command", IMPORT_COMMAND);
     activation.register("settings-panel", {
       id: "formats-interoperability",
+      label: "Formats",
       category: "security",
       Panel: FormatsInteroperabilityPanel,
       order: 40,
     });
     activation.register("settings-panel", {
       id: "sealed-store",
+      label: "Sealed store",
       category: "vaults",
       Panel: StoreManifestPanel,
       order: 50,

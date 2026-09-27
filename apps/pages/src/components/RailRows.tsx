@@ -6,6 +6,7 @@ import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js
 import { overlapCast } from "@opensesame/os-domain";
 import { type ComponentType, type ReactNode, useMemo } from "react";
 import { NavLink } from "react-router";
+import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
   ICONS_BY_NAME,
@@ -15,6 +16,19 @@ import {
   IconVault,
 } from "./Icons.js";
 import { setRailCursor, useRailCursor } from "./rail-cursor.js";
+
+/**
+ * A row that names a panel already on this page scrolls to it. Its link may
+ * be the current address, which navigates nowhere and so never reaches the
+ * page's hash effect: the reader still asked to be taken there (PageIndex
+ * does the same). A panel on another page is left to that page's arrival.
+ */
+function landOnPanel(to: string): void {
+  const at = to.indexOf("#");
+  if (at < 0) return;
+  const target = panelFromHash(to.slice(at));
+  if (target) scrollToPanel(target);
+}
 
 import { useContributions } from "../bindings/contributions.js";
 /** One rail directory, whether core or contributed. */
@@ -184,13 +198,14 @@ export function TreeRow({
       aria-busy={busy}
       data-rail-toggle={onToggle ? "true" : undefined}
       onClick={(event) => {
+        const modified =
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+        if (!modified) landOnPanel(to);
         if (!onToggle) {
           setRailCursor(null);
           return;
         }
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-          return;
-        }
+        if (modified) return;
         setRailCursor(event.currentTarget.id);
         event.preventDefault();
         onToggle();

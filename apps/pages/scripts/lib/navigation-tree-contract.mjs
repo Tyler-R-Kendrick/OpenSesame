@@ -86,14 +86,13 @@ async function accessContract(page, tabTo) {
     }),
   ).toBeVisible();
   await tabTo(page, tree);
-  // The panels in the order the Grants page draws them.
+  // The panels in the order the Grants page draws them. A guest's book is
+  // empty, so Portable grants is not drawn and not listed.
   await page.keyboard.press("ArrowDown");
-  await expect(page).toHaveURL(/\/access\?view=grants#access-book$/);
+  await expect(page).toHaveURL(/\/access\?view=grants#local-grants$/);
   await expect(
     page.getByRole("tab", { name: "Grants", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
-  await page.keyboard.press("ArrowDown");
-  await expect(page).toHaveURL(/\/access\?view=grants#local-grants$/);
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/access\?view=grants#identity-shares$/);
   const grants = page.getByRole("treeitem", { name: "Grants", exact: true });
