@@ -61,13 +61,7 @@ import * as githubInstallation from "@opensesame/app-core/lib/github-installatio
 vi.spyOn(
   githubInstallation,
   "loadGithubInstallationSnapshot",
-).mockResolvedValue({
-  integrations: [],
-  installations: [],
-  repos: [],
-  shares: [],
-  auditEvents: [],
-});
+).mockResolvedValue({ ...githubInstallation.EMPTY_GITHUB_SNAPSHOT });
 vi.spyOn(githubInstallation, "shouldEnsureGithubAccessGrant").mockReturnValue(
   false,
 );

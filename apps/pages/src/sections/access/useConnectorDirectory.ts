@@ -2,8 +2,10 @@
  * Everything Access › Connectors reads and changes (ADR 0115).
  *
  * The rows are two lists made one: the connections a Nango-compatible
- * directory holds (sealed in this tomb) and, where a Host is configured, the
- * connections the Host brokers. A binding is a local share grant of kind
+ * directory holds (sealed in this tomb) and the connectors configured on the
+ * Connections page — the same `listConnections()` that page reads, whether
+ * they live on Vercel Connect, a Host, or this device. Connectors are
+ * configured there; who may use them is decided here. A binding is a local share grant of kind
  * `connection` — the same ledger Identity shares use — so the PAM question
  * "who may use which connector, under which policy, until when" has one
  * answer wherever it is asked.
@@ -35,8 +37,8 @@ import {
   listLocalShares,
   revokeLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants.js";
+import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useHostConfigured } from "../../lib/use-configured.js";
 
 export type ConnectorRow = Readonly<{
   /** The share-grant resource id. */
@@ -46,9 +48,13 @@ export type ConnectorRow = Readonly<{
   /** Which brand mark the row wears. */
   providerId: string;
   name: string;
-  /** `integration · connection id`, or the Host's reference. */
+  /** `integration · connection id`, or the connection's reference. */
   detail: string;
-  source: "directory" | "host";
+  /** Where the connector is configured: the synced directory, or the
+      Connections page. */
+  source: "directory" | "connections";
+  /** The connector's own page on Connections, for a Connections row. */
+  href: string | null;
   healthy: boolean;
   /** What is wrong, when something is. */
   problem: string | null;
@@ -78,6 +84,7 @@ function directoryRows(directory: ConnectorDirectory | null): ConnectorRow[] {
     name: connectorResourceLabel(connection),
     detail: `${connection.integrationId} · ${connection.connectionId}`,
     source: "directory",
+    href: null,
     healthy: connection.errors === 0,
     problem:
       connection.errors === 0
@@ -86,16 +93,18 @@ function directoryRows(directory: ConnectorDirectory | null): ConnectorRow[] {
   }));
 }
 
-function hostRows(connections: readonly Connection[]): ConnectorRow[] {
+function connectionRows(connections: readonly Connection[]): ConnectorRow[] {
   return connections
     .filter((connection) => connection.status !== "revoked")
     .map((connection) => ({
+      // The ledger key predates Connect; kept so earlier bindings still match.
       id: `host:${connection.connectionId}`.slice(0, 128),
       label: connection.displayName.slice(0, 128),
       providerId: connection.providerId,
       name: connection.displayName,
       detail: `${connection.providerId} · ${connection.connectionRef ?? connection.connectionId}`,
-      source: "host",
+      source: "connections",
+      href: connectorPath(connection.providerId, connection.connectionId),
       healthy: connection.status === "active",
       problem:
         connection.status === "active"
@@ -104,13 +113,12 @@ function hostRows(connections: readonly Connection[]): ConnectorRow[] {
     }));
 }
 
-async function readHostConnections(configured: boolean): Promise<Connection[]> {
-  if (!configured) return [];
+async function readConnections(): Promise<Connection[]> {
   try {
     return await listConnections();
   } catch {
-    // A Host that does not answer is not this panel's failure to report:
-    // the connectivity bar already says so, and the directory rows stand.
+    // Connections that do not answer are not this panel's failure to report:
+    // the Connections page says so, and the directory rows stand.
     return [];
   }
 }
@@ -125,11 +133,11 @@ async function readIdentities(tomb: string): Promise<ConnectorIdentity[]> {
     .map((entry) => ({ id: entry.id, name: entry.name }));
 }
 
-async function readAll(tomb: string, hostConfigured: boolean): Promise<Loaded> {
+async function readAll(tomb: string): Promise<Loaded> {
   const [directory, connections, granted, identities, settings] =
     await Promise.all([
       readConnectorDirectory(tomb),
-      readHostConnections(hostConfigured),
+      readConnections(),
       listLocalShares(tomb),
       readIdentities(tomb),
       readConnectorSettings(tomb),
@@ -145,7 +153,6 @@ async function readAll(tomb: string, hostConfigured: boolean): Promise<Loaded> {
 
 /** The panel's reads: once on mount, on every ledger change, and on focus. */
 function useConnectorReads(tomb: string) {
-  const hostConfigured = useHostConfigured();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [error, setError] = useState("");
   const alive = useRef(false);
@@ -154,7 +161,7 @@ function useConnectorReads(tomb: string) {
   const reload = useCallback(async () => {
     const request = ++generation.current;
     try {
-      const next = await readAll(tomb, hostConfigured);
+      const next = await readAll(tomb);
       if (!alive.current || request !== generation.current) return;
       setLoaded(next);
       setError("");
@@ -162,7 +169,7 @@ function useConnectorReads(tomb: string) {
       if (!alive.current || request !== generation.current) return;
       setError("Unlock this vault and reload to read its connectors.");
     }
-  }, [tomb, hostConfigured]);
+  }, [tomb]);
 
   useEffect(() => {
     alive.current = true;
@@ -211,7 +218,7 @@ export function useConnectorDirectory(tomb: string) {
   }
 
   const rows = useMemo(
-    () => [...directoryRows(directory), ...hostRows(connections)],
+    () => [...directoryRows(directory), ...connectionRows(connections)],
     [directory, connections],
   );
 
@@ -228,8 +235,13 @@ export function useConnectorDirectory(tomb: string) {
     error: reads.error,
     message,
     reload: reads.reload,
+    // This connection's own bindings, then the provider-wide grants that
+    // cover it (the standing grants, keyed by provider id).
     bindingsFor: (row: ConnectorRow) =>
-      shares.filter((share) => share.resourceId === row.id),
+      shares.filter(
+        (share) =>
+          share.resourceId === row.id || share.resourceId === row.providerId,
+      ),
     bind: (row: ConnectorRow, input: BindInput) =>
       run(async () => {
         await createLocalShare(tomb, {

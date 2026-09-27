@@ -41,6 +41,20 @@ export function extraSteps({ press }) {
       }
     },
     /**
+     * Choose an option in a labelled native select, by its visible text —
+     * a grant's resource kind, connector or policy. A select or option this
+     * build does not have is a failure, not a quieter picture.
+     */
+    async select(page, { label, option }) {
+      const field = page.getByLabel(label, { exact: true }).first();
+      if (!(await field.count()))
+        throw new Error(
+          `capture-evidence select("${label}"): no field matched — refusing a silent miss`,
+        );
+      await field.selectOption({ label: option });
+      await page.waitForTimeout(400);
+    },
+    /**
      * Choose an option in a labelled select when this build has it — a
      * device's platform. A base build without the field is a legitimate
      * difference, not a miss.

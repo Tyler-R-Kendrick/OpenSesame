@@ -52,9 +52,11 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-27-sentence-case/`](2026-09-27-sentence-case/README.md) | Sentence case, as DESIGN.md asks |
 | [`2026-09-27-sample-data-and-manifest/`](2026-09-27-sample-data-and-manifest/README.md) | Sample data and the sealed-store manifest, restored |
 | [`2026-09-27-reset-browser/`](2026-09-27-reset-browser/README.md) | Reset this browser, from the lock screens |
+| [`2026-09-27-provider-wide-grants/`](2026-09-27-provider-wide-grants/README.md) | Access › Connectors lists provider-wide grants |
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
 | [`2026-09-27-identity-devices/`](2026-09-27-identity-devices/README.md) | Identity › Devices — register, edit, claim and remove, like every other Identity list |
 | [`2026-09-27-connect-forget-key/`](2026-09-27-connect-forget-key/README.md) | Forget Vercel Connect, and a hand-off that clears an earlier refusal |
+| [`2026-09-27-access-connectors/`](2026-09-27-access-connectors/README.md) | Access › Connectors lists what Connections configures |
 | [`2026-09-26-status-touch/`](2026-09-26-status-touch/README.md) | A status mark's touch twin |
 | [`2026-09-26-real-x509/`](2026-09-26-real-x509/README.md) | Local certificates are real X.509 now |
 | [`2026-09-26-passkey-verify/`](2026-09-26-passkey-verify/README.md) | A new account passkey is tried once (ADR 0140 plan step 11c) |

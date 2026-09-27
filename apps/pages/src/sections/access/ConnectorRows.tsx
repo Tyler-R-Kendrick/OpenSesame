@@ -1,12 +1,13 @@
-import { IconCheck, IconSettings, IconTrash } from "../../components/Icons.js";
 /**
  * Access › Connectors rows — one row per connector with its bindings beneath
  * it (ADR 0115).
  *
- * A directory row names its source and health; every row lists who is bound
- * to it. Bind opens one form under one row; Configure opens that connector's
- * sealed settings. Revoke asks nothing twice — a binding is time-boxed
- * already, and the ledger records the revocation.
+ * A row is a connector the directory synced or the Connections page
+ * configured; it names its source and health and lists who is bound to it.
+ * Bind opens one form under one row; Configure opens that connector's sealed
+ * access settings; a Connections row links back to where the connector itself
+ * is configured. Revoke asks nothing twice — a binding is time-boxed already,
+ * and the ledger records the revocation.
  */
 
 import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
@@ -14,6 +15,13 @@ import {
   type LocalShare,
   policyLabel,
 } from "@opensesame/app-core/lib/local-share-grants.js";
+import { Link } from "react-router";
+import {
+  IconCheck,
+  IconConnection,
+  IconSettings,
+  IconTrash,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 import { ConnectorBindForm } from "./ConnectorBindForm.js";
@@ -28,12 +36,15 @@ import type {
 function BindingRow({
   share,
   name,
+  providerWide,
   busy,
   disabled,
   onRevoke,
 }: {
   share: LocalShare;
   name: string;
+  /** Granted on the provider, so it covers every connection of it. */
+  providerWide: boolean;
   busy: boolean;
   disabled: boolean;
   onRevoke: () => void;
@@ -44,6 +55,14 @@ function BindingRow({
       <span className="access-binding__policy">
         {policyLabel("connection", share.policy)}
       </span>
+      {providerWide ? (
+        <span
+          className="chip"
+          title={`Every ${share.resourceLabel} connection`}
+        >
+          all {share.resourceLabel}
+        </span>
+      ) : null}
       <span className="access-binding__until">
         until {formatTime(new Date(share.expiresAt).toISOString())}
       </span>
@@ -98,6 +117,7 @@ function RowChips({
 
 /** The row's bindings, flagged where their connector is off. */
 function RowBindings({
+  rowId,
   displayName,
   setting,
   bindings,
@@ -105,6 +125,7 @@ function RowBindings({
   busy,
   onRevoke,
 }: {
+  rowId: string;
   displayName: string;
   setting: ConnectorSetting;
   bindings: readonly LocalShare[];
@@ -121,6 +142,7 @@ function RowBindings({
           key={share.id}
           share={share}
           name={names.get(share.principalId) ?? share.principalId}
+          providerWide={share.resourceId !== rowId}
           busy={busy}
           disabled={!setting.enabled}
           onRevoke={() => onRevoke(share)}
@@ -158,17 +180,25 @@ function RowActions({
       >
         <IconCheck size={16} />
       </button>
-      {row.source === "directory" ? (
-        <button
-          type="button"
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        disabled={busy}
+        aria-label="Configure"
+        title="Configure"
+        onClick={onOpenSettings}
+      >
+        <IconSettings size={16} />
+      </button>
+      {row.href ? (
+        <Link
           className="icon-btn icon-btn--sm"
-          disabled={busy}
-          aria-label="Configure"
-          title="Configure"
-          onClick={onOpenSettings}
+          to={row.href}
+          aria-label="Open in Connections"
+          title="Open in Connections"
         >
-          <IconSettings size={16} />
-        </button>
+          <IconConnection size={16} />
+        </Link>
       ) : null}
     </div>
   );
@@ -262,6 +292,7 @@ function ConnectorRowItem({
         />
       ) : null}
       <RowBindings
+        rowId={row.id}
         displayName={displayName}
         setting={setting}
         bindings={bindings}

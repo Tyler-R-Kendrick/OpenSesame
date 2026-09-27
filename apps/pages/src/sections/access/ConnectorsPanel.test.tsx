@@ -1,3 +1,4 @@
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import {
   clearPendingConnectorDirectory,
   connectorDirectorySeams,
@@ -42,6 +43,7 @@ const slack: DirectoryConnection = {
 };
 
 const originalList = connectorDirectorySeams.listDirectory;
+const originalConnections = connectionSeams.listConnections;
 
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
@@ -50,12 +52,15 @@ beforeEach(() => {
     integrations: [],
     connections: [github, slack],
   }));
+  // Nothing configured on the Connections page: these rows are the directory's.
+  connectionSeams.listConnections = vi.fn(async () => []);
 });
 
 afterEach(() => {
   cleanup();
   clearPendingConnectorDirectory();
   connectorDirectorySeams.listDirectory = originalList;
+  connectionSeams.listConnections = originalConnections;
   kvDelete("connector-directory.v1");
   lockAllTombs();
   vi.unstubAllGlobals();
@@ -123,6 +128,12 @@ it("binds a connector to a person under a policy, lists it, and revokes it", asy
   await waitFor(() =>
     expect(row.getByRole("list", { name: /Bound to/ })).toBeTruthy(),
   );
+  // The ledger's change notice can paint the binding before the bind's own
+  // write (the grant's audit entry) settles; the form closes once it has.
+  await waitFor(() =>
+    expect(screen.queryByRole("group", { name: /^Bind GitHub/ })).toBeNull(),
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(row.getByText("Test person")).toBeTruthy();
   expect(row.getByText("Invoke")).toBeTruthy();
   expect(row.getByText("1 bound")).toBeTruthy();
