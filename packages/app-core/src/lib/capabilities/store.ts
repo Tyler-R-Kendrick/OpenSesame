@@ -80,6 +80,7 @@ export class CompositionStore {
   #state: StoreState = initialState();
   #minted: MintedLease | null = null;
   #activity = new Map<CapabilityId, CapabilityActivity>();
+  #offlineSaved: ReadonlySet<string> = new Set();
   #diagnostics: string[] = [];
   #documentNotes: string[] = [];
   #legacy: LegacyReview | null = null;
@@ -255,6 +256,12 @@ export class CompositionStore {
     this.#publish();
   }
 
+  /** Worker report: the page modules saved for offline use. Never resolves. */
+  setOfflineSaved(moduleIds: readonly string[]): void {
+    this.#offlineSaved = new Set(moduleIds);
+    this.#publish();
+  }
+
   /** Append a human-readable diagnostic (never a secret) and publish. */
   note(message: string): void {
     this.#note(message);
@@ -278,6 +285,7 @@ export class CompositionStore {
     const generation = this.#state.generation;
     this.#state = { ...initialState(), generation };
     this.#activity.clear();
+    this.#offlineSaved = new Set();
     this.#diagnostics = [];
     this.#legacy = null;
     this.#snapshot = { ...INITIAL_SNAPSHOT, generation };
@@ -340,6 +348,7 @@ export class CompositionStore {
         plan,
         state.distribution as DistributionContract,
         this.#activity,
+        this.#offlineSaved,
       ),
       durability: durabilityOf(),
       diagnostics: this.#allDiagnostics(),
@@ -357,7 +366,12 @@ export class CompositionStore {
     if (!plan || !distribution) return;
     this.#snapshot = {
       ...this.#snapshot,
-      lifecycle: lifecycleMap(plan, distribution, this.#activity),
+      lifecycle: lifecycleMap(
+        plan,
+        distribution,
+        this.#activity,
+        this.#offlineSaved,
+      ),
       durability: durabilityOf(),
       diagnostics: this.#allDiagnostics(),
     };

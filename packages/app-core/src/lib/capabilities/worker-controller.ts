@@ -27,7 +27,12 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { onWorkerMessage, syncPlan } from "./worker/plan-sync.js";
 import { scriptUrlFor, workerControllerSeams } from "./worker/seams.js";
-import { diagnose, publish, state } from "./worker/state.js";
+import {
+  diagnose,
+  publish,
+  state,
+  subscribeWorkerStatus,
+} from "./worker/state.js";
 import {
   CORE_ONLY_VARIANT,
   type CompositionSnapshotForWorker,
@@ -235,7 +240,19 @@ export function registerWorkerForPlan(
   };
   const unsubscribe = store.subscribe(apply);
   apply();
-  return unsubscribe;
+  // What the worker saved flows back to the store, which projects it onto
+  // each capability's lifecycle (`cached-offline`) without resolving again.
+  let reported: readonly string[] = [];
+  const stopSaved = subscribeWorkerStatus(() => {
+    const saved = state.status.savedModuleIds;
+    if (saved === reported) return;
+    reported = saved;
+    store.setOfflineSaved?.(saved);
+  });
+  return () => {
+    unsubscribe();
+    stopSaved();
+  };
 }
 
 /** Settle after the last `registerWorkerForPlan` pass (tests, transitions). */

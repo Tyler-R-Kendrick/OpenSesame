@@ -23,6 +23,11 @@ export type ControllerState = {
   listenersAttached: boolean;
   workerReleaseId: string | null;
   lastPlanKey: string | null;
+  /** The module ids posted for the plan the worker is saving, by plan digest. */
+  postedPlan: Readonly<{
+    planDigest: string;
+    moduleIds: readonly string[];
+  }> | null;
   pendingTransition: PendingTransition | null;
   reconciling: Promise<void>;
 };
@@ -33,6 +38,7 @@ const INITIAL_STATUS: WorkerStatus = {
   requiredVariant: null,
   releaseId: null,
   offlineStatus: "online-only",
+  savedModuleIds: [],
   transition: null,
   diagnostics: [],
 };
@@ -47,6 +53,7 @@ function initialFields(): ControllerState {
     listenersAttached: false,
     workerReleaseId: null,
     lastPlanKey: null,
+    postedPlan: null,
     pendingTransition: null,
     reconciling: Promise.resolve(),
   };

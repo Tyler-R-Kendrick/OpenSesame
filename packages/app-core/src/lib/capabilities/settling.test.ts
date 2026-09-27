@@ -13,7 +13,8 @@ describe("planIsSettling", () => {
     // /identity/authorize, whose route `identity.local-iam` registers when
     // its module activates. Deciding before that redirected the popup to
     // the vault and ended the sign-in it was opened to complete.
-    for (const state of ["approved-not-loaded", "loading"]) {
+    // Saved for offline use is not loaded either: it is still on its way.
+    for (const state of ["approved-not-loaded", "cached-offline", "loading"]) {
       expect(
         planIsSettling(
           snapshot(["identity.local-iam"], { "identity.local-iam": state }),
@@ -28,7 +29,7 @@ describe("planIsSettling", () => {
       "disabled",
       "disabled-restart-required",
       "revocation-pending",
-      "cached-offline",
+      "reload-required",
     ]) {
       expect(
         planIsSettling(

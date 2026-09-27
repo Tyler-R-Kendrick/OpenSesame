@@ -3,8 +3,8 @@
  *
  * Each claim is its own: deselected, prohibited by operator, unavailable in
  * this distribution, unsupported by this browser, consent required, active,
- * restart required, reload to start. None implies another, and a preview never reads as
- * applied. The ladder is read in three passes — what this installation can
+ * restart required, reload to start, saved offline. None implies another,
+ * and a preview never reads as applied. The ladder is read in three passes — what this installation can
  * even run, what the draft is previewing, and what is running now — so no
  * single test collapses two different truths.
  */
@@ -75,6 +75,8 @@ function standing(
     state.reasons.includes("RELOAD_REQUIRED")
   )
     return RELOAD;
+  if (state.approved && lifecycle === "cached-offline")
+    return { tone: "ok", label: "saved offline" };
   if (state.approved) return { tone: "ok", label: "approved" };
   if (
     state.reasons.includes("CONSENT_REQUIRED") ||

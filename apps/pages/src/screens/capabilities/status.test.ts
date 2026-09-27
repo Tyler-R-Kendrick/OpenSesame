@@ -76,3 +76,19 @@ describe("capabilityStatus of a capability that needs a fresh document", () => {
     });
   });
 });
+
+describe("capabilityStatus of a capability saved for offline use", () => {
+  it("reads saved offline while approved and not running here", () => {
+    expect(capabilityStatus(optional([], true), "cached-offline")).toEqual({
+      tone: "ok",
+      label: "saved offline",
+    });
+  });
+
+  it("never claims saved offline for what the plan does not approve", () => {
+    expect(
+      capabilityStatus(optional(["NOT_SELECTED"], false), "cached-offline")
+        .label,
+    ).not.toBe("saved offline");
+  });
+});

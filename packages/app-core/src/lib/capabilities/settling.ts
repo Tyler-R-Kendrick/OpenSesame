@@ -10,9 +10,11 @@
  * route's owner had not activated yet, and the fallback redirected the
  * popup to the vault, which ends the sign-in it was opened to complete.
  *
- * `approved-not-loaded` and `loading` are the two lifecycles that say "this
- * one is still on its way"; everything else has settled, including the
- * failures, so a capability that cannot load never holds the door open.
+ * `approved-not-loaded`, `cached-offline` (the same, with its code saved for
+ * offline use) and `loading` are the lifecycles that say "this one is still
+ * on its way"; everything else has settled, including the failures and a
+ * capability waiting for a reload, so one that cannot load here never holds
+ * the door open.
  */
 
 import type {
@@ -22,6 +24,7 @@ import type {
 
 const PENDING: readonly CapabilityLifecycle[] = [
   "approved-not-loaded",
+  "cached-offline",
   "loading",
 ];
 

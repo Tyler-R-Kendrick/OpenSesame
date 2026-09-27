@@ -16,6 +16,7 @@ export {
   isModuleId,
   isOpaqueId,
   isUnitName,
+  isWorkerModule,
   moduleCapability,
   sortIds,
 } from "./ids.js";

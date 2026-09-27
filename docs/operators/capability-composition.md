@@ -372,9 +372,13 @@ Consequences an operator should expect:
   to files through the same-origin `capability-graph.json`. It never accepts a
   URL from a page, and ignores any message outside that vocabulary.
 - **`delivery.offlineCache: "shell-only"`** caches the shell and nothing else;
-  `"selected-only"` stages the approved closure's assets. A capability that is
-  approved but not cached is reported `NOT_CACHED_OFFLINE` — a distinct claim
-  from "not approved".
+  `"selected-only"` stages the approved closure's assets. The worker saves a
+  plan's files all or nothing, and a capability whose every page module it
+  saved reads `cached-offline` (Settings: `saved offline`) — a distinct claim
+  from `approved-not-loaded`, which is what an approved capability that is not
+  saved reads. This is a lifecycle, not a reason code: cache state is reported
+  by the worker and projected onto the plan, never resolved, because a cache
+  report must not re-resolve the plan and revoke every running lease.
 
 Turning `notifications.web-push` off does not stop a worker mid-flight: the
 plan asks for `core-only`, the controller reports the transition, and the
@@ -391,8 +395,8 @@ Five different facts, five different places. None of them implies another.
 | What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the Effective view — `capabilities/effective-plan.yaml`. Its Source view carries `capabilities/instance-policy.yaml` for the operator |
 | What did this device **select and accept**? | Settings › Capabilities, Source view of `capabilities/installation-selection.yaml` |
 | What did the resolver **decide**? | Settings › Capabilities, Effective view — `capabilities/effective-plan.yaml`, read-only |
-| What is **cached** and what is the worker doing? | the offline status in Settings (`online-only`, `saving`, `saved`, `partial`, `storage-unavailable`) |
-| What is **loaded and running** right now? | the switch says on or off; beside it a status glyph says what a switch cannot — `starting`, `consent required`, `restart required`, `conflict`, `acceptance required`, `selected · not yet applied`, `needed by …` |
+| What is **cached** and what is the worker doing? | the offline status in Settings (`online-only`, `saving`, `saved`, `partial`, `storage-unavailable`), and per capability `saved offline` once the worker saved every one of its page modules |
+| What is **loaded and running** right now? | the switch says on or off; beside it a status glyph says what a switch cannot — `starting`, `consent required`, `restart required`, `reload to start`, `saved offline`, `conflict`, `acceptance required`, `selected · not yet applied`, `needed by …` |
 
 The status vocabulary is deliberately not collapsible. `approved` means the
 plan would load it; `active` means it is running; `restart required` means its
@@ -406,8 +410,11 @@ Reason codes you will see on an unapproved capability: `NOT_DISTRIBUTED`,
 `DISABLED_IN_VAULT`, `NOT_SELECTED`, `REQUIRED_NOT_ACCEPTED`,
 `CONSENT_REQUIRED`, `DEPENDENCY_CONFLICT`, `ALTERNATIVE_NOT_CHOSEN`,
 `UNSUPPORTED_RUNTIME`, `POLICY_UNVERIFIED`, `PROFILE_MISMATCH`,
-`NETWORK_POLICY_DENIES`, `WORKER_GRAPH_UNAVAILABLE`, `NOT_CACHED_OFFLINE`,
-`RESTART_REQUIRED`.
+`NETWORK_POLICY_DENIES`, `WORKER_GRAPH_UNAVAILABLE`, `RESTART_REQUIRED`.
+One reason sits on an approved capability: `RELOAD_REQUIRED` — it must start
+in a fresh document, this one has already run other modules, and it was
+approved after load; it reads `reload to start` and the loader refuses it
+until the page reloads.
 
 ## 8. Recovery
 

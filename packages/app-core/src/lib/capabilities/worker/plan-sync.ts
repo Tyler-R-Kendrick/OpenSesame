@@ -46,8 +46,11 @@ export function syncPlan(snapshot: CompositionSnapshotForWorker): void {
   const { plan, selection } = snapshot;
   if (!plan || state.status.transition) return;
   if (selection?.delivery.offlineCache !== "selected-only") {
-    if (state.status.offlineStatus !== "online-only")
-      publish({ offlineStatus: "online-only" });
+    if (
+      state.status.offlineStatus !== "online-only" ||
+      state.status.savedModuleIds.length > 0
+    )
+      publish({ offlineStatus: "online-only", savedModuleIds: [] });
     return;
   }
   if (!state.container?.controller) return;
@@ -66,6 +69,7 @@ export function syncPlan(snapshot: CompositionSnapshotForWorker): void {
   });
   if (!posted) return;
   state.lastPlanKey = key;
+  state.postedPlan = { planDigest: plan.identity.planDigest, moduleIds };
   publish({ offlineStatus: "saving" });
 }
 
@@ -82,8 +86,26 @@ function onPlanRejected(reason: BoundaryValue): void {
 function onWorkerInfo(releaseId: BoundaryValue): void {
   if (!isString(releaseId)) return;
   state.workerReleaseId = releaseId;
-  publish({ releaseId });
+  // Another release keeps its own caches: nothing is known saved in them yet.
+  if (releaseId !== state.status.releaseId)
+    publish({ releaseId, savedModuleIds: [] });
+  else publish({ releaseId });
   if (state.latest) syncPlan(state.latest);
+}
+
+/**
+ * The worker saved every file of the plan it names, all or nothing
+ * (`src/sw/plan-assets.ts`), so that plan's modules are now saved. A
+ * readiness for some other plan says nothing about these modules.
+ */
+function onOfflineReady(planDigest: BoundaryValue): void {
+  const posted = state.postedPlan;
+  if (!posted || planDigest !== posted.planDigest) {
+    publish({ offlineStatus: "saved" });
+    return;
+  }
+  const saved = new Set([...state.status.savedModuleIds, ...posted.moduleIds]);
+  publish({ offlineStatus: "saved", savedModuleIds: [...saved].sort() });
 }
 
 export function onWorkerMessage(data: BoundaryValue): void {
@@ -93,7 +115,7 @@ export function onWorkerMessage(data: BoundaryValue): void {
       onWorkerInfo(data.releaseId);
       break;
     case "OFFLINE_READY":
-      publish({ offlineStatus: "saved" });
+      onOfflineReady(data.planDigest);
       break;
     case "OFFLINE_PARTIAL":
       publish({ offlineStatus: "partial" });

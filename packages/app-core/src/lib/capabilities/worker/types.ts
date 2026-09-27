@@ -37,6 +37,12 @@ export type WorkerStatus = Readonly<{
   /** The controlling worker's release id, from `WORKER_INFO`. */
   releaseId: string | null;
   offlineStatus: OfflineStatus;
+  /**
+   * Page module ids the controlling release has saved for offline use, sorted:
+   * the modules of every plan it answered `OFFLINE_READY` for. Empty unless
+   * delivery is `selected-only`; cleared when another release takes over.
+   */
+  savedModuleIds: readonly string[];
   transition: WorkerTransition | null;
   /** Human-readable, never secrets. */
   diagnostics: readonly string[];
@@ -52,6 +58,8 @@ export type CompositionSnapshotForWorker = Readonly<{
 export type CompositionStoreForWorker = Readonly<{
   getSnapshot(): CompositionSnapshotForWorker;
   subscribe(listener: () => void): () => void;
+  /** Told what the worker saved, so each capability can say it is cached. */
+  setOfflineSaved?(moduleIds: readonly string[]): void;
 }>;
 
 export type RegisterWorkerOptions = Readonly<{
