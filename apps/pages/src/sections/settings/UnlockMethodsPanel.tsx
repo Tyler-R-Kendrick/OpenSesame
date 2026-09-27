@@ -36,7 +36,6 @@ import {
   type MethodKind,
   MethodSheet,
   type SheetRequest,
-  methodIcon,
 } from "./security/MethodSheet.js";
 import type { Run } from "./security/run.js";
 

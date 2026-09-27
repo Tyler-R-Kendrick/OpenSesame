@@ -27,7 +27,6 @@ import {
   passkeySettled,
   requestEmailMagicLink,
   resetUnlockHarness,
-  resumeGuestSession,
   sessionHolder,
   submitButton,
   submitIdentifier,

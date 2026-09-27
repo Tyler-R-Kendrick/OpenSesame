@@ -1,7 +1,6 @@
 import {
   type BoundaryValue,
   type JsonObject,
-  type JsonValue,
   isJsonObject,
   isString,
   overlapCast,

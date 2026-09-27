@@ -200,6 +200,25 @@ describe("verifyInteractionBinding recomputes before it trusts (T-16)", () => {
     });
   });
 
+  it("demands a digest for an operation kind even if its adapter would not", () => {
+    const cp = plane();
+    const registered = SUBJECT_ADAPTERS.authorization_request;
+    const row = approved("authorization_request", "areq-2");
+    const { requestDigest: _dropped, approvalProof: _p, ...noDigest } = row;
+    Reflect.set(SUBJECT_ADAPTERS, "authorization_request", {
+      ...registered,
+      requiresDigest: false,
+    });
+    try {
+      expect(verifyInteractionBinding(cp.ctx, noDigest)).toEqual({
+        ok: false,
+        reason: "missing_digest",
+      });
+    } finally {
+      Reflect.set(SUBJECT_ADAPTERS, "authorization_request", registered);
+    }
+  });
+
   it("refuses a subject with no id", () => {
     const cp = plane();
     const row = approved("device_authorization", "dev-1", {

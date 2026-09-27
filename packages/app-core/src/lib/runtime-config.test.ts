@@ -6,9 +6,6 @@
  * config" without blocking boot.
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { FIXTURE_POLICIES } from "@opensesame/capability-composition";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";

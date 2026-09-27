@@ -1,9 +1,4 @@
-import {
-  type JsonObject,
-  isString,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { isString, isTypeofObject, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { TRUSTED_UPSTREAMS } from "./federation.js";
 import { kvSeams } from "./kv.js";

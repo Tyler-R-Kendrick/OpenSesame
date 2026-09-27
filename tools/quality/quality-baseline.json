@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 458,
-    "violations": 722,
-    "oversizedLines": 235045
+    "files": 457,
+    "violations": 721,
+    "oversizedLines": 234476
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -114,11 +114,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1435
+      "max-lines": 1434
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 1058,
+      "max-lines": 1055,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -127,7 +127,7 @@
     },
     "apps/pages/src/screens/setup/WaysIn.tsx": {
       "complexity": 1,
-      "max-lines": 406,
+      "max-lines": 405,
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/ByoProviderSheet.tsx": {
@@ -230,7 +230,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
-      "max-lines": 555
+      "max-lines": 552
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.tsx": {
       "complexity": 1,
@@ -261,11 +261,11 @@
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
-      "max-lines": 987,
+      "max-lines": 986,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 687
+      "max-lines": 665
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
@@ -674,7 +674,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/connections.ts": {
-      "max-lines": 864
+      "max-lines": 862
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
@@ -683,7 +683,7 @@
       "max-lines": 456
     },
     "packages/app-core/src/lib/federation.test.ts": {
-      "max-lines": 1418
+      "max-lines": 1396
     },
     "packages/app-core/src/lib/federation.ts": {
       "complexity": 2,
@@ -706,7 +706,7 @@
       "max-lines": 473
     },
     "packages/app-core/src/lib/identity.ts": {
-      "max-lines": 748
+      "max-lines": 746
     },
     "packages/app-core/src/lib/idp-registry.ts": {
       "complexity": 1
@@ -724,7 +724,7 @@
       "complexity": 1
     },
     "packages/app-core/src/lib/site-broker.test.ts": {
-      "max-lines": 442
+      "max-lines": 438
     },
     "packages/app-core/src/lib/site-broker.ts": {
       "complexity": 1,
@@ -739,7 +739,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/vault/import/formats-extra.test.ts": {
-      "max-lines": 664
+      "max-lines": 663
     },
     "packages/app-core/src/lib/vault/import/formats.test.ts": {
       "max-lines": 783
@@ -799,16 +799,16 @@
       "max-lines": 525
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1708
+      "max-lines": 1690
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 587
+      "max-lines": 580
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470
     },
     "packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
-      "max-lines": 678
+      "max-lines": 676
     },
     "packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.ts": {
       "complexity": 1,
@@ -867,7 +867,7 @@
     },
     "packages/cli/src/run.ts": {
       "complexity": 1,
-      "max-lines": 487,
+      "max-lines": 486,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -908,9 +908,6 @@
     "packages/control-plane/src/__tests__/identity-link.units.test.ts": {
       "max-lines": 844
     },
-    "packages/control-plane/src/__tests__/infra-edge.test.ts": {
-      "max-lines": 408
-    },
     "packages/control-plane/src/__tests__/interaction-handoff.test.ts": {
       "max-lines": 867
     },
@@ -942,10 +939,10 @@
       "max-lines": 413
     },
     "packages/control-plane/src/__tests__/origin-claim-admin.test.ts": {
-      "max-lines": 964
+      "max-lines": 961
     },
     "packages/control-plane/src/__tests__/origin-consent-ui.test.ts": {
-      "max-lines": 668
+      "max-lines": 667
     },
     "packages/control-plane/src/__tests__/origin-profile-issuer.test.ts": {
       "max-lines": 617
@@ -1053,7 +1050,7 @@
     },
     "packages/control-plane/src/routes/interaction-handoff.ts": {
       "complexity": 2,
-      "max-lines": 1202,
+      "max-lines": 1198,
       "max-lines-per-function": 4
     },
     "packages/control-plane/src/routes/interactions-byo.ts": {
@@ -1117,7 +1114,7 @@
     },
     "packages/control-plane/src/routes/projects.ts": {
       "complexity": 2,
-      "max-lines": 751,
+      "max-lines": 748,
       "max-lines-per-function": 3
     },
     "packages/control-plane/src/routes/scim.ts": {
@@ -1137,7 +1134,7 @@
     },
     "packages/control-plane/src/services/agent-auth.ts": {
       "complexity": 1,
-      "max-lines": 650
+      "max-lines": 641
     },
     "packages/control-plane/src/services/app-claim.ts": {
       "complexity": 1,
@@ -1170,7 +1167,7 @@
       "max-lines": 789
     },
     "packages/database/src/authentication-service-store.ts": {
-      "max-lines": 864,
+      "max-lines": 860,
       "max-lines-per-function": 2
     },
     "packages/database/src/client-store.ts": {
@@ -1190,11 +1187,11 @@
       "max-lines": 856
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1805
+      "max-lines": 1804
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,
-      "max-lines": 2888
+      "max-lines": 2882
     },
     "packages/database/src/schema/index.ts": {
       "max-lines": 2370
@@ -1218,7 +1215,7 @@
       "max-nested-callbacks": 1
     },
     "packages/database/tests/postgres-repos.test.ts": {
-      "max-lines": 1282
+      "max-lines": 1279
     },
     "packages/env-spec-bridge/bin/opensesame-env-parse.mjs": {
       "complexity": 1
@@ -1231,7 +1228,7 @@
     },
     "packages/guide-lang/src/parse.ts": {
       "complexity": 3,
-      "max-lines": 744,
+      "max-lines": 743,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1300,7 +1297,7 @@
     },
     "packages/oauth-provider/src/create-provider.ts": {
       "complexity": 1,
-      "max-lines": 491,
+      "max-lines": 456,
       "max-lines-per-function": 1
     },
     "packages/oauth-provider/src/metadata/safe-fetcher.ts": {
@@ -1373,7 +1370,7 @@
     },
     "packages/sdk-browser/src/client.ts": {
       "complexity": 1,
-      "max-lines": 621,
+      "max-lines": 620,
       "max-lines-per-function": 1
     },
     "packages/sdk-browser/src/edge-cases.test.ts": {

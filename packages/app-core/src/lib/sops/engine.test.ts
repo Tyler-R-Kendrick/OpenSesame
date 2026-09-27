@@ -3,12 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SopsError } from "./errors.js";
 import { parseJsonTree } from "./json-codec.js";
 import { entry, scalarText } from "./model.js";
-import {
-  NEVER,
-  TestSession,
-  newIdentities,
-  newIdentity,
-} from "./test-support.js";
+import { NEVER, TestSession, newIdentity } from "./test-support.js";
 import { parseYamlDocuments } from "./yaml-parse.js";
 
 const NOW = new Date("2026-09-21T12:00:00Z");

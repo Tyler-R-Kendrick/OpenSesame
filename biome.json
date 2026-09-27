@@ -8,7 +8,10 @@
   "organizeImports": { "enabled": true },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": {
+      "recommended": true,
+      "correctness": { "noUnusedImports": "error" }
+    }
   },
   "formatter": {
     "enabled": true,

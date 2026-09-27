@@ -33,7 +33,6 @@ import {
   redirectUri,
 } from "@opensesame/app-core/lib/federation.js";
 import {
-  type OperatorIdp,
   loadSettings,
   normalizeOperatorIdp,
   pageIsLoopback,

@@ -14,15 +14,12 @@ import {
   isNumber,
   isString,
 } from "../json.js";
-import {
-  type IdentitySourceRef,
-  type PeerIdentitySelector,
-  SELECTOR_KINDS,
-  type SelectorKind,
-  type TransportErrorCode,
-  type TransportErrorView,
-  type TransportResult,
-  type TrustProfileRef,
+import type {
+  IdentitySourceRef,
+  TransportErrorCode,
+  TransportErrorView,
+  TransportResult,
+  TrustProfileRef,
 } from "./types.js";
 
 export const MAX_ID_BYTES = 128;

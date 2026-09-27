@@ -1,5 +1,4 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
-import { page } from "../../ports.js";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -11,9 +10,6 @@ import { page } from "../../ports.js";
 
 import {
   type CodeChannel,
-  type KdfParams,
-  MAX_PBKDF2_ITERATIONS,
-  PBKDF2_ITERATIONS,
   type PasskeyUnlockRecord,
   type PinUnlockRecord,
   type RecoveryCodesRecord,
@@ -36,10 +32,7 @@ import {
   getPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyForDefault,
 } from "./protection/adapters/webauthn-prf-ceremony.js";
-import {
-  PrfCeremonyError,
-  assertUsablePrfOutput,
-} from "./protection/adapters/webauthn-prf-output.js";
+import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 
 export {
   type WebauthnHostCheck,

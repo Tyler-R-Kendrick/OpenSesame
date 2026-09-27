@@ -1,7 +1,6 @@
 import {
   type BoundaryValue,
   isJsonObject,
-  isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
 import { type WebStorage, maybeLocalStore } from "../../ports.js";

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
   JWT_BEARER_GRANT,
@@ -16,23 +15,15 @@ import {
   digestAgentAccessToken,
   digestAgentClaimAttemptToken,
   digestAgentClaimToken,
-  digestAgentUserCode,
   generateAgentClaimToken,
   generateAgentRegistrationId,
-  generateAgentUserCode,
   overlapCast,
   verifyAgentUserCode,
 } from "@opensesame/os-domain";
 import {
   claimAgentRegistration,
-  markAgentRegistrationClaimPending,
   revokeAgentRegistration,
 } from "@opensesame/os-domain";
-import {
-  evaluateAgentAuthScopes,
-  intersectAgentAuthScopes,
-  scopesForRegistrationState,
-} from "@opensesame/policy";
 import type { AppContext } from "../context.js";
 import { linkProviderIdentityOnClaim } from "./agent-auth-id-jag-link.js";
 import {

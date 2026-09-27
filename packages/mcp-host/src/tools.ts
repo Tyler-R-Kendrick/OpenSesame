@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
-import { forAgent, scrubLocalSecrets } from "./agent-payload.js";
+import { forAgent } from "./agent-payload.js";
 import { daemonFetch, hostFetch } from "./host-api.js";
 import {
   clearFrozenIntent,

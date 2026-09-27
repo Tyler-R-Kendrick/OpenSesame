@@ -6,6 +6,7 @@ import type { AppContext } from "./context.js";
 import { INTERACTION_ROUTE } from "./interactions/rendezvous.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
+import { malformedJsonResponse } from "./middleware/json-body.js";
 import { publicAuthenticationCors } from "./middleware/public-auth-cors.js";
 import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentAuthRoutes } from "./routes/agent-auth.js";
@@ -218,7 +219,10 @@ export function createHonoApp(
   // surface can settle an interaction outside approve()'s digest binding.
   mountWalletNativeRoutes(app, walletNative);
 
-  app.onError((err, c) => {
+  app.onError(async (err, c) => {
+    // A body that is not JSON is the client's error: a 400, and no alarm.
+    const malformed = await malformedJsonResponse(err, c);
+    if (malformed) return malformed;
     ctx.log.error({ err }, "request failed");
     if (err instanceof HTTPException) {
       return err.getResponse();

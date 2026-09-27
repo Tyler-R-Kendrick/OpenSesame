@@ -1,6 +1,5 @@
 import { generate } from "@opensesame/app-core/lib/vault/password.js";
 import {
-  type ItemKind,
   type VaultItem,
   definitionFor,
   hostOf,

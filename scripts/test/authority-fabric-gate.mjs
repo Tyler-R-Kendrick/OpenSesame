@@ -26,7 +26,6 @@ import {
 import {
   capabilityIds,
   crateFacts,
-  enumerateCargoTests,
   fileFacts,
   ledgerCandidates,
   ledgerInventory,

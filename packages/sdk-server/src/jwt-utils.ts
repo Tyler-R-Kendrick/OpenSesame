@@ -6,11 +6,7 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import {
-  type JWTPayload,
-  decodeProtectedHeader,
-  errors as joseErrors,
-} from "jose";
+import { decodeProtectedHeader, errors as joseErrors } from "jose";
 import { AuthError } from "./errors.js";
 
 /** ID-token algorithms (ADR 0050 F7). Access-token verification may be wider. */

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
 import {
@@ -8,7 +8,6 @@ import {
   classifyIdentityConnector,
   classifyKeysConnector,
   isOfflineSet,
-  needsAttention,
   repoHint,
 } from "./connectors.js";
 import type { PlaneStatus } from "./planes.js";

@@ -1,8 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index.js";
 

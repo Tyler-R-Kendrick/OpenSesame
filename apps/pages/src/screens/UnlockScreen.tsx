@@ -2,7 +2,6 @@ import {
   outcomeWantsSignIn,
   readAuthOutcome,
 } from "@opensesame/app-core/lib/auth-outcome.js";
-import { resumeGuestSession } from "@opensesame/app-core/lib/guest-auth.js";
 import { currentSession } from "@opensesame/app-core/lib/identity.js";
 import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
@@ -16,7 +15,6 @@ import {
   type SecondStepId,
   type UnlockMethodId,
   checkWebauthnHost,
-  describeWebauthnError,
   listAvailableUnlockMethods,
   listSecondSteps,
   pinPolicyProblems,
@@ -29,7 +27,6 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { cancelPasskeyDuressCode } from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
-import { WrongPasswordError } from "@opensesame/vault-core";
 import {
   type FormEvent,
   useCallback,

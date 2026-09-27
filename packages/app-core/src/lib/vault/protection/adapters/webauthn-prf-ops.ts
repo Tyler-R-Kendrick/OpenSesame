@@ -9,9 +9,7 @@
 import {
   LEGACY_WEBAUTHN_PRF_DOMAIN,
   type ProtectorAvailability,
-  type VerificationEvidence,
   type WebauthnPrfProtectorRecord,
-  b64ToBytes,
   bytesToB64,
 } from "@opensesame/vault-core";
 import { credentials, publicKeyCredentialApi } from "../../../../ports.js";
@@ -21,13 +19,9 @@ import {
   type PasskeyUnlockRecord,
   checkWebauthnHost,
   createPasskeyUnlockCeremony,
-  getPasskeyUnlockCeremony,
   getPasskeyUnlockCeremonyFor,
-  kekFromWebauthnPrf,
-  listPasskeyUnlockRecords,
   unwrapVaultKeyWithPrf,
   webauthnRpId,
-  withPasskeyUnlock,
   wrapVaultKeyWithPrf,
 } from "../../unlock-methods.js";
 import {
@@ -43,13 +37,7 @@ import {
   mintRootKeyHandle,
 } from "../adapter.js";
 import { ProtectionError } from "../errors.js";
-import {
-  PrfCeremonyError,
-  assertUsablePrfOutput,
-  hasUsablePrfOutput,
-  prfExtensionSupported,
-  readPrfFirst,
-} from "./webauthn-prf-output.js";
+import { assertUsablePrfOutput } from "./webauthn-prf-output.js";
 
 import {
   type WebauthnPrfAdapterOptions,

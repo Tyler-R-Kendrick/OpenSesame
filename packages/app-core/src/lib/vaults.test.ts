@@ -1,5 +1,5 @@
 import { createVault } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setGuestsAllowed } from "./guest-access.js";
 import { guestAuthSeams } from "./guest-auth.js";
 import { kvDelete, kvSet } from "./kv.js";

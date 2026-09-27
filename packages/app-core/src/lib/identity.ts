@@ -2,7 +2,6 @@ import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
-  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -36,7 +35,6 @@ import {
   classifyThrown,
 } from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
-import { isLoopbackUrl } from "./urls.js";
 
 export { isDeviceIdentityMode, isRemoteIdentityConfigured, remoteIdentityApi };
 

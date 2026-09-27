@@ -1,16 +1,10 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Interaction } from "@opensesame/os-domain";
-import {
-  type ExecutionReservationRepository,
-  type InteractionProofAttempt,
-  type InteractionProofAttemptRepository,
-  MemoryRepositories,
-  type Repositories,
-  type WalletRegistration,
-  type WalletRegistrationRepository,
+import type {
+  InteractionProofAttempt,
+  Repositories,
+  WalletRegistration,
 } from "../src/index.js";
-import { makePrincipal } from "./factories.js";
-import type { PgTestContext } from "./pg-harness-full.js";
 
 export function makeInteraction(
   overrides: Partial<Interaction> = {},

@@ -3,7 +3,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { createDrizzle } from "../src/client.js";
 import type { Repositories } from "../src/repos/interfaces.js";
-import { type Database, PostgresRepositories } from "../src/repos/postgres.js";
+import { PostgresRepositories } from "../src/repos/postgres.js";
 import * as schema from "../src/schema/index.js";
 
 /** Subset of 0000_brave_sally_floyd.sql needed for outbox SKIP LOCKED. */

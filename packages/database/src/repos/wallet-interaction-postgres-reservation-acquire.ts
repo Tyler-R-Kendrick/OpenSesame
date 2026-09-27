@@ -2,11 +2,11 @@
  * Postgres execution-reservation helpers (ADR 0086).
  */
 
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as coreSchema from "../schema/index.js";
 import * as walletSchema from "../schema/wallet-interactions.js";
-import { ConflictError, NotFoundError, type UnitOfWork } from "./interfaces.js";
+import { ConflictError, type UnitOfWork } from "./interfaces.js";
 import type {
   ExecutionReservation,
   ExecutionReservationRepository,

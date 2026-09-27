@@ -20,7 +20,7 @@ import {
 import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
 import type { IdentityPlane, PlaneStatus } from "./planes.js";
 import { type FailureClass, failureLabel } from "./probe-failure.js";
-import { type PagesSettings, loadSettings } from "./settings.js";
+import type { PagesSettings } from "./settings.js";
 
 export { briefOrigin, repoHint };
 

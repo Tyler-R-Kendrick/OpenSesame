@@ -101,7 +101,12 @@ declare module "oidc-provider" {
             ) => void | Promise<void>)
           | null
         >;
-    ttl?: import("@opensesame/os-domain").JsonObject;
+    /** Seconds, or a function of the request, artifact and client (`lifetimes.ts`). */
+    ttl?: Record<
+      string,
+      | number
+      | ((ctx: KoaContext, artifact: KoaContext, client: KoaContext) => number)
+    >;
     /** Static additions merged into the discovery document. */
     discovery?: import("@opensesame/os-domain").JsonObject;
     clientAuthMethods?: string[];
@@ -118,6 +123,12 @@ declare module "oidc-provider" {
         metadata: import("@opensesame/os-domain").BoundaryValue,
       ) => void;
     };
+    /** Draws an error for the browser (`pages.ts`). */
+    renderError?: (
+      ctx: KoaContext,
+      out: Readonly<Record<string, string | undefined>>,
+      error: Error,
+    ) => Promise<void>;
     assertJwtClientAuthClaimsAndHeader?: (
       ctx: KoaContext,
       claims: import("@opensesame/os-domain").JsonObject,

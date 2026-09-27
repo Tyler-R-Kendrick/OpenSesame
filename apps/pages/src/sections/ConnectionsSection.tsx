@@ -43,7 +43,6 @@ export function ConnectionsSection() {
   // Live connections go through Vercel Connect. The catalog below is
   // embedded and stays browsable with no backend at all (ADR 0090).
   const connectConfigured = useVercelConnectConfigured();
-  const liveConnections = connectConfigured;
   const session = useIdentitySession();
 
   const [providers, setProviders] = useState<Provider[] | null>(null);

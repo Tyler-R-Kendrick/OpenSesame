@@ -4,11 +4,7 @@ import { IconHelp } from "../../components/Icons.js";
 import { useGuideTarget } from "../registry/react.jsx";
 import { useSupport } from "../session.js";
 import "../support.css";
-import {
-  SupportSlot,
-  SupportSlotProvider,
-  useSupportMarkSlot,
-} from "./SupportComposer.js";
+import { useSupportMarkSlot } from "./SupportComposer.js";
 
 export {
   SupportComposer,

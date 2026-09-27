@@ -2,7 +2,15 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { planeHookSeams } from "../../bindings/planes.js";
 
 import type {
@@ -15,17 +23,10 @@ import type {
   VaultItem,
 } from "@opensesame/vault-core";
 
-type VaultFixture = {
-  current: { items: VaultItem[]; folders: Folder[] };
-};
+type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
 const vault = vi.hoisted(
-  (): VaultFixture => ({
-    current: {
-      items: [],
-      folders: [],
-    },
-  }),
+  (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const store = vi.hoisted(() => ({
   toggleFavorite: vi.fn<(id: string) => Promise<void>>(),
@@ -48,11 +49,13 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => store,
   useCopySecret: () => copySecret,
 });
+afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 Object.assign(planeHookSeams, { usePlaneStatus: () => planes.value });
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { listConnections, connectionEvents });
+afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
 import { ItemDetail } from "./ItemDetail.js";
 
@@ -124,10 +127,7 @@ describe("ItemDetail", () => {
   });
 
   it("renders a login with concealed password and reveals it on demand", async () => {
-    vault.current = {
-      items: [makeLogin()],
-      folders: [],
-    };
+    vault.current = { items: [makeLogin()], folders: [] };
     renderAt("itm_login");
     expect(screen.getByRole("heading", { name: "Webmail" })).toBeTruthy();
     expect(screen.getByText("me@example.com")).toBeTruthy();

@@ -24,7 +24,7 @@ function buildProviderRegistration(
   principalIdIn: string | undefined,
   principalIn: Principal | null,
   now: Date,
-) {
+): BuiltProviderRegistration {
   const cfg = ctx.config.agentAuth;
   let principalId = principalIdIn;
   let principal = principalIn;

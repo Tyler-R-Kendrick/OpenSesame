@@ -13,7 +13,6 @@ import {
 import {
   type BoundaryValue,
   type JsonObject,
-  isString,
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -33,7 +32,6 @@ import {
 } from "./connections-local-git.js";
 import { providerFromView } from "./connector-catalog.js";
 import {
-  type LocalGithubApp,
   buildGithubAppRegistration,
   readLocalGithubApp,
 } from "./github-app-manifest.js";

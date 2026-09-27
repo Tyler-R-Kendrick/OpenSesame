@@ -3,33 +3,27 @@ import {
   type CertificateItem,
   type Folder,
   type LoginItem,
-  type SecretItem,
   type VaultItem,
   createItem,
 } from "@opensesame/vault-core";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-type VaultFixture = {
-  current: { items: VaultItem[]; folders: Folder[] };
-};
+type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
 const vault = vi.hoisted(
-  (): VaultFixture => ({
-    current: {
-      items: [],
-      folders: [],
-    },
-  }),
+  (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const saveItem = vi.hoisted(() => vi.fn<(item: VaultItem) => Promise<void>>());
 const compileSecretToHost = vi.hoisted(() => vi.fn());
@@ -55,10 +49,12 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ saveItem }),
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
+afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { compileSecretToHost });
+afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
 import { certsSeams } from "@opensesame/app-core/lib/certs.js";
 Object.assign(certsSeams, {
@@ -68,7 +64,8 @@ Object.assign(certsSeams, {
 
 import { ItemEditor } from "./ItemEditor.js";
 
-function renderNew(path = "/vault/new/login") {
+/** The editor at `path`, new or edit, with a catch-all for where saving goes. */
+function renderEditor(path = "/vault/new/login") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -150,7 +147,7 @@ describe("ItemEditor", () => {
   });
 
   it("requires a name before saving", async () => {
-    renderNew();
+    renderEditor();
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     expect(await screen.findByRole("alert")).toBeTruthy();
@@ -159,7 +156,7 @@ describe("ItemEditor", () => {
   });
 
   it("creates a new login and navigates to its detail", async () => {
-    renderNew();
+    renderEditor();
     expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
     expect(screen.getByText(".login")).toBeTruthy();
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
@@ -182,7 +179,7 @@ describe("ItemEditor", () => {
   });
 
   it("behavior: issues and seals a new certificate in one submit", async () => {
-    renderNew("/vault/new/certificate");
+    renderEditor("/vault/new/certificate");
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.clear(screen.getByLabelText(/Common name/i));
     await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
@@ -223,7 +220,7 @@ describe("ItemEditor", () => {
   });
 
   it("characterization: asks for names and lifetime, never PEM material", () => {
-    const { container } = renderNew("/vault/new/certificate");
+    const { container } = renderEditor("/vault/new/certificate");
     expect(screen.queryByLabelText(/^Certificate$/i)).toBeNull();
     expect(screen.queryByLabelText(/^Private key$/i)).toBeNull();
     expect(screen.queryByLabelText(/^Issuing CA$/i)).toBeNull();
@@ -257,7 +254,7 @@ describe("ItemEditor", () => {
 
   it("adversarial: does not save when Host issuance fails", async () => {
     issueCertificateFromHost.mockRejectedValueOnce(new Error("issuer offline"));
-    renderNew("/vault/new/certificate");
+    renderEditor("/vault/new/certificate");
     await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
@@ -273,7 +270,7 @@ describe("ItemEditor", () => {
     saveItem
       .mockRejectedValueOnce(new Error("vault temporarily locked"))
       .mockResolvedValueOnce(undefined);
-    renderNew("/vault/new/certificate");
+    renderEditor("/vault/new/certificate");
     await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
@@ -291,17 +288,7 @@ describe("ItemEditor", () => {
 
   it("issues a blank legacy certificate instead of saving it blank", async () => {
     vault.current = { items: [makeCertificate()], folders: [] };
-    render(
-      <MemoryRouter initialEntries={["/vault/itm_cert/edit"]}>
-        <Routes>
-          <Route
-            path="/vault/:itemId/edit"
-            element={<ItemEditor mode="edit" />}
-          />
-          <Route path="*" element={<div>navigated away</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    renderEditor("/vault/itm_cert/edit");
     await userEvent.click(screen.getByRole("button", { name: /Issue now/i }));
 
     await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
@@ -325,16 +312,7 @@ describe("ItemEditor", () => {
       ],
       folders: [],
     };
-    render(
-      <MemoryRouter initialEntries={["/vault/itm_cert/edit"]}>
-        <Routes>
-          <Route
-            path="/vault/:itemId/edit"
-            element={<ItemEditor mode="edit" />}
-          />
-        </Routes>
-      </MemoryRouter>,
-    );
+    renderEditor("/vault/itm_cert/edit");
     expect(inputByLabel(/Common name/i).readOnly).toBe(true);
     expect(screen.queryByLabelText(/^Private key$/i)).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
@@ -344,23 +322,23 @@ describe("ItemEditor", () => {
   });
 
   it("prefills a new login from the save-prompt query", () => {
-    renderNew("/vault/new/login?name=Mail&uri=https://mail.example.com");
+    renderEditor("/vault/new/login?name=Mail&uri=https://mail.example.com");
     expect(inputByLabel(/^Name$/i).value).toBe("Mail");
     expect(screen.getByDisplayValue("https://mail.example.com")).toBeTruthy();
   });
 
   it("prefills a new secret connection reference from the query", () => {
-    renderNew("/vault/new/secret?name=Token&ref=conn/github/pat");
+    renderEditor("/vault/new/secret?name=Token&ref=conn/github/pat");
     expect(inputByLabel(/Connection reference/i).value).toBe("conn/github/pat");
   });
 
   it("prefills a new passkey relying party from the query", () => {
-    renderNew("/vault/new/passkey?uri=example.com");
+    renderEditor("/vault/new/passkey?uri=example.com");
     expect(inputByLabel(/Relying party/i).value).toBe("example.com");
   });
 
   it("switches item kind and keeps the name", async () => {
-    renderNew("/vault/new");
+    renderEditor("/vault/new");
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
     await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
@@ -372,7 +350,7 @@ describe("ItemEditor", () => {
   });
 
   it("strips non-digits from card numbers", async () => {
-    renderNew("/vault/new/card");
+    renderEditor("/vault/new/card");
     await userEvent.type(
       screen.getByLabelText(/^Number$/i),
       "4111-1111 x 4242",
@@ -381,7 +359,7 @@ describe("ItemEditor", () => {
   });
 
   it("adds, edits, and removes website addresses", async () => {
-    renderNew("/vault/new/login?uri=https://old.example.com");
+    renderEditor("/vault/new/login?uri=https://old.example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
     const address = screen.getByLabelText("Address 2");
     await userEvent.type(address, "https://mail.example.com");
@@ -400,7 +378,7 @@ describe("ItemEditor", () => {
   });
 
   it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
-    renderNew();
+    renderEditor();
     expect(inputByLabel("Address 1").value).toBe("");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
@@ -410,7 +388,7 @@ describe("ItemEditor", () => {
   });
 
   it("reveals the password field and uses the generator", async () => {
-    renderNew();
+    renderEditor();
     const password = inputByLabel(/^Password$/i);
     expect(password.type).toBe("password");
     await userEvent.click(
@@ -433,7 +411,7 @@ describe("ItemEditor", () => {
   });
 
   it("dismisses the generator without applying", async () => {
-    renderNew();
+    renderEditor();
     await userEvent.click(
       screen.getByRole("button", { name: /Password generator/i }),
     );
@@ -508,7 +486,7 @@ describe("ItemEditor", () => {
   });
 
   it.skip("compiles secret grants to the Host after saving", async () => {
-    renderNew("/vault/new/secret");
+    renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: "Add connection reference" }),
     );
@@ -525,7 +503,7 @@ describe("ItemEditor", () => {
 
   it.skip("warns but still saves when the Host grant compile fails", async () => {
     compileSecretToHost.mockRejectedValue(new Error("host down"));
-    renderNew("/vault/new/secret");
+    renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: "Add connection reference" }),
     );
@@ -541,13 +519,13 @@ describe("ItemEditor", () => {
   });
 
   it("keeps grantee editing out of secret ceremonies and preserves grants", async () => {
-    renderNew("/vault/new/secret");
+    renderEditor("/vault/new/secret");
     expect(screen.queryByLabelText(/Grantees/i)).toBeNull();
     cleanup();
     const secret = createItem("secret");
     secret.grantees = ["agt_one", "agt_two"];
     vault.current.items = [secret];
-    renderNew(`/vault/${secret.id}/edit`);
+    renderEditor(`/vault/${secret.id}/edit`);
     expect(screen.queryByLabelText(/Grantees/i)).toBeNull();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
@@ -556,7 +534,7 @@ describe("ItemEditor", () => {
   });
 
   it("adds, edits, and removes capability ceiling grants", async () => {
-    renderNew("/vault/new/secret");
+    renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: /Add capability/i }),
     );
@@ -578,7 +556,7 @@ describe("ItemEditor", () => {
   });
 
   it("removes capability ceiling grants", async () => {
-    renderNew("/vault/new/secret");
+    renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: /Add capability/i }),
     );
@@ -590,7 +568,7 @@ describe("ItemEditor", () => {
   });
 
   it("manages custom fields with conceal toggles", async () => {
-    renderNew();
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: /Add custom/ }));
     const name = screen.getByLabelText("Field name");
     await userEvent.type(name, "API key");
@@ -615,7 +593,7 @@ describe("ItemEditor", () => {
   });
 
   it("removes custom fields", async () => {
-    renderNew();
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: /Add custom/ }));
     await userEvent.type(screen.getByLabelText("Field name"), "API key");
     await userEvent.click(
@@ -629,7 +607,7 @@ describe("ItemEditor", () => {
       items: [],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
     };
-    renderNew();
+    renderEditor();
     await userEvent.selectOptions(screen.getByLabelText(/^Folder$/i), "fld_1");
     await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
     screen.getByRole("button", { name: "Unpin item", pressed: true });
@@ -640,7 +618,7 @@ describe("ItemEditor", () => {
   });
 
   it("edits passkey and note fields", async () => {
-    renderNew("/vault/new/passkey");
+    renderEditor("/vault/new/passkey");
     await userEvent.type(
       screen.getByLabelText(/Relying party/i),
       "example.com",
@@ -663,7 +641,7 @@ describe("ItemEditor", () => {
 
   it("surfaces save failures", async () => {
     saveItem.mockRejectedValue(new Error("vault locked"));
-    renderNew();
+    renderEditor();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Nope");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     const alert = await screen.findByRole("alert");
@@ -672,7 +650,7 @@ describe("ItemEditor", () => {
 
   it("uses a generic message for non-Error save failures", async () => {
     saveItem.mockRejectedValue("boom");
-    renderNew();
+    renderEditor();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Nope");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     const alert = await screen.findByRole("alert");
@@ -680,7 +658,7 @@ describe("ItemEditor", () => {
   });
 
   it("cancels back to the vault list for new items", () => {
-    renderNew();
+    renderEditor();
     const cancel = screen.getByRole("link", { name: /Cancel/i });
     expect(cancel.getAttribute("href")).toBe("/vault");
   });

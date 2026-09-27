@@ -15,7 +15,6 @@
 import {
   TravelBundleError,
   type TravelBundleErrorCode,
-  type TravelFile,
   type TravelPayload,
   type TravelVaultKind,
   openTravelBundle,

@@ -5,7 +5,7 @@ import {
   CreateClaimResponseSchema,
   PrincipalMeResponseSchema,
 } from "@opensesame/contracts";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { DEFAULT_PROVISIONAL_QUOTA } from "@opensesame/policy";
 import {
   assertAtMostWins,

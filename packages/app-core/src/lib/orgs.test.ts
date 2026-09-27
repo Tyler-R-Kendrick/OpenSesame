@@ -12,7 +12,6 @@ import {
   lookupOrgByDomain,
   lookupOrgTenant,
   orgAuthUpstream,
-  orgSeams,
   routeOrgMethod,
   setActiveOrgProfileId,
 } from "./orgs.js";

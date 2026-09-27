@@ -140,39 +140,47 @@ describe("duress unlock behaviour", () => {
     resetFence();
   });
 
-  it("Given armed code, When wrong PIN repeats past throttle, Then miss surface holds", async () => {
-    const sealed = await sealUnlockTriggerFromCeremony({
-      code: "97531864",
-      profileId: "p-throttle",
-      vaultRef: "vault-behaviour",
-      deviceBindingRef: "device-behaviour",
-      presentation: "restricted",
-    });
-    await armPersistedUnlockEnrollment(sealed, { requireDurable: false });
+  // Nine PIN derivations at the production PBKDF2 floor, which a test may
+  // not lower: seconds alone, far more under the workspace's parallel run.
+  it(
+    "Given armed code, When wrong PIN repeats past throttle, Then miss surface holds",
+    {
+      timeout: 90_000,
+    },
+    async () => {
+      const sealed = await sealUnlockTriggerFromCeremony({
+        code: "97531864",
+        profileId: "p-throttle",
+        vaultRef: "vault-behaviour",
+        deviceBindingRef: "device-behaviour",
+        presentation: "restricted",
+      });
+      await armPersistedUnlockEnrollment(sealed, { requireDurable: false });
 
-    const store = {
-      unlockWithPin: vi.fn(async () => {
-        throw new WrongPasswordError(UNLOCK_PIN_MISS);
-      }),
-      createGuest: vi.fn(async () => undefined),
-    };
-    for (let i = 0; i < 8; i++) {
+      const store = {
+        unlockWithPin: vi.fn(async () => {
+          throw new WrongPasswordError(UNLOCK_PIN_MISS);
+        }),
+        createGuest: vi.fn(async () => undefined),
+      };
+      for (let i = 0; i < 8; i++) {
+        await expect(
+          unlockWithPinAfterDuressGate(store, "00000000", {
+            requireDurable: false,
+          }),
+        ).rejects.toBeInstanceOf(WrongPasswordError);
+      }
       await expect(
         unlockWithPinAfterDuressGate(store, "00000000", {
           requireDurable: false,
         }),
-      ).rejects.toBeInstanceOf(WrongPasswordError);
-    }
-    await expect(
-      unlockWithPinAfterDuressGate(store, "00000000", {
-        requireDurable: false,
-      }),
-    ).rejects.toSatisfy(
-      (err: BoundaryValue) =>
-        err instanceof WrongPasswordError && err.message === UNLOCK_PIN_MISS,
-    );
-    expect(store.unlockWithPin).toHaveBeenCalledTimes(8);
+      ).rejects.toSatisfy(
+        (err: BoundaryValue) =>
+          err instanceof WrongPasswordError && err.message === UNLOCK_PIN_MISS,
+      );
+      expect(store.unlockWithPin).toHaveBeenCalledTimes(8);
 
-    await disarmPersistedUnlockEnrollment();
-  });
+      await disarmPersistedUnlockEnrollment();
+    },
+  );
 });
