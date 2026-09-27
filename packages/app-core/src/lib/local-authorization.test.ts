@@ -350,7 +350,7 @@ it("checks vault liveness again after asynchronous policy reads", async () => {
   const action = vi.fn(async () => true);
   await expect(
     withLocalApplicationGrant(tomb, grant, app, ["openid"], action),
-  ).rejects.toThrow(/unavailable|could not be read|authentication tag/u);
+  ).rejects.toThrow("This local identity session is unavailable.");
   expect(lockedDuringPolicy).toBe(true);
   expect(action).not.toHaveBeenCalled();
 });

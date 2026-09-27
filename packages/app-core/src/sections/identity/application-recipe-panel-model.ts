@@ -7,10 +7,13 @@ import {
   type exportRecipe,
   importRecipe,
 } from "../../lib/configuration/recipes.js";
-import {
-  configureLocalApplication,
-  readLocalApplications,
-} from "../../lib/local-applications.js";
+import { configureLocalApplication } from "../../lib/local-applications.js";
+import { LocalDirectoryError } from "../../lib/local-directory-types.js";
+
+/** The write a recipe makes; tests stand in a store of their own. */
+export const recipePanelSeams = {
+  configure: configureLocalApplication,
+};
 
 export type ApplyImportedRecipeInput = {
   imported: string;
@@ -36,27 +39,36 @@ export async function applyImportedRecipe(
     return "Unlock the vault before applying a recipe.";
   }
   const tomb = input.tomb;
-  const revision = input.revision;
-  const applied = await applyBoundRecipe(
-    bound.bound,
-    { organization: input.organization },
-    {
-      applyLocalApplication: async (resource) => {
-        const current = await readLocalApplications(tomb);
-        await configureLocalApplication(
-          tomb,
-          current.revision,
-          resource.logicalId,
-          {
-            applicationId: resource.logicalId,
-            organizationId: resource.organizationId,
-            redirectUris: resource.redirectUris,
-            scopes: resource.scopes,
-          },
-        );
+  // The first write is checked against the revision the panel was drawn
+  // from, so a change made elsewhere since is refused rather than
+  // overwritten; each later write follows on from the one before it.
+  let revision = input.revision;
+  let applied: Awaited<ReturnType<typeof applyBoundRecipe>>;
+  try {
+    applied = await applyBoundRecipe(
+      bound.bound,
+      { organization: input.organization },
+      {
+        applyLocalApplication: async (resource) => {
+          const next = await recipePanelSeams.configure(
+            tomb,
+            revision,
+            resource.logicalId,
+            {
+              applicationId: resource.logicalId,
+              organizationId: resource.organizationId,
+              redirectUris: resource.redirectUris,
+              scopes: resource.scopes,
+            },
+          );
+          revision = next.revision;
+        },
       },
-    },
-  );
+    );
+  } catch (err) {
+    if (err instanceof LocalDirectoryError) return err.message;
+    throw err;
+  }
   return applied.ok
     ? `Applied ${applied.applied.join(", ")} to ${input.organization}. Repeat import keeps the same applicationId.`
     : applied.message;

@@ -225,15 +225,17 @@ describe("browser-local identity sessions", () => {
   it("refuses an in-flight use if the vault locks during encrypted reads", async () => {
     const session = await signInLocalIdentity(tomb, principalId);
     const open = vfsSeams.open;
-    vi.spyOn(vfsSeams, "open").mockImplementationOnce(async (key, blob) => {
-      const value = await open(key, blob);
-      vaultStore.lock();
-      return value;
-    });
+    vi.spyOn(vfsSeams, "open").mockImplementationOnce(
+      async (key, blob, binding) => {
+        const value = await open(key, blob, binding);
+        vaultStore.lock();
+        return value;
+      },
+    );
     const action = vi.fn(async () => true);
     await expect(
       withLocalIdentitySession(tomb, session, action),
-    ).rejects.toThrow(/unavailable|could not be read|authentication tag/u);
+    ).rejects.toThrow("This local identity session is unavailable.");
     expect(action).not.toHaveBeenCalled();
   });
 
