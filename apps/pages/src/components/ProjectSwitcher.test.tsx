@@ -123,13 +123,15 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
     renderSwitcher();
     openMenu();
     fireEvent.click(vaultRow("Work"));
+    // The menu closes only once the swap has finished: wait for that, not
+    // for its first call, or a busy runner reads the menu still open.
     await waitFor(() =>
-      expect(proj.setActiveProject).toHaveBeenCalledWith("prj_work"),
+      expect(screen.queryByText("Vaults on this device")).toBeNull(),
     );
+    expect(proj.setActiveProject).toHaveBeenCalledWith("prj_work");
     // Nothing on this device shares a key, so the swap locks.
     expect(proj.afterProjectChange).toHaveBeenCalledWith(false);
     expect(reload).not.toHaveBeenCalled();
-    expect(screen.queryByText("Vaults on this device")).toBeNull();
   });
 
   it("the guest row locks and continues as guest (AGENTS.md §5)", async () => {
@@ -187,11 +189,12 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
     });
     expect(overlapCast(submit).disabled).toBe(false);
     fireEvent.click(submit);
+    // Each step waits on the one before it; wait for the last.
     await waitFor(() =>
-      expect(proj.createProject).toHaveBeenCalledWith("Side quest"),
+      expect(proj.afterProjectChange).toHaveBeenCalledWith(false),
     );
+    expect(proj.createProject).toHaveBeenCalledWith("Side quest");
     expect(proj.setActiveProject).toHaveBeenCalledWith("prj_side");
-    expect(proj.afterProjectChange).toHaveBeenCalledWith(false);
   });
 
   it("carries an open vault's key into a new one instead of reauthenticating", async () => {
