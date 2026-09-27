@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -11,6 +11,20 @@ import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
+/**
+ * The entry chunk's ceiling, in Vite's kB: a hardened profile's
+ * `largestAsset` in `tools/quality/bundle-budgets.json` is that chunk, and
+ * the bundle gate enforces it, so Vite warns at the same line instead of at
+ * its generic 500 kB.
+ */
+const entryChunkWarningKb = Math.ceil(
+  JSON.parse(
+    readFileSync(
+      new URL("../../tools/quality/bundle-budgets.json", import.meta.url),
+      "utf8",
+    ),
+  ).profiles.builds["minimal-local-hardened"].budgets.largestAsset * 1.024,
+);
 const osDomainBrowser = fileURLToPath(
   new URL("../../packages/os-domain/src/browser.ts", import.meta.url),
 );
@@ -125,7 +139,19 @@ export default defineConfig({
     // esbuild 0.28 cannot downlevel some destructuring forms used by react-router
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
+    chunkSizeWarningLimit: entryChunkWarningKb,
     rollupOptions: {
+      onwarn(warning, warn) {
+        // @scure/base (2.4.0, the latest) explains its pure annotations in a
+        // line comment that quotes one. Rollup reads the quote as a misplaced
+        // annotation and drops the comment, which is the right outcome.
+        if (
+          warning.code === "INVALID_ANNOTATION" &&
+          warning.id?.includes("/@scure/base/")
+        )
+          return;
+        warn(warning);
+      },
       output: {
         // Merge a chunk under 5 KB into one that every path loading it
         // already loads, so the explicit capability chunks (see

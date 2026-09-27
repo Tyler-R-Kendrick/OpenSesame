@@ -14,6 +14,7 @@ import type {
 } from "@opensesame/capability-composition";
 import { capabilityArtifacts } from "../../host.js";
 import { lockManager } from "../../ports.js";
+import { CAPABILITY_CATALOG } from "./catalog.js";
 import { installationId as readInstallationId } from "./installation.js";
 import type { ManagedPolicyReview } from "./store-docs.js";
 
@@ -23,7 +24,7 @@ export type LockManagerLike = {
 
 export const storeSeams = {
   catalog: (): Promise<CapabilityCatalog> =>
-    import("./catalog.js").then((m) => m.CAPABILITY_CATALOG),
+    Promise.resolve(CAPABILITY_CATALOG),
   distribution: (): Promise<DistributionContract> =>
     capabilityArtifacts().distribution(),
   locks: (): LockManagerLike | undefined => lockManager(),

@@ -7,6 +7,10 @@ import {
 import { bytesToB64url, sha256Base64Url } from "@opensesame/sdk-browser";
 import { pageOrigin } from "../ports.js";
 import { kvRefresh } from "./kv.js";
+import {
+  authenticateLocalAgent,
+  consumeLocalAgentAuthentication,
+} from "./local-agent-auth.js";
 import { readLocalAgentKeys } from "./local-agent-keys.js";
 import { readLocalPasskeys } from "./local-credentials.js";
 import {
@@ -216,8 +220,6 @@ export async function signInLocalAgent(
   proof: string,
 ): Promise<LocalSession> {
   const activePresentations = presentations;
-  const { authenticateLocalAgent, consumeLocalAgentAuthentication } =
-    await import("./local-agent-auth.js");
   const evidence = consumeLocalAgentAuthentication(
     await authenticateLocalAgent(tomb, nonce, proof),
   );
