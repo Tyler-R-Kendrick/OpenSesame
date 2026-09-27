@@ -5,7 +5,7 @@
  * `capture-evidence.mjs`'s own.
  */
 export function placeSteps() {
-  return { reveal, openDetails, scrollToCardEnd };
+  return { reveal, revealSelector, openDetails, scrollToCardEnd };
 }
 
 /**
@@ -19,6 +19,24 @@ export async function reveal(page, text) {
     .locator("h2, h3, strong, summary")
     .filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) })
     .first();
+  if (!(await target.count())) return;
+  await target.evaluate((node) => {
+    node.scrollIntoView({ block: "start", behavior: "instant" });
+    let pane = node.parentElement;
+    while (pane && pane.scrollHeight <= pane.clientHeight) {
+      pane = pane.parentElement;
+    }
+    (pane ?? document.scrollingElement)?.scrollBy(0, -140);
+  });
+  await page.waitForTimeout(600);
+}
+
+/**
+ * `reveal` for a place that is neither a heading nor a label — a card
+ * picked out by a CSS selector. Skipped when this build has no match.
+ */
+export async function revealSelector(page, selector) {
+  const target = page.locator(selector).first();
   if (!(await target.count())) return;
   await target.evaluate((node) => {
     node.scrollIntoView({ block: "start", behavior: "instant" });

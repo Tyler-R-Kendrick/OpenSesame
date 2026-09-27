@@ -30,6 +30,8 @@ export type ClosureResult = Readonly<{
 type Walk = {
   readonly root: CapabilityId;
   readonly local: CapabilityId[];
+  /** Members reached whose own edges are not yet walked. */
+  readonly pending: CapabilityId[];
   readonly conflicts: PlanConflict[];
   readonly visited: Set<CapabilityId>;
 };
@@ -46,6 +48,14 @@ function dependencyConflictCode(
   return "DEPENDENCY_NOT_PERMITTED";
 }
 
+type EdgeKind = "dependency" | "alternative";
+
+/** The conflict an edge to an id the axes do not know raises, by edge kind. */
+const UNKNOWN_EDGE = {
+  dependency: "DEPENDENCY_NOT_DISTRIBUTED",
+  alternative: "ALTERNATIVE_NOT_ALLOWED",
+} as const satisfies Record<EdgeKind, PlanConflict["code"]>;
+
 function addDependent(
   dependents: Map<CapabilityId, Set<CapabilityId>>,
   id: CapabilityId,
@@ -60,26 +70,23 @@ function visitEdge(
   walk: Walk,
   axes: ReadonlyMap<CapabilityId, Axis>,
   id: CapabilityId,
-  kind: "dependency" | "alternative",
-): CapabilityId | null {
-  if (walk.visited.has(id)) return null;
+  kind: EdgeKind,
+): void {
+  if (walk.visited.has(id)) return;
   walk.visited.add(id);
   const axis = axes.get(id);
   if (axis === undefined) {
     walk.conflicts.push({
-      code:
-        kind === "dependency"
-          ? "DEPENDENCY_NOT_DISTRIBUTED"
-          : "ALTERNATIVE_NOT_ALLOWED",
+      code: UNKNOWN_EDGE[kind],
       capability: walk.root,
       subject: id,
       message: `\`${id}\` is not in the catalog`,
     });
-    return null;
+    return;
   }
   // Core satisfies a dependency — unless an operator withdrew it, and then
   // it is a prohibited dependency like any other.
-  if (axis.tier === "core" && axis.blocked.length === 0) return null;
+  if (axis.tier === "core" && axis.blocked.length === 0) return;
   if (axis.blocked.length > 0) {
     walk.conflicts.push({
       code:
@@ -90,10 +97,10 @@ function visitEdge(
       subject: id,
       message: `\`${id}\` is unavailable: ${axis.blocked.join(", ")}`,
     });
-    return null;
+    return;
   }
   walk.local.push(id);
-  return id;
+  walk.pending.push(id);
 }
 
 function visitAlternatives(
@@ -102,7 +109,6 @@ function visitAlternatives(
   d: CapabilityDescriptor,
   chosen: Readonly<Record<string, CapabilityId>>,
   dependents: Map<CapabilityId, Set<CapabilityId>>,
-  stack: CapabilityId[],
 ): void {
   const slots = [...d.alternatives].sort((a, b) => compareIds(a.slot, b.slot));
   for (const slot of slots) {
@@ -130,8 +136,7 @@ function visitAlternatives(
       continue;
     }
     addDependent(dependents, choice, d.id);
-    const next = visitEdge(walk, axes, choice, "alternative");
-    if (next !== null) stack.push(next);
+    visitEdge(walk, axes, choice, "alternative");
   }
 }
 
@@ -145,21 +150,22 @@ function walkRoot(
   const walk: Walk = {
     root,
     local: [root],
+    pending: [root],
     conflicts: [],
     visited: new Set([root]),
   };
-  const stack: CapabilityId[] = [root];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (current === undefined) break;
+  for (
+    let current = walk.pending.pop();
+    current !== undefined;
+    current = walk.pending.pop()
+  ) {
     const d = index.get(current);
     if (d === undefined) continue;
     for (const dep of sortIds(d.dependencies)) {
       addDependent(dependents, dep, current);
-      const next = visitEdge(walk, axes, dep, "dependency");
-      if (next !== null) stack.push(next);
+      visitEdge(walk, axes, dep, "dependency");
     }
-    visitAlternatives(walk, axes, d, chosen, dependents, stack);
+    visitAlternatives(walk, axes, d, chosen, dependents);
   }
   return walk;
 }

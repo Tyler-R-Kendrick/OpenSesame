@@ -1,0 +1,118 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Family"
+        },
+        {
+          "revealSelector": "li:has(.capcard__name:text-is(\"Household sharing\"))"
+        },
+        {
+          "count": [
+            ".capcard__alts [aria-pressed=\"true\"]",
+            ".capcard__alts button"
+          ]
+        },
+        {
+          "report": "li:has(.capcard__name:text-is(\"Household sharing\")) .capcard__state"
+        },
+        {
+          "shot": "1280-family-cards"
+        },
+        {
+          "press": "Save on this device"
+        },
+        {
+          "count": ["[aria-label=\"Conflicts\"] li"]
+        },
+        {
+          "report": "[aria-label=\"Review changes\"]"
+        },
+        {
+          "shot": "1280-family-review"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Family"
+        },
+        {
+          "revealSelector": "li:has(.capcard__name:text-is(\"Household sharing\"))"
+        },
+        {
+          "count": [
+            ".capcard__alts [aria-pressed=\"true\"]",
+            ".capcard__alts button"
+          ]
+        },
+        {
+          "shot": "390-family-cards"
+        },
+        {
+          "press": "Save on this device"
+        },
+        {
+          "count": ["[aria-label=\"Conflicts\"] li"]
+        },
+        {
+          "shot": "390-family-review"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-family-cards",
+      "width": 1280,
+      "title": "Setup \u203a Customize \u203a Family: the Household sharing card \u2014 1280 \u00d7 900",
+      "caption": "Family pre-ticks Household sharing, which needs a transport, and Secret drops is the only one. Before, the preset left the choice unset and the card waited for a click on its only option. After, the preset fills it.",
+      "before": "transport choices pressed: 0 of 1",
+      "after": "transport choices pressed: 1 of 1 (Secret drops)"
+    },
+    {
+      "shot": "1280-family-review",
+      "width": 1280,
+      "title": "The review Family's draft opens \u2014 1280 \u00d7 900",
+      "caption": "Before, the review enabled Secret drops alone and listed a conflict: `sharing.household` needs a choice for slot `transport`. After, it enables both roots the preset pre-ticked, with no conflict.",
+      "before": "1 conflict; enables Secret drops",
+      "after": "0 conflicts; enables Secret drops, Household sharing"
+    },
+    {
+      "shot": "390-family-cards",
+      "width": 390,
+      "title": "The same card on a phone \u2014 390 \u00d7 844",
+      "caption": "The transport choice reads as chosen at phone width too.",
+      "before": "pressed: 0 of 1",
+      "after": "pressed: 1 of 1"
+    },
+    {
+      "shot": "390-family-review",
+      "width": 390,
+      "title": "The review on a phone \u2014 390 \u00d7 844",
+      "caption": "The conflict row is gone at phone width.",
+      "before": "1 conflict",
+      "after": "0 conflicts"
+    }
+  ]
+}

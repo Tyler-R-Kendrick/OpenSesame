@@ -21,7 +21,10 @@
     "packages/siop-v2/src/issuer.ts",
     "packages/siop-v2/src/audience.ts",
     "packages/siop-v2/src/validity.ts",
-    "packages/siop-v2/src/link-profile.ts"
+    "packages/siop-v2/src/link-profile.ts",
+    "packages/capability-composition/src/resolve-closure.ts",
+    "packages/capability-composition/src/reasons.ts",
+    "packages/capability-composition/src/resolve-withdraw.ts"
   ],
   "ignorePatterns": [
     ".agents/**",

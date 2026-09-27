@@ -2,10 +2,18 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  readySnapshot,
+  storeDouble,
+} from "@opensesame/app-core/lib/capabilities/__tests__/plan-fixtures.js";
+import {
   CAPABILITY_CATALOG,
   coreCapabilityIds,
   optionalCapabilityIds,
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
+import {
+  LocalCompositionProvider,
+  capabilityFlagKey,
+} from "@opensesame/app-core/lib/capabilities/openfeature.js";
 import {
   type EffectivePlan,
   type InstallationCapabilitySelection,
@@ -19,7 +27,7 @@ import {
 } from "@opensesame/capability-composition";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import { distributionFromOwnership } from "./ownership.js";
+import { MODULE_OWNERSHIP, distributionFromOwnership } from "./ownership.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const profilesDir = join(here, "..", "..", "..", "capability-profiles");
@@ -284,6 +292,54 @@ describe("capability profiles", () => {
       expect(profile.expectInvalid === true, profile.name).toBe(
         rejected.has(profile.name),
       );
+    }
+  });
+});
+
+/**
+ * #470's hardened chain (fixtures.integration S00, chain.adversarial S23) as
+ * one sweep over every profile, valid or not: nothing a policy prohibits is
+ * approved in any form, every approved module is one the build owns, and the
+ * OpenFeature projection agrees with the plan — so a prohibited capability's
+ * flag reads false whatever the provider is asked.
+ */
+describe("the hardened chain over every profile", () => {
+  const INDEX = new Map(CAPABILITY_CATALOG.capabilities.map((d) => [d.id, d]));
+
+  it.each(profiles.map((profile) => profile.name))("%s", (name) => {
+    const plan = resolve(name);
+    const { policy } = load(name);
+    for (const id of policy?.capabilities.prohibited ?? []) {
+      expect(plan.approvedCapabilities, id).not.toContain(id);
+      expect(
+        plan.approvedModules.filter((m) => m.startsWith(`${id}/`)),
+        id,
+      ).toEqual([]);
+      for (const op of INDEX.get(id)?.operationIds ?? []) {
+        const shared = plan.approvedCapabilities.some((other) =>
+          INDEX.get(other)?.operationIds.includes(op),
+        );
+        if (!shared) expect(plan.approvedOperations, op).not.toContain(op);
+      }
+    }
+    for (const moduleId of plan.approvedModules) {
+      expect(Object.hasOwn(MODULE_OWNERSHIP, moduleId), moduleId).toBe(true);
+    }
+    const provider = new LocalCompositionProvider(
+      storeDouble(readySnapshot(plan)),
+    );
+    for (const d of CAPABILITY_CATALOG.capabilities) {
+      const flag = provider.resolveBooleanEvaluation(
+        capabilityFlagKey(d.id),
+        true,
+      ).value;
+      expect(flag, d.id).toBe(plan.capabilities[d.id]?.approved === true);
+    }
+    for (const id of policy?.capabilities.prohibited ?? []) {
+      expect(
+        provider.resolveBooleanEvaluation(capabilityFlagKey(id), true).value,
+        id,
+      ).toBe(false);
     }
   });
 });

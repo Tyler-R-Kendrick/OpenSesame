@@ -13,6 +13,7 @@
 
 const PAGES = "apps/pages";
 const COMPOSITION = "packages/capability-composition";
+const APP_CORE = "packages/app-core";
 
 /** A gate that must exit non-zero once the mutation is in place. */
 const suite = (filter, ...paths) => ({
@@ -78,11 +79,11 @@ export const MUTATIONS = [
     id: "stale-lease",
     contract:
       "A module whose lease went stale during its own import is disposed, not activated (LOAD, P-NOLOAD).",
-    file: `${PAGES}/src/lib/capabilities/lease.ts`,
+    file: `${APP_CORE}/src/lib/capabilities/lease.ts`,
     find: '  if (!leaseIsCurrent(lease, currentGeneration)) {\n    throw new CapabilityDenied("STALE_LEASE", subject);\n  }',
     replace:
       "  void leaseIsCurrent(lease, currentGeneration);\n  void subject;",
-    gate: suite("@opensesame/pages", "src/lib/capabilities"),
+    gate: suite("@opensesame/app-core", "src/lib/capabilities"),
   },
   {
     id: "consent-replay",

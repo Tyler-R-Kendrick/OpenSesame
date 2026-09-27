@@ -58,6 +58,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
 | [`2026-09-27-identity-followups/`](2026-09-27-identity-followups/README.md) | Identity follow-ups — the claim key arms before it fires |
 | [`2026-09-27-identity-devices/`](2026-09-27-identity-devices/README.md) | Identity › Devices — register, edit, claim and remove, like every other Identity list |
+| [`2026-09-27-family-preset-transport/`](2026-09-27-family-preset-transport/README.md) | The Family preset fills the transport Household sharing needs |
 | [`2026-09-27-connect-forget-key/`](2026-09-27-connect-forget-key/README.md) | Forget Vercel Connect, and a hand-off that clears an earlier refusal |
 | [`2026-09-27-access-rail/`](2026-09-27-access-rail/README.md) | Access tabs are siblings in the rail |
 | [`2026-09-27-access-connectors/`](2026-09-27-access-connectors/README.md) | Access › Connectors lists what Connections configures |

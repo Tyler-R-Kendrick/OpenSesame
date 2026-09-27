@@ -83,6 +83,8 @@ export type CapabilityPreset = Readonly<{
   required: readonly CapabilityId[];
   optional: readonly CapabilityId[];
   defaultSelected: readonly CapabilityId[];
+  /** Pre-filled alternatives-slot choices; absent means none. */
+  defaultAlternatives?: Readonly<Record<string, CapabilityId>>;
   network: NetworkPolicy;
 }>;
 
