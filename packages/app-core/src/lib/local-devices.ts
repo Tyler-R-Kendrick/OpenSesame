@@ -20,7 +20,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { VaultCorruptError } from "@opensesame/vault-core";
-import { userAgent } from "../ports.js";
+import { lockManager, userAgent } from "../ports.js";
 import { kvGet, kvRefresh, kvSet } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
@@ -181,59 +181,77 @@ async function writeFileRecord(
   return next.devices;
 }
 
+/**
+ * Read, change and write the list inside one cross-tab lock, so a touch on
+ * boot in one tab cannot overwrite a claim or a registration made in another.
+ * `change` returns the next list, or `null` to leave the file as it is. A
+ * browser without Web Locks still works — the list is inventory, and the
+ * boot path must not fail over it — it simply runs unfenced.
+ */
+async function mutateDevices(
+  tomb: string,
+  change: (devices: LocalDevice[]) => LocalDevice[] | null,
+): Promise<LocalDevice[]> {
+  const run = async () => {
+    const current = await readFileOrEmpty(tomb);
+    const next = change(current.devices);
+    if (next === null) return current.devices;
+    return writeFileRecord(tomb, {
+      version: 1,
+      revision: current.revision + 1,
+      devices: next,
+    });
+  };
+  const locks = lockManager();
+  return locks ? locks.request(`opensesame-devices-${tomb}`, run) : run();
+}
+
 export async function readLocalDevices(tomb: string): Promise<LocalDevice[]> {
   return (await readFileOrEmpty(tomb)).devices;
 }
 
+function thisDeviceRecord(id: string, now: string): LocalDevice {
+  return {
+    id,
+    name: defaultDeviceName(),
+    platform: describePlatform(),
+    createdAt: now,
+    lastSeenAt: now,
+  };
+}
+
+/**
+ * List this browser if it is not listed yet. A full list is left full: this
+ * browser goes unlisted rather than writing a 65th entry the parser refuses.
+ */
+function withThisDevice(
+  devices: LocalDevice[],
+  id: string,
+  now: string,
+): LocalDevice[] | null {
+  if (devices.length >= MAX_DEVICES) return null;
+  return [...devices, thisDeviceRecord(id, now)];
+}
+
 export async function ensureThisDevice(tomb: string): Promise<LocalDevice[]> {
-  const current = await readFileOrEmpty(tomb);
   const id = thisDeviceId();
-  if (current.devices.some((device) => device.id === id))
-    return current.devices;
-  const now = new Date().toISOString();
-  return writeFileRecord(tomb, {
-    version: 1,
-    revision: current.revision + 1,
-    devices: [
-      ...current.devices,
-      {
-        id,
-        name: defaultDeviceName(),
-        platform: describePlatform(),
-        createdAt: now,
-        lastSeenAt: now,
-      },
-    ],
-  });
+  return mutateDevices(tomb, (devices) =>
+    devices.some((device) => device.id === id)
+      ? null
+      : withThisDevice(devices, id, new Date().toISOString()),
+  );
 }
 
 export async function touchThisDevice(tomb: string): Promise<LocalDevice[]> {
-  const current = await readFileOrEmpty(tomb);
   const id = thisDeviceId();
   const now = new Date().toISOString();
-  if (current.devices.some((device) => device.id === id)) {
-    return writeFileRecord(tomb, {
-      version: 1,
-      revision: current.revision + 1,
-      devices: current.devices.map((device) =>
-        device.id === id ? { ...device, lastSeenAt: now } : device,
-      ),
-    });
-  }
-  return writeFileRecord(tomb, {
-    version: 1,
-    revision: current.revision + 1,
-    devices: [
-      ...current.devices,
-      {
-        id,
-        name: defaultDeviceName(),
-        platform: describePlatform(),
-        createdAt: now,
-        lastSeenAt: now,
-      },
-    ],
-  });
+  return mutateDevices(tomb, (devices) =>
+    devices.some((device) => device.id === id)
+      ? devices.map((device) =>
+          device.id === id ? { ...device, lastSeenAt: now } : device,
+        )
+      : withThisDevice(devices, id, now),
+  );
 }
 
 function checkedName(name: string): string {
@@ -249,6 +267,12 @@ function checkedPlatform(platform: string): DevicePlatform {
   return platform;
 }
 
+function findDevice(devices: LocalDevice[], id: string): LocalDevice {
+  const target = devices.find((device) => device.id === id);
+  if (!target) throw new LocalDeviceError("That device is not in this vault.");
+  return target;
+}
+
 /**
  * Register a device that has not opened this vault yet. It is listed as
  * awaiting its first unlock until that device claims it.
@@ -259,18 +283,14 @@ export async function registerLocalDevice(
 ): Promise<LocalDevice[]> {
   const name = checkedName(input.name);
   const platform = checkedPlatform(input.platform);
-  const current = await readFileOrEmpty(tomb);
-  // One slot stays free: a browser that opens the vault unlisted adds itself,
-  // and a list over the cap would no longer parse.
-  if (current.devices.length >= MAX_DEVICES - 1)
-    throw new LocalDeviceError(
-      `This vault already lists ${current.devices.length} devices. Remove one first.`,
-    );
-  return writeFileRecord(tomb, {
-    version: 1,
-    revision: current.revision + 1,
-    devices: [
-      ...current.devices,
+  return mutateDevices(tomb, (devices) => {
+    // One slot stays free for a browser that opens the vault unlisted.
+    if (devices.length >= MAX_DEVICES - 1)
+      throw new LocalDeviceError(
+        `This vault already lists ${devices.length} devices. Remove one first.`,
+      );
+    return [
+      ...devices,
       {
         id: crypto.randomUUID(),
         name,
@@ -278,7 +298,7 @@ export async function registerLocalDevice(
         createdAt: new Date().toISOString(),
         lastSeenAt: "",
       },
-    ],
+    ];
   });
 }
 
@@ -293,19 +313,15 @@ export async function updateLocalDevice(
   input: { name: string; platform?: string },
 ): Promise<LocalDevice[]> {
   const name = checkedName(input.name);
-  const current = await readFileOrEmpty(tomb);
-  const target = current.devices.find((device) => device.id === id);
-  if (!target) throw new LocalDeviceError("That device is not in this vault.");
-  const platform =
-    input.platform !== undefined && isPendingDevice(target)
-      ? checkedPlatform(input.platform)
-      : target.platform;
-  return writeFileRecord(tomb, {
-    version: 1,
-    revision: current.revision + 1,
-    devices: current.devices.map((device) =>
+  return mutateDevices(tomb, (devices) => {
+    const target = findDevice(devices, id);
+    const platform =
+      input.platform !== undefined && isPendingDevice(target)
+        ? checkedPlatform(input.platform)
+        : target.platform;
+    return devices.map((device) =>
       device.id === id ? { ...device, name, platform } : device,
-    ),
+    );
   });
 }
 
@@ -318,17 +334,12 @@ export async function claimLocalDevice(
   tomb: string,
   id: string,
 ): Promise<LocalDevice[]> {
-  const current = await readFileOrEmpty(tomb);
-  const target = current.devices.find((device) => device.id === id);
-  if (!target) throw new LocalDeviceError("That device is not in this vault.");
-  if (!isPendingDevice(target))
-    throw new LocalDeviceError("That device has already opened this vault.");
   const mine = thisDeviceId();
-  const now = new Date().toISOString();
-  return writeFileRecord(tomb, {
-    version: 1,
-    revision: current.revision + 1,
-    devices: current.devices
+  return mutateDevices(tomb, (devices) => {
+    if (!isPendingDevice(findDevice(devices, id)))
+      throw new LocalDeviceError("That device has already opened this vault.");
+    const now = new Date().toISOString();
+    return devices
       .filter((device) => device.id !== mine)
       .map((device) =>
         device.id === id
@@ -339,7 +350,7 @@ export async function claimLocalDevice(
               lastSeenAt: now,
             }
           : device,
-      ),
+      );
   });
 }
 
@@ -349,10 +360,7 @@ export async function removeLocalDevice(
 ): Promise<LocalDevice[]> {
   if (id === thisDeviceId())
     throw new LocalDeviceError("You cannot remove the device you are on.");
-  const current = await readFileOrEmpty(tomb);
-  return writeFileRecord(tomb, {
-    version: 1,
-    revision: current.revision + 1,
-    devices: current.devices.filter((device) => device.id !== id),
-  });
+  return mutateDevices(tomb, (devices) =>
+    devices.filter((device) => device.id !== id),
+  );
 }
