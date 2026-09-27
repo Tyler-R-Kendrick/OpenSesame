@@ -59,6 +59,8 @@ function open(path: string) {
           path="/vault/:itemId/edit"
           element={<ItemEditor mode="edit" />}
         />
+        {/* Saving lands on the item, as the shell's route does. */}
+        <Route path="/vault/:itemId" element={<div>saved</div>} />
       </Routes>
     </MemoryRouter>,
   );

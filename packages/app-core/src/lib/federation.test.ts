@@ -110,6 +110,25 @@ function ensureWebStorage(): void {
   vi.stubGlobal("sessionStorage", memory());
 }
 
+/**
+ * jsdom does not navigate: a real `location.assign` there only reports "not
+ * implemented". Every test that sends the browser upstream captures the
+ * address it was sent to instead.
+ */
+function captureNavigation(): string[] {
+  const seen: string[] = [];
+  vi.stubGlobal("location", {
+    origin: window.location.origin,
+    hostname: window.location.hostname,
+    href: window.location.href,
+    search: window.location.search,
+    assign: (url: string) => {
+      seen.push(url);
+    },
+  });
+  return seen;
+}
+
 beforeEach(() => {
   ensureWebStorage();
   localNetworkFetchSeams.eligible = () => true;
@@ -262,8 +281,12 @@ describe("beginSignIn", () => {
     );
     const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "mock");
     if (!upstream) throw new Error("mock upstream missing");
+    const sent = captureNavigation();
 
     await beginSignIn(upstream, { scope: "openid email", returnTo: "/access" });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatch(/^http:\/\/127\.0\.0\.1:9090\/authorize\?/);
 
     const pending = storedPending();
     expect(pending).toMatchObject({
@@ -283,16 +306,7 @@ describe("beginSignIn", () => {
       Promise.reject(new Error("discovery must not run")),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const seen: string[] = [];
-    vi.stubGlobal("location", {
-      origin: window.location.origin,
-      hostname: window.location.hostname,
-      href: window.location.href,
-      search: window.location.search,
-      assign: (url: string) => {
-        seen.push(url);
-      },
-    });
+    const seen = captureNavigation();
     const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
     if (!upstream) throw new Error("shoo upstream missing");
 
@@ -310,16 +324,7 @@ describe("beginSignIn", () => {
   });
 
   it("speaks Shoo's authorize dialect, not generic OIDC", async () => {
-    const seen: string[] = [];
-    vi.stubGlobal("location", {
-      origin: window.location.origin,
-      hostname: window.location.hostname,
-      href: window.location.href,
-      search: window.location.search,
-      assign: (url: string) => {
-        seen.push(url);
-      },
-    });
+    const seen = captureNavigation();
     const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
     if (!upstream) throw new Error("shoo upstream missing");
 
@@ -339,16 +344,7 @@ describe("beginSignIn", () => {
   });
 
   it("asks Shoo for PII when the caller wants profile data", async () => {
-    const seen: string[] = [];
-    vi.stubGlobal("location", {
-      origin: window.location.origin,
-      hostname: window.location.hostname,
-      href: window.location.href,
-      search: window.location.search,
-      assign: (url: string) => {
-        seen.push(url);
-      },
-    });
+    const seen = captureNavigation();
     const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
     if (!upstream) throw new Error("shoo upstream missing");
 
@@ -373,6 +369,7 @@ describe("beginSignIn", () => {
         ),
       ),
     );
+    const sent = captureNavigation();
     await beginSignIn(
       {
         id: "org:acme:sso",
@@ -389,6 +386,7 @@ describe("beginSignIn", () => {
       issuer: "https://idp.acme.example",
       returnTo: "/vault",
     });
+    expect(sent[0]).toMatch(/^https:\/\/idp\.acme\.example\/authorize\?/);
   });
 });
 
@@ -903,17 +901,8 @@ describe("brokered federation", () => {
   }
 
   /** jsdom will not navigate, so the authorize URL is captured instead. */
-  function captureNavigation() {
-    const seen: string[] = [];
-    vi.stubGlobal("location", {
-      origin: window.location.origin,
-      hostname: window.location.hostname,
-      href: window.location.href,
-      search: window.location.search,
-      assign: (url: string) => {
-        seen.push(url);
-      },
-    });
+  function captureAuthorize() {
+    const seen = captureNavigation();
     return {
       assigned: () => (seen[0] ? new URL(seen[0]) : undefined),
     };
@@ -932,7 +921,7 @@ describe("brokered federation", () => {
 
   it("names the provider under both hint parameters the login page reads", async () => {
     stubDiscoveryAt(BASE);
-    const nav = captureNavigation();
+    const nav = captureAuthorize();
     await beginSignIn(
       brokeredUpstream({
         id: "google",
@@ -951,7 +940,7 @@ describe("brokered federation", () => {
 
   it("carries only the work-email domain into home-realm discovery", async () => {
     stubDiscoveryAt(BASE);
-    const nav = captureNavigation();
+    const nav = captureAuthorize();
     await beginSignIn(brokeredRealmUpstream(), {
       returnTo: "/",
       loginHint: workEmailDomain("ada.lovelace@acme.example"),
@@ -1226,8 +1215,11 @@ describe("an operator's own identity provider", () => {
   it("presents the operator's client, not this origin's profile", async () => {
     withIdps([OKTA]);
     stubDiscovery();
+    const sent = captureNavigation();
 
     await beginSignIn(operatorUpstream(OKTA));
+
+    expect(sent).toHaveLength(1);
 
     const pending = storedPending();
     // `origin:<origin>` is a profile only our own brokers mint on sight; a
@@ -1358,20 +1350,6 @@ describe("prompt=login for switching accounts", () => {
     localStorage.clear();
     sessionStorage.clear();
   });
-
-  function captureNavigation(): string[] {
-    const seen: string[] = [];
-    vi.stubGlobal("location", {
-      origin: window.location.origin,
-      hostname: window.location.hostname,
-      href: window.location.href,
-      search: window.location.search,
-      assign: (url: string) => {
-        seen.push(url);
-      },
-    });
-    return seen;
-  }
 
   it("asks an OIDC issuer to authenticate afresh", async () => {
     vi.stubGlobal(

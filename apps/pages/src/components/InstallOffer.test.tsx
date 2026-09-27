@@ -187,7 +187,13 @@ describe("the install offer", () => {
     withState("prompt");
     render(<InstallOffer />);
     fireEvent.click(screen.getByRole("button", { name: "Install OpenSesame" }));
-    await waitFor(() => expect(install).toHaveBeenCalledOnce());
+    // Wait for the whole answer, the key live again, before asserting that
+    // nothing was said: an absence checked too early proves nothing.
+    const key = await screen.findByRole("button", {
+      name: "Install OpenSesame",
+    });
+    expect(key.getAttribute("aria-busy")).toBe("false");
+    expect(install).toHaveBeenCalledOnce();
     expect(document.body.textContent).not.toContain("browser's own menu");
   });
 

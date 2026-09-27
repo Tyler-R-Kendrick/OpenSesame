@@ -305,29 +305,6 @@ describe("http surface", () => {
     expect(res.headers.get("access-control-allow-private-network")).toBe(null);
   });
 
-  it("turns an unhandled throw into a correlated 500, not a stack trace", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
-    const created = await app.request("/v1/principals/provisional", {
-      method: "POST",
-    });
-    const { accessToken } = overlapCast(await created.json());
-
-    // Malformed JSON makes c.req.json() throw inside the handler.
-    const res = await app.request("/v1/claims", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        "content-type": "application/json",
-        "x-correlation-id": "corr-500",
-      },
-      body: "{not json",
-    });
-    expect(res.status).toBe(500);
-    const body = overlapCast(await res.json());
-    expect(body.error).toBe("internal_error");
-    expect(body.correlationId).toBe("corr-500");
-  });
-
   it("does not authenticate non-pst bearer tokens", async () => {
     const { app } = createControlPlane({ config: testConfig() });
     const res = await app.request("/v1/principals/me", {

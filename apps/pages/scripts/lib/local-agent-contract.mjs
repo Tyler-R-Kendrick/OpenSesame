@@ -1,12 +1,8 @@
-import { mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { CompactSign, exportJWK, generateKeyPair } from "jose";
+import { reviewCaptureDir } from "./review-captures.mjs";
 
-const captures = fileURLToPath(
-  new URL("../../.impeccable/review/", import.meta.url),
-);
-mkdirSync(captures, { recursive: true });
+const captures = reviewCaptureDir();
 async function capture(page, state) {
   await page.screenshot({
     path: `${captures}/agent-${state}-${page.viewportSize().width}.png`,

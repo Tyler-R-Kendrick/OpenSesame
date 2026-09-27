@@ -11,6 +11,18 @@ export function agentAuthClaimRedirectUri(issuer: string): string {
   return `${issuer.replace(/\/+$/u, "")}/claim/resume`;
 }
 
+/** The static public client the agent claim ceremony signs in through. */
+export function agentAuthOAuthClient(issuer: string) {
+  return {
+    client_id: AGENT_AUTH_OAUTH_CLIENT_ID,
+    client_name: "OpenSesame agent claim",
+    token_endpoint_auth_method: "none",
+    grant_types: ["authorization_code"],
+    response_types: ["code"],
+    redirect_uris: [agentAuthClaimRedirectUri(issuer)],
+  };
+}
+
 /** Fixed origin `return_to` is resolved against; only its path survives. */
 const RETURN_TO_ORIGIN = "https://control-plane.invalid";
 

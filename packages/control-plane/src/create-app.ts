@@ -64,10 +64,8 @@ import { createMailer } from "./services/mailer.js";
 import { createNotificationCallbackAdapters } from "./services/notification-callbacks.js";
 import { createSmsBridge } from "./services/sms-bridge.js";
 import { createAppStores } from "./state.js";
-import {
-  AGENT_AUTH_OAUTH_CLIENT_ID,
-  agentAuthClaimRedirectUri,
-} from "./ui/agent-auth-pages.js";
+import { agentAuthOAuthClient } from "./ui/agent-auth-pages.js";
+import { sharedStyles } from "./ui/interaction-pages.js";
 
 export type { CreateControlPlaneOptions } from "./create-app-options.js";
 
@@ -269,16 +267,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(drizzleBundle
       ? { replayCache: createDurableJwtReplayCache(drizzleBundle.db) }
       : undefined),
-    clients: [
-      {
-        client_id: AGENT_AUTH_OAUTH_CLIENT_ID,
-        client_name: "OpenSesame agent claim",
-        token_endpoint_auth_method: "none",
-        grant_types: ["authorization_code"],
-        response_types: ["code"],
-        redirect_uris: [agentAuthClaimRedirectUri(config.issuer)],
-      },
-    ],
+    clients: [agentAuthOAuthClient(config.issuer)],
+    // Its own error, device and logout pages, in the hosted pages' skin.
+    pages: { styles: sharedStyles },
     // Durable consent reuse: the rows finishConsentAllow writes come back as
     // grants, so a decision already remembered is not asked again in a new
     // browser session. Conservative on purpose — a consent carrying resource
