@@ -12,8 +12,8 @@
  * body an AG-UI endpoint would receive, the request a provider is handed, and
  * the popover a person reads.
  *
- * The sentinels are the ones `apps/pages/src/webmcp/tools.test.ts` uses, plus
- * the user-authored labels that suite has no reason to carry.
+ * The sentinels stand in for every secret-bearing field a vault item holds,
+ * and for the user-authored labels an attacker gets to write.
  */
 
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";

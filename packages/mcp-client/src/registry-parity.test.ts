@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
@@ -31,4 +34,27 @@ describe("registry parity — mcp-client", () => {
       assertsNoInteractionSettlementTool(toolsManifest),
     ).not.toThrow();
   });
+
+  it("the MCP skill lists exactly toolsManifest", () => {
+    expect(skillTools("Client tools").sort()).toEqual(
+      [...toolsManifest].sort(),
+    );
+  });
 });
+
+/** The backticked tool names listed under `### <heading>` in the MCP skill. */
+function skillTools(heading: string): string[] {
+  const skill = readFileSync(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../../skills/opensesame-mcps/SKILL.md",
+    ),
+    "utf8",
+  );
+  const start = skill.indexOf(`### ${heading}`);
+  if (start < 0) throw new Error(`skill has no "${heading}" list`);
+  const rest = skill.slice(start);
+  const end = rest.indexOf("\n\n", rest.indexOf("\n- "));
+  const list = end < 0 ? rest : rest.slice(0, end);
+  return Array.from(list.matchAll(/^- `([a-z0-9_]+)`/gm), (m) => m[1] ?? "");
+}

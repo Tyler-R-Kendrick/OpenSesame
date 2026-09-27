@@ -70,7 +70,14 @@ Observed 2026-09-22: **10 test files, 60 tests, all passing.**
   fails; an invalid managed policy is `managed-invalid` and core-only.
 - **Authority (LIFE-04)** — `admitOperation` refuses on a newer durable
   generation, a stale lease, an unapproved operation, and the absence of Web
-  Locks. Four of its five cases are refusals; that ratio is the point.
+  Locks. Four of its five cases are refusals; that ratio is the point. The
+  checks are enforced where they are used (`dispatch.ts`): the WebMCP execute
+  wrapper (`agents.webmcp/authority.test.ts` — a tool the browser still holds
+  after its capability is disabled, a locked realm, an unapproved or untagged
+  owner, and a mutating tool without Web Locks are refused before the handler;
+  these fail with the wrapper's check removed), the command bar and WebMCP
+  navigation (`lib/capabilities/dispatch.test.ts`) and the `g` jumps
+  (`apps/pages/src/lib/keymap-jumps.test.ts`).
 - **Trust (TRUST-02..TRUST-10)** — algorithm confusion, key substitution,
   tampered payload and header, wrong instance and wrong origin, rollback
   including a restored copy, same-revision-different-digest conflict, rotation

@@ -1,16 +1,14 @@
 /**
  * The Pages binding of authorization requests: which transport each call
- * rides, and the inbox rows ported from
- * `apps/ceremonies/src/pages/Inbox.test.tsx`. The review itself is
- * ceremony-kit's and tested there (`approval-review.test.ts`).
+ * rides, and the inbox rows Access › Requests draws
+ * (`apps/pages/src/sections/access/HostedRequestsPanel.tsx`). The review
+ * itself is ceremony-kit's and tested there (`approval-review.test.ts`).
  */
-import { ApprovalError } from "@opensesame/ceremony-kit";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type ApprovalTransport,
   approvalReview,
-  decideHostedRequest,
   hostedRequestRow,
   identityApprovalTransport,
   listHostedRequests,
@@ -113,11 +111,8 @@ describe("identity transport", () => {
 });
 
 describe("hosted inbox", () => {
-  it("keeps the inline decision for a request that needs nothing extra", async () => {
-    const t = transport([
-      json({ requests: [SIMPLE] }),
-      json({ ...SIMPLE, status: "approved" }),
-    ]);
+  it("marks a request that needs nothing extra as inline", async () => {
+    const t = transport([json({ requests: [SIMPLE] })]);
 
     const inbox = await listHostedRequests(t);
     if (inbox.kind !== "rows") throw new Error("expected rows");
@@ -128,16 +123,10 @@ describe("hosted inbox", () => {
       decide: "inline",
       details: ["read — staging-docs"],
       digestPrefix: "digest-simpl",
+      requestDigest: SIMPLE.requestDigest,
+      reviewPath: "/approve/areq_simple",
     });
     expect(row.summary).toMatch(/nothing extra/);
-
-    await decideHostedRequest(row, "approve", t);
-    // The digest echo is preserved exactly as it was shown.
-    const [path, init] = t.fetch.mock.calls[1] ?? [];
-    expect(path).toBe("/v1/authorization-requests/areq_simple/approve");
-    expect(JSON.parse(String(init?.body))).toEqual({
-      requestDigest: SIMPLE.requestDigest,
-    });
   });
 
   it("routes a request that needs a ceremony through the review instead", async () => {
@@ -154,10 +143,6 @@ describe("hosted inbox", () => {
     );
     expect(row.decide).toBe("review");
     expect(row.reviewPath).toBe("/approve/areq_hard");
-    // No inline decision: this one cannot honestly be decided from a list.
-    await expect(decideHostedRequest(row, "approve", t)).rejects.toBeInstanceOf(
-      ApprovalError,
-    );
     expect(t.fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -180,22 +165,6 @@ describe("hosted inbox", () => {
     const inbox = await listHostedRequests(t);
     if (inbox.kind !== "rows") throw new Error("expected rows");
     expect(inbox.rows.map((row) => row.decide)).toEqual(["inline", "review"]);
-  });
-
-  it("says a 409 changed since it was shown rather than swallowing it", async () => {
-    const t = transport([
-      json({ requests: [SIMPLE] }),
-      json({ error: "digest_changed" }, 409),
-    ]);
-    const inbox = await listHostedRequests(t);
-    if (inbox.kind !== "rows" || !inbox.rows[0]) throw new Error("rows");
-
-    const refused = await decideHostedRequest(inbox.rows[0], "deny", t).catch(
-      (error) => error,
-    );
-
-    expect(refused.message).toContain("changed since it was shown");
-    expect(refused.message).toContain("nothing was decided");
   });
 
   it("asks for a sign-in rather than showing an empty inbox", async () => {

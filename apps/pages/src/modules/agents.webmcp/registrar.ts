@@ -1,9 +1,9 @@
 /**
  * The one place `@opensesame/webmcp` is loaded.
  *
- * `webmcp/lifecycle.ts` imports the SDK at module scope, which is fine for
- * a page that always had WebMCP and wrong for a capability that may not be
- * approved: a static import is a reference the bundle graph follows. So the
+ * The retired `webmcp/lifecycle.ts` imported the SDK at module scope, which
+ * was fine for a page that always had WebMCP and wrong for a capability that
+ * may not be approved: a static import is a reference the bundle graph follows. So the
  * registrar is reached through `import()` here, from inside the background
  * job, and a build where `agents.webmcp` is excluded never loads it.
  *
@@ -14,7 +14,8 @@
  *
  * The human-root fence is unchanged and still wraps every execute: an agent
  * calling through the model context can never unwrap the human vault root
- * (`lib/vault/protection/agent-boundary.ts`).
+ * (`lib/vault/protection/agent-boundary.ts`). After it, every execute takes
+ * the operation authority check (`authority.ts`) before the handler runs.
  */
 
 import { assertAgentMayNotUnwrapHumanRoot } from "@opensesame/app-core/lib/vault/protection/agent-boundary.js";
@@ -25,6 +26,7 @@ import {
   noteWebMcpUnregistered,
 } from "@opensesame/app-core/webmcp/registration.js";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
+import { authorizeToolCall } from "./authority.js";
 
 const APP_ID = "opensesame-pages";
 
@@ -44,6 +46,9 @@ function fenced(tools: readonly WebMcpToolSpec[]): WebMcpToolSpec[] {
         alias: tool.name,
         purpose: "workload-root",
       });
+      // Offered is not authorized: the call re-resolves its owner's lease and
+      // the plan, and a mutating tool is admitted across tabs (authority.ts).
+      await authorizeToolCall(tool);
       return tool.execute(args);
     },
   }));

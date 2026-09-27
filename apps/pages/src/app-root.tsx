@@ -20,6 +20,7 @@ import type {
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
@@ -187,9 +188,7 @@ function useAfterUnlock(
 ): void {
   useEffect(() => {
     if (status !== "unlocked") {
-      void import(
-        "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js"
-      ).then(({ clearActivePresentation }) => clearActivePresentation());
+      clearActivePresentation();
       return;
     }
     if (!tomb) return;

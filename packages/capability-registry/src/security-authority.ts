@@ -1,3 +1,4 @@
+import { ADR_PAGES_WITHOUT_HOST } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 const BROWSER: CapabilityExclusion = {
@@ -10,6 +11,17 @@ const AGENT: CapabilityExclusion = {
   reason:
     "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
   adr: "0099-scoped-local-agent-authority.md",
+};
+
+/**
+ * Pages keeps no Host grant or fetch machinery (ADR 0128): what reads a
+ * Host's project permissions or deletes a paired client there has no Pages
+ * surface. The join ceremony's own grant lapses on its own (ADR 0136).
+ */
+const PAGES_NO_HOST_GRANT: CapabilityExclusion = {
+  reason:
+    "the Pages PWA keeps no Host grant or fetch machinery; Host project permissions and paired-client revocation stay with the Host's own surfaces",
+  adr: ADR_PAGES_WITHOUT_HOST,
 };
 
 const KDF: CapabilityExclusion = {
@@ -74,7 +86,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/host-authorization.ts:authenticateBrowser",
+      pwa: "lib/join/client.ts:verifyAt",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -102,12 +114,17 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: null,
-      pwa: "lib/browser-pairing.ts:revokeBrowserPairing",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { mcp_host: BROWSER, mcp_client: BROWSER, webmcp: BROWSER },
+    excluded: {
+      pwa: PAGES_NO_HOST_GRANT,
+      mcp_host: BROWSER,
+      mcp_client: BROWSER,
+      webmcp: BROWSER,
+    },
   },
   {
     id: "agent.launch.approve",
@@ -187,12 +204,17 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/secret-config-access.ts:loadConfigAccess",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { mcp_host: METADATA, mcp_client: METADATA, webmcp: METADATA },
+    excluded: {
+      pwa: PAGES_NO_HOST_GRANT,
+      mcp_host: METADATA,
+      mcp_client: METADATA,
+      webmcp: METADATA,
+    },
   },
   {
     id: "configs.permissions.write",

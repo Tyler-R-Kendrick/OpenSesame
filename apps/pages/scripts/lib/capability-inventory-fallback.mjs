@@ -1,14 +1,24 @@
 /**
- * Bootstrap inventory used by the capability build plugin while S02's
- * `src/lib/capabilities/{catalog,ownership,classification}.ts` are absent.
+ * Bootstrap inventory the capability build plugin falls back on for any part
+ * of the authored inventory it cannot load: the catalog
+ * (`packages/app-core/src/lib/capabilities/catalog.ts`) and the app's
+ * `src/lib/capabilities/{ownership,classification}.ts`.
  *
  * Everything here is a *guess recorded as a guess*: the catalog carries the
  * §5 identifiers of docs/implementation/capability-composition/ownership.md
- * with no modules and no exposure, and the classification maps today's source
- * layout onto those identifiers so the forbidden-reachability gate can already
- * name what leaks into the bootstrap closure. Once the authored inventory
- * exists this file is no longer consulted (see `loadInventory` in
- * capability-compose-plugin.mjs) and every rationale below says "bootstrap".
+ * with no modules and no exposure, and the classification maps the source
+ * layout onto those identifiers so the forbidden-reachability gate can still
+ * name what leaks into the bootstrap closure. It stands in for an authored
+ * file that is absent (the plugin warns that the inventory is `fallback` or
+ * `mixed`) or, under the report gate (the dev server), one that fails to
+ * evaluate; an enforced build treats a broken authored file as fatal. Every
+ * rationale below says "bootstrap" (see `loadInventory` in
+ * capability-compose-state.mjs).
+ *
+ * Patterns are spelled relative to `apps/pages`, as the authored rules are.
+ * The shared core keeps the app's layout (ADR 0133), so `src/lib/…` also
+ * matches its counterpart under `packages/app-core/src/lib/…` — see
+ * `matchCandidates` in capability-graph.mjs.
  */
 
 const CORE = [
@@ -118,8 +128,6 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
     "connectors.external",
     "src/sections/ConnectionsSection",
     "src/sections/connections/",
-    "src/components/ConnectorMark",
-    "src/components/connector-marks",
     "src/lib/connectors",
     "src/lib/connector-",
     "src/lib/connections",
@@ -216,7 +224,7 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
     "src/lib/embedded-git",
     "src/lib/history-",
     "src/lib/vault-backup-",
-    "src/components/BackupEnableSwitch",
+    "src/sections/connections/BackupEnableSwitch",
   ),
   ...optional(
     "backup.cloud-secrets",
@@ -224,10 +232,15 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
     "src/lib/azure-key-vault-keys-config",
     "src/lib/gcp-kms-config",
     "src/lib/sops/",
-    "src/lib/secret-config-access",
   ),
   ...optional("vault.certificate-records", "src/lib/certs"),
-  ...optional("sharing.drops", "src/sections/vault/Drop"),
+  ...optional(
+    "sharing.drops",
+    "src/sections/vault/DropCeremony",
+    "src/sections/vault/DropTtl",
+    "src/sections/vault/NewDropCeremony",
+    "src/lib/vault/drop",
+  ),
   ...optional(
     "enterprise.directory-provisioning",
     "src/lib/directory",

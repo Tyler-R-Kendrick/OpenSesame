@@ -49,7 +49,6 @@ const vault: VaultHarness = {
   },
 };
 
-import { takeImportFile } from "@opensesame/app-core/lib/vault/import/handoff.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
 const copySecret = vi.fn();
@@ -136,8 +135,6 @@ describe("VaultSection", () => {
     revokeItemKinds();
     cleanup();
     vi.clearAllMocks();
-    // A file stashed by a test must not leak into the next one.
-    takeImportFile();
   });
 
   it("shows the empty state with new and import actions", () => {

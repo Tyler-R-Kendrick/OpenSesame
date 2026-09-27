@@ -61,6 +61,8 @@ import {
 } from "../vfs.js";
 import {
   adoptMerged,
+  applyManifestPlan,
+  dropSample,
   recordItemTypes,
   renameFolder,
   restoreItem,
@@ -1441,24 +1443,17 @@ export class VaultStore {
     updates: VaultItem[];
     newFolders: Folder[];
   }): Promise<void> {
-    if (
-      plan.adds.length === 0 &&
-      plan.updates.length === 0 &&
-      plan.newFolders.length === 0
-    ) {
-      return;
-    }
-    await this.#mutate((body) => {
-      body.folders = [...body.folders, ...plan.newFolders];
-      const now = new Date().toISOString();
-      const updated = new Map(
-        plan.updates.map((item) => [item.id, { ...item, updatedAt: now }]),
-      );
-      body.items = [
-        ...body.items.map((item) => updated.get(item.id) ?? item),
-        ...plan.adds,
-      ];
-    });
+    const { adds, updates, newFolders } = plan;
+    if (adds.length + updates.length + newFolders.length === 0) return;
+    await this.#mutate((body) => applyManifestPlan(body, plan));
+  }
+
+  /**
+   * Remove the sample data — every `sample` item and a folder only they
+   * sat in — in one mutation, tombstoned (`dropSample`). Real items stay.
+   */
+  async removeSample(): Promise<void> {
+    await this.#mutate(dropSample);
   }
 
   /**

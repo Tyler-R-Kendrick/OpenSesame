@@ -12,11 +12,12 @@
  * background job, held off by a plan that denies external services. Its guide target
  * `settings.backup` and goal are authored in the registry's connections
  * files and contributed by `connectors.external`, which this capability
- * depends on (catalog), so they are declared whenever this category mounts. The per-connector pages (`GithubInstallationPanel`,
- * `GithubHistoryRemotePicker`, `BackupSyncControls`) are reached through
- * `connectors.external`'s connector route, which is that capability's
- * surface; they stay where they are and are listed in the catalog as this
- * capability's dependency on it.
+ * depends on (catalog), so they are declared whenever this category mounts.
+ * The per-connector pieces (`GithubInstallationPanel`, the backup repository
+ * combobox `GithubBackupRepoCombobox`, `BackupSyncControls`) are reached
+ * through `connectors.external`'s connector route, which is that
+ * capability's surface; they stay where they are and are listed in the
+ * catalog as this capability's dependency on it.
  *
  * Egress this module wraps (existing transport code):
  *  - Connect relay at `connectCallbackBase()`: `/api/github-app/lookup`,

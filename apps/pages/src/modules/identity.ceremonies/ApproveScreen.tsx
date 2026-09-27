@@ -1,8 +1,8 @@
 /**
  * `/approve/:ref` (ADR 0084; ADR 0140 plan step 9, D7): the review a
- * notification's rendezvous link and Access › Requests' hosted rows open,
- * moved here from `apps/ceremonies`. It needs an Identity session, never a
- * vault: the route opens before unlock, on a locked or empty device too, and
+ * notification's rendezvous link and Access › Requests' hosted rows open.
+ * It needs an Identity session, never a vault: the route opens before
+ * unlock, on a locked or empty device too, and
  * without a session — or with no Identity API configured — it shows the
  * Connect note every Identity-plane panel does.
  *

@@ -149,6 +149,20 @@ describe("/invoke/:kind before unlock", () => {
     expect(location.search).toBe("");
   });
 
+  it("clears an earlier refusal from the tray when a link hands on", async () => {
+    const refused = arrive("/invoke/totp?user_code=AB");
+    await screen.findByRole("region", { name: "OpenSesame did not open" });
+    expect(listNotices().some((n) => n.id === INVOCATION_NOTICE)).toBe(true);
+    refused.unmount();
+    resetInvocationArrivalForTests();
+
+    arrive("/invoke/mfa?user_code=abcd-1234");
+    await openKey();
+    await waitFor(() =>
+      expect(listNotices().some((n) => n.id === INVOCATION_NOTICE)).toBe(false),
+    );
+  });
+
   it("refuses two handles in one link, as the parser does", async () => {
     arrive("/invoke/mfa?request_id=r1&user_code=AB");
     expect(

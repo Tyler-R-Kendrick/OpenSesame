@@ -24,11 +24,9 @@ import {
   ensureIdentitySession,
   fetchPrincipal,
   hostFetch,
-  hostRoutedViaDaemon,
   identityFetch,
   identityJson,
   noteUnauthorized,
-  probeHost,
   probeIdentity,
   probeOrphanSession,
 } from "./identity.js";
@@ -410,7 +408,6 @@ describe("missing configuration", () => {
   it("reports device identity as reachable without fetching", async () => {
     const spy = stubFetch(() => jsonResponse({}, 500));
     await expect(probeIdentity()).resolves.toBe("reachable");
-    await expect(probeHost()).resolves.toBe("unreachable");
     expect(spy).not.toHaveBeenCalled();
   });
 });
@@ -433,33 +430,10 @@ describe("Host session authority", () => {
   });
 });
 
-describe("hostRoutedViaDaemon edge cases", () => {
-  it("rejects empty and unparseable bases", () => {
-    expect(hostRoutedViaDaemon("", "")).toBe(false);
-    expect(hostRoutedViaDaemon("http://x/host", "")).toBe(false);
-    expect(hostRoutedViaDaemon("::bad", "::also bad")).toBe(false);
-  });
-});
-
 describe("plane probes", () => {
   it("calls a 200 without OpenSesame health JSON unreachable", async () => {
     stubFetch(() => new Response("<html>ok</html>", { status: 200 }));
     await expect(probeIdentity()).resolves.toBe("unreachable");
-  });
-
-  it("tries both Host health paths before giving up", async () => {
-    const spy = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === `${HOST}/api/v1/health`) {
-        return Promise.reject(new TypeError("Failed to fetch"));
-      }
-      if (url === `${HOST}/health/live`) {
-        return Promise.resolve(jsonResponse({ status: "ok" }));
-      }
-      return Promise.resolve(jsonResponse({}, 404));
-    });
-    vi.stubGlobal("fetch", spy);
-    await expect(probeHost()).resolves.toBe("reachable");
   });
 });
 

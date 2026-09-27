@@ -1,0 +1,286 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Sample data"
+        },
+        {
+          "count": ["#sample-data", "#sealed-store"]
+        },
+        {
+          "measure": "#sample-data .icon-btn"
+        },
+        {
+          "shot": "390-settings-vaults"
+        },
+        {
+          "pressOptional": "Load sample data"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "count": [".vtree__syn", ".vtree [role=treeitem]"]
+        },
+        {
+          "shot": "390-vault-sample"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Sample data"
+        },
+        {
+          "pressOptional": "Remove 7 sample items"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "count": [".vtree__syn", ".vtree [role=treeitem]"]
+        },
+        {
+          "shot": "390-vault-removed"
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json"
+          }
+        },
+        {
+          "report": "[role=dialog] .found dl"
+        },
+        {
+          "shot": "390-import-manifest"
+        },
+        {
+          "pressOptional": "Merge 4 entries"
+        },
+        {
+          "report": "[role=dialog] .found dl"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json"
+          }
+        },
+        {
+          "report": "[role=dialog] .found dl"
+        },
+        {
+          "shot": "390-import-again"
+        },
+        {
+          "escape": null
+        },
+        {
+          "count": [".vtree [role=treeitem]"]
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Sample data"
+        },
+        {
+          "count": ["#sample-data", "#sealed-store"]
+        },
+        {
+          "measure": "#sample-data .icon-btn"
+        },
+        {
+          "shot": "1280-settings-vaults"
+        },
+        {
+          "pressOptional": "Load sample data"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "count": [".vtree__syn", ".vtree [role=treeitem]"]
+        },
+        {
+          "shot": "1280-vault-sample"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Sample data"
+        },
+        {
+          "pressOptional": "Remove 7 sample items"
+        },
+        {
+          "tab": "vault"
+        },
+        {
+          "count": [".vtree__syn", ".vtree [role=treeitem]"]
+        },
+        {
+          "shot": "1280-vault-removed"
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json"
+          }
+        },
+        {
+          "report": "[role=dialog] .found dl"
+        },
+        {
+          "shot": "1280-import-manifest"
+        },
+        {
+          "pressOptional": "Merge 4 entries"
+        },
+        {
+          "report": "[role=dialog] .found dl"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json"
+          }
+        },
+        {
+          "report": "[role=dialog] .found dl"
+        },
+        {
+          "shot": "1280-import-again"
+        },
+        {
+          "escape": null
+        },
+        {
+          "count": [".vtree [role=treeitem]"]
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-settings-vaults",
+      "width": 390,
+      "title": "Settings \u203a Vaults \u2014 390",
+      "caption": "Sample data and the sealed-store manifest are back under Settings \u203a Vaults, each one icon key in its panel head.",
+      "before": "no Sample data or Sealed store panel",
+      "after": "Sample data (+) and Sealed store (save) panels"
+    },
+    {
+      "shot": "390-vault-sample",
+      "width": 390,
+      "title": "Vault after loading sample data \u2014 390",
+      "caption": "Every sample item carries the SYNTHETIC badge.",
+      "before": "nothing to load: empty vault",
+      "after": "7 SYNTHETIC badges"
+    },
+    {
+      "shot": "390-vault-removed",
+      "width": 390,
+      "title": "Vault after one removal \u2014 390",
+      "caption": "One key removes every sample item and its folder, and nothing else.",
+      "before": "empty vault",
+      "after": "0 SYNTHETIC badges, 0 rows"
+    },
+    {
+      "shot": "390-import-manifest",
+      "width": 390,
+      "title": "Import a store path manifest \u2014 390",
+      "caption": "The Import sheet recognises a manifest and states the by-path merge before writing.",
+      "before": "no Import key on main",
+      "after": "Format: OpenSesame store path manifest \u00b7 4 new"
+    },
+    {
+      "shot": "390-import-again",
+      "width": 390,
+      "title": "The same manifest, imported again \u2014 390",
+      "caption": "A second import writes nothing: every entry is already here.",
+      "before": "no Import key on main",
+      "after": "New 0 \u00b7 Already here 4 \u00b7 Nothing to merge (disabled)"
+    },
+    {
+      "shot": "1280-settings-vaults",
+      "width": 1280,
+      "title": "Settings \u203a Vaults \u2014 1280",
+      "caption": "Sample data and the sealed-store manifest are back under Settings \u203a Vaults, each one icon key in its panel head.",
+      "before": "no Sample data or Sealed store panel",
+      "after": "Sample data (+) and Sealed store (save) panels"
+    },
+    {
+      "shot": "1280-vault-sample",
+      "width": 1280,
+      "title": "Vault after loading sample data \u2014 1280",
+      "caption": "Every sample item carries the SYNTHETIC badge.",
+      "before": "nothing to load: empty vault",
+      "after": "7 SYNTHETIC badges"
+    },
+    {
+      "shot": "1280-vault-removed",
+      "width": 1280,
+      "title": "Vault after one removal \u2014 1280",
+      "caption": "One key removes every sample item and its folder, and nothing else.",
+      "before": "empty vault",
+      "after": "0 SYNTHETIC badges, 0 rows"
+    },
+    {
+      "shot": "1280-import-manifest",
+      "width": 1280,
+      "title": "Import a store path manifest \u2014 1280",
+      "caption": "The Import sheet recognises a manifest and states the by-path merge before writing.",
+      "before": "no Import key on main",
+      "after": "Format: OpenSesame store path manifest \u00b7 4 new"
+    },
+    {
+      "shot": "1280-import-again",
+      "width": 1280,
+      "title": "The same manifest, imported again \u2014 1280",
+      "caption": "A second import writes nothing: every entry is already here.",
+      "before": "no Import key on main",
+      "after": "New 0 \u00b7 Already here 4 \u00b7 Nothing to merge (disabled)"
+    }
+  ]
+}

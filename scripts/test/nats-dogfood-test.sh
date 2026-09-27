@@ -106,12 +106,8 @@ cargo +1.88.0 test -p opensesame-storage --lib host_kv
 cargo +1.88.0 test -p opensesame-gateway --lib
 cargo +1.88.0 test --manifest-path tests/fuzz/cargo/Cargo.toml --lib oracle_smoke
 
-echo "==> nats-dogfood: TypeScript contracts + pages + worker"
+echo "==> nats-dogfood: TypeScript contracts + worker"
 pnpm --filter @opensesame/contracts test
-pnpm --filter @opensesame/pages exec vitest run \
-  src/lib/taskbus.test.ts \
-  src/lib/taskbus-panel.test.ts \
-  src/sections/settings/TaskBusPanel.test.tsx
 pnpm --filter @opensesame/identity-worker test
 
 if command -v cargo-fuzz >/dev/null 2>&1; then

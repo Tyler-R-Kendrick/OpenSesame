@@ -32,6 +32,18 @@ const REFERENCE_ONLY_VIA_CONNECTIONREF: CapabilityExclusion = {
   adr: ADR_MTLS,
 };
 
+/**
+ * What a static page can do about TLS is fixed, not discovered: no vault key
+ * reaches a handshake and `fetch` selects no certificate (ADR 0132 §2, §14).
+ * The Pages Transport panel reports status per target; no PWA code ever
+ * rendered a discovery answer, so none is claimed.
+ */
+const BROWSER_BOUNDARY_IS_FIXED: CapabilityExclusion = {
+  reason:
+    "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so there is nothing for it to discover; the Transport panel reports per-target status instead",
+  adr: ADR_MTLS,
+};
+
 export const transportSecurityCapabilities: readonly Capability[] = [
   // ── Host plane: optional mTLS and workload identity (ADR 0132) ────────
   {
@@ -134,12 +146,13 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-capabilities.ts:transportCapabilities",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: BROWSER_BOUNDARY_IS_FIXED,
       mcp_host: STATUS_IS_OPERATOR_TOPOLOGY,
       mcp_client: STATUS_IS_OPERATOR_TOPOLOGY,
       webmcp: STATUS_IS_OPERATOR_TOPOLOGY,

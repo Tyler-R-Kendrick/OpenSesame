@@ -30,13 +30,6 @@
   font-weight: 600;
 }
 
-.broker__lede {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 0.9375rem;
-  line-height: 1.45;
-}
-
 .broker__main {
   max-width: 28rem;
   margin: 0 auto;
@@ -79,17 +72,6 @@
   word-break: break-all;
 }
 
-.broker__card p.broker__fine {
-  font-size: 0.8125rem;
-}
-
-.broker__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1rem 0 0.75rem;
-}
-
 .broker__btn {
   appearance: none;
   border: 1px solid transparent;
@@ -106,16 +88,6 @@
 
 .broker__btn:hover {
   background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
-}
-
-.broker__btn--ghost {
-  background: transparent;
-  color: var(--ink-2);
-  border: 1px solid var(--line-strong);
-}
-
-.broker__btn--ghost:hover {
-  background: var(--surface-2);
 }
 
 .broker__link {

@@ -101,23 +101,9 @@ export const CONNECTIONS_TARGETS: readonly GuideTargetDescriptor[] = [
       "The Who can use it panel: which identities, groups, devices, projects and agents may use this authorization. None of them receive the credential.",
     role: "surface",
     routes: ["/connections"],
-    capabilityId: "connections.bindings",
-  },
-  {
-    id: "settings.secret-configs",
-    description:
-      "Write-only intake for secret-config values. Keys and metadata are listed; values never come back out.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "configs.set",
-  },
-  {
-    id: "settings.sync-targets",
-    description:
-      "Replication targets for the sealed store, and the control that triggers a run.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "sync_targets.trigger",
+    // In Pages a connector is bound by a local share (ADR 0115), not a Host
+    // binding (ADR 0128).
+    capabilityId: "connectors.bind",
   },
   {
     id: "nav.connections",

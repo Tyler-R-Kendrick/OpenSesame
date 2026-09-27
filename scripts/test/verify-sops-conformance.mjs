@@ -46,7 +46,7 @@ function write(status, reason, detail = {}) {
     caseId,
     status,
     evidenceKind: "upstream-oracle",
-    test: "src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
+    test: "packages/app-core/src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
     command: "pnpm verify:sops-conformance",
     runtime: `sops ${SOPS_VERSION} (${SOPS_SOURCE_COMMIT.slice(0, 12)})`,
     artifact:
@@ -89,7 +89,7 @@ const test = spawnSync(
   "pnpm",
   [
     "--filter",
-    "@opensesame/pages",
+    "@opensesame/app-core",
     "exec",
     "vitest",
     "run",

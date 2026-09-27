@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { probeFailureSeams } from "./probe-failure.js";
 import { loadSettings, saveSettings } from "./settings.js";
-import { transportCapabilities as browserCapabilities } from "./transport-capabilities.js";
+import { browserCapabilities } from "./transport-model.js";
 import { transportStatusWire } from "./transport-status.fixture.js";
 import {
   TRANSPORT_STATUS_PATH,
@@ -72,7 +72,7 @@ describe("nothing at boot", () => {
       "lib/vault/store.ts",
     ]) {
       expect(readFileSync(join(here, file), "utf8"), file).not.toMatch(
-        /transport-(status|rows|agent-surface)/,
+        /transport-(status|rows)/,
       );
     }
   });

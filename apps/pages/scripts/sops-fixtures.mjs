@@ -30,7 +30,20 @@ import {
 } from "../../../packages/app-core/scripts/sops-oracle/oracle.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const out = join(here, "..", "src", "lib", "sops", "fixtures", "upstream");
+/** The engine and its fixtures live in @opensesame/app-core (ADR 0133). */
+const fixtures = join(
+  here,
+  "..",
+  "..",
+  "..",
+  "packages",
+  "app-core",
+  "src",
+  "lib",
+  "sops",
+  "fixtures",
+);
+const out = join(fixtures, "upstream");
 const check = process.argv.includes("--check");
 
 const oracle = provisionOracle({ allowDownload: !check });
@@ -57,7 +70,7 @@ const PLAIN = {
   "basic.yaml":
     'hello: world\ncount: 2\nratio: 1.5\nflag: true\nnothing: null\nempty: ""\nnote_unencrypted: visible\nlist:\n  - a\n  - 3\nnested:\n  k: v\n  deep:\n    - x: 1\n',
   "comments.yaml": readFileSync(
-    join(here, "..", "src", "lib", "sops", "fixtures", "tree", "comments.yaml"),
+    join(fixtures, "tree", "comments.yaml"),
     "utf8",
   ),
   "scalars.yaml":

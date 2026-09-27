@@ -4,8 +4,7 @@
  * Browser-local durable evidence: allowlisted metadata only, redacted through
  * `@opensesame/audit`. Attribute names follow OTEL-style dotted event names and
  * the shared audit allowlist — no account login, email, repo name, or other
- * SII/PII in the payload. Host connection event free-text is sanitized before
- * display.
+ * SII/PII in the payload.
  */
 
 import { redactAuditMetadata } from "@opensesame/audit/redact";
@@ -17,7 +16,6 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { emitActivity } from "./activity-log.js";
-import type { ConnectionEvent } from "./connections.js";
 import { kvRefresh } from "./kv.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
@@ -27,7 +25,11 @@ const PATH = "config/access-audit";
 const MAX_BYTES = 256_000;
 const MAX_EVENTS = 256;
 
-/** Frozen event names — OTEL `event.name` style, never free-form. */
+/**
+ * Frozen event names — OTEL `event.name` style, never free-form. The two
+ * `connection.binding.*` names are no longer written (Pages binds nothing on a
+ * Host, ADR 0128) but stay readable so an older sealed trail still parses.
+ */
 export const ACCESS_AUDIT_EVENT_TYPES = [
   "access.connection.granted",
   "access.connection.revoked",
@@ -47,15 +49,6 @@ export type LocalAccessAuditEvent = {
   targetId: string;
   metadata: JsonObject;
 };
-
-/** Host `detail` values that are closed enums, not free text. */
-const SAFE_CONNECTION_EVENT_DETAILS = new Set([
-  "identity",
-  "agent",
-  "user",
-  "organization",
-  "project",
-]);
 
 type WireFile = { version: 1; events: LocalAccessAuditEvent[] };
 
@@ -178,27 +171,4 @@ export async function recordAccessAuditEvent(
     targetId: event.targetId,
   });
   return next;
-}
-
-/**
- * Drop Host connection-event free text that could carry SII/PII.
- * Keeps only closed binding-target vocabulary (OTEL attribute-safe).
- */
-export function sanitizeConnectionEvent(
-  event: ConnectionEvent,
-): ConnectionEvent {
-  const detail = event.detail?.trim().toLowerCase() ?? "";
-  if (detail.length === 0) {
-    return { ...event, detail: null };
-  }
-  if (SAFE_CONNECTION_EVENT_DETAILS.has(detail)) {
-    return { ...event, detail };
-  }
-  return { ...event, detail: null };
-}
-
-export function sanitizeConnectionEvents(
-  events: ConnectionEvent[],
-): ConnectionEvent[] {
-  return events.map(sanitizeConnectionEvent);
 }

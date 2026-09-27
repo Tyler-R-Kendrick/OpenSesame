@@ -15,16 +15,16 @@
  *     drop is always-on, ADR 0140 D2; only sending one is `sharing.drops`,
  *     and this module imports none of that). The bearer and key leave the
  *     address in the core boot too (`app-core/lib/claims/arrival.ts`);
- *   - `/i/:ref`: the phone half of a cross-device approval (ADR 0086), from
- *     `apps/mobile-mfa`: resolve, read, approve with a passkey touch bound
- *     to this request, or deny;
- *   - `/approve/:ref`: the authorization-request review (ADR 0084), from
- *     `apps/ceremonies`: request, requirement, an activation bound to the
- *     digest, the verb and the policy shown, decide or report. Access ›
+ *   - `/i/:ref`: the phone half of a cross-device approval (ADR 0086):
+ *     resolve, read, approve with a passkey touch bound to this request, or
+ *     deny;
+ *   - `/approve/:ref`: the authorization-request review (ADR 0084):
+ *     request, requirement, an activation bound to the digest, the verb and
+ *     the policy shown, decide or report. Access ›
  *     Requests' hosted rows open it; nothing there approves inline;
- *   - `/invoke/:kind`: the authenticator hand-off, from `apps/ceremonies`:
- *     the native app link ceremony-kit builds for an MFA user code or
- *     request id, or a wallet protocol's request URI, and for a user code
+ *   - `/invoke/:kind`: the authenticator hand-off: the native app link
+ *     ceremony-kit builds for an MFA user code or request id, or a wallet
+ *     protocol's request URI, and for a user code
  *     the `/device` ceremony as its fallback. It calls nothing, and never
  *     fetches a request URI or a credential offer;
  *   - `/guest` and `/delegate`: aliases (D12, D5). `/guest` is the guest

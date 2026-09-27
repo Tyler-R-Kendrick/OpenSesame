@@ -4,7 +4,6 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   listAccessAuditEvents,
   recordAccessAuditEvent,
-  sanitizeConnectionEvent,
 } from "./local-access-audit.js";
 import { localRequestFixture } from "./local-request.fixture.js";
 import { lockAllTombs } from "./vfs.js";
@@ -62,23 +61,4 @@ it("records allowlisted Access audit metadata and drops SII/PII keys", async () 
   expect(serialized).not.toContain("example.com");
   expect(serialized).not.toContain("Ada Lovelace");
   expect(serialized).not.toContain("ghp_");
-});
-
-it("scrubs free-text Host connection event detail", () => {
-  expect(
-    sanitizeConnectionEvent({
-      id: "e1",
-      kind: "bound",
-      at: "2026-09-18T12:00:00Z",
-      detail: "identity · owner",
-    }).detail,
-  ).toBeNull();
-  expect(
-    sanitizeConnectionEvent({
-      id: "e2",
-      kind: "bound",
-      at: "2026-09-18T12:00:00Z",
-      detail: "identity",
-    }).detail,
-  ).toBe("identity");
 });

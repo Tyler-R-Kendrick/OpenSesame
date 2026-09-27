@@ -28,12 +28,8 @@
       "reason": "Registered local relying-party metadata (redirect URIs, scopes). Authority to act is still a share grant."
     },
     {
-      "path": "packages/app-core/src/lib/host-shared-session-store.ts",
-      "reason": "Bookmarks and local mirrors of Host shared sessions (ADR 0079). Writes durable share rows through local-share-grants; it is not a second ledger."
-    },
-    {
-      "path": "packages/app-core/src/lib/shared-sessions.ts",
-      "reason": "Host API client for shared-session open/grant/revoke. Authority persisted on the device still goes through local-share-grants."
+      "path": "packages/app-core/src/lib/local-share-reach.ts",
+      "reason": "Read-only reach check for agent and WebMCP surfaces: lists local-share-grants and the Access role to decide whether the actor may read or write a vault or item. It stores nothing and writes no share; the ledger it reads is local-share-grants."
     },
     {
       "path": "packages/app-core/src/lib/siop-authority.ts",

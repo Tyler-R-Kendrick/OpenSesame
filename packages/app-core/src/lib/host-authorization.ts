@@ -7,12 +7,8 @@ import {
 import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { page, pageOrigin } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
-import {
-  browserPairingSignal,
-  currentBrowserGrant,
-} from "./browser-pairing.js";
+import { browserPairingSignal } from "./browser-pairing.js";
 import { hostFetch, remoteIdentityApi } from "./identity.js";
-import { loadSettings } from "./settings.js";
 
 export type ControlTransition = "handoff" | "take" | "release";
 export type HostAuthorizationRequest =
@@ -243,19 +239,4 @@ export function validateIdentityUrl(identity: URL) {
     identity.hash
   )
     throw new HostAuthorizationError();
-}
-
-export function authenticateBrowser(
-  signal: AbortSignal,
-): Promise<string | null> {
-  const grant = currentBrowserGrant(loadSettings().hostApi);
-  if (!grant) throw new HostAuthorizationError();
-  return authorizeHost(
-    {
-      operation: "browser.authenticate",
-      target_id: grant.clientId,
-      transition: null,
-    },
-    signal,
-  );
 }

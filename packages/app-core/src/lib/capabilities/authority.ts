@@ -3,9 +3,12 @@
  *
  * - `assertCurrentOperationAuthority` is synchronous and runs before any
  *   handler import: the lease must be current and the operation must be in
- *   the plan's approved set. It is the check every command path, WebMCP tool
- *   and keymap jump takes first.
- * - `admitOperation` is for the sensitive operations that must also agree
+ *   the plan's approved set. Every WebMCP tool call takes it first
+ *   (`dispatch.ts`); a command path or keymap jump, which names a
+ *   destination rather than an operation, takes its capability-level twin
+ *   `assertCurrentCapabilityAuthority`.
+ * - `admitOperation` is for the sensitive operations — every WebMCP tool not
+ *   declared read-only — that must also agree
  *   with every other tab: under the instance's Web Lock it re-reads the
  *   durable generation counter and refuses when another context committed a
  *   newer plan — or when no cross-context serialization can be established.
@@ -15,6 +18,7 @@
 import type {
   ActivationLease,
   AdmissionDecision,
+  CapabilityId,
   OperationId,
 } from "@opensesame/capability-composition";
 import { kvRefresh } from "../kv.js";
@@ -37,6 +41,25 @@ export function assertCurrentOperationAuthority(
   if (!snapshot.plan) throw new CapabilityDenied("NOT_RESOLVED", op);
   if (!snapshot.plan.approvedOperations.includes(op)) {
     throw new CapabilityDenied("NOT_APPROVED", op);
+  }
+}
+
+/**
+ * The same check for a contribution that names a destination rather than an
+ * operation — a command path or a keymap jump. Its authority is the
+ * capability that registered it: that capability's lease must be current and
+ * the plan must still approve it. `activity.log` owns no operation and still
+ * owns `/activity`; the destination exists exactly while the capability does.
+ */
+export function assertCurrentCapabilityAuthority(
+  capability: CapabilityId,
+  lease: ActivationLease,
+): void {
+  const snapshot = compositionStore.getSnapshot();
+  assertLeaseCurrent(lease, snapshot.generation, capability);
+  if (!snapshot.plan) throw new CapabilityDenied("NOT_RESOLVED", capability);
+  if (!snapshot.plan.approvedCapabilities.includes(capability)) {
+    throw new CapabilityDenied("NOT_APPROVED", capability);
   }
 }
 

@@ -80,9 +80,11 @@ The contract is in `docs/architecture/connection-broker.md`; the reasoning is AD
 
 ## Importing from another password manager
 
-**Settings → Import from another password manager** reads an export and merges it into the
-sealed body. The file is parsed in the tab with the File API; nothing is uploaded, and no
-parsed value reaches plaintext storage on the way in.
+The **Import** key in the vault's path strip (beside **+** New item) opens the file picker,
+and the file chosen opens an import sheet beside the list that reads it and merges it into
+the sealed body. The file is parsed in the tab with the File API; nothing is uploaded, and no
+parsed value reaches plaintext storage on the way in. The key and the sheet belong to the
+always-on `vault.interop-formats` capability (`src/modules/vault.interop-formats/`).
 
 | Product | Formats | Notes |
 | --- | --- | --- |
@@ -96,11 +98,24 @@ parsed value reaches plaintext storage on the way in.
 | Dashlane | `.csv` | Exports one file per item type; import each in turn. |
 | NordPass | `.csv` | Logins, cards, and notes share one file. |
 | Proton Pass | `.json` | Vaults become folders; aliases become notes. |
+| KeePass / KeePassXC | `.kdbx` | Decrypted in the tab with the master password, which is used for that one read and never kept. |
+| FIDO CXF | `.json` | Credential Exchange Format, including passkeys. |
+| OpenSesame | `.json` | An encrypted backup from the Export key, restored with its master password; items this vault already holds are left alone. |
+| Any `.env` | `.env` | `KEY=value` lines become secrets, gathered in one folder. |
 | Anything else | `.csv` | Columns matched by meaning, with unclaimed ones kept as fields. |
 
 Detection is structural, by header set or JSON shape, and can be overridden by hand. Before
 anything is written the preview states what was found, what the format cannot carry, which
 items the vault already has, and where each item will land.
+
+## Exporting
+
+The **Export** key beside Import opens the encrypted-backup sheet: one
+`opensesame-offline-backup-<date>.json` holding the vault's sealed body and its
+key-wrapping header — ciphertext only, never a plaintext dump. The master password
+opens it: `opensesame-id vault verify <file>` lists its items by name and path, and
+Import restores it on another device. A vault with no master password enrolled, and
+a guest vault, are not exported.
 
 ## Running it
 

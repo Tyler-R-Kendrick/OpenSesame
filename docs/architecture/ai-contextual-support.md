@@ -415,7 +415,7 @@ an agent may ask for a walkthrough somebody wrote, it may not author one. Both
 are session-scoped, both return only a fixed status and the authored id they
 were given, and neither reads a transcript. The capability-registry entries are
 what make that decision visible in the diff, and the registry-parity sweep in
-`packages/app-core/src/webmcp/registry-parity.test.ts` fails if the implemented
+`apps/pages/src/webmcp/registry-parity.test.ts` fails if the implemented
 catalog and the registry-derived catalog disagree.
 
 The reasoning for keeping guidance off the tool channel is in ADR 0088 §8: the

@@ -46,9 +46,12 @@ export function ConnectPanels({
   const connected = isConnectConnection(connection) ? connection : null;
   return (
     <>
-      {transport.canManage ? null : (
-        <ConnectTransportPanel relay={transport.relay} onFlash={onFlash} />
-      )}
+      <ConnectTransportPanel
+        relay={transport.relay}
+        showForm={!transport.canManage}
+        held={transport.held}
+        onFlash={onFlash}
+      />
       <section className="panel" id="connector" aria-label="Connector">
         <div className="panel__head">
           <h2>{connected ? "Connector settings" : "Create connector"}</h2>

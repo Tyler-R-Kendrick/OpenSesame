@@ -473,10 +473,11 @@
     },
     "WAL-B03": {
       "status": "fixture_verified",
-      "reason": "Playwright Wallet › Spending passes: forged WebAuthn/RP assurance refused; spent verifiedBytes replay refused (assertion_replay); CDP wrong-RP authenticator present does not mint spend authority. Not phishing-resistant RP ceremony binding.",
+      "reason": "Playwright on the static origin: with a CDP virtual authenticator attached, Wallet › Spending passes (approved through Settings › Capabilities) shows no pass; the product's lease module, run in the same browser, refuses a forged WebAuthn label (unverified_assurance), an unenrolled key (key_not_enrolled) and spent verifiedBytes replay (assertion_replay). Not phishing-resistant RP ceremony binding.",
       "productionEnabled": false,
       "evidenceRefs": [
         "pnpm wallet:test:browser",
+        "scripts/wallet/lib/lease-probe.mjs",
         "src/lib/spending-leases.test.ts",
         "docs/evidence/wallet/last-run.json"
       ]
@@ -492,10 +493,11 @@
     },
     "WAL-B05": {
       "status": "fixture_verified",
-      "reason": "Playwright Wallet › Spending passes: expired lease window refused (lease_window_invalid); listActiveSpendingLeases withholds expired rows",
+      "reason": "Playwright on the static origin: the product's lease module, run in the browser, refuses an expired lease window (lease_window_invalid); listActiveSpendingLeases withholds expired rows",
       "productionEnabled": false,
       "evidenceRefs": [
         "pnpm wallet:test:browser",
+        "scripts/wallet/lib/lease-probe.mjs",
         "src/lib/spending-leases.test.ts",
         "docs/evidence/wallet/last-run.json"
       ]

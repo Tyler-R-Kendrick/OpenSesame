@@ -107,8 +107,7 @@ This repo's Verify equivalent (the .NET [Verify](https://github.com/VerifyTests/
 pattern: capture once, fail on drift, accept the diff deliberately) is:
 
 - **TypeScript:** Vitest `toMatchSnapshot()` / `__snapshots__/*.snap` — see
-  `packages/app-core/src/lib/__tests__/connectors.characterization.test.ts` and
-  `guest-surfaces.characterization.test.ts`.
+  `packages/app-core/src/lib/__tests__/guest-surfaces.characterization.test.ts`.
 - **Rust:** `insta::assert_json_snapshot!` beside the daemon/discovery
   surfaces (`src/snapshots/`).
 - **Pixels:** Playwright baselines in `tests/visual-contract`.
