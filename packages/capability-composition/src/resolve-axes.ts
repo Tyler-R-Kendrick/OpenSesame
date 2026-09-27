@@ -9,7 +9,7 @@
  */
 import { indexCatalog } from "./catalog.js";
 import { applicableReceipt } from "./consent.js";
-import { sortIds } from "./ids.js";
+import { isWorkerModule, sortIds } from "./ids.js";
 import { sortReasons } from "./reasons.js";
 import type { ResolveInput } from "./resolve-input.js";
 import { withdrawnCore } from "./resolve-withdraw.js";
@@ -154,7 +154,7 @@ function isWorkspaceForeign(
  * ignored, because a restriction that stops applying is a restriction that
  * widens, and this scope may only narrow (P-SCOPING).
  */
-function isVaultForeign(
+export function isVaultForeign(
   vault: VaultCapabilitySelection | null,
   instanceId: string,
   installationId: string,
@@ -303,8 +303,22 @@ const PERMISSION_REASONS: ReadonlySet<ReasonCode> = new Set<ReasonCode>([
   "DENIED_BY_WORKSPACE",
 ]);
 
+/**
+ * An optional capability is in this distribution only when every page module
+ * it declares shipped with it. A distribution can list the capability yet drop
+ * a module (a report-gate build whose entry is absent); approving it then
+ * would claim code the page cannot load. A worker unit is not a page module:
+ * the build never lists it, and a worker variant stands for it.
+ */
+function shipped(ctx: ResolveContext, d: CapabilityDescriptor): boolean {
+  return (
+    ctx.distributed.has(d.id) &&
+    d.moduleIds.every((m) => isWorkerModule(m) || ctx.distributedModules.has(m))
+  );
+}
+
 function optionalAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
-  const distributed = ctx.distributed.has(d.id);
+  const distributed = shipped(ctx, d);
   const runtimeSupported = runtimeSupports(ctx, d);
   const blocked: ReasonCode[] = policyReasons(ctx, d.id);
   if (!distributed) blocked.push("NOT_DISTRIBUTED");

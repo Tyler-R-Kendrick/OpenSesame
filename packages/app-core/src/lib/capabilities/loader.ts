@@ -14,11 +14,12 @@
  * pretending it can be unloaded.
  */
 
-import type {
-  ActivationLease,
-  CapabilityId,
-  ModuleId,
-  RuntimeHandle,
+import {
+  type ActivationLease,
+  type CapabilityId,
+  type ModuleId,
+  type RuntimeHandle,
+  capabilityState,
 } from "@opensesame/capability-composition";
 import { capabilityArtifacts } from "../../host.js";
 import { kvHydrate } from "../kv.js";
@@ -198,7 +199,9 @@ export async function activateApprovedCapability(
   if (!plan) throw new CapabilityDenied("NOT_RESOLVED", id);
   if (!plan.approvedCapabilities.includes(id)) {
     throw new CapabilityDenied(
-      plan.capabilities[id]?.distributed ? "NOT_APPROVED" : "NOT_DISTRIBUTED",
+      capabilityState(plan, id)?.distributed
+        ? "NOT_APPROVED"
+        : "NOT_DISTRIBUTED",
       id,
     );
   }

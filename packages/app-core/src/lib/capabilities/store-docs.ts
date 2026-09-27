@@ -15,12 +15,17 @@ import {
   type InstanceCapabilityPolicy,
   PERSONAL_LOCAL_INSTANCE,
   type PolicyProvenance,
+  type ResolveInput,
   type RuntimeFacts,
   type VaultCapabilitySelection,
+  diagnoseRuntimeDocuments,
+  isVaultForeign,
 } from "@opensesame/capability-composition";
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
+import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { withoutPresetResidue } from "./preset-residue.js";
 import type { PersistedDocs } from "./store-persist.js";
+import { storeSeams } from "./store-seams.js";
 
 export type StoreState = {
   catalog: CapabilityCatalog | null;
@@ -141,13 +146,17 @@ export function scopedVaultSelection(
 ): VaultCapabilitySelection | null {
   const v = docs.vaultSelection;
   if (!v) return null;
-  if (
-    v.installationId !== state.installationId ||
-    v.vaultId !== state.vaultId
-  ) {
+  // Vault files travel between devices, so a record another installation
+  // wrote is that device's own disables: set it aside, as before.
+  if (v.installationId !== state.installationId) {
     note("vault selection: scoped to another installation; ignored");
     return null;
   }
+  // A record naming another vault, under this vault's own key, was lifted from
+  // elsewhere. Dropping it would lift the restriction, and this scope may only
+  // narrow: hand it to the resolver, which denies a foreign vault record.
+  if (v.vaultId !== state.vaultId)
+    note("vault selection: written for another vault; denies");
   return v;
 }
 
@@ -169,6 +178,18 @@ export function adoptDocs(
   state.committedGeneration = docs.committedGeneration;
 }
 
+/**
+ * The vault id the store's vault records and the resolver both use. With no
+ * vault open, an emergency disable still needs a record to hold it; it is
+ * written for `no-vault`, and the resolver must be told the same id, or it
+ * reads that record as foreign and denies everything instead of one thing.
+ */
+const NO_VAULT = "no-vault";
+
+function vaultIdOf(state: StoreState): string {
+  return state.vaultId ?? NO_VAULT;
+}
+
 /** The current vault selection with `id` added to its disables. */
 export function vaultSelectionWith(
   state: StoreState,
@@ -177,6 +198,14 @@ export function vaultSelectionWith(
   now: string,
 ): VaultCapabilitySelection {
   const current = state.vaultSelection;
+  // A foreign record already denies every optional capability; rewriting it
+  // as this vault's own would narrow it to `disabled` and so widen. Foreign is
+  // the resolver's own test — vault, installation or instance.
+  if (
+    current &&
+    isVaultForeign(current, instanceId, state.installationId, vaultIdOf(state))
+  )
+    return current;
   const disabled = current?.disabled.includes(id)
     ? current.disabled
     : [...(current?.disabled ?? []), id].sort();
@@ -185,8 +214,51 @@ export function vaultSelectionWith(
     kind: "VaultCapabilitySelection",
     instanceId,
     installationId: state.installationId,
-    vaultId: state.vaultId ?? "no-vault",
+    vaultId: vaultIdOf(state),
     revision: `emergency-${now}`,
     disabled,
+  };
+}
+
+/**
+ * What the resolver cannot act on in the documents it was given — an id no
+ * catalog entry matches, a core id in a policy, an unknown slot. The plan
+ * simply leaves such an id out, so without these a typo in a policy or a
+ * selection would vanish without a word (carried from #470: "unknown ids are
+ * conflicts, never silently dropped").
+ */
+export function documentDiagnostics(input: ResolveInput): string[] {
+  return diagnoseRuntimeDocuments(input).map((d) => `${d.path}: ${d.message}`);
+}
+
+/** Everything the resolver reads, taken from the store's state as it is now. */
+export function resolveInputFor(
+  state: StoreState,
+  instanceId: string,
+  installation: InstallationCapabilitySelection | null,
+  receipt: ConsentReceipt | null,
+): ResolveInput {
+  if (!state.catalog || !state.distribution) {
+    throw new Error("composition store has not booted");
+  }
+  return {
+    catalog: state.catalog,
+    distribution: state.distribution,
+    instancePolicy: state.policy,
+    provenance: state.provenance,
+    policyValid: state.policyValid,
+    workspace: storeSeams.workspaceRestriction(instanceId, state.vaultId),
+    installation,
+    vault: state.vaultSelection,
+    receipt,
+    facts: collectRuntimeFacts({
+      evaluatedModuleIds: evaluatedModuleIds(),
+      activeWorkerVariant: state.baseFacts?.activeWorkerVariant ?? null,
+      now: storeSeams.now(),
+    }),
+    installationId: state.installationId,
+    // With no vault open the only record is an emergency one, written for
+    // `no-vault`; name the same id so it reads as this session's own.
+    vaultId: state.vaultId ?? (state.vaultSelection === null ? null : NO_VAULT),
   };
 }

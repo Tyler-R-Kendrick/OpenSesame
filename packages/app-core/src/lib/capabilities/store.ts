@@ -26,7 +26,6 @@ import {
   resolveComposition,
 } from "@opensesame/capability-composition";
 import { postCapabilitiesChanged } from "./channel.js";
-import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { compositionLockName } from "./keys.js";
 import { type MintedLease, mintLease } from "./lease.js";
 import { type LegacyReview, reviewLegacyConfiguration } from "./migration.js";
@@ -38,9 +37,11 @@ import {
 import {
   type StoreState,
   adoptDocs,
+  documentDiagnostics,
   initialState,
   instanceIdOf,
   readPolicy,
+  resolveInputFor,
   scopedVaultSelection,
   vaultSelectionWith,
 } from "./store-docs.js";
@@ -80,6 +81,7 @@ export class CompositionStore {
   #minted: MintedLease | null = null;
   #activity = new Map<CapabilityId, CapabilityActivity>();
   #diagnostics: string[] = [];
+  #documentNotes: string[] = [];
   #legacy: LegacyReview | null = null;
   readonly #note = (message: string): void => {
     this.#diagnostics.push(message);
@@ -304,36 +306,22 @@ export class CompositionStore {
     installation: InstallationCapabilitySelection | null,
     receipt: ConsentReceipt | null,
   ): EffectivePlan {
-    const state = this.#state;
-    if (!state.catalog || !state.distribution) {
-      throw new Error("composition store has not booted");
-    }
-    return resolveComposition({
-      catalog: state.catalog,
-      distribution: state.distribution,
-      instancePolicy: state.policy,
-      provenance: state.provenance,
-      policyValid: state.policyValid,
-      workspace: storeSeams.workspaceRestriction(
-        this.instanceId(),
-        state.vaultId,
-      ),
-      installation,
-      vault: state.vaultSelection,
-      receipt,
-      facts: collectRuntimeFacts({
-        evaluatedModuleIds: evaluatedModuleIds(),
-        activeWorkerVariant: state.baseFacts?.activeWorkerVariant ?? null,
-        now: storeSeams.now(),
-      }),
-      installationId: state.installationId,
-      vaultId: state.vaultId,
-    });
+    return resolveComposition(
+      resolveInputFor(this.#state, this.instanceId(), installation, receipt),
+    );
   }
 
   #resolve(): void {
     const state = this.#state;
-    const plan = this.#plan(state.selection, state.receipt);
+    const input = resolveInputFor(
+      state,
+      this.instanceId(),
+      state.selection,
+      state.receipt,
+    );
+    const plan = resolveComposition(input);
+    // Recomputed per resolve, never accumulated: they describe these documents.
+    this.#documentNotes = documentDiagnostics(input);
     this.#minted = mintLease(plan.identity, state.generation);
     this.#activity.clear();
     this.#snapshot = {
@@ -350,9 +338,13 @@ export class CompositionStore {
         this.#activity,
       ),
       durability: durabilityOf(),
-      diagnostics: [...this.#diagnostics],
+      diagnostics: this.#allDiagnostics(),
     };
     this.#emit();
+  }
+
+  #allDiagnostics(): string[] {
+    return [...this.#diagnostics, ...this.#documentNotes];
   }
 
   #publish(): void {
@@ -363,7 +355,7 @@ export class CompositionStore {
       ...this.#snapshot,
       lifecycle: lifecycleMap(plan, distribution, this.#activity),
       durability: durabilityOf(),
-      diagnostics: [...this.#diagnostics],
+      diagnostics: this.#allDiagnostics(),
     };
     this.#emit();
   }

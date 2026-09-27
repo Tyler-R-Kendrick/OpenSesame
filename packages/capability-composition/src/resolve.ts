@@ -327,17 +327,33 @@ function unknownState(id: CapabilityId): CapabilityState {
   };
 }
 
+/**
+ * The plan's state for `id`, or undefined when the plan has none. An id can
+ * arrive from outside the catalog (a URL, a flag key, a stored document), and
+ * one named like an Object.prototype member (`constructor`, `toString`) must
+ * read as absent rather than as the prototype's function.
+ */
+export function capabilityState(
+  plan: EffectivePlan,
+  id: string,
+): CapabilityState | undefined {
+  return Object.hasOwn(plan.capabilities, id)
+    ? plan.capabilities[id]
+    : undefined;
+}
+
 export function explainCapability(
   plan: EffectivePlan,
   id: CapabilityId,
 ): CapabilityExplanation {
-  const state = plan.capabilities[id] ?? unknownState(id);
+  const state = capabilityState(plan, id) ?? unknownState(id);
   const via: CapabilityId[] = [];
   const seen = new Set<CapabilityId>([id]);
   let current = state;
   while (!current.selected && current.dependencyOf.length > 0) {
     const parent = current.dependencyOf.find((p) => !seen.has(p));
-    const next = parent === undefined ? undefined : plan.capabilities[parent];
+    const next =
+      parent === undefined ? undefined : capabilityState(plan, parent);
     if (parent === undefined || next === undefined) break;
     seen.add(parent);
     via.unshift(parent);

@@ -10,6 +10,7 @@
 import {
   FIXTURE_FACTS,
   FIXTURE_POLICIES,
+  type VaultCapabilitySelection,
 } from "@opensesame/capability-composition";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -298,5 +299,88 @@ describe("invalidation", () => {
     expect(compositionStore.getSnapshot().lifecycle[PASSKEYS]).toBe(
       "consent-required",
     );
+  });
+});
+
+describe("a vault record written for somewhere else", () => {
+  async function withRecord(overrides: Partial<VaultCapabilitySelection>) {
+    await bootPersonalLocal(compositionStore, "personal");
+    const { draft, receipt } = draftFor(compositionStore, [PASSKEYS], "r1");
+    await compositionStore.commit(draft, receipt);
+    expect(approved(compositionStore)).toContain(PASSKEYS);
+    durable.set(
+      vaultSelectionKey("personal"),
+      JSON.stringify({
+        schemaVersion: 1,
+        kind: "VaultCapabilitySelection",
+        instanceId: compositionStore.instanceId(),
+        installationId: draft.installationId,
+        vaultId: "personal",
+        revision: "lifted",
+        disabled: [],
+        ...overrides,
+      }),
+    );
+    // Leave the vault and come back, so the store re-reads its record.
+    compositionStore.onVaultChange(null);
+    compositionStore.onVaultChange("personal");
+  }
+
+  it("a record naming another vault denies rather than lapsing (#470 S23)", async () => {
+    await withRecord({ vaultId: "someone-elses" });
+    expect(approved(compositionStore)).toEqual([
+      "settings.core",
+      "vault.passwords",
+    ]);
+    expect(
+      compositionStore
+        .getSnapshot()
+        .diagnostics.some((d) => d.includes("another vault")),
+    ).toBe(true);
+  });
+
+  it("an emergency disable does not rewrite a foreign record into a narrower one", async () => {
+    await withRecord({ vaultId: "someone-elses" });
+    await compositionStore.emergencyDisable(PASSKEYS);
+    expect(approved(compositionStore)).toEqual([
+      "settings.core",
+      "vault.passwords",
+    ]);
+    expect(
+      JSON.parse(durable.get(vaultSelectionKey("personal")) ?? "{}").vaultId,
+    ).toBe("someone-elses");
+  });
+
+  it("a record another installation wrote is still set aside", async () => {
+    // Vault files travel between devices; one device's disables are its own.
+    await withRecord({
+      installationId: "another-device",
+      disabled: [PASSKEYS],
+    });
+    expect(approved(compositionStore)).toContain(PASSKEYS);
+  });
+});
+
+describe("ids the resolver cannot act on", () => {
+  it("a selection naming an unknown capability is diagnosed, not silently dropped (#470)", async () => {
+    await bootPersonalLocal(compositionStore, "personal");
+    const { draft } = draftFor(
+      compositionStore,
+      [PASSKEYS, "ghost.capability"],
+      "r1",
+    );
+    durable.set(SELECTION_KEY, JSON.stringify(draft));
+    await compositionStore.revalidate("test");
+    const { diagnostics } = compositionStore.getSnapshot();
+    expect(diagnostics.filter((d) => d.includes("ghost.capability"))).toEqual([
+      "installation.selectedOptional[1]: `ghost.capability` is not in the catalog and cannot activate",
+    ]);
+    // Once per resolve, never accumulated.
+    compositionStore.invalidate("again");
+    expect(
+      compositionStore
+        .getSnapshot()
+        .diagnostics.filter((d) => d.includes("ghost.capability")),
+    ).toHaveLength(1);
   });
 });

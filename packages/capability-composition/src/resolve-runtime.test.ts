@@ -7,6 +7,7 @@ import {
   FIXTURE_FACTS,
   FIXTURE_INSTALLATION,
   FIXTURE_POLICIES,
+  fixtureDescriptor,
   fixtureResolveInput,
   fixtureSelection,
 } from "./fixtures.js";
@@ -232,8 +233,8 @@ describe("worker selection", () => {
         .filter((d) => d.tier === "core")
         .map(({ exposureDigest: _digest, ...d }) => d)
         .concat([
-          { ...blank("a.push"), workerGraphConstraint: "push" },
-          { ...blank("a.sync"), workerGraphConstraint: "sync" },
+          fixtureDescriptor("a.push", { workerGraphConstraint: "push" }),
+          fixtureDescriptor("a.sync", { workerGraphConstraint: "sync" }),
         ]),
       1,
     );
@@ -273,26 +274,3 @@ describe("worker selection", () => {
     expect(one.requiredWorkerVariant).toBe("sync");
   });
 });
-
-function blank(id: string) {
-  return {
-    id,
-    descriptorVersion: 1,
-    tier: "optional" as const,
-    title: id,
-    summary: "",
-    dependencies: [],
-    alternatives: [],
-    operationIds: [],
-    moduleIds: [`${id}/runtime`],
-    environments: ["document" as const],
-    egress: [],
-    browserPermissions: [],
-    keyAccess: "none" as const,
-    requiresService: false,
-    offlineLimits: "",
-    workerGraphConstraint: null,
-    requiresDocumentReload: false,
-    itemKinds: [],
-  };
-}

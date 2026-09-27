@@ -35,6 +35,21 @@ describe("a version-1 preset's residue (ADR 0142)", () => {
     ]);
   });
 
+  it("drops them where the projection listed them as offered, too", () => {
+    const homelab: InstanceCapabilityPolicy = {
+      ...policy([], { id: "homelab", version: 1 }),
+      capabilities: {
+        default: "deny",
+        required: ["identity.local-iam"],
+        optional: ["backup.git-remote", "connectors.external", "identity.siop"],
+        prohibited: [],
+      },
+    };
+    const read = withoutPresetResidue(homelab).capabilities;
+    expect(read.required).toEqual([]);
+    expect(read.optional).toEqual(["connectors.external"]);
+  });
+
   it("leaves a hand-written or version-2 policy as written", () => {
     const written = policy(["backup.git-remote"], null);
     const current = policy(["backup.git-remote"], {

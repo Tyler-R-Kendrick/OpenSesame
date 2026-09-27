@@ -106,7 +106,11 @@ function visitAlternatives(
 ): void {
   const slots = [...d.alternatives].sort((a, b) => compareIds(a.slot, b.slot));
   for (const slot of slots) {
-    const choice = chosen[slot.slot];
+    // A chosen-alternatives record is stored data: a slot named like a
+    // prototype member must read as unchosen, not as the prototype's value.
+    const choice = Object.hasOwn(chosen, slot.slot)
+      ? chosen[slot.slot]
+      : undefined;
     if (choice === undefined) {
       walk.conflicts.push({
         code: "ALTERNATIVE_NOT_CHOSEN",

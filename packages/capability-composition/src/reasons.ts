@@ -4,28 +4,9 @@
  * Reasons on a `CapabilityState` are sorted by this order so two plans built
  * from the same facts in a different input order print identically.
  */
-import type { ReasonCode } from "./types.js";
+import { REASON_CODES, type ReasonCode } from "./types-plan.js";
 
-export const REASON_CODES: readonly ReasonCode[] = [
-  "CORE",
-  "NOT_DISTRIBUTED",
-  "POLICY_UNVERIFIED",
-  "PROFILE_MISMATCH",
-  "PROHIBITED_BY_INSTANCE",
-  "NOT_PERMITTED_BY_INSTANCE",
-  "DENIED_BY_WORKSPACE",
-  "DISABLED_IN_VAULT",
-  "UNSUPPORTED_RUNTIME",
-  "NETWORK_POLICY_DENIES",
-  "WORKER_GRAPH_UNAVAILABLE",
-  "NOT_SELECTED",
-  "REQUIRED_NOT_ACCEPTED",
-  "DEPENDENCY_CONFLICT",
-  "ALTERNATIVE_NOT_CHOSEN",
-  "CONSENT_REQUIRED",
-  "NOT_CACHED_OFFLINE",
-  "RESTART_REQUIRED",
-];
+export { REASON_CODES };
 
 const ORDER: ReadonlyMap<ReasonCode, number> = new Map(
   REASON_CODES.map((code, index) => [code, index]),

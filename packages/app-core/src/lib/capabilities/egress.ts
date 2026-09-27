@@ -1,8 +1,9 @@
-import type {
-  CapabilityDescriptor,
-  CapabilityId,
-  EffectivePlan,
-  EgressClass,
+import {
+  type CapabilityDescriptor,
+  type CapabilityId,
+  type EffectivePlan,
+  type EgressClass,
+  capabilityState,
 } from "@opensesame/capability-composition";
 /**
  * Destination-validated fetch for optional modules (S18).
@@ -121,9 +122,7 @@ function parseDestination(
 }
 
 function approvedIn(plan: EffectivePlan | null, id: CapabilityId): boolean {
-  return plan !== null && Object.hasOwn(plan.capabilities, id)
-    ? (plan.capabilities[id]?.approved ?? false)
-    : false;
+  return plan !== null && capabilityState(plan, id)?.approved === true;
 }
 
 /** The class a request belongs to: explicit, or the declared purpose's, or inferred. */
