@@ -41,14 +41,12 @@ const CATEGORY = {
   password: "005",
 } as const;
 
-type PuxValue = JsonObject;
 type PuxField = {
   title?: BoundaryValue;
   designation?: BoundaryValue;
   name?: BoundaryValue;
   value?: BoundaryValue;
 };
-type PuxSection = { title?: BoundaryValue; fields?: BoundaryValue };
 type PuxItem = {
   uuid?: BoundaryValue;
   favIndex?: BoundaryValue;

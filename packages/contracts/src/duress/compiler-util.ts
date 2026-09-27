@@ -1,10 +1,5 @@
 import { defined } from "./defined.js";
-import type {
-  CompilerCatalog,
-  CompilerDiagnostic,
-  EffectAssurance,
-  ExposureSummary,
-} from "./evidence.js";
+import type { CompilerDiagnostic, EffectAssurance } from "./evidence.js";
 import type { PolicyProfile } from "./policy.js";
 
 export function has(list: readonly string[], ref: string): boolean {

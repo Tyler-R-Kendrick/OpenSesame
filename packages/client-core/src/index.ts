@@ -1,6 +1,5 @@
 import {
   type BoundaryValue,
-  type JsonObject,
   isJsonObject,
   isNumber,
   isString,

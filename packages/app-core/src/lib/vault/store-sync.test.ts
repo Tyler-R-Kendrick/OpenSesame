@@ -1,7 +1,6 @@
 import { type Folder, createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
-  entriesToVaultItems,
   entryToVaultItem,
   filterEntriesForProject,
   joinStorePath,

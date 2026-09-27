@@ -30,10 +30,12 @@ describe("opensesame-id mcp", () => {
     expect(helpText()).toContain("mcp host|client");
   });
 
-  it("loads the real packages", async () => {
+  // A cold import of both servers' whole module graphs: about a second
+  // alone, several under the workspace's parallel test run.
+  it("loads the real packages", { timeout: 30_000 }, async () => {
     const host = await import("@opensesame/mcp-host");
     const client = await import("@opensesame/mcp-client");
-    expect(typeof host.main).toBe("function");
-    expect(typeof client.main).toBe("function");
+    expect(host.main).toBeInstanceOf(Function);
+    expect(client.main).toBeInstanceOf(Function);
   });
 });

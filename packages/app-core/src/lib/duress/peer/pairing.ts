@@ -1,16 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
+import { overlapCast } from "../json-boundary.js";
 /**
  * Exact-origin / recipient-key pairing + operation-limited delegations (PEER-A).
  * Consent, rotation, revocation are explicit (INV-02, INV-13).

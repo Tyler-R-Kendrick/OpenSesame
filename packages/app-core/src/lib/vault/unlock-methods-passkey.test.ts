@@ -1,44 +1,10 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import {
-  VaultCorruptError,
-  type VaultHeader,
-  WrongPasswordError,
-  createVault,
-  importVaultKey,
-  randomBytes,
-} from "@opensesame/vault-core";
+import { randomBytes } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  MAX_PIN_LENGTH,
-  MIN_PIN_LENGTH,
-  type PinUnlockRecord,
-  WebauthnHostError,
-  assertKeepsPrimaryUnlock,
-  assertPinPolicy,
-  assertWebauthnHost,
-  checkWebauthnHost,
   createPasskeyUnlockCeremony,
-  describeWebauthnError,
-  exportRawVaultKey,
-  formatWebauthnHostError,
   getPasskeyUnlockCeremony,
-  isIpHostname,
-  localhostEquivalentHref,
-  openTotpSecret,
-  pinPolicyProblems,
-  preferredUnlockMethod,
-  prfExtensionSupported,
-  primaryUnlockCount,
-  readPrfFirst,
-  sealTotpSecret,
-  unwrapVaultKeyWithPin,
-  unwrapVaultKeyWithPrf,
-  wrapVaultKeyWithPin,
-  wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-
-const PASSWORD = "correct horse battery staple";
-const PIN = "48291037";
 
 afterEach(() => {
   vi.unstubAllGlobals();

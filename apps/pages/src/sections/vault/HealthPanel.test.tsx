@@ -1,7 +1,15 @@
 import { cleanup, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import type { LoginItem, VaultItem } from "@opensesame/vault-core";
 
@@ -16,6 +24,7 @@ const vault = vi.hoisted(
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
+afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { HealthPanel } from "./HealthPanel.js";
 

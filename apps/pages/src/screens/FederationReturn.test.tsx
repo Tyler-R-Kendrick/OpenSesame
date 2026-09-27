@@ -7,7 +7,15 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
@@ -24,6 +32,7 @@ Object.assign(federationSeams, {
   completeSignIn: fed.completeSignIn,
   adoptBrokeredSession: fed.adoptBrokeredSession,
 });
+afterAll(() => Object.assign(federationSeams, originalFederationSeams));
 
 import { orgSeams } from "@opensesame/app-core/lib/orgs.js";
 Object.assign(orgSeams, { joinOrgTenant: fed.joinOrgTenant });

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { readHeaderRow } from "../csv.js";
 import {
   type DetectInput,
-  type DraftSecret,
   detectFormat,
   parseImport,
   summarise,

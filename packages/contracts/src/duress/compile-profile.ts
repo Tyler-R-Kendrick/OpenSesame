@@ -1,10 +1,4 @@
-import { diag, elevateAssurance, has } from "./compiler-util.js";
-import type {
-  CompilerCatalog,
-  CompilerDiagnostic,
-  EffectAssurance,
-  ExposureSummary,
-} from "./evidence.js";
+import type { CompilerCatalog, CompilerDiagnostic } from "./evidence.js";
 import type { PolicyProfile } from "./policy.js";
 
 import { validateProfileEffects } from "./compile-profile-effects.js";

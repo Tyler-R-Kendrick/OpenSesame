@@ -1,7 +1,4 @@
-import { PROVIDER_ID_JAG_TYP } from "@opensesame/agent-protocols";
 import { overlapCast } from "@opensesame/os-domain";
-import { generateClaimToken } from "@opensesame/os-domain";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import {

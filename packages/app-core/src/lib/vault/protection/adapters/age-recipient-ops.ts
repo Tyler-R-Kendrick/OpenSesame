@@ -8,26 +8,10 @@
  */
 
 import {
-  type BoundaryValue,
-  isJsonObject,
-  isNumber,
-  isString,
-} from "@opensesame/os-domain";
-import {
   type AgeRecipientProtectorRecord,
-  DOMAIN_CAPSULE,
-  type ProtectionContext,
-  ROOT_KEY_BYTES,
-  type VerificationEvidence,
   bytesToB64,
 } from "@opensesame/vault-core";
-import {
-  type AgeIdentityCustody,
-  decryptWithAge,
-  encryptWithAge,
-  isAgeIdentity,
-  isAgeRecipient,
-} from "../../../age-keys.js";
+import { encryptWithAge, isAgeIdentity } from "../../../age-keys.js";
 import {
   type AuthorizedEnrollmentRequest,
   type AuthorizedOpenRequest,
@@ -41,10 +25,7 @@ import {
   mintRootKeyHandle,
 } from "../adapter.js";
 import { assertAgeRecoveryIndependent } from "../age-bootstrap.js";
-import { canonicalizeToBytes } from "../canonicalize.js";
-import { contextsEqual } from "../capsule.js";
 import { ProtectionError } from "../errors.js";
-import { newProtectorId } from "../ids.js";
 
 import type { AgeRecipientAdapterOptions } from "./age-recipient.js";
 import {

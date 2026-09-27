@@ -6,23 +6,11 @@
 import { describe, expect, it } from "vitest";
 import { createIndependentCompartmentKey } from "../crypto/slots.js";
 import {
-  accessibleProjection,
-  approveSafeLowAuthorityConnection,
-  assertNoProtectedLeak,
-  attachmentPreviewAllowed,
-  buildLimitedCarryPlan,
   buildTopology,
   createKeyedCompartment,
-  decideConnectorAttach,
-  itemPreview,
-  materializeLimitedCarry,
   mintPresentationSession,
   openPresentation,
-  passkeyActionAllowed,
-  projectScopedView,
   requireIndependentPresentation,
-  restoreLimitedCarryOffline,
-  totpActionAllowed,
   tryOpenWithForeignKey,
   updateDecoyContents,
 } from "./index.js";

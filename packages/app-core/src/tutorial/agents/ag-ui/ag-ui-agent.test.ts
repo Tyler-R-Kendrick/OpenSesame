@@ -8,14 +8,12 @@
  * `@ag-ui/client`, and nothing here mocks a module.
  */
 
-import { parseGuide } from "@opensesame/guide-lang";
 import { type JsonValue, overlapCast } from "@opensesame/os-domain";
 import {
   SupportError,
   type SupportPageContext,
   type SupportRequest,
   type SupportTurn,
-  buildSupportInstructions,
 } from "@opensesame/support-agent";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAgUiSupportAgent } from "./ag-ui-agent.js";

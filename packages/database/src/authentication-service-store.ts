@@ -1,16 +1,12 @@
 import type {
   AuthenticationAlias,
   AuthenticationApplication,
-  AuthenticationApplicationStore,
   AuthenticationChallenge,
   AuthenticationCredential,
-  AuthenticationCredentialStore,
-  AuthenticationOneTimeStore,
   AuthenticationRegistrationToken,
   AuthenticationServiceStores,
   AuthenticationSigninToken,
   AuthenticationUser,
-  AuthenticationUserStore,
 } from "@opensesame/os-domain";
 import { and, eq, gt, isNotNull, isNull, lte, or } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";

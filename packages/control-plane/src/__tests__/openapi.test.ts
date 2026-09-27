@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../config.js";
 import { buildOpenApiDocument } from "../openapi.js";

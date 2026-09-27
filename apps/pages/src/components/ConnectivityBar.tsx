@@ -20,7 +20,6 @@ import { IconLogin, IconRefresh, IconVault, IconX } from "./Icons.js";
 import { IdentityCeremony } from "./IdentityCeremony.js";
 import { KeyVaultCeremony } from "./KeyVaultCeremony.js";
 import { StatusMark } from "./StatusMark.js";
-import { StatusNote } from "./StatusNote.js";
 
 import { useConnectivityMonitor } from "../bindings/connectivity-monitor.js";
 import { useConnectors } from "../bindings/connectors.js";

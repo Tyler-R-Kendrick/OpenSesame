@@ -9,7 +9,6 @@ import {
 } from "@opensesame/contracts/duress";
 import type { PolicyDocument } from "@opensesame/contracts/duress";
 import {
-  type BoundaryValue,
   type JsonObject,
   type MutableJsonObject,
   isJsonObject,

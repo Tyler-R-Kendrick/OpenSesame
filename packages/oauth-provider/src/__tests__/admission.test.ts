@@ -5,7 +5,7 @@ import {
   createClientAdmissionPolicy,
   defaultAdmissionFromEnv,
 } from "../clients/admission.js";
-import type { ClientAdmissionMode, OAuthClientRecord } from "../types.js";
+import type { OAuthClientRecord } from "../types.js";
 
 const flags = {
   originClientsEnabled: true,

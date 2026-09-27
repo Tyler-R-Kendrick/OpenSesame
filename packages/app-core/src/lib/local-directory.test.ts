@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvGet } from "./kv.js";
 import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
-  GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
   PAGES_APPLICATION_ID,
   PAGES_APPLICATION_NAME,

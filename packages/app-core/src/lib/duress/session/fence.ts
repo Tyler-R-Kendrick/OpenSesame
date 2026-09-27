@@ -18,7 +18,6 @@ import {
   isBoolean,
   isJsonObject,
   isNumber,
-  isTypeofObject,
   overlapCast,
 } from "../json-boundary.js";
 

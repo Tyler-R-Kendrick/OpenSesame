@@ -80,8 +80,15 @@ describe("provisional resource machine edges", () => {
       ),
       fixtures.now,
     );
+    expect(deleted.state).toBe("deleted");
     expect(canTransitionResource("deleted", "active")).toBe(false);
     expect(canTransitionResource("deleted", "deleted")).toBe(false);
+    expect(() => activateProvisionalResource(deleted, fixtures.now)).toThrow(
+      DomainError,
+    );
+    expect(() => completeResourceDeletion(deleted, fixtures.now)).toThrow(
+      DomainError,
+    );
   });
 });
 

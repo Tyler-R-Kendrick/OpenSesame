@@ -7,13 +7,22 @@ import {
   waitFor,
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const copySecret = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useCopySecret: () => copySecret });
+afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { PasswordGenerator } from "./PasswordGenerator.js";
 

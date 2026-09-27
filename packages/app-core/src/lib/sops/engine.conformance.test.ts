@@ -10,11 +10,6 @@
  * runs against the live pinned binary in `engine.oracle.test.ts`.
  */
 import { describe, expect, it } from "vitest";
-import {
-  provisionOracle,
-  runSops,
-} from "../../../scripts/sops-oracle/oracle.mjs";
-import { SopsError } from "./errors.js";
 import { NEVER, TestSession } from "./test-support.js";
 import {
   type FixtureCase,
@@ -28,7 +23,6 @@ const manifest = readManifest();
 const ids = readIdentities();
 const identitiesFor = (fixture: FixtureCase) =>
   fixture.identities.map((index) => ids[index]?.identity ?? "");
-const NOW = new Date("2026-09-22T00:00:00Z");
 
 describe("SB-001/002 upstream fixtures open in the browser engine", () => {
   expect(manifest.sopsVersion).toBe("3.13.3");

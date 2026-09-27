@@ -6,7 +6,6 @@ import {
   DURESS_PIN_PBKDF2_ITERATIONS,
   DuressKdfError,
   assertDuressKdfParams,
-  isDuressKdfError,
 } from "../keys/pin-floors.js";
 import {
   type WrapperKind,

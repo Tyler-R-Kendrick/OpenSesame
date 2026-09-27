@@ -6,11 +6,9 @@
 
 import {
   type BoundaryValue,
-  type JsonObject,
   isJsonObject,
   isNumber,
   isString,
-  isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
 

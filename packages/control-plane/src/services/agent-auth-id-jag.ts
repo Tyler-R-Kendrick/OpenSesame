@@ -1,4 +1,3 @@
-import type { VerifiedProviderIdentity } from "@opensesame/agent-protocols";
 import { agentAuthError } from "@opensesame/agent-protocols";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
@@ -16,7 +15,6 @@ import {
 } from "./agent-auth-id-jag-persist.js";
 import { resolveProviderRegistration } from "./agent-auth-id-jag-resolve.js";
 import { consumeProviderReplay } from "./agent-auth-id-jag-trust.js";
-import { providerAssertionIsAdvertised } from "./agent-auth-id-jag-trust.js";
 import { verifyProviderAssertionRequest } from "./agent-auth-id-jag-verify.js";
 import { startClaimAttempt } from "./agent-auth-shared.js";
 

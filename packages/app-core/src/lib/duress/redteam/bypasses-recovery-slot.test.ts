@@ -6,34 +6,15 @@
 import { defined } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  assertContextAllows,
-  isAccessContext,
-  issueAccessContext,
-  publicAccessMetadata,
-} from "../access/context.js";
-import { parseCanaryActivation } from "../canary/detect.js";
-import {
-  DURESS_PIN_PBKDF2_ITERATIONS,
   createIndependentCompartmentKey,
-  openPrfAndCode,
   openProfileSlot,
-  sealPrfAndCode,
   sealProfileSlot,
 } from "../crypto/slots.js";
-import { overlapCast } from "../json-boundary.js";
 import {
   combineRecoveryShares,
   roleAllows,
   splitRecoverySecret,
 } from "../recovery/custody.js";
-import {
-  assertOwnedPath,
-  isUnsupportedDestructiveAction,
-} from "../removal/local-remove.js";
-import { duressSessionFence } from "../session/fence.js";
-import { assertCompartmentSwitchAllowed } from "../store/compartment-guard.js";
-import { enrollTrigger, selectTrigger } from "../trigger/enrollment.js";
-import { emptyEnrollment } from "./fixtures.js";
 
 describe("REDTEAM-B bypass: recovery role / share mutation", () => {
   it("alert recipient cannot release shares; MAC rejects tampered share", async () => {

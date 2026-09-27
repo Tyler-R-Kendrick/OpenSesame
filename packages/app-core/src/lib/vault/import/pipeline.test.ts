@@ -1,10 +1,13 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import { zipSeams } from "./zip.js";
 const originalZipSeams = { ...zipSeams };
 Object.assign(zipSeams, {
   readZipText: vi.fn(async () => '{"encrypted":false,"items":[]}'),
+});
+afterAll(() => {
+  Object.assign(zipSeams, originalZipSeams);
 });
 
 import {

@@ -9,7 +9,6 @@ import {
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
-import type { AppContext } from "../context.js";
 import type { InteractionCsrf } from "../interactions/csrf.js";
 import {
   ProvisionalMintRefusedError,
@@ -113,10 +112,6 @@ function consumeAttemptBudget(fingerprint: string, now: number): boolean {
     attempts.delete(victim);
   }
   return true;
-}
-
-function interactionPath(uid: string): string {
-  return `/interaction/${encodeURIComponent(uid)}`;
 }
 
 function providerInteractions(

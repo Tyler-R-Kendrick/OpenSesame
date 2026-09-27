@@ -9,7 +9,7 @@ import { verifyBrowserIdTokenClaims } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
 import { randomString } from "@opensesame/sdk-browser";
 import type { UpstreamIdentity } from "../federation.js";
-import { currentAuthGeneration, matchesAuthGeneration } from "./generation.js";
+import { matchesAuthGeneration } from "./generation.js";
 import type { ProviderConnection } from "./provider.js";
 import type { AmbientReasonCode, PassiveOutcome } from "./types.js";
 

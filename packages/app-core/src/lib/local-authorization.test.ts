@@ -334,8 +334,8 @@ it("checks vault liveness again after asynchronous policy reads", async () => {
   const open = vfsSeams.open;
   let sawApplication = false;
   let lockedDuringPolicy = false;
-  vi.spyOn(vfsSeams, "open").mockImplementation(async (key, bytes) => {
-    const result = await open(key, bytes);
+  vi.spyOn(vfsSeams, "open").mockImplementation(async (key, bytes, binding) => {
+    const result = await open(key, bytes, binding);
     const envelope = overlapCast(result);
     if (isJsonObject(envelope) && isString(envelope.dataB64)) {
       const json = atob(envelope.dataB64);
@@ -350,7 +350,8 @@ it("checks vault liveness again after asynchronous policy reads", async () => {
   const action = vi.fn(async () => true);
   await expect(
     withLocalApplicationGrant(tomb, grant, app, ["openid"], action),
-  ).rejects.toThrow(/unavailable|could not be read|authentication tag/u);
+  ).rejects.toThrow("This local identity session is unavailable.");
+  expect(lockedDuringPolicy).toBe(true);
   expect(action).not.toHaveBeenCalled();
 });
 

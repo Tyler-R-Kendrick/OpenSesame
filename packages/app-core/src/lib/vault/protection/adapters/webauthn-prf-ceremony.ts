@@ -8,7 +8,6 @@ import { b64ToBytes, bytesToB64, randomBytes } from "@opensesame/vault-core";
 import {
   isPublicKeyCredential,
   maybePage,
-  pageOrigin,
   publicKeyCredentialApi,
   requireCredentials,
 } from "../../../../ports.js";

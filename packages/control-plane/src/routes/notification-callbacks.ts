@@ -4,7 +4,6 @@ import {
   type AuthorizationRequest,
   type ExternalChannelBinding,
   approvalTransactionDigest,
-  evaluateComparison,
 } from "@opensesame/os-domain";
 import { evaluateApprovalCeremony } from "@opensesame/trust-broker";
 import { Hono } from "hono";
@@ -12,7 +11,6 @@ import type { Context } from "hono";
 import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
 import {
-  comparisonValueDigest,
   principalEvidence,
   recordSettlement,
   resolveCallbackTransactionRef,

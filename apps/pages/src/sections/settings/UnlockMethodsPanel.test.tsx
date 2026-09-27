@@ -3,7 +3,6 @@ import type { WebauthnHostCheck } from "@opensesame/app-core/lib/vault/unlock-me
 import type { JsonObject } from "@opensesame/os-domain";
 import {
   cleanup,
-  fireEvent,
   render,
   screen,
   waitFor,
