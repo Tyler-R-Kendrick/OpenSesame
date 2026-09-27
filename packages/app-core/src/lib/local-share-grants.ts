@@ -214,7 +214,36 @@ export async function createLocalShare(
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writeAll(tomb, next);
+  // A person granting a connector is on the trail as a revocation is, so a
+  // grant made after a revocation lets the standing grant renew again.
+  if (share.resourceKind === "connection" && !options?.bypassAccessCheck)
+    await recordConnectionShareEvent(tomb, "access.connection.granted", share);
   return next.filter((row) => row.expiresAt > Date.now());
+}
+
+/** The sealed Access trail entry for a connector share granted or revoked. */
+async function recordConnectionShareEvent(
+  tomb: string,
+  eventType: "access.connection.granted" | "access.connection.revoked",
+  share: LocalShare,
+): Promise<void> {
+  await recordAccessAuditEvent(tomb, {
+    eventType,
+    outcome: "succeeded",
+    targetType: "connection",
+    targetId: share.resourceId,
+    metadata: {
+      providerId: share.resourceId,
+      resourceType: "connection",
+      resourceId: share.resourceId,
+      // Whose grant, under which policy — a standing grant a person took
+      // away is not re-issued for that principal and policy.
+      subject: share.principalId,
+      policy: share.policy,
+      action: eventType === "access.connection.granted" ? "grant" : "revoke",
+      kind: "share",
+    },
+  });
 }
 
 export async function revokeSharesForSession(
@@ -262,24 +291,12 @@ export async function revokeLocalShare(
     await assertAccessCapability(tomb, "manage_grants");
   }
   const removed = await dropShare(tomb, id);
-  if (removed.resourceKind === "connection") {
-    await recordAccessAuditEvent(tomb, {
-      eventType: "access.connection.revoked",
-      outcome: "succeeded",
-      targetType: "connection",
-      targetId: removed.resourceId,
-      metadata: {
-        providerId: removed.resourceId,
-        resourceType: "connection",
-        resourceId: removed.resourceId,
-        // Whose grant was taken away, so a standing grant for that principal
-        // is not re-issued behind the person who revoked it.
-        subject: removed.principalId,
-        action: "revoke",
-        kind: "share",
-      },
-    });
-  }
+  if (removed.resourceKind === "connection")
+    await recordConnectionShareEvent(
+      tomb,
+      "access.connection.revoked",
+      removed,
+    );
   return listLocalShares(tomb);
 }
 

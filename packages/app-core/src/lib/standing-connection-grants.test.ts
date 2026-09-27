@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { LocalAccessAuditEvent } from "./local-access-audit.js";
 import { standingConnectionRevoked } from "./standing-connection-grants.js";
 
+/** The two trail fields the rule reads; an event may carry either, both, or none. */
+type TrailFields = { subject?: string; policy?: string };
+
 let seq = 0;
 function event(
   eventType: "access.connection.granted" | "access.connection.revoked",
   targetId: string,
-  subject?: string,
+  metadata: TrailFields = {},
 ): LocalAccessAuditEvent {
   seq += 1;
   return {
@@ -17,34 +20,63 @@ function event(
     correlationId: `corr-${seq}`,
     targetType: "connection",
     targetId,
-    metadata: subject === undefined ? {} : { subject },
+    metadata,
   };
 }
 
+const agentUse = { resourceId: "github", principalId: "agent", policy: "use" };
+
 describe("standingConnectionRevoked", () => {
   it("is false with no grant or revoke on the trail", () => {
-    expect(standingConnectionRevoked([], "github", "owner")).toBe(false);
+    expect(standingConnectionRevoked([], agentUse)).toBe(false);
   });
 
-  it("holds a revocation for its own principal only", () => {
-    const trail = [event("access.connection.revoked", "github", "agent")];
-    expect(standingConnectionRevoked(trail, "github", "agent")).toBe(true);
-    expect(standingConnectionRevoked(trail, "github", "owner")).toBe(false);
-    expect(standingConnectionRevoked(trail, "slack", "agent")).toBe(false);
+  it("holds a revocation for its own connector, principal and policy only", () => {
+    const trail = [
+      event("access.connection.revoked", "github", {
+        subject: "agent",
+        policy: "use",
+      }),
+    ];
+    expect(standingConnectionRevoked(trail, agentUse)).toBe(true);
+    expect(
+      standingConnectionRevoked(trail, { ...agentUse, principalId: "owner" }),
+    ).toBe(false);
+    expect(
+      standingConnectionRevoked(trail, { ...agentUse, policy: "invoke" }),
+    ).toBe(false);
+    expect(
+      standingConnectionRevoked(trail, { ...agentUse, resourceId: "slack" }),
+    ).toBe(false);
   });
 
   it("lets a newer grant for the principal supersede an older revocation", () => {
     // Newest first, as listAccessAuditEvents returns the trail.
     const trail = [
-      event("access.connection.granted", "github", "owner"),
-      event("access.connection.revoked", "github", "owner"),
+      event("access.connection.granted", "github", {
+        subject: "agent",
+        policy: "use",
+      }),
+      event("access.connection.revoked", "github", {
+        subject: "agent",
+        policy: "use",
+      }),
     ];
-    expect(standingConnectionRevoked(trail, "github", "owner")).toBe(false);
+    expect(standingConnectionRevoked(trail, agentUse)).toBe(false);
   });
 
-  it("reads a revocation that names no principal as covering every principal", () => {
+  it("ignores an event that names no principal, as it was read when written", () => {
     const trail = [event("access.connection.revoked", "github")];
-    expect(standingConnectionRevoked(trail, "github", "owner")).toBe(true);
-    expect(standingConnectionRevoked(trail, "github", "agent")).toBe(true);
+    expect(standingConnectionRevoked(trail, agentUse)).toBe(false);
+  });
+
+  it("counts an event that names a principal but no policy for every policy", () => {
+    const trail = [
+      event("access.connection.revoked", "github", { subject: "agent" }),
+    ];
+    expect(standingConnectionRevoked(trail, agentUse)).toBe(true);
+    expect(
+      standingConnectionRevoked(trail, { ...agentUse, policy: "invoke" }),
+    ).toBe(true);
   });
 });

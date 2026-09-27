@@ -124,7 +124,8 @@ async function ensureConnectorShares(
     const grants: [string, string][] = [[SUPPORT_AGENT_ID, "use"]];
     if (ownerId) grants.unshift([ownerId, "invoke"]);
     for (const [principalId, policy] of grants) {
-      if (standingConnectionRevoked(trail, providerId, principalId)) continue;
+      const grant = { resourceId: providerId, principalId, policy };
+      if (standingConnectionRevoked(trail, grant)) continue;
       await ensureLocalShare(tomb, {
         principalId,
         resourceKind: "connection",
