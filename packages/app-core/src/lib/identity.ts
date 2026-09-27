@@ -28,7 +28,6 @@ import {
   remoteIdentityApi,
   resolveIdentityBase,
 } from "./device-identity.js";
-import { localNetworkFetch } from "./local-network-fetch.js";
 import {
   type FailureClass,
   classifyResponse,
@@ -513,27 +512,6 @@ function restoreSessionDefault(next: IdentitySession): void {
 
 export type HealthState = "unknown" | "reachable" | "unreachable";
 
-/** True when Host API is the daemon's `/host` Serve proxy (paired node). */
-export function hostRoutedViaDaemon(
-  hostApi: string,
-  daemonApi: string,
-): boolean {
-  const host = hostApi.trim().replace(/\/$/, "");
-  const daemon = daemonApi.trim().replace(/\/$/, "");
-  if (!host || !daemon) return false;
-  if (host === `${daemon}/host`) return true;
-  try {
-    const hostUrl = new URL(host);
-    const daemonUrl = new URL(daemon);
-    return (
-      hostUrl.origin === daemonUrl.origin &&
-      hostUrl.pathname.replace(/\/$/, "") === "/host"
-    );
-  } catch {
-    return false;
-  }
-}
-
 /** A probe result that says *why*, for the connectivity monitor. */
 export type ProbeResult = {
   health: HealthState;
@@ -578,84 +556,6 @@ async function probeIdentityDefault(): Promise<HealthState> {
   return (await probeIdentityDetailed()).health;
 }
 
-/**
- * Host plane reachability for the connectivity bar.
- *
- * Prefer a direct Host API health check. When Settings point Host at the paired
- * daemon's `/host` proxy, a live daemon counts as Host reachable — connecting
- * the node must flip the indicator even if gateway isn't on the upstream port.
- */
-const HOST_HEALTH_PATHS = ["/api/v1/health", "/health/live"] as const;
-
-/**
- * Which health path this Host answered on last time.
- *
- * A gateway serves one of the two and 404s the other, so trying them in a
- * fixed order doubles every probe against half of them — and under a polling
- * cadence that is a permanent tax. Remember the winner and lead with it.
- */
-let hostHealthPath: string | null = null;
-
-export function resetHostHealthPathForTests(): void {
-  hostHealthPath = null;
-}
-
-export async function probeHostDetailed(): Promise<ProbeResult> {
-  const base = hostBase();
-  if (!base) return { health: "unreachable", failure: null };
-  const daemon = loadSettings().daemonApi.trim();
-  const viaDaemon = Boolean(daemon && hostRoutedViaDaemon(base, daemon));
-
-  const direct = (async (): Promise<ProbeResult> => {
-    // When Host is daemon-proxied, don't wait long on a dead upstream port.
-    const timeoutMs = viaDaemon ? 2000 : PROBE_MS;
-    const ordered = hostHealthPath
-      ? [
-          hostHealthPath,
-          ...HOST_HEALTH_PATHS.filter((p) => p !== hostHealthPath),
-        ]
-      : [...HOST_HEALTH_PATHS];
-    let failure: FailureClass | null = null;
-    for (const path of ordered) {
-      try {
-        const res = await localNetworkFetch(`${base}${path}`, {
-          credentials: "omit",
-          timeoutMs,
-        });
-        if (res.ok) {
-          hostHealthPath = path;
-          return { health: "reachable", failure: null };
-        }
-        // A 404 here just means the other path is the right one; keep the
-        // first *meaningful* refusal instead.
-        if (res.status !== 404) failure = classifyResponse(res.status);
-      } catch (error) {
-        // Deliberately *not* breaking out here. A thrown error looks like "the
-        // origin is down", but a CORS policy that covers one route and not the
-        // other throws exactly the same way — so the second path still has to
-        // be tried. Costs a doubled request while Host is genuinely down; the
-        // degraded cadence backs off, so it stays cheap.
-        const thrown =
-          error instanceof DOMException || error instanceof Error
-            ? error
-            : String(error);
-        failure = classifyThrown(thrown);
-      }
-    }
-    return {
-      health: "unreachable",
-      failure: failure ?? "not-opensesame",
-    };
-  })();
-
-  // Daemon liveness does not prove the proxied Host is reachable.
-  return direct;
-}
-
-async function probeHostDefault(): Promise<HealthState> {
-  return (await probeHostDetailed()).health;
-}
-
 export const identitySeams = {
   hostFetch: hostFetchDefault,
   endSession: endSessionDefault,
@@ -671,7 +571,6 @@ export const identitySeams = {
   connectProvisional: connectProvisionalDefault,
   adoptToken: adoptTokenDefault,
   probeIdentity: probeIdentityDefault,
-  probeHost: probeHostDefault,
   fetchPrincipal: fetchPrincipalDefault,
   restoreSession: restoreSessionDefault,
 };
@@ -733,9 +632,6 @@ export async function adoptToken(accessToken: string): Promise<void> {
 }
 export async function probeIdentity(): Promise<HealthState> {
   return identitySeams.probeIdentity();
-}
-export async function probeHost(): Promise<HealthState> {
-  return identitySeams.probeHost();
 }
 export async function fetchPrincipal(): Promise<Principal> {
   return identitySeams.fetchPrincipal();

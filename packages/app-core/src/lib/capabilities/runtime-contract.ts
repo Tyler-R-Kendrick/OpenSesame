@@ -184,6 +184,18 @@ export type CommandAssistContribution = Readonly<{
   Voice?: ComponentType<CommandVoiceProps>;
 }>;
 
+/**
+ * A key a capability adds to the vault path strip's command group, after
+ * New item: an icon key with its own accessible name, and whatever sheet it
+ * opens. Import is one — the capability that reads other managers' files
+ * owns the key that picks one (ADR 0130).
+ */
+export type VaultCommandContribution = Readonly<{
+  id: string;
+  order: number;
+  Command: ComponentType;
+}>;
+
 export type BackgroundJobContribution = Readonly<{
   id: string;
   start: (signal: AbortSignal) => void;
@@ -235,6 +247,7 @@ export type ContributionEntryMap = {
   "secret-share": SecretShareContribution;
   "item-draft-assist": DraftAssistContribution;
   "command-assist": CommandAssistContribution;
+  "vault-command": VaultCommandContribution;
 };
 
 export type ContributionEntry<K extends ContributionKind> =
@@ -292,7 +305,11 @@ export type CapabilityDenialCode =
   | "STALE_LEASE"
   | "LEASE_UNBOUND"
   | "INVALID_MODULE"
-  | "NOT_RESOLVED";
+  | "NOT_RESOLVED"
+  /** No live registration of the current generation vouches for the call. */
+  | "NOT_REGISTERED"
+  /** Cross-context admission could not be serialized (no Web Locks). */
+  | "NO_SERIALIZATION";
 
 /** Thrown before any handler import when authority is missing or stale. */
 export class CapabilityDenied extends Error {

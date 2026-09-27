@@ -1507,12 +1507,16 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-capabilities.ts:transportCapabilities",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so there is nothing for it to discover; the Transport panel reports per-target status instead",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1968,12 +1972,20 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame connect attach",
-      "pwa": "lib/connections.ts:bindConnection",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_open_connect_ceremony"
+      "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA writes no Host binding; who may use a connector there is a local share of kind connection (connectors.bind)",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA writes no Host binding; who may use a connector there is a local share of kind connection (connectors.bind)",
+        "adr": "0128-pages-without-host.md"
+      },
       "mcp_host": {
         "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
         "adr": "0065-agent-surface-parity.md"
@@ -2167,10 +2179,10 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame config keys",
-      "pwa": "route:/settings",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_settings_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_client": {
@@ -2180,6 +2192,14 @@
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "pwa": {
+        "reason": "Host secret configs have no Pages equivalent; the Pages PWA speaks to no Host, so the panel went away and nothing there lists or writes a config",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "Host secret configs have no Pages equivalent; the Pages PWA speaks to no Host, so the panel went away and nothing there lists or writes a config",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -2209,7 +2229,7 @@
     "kind": "act",
     "surfaces": {
       "cli": "opensesame config set",
-      "pwa": "route:/settings",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -2219,9 +2239,13 @@
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
       },
+      "pwa": {
+        "reason": "Host secret configs have no Pages equivalent; the Pages PWA speaks to no Host, so the panel went away and nothing there lists or writes a config",
+        "adr": "0128-pages-without-host.md"
+      },
       "webmcp": {
-        "reason": "secret value entry stays in the human settings UI",
-        "adr": "0065-agent-surface-parity.md"
+        "reason": "Host secret configs have no Pages equivalent; the Pages PWA speaks to no Host, so the panel went away and nothing there lists or writes a config",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -2295,56 +2319,6 @@
       "mcp_host": "sync_pull",
       "mcp_client": "sync_pull",
       "webmcp": null
-    }
-  },
-  {
-    "id": "sync_targets.read",
-    "title": "Read replication sync targets",
-    "plane": "host",
-    "kind": "read",
-    "surfaces": {
-      "cli": null,
-      "pwa": "route:/settings",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": "opensesame_settings_read"
-    },
-    "excluded": {
-      "mcp_client": {
-        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
-        "adr": "0099-scoped-local-agent-authority.md"
-      },
-      "mcp_host": {
-        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
-        "adr": "0099-scoped-local-agent-authority.md"
-      }
-    }
-  },
-  {
-    "id": "sync_targets.trigger",
-    "title": "Trigger a sync-target replication run",
-    "plane": "host",
-    "kind": "act",
-    "surfaces": {
-      "cli": null,
-      "pwa": "route:/settings",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": null
-    },
-    "excluded": {
-      "mcp_host": {
-        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "mcp_client": {
-        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "webmcp": {
-        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
-        "adr": "0065-agent-surface-parity.md"
-      }
     }
   },
   {
@@ -2641,7 +2615,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/host-authorization.ts:authenticateBrowser",
+      "pwa": "lib/join/client.ts:verifyAt",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -2695,12 +2669,16 @@
     "kind": "act",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/browser-pairing.ts:revokeBrowserPairing",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA keeps no Host grant or fetch machinery; Host project permissions and paired-client revocation stay with the Host's own surfaces",
+        "adr": "0128-pages-without-host.md"
+      },
       "mcp_host": {
         "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
         "adr": "0094-browser-local-authority.md"
@@ -2857,12 +2835,16 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/secret-config-access.ts:loadConfigAccess",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA keeps no Host grant or fetch machinery; Host project permissions and paired-client revocation stay with the Host's own surfaces",
+        "adr": "0128-pages-without-host.md"
+      },
       "mcp_host": {
         "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
         "adr": "0098-secret-metadata-authorization.md"
@@ -3131,45 +3113,57 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "route:/settings",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_settings_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
   {
     "id": "backup.status",
-    "title": "Read server-side backup posture",
+    "title": "Read vault backup posture",
     "plane": "host",
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "route:/settings",
+      "pwa": "lib/backup.ts:getBackupStatus",
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": "opensesame_settings_read"
+      "webmcp": null
     },
     "excluded": {
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
       }
     }
   },
   {
     "id": "backup.target.set",
-    "title": "Configure the server-side backup target",
+    "title": "Configure the vault backup target",
     "plane": "host",
     "kind": "admin",
     "surfaces": {
       "cli": null,
-      "pwa": "route:/settings",
+      "pwa": "lib/backup.ts:putBackupTarget",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -3186,6 +3180,68 @@
       "webmcp": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "sync_targets.read",
+    "title": "Read replication sync targets",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "pwa": {
+        "reason": "Host sync targets have no Pages equivalent; the Pages PWA speaks to no Host, so nothing there lists a replication target or triggers a run (its own git backup is backup.*)",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "Host sync targets have no Pages equivalent; the Pages PWA speaks to no Host, so nothing there lists a replication target or triggers a run (its own git backup is backup.*)",
+        "adr": "0128-pages-without-host.md"
+      }
+    }
+  },
+  {
+    "id": "sync_targets.trigger",
+    "title": "Trigger a sync-target replication run",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "pwa": {
+        "reason": "Host sync targets have no Pages equivalent; the Pages PWA speaks to no Host, so nothing there lists a replication target or triggers a run (its own git backup is backup.*)",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "Host sync targets have no Pages equivalent; the Pages PWA speaks to no Host, so nothing there lists a replication target or triggers a run (its own git backup is backup.*)",
+        "adr": "0128-pages-without-host.md"
       }
     }
   },
@@ -4705,6 +4761,141 @@
     }
   },
   {
+    "id": "vault.import",
+    "title": "Import another manager's export, or restore an encrypted backup, into the vault",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/import/merge.ts:planMerge",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      },
+      "mcp_client": {
+        "reason": "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      },
+      "webmcp": {
+        "reason": "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      }
+    }
+  },
+  {
+    "id": "vault.export",
+    "title": "Export the vault as an encrypted backup file",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/offline-backup-file.ts:offlineBackupFile",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.store_manifest.export",
+    "title": "Save the vault as a store path manifest for opensesame pass seal (plain text)",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/store-sync.ts:vaultItemToEntry",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.store_manifest.import",
+    "title": "Merge a store path manifest into the vault by store path",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/store-sync.ts:planManifestMerge",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      },
+      "mcp_client": {
+        "reason": "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      },
+      "webmcp": {
+        "reason": "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
+        "adr": "0052-password-manager-ecosystem-bridging.md"
+      }
+    }
+  },
+  {
+    "id": "vault.sample_data",
+    "title": "Load badged sample items into the vault, or remove them all",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/sample.ts:buildSample",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "webmcp": {
+        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
     "id": "vaults.travel",
     "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
     "plane": "client_local",
@@ -5142,25 +5333,6 @@
       "webmcp": {
         "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
         "adr": "0087-vault-item-type-plugins.md"
-      }
-    }
-  },
-  {
-    "id": "vault.export",
-    "title": "Export/backup the vault (plaintext-capable)",
-    "plane": "client_local",
-    "kind": "ceremony",
-    "surfaces": {
-      "cli": null,
-      "pwa": "route:/settings",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": null
-    },
-    "excluded": {
-      "webmcp": {
-        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
-        "adr": "0005-authority-handle-connectionref.md"
       }
     }
   },

@@ -10,24 +10,25 @@ Ports: Host API **8787**, Identity API **8788**, Daemon **18790**.
 ## Install
 
 ```bash
-# Host CLI + daemon
-cargo build -p opensesame-cli -p opensesame-daemon
-./target/debug/opensesame daemon install   # copies binary to ~/.local/bin when present
+# Host CLI: one native binary; the daemon, Host API and worker are its roles (ADR 0138)
+cargo build -p opensesame-cli
+./target/debug/opensesame daemon install   # prints how to run the daemon (no files copied)
 
-# Client / identity CLI
+# Client / identity CLI (TypeScript, run through tsx; no build step)
 pnpm install
-pnpm --filter @opensesame/cli build
+pnpm --filter @opensesame/cli start -- --help
 ```
 
 ## Configure
 
 ```bash
-# Both CLIs read the same names (spec/config/endpoints.json)
-export OPENSESAME_HOST_API=http://127.0.0.1:8787
-export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
-export OPENSESAME_IDENTITY_API=http://127.0.0.1:8788
-export OPENSESAME_ISSUER=http://127.0.0.1:8788          # OIDC issuer (client CLI)
-export OPENSESAME_ENV=development                       # or set OPENSESAME_CLAIM_PEPPER
+# Endpoint names are shared (spec/config/endpoints.json)
+export OPENSESAME_HOST_API=http://127.0.0.1:8787       # both CLIs (--server / --host)
+export OPENSESAME_DAEMON_API=http://127.0.0.1:18790    # opensesame daemon … (--url)
+export OPENSESAME_IDENTITY_API=http://127.0.0.1:8788   # client CLI (--api)
+export OPENSESAME_ISSUER=http://127.0.0.1:8788         # OIDC issuer (client CLI, --issuer)
+export OPENSESAME_OPERATOR_TOKEN=…                     # daemon operator routes; keep it out of argv
+export OPENSESAME_ENV=development                      # Identity API dev defaults (or OPENSESAME_CLAIM_PEPPER)
 ```
 
 ## Init
@@ -50,7 +51,7 @@ pnpm --filter @opensesame/control-plane start   # :8788
 ./target/debug/opensesame dev check --schema tests/fixtures/demo.env.schema
 ./target/debug/opensesame dev resolve --mode agent --schema tests/fixtures/demo.env.schema
 ./target/debug/opensesame daemon approve-device --user-code ABCD-EFGH
-./target/debug/opensesame daemon approve-claim --claim-id clm_…
+OPENSESAME_CLAIM_TOKEN=osc_clm_… ./target/debug/opensesame daemon approve-claim --claim-id clm_…
 
 # Connectors (Vercel-shaped: service/name). `connect token` prints a ConnectionRef, never a provider secret.
 ./target/debug/opensesame connect create github --help

@@ -1,34 +1,31 @@
 /**
  * GitHub App installation snapshot for the connector page: who the install
  * is, which repos it can see, and the Access grant that may use it.
+ *
+ * The grant is a local share of kind `connection` and nothing else — the one
+ * ledger Access reads and revokes (ADR 0115). Pages writes no Host binding
+ * (ADR 0128).
  */
 
 import type { JsonObject } from "@opensesame/os-domain";
 import { type GithubInstallation, listGithubInstallations } from "./backup.js";
 import {
   type Connection,
-  type ConnectionEvent,
   type Integration,
-  bindConnection,
-  connectionEvents,
-  listConnections,
   listIntegrations,
-  unbindConnection,
 } from "./connections.js";
 import { type GithubRepoSummary, listGithubRepos } from "./github-history.js";
-import { isGuestSession, isGuestTomb } from "./guest-isolation.js";
+import { isGuestSession } from "./guest-isolation.js";
 import {
   type LocalAccessAuditEvent,
   listAccessAuditEvents,
   recordAccessAuditEvent,
-  sanitizeConnectionEvents,
 } from "./local-access-audit.js";
 import { readLocalDirectory } from "./local-directory.js";
 import {
   type LocalShare,
   ensureLocalShare,
   listLocalShares,
-  revokeLocalShare,
 } from "./local-share-grants.js";
 
 export const GITHUB_PROVIDER_ID = "github";
@@ -39,8 +36,6 @@ export type GithubInstallationSnapshot = {
   installations: GithubInstallation[];
   repos: GithubRepoSummary[];
   shares: LocalShare[];
-  /** Host connection events with free-text detail scrubbed (no SII/PII). */
-  events: ConnectionEvent[];
   /** Sealed Access audit trail — allowlisted metadata only (ADR 0015). */
   auditEvents: LocalAccessAuditEvent[];
 };
@@ -80,11 +75,10 @@ const EMPTY_SNAPSHOT: GithubInstallationSnapshot = {
   installations: [],
   repos: [],
   shares: [],
-  events: [],
   auditEvents: [],
 };
 
-/** Load install identity, repos (when a connection is active), Access grants, events. */
+/** Load install identity, repos (when a connection is active), Access grants and their audit trail. */
 export async function loadGithubInstallationSnapshot(
   tomb: string,
   connection: Connection | null,
@@ -104,19 +98,14 @@ export async function loadGithubInstallationSnapshot(
       ? await listGithubRepos(connection.connectionId).catch(() => [])
       : [];
   const shares = githubShares(await listLocalShares(tomb));
-  const events =
-    connection !== null
-      ? sanitizeConnectionEvents(
-          await connectionEvents(connection.connectionId).catch(() => []),
-        )
-      : [];
   const auditEvents = await listAccessAuditEvents(tomb).catch(() => []);
-  return { integrations, installations, repos, shares, events, auditEvents };
+  return { integrations, installations, repos, shares, auditEvents };
 }
 
 /**
- * Standing Access grant so the vault owner may invoke GitHub, plus a Host
- * binding when a live connection exists (records a `bound` connection event).
+ * Standing Access grant so the vault owner may invoke GitHub: one local share
+ * of kind `connection`, audited the first time it is issued. Revoking it is
+ * Access's ordinary share revocation (`revokeLocalShare`).
  */
 export async function ensureGithubAccessGrant(
   tomb: string,
@@ -156,35 +145,6 @@ export async function ensureGithubAccessGrant(
       metadata: grantMetadata,
     });
   }
-  if (connection?.status === "active") {
-    const already = connection.bindings.some(
-      (binding) =>
-        binding.targetKind === "identity" && binding.targetId === owner.id,
-    );
-    if (!already) {
-      await bindConnection(connection.connectionId, {
-        targetKind: "identity",
-        targetId: owner.id,
-        targetLabel: owner.name,
-      })
-        .then(async () => {
-          await recordAccessAuditEvent(tomb, {
-            eventType: "connection.binding.bound",
-            outcome: "succeeded",
-            targetType: "connection",
-            targetId: GITHUB_PROVIDER_ID,
-            metadata: {
-              providerId: GITHUB_PROVIDER_ID,
-              connectionId: connection.connectionId,
-              subjectKind: "identity",
-              action: "bind",
-              kind: "binding",
-            },
-          });
-        })
-        .catch(() => undefined);
-    }
-  }
   return githubShares(await listLocalShares(tomb));
 }
 
@@ -194,77 +154,19 @@ export function shouldEnsureGithubAccessGrant(
   connection: Connection | null,
 ): boolean {
   if (snapshot.shares.length > 0) return false;
-  const last = snapshot.events.find(
-    (event) => event.kind === "bound" || event.kind === "unbound",
+  // A person who revoked the grant in Access decided; the card does not
+  // re-issue it behind their back. The trail is newest first.
+  const last = snapshot.auditEvents.find(
+    (event) =>
+      event.targetType === "connection" &&
+      event.targetId === GITHUB_PROVIDER_ID &&
+      (event.eventType === "access.connection.granted" ||
+        event.eventType === "access.connection.revoked"),
   );
-  if (last?.kind === "unbound") return false;
+  if (last?.eventType === "access.connection.revoked") return false;
   return (
     connection?.status === "active" ||
     snapshot.integrations.length > 0 ||
     snapshot.installations.length > 0
   );
-}
-
-/** Revoke the Access grant and any matching Host identity binding. */
-export async function revokeGithubAccessGrant(
-  tomb: string,
-  shareId: string,
-  connection: Connection | null,
-): Promise<LocalShare[]> {
-  if (isGuestSession() && !isGuestTomb(tomb)) {
-    throw new Error(
-      "Guests cannot revoke member GitHub Access grants. Continue in a member vault, or end the guest session.",
-    );
-  }
-  const before = (await listLocalShares(tomb)).find(
-    (share) => share.id === shareId,
-  );
-  await revokeLocalShare(tomb, shareId);
-  if (before) {
-    const revokeMetadata: JsonObject = {
-      providerId: GITHUB_PROVIDER_ID,
-      resourceType: "connection",
-      resourceId: GITHUB_PROVIDER_ID,
-      action: "revoke",
-      kind: "share",
-    };
-    if (connection) revokeMetadata.connectionId = connection.connectionId;
-    await recordAccessAuditEvent(tomb, {
-      eventType: "access.connection.revoked",
-      outcome: "succeeded",
-      targetType: "connection",
-      targetId: GITHUB_PROVIDER_ID,
-      metadata: revokeMetadata,
-    });
-  }
-  if (connection && before) {
-    const live =
-      (await listConnections().catch(() => [])).find(
-        (row) => row.connectionId === connection.connectionId,
-      ) ?? connection;
-    const binding = live.bindings.find(
-      (row) =>
-        row.targetKind === "identity" && row.targetId === before.principalId,
-    );
-    if (binding) {
-      await unbindConnection(live.connectionId, binding.id)
-        .then(async () => {
-          await recordAccessAuditEvent(tomb, {
-            eventType: "connection.binding.unbound",
-            outcome: "succeeded",
-            targetType: "connection",
-            targetId: GITHUB_PROVIDER_ID,
-            metadata: {
-              providerId: GITHUB_PROVIDER_ID,
-              connectionId: live.connectionId,
-              subjectKind: "identity",
-              action: "unbind",
-              kind: "binding",
-            },
-          });
-        })
-        .catch(() => undefined);
-    }
-  }
-  return githubShares(await listLocalShares(tomb));
 }

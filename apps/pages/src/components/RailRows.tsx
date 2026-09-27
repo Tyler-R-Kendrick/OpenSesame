@@ -37,19 +37,6 @@ export type SectionRowModel = Readonly<{
 }>;
 
 /**
- * What a legacy section tree that draws its own `SectionRow` takes
- * (`ConnectionsTree`, `AccessTree`, `IdentityTree`, kept for their tests).
- * The shell itself hands a contributed `Tree` only `TreeProps`.
- */
-export type SectionTreeProps = Readonly<{
-  section: SectionRowModel;
-  open: boolean;
-  active: boolean;
-  onToggle: () => void;
-  pathname: string;
-}>;
-
-/**
  * The directories the core shell always has. Everything else — connections,
  * access, identity, wallet, activity — is a `section` contribution from the
  * capability that owns it, present only while that capability is in the plan.

@@ -1,0 +1,387 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/resend"
+        },
+        {
+          "count": [
+            "#connect-transport",
+            "#connect-transport input",
+            "button[aria-label='Forget Vercel Connect']"
+          ]
+        },
+        {
+          "fill": {
+            "label": "Vercel access token",
+            "text": "made-up-evidence-token-0000"
+          }
+        },
+        {
+          "fill": {
+            "label": "Team ID",
+            "text": "team_evidence_example"
+          }
+        },
+        {
+          "press": "Seal in vault"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            "#connect-transport",
+            "#connect-transport input",
+            "button[aria-label='Forget Vercel Connect']"
+          ]
+        },
+        {
+          "measure": "#connect-transport"
+        },
+        {
+          "measure": "#connect-transport .panel__head h2"
+        },
+        {
+          "measure": "button[aria-label='Forget Vercel Connect']"
+        },
+        {
+          "tapMarkNamed": "Vercel Connect is ready on this device."
+        },
+        {
+          "bubble": null
+        },
+        {
+          "shot": "1280-held"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressNamedOptional": "Forget Vercel Connect"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            "#connect-transport",
+            "#connect-transport input",
+            "button[aria-label='Forget Vercel Connect']"
+          ]
+        },
+        {
+          "measure": "#connect-transport"
+        },
+        {
+          "tapMarkNamed": [
+            "Vercel Connect is forgotten on this device.",
+            "Vercel Connect is ready on this device."
+          ]
+        },
+        {
+          "bubble": null
+        },
+        {
+          "shot": "1280-forgotten"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/resend"
+        },
+        {
+          "count": [
+            "#connect-transport",
+            "#connect-transport input",
+            "button[aria-label='Forget Vercel Connect']"
+          ]
+        },
+        {
+          "fill": {
+            "label": "Vercel access token",
+            "text": "made-up-evidence-token-0000"
+          }
+        },
+        {
+          "fill": {
+            "label": "Team ID",
+            "text": "team_evidence_example"
+          }
+        },
+        {
+          "press": "Seal in vault"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            "#connect-transport",
+            "#connect-transport input",
+            "button[aria-label='Forget Vercel Connect']"
+          ]
+        },
+        {
+          "measure": "#connect-transport"
+        },
+        {
+          "measure": "#connect-transport .panel__head h2"
+        },
+        {
+          "measure": "button[aria-label='Forget Vercel Connect']"
+        },
+        {
+          "tapMarkNamed": "Vercel Connect is ready on this device."
+        },
+        {
+          "bubble": null
+        },
+        {
+          "shot": "390-held"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressNamedOptional": "Forget Vercel Connect"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            "#connect-transport",
+            "#connect-transport input",
+            "button[aria-label='Forget Vercel Connect']"
+          ]
+        },
+        {
+          "measure": "#connect-transport"
+        },
+        {
+          "tapMarkNamed": [
+            "Vercel Connect is forgotten on this device.",
+            "Vercel Connect is ready on this device."
+          ]
+        },
+        {
+          "bubble": null
+        },
+        {
+          "shot": "390-forgotten"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "invoke/totp?user_code=AB"
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            "button[aria-label='Notifications — 1 pending']",
+            "button[aria-label='Notifications — none']",
+            ".topbar__more.is-attn",
+            ".topbar__more"
+          ]
+        },
+        {
+          "shot": "1280-invoke-refused"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "visit": "invoke/mfa?user_code=abcd-1234"
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "address": null
+        },
+        {
+          "count": [
+            "button[aria-label='Notifications — 1 pending']",
+            "button[aria-label='Notifications — none']",
+            ".topbar__more.is-attn",
+            ".topbar__more"
+          ]
+        },
+        {
+          "shot": "1280-invoke-handoff"
+        },
+        {
+          "press": "^Notifications —"
+        },
+        {
+          "report": ".sheet .sheet__body"
+        },
+        {
+          "shot": "1280-invoke-tray"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "invoke/totp?user_code=AB"
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            "button[aria-label='Notifications — 1 pending']",
+            "button[aria-label='Notifications — none']",
+            ".topbar__more.is-attn",
+            ".topbar__more"
+          ]
+        },
+        {
+          "shot": "390-invoke-refused"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "visit": "invoke/mfa?user_code=abcd-1234"
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "marks": null
+        },
+        {
+          "address": null
+        },
+        {
+          "count": [
+            "button[aria-label='Notifications — 1 pending']",
+            "button[aria-label='Notifications — none']",
+            ".topbar__more.is-attn",
+            ".topbar__more"
+          ]
+        },
+        {
+          "shot": "390-invoke-handoff"
+        },
+        {
+          "press": "^More —"
+        },
+        {
+          "report": ".sheet .sheet__body"
+        },
+        {
+          "shot": "390-invoke-tray"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-held",
+      "width": 1280,
+      "title": "Resend, Vercel Connect sealed — 1280 × 900",
+      "caption": "A made-up Vercel token and team sealed from the Vercel Connect panel. Before, the panel vanished once a credential was held: nothing on the page could take it back. After, the panel stays as its head alone, carrying the one key that forgets it.",
+      "before": "#connect-transport: 0 panels, no forget key",
+      "after": "panel head 960×40 @280,221; Forget Vercel Connect key 24×24 @1216,223"
+    },
+    {
+      "shot": "390-held",
+      "width": 390,
+      "title": "Resend, Vercel Connect sealed — 390 × 844",
+      "caption": "The same walk on a phone: the forget key sits on the panel head at the touch floor.",
+      "before": "#connect-transport: 0 panels, no forget key",
+      "after": "panel head 358×56 @16,309; Forget Vercel Connect key 44×44 @330,309"
+    },
+    {
+      "shot": "1280-forgotten",
+      "width": 1280,
+      "title": "After pressing Forget — 1280 × 900",
+      "caption": "The flash's bubble is opened by tapping its mark. Before there was no key to press, so the page still says Connect is ready. After, the credential is forgotten and the form asks again.",
+      "before": "no key to press; flash still \"Vercel Connect is ready on this device.\"",
+      "after": "flash \"Vercel Connect is forgotten on this device.\"; panel 960×283 with 3 inputs; forget key gone"
+    },
+    {
+      "shot": "390-forgotten",
+      "width": 390,
+      "title": "After pressing Forget — 390 × 844",
+      "caption": "The same on a phone.",
+      "before": "no key to press; flash still \"Vercel Connect is ready on this device.\"",
+      "after": "flash \"Vercel Connect is forgotten on this device.\"; panel 358×407 with 3 inputs; forget key gone"
+    },
+    {
+      "shot": "1280-invoke-refused",
+      "width": 1280,
+      "title": "/invoke/totp?user_code=AB, refused — 1280 × 900",
+      "caption": "The first link, as a guest: refused in both builds, with the same words on the mark and a notice in the tray. This pair is identical on purpose. It is the state the next link starts from.",
+      "before": "\"Unknown authenticator request.\"; bell \"Notifications — 1 pending\"",
+      "after": "\"Unknown authenticator request.\"; bell \"Notifications — 1 pending\""
+    },
+    {
+      "shot": "1280-invoke-tray",
+      "width": 1280,
+      "title": "Then /invoke/mfa?user_code=abcd-1234, tray open — 1280 × 900",
+      "caption": "The second link hands its code on. Before, the tray still held the first link's refusal. After, the hand-off clears it.",
+      "before": "bell \"Notifications — 1 pending\"; tray: \"OpenSesame did not open · Unknown authenticator request.\"",
+      "after": "bell \"Notifications — none\"; tray: \"Nothing waiting.\""
+    },
+    {
+      "shot": "390-invoke-handoff",
+      "width": 390,
+      "title": "The hand-off, on a phone — 390 × 844",
+      "caption": "The phone keeps the tray behind More. Before, More still carried the attention dot for a refusal nobody can act on. After, the dot is gone.",
+      "before": ".topbar__more.is-attn: 1",
+      "after": ".topbar__more.is-attn: 0"
+    },
+    {
+      "shot": "390-invoke-tray",
+      "width": 390,
+      "title": "More, opened — 390 × 844",
+      "caption": "The Notifications row inside More.",
+      "before": "Notifications 1",
+      "after": "Notifications none"
+    }
+  ]
+}

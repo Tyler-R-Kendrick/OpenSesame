@@ -1,4 +1,9 @@
-import { ADR_TAILNET_SYNC, OPS_PLANE } from "./exclusions.js";
+import {
+  ADR_TAILNET_SYNC,
+  DEFERRED,
+  OPS_PLANE,
+  PAGES_HAS_NO_SYNC_TARGETS,
+} from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
 
@@ -25,28 +30,36 @@ const DRIVE_PAIRING_HUMAN: CapabilityExclusion = {
 export const backupSyncCapabilities: readonly Capability[] = [
   {
     id: "backup.status",
-    title: "Read server-side backup posture",
+    // The Host reads its server-side target (ADR 0039); Pages reads the
+    // browser-local target that replaced it there (ADR 0128's backup road),
+    // drawn by Settings › Capabilities › Backups.
+    title: "Read vault backup posture",
     plane: "host",
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "route:/settings",
+      pwa: "lib/backup.ts:getBackupStatus",
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_settings_read",
+      webmcp: null,
     },
     excluded: {
       mcp_host: SCOPED_AGENT_ONLY,
+      // No page tool reports the backup target; `opensesame_settings_read`
+      // used to claim it and returned none of it.
+      webmcp: DEFERRED,
     },
   },
   {
     id: "backup.target.set",
-    title: "Configure the server-side backup target",
+    // In Pages: bind a git provider and repository as the browser-local
+    // target (a connector's backup form, the GitHub App repository picker).
+    title: "Configure the vault backup target",
     plane: "host",
     kind: "admin",
     surfaces: {
       cli: null,
-      pwa: "route:/settings",
+      pwa: "lib/backup.ts:putBackupTarget",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -55,6 +68,46 @@ export const backupSyncCapabilities: readonly Capability[] = [
       mcp_host: OPS_PLANE,
       mcp_client: OPS_PLANE,
       webmcp: OPS_PLANE,
+    },
+  },
+  // Host sync targets replicate the sealed store's ciphertext elsewhere
+  // (ADR 0039's family). Pages has none (ADR 0128); its own backup is above.
+  {
+    id: "sync_targets.read",
+    title: "Read replication sync targets",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_client: SCOPED_AGENT_ONLY,
+      mcp_host: SCOPED_AGENT_ONLY,
+      pwa: PAGES_HAS_NO_SYNC_TARGETS,
+      webmcp: PAGES_HAS_NO_SYNC_TARGETS,
+    },
+  },
+  {
+    id: "sync_targets.trigger",
+    title: "Trigger a sync-target replication run",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: DEFERRED,
+      mcp_client: DEFERRED,
+      pwa: PAGES_HAS_NO_SYNC_TARGETS,
+      webmcp: PAGES_HAS_NO_SYNC_TARGETS,
     },
   },
   {

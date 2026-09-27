@@ -53,7 +53,7 @@ export const CONNECTIONS_READ_TOOL: PagesWebMcpTool = {
 
 export const OPEN_CONNECT_CEREMONY_TOOL: PagesWebMcpTool = {
   name: "opensesame_open_connect_ceremony",
-  capabilityIds: ["connections.create", "connections.bindings"],
+  capabilityIds: ["connections.create"],
   scope: "session",
   description:
     "Open the connect ceremony for a provider (and optionally an existing connection) so the human can grant consent. Never completes the ceremony.",

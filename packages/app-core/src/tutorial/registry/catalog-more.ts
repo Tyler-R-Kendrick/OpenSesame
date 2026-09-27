@@ -20,14 +20,6 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.drive.sync",
   },
   {
-    id: "settings.changelog",
-    description:
-      "The in-app changelog of what this build shipped. It is a record, not a backup.",
-    role: "surface",
-    routes: ["/settings"],
-    capabilityId: "changelog.read",
-  },
-  {
     id: "settings.item-types",
     description:
       "Installs or removes a vault item type definition, from a git-repository marketplace or pasted source. Types are JSON manifests, not code paths.",
@@ -46,9 +38,9 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.export",
     description:
-      "Exports the sealed vault body plus its key-wrapping header, for moving to another device.",
+      "Opens the export sheet in the vault's path strip: one encrypted backup file of the sealed vault body plus its key-wrapping header, opened again with the master password, for moving to another device.",
     role: "ceremony",
-    routes: ["/settings"],
+    routes: ["/vault"],
     capabilityId: "vault.export",
   },
 ];

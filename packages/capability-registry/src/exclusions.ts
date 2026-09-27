@@ -60,6 +60,38 @@ export const PAGES_HAS_NO_HOST: CapabilityExclusion = {
     "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
   adr: ADR_PAGES_WITHOUT_HOST,
 };
+/**
+ * Host secret configs have no Pages equivalent: ADR 0128 names them among
+ * the Host panels whose surface went away with its tests, and nothing in
+ * Pages lists a config key or takes a config value.
+ */
+export const PAGES_HAS_NO_SECRET_CONFIGS: CapabilityExclusion = {
+  reason:
+    "Host secret configs have no Pages equivalent; the Pages PWA speaks to no Host, so the panel went away and nothing there lists or writes a config",
+  adr: ADR_PAGES_WITHOUT_HOST,
+};
+
+/**
+ * Host sync targets replicate the sealed store's ciphertext; ADR 0128 names
+ * them as having no Pages equivalent. The vault's own git backup (`backup.*`)
+ * is a different thing and stays.
+ */
+export const PAGES_HAS_NO_SYNC_TARGETS: CapabilityExclusion = {
+  reason:
+    "Host sync targets have no Pages equivalent; the Pages PWA speaks to no Host, so nothing there lists a replication target or triggers a run (its own git backup is backup.*)",
+  adr: ADR_PAGES_WITHOUT_HOST,
+};
+
+/**
+ * A Host connection binding is Host grant machinery, which Pages keeps none of
+ * (ADR 0128). In Pages, who may use a connector is a local share of kind
+ * `connection` — `connectors.bind`, the one ledger Access reads (ADR 0115).
+ */
+export const PAGES_BINDS_BY_LOCAL_SHARE: CapabilityExclusion = {
+  reason:
+    "the Pages PWA writes no Host binding; who may use a connector there is a local share of kind connection (connectors.bind)",
+  adr: ADR_PAGES_WITHOUT_HOST,
+};
 export const HUMAN_CEREMONY: CapabilityExclusion = {
   reason:
     "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",

@@ -1,7 +1,7 @@
 /**
  * Session tools, bound where the route is known.
  *
- * `webmcp/lifecycle.ts`'s `useWebMcp` did this with `useLocation` inside the
+ * The retired `useWebMcp` hook did this with `useLocation` inside the
  * shell. The shell is core now, so the binding arrives as a shell wrapper
  * this capability contributes: it renders its children unchanged and holds
  * the session scope registered for as long as it is mounted — which is

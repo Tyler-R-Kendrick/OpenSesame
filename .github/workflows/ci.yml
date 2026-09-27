@@ -69,8 +69,17 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build and measure shipped bundles
         # apps/pages precaches its whole dist for offline use, so growth here is
-        # growth in what every installing device downloads.
-        run: pnpm quality:bundle
+        # growth in what every installing device downloads. The two hardened
+        # capability profiles are built too: each build fails on an excluded
+        # module reachable from an entry (ADR 0130), and the gate measures them
+        # only when their dist-profiles directory exists.
+        run: |
+          pnpm exec turbo run build --filter=@opensesame/pages
+          for profile in minimal-local family-local; do
+            VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+              --profile "capability-profiles/$profile.json" --mode hardened
+          done
+          node scripts/quality/bundle-budget-gate.mjs
       - name: Native Chrome WebMCP discovery and control
         # Chrome's WebMCP CDP domain backs the Application pane. No polyfill;
         # unavailable native support or zero tools must fail this required job.

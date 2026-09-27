@@ -1,11 +1,10 @@
 /**
- * Organization sign-in settings (D14; ADR 0140 plan step 6): what
- * `apps/console/src/pages/OrgSignInPage.tsx` did in its component, as a
- * model. Three things an organization's owner configures and nobody else
- * can: the upstream their people sign in through (an OIDC issuer, or SAML),
- * the email domains that route work addresses to the organization, and the
- * provisioning token their directory pushes users with. Plan step 12 draws
- * it in Identity › Organizations.
+ * Organization sign-in settings (D14; ADR 0140) as a model. Three things an
+ * organization's owner configures and nobody else can: the upstream their
+ * people sign in through (an OIDC issuer, or SAML), the email domains that
+ * route work addresses to the organization, and the provisioning token their
+ * directory pushes users with. Identity › Organizations draws it
+ * (`apps/pages/src/sections/identity/org-signin/`).
  *
  * This is configuration, not a sign-in leg: nothing here starts an OIDC
  * redirect, touches the session or its exit, or speaks Shoo's dialect.

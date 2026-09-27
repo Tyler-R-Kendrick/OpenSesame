@@ -10,7 +10,9 @@ import { isNumber } from "./lib/primitive-guards.mjs";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import { runLeaseProbe } from "./lib/lease-probe.mjs";
 import { runWalB20NarrowWallet } from "./lib/wallet-b20.mjs";
+import { enterAsGuest, openWallet } from "./lib/wallet-capability.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DIST = join(root, "apps/pages/dist");
@@ -89,30 +91,8 @@ async function runPlaywrightQab() {
       }
     });
 
-    await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-    const guest = page.getByRole("button", {
-      name: "Continue as guest",
-      exact: true,
-    });
-    await guest.waitFor({ state: "visible", timeout: 20000 });
-    await guest.click();
-    await page
-      .waitForURL(
-        (url) =>
-          !url.pathname.endsWith("/OpenSesame/") &&
-          !url.pathname.endsWith("/OpenSesame"),
-        {
-          timeout: 20000,
-        },
-      )
-      .catch(() => {});
-    await page
-      .getByRole("button", { name: "Continue as guest", exact: true })
-      .waitFor({ state: "hidden", timeout: 20000 })
-      .catch(() => {});
-    await page.waitForTimeout(800);
-
-    await page.locator('a[href$="/wallet"]').first().click();
+    await enterAsGuest(page, `${ORIGIN}${BASE}`);
+    await openWallet(page, check);
     await page.waitForTimeout(800);
     const walletText = await snap(page, "QAB-01-wallet");
     check(
@@ -193,15 +173,7 @@ async function runPlaywrightQab() {
     });
 
     // Unlock first — virtual WebAuthn must not sit in front of guest seal.
-    await passesPage.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-    const guest2 = passesPage.getByRole("button", {
-      name: "Continue as guest",
-      exact: true,
-    });
-    await guest2.waitFor({ state: "visible", timeout: 20000 });
-    await guest2.click();
-    await guest2.waitFor({ state: "hidden", timeout: 20000 });
-    await passesPage.waitForTimeout(500);
+    await enterAsGuest(passesPage, `${ORIGIN}${BASE}`);
 
     // CDP virtual authenticator after unlock: presence alone must not mint spend authority.
     const cdp = await passesPage.context().newCDPSession(passesPage);
@@ -221,39 +193,39 @@ async function runPlaywrightQab() {
     );
     void authenticatorId;
 
-    await passesPage.locator('a[href$="/wallet"]').first().click();
+    await openWallet(passesPage, check);
     await passesPage.waitForTimeout(400);
     await passesPage.locator('a[href$="/wallet/passes"]').first().click();
     await passesPage
       .getByRole("heading", { name: "Spending passes", exact: true })
       .first()
       .waitFor({ state: "visible", timeout: 20000 });
-    const issueBtn = passesPage.getByRole("button", {
-      name: "Issue demo lease",
-      exact: true,
-    });
-    await issueBtn.waitFor({ state: "visible", timeout: 20000 });
-    await issueBtn.click();
-    await passesPage
-      .getByText(/assertion_replay|lease_window_invalid|Issued lease/i)
-      .waitFor({ state: "visible", timeout: 15000 });
     await passesPage.waitForTimeout(400);
     const passesText = await snap(passesPage, "WAL-B03-B05-passes");
     check(
-      /assertion_replay/i.test(passesText),
-      "WAL-B03: demo refuses assertion replay of spent verifiedBytes",
+      /No spending passes yet/i.test(passesText),
+      "WAL-B03: an attached authenticator mints no spending pass by presence alone",
+    );
+    // The panel's demo control is gone (bcd8d7c3); the product's lease module
+    // runs in this browser on the static origin instead (lib/lease-probe.mjs).
+    const probe = await runLeaseProbe(passesCtx, ORIGIN, BASE);
+    log.push({ kind: "lease-probe", detail: JSON.stringify(probe) });
+    check(
+      probe.replay === "assertion_replay",
+      "WAL-B03: lease module refuses assertion replay of spent verifiedBytes",
     );
     check(
-      /lease_window_invalid/i.test(passesText),
-      "WAL-B05: demo refuses already-expired lease window",
+      probe.expired === "lease_window_invalid",
+      "WAL-B05: lease module refuses an already-expired lease window",
     );
     check(
-      /Refused forged WebAuthn|forged WebAuthn/i.test(passesText),
+      probe.forged === "unverified_assurance" &&
+        probe.stranger === "key_not_enrolled",
       "WAL-B03: forged WebAuthn/RP assurance label refused (wrong-RP not treated as authority)",
     );
     check(
-      !/Forged assurance unexpectedly|unexpectedly accepted/i.test(passesText),
-      "WAL-B03/B05 demo did not report unexpected acceptance",
+      probe.issued === "issued" && probe.leases === 1,
+      "WAL-B03/B05 probe issued exactly the one enrolled, in-window lease",
     );
     check(b03Hits.length === 0, "WAL-B03/B05 path made no loopback requests");
     await passesCtx.close();
@@ -304,8 +276,8 @@ async function main() {
   let ok = true;
 
   const unit = run("pnpm", [
-    "--filter",
-    "@opensesame/pages",
+    "--filter=@opensesame/pages",
+    "--filter=@opensesame/app-core",
     "exec",
     "vitest",
     "run",
@@ -373,10 +345,11 @@ async function main() {
       claims.claims["WAL-B03"] = {
         status: "fixture_verified",
         reason:
-          "Playwright Wallet › Spending passes: forged WebAuthn/RP assurance refused; spent verifiedBytes replay refused (assertion_replay); CDP wrong-RP authenticator present does not mint spend authority. Not phishing-resistant RP ceremony binding.",
+          "Playwright on the static origin: with a CDP virtual authenticator attached, Wallet › Spending passes (approved through Settings › Capabilities) shows no pass; the product's lease module, run in the same browser, refuses a forged WebAuthn label (unverified_assurance), an unenrolled key (key_not_enrolled) and spent verifiedBytes replay (assertion_replay). Not phishing-resistant RP ceremony binding.",
         productionEnabled: false,
         evidenceRefs: [
           "pnpm wallet:test:browser",
+          "scripts/wallet/lib/lease-probe.mjs",
           "src/lib/spending-leases.test.ts",
           EVIDENCE_REL,
         ],
@@ -391,10 +364,11 @@ async function main() {
       claims.claims["WAL-B05"] = {
         status: "fixture_verified",
         reason:
-          "Playwright Wallet › Spending passes: expired lease window refused (lease_window_invalid); listActiveSpendingLeases withholds expired rows",
+          "Playwright on the static origin: the product's lease module, run in the browser, refuses an expired lease window (lease_window_invalid); listActiveSpendingLeases withholds expired rows",
         productionEnabled: false,
         evidenceRefs: [
           "pnpm wallet:test:browser",
+          "scripts/wallet/lib/lease-probe.mjs",
           "src/lib/spending-leases.test.ts",
           EVIDENCE_REL,
         ],

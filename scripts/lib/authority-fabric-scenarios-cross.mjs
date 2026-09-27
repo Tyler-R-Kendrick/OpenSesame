@@ -20,7 +20,7 @@ export const crossPlaneScenarios = Object.freeze([
     invariant: "INV-GA-11",
     title: "A guest is isolated whenever any vault on the device is sealed",
     target: vitest(
-      "@opensesame/pages",
+      "@opensesame/app-core",
       "src/lib/vault/store.test.ts",
       "isolates a guest whenever any vault on the device is sealed",
     ),
@@ -32,11 +32,11 @@ export const crossPlaneScenarios = Object.freeze([
     tier: "unit",
     invariant: "INV-GA-11",
     title:
-      "A guest beside a sealed vault runs in its own tomb and hands it back",
+      "A guest beside a sealed vault runs in its own tomb, never touches the sealed vault, and stays the unlock screen's account on lock",
     target: vitest(
-      "@opensesame/pages",
+      "@opensesame/app-core",
       "src/lib/vault/store.test.ts",
-      "runs a guest beside a sealed vault in its own tomb and hands the vault back on lock",
+      "runs a guest beside a sealed vault in its own tomb and keeps guest unlock on lock",
     ),
   },
 

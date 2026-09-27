@@ -57,7 +57,7 @@ function run(id, command, args, opts = {}) {
 
 run("KP-model-ts", "pnpm", [
   "--filter",
-  "@opensesame/pages",
+  "@opensesame/app-core",
   "exec",
   "vitest",
   "run",
@@ -67,7 +67,7 @@ run("KP-model-ts", "pnpm", [
 
 run("KP-cloud-adapters", "pnpm", [
   "--filter",
-  "@opensesame/pages",
+  "@opensesame/app-core",
   "exec",
   "vitest",
   "run",
@@ -76,7 +76,7 @@ run("KP-cloud-adapters", "pnpm", [
 
 run("KP-age-keys", "pnpm", [
   "--filter",
-  "@opensesame/pages",
+  "@opensesame/app-core",
   "exec",
   "vitest",
   "run",
@@ -108,7 +108,7 @@ run(
   "pnpm",
   [
     "--filter",
-    "@opensesame/pages",
+    "@opensesame/app-core",
     "exec",
     "vitest",
     "run",
@@ -129,7 +129,7 @@ run(
   "pnpm",
   [
     "--filter",
-    "@opensesame/pages",
+    "@opensesame/app-core",
     "exec",
     "vitest",
     "run",
@@ -150,7 +150,7 @@ run(
   "pnpm",
   [
     "--filter",
-    "@opensesame/pages",
+    "@opensesame/app-core",
     "exec",
     "vitest",
     "run",

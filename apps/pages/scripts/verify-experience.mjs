@@ -64,8 +64,6 @@ run("@opensesame/pages", [
   "src/sections/SettingsSection.test.tsx",
   "src/sections/settings/GeneralPrefsPanel.test.tsx",
   "src/lib/keymap.behavior.test.ts",
-  "src/sections/settings/SecretConfigsPanel.test.tsx",
-  "src/sections/settings/SecretConfigEmptyCreate.test.tsx",
 ]);
 
 const oauthArgs = [

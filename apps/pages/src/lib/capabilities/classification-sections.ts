@@ -30,6 +30,16 @@ export const SECTION_RULES = [
     "support.local-ai",
     "draft labels from the on-device model",
   ),
+  optional(
+    "src/sections/vault/import/",
+    "vault.interop-formats",
+    "the vault's Import key, its sheet and view-model",
+  ),
+  core(
+    "src/sections/vault/ExportKey",
+    "backup.local-encrypted",
+    "the vault's Export key and encrypted-backup sheet",
+  ),
 
   // --- connections -----------------------------------------------------------
   optional(
@@ -169,6 +179,11 @@ export const SECTION_RULES = [
     ["ItemTypesPanel", "item-types/", "item-type-marketplace-model"],
     (p) => core(p, "vault.passwords", "item types and their marketplaces"),
   ),
+  core(
+    "src/sections/settings/SampleDataPanel",
+    "vault.passwords",
+    "load and remove the badged sample items",
+  ),
   ...each(
     "src/sections/settings/",
     [
@@ -200,8 +215,6 @@ export const SECTION_RULES = [
       "AgeInteropSheet",
       "AgeKeysPanel",
       "SopsDocumentSheet",
-      "SecretConfigFlash",
-      "SecretConfigWriteForms",
       "VaultKeyProtectionCeremonies",
     ],
     (p) =>
@@ -222,15 +235,15 @@ export const SECTION_RULES = [
     "identity.ambient-sso",
     "ambient SSO panel",
   ),
-  ...each(
-    "src/sections/settings/",
-    ["FormatsInteroperabilityPanel", "import.css"],
-    (p) => optional(p, "vault.interop-formats", "formats panel"),
+  optional(
+    "src/sections/settings/FormatsInteroperabilityPanel",
+    "vault.interop-formats",
+    "formats panel",
   ),
-  ...each(
-    "src/sections/settings/",
-    ["GithubHistoryRemotePicker", "useGithubAppDeployment"],
-    (p) => optional(p, GIT, "history remote picker"),
+  optional(
+    "src/sections/settings/StoreManifestPanel",
+    "vault.interop-formats",
+    "the sealed-store path manifest (ADR 0037 §6)",
   ),
   optional(
     "src/sections/settings/notification-routing-files",

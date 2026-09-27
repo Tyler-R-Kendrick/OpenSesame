@@ -27,14 +27,10 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
+// The engine's fixtures live in @opensesame/app-core (ADR 0133).
 const FIXTURES = path.resolve(
   here,
-  "..",
-  "src",
-  "lib",
-  "sops",
-  "fixtures",
-  "upstream",
+  "../../../packages/app-core/src/lib/sops/fixtures/upstream",
 );
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(

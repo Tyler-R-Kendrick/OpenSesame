@@ -108,8 +108,11 @@ export const MIXED_MODULES: readonly MixedModule[] = [
         capability: "connectors.external",
         what: "ConnectionsTree/ConnectionsNavigation → section.Tree contribution",
       },
-      { capability: "access.authority", what: "AccessTree → section.Tree" },
-      { capability: "identity.local-iam", what: "IdentityTree → section.Tree" },
+      { capability: "access.authority", what: "AccessRailTree → section.Tree" },
+      {
+        capability: "identity.local-iam",
+        what: "IdentityRailTree → section.Tree",
+      },
       {
         capability: "wallet.spending",
         what: "WALLET_CATEGORIES leaf rows → section.Tree",

@@ -87,9 +87,7 @@ describe("runtime endpoint defaults", () => {
   });
 
   it("auto-connects on loopback and refuses loopback Identity from github.io", async () => {
-    const { shouldAutoConnect, hasRemoteHostPairing } = await import(
-      "./settings.js"
-    );
+    const { shouldAutoConnect } = await import("./settings.js");
     expect(
       shouldAutoConnect(
         {
@@ -135,30 +133,6 @@ describe("runtime endpoint defaults", () => {
         "tyler-r-kendrick.github.io",
       ),
     ).toBe(true);
-    expect(
-      hasRemoteHostPairing({
-        hostApi: "https://box.tail123.ts.net/host",
-        identityApi: "https://box.tail123.ts.net/identity",
-        daemonApi: "https://box.tail123.ts.net",
-        capabilityConnectors: {
-          ...defaultCapabilityConnectors(),
-          encryption: { providerId: "webcrypto" },
-          history: { providerId: "github" },
-        },
-      }),
-    ).toBe(true);
-    expect(
-      hasRemoteHostPairing({
-        hostApi: "http://127.0.0.1:8787",
-        identityApi: "http://127.0.0.1:18788",
-        daemonApi: "http://127.0.0.1:18790",
-        capabilityConnectors: {
-          ...defaultCapabilityConnectors(),
-          encryption: { providerId: "webcrypto" },
-          history: { providerId: "github" },
-        },
-      }),
-    ).toBe(false);
   });
 });
 
@@ -195,29 +169,6 @@ describe("settings subscriptions and guards", () => {
     expect(settings.hostApi).toBe("");
     expect(settings.daemonApi).toBe("");
     expect(settings.identityApi).toBe("");
-  });
-
-  it("counts a tailnet daemon without a Host as a remote pairing", async () => {
-    const { hasRemoteHostPairing } = await import("./settings.js");
-    const base = {
-      hostApi: "",
-      identityApi: "",
-      capabilityConnectors: {
-        ...defaultCapabilityConnectors(),
-        encryption: { providerId: "webcrypto" },
-        history: { providerId: "github" },
-      },
-    };
-    expect(
-      hasRemoteHostPairing({ ...base, daemonApi: "https://box.tail.ts.net" }),
-    ).toBe(true);
-    expect(
-      hasRemoteHostPairing({ ...base, daemonApi: "http://127.0.0.1:18790" }),
-    ).toBe(false);
-    expect(hasRemoteHostPairing({ ...base, daemonApi: "" })).toBe(false);
-    expect(
-      hasRemoteHostPairing({ ...base, daemonApi: "https://evil.example !" }),
-    ).toBe(false);
   });
 
   it("does not auto-connect without an Identity URL", async () => {

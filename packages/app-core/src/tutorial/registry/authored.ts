@@ -1,8 +1,9 @@
 /**
  * The whole authored tutorial corpus — core entries and every capability's
- * partition — for a module to pick its own entries from by id
- * (`modules/tutorial-contributions.ts`) and for the registry tests to prove
- * every authored guide compiles.
+ * partition — for the registry tests to prove every authored guide compiles
+ * (`catalog.test.ts`, `optional-tutorials.test-support.ts`). Nothing at
+ * runtime imports it: a module contributes its own catalog arrays directly
+ * (`apps/pages/src/modules/tutorial-contributions.ts`).
  *
  * This is not the live catalog. What a guide may point at, where it may go
  * and what help it may answer with is `GUIDE_TARGETS` / `GUIDE_ROUTES` /

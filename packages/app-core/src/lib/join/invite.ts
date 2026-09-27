@@ -188,11 +188,6 @@ export function takeCapturedInvite(): CapturedInvite | null {
   return taken;
 }
 
-/** Look without taking: a screen deciding whether to open the ceremony. */
-export function peekCapturedInvite(): CapturedInvite | null {
-  return captured;
-}
-
 export function resetCapturedInviteForTests(): void {
   captured = null;
 }

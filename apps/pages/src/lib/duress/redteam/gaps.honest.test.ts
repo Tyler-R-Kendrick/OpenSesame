@@ -73,26 +73,31 @@ describe("REDTEAM-F honest gaps (must not force-pass)", () => {
 
   it("GAP-SETTINGS-NAV: Settings shell mounts enrollment when mode is non-off", async () => {
     const settingsSection = src("sections", "SettingsSection.tsx");
-    const securityShell = src("sections", "settings", "SettingsSecurity.tsx");
-    const panel = src(
-      "sections",
-      "settings",
-      "security",
-      "DuressProfilesPanel.tsx",
-    );
-    const enrollment = src(
-      "routes",
-      "settings",
-      "security",
-      "DuressEnrollmentPanel.tsx",
-    );
-    expect(existsSync(panel)).toBe(true);
+    const security = (...parts: string[]) =>
+      src("routes", "settings", "security", ...parts);
+    const enrollment = security("DuressEnrollmentPanel.tsx");
     expect(existsSync(enrollment)).toBe(true);
     expect(existsSync(settingsSection)).toBe(true);
-    expect(existsSync(securityShell)).toBe(true);
+    // The one mounted surface: Settings › Security renders the enrollment
+    // panel, and only while the feature mode is not off.
     const section = readFileSync(settingsSection, "utf8");
-    expect(section).toMatch(/DuressEnrollmentPanel/);
-    expect(section).toMatch(/resolveDuressMode\(\{\}\) !== "off"/);
+    expect(section).toMatch(
+      /import \{ DuressEnrollmentPanel \} from "\.\.\/routes\/settings\/security\/index\.js"/,
+    );
+    expect(section).toMatch(
+      /resolveDuressMode\(\{\}\) !== "off" \? <DuressEnrollmentPanel \/>/,
+    );
+    // It carries the whole profile ceremony: preset choice, the compiler's
+    // exposure summary, the arming checklist, and arm/disarm.
+    expect(
+      readFileSync(security("DuressEnrollmentModeSection.tsx"), "utf8"),
+    ).toMatch(/PRESET_CATALOG/);
+    expect(
+      readFileSync(security("DuressEnrollmentExposureSection.tsx"), "utf8"),
+    ).toMatch(/Compiler exposure summary/);
+    expect(
+      readFileSync(security("useDuressEnrollmentPanel.ts"), "utf8"),
+    ).toMatch(/armEnrollmentProfile[\s\S]*disarmEnrollmentProfile/);
 
     // Mode remains off by default (INV-01) even when UI lands.
     expect(resolveDuressMode({})).toBe("off");

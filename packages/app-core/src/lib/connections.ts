@@ -2,11 +2,9 @@ import {
   AuthorizeResponseSchema,
   BindingSchema,
   ConnectionErrorResponseSchema,
-  ConnectionEventSchema,
   ConnectionSchema,
   DiscoverConnectionsResponseSchema,
   ListConnectionsResponseSchema,
-  ListEventsResponseSchema,
   ListProvidersResponseSchema,
   RevokeResponseSchema,
 } from "@opensesame/contracts";
@@ -127,25 +125,6 @@ export type Binding = {
   targetId: string;
   targetLabel: string | null;
   createdAt: string;
-};
-
-export type ConnectionEventKind =
-  | "created"
-  | "authorize_started"
-  | "authorized"
-  | "refreshed"
-  | "refresh_failed"
-  | "bound"
-  | "unbound"
-  | "policy_updated"
-  | "revoked"
-  | "error";
-
-export type ConnectionEvent = {
-  id: string;
-  kind: ConnectionEventKind;
-  at: string;
-  detail: string | null;
 };
 
 export type Connection = {
@@ -282,16 +261,6 @@ function toConnection(value: BoundaryValue): Connection {
     bindings: raw.bindings.map(toBinding),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
-  };
-}
-
-function toEvent(value: BoundaryValue): ConnectionEvent {
-  const raw = ConnectionEventSchema.parse(value);
-  return {
-    id: raw.id,
-    kind: raw.kind,
-    at: raw.at,
-    detail: raw.detail,
   };
 }
 
@@ -588,68 +557,6 @@ function updateConnectionPolicyDefault(
   );
 }
 
-function bindConnectionDefault(
-  id: string,
-  body: {
-    targetKind: BindingTargetKind;
-    targetId: string;
-    targetLabel?: string;
-  },
-): Promise<Connection> {
-  return call(
-    `/connections/${encodeURIComponent(id)}/bindings`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        target_kind: body.targetKind,
-        target_id: body.targetId,
-        ...(body.targetLabel ? { target_label: body.targetLabel } : undefined),
-      }),
-    },
-    toConnection,
-  );
-}
-
-function unbindConnectionDefault(
-  id: string,
-  bindingId: string,
-): Promise<Connection> {
-  return call(
-    `/connections/${encodeURIComponent(id)}/bindings/${encodeURIComponent(bindingId)}`,
-    { method: "DELETE" },
-    toConnection,
-  );
-}
-
-/** Push a vault secret's grantees onto the Host connection. Never binds user:demo. */
-async function compileSecretToHostDefault(item: {
-  connectionRef: string;
-  grantees: string[];
-}): Promise<void> {
-  if (!item.connectionRef) return;
-  const rows = await listConnections();
-  const match = rows.find((row) => row.connectionRef === item.connectionRef);
-  if (!match) return;
-  for (const agent of item.grantees) {
-    const id = agent.trim();
-    if (!id || id === "user:demo" || id.startsWith("user:")) continue;
-    const already = match.bindings.some(
-      (binding) => binding.targetKind === "agent" && binding.targetId === id,
-    );
-    if (already) continue;
-    await bindConnection(match.connectionId, {
-      targetKind: "agent",
-      targetId: id,
-    });
-  }
-}
-
-function connectionEventsDefault(id: string): Promise<ConnectionEvent[]> {
-  return call(`/connections/${encodeURIComponent(id)}/events`, {}, (body) =>
-    ListEventsResponseSchema.parse(body).events.map(toEvent),
-  );
-}
-
 /* ----------------------------------------------------------- consent flow */
 
 export type ConsentOutcome =
@@ -741,8 +648,6 @@ export const connectionSeams = {
   setConnectionConfiguration: setConnectionConfigurationDefault,
   revokeConnection: revokeConnectionDefault,
   updateConnectionPolicy: updateConnectionPolicyDefault,
-  bindConnection: bindConnectionDefault,
-  unbindConnection: unbindConnectionDefault,
 
   listIntegrations: listIntegrationsDefault,
   createIntegration: createIntegrationDefault,
@@ -755,8 +660,6 @@ export const connectionSeams = {
   createConnection: createConnectionDefault,
   authorizeConnection: authorizeConnectionDefault,
   setConnectionCredential: setConnectionCredentialDefault,
-  compileSecretToHost: compileSecretToHostDefault,
-  connectionEvents: connectionEventsDefault,
   awaitConsent: awaitConsentDefault,
   openConsentPopup: openConsentPopupDefault,
 };
@@ -811,14 +714,6 @@ export function setConnectionCredential(
 ): ReturnType<typeof setConnectionCredentialDefault> {
   return connectionSeams.setConnectionCredential(...args);
 }
-export async function compileSecretToHost(
-  item: Parameters<typeof compileSecretToHostDefault>[0],
-): Promise<void> {
-  return connectionSeams.compileSecretToHost(item);
-}
-export function connectionEvents(id: string): Promise<ConnectionEvent[]> {
-  return connectionSeams.connectionEvents(id);
-}
 export async function awaitConsent(
   ...args: Parameters<typeof awaitConsentDefault>
 ): ReturnType<typeof awaitConsentDefault> {
@@ -849,14 +744,4 @@ export function updateConnectionPolicy(
   ...args: Parameters<typeof updateConnectionPolicyDefault>
 ): ReturnType<typeof updateConnectionPolicyDefault> {
   return connectionSeams.updateConnectionPolicy(...args);
-}
-export function bindConnection(
-  ...args: Parameters<typeof bindConnectionDefault>
-): ReturnType<typeof bindConnectionDefault> {
-  return connectionSeams.bindConnection(...args);
-}
-export function unbindConnection(
-  ...args: Parameters<typeof unbindConnectionDefault>
-): ReturnType<typeof unbindConnectionDefault> {
-  return connectionSeams.unbindConnection(...args);
 }

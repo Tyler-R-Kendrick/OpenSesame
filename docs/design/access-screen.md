@@ -139,12 +139,15 @@ policy on screen at a time.
 
 ## Data and state rules
 
-- Extend `apps/pages/src/lib/access.ts` (same seam pattern):
-  `listDelegations()`, `revokeDelegation(id)`, `narrowDelegation(id, input)`,
-  `mintOffer(input)`, `listMyOffers()`, `revokeOffer(id)` — wire shapes from
-  `crates/connection-broker/src/delegation.rs` (`MintOfferRequest`,
-  `OfferView`, `DelegationView`) and `crates/gateway/src/routes/delegations.rs`.
-  Read them before binding.
+- Every tab reads sealed local records through app-core — grants through
+  `packages/app-core/src/lib/local-share-grants.ts` and
+  `local-rbac.ts`, the access book through `access-book.ts`, requests
+  through `local-access-requests.ts`, policies and resources through
+  `local-directory.ts` and `local-iam-events.ts` — and no Host stands behind
+  any of them ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md)).
+  The Host's delegation routes (`crates/gateway/src/routes/delegations.rs`,
+  wire shapes in `crates/connection-broker/src/delegation.rs`) have a typed
+  client in `packages/api-client/src/delegations.ts`; Pages does not call it.
 - Secret targets come from the unlocked vault (`useVault` items of kind
   `secret`): name, `connectionRef`, `ceiling`, `grantees`. Locked vault →
   secrets group hidden with one line `Unlock the vault to grant secrets.`

@@ -303,7 +303,7 @@ application state to the model a one-line convenience, on a page where most
 application state is somebody's credentials. The privacy boundary here needs to
 be a single function that assembles context from authored registries and has
 no path to the DOM at all
-(`apps/pages/src/tutorial/registry/context.ts`), not a hook that any component
+(`packages/app-core/src/tutorial/registry/context.ts`), not a hook that any component
 can call.
 
 None of that makes CopilotKit a bad library. It makes it a library for
@@ -339,7 +339,7 @@ Its limitation is stated in the ADR as a cost rather than buried: availability
 is desktop-first and depends on the device meeting hardware requirements, so a
 large fraction of users will never see it. That is why the deterministic help
 graph is not a fallback of last resort but the source of truth, and why the
-authored guides in `apps/pages/src/tutorial/registry/goals.ts` run through the
+authored guides in `packages/app-core/src/tutorial/registry/goals.ts` run through the
 identical parse-and-validate pipeline model output goes through. A path that
 only executes when the model is missing is a path that is never exercised.
 

@@ -107,15 +107,3 @@ export function webmcpStatusText(snapshot: WebMcpRegistrationSnapshot): string {
 /** The one sentence for a failure with no code at all. */
 export const UNEXPECTED_TEXT =
   "Something went wrong on the way to an answer. The written help below does not need a model.";
-
-export function supportErrorText(code: SupportErrorCode): string {
-  return SUPPORT_ERROR_TEXT[code];
-}
-
-export function guideErrorText(code: GuideRuntimeErrorCode): string {
-  return GUIDE_ERROR_TEXT[code];
-}
-
-export function unavailableText(reason: SupportUnavailableReason): string {
-  return UNAVAILABLE_TEXT[reason];
-}

@@ -5,16 +5,10 @@
  */
 
 import { vaultStore } from "./vault/store.js";
-import { GUEST_TOMB } from "./vfs.js";
 
 /** True while the unlocked session is the isolated guest road. */
 export function isGuestSession(): boolean {
   return vaultStore.getSnapshot().guest === true;
-}
-
-/** True when this tomb id is the guest isolation boundary. */
-export function isGuestTomb(tomb: string): boolean {
-  return tomb.trim() === GUEST_TOMB;
 }
 
 /**

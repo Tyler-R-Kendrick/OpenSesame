@@ -8,10 +8,11 @@ description: Install, configure, initialize, and use OpenSesame MCP servers
 Ports for upstream APIs: Host **8787**, Identity **8788**, Daemon **18790**.
 MCP HTTP transport (optional, mcp-host only): loopback **18791**.
 
-The tool catalogs below are enforced by `packages/capability-registry`
-(ADR 0065): each server's `registry-parity.test.ts` fails when this list and
-the implementation drift, and the weekly agent-surface drift routine checks
-this file against the registry.
+The tool lists below are the servers' own registries (`hostTools` in
+`packages/mcp-host/src/tools.ts`, `toolsManifest` in
+`packages/mcp-client/src/tools.ts`), which `packages/capability-registry`
+holds to ADR 0065. Each server's `registry-parity.test.ts` fails when the
+implementation, the registry or the lists in this file drift apart.
 
 ## Install
 
@@ -25,12 +26,26 @@ pnpm install
 ## Configure
 
 ```bash
-export OPENSESAME_HOST_API=http://127.0.0.1:8787     # both servers (spec/config/endpoints.json)
-export OPENSESAME_DAEMON_API=http://127.0.0.1:18790
-export OPENSESAME_ACCESS_TOKEN=...                    # per-call, fail-closed
-export OPENSESAME_ISSUER=http://127.0.0.1:8788        # identity claims (client)
-export OPENSESAME_IDENTITY_TOKEN=...                  # present_claim only
-# MCP never exposes L3 materialize / getSecret / sealed-store reveals
+export OPENSESAME_HOST_API=http://127.0.0.1:8787     # both servers (spec/config/endpoints.json);
+                                                      # https, or http on loopback only
+export OPENSESAME_DAEMON_API=http://127.0.0.1:18790  # mcp-host only; loopback only
+```
+
+Neither server reads an operator token or a person's session
+(`OPENSESAME_OPERATOR_TOKEN` and `OPENSESAME_ACCESS_TOKEN` are ignored by
+design). Every authenticated call carries a short-lived agent capability
+exchanged from a one-use launch handle, which only the native launch ceremony
+hands out ([ADR 0099](../../docs/adr/0099-scoped-local-agent-authority.md)):
+
+```bash
+opensesame --server <exact-host-origin> local-authority launch \
+  --principal-id <principal> --organization-id <org> \
+  --audience mcp-host \
+  --capability <scope>[,<scope>] \
+  --socket <absolute-daemon-socket> \
+  --executable <absolute-mcp-executable> -- <arguments>
+# The child gets OPENSESAME_AGENT_LAUNCH_HANDLE, OPENSESAME_AGENT_CLIENT_ID,
+# OPENSESAME_AGENT_SOCK and the Host API address — nothing else inherited.
 ```
 
 Optional Streamable HTTP for mcp-host (stdio stays the default):
@@ -43,33 +58,47 @@ export OPENSESAME_MCP_HTTP_TOKEN=<16+ char token>   # Bearer, transport-only
 # authenticates the transport and is never forwarded downstream.
 ```
 
+Optional mcp-host tool-call telemetry: `OPENSESAME_TELEMETRY_KEY`
+(off unless set) and `OPENSESAME_TELEMETRY_HOST`.
+
 ## Init
 
 Register stdio servers in your MCP client config pointing at:
 
-- `packages/mcp-client` — client-plane tools via `@opensesame/api-client`
-- `packages/mcp-host` — operator tools against Host API / daemon (policy-gated)
+- `packages/mcp-client` — client-plane tools over the Host API
+- `packages/mcp-host` — task authority, sync and health against the Host API
+  and the daemon's liveness probe
 
 ## Use
 
-Client tools (11): `host_health`, `host_discover`, `whoami`, `present_claim`,
-`list_connections`, `integration_read`, `sync_target_read`,
-`config_metadata_read`, `sync_push`, `sync_pull`, `invoke_l1`.
+### Client tools (5)
 
-Host tools (32) — task authority: `task_start`, `task_list`, `task_status`,
-`task_invoke`, `task_terminate`, `operator_invoke_l1`; posture: `host_ready`,
-`daemon_status`, `backup_status`; receipts: `receipt_read`, `receipt_verify`;
-delegations: `delegation_read`, `delegation_offer_read`, `delegation_narrow`,
-`delegation_revoke`; relay: `relay_request_read`; providers/connections:
-`provider_read`, `provider_test`, `connection_read`, `connection_rotate`,
-`connection_remove`; certs: `cert_read`, `cert_issue`; configs: `config_read`
-(metadata only), `config_set`, `config_rollback`; sync: `sync_target_read`,
-`sync_push`, `sync_pull`; rotation: `rotation_read`, `rotation_trigger`;
-changelog: `changelog_read`.
+- `host_health` — Host API liveness, daemon probe and the tool manifest
+- `whoami` — the agent capability's identity on the Host API
+- `host_discover` — protected-resource metadata (issuers, DPoP posture)
+- `sync_push` — push up to 64 opaque E2EE ciphertext blobs
+- `sync_pull` — pull one bounded ciphertext page; continue with `next_after`
 
-Every response passes a per-tool allowlist plus the `forAgent` fence; secret
-values, leases, PEM key material, and TOTP seeds are structurally excluded.
-Materialize / credential.resolve is forbidden by default (tests enforce this).
-Approval ceremonies (relay approve/deny, delegation mint/claim, credential
-entry) are human-only: headless MCP gets read-only inbox visibility; the PWA's
-WebMCP tools open the ceremony UI instead.
+### Host tools (10)
+
+- `task_start` — start a task under an immutable capability ceiling
+- `task_status` — the ceiling against current capabilities for a task
+- `task_invoke` — freeze a task-bound intent into the MCP task context
+- `task_invoke_l1` — execute the frozen intent with the scoped agent capability
+- `task_terminate` — end the task run
+- `task_list` — the caller's task metadata, never intents or secrets
+- `sync_push` — push ciphertext
+- `sync_pull` — pull one bounded ciphertext page
+- `host_ready` — Host API readiness
+- `daemon_health` — daemon liveness (the only daemon route an agent reaches)
+
+There is no receipt, delegation, relay, provider, connection, certificate,
+secret-config, sync-target, rotation, changelog or backup tool on either
+server: those are human administration or unscoped metadata, and
+`packages/mcp-host/src/pact.test.ts` asserts their absence. Use the
+`opensesame` CLI or the Pages PWA for them.
+
+Every response passes the `forAgent` fence; secret values, leases, PEM key
+material and TOTP seeds are structurally excluded. Materialize /
+credential.resolve is forbidden (tests enforce this). Approval ceremonies are
+human-only; the PWA's WebMCP tools open the ceremony UI instead.

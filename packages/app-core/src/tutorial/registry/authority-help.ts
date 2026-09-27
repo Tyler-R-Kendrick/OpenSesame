@@ -20,24 +20,6 @@ export const AUTHORITY_HELP: readonly HelpTopic[] = [
     keywords: ["verify identity", "host authorization", "passkey"],
   },
   {
-    id: "help.browser.revoke",
-    title: "Understand paired-client revocation",
-    answer:
-      "The browser-pairing client supports revoking its current paired client. Revocation invalidates that client's grants. Lock and sign-out discard this page's active grant and proof key; that local cleanup is not a promise of server-side revocation.",
-    routes: [],
-    goal: "browser.revoke",
-    keywords: ["revoke pairing", "paired client", "forget host"],
-  },
-  {
-    id: "help.configs.permissions",
-    title: "Review secret-configuration visibility",
-    answer:
-      "Settings → Connections shows secret-configuration metadata only when this device is allowed to show it. Project metadata and key-name permissions are separate. Missing access stays hidden; ask an organization owner or administrator to review the project's explicit permissions.",
-    routes: [],
-    goal: "configs.permissions",
-    keywords: ["metadata", "key names", "project permissions"],
-  },
-  {
     id: "help.agent.observe",
     title: "Review an authorized agent run",
     answer:
@@ -78,6 +60,4 @@ export const AUTHORITY_GOALS: readonly GuideGoalDescriptor[] =
 export const AUTHORITY_TUTORIALS = {
   "browser.pairing.begin": "browser.pair",
   "browser.identity.authenticate": "browser.authenticate",
-  "browser.client.revoke": "browser.revoke",
-  "configs.permissions.read": "configs.permissions",
 } as const;

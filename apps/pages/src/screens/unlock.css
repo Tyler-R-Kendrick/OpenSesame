@@ -217,7 +217,6 @@
 
 .unlock__card > *,
 .signin > *,
-.signin__more-panel > *,
 .identifier > *,
 .byo > *,
 .byo__ready > * {
@@ -267,14 +266,6 @@
 .unlock__heading .unlock-user {
   flex: none;
   max-width: min(14rem, 48%);
-}
-
-.unlock__brand-copy {
-  display: grid;
-  justify-items: start;
-  gap: 0.6rem;
-  min-width: 0;
-  flex: 1;
 }
 
 /* Brand title — display step, not chrome. Beat `.unlock__brand p` so the
@@ -549,10 +540,6 @@
 .signin__providers {
   display: grid;
   gap: 0.45rem;
-}
-
-.signin__session {
-  text-align: left;
 }
 
 /* The anonymous road out, pinned to the card's top-right corner. */
@@ -919,39 +906,6 @@
 }
 
 /* Which deployment this app is pointed at, and the way back into setup. */
-/* Scoped through the foot so it outranks `.unlock__foot p`, which caps prose
-   at 34ch: this row is an address and a link, not prose, and needs the card's
-   full width or the origin ellipsises while there is room beside it. */
-.unlock__foot .unlock__deployment {
-  display: flex;
-  max-width: none;
-  align-items: center;
-  gap: 0.4rem;
-  width: 100%;
-  min-width: 0;
-  padding-top: 0.55rem;
-  border-top: 1px solid var(--line);
-  font-family: var(--mono);
-  color: var(--ink-3);
-}
-
-.unlock__deployment svg {
-  flex: none;
-}
-
-.unlock__deployment-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.75rem;
-}
-
-.unlock__deployment .unlock__switch {
-  flex: none;
-  font-size: 0.75rem;
-}
 
 @media (max-width: 480px) {
   .unlock {
@@ -969,34 +923,6 @@
   .unlock .go-row {
     padding-left: 1.6rem;
   }
-}
-
-/* Which vault this key opens, in the prompt voice the rail uses inside:
-   `‹ Vaults / work :/` — the way back on the left, the tomb in accent. */
-.unlock__crumb {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.unlock__crumb .unlock__switch {
-  text-decoration: none;
-}
-
-.unlock__crumb .unlock__switch:hover {
-  text-decoration: underline;
-}
-
-.unlock__crumb-tomb {
-  font-weight: 600;
-  color: var(--accent);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Who is unlocking — compact trigger beside the Unlock / Sign in title.

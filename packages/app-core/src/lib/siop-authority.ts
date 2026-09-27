@@ -97,13 +97,6 @@ export async function bindSiopRequest(
   return { request, application };
 }
 
-export async function inspectSiopConsent(
-  tomb: string,
-  raw: string,
-): Promise<SiopBoundRequest> {
-  return bindSiopRequest(tomb, parsePagesSiopRequest(raw));
-}
-
 function assertPasskey(session: LocalSession): void {
   if (session.authentication !== "passkey") refused();
 }

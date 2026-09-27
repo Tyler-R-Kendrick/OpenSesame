@@ -1,6 +1,8 @@
 /**
- * Organization sign-in settings as a model, ported from
- * `apps/console/src/pages/OrgSignInPage.test.tsx`.
+ * Organization sign-in settings as a model: an owner's organizations, their
+ * upstream and email domains, and the refusals the Identity API answers
+ * with. The panels that draw it are tested in `apps/pages`
+ * (`sections/identity/org-signin/OrgSignInPanels.test.tsx`).
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";

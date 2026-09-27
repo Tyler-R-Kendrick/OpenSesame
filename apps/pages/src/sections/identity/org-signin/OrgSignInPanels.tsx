@@ -2,8 +2,7 @@
  * Identity › Organizations' sign-in panels (ADR 0140 plan step 12): for an
  * organization this session owns, the upstream its people sign in through,
  * the email domains that route to it, and the provisioning tokens its
- * directory pushes with. It replaces `apps/console`'s `/organization` page,
- * over app-core's `lib/org-signin.ts`.
+ * directory pushes with, over app-core's `lib/org-signin.ts`.
  *
  * `enterprise.directory-provisioning` hands this to the Identity section
  * through `directory-panel-slot.ts`; the always-on section never imports it.

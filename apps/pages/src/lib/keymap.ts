@@ -1,5 +1,4 @@
 import { dispatchUserBinding } from "@opensesame/app-core/lib/configuration/nav-persist.js";
-import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
 import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
 import {
   focusCommandBar,
@@ -7,6 +6,7 @@ import {
   toggleCommandBarMic,
 } from "./command-bar/focus.js";
 import { contributedKeymapExtras, keymapHelpRows } from "./keymap-help.js";
+import { sectionJumpKeys, sectionJumpPath } from "./keymap-jumps.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 import {
@@ -39,6 +39,8 @@ type KeymapOptions = {
   showHelp: () => void;
 };
 
+export { sectionJumpKeys, sectionJumpPath } from "./keymap-jumps.js";
+
 export {
   KEYMAP_HELP_CORE,
   type KeymapHelpRow,
@@ -50,44 +52,6 @@ export {
 /** The sheet for the jumps and controls registered right now. */
 export function keymapHelp() {
   return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras());
-}
-
-/**
- * The `g` jumps the core shell always has. Every other letter is a
- * `keymap-jump` contribution from the capability whose section it opens, so
- * a letter for an excluded capability is not bound at all (SURFACE-09).
- */
-const CORE_JUMPS: ReadonlyMap<string, string> = new Map([
-  ["v", "/vault"],
-  ["s", "/settings"],
-]);
-
-/** The path `g <key>` opens, or null when nothing registered that key. */
-export function sectionJumpPath(key: string): string | null {
-  const core = CORE_JUMPS.get(key);
-  if (core !== undefined) return core;
-  return (
-    contributionsSnapshot("keymap-jump").find((jump) => jump.key === key)
-      ?.path ?? null
-  );
-}
-
-/** Every jump key that exists right now, in the rail's order. */
-export function sectionJumpKeys(): readonly string[] {
-  const sections = contributionsSnapshot("section");
-  const orderOf = (path: string): number =>
-    path === "/vault"
-      ? 0
-      : path === "/settings"
-        ? 1000
-        : (sections.find((section) => section.to === path)?.order ?? 500);
-  const jumps = new Map<string, string>(CORE_JUMPS);
-  for (const jump of contributionsSnapshot("keymap-jump")) {
-    if (!jumps.has(jump.key)) jumps.set(jump.key, jump.path);
-  }
-  return [...jumps]
-    .sort(([, left], [, right]) => orderOf(left) - orderOf(right))
-    .map(([key]) => key);
 }
 
 /** Listing motions that keep their meaning after a `g`: `gj` is still down. */

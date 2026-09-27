@@ -90,16 +90,6 @@ export const MIXED_SCREENS_AND_SECTIONS: readonly MixedModule[] = [
     ],
   },
   {
-    path: "src/components/IdentityTree.tsx",
-    keeps: "local IAM tabs",
-    extract: [
-      {
-        capability: "enterprise.directory-provisioning",
-        what: "Identity-API-only leaves",
-      },
-    ],
-  },
-  {
     path: "src/tutorial/session.ts",
     keeps: "support session, guide runtime wiring",
     extract: [

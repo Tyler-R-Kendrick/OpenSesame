@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-09-17T17:35:54.296Z",
-  "head": "b3a47a2b0dabb3cc3e7f596df94e7677c009609a",
+  "generatedAt": "2026-09-27T05:50:25.693Z",
+  "head": "4248586c74c3c3f8a6bfb592f3e698e0c1d27856",
   "treeDirty": true,
-  "invokedAs": "pnpm wallet:verify",
+  "invokedAs": "pnpm wallet:test:browser",
   "mainnet": {
     "ok": true,
     "message": null,
@@ -10,59 +10,47 @@
   },
   "results": [
     {
-      "suite": "mainnet-deny",
+      "suite": "browser-vitest",
       "status": "passed",
       "exitCode": 0,
       "reason": null,
-      "command": "assertNoMainnet()",
-      "durationMs": 0
+      "command": "pnpm --filter=@opensesame/pages --filter=@opensesame/app-core exec vitest run src/sections/WalletSection.test.tsx src/lib/spending-ledger.test.ts src/lib/spending-consent.test.ts src/lib/spending-leases.test.ts src/lib/wallet-safe-label.test.ts src/lib/wallet-isolation-claims.test.ts src/lib/wallet-budget-labels.test.ts src/lib/wallet-origin-profile.test.ts src/lib/wallet-sw-payment.test.ts src/lib/wallet-activation.test.ts src/lib/wallet-agent-broker.test.ts",
+      "durationMs": 18717
     },
     {
-      "suite": "domain",
+      "suite": "browser-QAB-playwright",
       "status": "passed",
       "exitCode": 0,
       "reason": null,
-      "command": "node scripts/wallet/test-domain.mjs",
-      "durationMs": 3150
-    },
-    {
-      "suite": "contracts",
-      "status": "passed",
-      "exitCode": 0,
-      "reason": null,
-      "command": "node scripts/wallet/run-suite.mjs contracts",
-      "durationMs": 3758
-    },
-    {
-      "suite": "protocols",
-      "status": "passed",
-      "exitCode": 0,
-      "reason": null,
-      "command": "node scripts/wallet/run-suite.mjs protocols",
-      "durationMs": 5898
-    },
-    {
-      "suite": "browser",
-      "status": "passed",
-      "exitCode": 0,
-      "reason": null,
-      "command": "node scripts/wallet/run-suite.mjs browser",
-      "durationMs": 12782
-    },
-    {
-      "suite": "security",
-      "status": "passed",
-      "exitCode": 0,
-      "reason": null,
-      "command": "node scripts/wallet/run-suite.mjs security",
-      "durationMs": 7038
+      "command": "Playwright static Wallet QAB-01/QAB-03 + WAL-B03/B05",
+      "durationMs": null,
+      "details": {
+        "failures": [],
+        "loopbackHits": [],
+        "logTail": [
+          "PASS:Wallet capability is approved through Settings › Capabilities",
+          "PASS:Wallet overview renders for guest under static base",
+          "PASS:Wallet has no crash / Identity-API wall",
+          "PASS:no loopback requests during Wallet boot",
+          "PASS:WAL-B20: Wallet has visible controls at 390px",
+          "PASS:WAL-B20: visible Wallet .btn controls are at least 44px at 390px",
+          "PASS:forged MessageEvent amount does not appear in Wallet UI",
+          "PASS:forged cross-origin message does not mutate localStorage keys",
+          "PASS:Wallet capability is approved through Settings › Capabilities",
+          "PASS:WAL-B03: an attached authenticator mints no spending pass by presence alone",
+          "lease-probe:{\"forged\":\"unverified_assurance\",\"stranger\":\"key_not_enrolled\",\"expired\":\"lease_window_invalid\",\"issued\":\"issued\",\"replay\":\"assertion_replay\",\"leases\":1}",
+          "PASS:WAL-B03: lease module refuses assertion replay of spent verifiedBytes",
+          "PASS:WAL-B05: lease module refuses an already-expired lease window",
+          "PASS:WAL-B03: forged WebAuthn/RP assurance label refused (wrong-RP not treated as authority)",
+          "PASS:WAL-B03/B05 probe issued exactly the one enrolled, in-window lease",
+          "PASS:WAL-B03/B05 path made no loopback requests"
+        ]
+      }
     }
   ],
   "ok": true,
   "notes": [
-    "All wallet suites passed.",
-    "Domain targets present: os-domain-wallet, wallet-budget, wallet-policy",
-    "Domain targets missing: (none)",
+    "browser fixtures + static Wallet QAB-01/QAB-03 + WAL-B03/B05 passes demo passed",
     "Evidence: docs/evidence/wallet/last-run.json"
   ]
 }
