@@ -261,18 +261,23 @@ it("claims a registration behind an armed key, and lands focus on the claimed ro
   );
   // The claimed record takes this browser's id, so its row is a new
   // element: read it again rather than hold the registration's.
-  const claimedRow = () =>
-    screen.getByRole("heading", { name: "Kitchen tablet" }).closest("li");
+  const claimedRow = () => {
+    const row = screen
+      .getByRole("heading", { name: "Kitchen tablet" })
+      .closest("li");
+    if (!(row instanceof HTMLElement)) throw new Error("no Kitchen tablet row");
+    return row;
+  };
   await waitFor(() =>
     expect(
-      within(claimedRow() as HTMLElement).getByRole("img", {
+      within(claimedRow()).getByRole("img", {
         name: "This device",
       }),
     ).toBeTruthy(),
   );
   await waitFor(() =>
     expect(document.activeElement).toBe(
-      within(claimedRow() as HTMLElement).getByRole("button", {
+      within(claimedRow()).getByRole("button", {
         name: "Edit Kitchen tablet",
       }),
     ),

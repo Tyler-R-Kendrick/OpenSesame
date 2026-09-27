@@ -56,7 +56,7 @@ export const DEVICE_PLATFORMS = [
 export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
 
 export function isDevicePlatform(value: string): value is DevicePlatform {
-  return (DEVICE_PLATFORMS as readonly string[]).includes(value);
+  return DEVICE_PLATFORMS.some((platform) => platform === value);
 }
 
 /**

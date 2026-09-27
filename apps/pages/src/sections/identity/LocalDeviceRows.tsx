@@ -292,14 +292,17 @@ export function DeviceForm({ model }: { model: DevicesModel }) {
       aria-label={creating ? "New device" : `Edit ${draft.name || "device"}`}
       onSubmit={(event) => {
         event.preventDefault();
-        void run(() =>
-          creating
-            ? registerLocalDevice(tomb, draft)
-            : updateLocalDevice(tomb, draft.id, {
-                name: draft.name,
-                ...(draft.pending ? { platform: draft.platform } : {}),
-              }),
-        );
+        void run(() => {
+          if (creating) return registerLocalDevice(tomb, draft);
+          // A device that has been seen reported its own platform; only a
+          // registration's is still the person's to change.
+          if (!draft.pending)
+            return updateLocalDevice(tomb, draft.id, { name: draft.name });
+          return updateLocalDevice(tomb, draft.id, {
+            name: draft.name,
+            platform: draft.platform,
+          });
+        });
       }}
     >
       <div className="field">
