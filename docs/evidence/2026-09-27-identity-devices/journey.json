@@ -9,7 +9,10 @@
           "guest": null
         },
         {
-          "visit": "/identity?view=devices"
+          "tab": "Identity"
+        },
+        {
+          "press": "^Devices$"
         },
         {
           "wait": 1
@@ -82,7 +85,10 @@
           "guest": null
         },
         {
-          "visit": "/identity?view=devices"
+          "tab": "Identity"
+        },
+        {
+          "press": "^Devices$"
         },
         {
           "wait": 1
@@ -155,7 +161,7 @@
       "width": 390,
       "title": "Identity \u203a Devices \u2014 390 \u00d7 844",
       "caption": "The panel head gains the add and reload keys every other Identity list has; this device's status is a mark, not a pill; each row says platform, when it was added and when it was last seen.",
-      "before": "0 head keys, 2 text pills per row, no dates",
+      "before": "0 head keys, 1 text pill (.chip), no dates",
       "after": "2 head keys (New device, Reload devices), 1 status mark, platform \u00b7 added \u00b7 last seen"
     },
     {
@@ -187,7 +193,7 @@
       "width": 1280,
       "title": "Identity \u203a Devices \u2014 1280 \u00d7 800",
       "caption": "The panel head gains the add and reload keys every other Identity list has; this device's status is a mark, not a pill; each row says platform, when it was added and when it was last seen.",
-      "before": "0 head keys, 2 text pills per row, no dates",
+      "before": "0 head keys, 1 text pill (.chip), no dates",
       "after": "2 head keys (New device, Reload devices), 1 status mark, platform \u00b7 added \u00b7 last seen"
     },
     {
