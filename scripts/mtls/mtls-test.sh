@@ -87,18 +87,28 @@ if [[ ${#present_crates[@]} -gt 0 ]]; then
 fi
 
 # ---- 3. TypeScript ----------------------------------------------------------
-# A few workspace packages publish their main entry through `dist/` rather than
-# `src/`, so a TypeScript step that imports one cannot resolve it in a checkout
-# that has only been installed. On a developer machine an earlier build hides
-# this; on a clean runner every suite reaching `@opensesame/oauth-provider`
-# fails at import with "Failed to resolve entry for package". Build them first,
-# through turbo so the work is cached and their own dependencies come along.
-DIST_PACKAGES=(@opensesame/oauth-provider @opensesame/auth-upstream)
-build_args=(); for pkg in "${DIST_PACKAGES[@]}"; do build_args+=(--filter "${pkg}"); done
-step --id ts-dist-dependencies --claim OPS-RUNNERS --runner marker --required true --timeout 900 \
-  --profile unit --target "turbo run build" \
-  --expected "workspace packages whose entry points resolve through dist/ are built before any TypeScript step imports them" -- \
-  bash -c 'pnpm exec turbo run build "$@" >&2 && echo "MTLS_TESTS passed='"${#DIST_PACKAGES[@]}"' failed=0"' _ "${build_args[@]}"
+# Every workspace package exports its TypeScript source, so a TypeScript step
+# resolves it in a checkout that has only been installed. Two packages once
+# exported `dist/` instead, and every suite reaching them failed on a clean
+# runner with "Failed to resolve entry for package"; this step keeps that from
+# coming back rather than building around it.
+step --id ts-src-entries --claim OPS-RUNNERS --runner marker --required true --timeout 120 \
+  --profile unit --target "package.json exports" \
+  --expected "no workspace package under packages/ exports an entry through dist/" -- \
+  node -e '
+    const fs = require("node:fs");
+    const dirs = fs.readdirSync("packages", { withFileTypes: true }).filter((d) => d.isDirectory());
+    const bad = [];
+    let checked = 0;
+    for (const d of dirs) {
+      const file = `packages/${d.name}/package.json`;
+      if (!fs.existsSync(file)) continue;
+      checked += 1;
+      if (/"\.\/dist\//.test(JSON.stringify(JSON.parse(fs.readFileSync(file, "utf8")).exports ?? {}))) bad.push(d.name);
+    }
+    if (bad.length > 0) { console.error(`exports through dist/: ${bad.join(", ")}`); console.log(`MTLS_TESTS passed=${checked - bad.length} failed=${bad.length}`); process.exit(1); }
+    console.log(`MTLS_TESTS passed=${checked} failed=0`);
+  '
 
 ts_step() { # id required-default path-that-must-exist command...
   local id="$1" req="$2" need="$3"; shift 3
