@@ -67,6 +67,8 @@ export const capabilityRuntime: CapabilityRuntime = {
       label: "Notifications",
       guideId: "settings.notifications",
       Panel,
+      // Channels draws in every state, the inbox-only one included.
+      panels: [{ id: "notif-channels", label: "Channels" }],
       order: 300,
       files: session.files,
     });

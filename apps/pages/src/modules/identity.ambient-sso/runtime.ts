@@ -123,6 +123,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     // provider SDK behind it.
     activation.register("settings-panel", {
       id: "ambient-auth",
+      label: "Automatic sign-in",
       category: "security",
       Panel: AmbientAuthPanel,
       order: 30,

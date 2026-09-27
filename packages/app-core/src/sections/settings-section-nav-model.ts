@@ -16,6 +16,8 @@ export type SettingsTab = Readonly<{
   guideId: string;
   /** Present on a contributed category: the panel its module supplied. */
   Panel?: ComponentType;
+  /** A contributed category's always-drawn panels, for the rail. */
+  panels?: SettingsCategoryContribution["panels"];
   order: number;
 }>;
 
@@ -53,6 +55,7 @@ export function settingsTabsFrom(
       label: entry.label,
       guideId: entry.guideId,
       Panel: entry.Panel,
+      panels: entry.panels,
       order: entry.order,
     }));
   return [...settingsTabs, ...contributed].sort((left, right) =>
