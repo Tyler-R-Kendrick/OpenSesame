@@ -7,18 +7,26 @@
  * and never duplicates a registration (LOAD-09).
  */
 
-import type { RuntimeHandle } from "@opensesame/capability-composition";
+import {
+  FIXTURE_FACTS,
+  FIXTURE_POLICIES,
+  type RuntimeHandle,
+} from "@opensesame/capability-composition";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  NOW,
   approved,
   bootPersonalLocal,
   draftFor,
+  durable,
   freshRealm,
+  managedRuntimeConfig,
   settle,
   until,
 } from "./__tests__/harness.js";
 import { activatePlan } from "./change.js";
 import { evaluatedModuleIds } from "./facts.js";
+import { SELECTION_KEY } from "./keys.js";
 import {
   activateApprovedCapability,
   deactivateGeneration,
@@ -103,6 +111,46 @@ describe("loadApprovedModule (LOAD-07)", () => {
     await expect(loadApprovedModule(MODULE, lease)).rejects.toMatchObject({
       code: "NOT_APPROVED",
     });
+    expect(imported).toBe(0);
+    expect(evaluatedModuleIds()).toEqual([]);
+  });
+
+  it("refuses, before any import, a module a managed policy prohibits though the selection names it (#470 S23)", async () => {
+    const family = FIXTURE_POLICIES.family;
+    const policy = {
+      ...family,
+      capabilities: {
+        ...family.capabilities,
+        optional: family.capabilities.optional.filter((id) => id !== PASSKEYS),
+        prohibited: [...family.capabilities.prohibited, PASSKEYS],
+      },
+    };
+    await compositionStore.boot({
+      runtimeConfig: managedRuntimeConfig(policy),
+      vaultId: "personal",
+      facts: { ...FIXTURE_FACTS, now: NOW },
+    });
+    // A selection smuggling the prohibited id in, as a stale or edited
+    // record would.
+    const { draft } = draftFor(compositionStore, [PASSKEYS], "smuggled");
+    durable.set(SELECTION_KEY, JSON.stringify(draft));
+    await compositionStore.revalidate("smuggled");
+    expect(compositionStore.getSnapshot().selection?.selectedOptional).toEqual([
+      PASSKEYS,
+    ]);
+    const state = compositionStore.getSnapshot().plan?.capabilities[PASSKEYS];
+    expect(state?.approved).toBe(false);
+    expect(state?.reasons).toContain("PROHIBITED_BY_INSTANCE");
+    let imported = 0;
+    loaderSeams.moduleTable = async () => ({
+      [MODULE]: async () => {
+        imported += 1;
+        return fakeModule({ activations: 0, disposals: 0 });
+      },
+    });
+    await expect(
+      loadApprovedModule(MODULE, compositionStore.currentLease()),
+    ).rejects.toMatchObject({ code: "NOT_APPROVED" });
     expect(imported).toBe(0);
     expect(evaluatedModuleIds()).toEqual([]);
   });
