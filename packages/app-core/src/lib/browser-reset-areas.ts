@@ -29,6 +29,19 @@ const DELETE_WAIT_MS = 3000;
 /** How long the network has to answer before the app shell is kept. */
 const PROBE_WAIT_MS = 3000;
 
+/**
+ * Settle with `work`, or reject once `ms` have passed: a step the browser
+ * never answers (a push service, a worker that will not unregister) must
+ * not hold the reset, and every tab waiting on it, open-ended.
+ */
+export function bounded<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer in ${ms}ms`)), ms);
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
+}
+
 function notFound(result: PromiseRejectedResult): boolean {
   const { reason } = result;
   return reason instanceof DOMException && reason.name === "NotFoundError";
@@ -107,20 +120,29 @@ export async function clearDatabases(
   );
 }
 
-function clearStore(store: WebStorage | undefined, area: WebStorageArea): void {
+function clearStore(
+  store: WebStorage | undefined,
+  area: WebStorageArea,
+  msalClientIds: readonly string[],
+): void {
   if (!store) return;
   const keys: string[] = [];
   for (let index = 0; index < store.length; index += 1) {
     const key = store.key(index);
-    if (key !== null && ownsWebStorageKey(key, area)) keys.push(key);
+    if (key !== null && ownsWebStorageKey(key, area, msalClientIds)) {
+      keys.push(key);
+    }
   }
   for (const key of keys) store.removeItem(key);
 }
 
-/** The app's Web Storage keys, in both stores. */
-export function clearWebStorage(): void {
-  clearStore(maybeLocalStore(), "local");
-  clearStore(maybeSessionStore(), "session");
+/**
+ * The app's Web Storage keys, in both stores — MSAL's among them only where
+ * they name one of `msalClientIds`.
+ */
+export function clearWebStorage(msalClientIds: readonly string[] = []): void {
+  clearStore(maybeLocalStore(), "local", msalClientIds);
+  clearStore(maybeSessionStore(), "session", msalClientIds);
 }
 
 /** The service worker's caches under this app's scope (PWA-04). */

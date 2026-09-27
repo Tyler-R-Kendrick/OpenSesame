@@ -1,6 +1,7 @@
 // Must stay first: installs the host the shared core reads (ADR 0133).
 import "./host/boot.js";
 import { onBrowserReset } from "@opensesame/app-core/lib/browser-reset-channel.js";
+import { captureLandingReset } from "@opensesame/app-core/lib/browser-reset-landing.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { registerDuressUiModule } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { StrictMode } from "react";
@@ -9,6 +10,7 @@ import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
+import { ResetGate } from "./screens/unlock/ResetGate.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
 // their stylesheets stay in the first bundle, ahead of styles.css: a
 // stylesheet that arrives with a lazy chunk lands after the shared rules and
@@ -57,10 +59,15 @@ armInstall();
 // whatever is enabled (ADR 0144).
 watchLinkedPairing();
 
-// Another tab reset this browser (screens/unlock/ResetBrowser.tsx): what this
-// tab holds describes storage that is gone, so it starts again as a first
-// visit rather than write any of it back.
+// Another tab reset this browser (screens/unlock/ResetBrowser.tsx): this tab
+// stops writing and stops drawing the app at once (ResetGate), and once the
+// reset is over starts again as a first visit rather than write back what it
+// holds.
 onBrowserReset(() => window.location.replace(import.meta.env.BASE_URL));
+
+// A reset that left something behind says so in this address; read it before
+// the router does, and take it off (screens/unlock/ResetLeftNotice.tsx).
+captureLandingReset();
 
 // The shared core never imports UI (ADR 0133); the shell says how to load the
 // duress settings panel when the duress runtime warms its capabilities.
@@ -96,9 +103,11 @@ void (async () => {
   const { AppRoot } = await import("./app-root.js");
   createRoot(root).render(
     <StrictMode>
-      <BrowserRouter basename={basename === "/" ? undefined : basename}>
-        <AppRoot />
-      </BrowserRouter>
+      <ResetGate>
+        <BrowserRouter basename={basename === "/" ? undefined : basename}>
+          <AppRoot />
+        </BrowserRouter>
+      </ResetGate>
     </StrictMode>,
   );
   if (!crossOriginIsolated && "serviceWorker" in navigator) {

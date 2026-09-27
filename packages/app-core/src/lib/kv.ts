@@ -82,6 +82,15 @@ export function kvFileName(key: string): string {
   return fileName(key);
 }
 
+/**
+ * Drop every in-memory copy. Resetting this browser does, once the files
+ * are gone, so nothing read afterwards — the tomb registry, a vault header —
+ * describes storage that no longer exists.
+ */
+export function kvForgetAll(): void {
+  memory.clear();
+}
+
 /** Drop every in-memory copy whose origin file is in `files` (already removed). */
 export function kvForgetFiles(files: ReadonlySet<string>): void {
   for (const key of [...memory.keys()]) {

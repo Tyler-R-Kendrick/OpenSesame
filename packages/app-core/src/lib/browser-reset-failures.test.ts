@@ -44,7 +44,7 @@ function host(ports: Parameters<typeof createTestHost>[0]): void {
 
 describe("resetBrowser: refusals", () => {
   it("names origin files that would not go, and keeps going", async () => {
-    const local = memoryStorage(["opensesame:settings", "{}"]);
+    const local = memoryStorage(["opensesame.settings-source", "{}"]);
     const root = originRoot(["opensesame-pages-a.json", "opensesame-pages-b"]);
     root.removeEntry.mockImplementation(async (name: string) => {
       if (name === "opensesame-pages-b") {

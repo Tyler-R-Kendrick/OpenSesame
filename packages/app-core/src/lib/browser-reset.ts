@@ -9,7 +9,9 @@
  * by the names the app owns (`storage-ownership.ts`, the service worker's
  * scope-prefixed caches), never by clearing the area whole.
  *
- * In order: other tabs are told first, so they stop writing; the
+ * The whole reset runs under a Web Lock (`RESET_LOCK`), which other tabs
+ * wait on before they reload. In order: other tabs are told first, so they
+ * stop writing; the
  * session is signed out while the bearer its revocation sends is still in
  * memory; the writes this tab already started are waited for and then no
  * more are allowed; then the stores go, a second pass catches anything
@@ -25,11 +27,17 @@
  * Not forensic erasure: what the browser keeps beyond the app's reach (the
  * HttpOnly cookie the Identity API sets, the HTTP cache, a granted storage
  * persistence) stays, and ciphertext already pushed to a backup remote is
- * untouched. The caller navigates afterwards; nothing here reloads.
+ * untouched. The caller navigates afterwards, whatever the report says;
+ * nothing here reloads.
  */
 
-import { isOnline } from "../ports.js";
+import { isOnline, lockManager } from "../ports.js";
 import {
+  appEntraClientIds,
+  clearEntraInstances,
+} from "./ambient-auth/entra-instances.js";
+import {
+  bounded,
   clearCaches,
   clearDatabases,
   clearOriginFiles,
@@ -38,11 +46,11 @@ import {
   unregisterServiceWorkers,
   unsubscribePush,
 } from "./browser-reset-areas.js";
-import { announceBrowserReset } from "./browser-reset-channel.js";
+import { RESET_LOCK, announceBrowserReset } from "./browser-reset-channel.js";
 import { settleRevokes } from "./identity.js";
-import { kvFlush } from "./kv.js";
+import { kvFlush, kvForgetAll } from "./kv.js";
 import { signOut } from "./session-exit.js";
-import { haltStorageWrites } from "./storage-halt.js";
+import { beginBrowserReset, haltStorageWrites } from "./storage-halt.js";
 import { vaultStore } from "./vault/store.js";
 
 export type BrowserResetArea =
@@ -71,6 +79,14 @@ export type BrowserResetOptions = Readonly<{
   ownsCache: (name: string) => boolean;
 }>;
 
+/**
+ * The longest any one step may take. Every step is bounded, so the reset —
+ * and every tab waiting on its lock — always ends.
+ */
+const STEP_MS = 10_000;
+/** The shorter bound for work the reset only tries (flush, push, MSAL). */
+const TRY_MS = 5000;
+
 /** Every write this tab has started: vault persists, then the kv queue. */
 async function flushWrites(): Promise<void> {
   await vaultStore.flushPendingWrites();
@@ -85,11 +101,16 @@ async function endSession(): Promise<void> {
   // Bounded by the Identity fetch timeout; a failed revoke is not an error
   // here — the cookie is the server's to expire.
   await settleRevokes();
+  // MSAL's own records, account entries included, through each instance.
+  await attempt(clearEntraInstances, TRY_MS);
 }
 
-async function attempt(step: () => void | Promise<void>): Promise<boolean> {
+async function attempt(
+  step: () => void | Promise<void>,
+  ms: number = STEP_MS,
+): Promise<boolean> {
   try {
-    await step();
+    await bounded(Promise.resolve().then(step), ms);
     return true;
   } catch {
     return false;
@@ -120,7 +141,10 @@ class Ledger {
 async function removeShell(ledger: Ledger, options: BrowserResetOptions) {
   // Unregistering ends the subscription too; ending it first means a worker
   // that will not unregister still stops delivering.
-  const unsubscribed = await attempt(() => unsubscribePush(options.scope));
+  const unsubscribed = await attempt(
+    () => unsubscribePush(options.scope),
+    TRY_MS,
+  );
   await ledger.run("caches", () => clearCaches(options.ownsCache));
   await ledger.run("service_workers", () =>
     unregisterServiceWorkers(options.scope),
@@ -130,34 +154,53 @@ async function removeShell(ledger: Ledger, options: BrowserResetOptions) {
 }
 
 async function keepShell(ledger: Ledger, options: BrowserResetOptions) {
-  const unsubscribed = await attempt(() => unsubscribePush(options.scope));
+  const unsubscribed = await attempt(
+    () => unsubscribePush(options.scope),
+    TRY_MS,
+  );
   (unsubscribed ? ledger.cleared : ledger.kept).push("push_subscription");
   ledger.kept.push("caches", "service_workers");
 }
 
-/** Remove everything this app keeps in this browser. Never throws. */
-export async function resetBrowser(
-  options: BrowserResetOptions,
-): Promise<BrowserResetReport> {
+async function run(options: BrowserResetOptions): Promise<BrowserResetReport> {
   const ledger = new Ledger();
+  const msalClients = appEntraClientIds();
+  const clearOwnKeys = () => clearWebStorage(msalClients);
   announceBrowserReset("start");
   await ledger.run("session", endSession);
   // A write this tab started before now (the lock's last-vault pointer, a
   // vault persist) lands before the files are listed; none starts after.
-  await attempt(browserResetSeams.flushWrites);
+  await attempt(browserResetSeams.flushWrites, TRY_MS);
   haltStorageWrites();
   await ledger.run("origin_files", clearOriginFiles);
+  // Nothing read from memory from here on describes a file that is gone.
+  kvForgetAll();
   await ledger.run("databases", () => clearDatabases());
-  await ledger.run("web_storage", clearWebStorage);
+  await ledger.run("web_storage", clearOwnKeys);
   const shellGoes =
     isOnline() && (await browserResetSeams.networkAnswers(options.scope));
   await (shellGoes ? removeShell : keepShell)(ledger, options);
   // Another tab may have had a write in the air when it heard the reset,
   // and the worker may have saved a shell before it was unregistered.
   await ledger.sweep("origin_files", clearOriginFiles);
-  await ledger.sweep("web_storage", clearWebStorage);
-  if (shellGoes)
+  await ledger.sweep("web_storage", clearOwnKeys);
+  if (shellGoes) {
     await ledger.sweep("caches", () => clearCaches(options.ownsCache));
+  }
   announceBrowserReset("done");
   return ledger.report();
+}
+
+/**
+ * Remove everything this app keeps in this browser. Never throws. From the
+ * first moment the tab stops offering the app (`beginBrowserReset`), and it
+ * never offers it again: the caller leaves for a fresh document.
+ */
+export async function resetBrowser(
+  options: BrowserResetOptions,
+): Promise<BrowserResetReport> {
+  beginBrowserReset();
+  const locks = lockManager();
+  if (!locks) return run(options);
+  return locks.request(RESET_LOCK, () => run(options));
 }

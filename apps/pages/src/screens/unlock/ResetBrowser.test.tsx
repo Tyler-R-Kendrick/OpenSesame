@@ -2,14 +2,15 @@
 /**
  * "Reset this browser?": closed it is a question; open it is the consequence
  * and two keys. Keep and Escape close it with focus back on the question;
- * erase runs the reset and leaves for a first visit only when nothing was
- * left behind — otherwise the panel stays and names what remains.
+ * erase runs the reset and then — only then, and always — leaves for a
+ * fresh document, carrying whatever the reset left behind.
  */
 
 import type { BrowserResetReport } from "@opensesame/app-core/lib/browser-reset.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { ResetBrowser, resetBrowserSeams } from "./ResetBrowser.js";
+import { ResetBrowser } from "./ResetBrowser.js";
+import { resetBrowserSeams } from "./reset-browser-run.js";
 
 const original = { ...resetBrowserSeams };
 
@@ -45,8 +46,8 @@ describe("ResetBrowser", () => {
 
   it("Escape closes the question onto the link, goes no further, and arms nothing", async () => {
     const reset = vi.fn(async () => CLEAN);
-    const firstVisit = vi.fn();
-    Object.assign(resetBrowserSeams, { reset, firstVisit });
+    const leave = vi.fn();
+    Object.assign(resetBrowserSeams, { reset, leave });
     // The screen behind the panel listens on the document.
     const outer = vi.fn();
     document.addEventListener("keydown", outer);
@@ -74,7 +75,7 @@ describe("ResetBrowser", () => {
     expect(eraseKey().hasAttribute("disabled")).toBe(false);
     expect(reset).not.toHaveBeenCalled();
     fireEvent.click(eraseKey());
-    await vi.waitFor(() => expect(firstVisit).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
     expect(reset).toHaveBeenCalledTimes(1);
   });
 
@@ -86,8 +87,8 @@ describe("ResetBrowser", () => {
         order.push("reset");
         finish = () => resolve(CLEAN);
       });
-    resetBrowserSeams.firstVisit = () => {
-      order.push("firstVisit");
+    resetBrowserSeams.leave = () => {
+      order.push("leave");
     };
     render(<ResetBrowser />);
     openPanel();
@@ -98,71 +99,27 @@ describe("ResetBrowser", () => {
     expect(order).toEqual(["reset"]);
     expect(erase.hasAttribute("disabled")).toBe(true);
     finish();
-    await vi.waitFor(() => expect(order).toEqual(["reset", "firstVisit"]));
+    await vi.waitFor(() => expect(order).toEqual(["reset", "leave"]));
   });
 
-  it("stays and names what would not go, with a way on either way", async () => {
-    const reports: BrowserResetReport[] = [
-      {
-        cleared: ["session", "web_storage"],
-        failed: ["origin_files", "databases"],
-        kept: [],
-      },
-      CLEAN,
-    ];
-    const reset = vi.fn(async () => reports.shift() ?? CLEAN);
-    const firstVisit = vi.fn();
-    Object.assign(resetBrowserSeams, { reset, firstVisit });
+  it("leaves even when the reset left something, carrying what it left", async () => {
+    const left: BrowserResetReport = {
+      cleared: ["session", "origin_files", "web_storage"],
+      failed: ["databases"],
+      kept: ["push_subscription", "caches", "service_workers"],
+    };
+    const leave = vi.fn();
+    Object.assign(resetBrowserSeams, { reset: async () => left, leave });
     render(<ResetBrowser />);
     openPanel();
 
     fireEvent.click(eraseKey());
 
-    const again = await screen.findByRole("button", { name: "Erase again" });
-    expect(firstVisit).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(again);
+    await vi.waitFor(() => expect(leave).toHaveBeenCalledWith(left));
+    // Nothing here offers to stay: the stale, halted tab is never used.
     expect(
-      screen.getByRole("img", { name: "Vaults and settings: not erased" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("img", { name: "History backups: not erased" }),
-    ).toBeTruthy();
-    // Still here, so Escape cannot pretend it was undone.
-    fireEvent.keyDown(again, { key: "Escape" });
-    expect(screen.getByRole("list", { name: "Still in this browser" }));
-
-    fireEvent.click(again);
-    await vi.waitFor(() => expect(firstVisit).toHaveBeenCalledTimes(1));
-    expect(reset).toHaveBeenCalledTimes(2);
-  });
-
-  it("offline, names the shell it kept and still lets the person start over", async () => {
-    const firstVisit = vi.fn();
-    Object.assign(resetBrowserSeams, {
-      reset: async (): Promise<BrowserResetReport> => ({
-        cleared: ["session", "origin_files", "databases", "web_storage"],
-        failed: [],
-        kept: ["push_subscription", "caches", "service_workers"],
-      }),
-      firstVisit,
-    });
-    render(<ResetBrowser />);
-    openPanel();
-
-    fireEvent.click(eraseKey());
-
-    await screen.findByRole("list", { name: "Still in this browser" });
-    expect(firstVisit).not.toHaveBeenCalled();
-    for (const name of [
-      "Notifications: still subscribed",
-      "Offline app: kept while offline",
-      "Offline worker: kept while offline",
-    ]) {
-      expect(screen.getByRole("img", { name })).toBeTruthy();
-    }
-    fireEvent.click(
-      screen.getByRole("button", { name: "Start as a first visit" }),
-    );
-    expect(firstVisit).toHaveBeenCalledTimes(1);
+      screen.queryByRole("list", { name: "Still in this browser" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Erase again" })).toBeNull();
   });
 });

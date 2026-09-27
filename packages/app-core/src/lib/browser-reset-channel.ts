@@ -6,10 +6,17 @@
  * anything renders.
  */
 
-import { openBroadcast } from "../ports.js";
+import { lockManager, openBroadcast } from "../ports.js";
 import { haltStorageWrites } from "./storage-halt.js";
 
 const CHANNEL = "opensesame.browser-reset";
+
+/**
+ * The Web Lock the resetting tab holds from before its first message until
+ * after its last. A tab that heard the reset start is granted it only once
+ * the reset is over, however long that took.
+ */
+export const RESET_LOCK = "opensesame.browser-reset";
 
 let tab: string | null = null;
 
@@ -47,10 +54,11 @@ type ResetMessage = Readonly<{
 }>;
 
 /**
- * How long a tab that heard `start` waits for `done` before it reloads
- * anyway: the tab that was resetting may have been closed part way.
+ * The last resort: how long a tab that heard `start` waits before it reloads
+ * with neither `done` nor the lock — a browser without Web Locks (Safari
+ * before 15.4) whose resetting tab was closed part way.
  */
-const DONE_WAIT_MS = 15_000;
+const CEILING_MS = 120_000;
 
 function resetFromElsewhere(
   event: MessageEvent<Partial<ResetMessage> | null>,
@@ -84,27 +92,39 @@ export function announceBrowserReset(phase: ResetPhase): void {
  * Run `handler` when another tab of this origin has reset the browser.
  * Writes stop as soon as the reset starts — this tab's memory describes
  * storage that is going, and anything it wrote back would outlive the reset
- * — and the handler (the shell reloads) runs once it is done.
+ * — and the handler (the shell reloads) runs once it is over: on `done`, or
+ * when the reset lock is released (a resetting tab closed part way releases
+ * it too), or at the ceiling.
  */
 export function onBrowserReset(handler: () => void): () => void {
   const channel = openBroadcast(CHANNEL);
   if (!channel) return () => undefined;
-  let fallback: ReturnType<typeof setTimeout> | null = null;
+  let finished = false;
+  let ceiling: ReturnType<typeof setTimeout> | null = null;
   const finish = () => {
-    if (fallback !== null) clearTimeout(fallback);
-    fallback = null;
+    if (finished) return;
+    finished = true;
+    if (ceiling !== null) clearTimeout(ceiling);
     handler();
+  };
+  const waitForTheReset = () => {
+    if (ceiling !== null || finished) return;
+    ceiling = setTimeout(finish, CEILING_MS);
+    lockManager()
+      ?.request(RESET_LOCK, () => undefined)
+      .then(finish, () => undefined);
   };
   const listener = (event: MessageEvent<Partial<ResetMessage> | null>) => {
     const phase = resetFromElsewhere(event);
     if (phase === null) return;
     haltStorageWrites();
     if (phase === "done") finish();
-    else fallback ??= setTimeout(finish, DONE_WAIT_MS);
+    else waitForTheReset();
   };
   channel.addEventListener("message", listener);
   return () => {
-    if (fallback !== null) clearTimeout(fallback);
+    finished = true;
+    if (ceiling !== null) clearTimeout(ceiling);
     channel.removeEventListener("message", listener);
     channel.close();
   };

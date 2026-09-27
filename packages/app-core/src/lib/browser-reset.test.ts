@@ -3,7 +3,8 @@
  * nothing else is — the origin is shared with other sites — the session is
  * signed out before any of it, other tabs are told before the first store
  * goes and again after the last, and this tab's own writes land before the
- * files are listed and are refused after.
+ * files are listed and are refused after. A relying party's SDK session on
+ * the same origin (`opensesame:session`) is not the app's.
  */
 
 import { overlapCast } from "@opensesame/os-domain";
@@ -11,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { maybeLocalStore } from "../ports.js";
 import { createTestHost } from "../test-host.js";
+import { RESET_LOCK } from "./browser-reset-channel.js";
 import {
   FOREIGN_SCOPE,
   NO_PORTS,
@@ -24,10 +26,17 @@ import {
   registration,
   workerContainer,
 } from "./browser-reset.fixture.js";
-import { browserResetSeams, resetBrowser } from "./browser-reset.js";
+import {
+  type BrowserResetReport,
+  browserResetSeams,
+  resetBrowser,
+} from "./browser-reset.js";
 import { kvSet, kvSetDurable } from "./kv.js";
 import { sessionExitSeams } from "./session-exit.js";
-import { resumeStorageWritesForTest } from "./storage-halt.js";
+import {
+  browserResetting,
+  resumeStorageWritesForTest,
+} from "./storage-halt.js";
 
 const original = {
   signOut: sessionExitSeams.signOut,
@@ -55,15 +64,20 @@ function quiet(): void {
 describe("resetBrowser: only what the app owns", () => {
   it("empties the app's own stores and leaves every other site's", async () => {
     const local = memoryStorage(
-      ["opensesame:settings", "{}"],
+      ["opensesame:federation:last-method", "google"],
       ["opensesame.keybindings.v1", "{}"],
       ["join.presented.v1", "{}"],
       ["other", "x"],
+      // Another project site's settings, named like ours but not ours.
+      ["opensesame-docs.theme", "dark"],
       ["msal.3.account.keys", "[]"],
     );
     const session = memoryStorage(
       ["opensesame:federation:session", "{}"],
       ["join.pending.v2", "{}"],
+      // A relying party's SDK session on this origin.
+      ["opensesame:session", "{}"],
+      ["opensesame:pkce", "{}"],
       ["msal.3.token.keys.client", "{}"],
       ["theirs", "y"],
     );
@@ -111,8 +125,17 @@ describe("resetBrowser: only what the app owns", () => {
       "session",
       "web_storage",
     ]);
-    expect([...local.map.keys()]).toEqual(["other", "msal.3.account.keys"]);
-    expect([...session.map.keys()]).toEqual(["theirs"]);
+    expect([...local.map.keys()]).toEqual([
+      "other",
+      "opensesame-docs.theme",
+      "msal.3.account.keys",
+    ]);
+    expect([...session.map.keys()]).toEqual([
+      "opensesame:session",
+      "opensesame:pkce",
+      "msal.3.token.keys.client",
+      "theirs",
+    ]);
     expect([...root.files]).toEqual(["tomb", "their-notes.json"]);
     expect(databases.deleted).toEqual(["opensesame-history-backups"]);
     expect([...databases.live]).toEqual(["their-db"]);
@@ -128,13 +151,17 @@ describe("resetBrowser: only what the app owns", () => {
 });
 
 describe("resetBrowser: other tabs and this tab's own writes", () => {
-  it("announces first, signs out, flushes, halts, clears, sweeps, announces again", async () => {
+  it("holds the reset lock throughout: announces, signs out, flushes, halts, clears, announces again", async () => {
     const order: string[] = [];
-    const local = memoryStorage(["opensesame:settings", "{}"]);
+    const local = memoryStorage(["opensesame.settings-source", "{}"]);
     const root = originRoot(["opensesame-pages-a.json"]);
     const hub = broadcastHub(() => order.push("announce"));
     quiet();
-    sessionExitSeams.signOut = () => order.push("signOut");
+    // By the time anything runs, the app is no longer offered (ResetGate).
+    sessionExitSeams.signOut = () =>
+      order.push(
+        browserResetting() ? "signOut" : "signOut (app still offered)",
+      );
     browserResetSeams.flushWrites = async () => {
       order.push("flush");
     };
@@ -143,7 +170,7 @@ describe("resetBrowser: other tabs and this tab's own writes", () => {
       root.files.delete(name);
       // Writes after the flush are refused: the Web Storage port does
       // nothing, and an origin-file write rejects before it starts.
-      maybeLocalStore()?.setItem("opensesame:late", "1");
+      maybeLocalStore()?.setItem("opensesame.late", "1");
       await expect(kvSetDurable("late", "1")).rejects.toThrow(/reset/);
     });
     configureHost(
@@ -152,19 +179,34 @@ describe("resetBrowser: other tabs and this tab's own writes", () => {
         storage: { local },
         originFiles: async () => overlapCast(root),
         broadcast: hub.open,
+        locks: overlapCast({
+          request: async (
+            name: string,
+            run: () => Promise<BrowserResetReport>,
+          ) => {
+            order.push(`lock:${name}`);
+            try {
+              return await run();
+            } finally {
+              order.push("unlock");
+            }
+          },
+        }),
       }),
     );
 
     await resetBrowser(OURS);
 
     expect(order).toEqual([
+      `lock:${RESET_LOCK}`,
       "announce",
       "signOut",
       "flush",
       "remove:opensesame-pages-a.json",
       "announce",
+      "unlock",
     ]);
-    expect(local.map.has("opensesame:late")).toBe(false);
+    expect(local.map.has("opensesame.late")).toBe(false);
     expect(local.map.size).toBe(0);
   });
 

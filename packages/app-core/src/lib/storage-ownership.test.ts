@@ -9,8 +9,17 @@ import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { maybeLocalStore, openOwnedDatabase, sessionStore } from "../ports.js";
+import {
+  assertOwnedStorageWrites,
+  takeStorageWrites,
+} from "../test-host-storage-writes.js";
 import { createTestHost } from "../test-host.js";
 import { memoryStorage } from "./browser-reset.fixture.js";
+import {
+  appendHistoryEntry,
+  listHistoryAccounts,
+  putHistoryAccount,
+} from "./history-backup-idb.js";
 import { kvFileName, kvFlush, kvSet, kvSetDurable } from "./kv.js";
 import {
   haltStorageWrites,
@@ -32,11 +41,19 @@ afterEach(() => {
 describe("ownership", () => {
   it.each([
     ["opensesame:federation:session", "local", true],
+    ["opensesame:ambient-auth:tx", "local", true],
+    ["opensesame:org-profile", "session", true],
     ["opensesame.last-vault.v1", "local", true],
-    ["opensesame-anything", "local", true],
+    ["opensesame.wallet.budget.v1.personal", "local", true],
     ["join.pending.v2", "session", true],
-    ["msal.3.token.keys.client", "session", true],
-    ["msal.3.token.keys.client", "local", false],
+    // A relying party's SDK on the same origin: its session, not ours.
+    ["opensesame:session", "session", false],
+    ["opensesame:pkce", "session", false],
+    ["opensesame:returnTo", "session", false],
+    ["opensesame:static-auth:rp:https://a.test/cb", "session", false],
+    // Another project site's keys.
+    ["opensesame-docs.theme", "local", false],
+    ["msal.3.token.keys.client", "session", false],
     ["other", "local", false],
     ["theme", "session", false],
     ["joined", "local", false],
@@ -61,27 +78,33 @@ describe("ownership", () => {
 });
 
 describe("the ports hold every write to the rule", () => {
-  it("refuses an unowned Web Storage key in a development build", () => {
+  it("records every write, so a test that writes an unowned key fails", () => {
     const local = memoryStorage();
     const session = memoryStorage();
     configureHost(createTestHost({ storage: { local, session } }));
 
-    expect(() => maybeLocalStore()?.setItem("theme", "dark")).toThrow(
-      /not one this app owns/,
-    );
-    expect(() => sessionStore().setItem("draft", "x")).toThrow(
-      /not one this app owns/,
-    );
+    maybeLocalStore()?.setItem("theme", "dark");
+    sessionStore().setItem("opensesame:session", "{}");
     maybeLocalStore()?.setItem("opensesame.theme", "dark");
-    expect([...local.map]).toEqual([["opensesame.theme", "dark"]]);
-    expect(session.map.size).toBe(0);
+
+    // The write goes through (a shell has no recorder); the test fails.
+    expect(local.map.get("theme")).toBe("dark");
+    expect(() => assertOwnedStorageWrites()).toThrow(
+      /local:theme, session:opensesame:session/,
+    );
+    // Taken by the check, so this test itself passes.
+    expect(takeStorageWrites()).toEqual([]);
   });
 
-  it("writes an unowned key in a production build rather than break", () => {
-    const local = memoryStorage();
-    configureHost(createTestHost({ storage: { local }, env: { DEV: false } }));
-    maybeLocalStore()?.setItem("theme", "dark");
-    expect(local.map.get("theme")).toBe("dark");
+  it("catches a key whose write the caller's try/catch swallowed", () => {
+    configureHost(createTestHost({ storage: { local: memoryStorage() } }));
+    try {
+      maybeLocalStore()?.setItem("draft", "x");
+      throw new Error("the caller's own failure");
+    } catch {
+      // swallowed, as `last-sign-in.ts` and `settings-source.ts` do
+    }
+    expect(takeStorageWrites()).toEqual([{ area: "local", key: "draft" }]);
   });
 
   it("opens only a database the rule lists", () => {
@@ -124,6 +147,26 @@ describe("the ports hold every write to the rule", () => {
 
     expect(local.map.size).toBe(0);
     expect(created).toEqual([]);
+  });
+});
+
+describe("a halted tab and IndexedDB", () => {
+  it("never opens the history database, which opening would recreate", async () => {
+    const open = vi.fn((): IDBOpenDBRequest => overlapCast({}));
+    configureHost(createTestHost({ indexedDB: overlapCast({ open }) }));
+    haltStorageWrites();
+
+    await putHistoryAccount({
+      id: "hacc_1",
+      providerId: "neon",
+      anonToken: "t",
+      claimState: "provisional",
+      createdAt: "2026-09-27T00:00:00.000Z",
+    });
+    await appendHistoryEntry("hacc_1", new Uint8Array([1]));
+    await listHistoryAccounts();
+
+    expect(open).not.toHaveBeenCalled();
   });
 });
 

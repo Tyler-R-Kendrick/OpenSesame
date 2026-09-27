@@ -16,10 +16,13 @@
  *   and travel (`travel/storage.ts`) moves only files that pass that shape;
  * - IndexedDB: opened only through `openOwnedDatabase` (`ports.ts`), which
  *   refuses a name not listed here;
- * - Web Storage: the ports' `local` and `session` stores refuse, in a
- *   development build, a key this rule does not own — so a new key fails its
- *   first test rather than outlive every reset.
+ * - Web Storage: every write through the ports' `local` and `session`
+ *   stores is recorded by the test hosts, and a test that writes a key this
+ *   rule does not own fails (`test-host-storage-writes.ts`) — so a new key
+ *   fails its first test rather than outlive every reset.
  */
+
+import { msalKeyNamesClient } from "./storage-ownership-msal.js";
 
 /** The start of every origin-private file `kv.ts` writes. */
 export const ORIGIN_FILE_PREFIX = "opensesame-pages-";
@@ -32,21 +35,31 @@ export const APP_DATABASES: readonly string[] = [HISTORY_BACKUP_DATABASE];
 
 export type WebStorageArea = "local" | "session";
 
-/** Every Web Storage key the app writes starts with one of these. */
-const KEY_PREFIXES = ["opensesame:", "opensesame.", "opensesame-"] as const;
+/**
+ * The Web Storage keys the app writes, by prefix. Exact, not `opensesame:`
+ * whole: that namespace is also the relying-party SDKs'
+ * (`@opensesame/sdk-browser`'s `opensesame:session`, `opensesame:pkce`,
+ * `opensesame:returnTo`; `@opensesame/static-auth`'s
+ * `opensesame:static-auth:*`), and a relying party on this origin keeps its
+ * own session under them.
+ */
+const KEY_PREFIXES = [
+  // Settings, guest, wallet (`.<tomb>` suffixes), GitHub App, drafts,
+  // connect subjects, duress fence, the claim stash.
+  "opensesame.",
+  "opensesame:federation:",
+  "opensesame:ambient-auth:",
+] as const;
 
-/** The join ceremony's records (`join/presented.ts`, `join/stash.ts`). */
+/** Keys owned whole. */
 const KEYS: ReadonlySet<string> = new Set([
+  // The legacy org profile, migrated into the tomb on unlock (`orgs.ts`).
+  "opensesame:org-profile",
+  // The join ceremony's records (`join/presented.ts`, `join/stash.ts`).
   "join.presented.v1",
   "join.pending.v2",
   "join.invite.v1",
 ]);
-
-/**
- * MSAL's cache, which `ambient-auth/entra.ts` configures into sessionStorage:
- * this tab's, so ours. MSAL in another site's localStorage is not.
- */
-const SESSION_KEY_PREFIXES = ["msal."] as const;
 
 export function ownsOriginFile(name: string): boolean {
   return name.startsWith(ORIGIN_FILE_PREFIX);
@@ -56,12 +69,23 @@ export function ownsDatabase(name: string): boolean {
   return APP_DATABASES.includes(name);
 }
 
-export function ownsWebStorageKey(key: string, area: WebStorageArea): boolean {
+/**
+ * Whether a Web Storage key is the app's. MSAL writes its cache straight to
+ * sessionStorage (`ambient-auth/entra.ts`), and that store is shared by
+ * every same-origin page this tab has shown, so an MSAL key is the app's
+ * only when it names one of the app's own Entra client ids
+ * (`msalKeyNamesClient`).
+ */
+export function ownsWebStorageKey(
+  key: string,
+  area: WebStorageArea,
+  msalClientIds: readonly string[] = [],
+): boolean {
   if (KEYS.has(key)) return true;
   if (KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) return true;
   return (
     area === "session" &&
-    SESSION_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
+    msalClientIds.some((clientId) => msalKeyNamesClient(key, clientId))
   );
 }
 

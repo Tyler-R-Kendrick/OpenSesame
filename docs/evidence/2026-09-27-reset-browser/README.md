@@ -68,51 +68,67 @@ The same journey with the browser taken offline before the reset:
 Offline, the reload still loaded the front door from the service worker, with
 no page errors.
 
-## When something is left behind (follow-up fix)
+## When something is left behind (second review)
 
-These two sheets come from a second pair of builds: the branch before the
-review fixes (`cf05556d`) and the branch after them, walked with
-[`journey-left.json`](journey-left.json). The earlier sheets above are
-unchanged. The journey seals a password vault, opens the unlock form, takes
-the browser offline (`goOffline`, a new capture verb), and presses Erase.
+These two sheets come from the branch at `a156d6d9` (before) and after the
+second review's fixes, walked with [`journey-left.json`](journey-left.json).
+The earlier sheets above are unchanged. The journey seals a password vault,
+opens the unlock form, takes the browser offline (`goOffline`), presses Erase,
+then finds the reset panel wherever the build draws it (`lookForResetPanel`).
 
 ![Offline reset, phone](390-offline-reset-left.png)
 
-Before, the tab went to `/OpenSesame/` as if everything had been erased,
-though the offline app had been kept. After, the tab stays on `/vault`. The
-panel (`168×127 @53,500`) lists what remains, one `StatusMark` per row:
-`Offline app: kept while offline` and `Offline worker: kept while offline`
-(`137×20 @68,514`, `@68,540`). Its two keys are `Erase again` and `Start as a
-first visit` (`44×44 @68,569`, `@120,569`). A store that refused shows the
-same way, with an error mark reading `<area>: not erased`.
+Before, the tab stayed on `/vault` with the panel open (`168×127 @53,358`).
+Its writes were halted and its memory still described the vault it had just
+erased, so the unlock form went on offering `personal`. After, the tab always
+leaves for a fresh document. What was left comes along in the address and is
+taken off it on arrival. The front door lands on `/OpenSesame/` and shows it
+first, above the roads in: the notice is `324×127 @33,78` and the roads are
+`@33,310`. Each area left has one `StatusMark` row (`Offline app: kept while
+offline`, `Offline worker: kept while offline`, `294×20 @48,92` and `@48,118`).
+The two keys are `Erase again` and `Dismiss` (`44×44 @48,147` and `@100,147`).
+A store that refused shows an error mark reading `<area>: not erased`. While
+the reset runs, the app is not drawn at all: one status reads "Resetting this
+browser", so no lock-screen control can be pressed.
 
 ![Offline reset, desktop](1280-offline-reset-left.png)
 
-Desktop: the panel is `168×115 @157,555` and the keys are `32×32` and `24×24`.
+Desktop: the notice is `480×115 @109,187` above the roads at `@109,418`, and
+the keys are `32×32` and `24×24`.
 
 ## Only what the app owns: the fixed build in a real browser
 
 Checked against `vite preview` of the branch build at
 `http://localhost:4188/OpenSesame/`. Another site's data was seeded on the same
-origin first: a localStorage key, a sessionStorage key in the app's tab, two
-caches (one named like ours but under `/other-site/`), an IndexedDB database,
-an OPFS file and a service worker at another scope. A worker script cannot be
-routed, so that site's worker came from a temporary file at
-`/OpenSesame/other-site-sw.js` with scope `/OpenSesame/other-site/`. The app
-then got a guest vault, its own worker and cache, and
-`opensesame-history-backups`. A second tab was open on the app.
+origin first:
 
-| state | app files | app keys | app cache | app DB | app worker | the other site's data (all 7 items) |
-|---|---|---|---|---|---|---|
-| before reset | 14 | 3 | 1 | yes | yes | present |
-| after reset, online | 0 | 0 | 0 | no | no | **all survive** |
-| after reset, offline | 0 | 0 | 1 (kept) | no | yes (kept) | **all survive** |
-| after reset, "online" but the probe fails | 0 | 0 | 1 (kept) | no | yes (kept) | **all survive** |
+- a localStorage key, and `opensesame-docs.theme` (named like ours);
+- in the app's own tab, a sessionStorage key, a relying-party SDK session
+  (`opensesame:session`) and another site's MSAL key
+  (`msal.3.token.keys.<their client>`);
+- two caches, one named like ours but under `/other-site/`;
+- an IndexedDB database and an OPFS file;
+- a service worker at another scope. A worker script cannot be routed, so
+  it came from a temporary file at `/OpenSesame/other-site-sw.js`, registered
+  with scope `/OpenSesame/other-site/`.
 
-Online, the tab and the second tab both loaded `/OpenSesame/` only after the
-reset was done. That load was held on a placeholder page, so nothing a first
-visit writes could be mistaken for leftovers. No page or console errors.
-Offline, and with the network probe refused while `navigator.onLine` stayed
-true, the panel stayed with the two kept marks. `Start as a first visit` then
-loaded the front door from the kept worker.
+The app then got a guest vault (14 OPFS files, 7 of them its tomb), its own
+worker and cache, `opensesame-history-backups` and its own keys. A second tab
+was open on the app.
+
+| variant | while resetting | app data after | app cache / worker | the other site's data (10 items) |
+|---|---|---|---|---|
+| online | status only, 0 buttons | none | removed | **all survive** |
+| offline | status only, 0 buttons | none but the fresh document's first-visit files | kept, and the notice says so | **all survive** |
+| "online" but the probe is refused | status only, 0 buttons | none but the fresh document's first-visit files | kept, and the notice says so | **all survive** |
+
+Online, the first-visit load was held on a placeholder page, so nothing a
+first visit writes could be mistaken for leftovers. Both tabs reached it only
+after the reset was over: the second tab waits on the reset's Web Lock. Offline
+and with the probe refused, the kept worker served the fresh document. That
+document writes three files of its own on arrival. The same three files
+(`installation.v1`, `tombs.v1`, `tomb_personal_migrated.v1`) appear on a
+pristine first visit. None of the erased vault's seven tomb files remained.
+There were no page errors. The only console line is the refused probe
+request itself, in the probe-refused variant.
 

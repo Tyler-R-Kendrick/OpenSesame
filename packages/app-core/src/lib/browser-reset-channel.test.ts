@@ -2,14 +2,17 @@
  * The reset channel is imported by the shell's entry before anything renders,
  * so it must load where `crypto.randomUUID` does not exist (Safari before
  * 15.4, a non-secure context) and make its tab id only when first needed.
- * A tab that hears a reset start stops writing at once and reloads only when
- * it is done, or when the resetting tab never says so.
+ * A tab that hears a reset start stops writing at once and reloads only once
+ * it is over: on `done`, when the resetting tab's Web Lock is released, or —
+ * without Web Locks — at a generous ceiling.
  */
 
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
+import type { LockManagerLike } from "../ports.js";
 import { createTestHost } from "../test-host.js";
-import { onBrowserReset } from "./browser-reset-channel.js";
+import { RESET_LOCK, onBrowserReset } from "./browser-reset-channel.js";
 import { broadcastHub } from "./browser-reset.fixture.js";
 import { kvSetDurable } from "./kv.js";
 import {
@@ -105,18 +108,56 @@ describe("hearing another tab's reset", () => {
     stop();
   });
 
-  it("reloads anyway when the resetting tab never finishes", () => {
-    vi.useFakeTimers();
+  it("waits for the resetting tab's lock, however long, and reloads when it is released", async () => {
+    const locks = heldLock();
     const hub = broadcastHub();
-    configureHost(createTestHost({ broadcast: hub.open }));
+    configureHost(createTestHost({ broadcast: hub.open, locks: locks.port }));
     const reload = vi.fn();
     const stop = onBrowserReset(reload);
 
     hub.open().postMessage({ kind: "reset", tab: "other", phase: "start" });
-    vi.advanceTimersByTime(14_000);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(locks.asked).toEqual([RESET_LOCK]);
+    expect(reload).not.toHaveBeenCalled();
+
+    locks.release();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    // `done` arriving afterwards does not reload twice.
+    hub.open().postMessage({ kind: "reset", tab: "other", phase: "done" });
+    expect(reload).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it("without Web Locks, reloads at the ceiling and not before", () => {
+    vi.useFakeTimers();
+    const hub = broadcastHub();
+    configureHost(createTestHost({ broadcast: hub.open, locks: undefined }));
+    const reload = vi.fn();
+    const stop = onBrowserReset(reload);
+
+    hub.open().postMessage({ kind: "reset", tab: "other", phase: "start" });
+    // Longer than any bounded reset: the old fixed 15 s wait was not.
+    vi.advanceTimersByTime(119_000);
     expect(reload).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1_000);
     expect(reload).toHaveBeenCalledTimes(1);
     stop();
   });
 });
+
+/** A Web Lock another tab holds until the test releases it. */
+function heldLock() {
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const asked: string[] = [];
+  const port: LockManagerLike = overlapCast({
+    request: async (name: string, granted: () => void) => {
+      asked.push(name);
+      await held;
+      return granted();
+    },
+  });
+  return { port, asked, release: () => release() };
+}

@@ -16,11 +16,7 @@
  */
 import { host } from "./host.js";
 import { storageWritesHalted } from "./lib/storage-halt.js";
-import {
-  type WebStorageArea,
-  ownsDatabase,
-  ownsWebStorageKey,
-} from "./lib/storage-ownership.js";
+import { type WebStorageArea, ownsDatabase } from "./lib/storage-ownership.js";
 
 /** Web Storage, as `localStorage` and `sessionStorage` expose it. */
 export type WebStorage = {
@@ -134,6 +130,11 @@ export type Ports = {
   readonly indexedDB?: IDBFactory;
   /** The Cache API (`caches`): where the service worker keeps the offline shell. */
   readonly cacheStorage?: CacheStorage;
+  /**
+   * Told of every Web Storage write the core makes through these ports. The
+   * test hosts record them (`test-host-storage-writes.ts`); a shell has none.
+   */
+  readonly recordStorageWrite?: (area: WebStorageArea, key: string) => void;
 };
 
 function missing(port: string): Error {
@@ -141,10 +142,11 @@ function missing(port: string): Error {
 }
 
 /**
- * A store as the core writes it: a key the app does not own
- * (`lib/storage-ownership.ts`) is refused in a development build, so it
- * cannot silently outlive "Reset this browser"; and once this browser is
- * being reset (`lib/storage-halt.ts`) a write does nothing.
+ * A store as the core writes it. Every write is reported to the host's
+ * recorder, where it has one — the test hosts fail a test that writes a key
+ * the app does not own (`lib/storage-ownership.ts`), so no key can silently
+ * outlive "Reset this browser" — and once this browser is being reset
+ * (`lib/storage-halt.ts`) a write does nothing.
  */
 function owned(
   store: WebStorage | undefined,
@@ -158,12 +160,8 @@ function owned(
     key: (index) => store.key(index),
     getItem: (key) => store.getItem(key),
     setItem(key, value) {
+      host().recordStorageWrite?.(area, key);
       if (storageWritesHalted()) return;
-      if (host().env.DEV && !ownsWebStorageKey(key, area)) {
-        throw new Error(
-          `app-core: ${area} storage key "${key}" is not one this app owns (lib/storage-ownership.ts)`,
-        );
-      }
       store.setItem(key, value);
     },
     removeItem: (key) => store.removeItem(key),

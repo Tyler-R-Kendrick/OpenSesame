@@ -1,5 +1,6 @@
 import { bytesToB64 } from "@opensesame/vault-core";
 import { openOwnedDatabase } from "../ports.js";
+import { storageWritesHalted } from "./storage-halt.js";
 import { HISTORY_BACKUP_DATABASE } from "./storage-ownership.js";
 
 /**
@@ -75,6 +76,9 @@ function idbReq<T>(request: IDBRequest<T>): Promise<T> {
 async function withDb<T>(
   run: (db: IDBDatabase) => Promise<T>,
 ): Promise<T | undefined> {
+  // Opening alone recreates a deleted database, so a tab whose browser is
+  // being reset does not open it at all; memory answers until it reloads.
+  if (storageWritesHalted()) return undefined;
   try {
     const db = await openDb();
     try {
