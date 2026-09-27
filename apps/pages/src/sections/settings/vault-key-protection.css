@@ -28,12 +28,6 @@
   color: var(--warn);
 }
 
-.vkp__verified {
-  display: inline-flex;
-  align-items: center;
-  color: var(--ok);
-}
-
 /* Columns as wide as what they hold: spread in fractions of the panel, a
    format's marks landed 200px apart and a screen away from its name. A
    table's own sizing fits a phone as well, so there is no second layout. */

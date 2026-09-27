@@ -88,10 +88,16 @@ it("forgets the sealed Connect credential: out of memory and out of the vault", 
     screen.getByRole("button", { name: "Forget Vercel Connect" }),
   );
 
-  await waitFor(() => expect(vercelConnectAuth()).toBeNull());
+  // The flash comes only once the forget has settled — memory first, then
+  // the sealed record — so everything below is read after it.
+  await waitFor(() =>
+    expect(onFlash).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: "ok" }),
+    ),
+  );
+  expect(vercelConnectAuth()).toBeNull();
   expect(await readVercelConnectAuth(tomb)).toBeNull();
   expect(kvGet(tombFileKey(tomb, CONNECT_AUTH_PATH))).toBeFalsy();
-  expect(onFlash).toHaveBeenCalledWith(expect.objectContaining({ tone: "ok" }));
   // Nothing held: the form asks again, and there is nothing left to forget.
   await screen.findByLabelText("Vercel access token");
   expect(

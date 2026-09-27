@@ -22,24 +22,6 @@
   background: var(--surface);
 }
 
-.vault__listhead {
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.85rem 0.85rem 0.7rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.vault__titlerow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-
-.vault__titlerow h1 {
-  font-size: 1.0625rem;
-}
-
 /* —— The filter key ————————————————————————————————————————
    The rail carries these roads on a desktop. Where the rail is gone they used
    to become a scrolling row of chips pinned above the list: a 49px band, on
@@ -827,10 +809,6 @@ select.editor__ext:hover {
   color: var(--ink);
 }
 
-.editor__seal {
-  margin: -0.35rem 0 0;
-}
-
 /* A group's + ends its label column, so it stands beside the rows it adds
    to (and on a phone, above their × keys) instead of a column away. */
 .editor__grouplabel {
@@ -1138,10 +1116,6 @@ select.editor__ext:hover {
     min-width: 9rem;
   }
 
-  .vault__rows {
-    padding-bottom: 5rem;
-  }
-
   /* A phone's editor runs past the screen, and its save sat under the last
      field — a scroll away while the name was being typed. It stays at the
      pane's foot, over the fields it seals. */
@@ -1153,18 +1127,6 @@ select.editor__ext:hover {
     border-top: 1px solid var(--line);
     background: var(--canvas);
   }
-}
-
-/* Drop kind: row share shortcut + the drop card's long link. */
-.vault__rowwrap {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.vault__rowwrap .vault__row {
-  flex: 1;
-  min-width: 0;
 }
 
 .drop-card__link {
