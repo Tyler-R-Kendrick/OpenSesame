@@ -48,6 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-09-27-vault-import-export/`](2026-09-27-vault-import-export/README.md) | The vault's Import and Export keys, restored |
+| [`2026-09-27-unlock-phone-gutter/`](2026-09-27-unlock-phone-gutter/README.md) | The seal and unlock forms keep the front door's width on a phone |
 | [`2026-09-27-sample-data-and-manifest/`](2026-09-27-sample-data-and-manifest/README.md) | Sample data and the sealed-store manifest, restored |
 | [`2026-09-27-reset-browser/`](2026-09-27-reset-browser/README.md) | Reset this browser, from the lock screens |
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
