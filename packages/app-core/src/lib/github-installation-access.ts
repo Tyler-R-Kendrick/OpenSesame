@@ -27,6 +27,7 @@ import {
   ensureLocalShare,
   listLocalShares,
 } from "./local-share-grants.js";
+import { standingConnectionRevoked } from "./standing-connection-grants.js";
 
 export const GITHUB_PROVIDER_ID = "github";
 export const GITHUB_ACCESS_POLICY = "invoke";
@@ -36,6 +37,8 @@ export type GithubInstallationSnapshot = {
   installations: GithubInstallation[];
   repos: GithubRepoSummary[];
   shares: LocalShare[];
+  /** The vault owner the standing grant is for; null when there is none. */
+  ownerId: string | null;
   /** Sealed Access audit trail — allowlisted metadata only (ADR 0015). */
   auditEvents: LocalAccessAuditEvent[];
 };
@@ -58,6 +61,17 @@ function githubShares(shares: LocalShare[]): LocalShare[] {
   );
 }
 
+/** The owner's standing grant among GitHub's shares — others' shares are not it. */
+function ownerGrant(
+  shares: readonly LocalShare[],
+  ownerId: string,
+): LocalShare | undefined {
+  return shares.find(
+    (share) =>
+      share.principalId === ownerId && share.policy === GITHUB_ACCESS_POLICY,
+  );
+}
+
 async function ownerPersonId(tomb: string): Promise<{
   id: string;
   name: string;
@@ -70,11 +84,13 @@ async function ownerPersonId(tomb: string): Promise<{
   return { id: owner.id, name: owner.name };
 }
 
-const EMPTY_SNAPSHOT: GithubInstallationSnapshot = {
+/** What a guest, or a vault with nothing of GitHub's, loads. */
+export const EMPTY_GITHUB_SNAPSHOT: GithubInstallationSnapshot = {
   integrations: [],
   installations: [],
   repos: [],
   shares: [],
+  ownerId: null,
   auditEvents: [],
 };
 
@@ -84,7 +100,7 @@ export async function loadGithubInstallationSnapshot(
   connection: Connection | null,
 ): Promise<GithubInstallationSnapshot> {
   // Guests never read Host installs — even in GUEST_TOMB (guest-isolation).
-  if (isGuestSession()) return EMPTY_SNAPSHOT;
+  if (isGuestSession()) return { ...EMPTY_GITHUB_SNAPSHOT };
   const integrations = githubIntegrations(
     await listIntegrations().catch(() => []),
   );
@@ -98,8 +114,16 @@ export async function loadGithubInstallationSnapshot(
       ? await listGithubRepos(connection.connectionId).catch(() => [])
       : [];
   const shares = githubShares(await listLocalShares(tomb));
+  const owner = await ownerPersonId(tomb);
   const auditEvents = await listAccessAuditEvents(tomb).catch(() => []);
-  return { integrations, installations, repos, shares, auditEvents };
+  return {
+    integrations,
+    installations,
+    repos,
+    shares,
+    ownerId: owner?.id ?? null,
+    auditEvents,
+  };
 }
 
 /**
@@ -119,7 +143,7 @@ export async function ensureGithubAccessGrant(
   const owner = await ownerPersonId(tomb);
   if (!owner) return githubShares(await listLocalShares(tomb));
   const before = githubShares(await listLocalShares(tomb));
-  const hadGrant = before.length > 0;
+  const hadGrant = ownerGrant(before, owner.id) !== undefined;
   await ensureLocalShare(tomb, {
     principalId: owner.id,
     resourceKind: "connection",
@@ -155,17 +179,17 @@ export function shouldEnsureGithubAccessGrant(
   snapshot: GithubInstallationSnapshot,
   connection: Connection | null,
 ): boolean {
-  if (snapshot.shares.length > 0) return false;
-  // A person who revoked the grant in Access decided; the card does not
-  // re-issue it behind their back. The trail is newest first.
-  const last = snapshot.auditEvents.find(
-    (event) =>
-      event.targetType === "connection" &&
-      event.targetId === GITHUB_PROVIDER_ID &&
-      (event.eventType === "access.connection.granted" ||
-        event.eventType === "access.connection.revoked"),
-  );
-  if (last?.eventType === "access.connection.revoked") return false;
+  const { ownerId } = snapshot;
+  if (ownerId === null || ownerGrant(snapshot.shares, ownerId)) return false;
+  // A person who revoked the owner's grant in Access decided; the card does
+  // not re-issue it behind their back. Someone else's revocation — the support
+  // agent's, another policy's — is not that decision (ADR 0147 §5).
+  const revoked = standingConnectionRevoked(snapshot.auditEvents, {
+    resourceId: GITHUB_PROVIDER_ID,
+    principalId: ownerId,
+    policy: GITHUB_ACCESS_POLICY,
+  });
+  if (revoked) return false;
   return (
     connection?.status === "active" ||
     snapshot.integrations.length > 0 ||

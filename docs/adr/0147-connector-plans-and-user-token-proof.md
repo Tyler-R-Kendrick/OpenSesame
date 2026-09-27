@@ -145,7 +145,11 @@ A `connection` share's `resourceId` says what it covers:
 A revocation on Access is final for that connector, principal and policy.
 The sealed trail records each revoke and each grant a person makes, with
 `subject` and `policy`. Standing grants are re-issued only while the newest
-of those events for the grant is not a revocation.
+of those events for the grant is not a revocation — for that principal and
+policy only, so revoking the support agent's grant never withholds the
+owner's, GitHub's included. A revocation is recorded before its share is
+removed, so a trail that refuses it leaves the share in place for a retry;
+a grant's entry is best-effort, since the share it records already stands.
 
 ## Consequences
 
