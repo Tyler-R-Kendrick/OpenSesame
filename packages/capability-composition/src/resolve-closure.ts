@@ -51,10 +51,10 @@ function dependencyConflictCode(
 type EdgeKind = "dependency" | "alternative";
 
 /** The conflict an edge to an id the axes do not know raises, by edge kind. */
-const UNKNOWN_EDGE: Readonly<Record<EdgeKind, PlanConflict["code"]>> = {
+const UNKNOWN_EDGE = {
   dependency: "DEPENDENCY_NOT_DISTRIBUTED",
   alternative: "ALTERNATIVE_NOT_ALLOWED",
-};
+} as const satisfies Record<EdgeKind, PlanConflict["code"]>;
 
 function addDependent(
   dependents: Map<CapabilityId, Set<CapabilityId>>,

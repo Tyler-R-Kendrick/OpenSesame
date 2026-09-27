@@ -11,6 +11,7 @@ import { computeClosure } from "./resolve-closure.js";
 import type {
   CapabilityDescriptor,
   CapabilityId,
+  InstallationCapabilitySelection,
   ReasonCode,
 } from "./types.js";
 
@@ -63,7 +64,7 @@ function closure(
   descriptors: readonly CapabilityDescriptor[],
   axes: readonly Axis[],
   roots: readonly CapabilityId[],
-  chosen: Readonly<Record<string, CapabilityId>> = {},
+  chosen: InstallationCapabilitySelection["chosenAlternatives"] = {},
 ) {
   return computeClosure(
     new Map(descriptors.map((d) => [d.id, d])),
