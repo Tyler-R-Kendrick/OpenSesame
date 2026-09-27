@@ -35,6 +35,8 @@ const SOURCES = {
 let dir = "";
 let found = [];
 
+// Builds a TypeScript program with the DOM lib: under a second alone, but on
+// a loaded runner it outlasted the 10s hook default and failed pnpm quality.
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "app-core-portability-"));
   mkdirSync(join(dir, "src/lib"), { recursive: true });
@@ -58,7 +60,7 @@ beforeAll(() => {
   found = findBrowserGlobals(join(dir, "tsconfig.json"), () => true).map(
     ({ file, name }) => `${file.slice(dir.length + 1)} ${name}`,
   );
-});
+}, 60_000);
 
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
