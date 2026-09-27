@@ -109,6 +109,26 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:siop
+      - name: Static front end complete without a backend
+        # ADR 0090: first screen is sign-in + guest, deep links resolve, no
+        # loopback request or backend copy. verify:experience in the
+        # TypeScript job skips browser gates (it builds no dist), so this is
+        # the one place CI runs it.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:static
+      - name: Unlock methods and second steps
+        # ADR 0091: key first, then scan, then a code; lock → PIN → code.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:auth
+      - name: Experience journeys
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: node apps/pages/scripts/verify-experience-journeys.mjs
 
   rust:
     name: Rust
