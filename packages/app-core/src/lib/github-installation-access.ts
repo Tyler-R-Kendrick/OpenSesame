@@ -133,6 +133,7 @@ export async function ensureGithubAccessGrant(
       providerId: GITHUB_PROVIDER_ID,
       resourceType: "connection",
       resourceId: GITHUB_PROVIDER_ID,
+      subject: owner.id,
       action: "grant",
       kind: "share",
     };

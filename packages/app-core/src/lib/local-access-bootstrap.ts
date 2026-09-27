@@ -8,6 +8,7 @@
  */
 
 import { getBundledProviders } from "./embedded-catalog.js";
+import { listAccessAuditEvents } from "./local-access-audit.js";
 import { ensureThisDevice } from "./local-devices.js";
 import {
   SUPPORT_AGENT_ID,
@@ -18,6 +19,7 @@ import { type LocalDirectory, readLocalDirectory } from "./local-directory.js";
 import { guestSessionPerson, isGuestPersonEntry } from "./local-guest.js";
 import { ensureLocalShare } from "./local-share-grants.js";
 import { loadSettings } from "./settings.js";
+import { standingConnectionRevoked } from "./standing-connection-grants.js";
 import { listDeviceVaults } from "./vaults.js";
 import { GUEST_TOMB } from "./vfs.js";
 
@@ -105,25 +107,32 @@ async function ensureDefaultShares(tomb: string): Promise<void> {
     });
   }
 
+  await ensureConnectorShares(tomb, owner.id === guest?.id ? null : owner.id);
+}
+
+/**
+ * Standing connector grants: the owner may invoke, the support agent may use.
+ * Guests do not receive connector use by default — operators grant that on
+ * Access. A grant a person revoked on Access stays revoked.
+ */
+async function ensureConnectorShares(
+  tomb: string,
+  ownerId: string | null,
+): Promise<void> {
+  const trail = await listAccessAuditEvents(tomb).catch(() => []);
   for (const providerId of configuredProviderIds()) {
-    const label = providerLabel(providerId);
-    if (owner.id !== guest?.id) {
+    const grants: [string, string][] = [[SUPPORT_AGENT_ID, "use"]];
+    if (ownerId) grants.unshift([ownerId, "invoke"]);
+    for (const [principalId, policy] of grants) {
+      if (standingConnectionRevoked(trail, providerId, principalId)) continue;
       await ensureLocalShare(tomb, {
-        principalId: owner.id,
+        principalId,
         resourceKind: "connection",
         resourceId: providerId,
-        resourceLabel: label,
-        policy: "invoke",
+        resourceLabel: providerLabel(providerId),
+        policy,
       });
     }
-    // Guests do not receive connector use by default — operators grant that on Access.
-    await ensureLocalShare(tomb, {
-      principalId: SUPPORT_AGENT_ID,
-      resourceKind: "connection",
-      resourceId: providerId,
-      resourceLabel: label,
-      policy: "use",
-    });
   }
 }
 

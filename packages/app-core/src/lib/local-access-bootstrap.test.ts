@@ -11,7 +11,11 @@ import {
 } from "./local-directory-bootstrap.js";
 import { readLocalDirectory } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
-import { listLocalShares } from "./local-share-grants.js";
+import {
+  type LocalShare,
+  listLocalShares,
+  revokeLocalShare,
+} from "./local-share-grants.js";
 import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;
@@ -146,5 +150,33 @@ describe("ensureDefaultAccess", () => {
           share.resourceId === "guest",
       ),
     ).toBe(true);
+  });
+
+  it("keeps a standing connector grant revoked on Access, for that principal only", async () => {
+    await ensureDefaultAccess(tomb);
+    const connector = (shares: LocalShare[]) =>
+      shares.filter((share) => share.resourceKind === "connection");
+    const standing = connector(await listLocalShares(tomb));
+    const agentGrant = standing.find(
+      (share) => share.principalId === SUPPORT_AGENT_ID,
+    );
+    expect(agentGrant).toBeTruthy();
+    const provider = agentGrant?.resourceId ?? "";
+    const ownerGrant = standing.find(
+      (share) =>
+        share.resourceId === provider && share.principalId !== SUPPORT_AGENT_ID,
+    );
+    expect(ownerGrant).toBeTruthy();
+
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    await ensureDefaultAccess(tomb);
+
+    const after = connector(await listLocalShares(tomb)).filter(
+      (share) => share.resourceId === provider,
+    );
+    // The support agent stays revoked; the owner's grant is untouched.
+    expect(after.map((share) => share.principalId)).toEqual([
+      ownerGrant?.principalId,
+    ]);
   });
 });

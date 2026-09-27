@@ -272,6 +272,9 @@ export async function revokeLocalShare(
         providerId: removed.resourceId,
         resourceType: "connection",
         resourceId: removed.resourceId,
+        // Whose grant was taken away, so a standing grant for that principal
+        // is not re-issued behind the person who revoked it.
+        subject: removed.principalId,
         action: "revoke",
         kind: "share",
       },
