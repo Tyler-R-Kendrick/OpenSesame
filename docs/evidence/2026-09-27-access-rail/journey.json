@@ -38,7 +38,7 @@
           "tab": "Access"
         },
         {
-          "expand": "Requests"
+          "expandOptional": "Requests"
         },
         {
           "expand": "Sessions"
@@ -89,5 +89,38 @@
       ]
     }
   ],
-  "sheets": []
+  "sheets": [
+    {
+      "shot": "1280-access-rail",
+      "width": 1280,
+      "title": "Access rail, Grants open (1280 \u00d7 800)",
+      "caption": "The six Access tabs are siblings under access/. Before, Grants and Sessions drew a caret while the other four collapsed into caret-less rows one indent to the left, so the tabs looked nested in each other. Grants' panels had carets that opened onto nothing.",
+      "before": "tab names at x=52,33,52,33,33,33; carets on 2 of 6 tabs; empty caret on Local application grants",
+      "after": "tab names all at x=52; carets on 6 of 6 tabs; Local application grants is a plain row at x=67 beside Identity shares"
+    },
+    {
+      "shot": "1280-access-rail-sessions",
+      "width": 1280,
+      "title": "Access rail, Requests and Sessions open (1280 \u00d7 800)",
+      "caption": "Requests had no subtree, so it could not open at all, and Sessions sat one indent right of it. Now Requests opens onto Local requests, and both tabs open onto their panels at the same level.",
+      "before": "Requests: no caret, x=33; Sessions: caret, x=52; 3 empty carets under Sessions",
+      "after": "Requests and Sessions both carets at x=52; panels are plain rows"
+    },
+    {
+      "shot": "1280-settings-rail",
+      "width": 1280,
+      "title": "Settings rail (1280 \u00d7 800), same rail rule",
+      "caption": "The alignment rule belongs to the rail, not to Access. Settings had the same defect: General and Danger have nothing to open and sat one indent left of Security, Vaults and Capabilities.",
+      "before": "General, Danger at x=33; Security, Vaults, Capabilities at x=52",
+      "after": "all five at x=52"
+    },
+    {
+      "shot": "390-access-drawer",
+      "width": 390,
+      "title": "Phone (390 \u00d7 844): unchanged",
+      "caption": "A phone has no rail. The Sections drawer lists sections only, never an Access subtree, so there is nothing to change at this width. This pair shows it is identical.",
+      "before": "drawer: 6 section rows",
+      "after": "drawer: 6 section rows, unchanged"
+    }
+  ]
 }
