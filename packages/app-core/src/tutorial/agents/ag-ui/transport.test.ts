@@ -6,7 +6,7 @@
  * it, which is the whole point of the seam.
  */
 
-import { type JsonValue, overlapCast } from "@opensesame/os-domain";
+import type { JsonValue } from "@opensesame/os-domain";
 import { SupportError } from "@opensesame/support-agent";
 import { describe, expect, it } from "vitest";
 import { type AgUiEndpoint, readAgUiEndpointUrl } from "./endpoint.js";

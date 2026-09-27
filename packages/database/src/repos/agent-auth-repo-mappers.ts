@@ -4,7 +4,6 @@ import type {
   AgentRegistration,
   AgentServiceAssertionRecord,
 } from "@opensesame/os-domain";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type * as schema from "../schema/index.js";
 
 export function cloneRegistration(row: AgentRegistration): AgentRegistration {
@@ -42,8 +41,6 @@ export function cloneAssertion(
 ): AgentServiceAssertionRecord {
   return { ...row };
 }
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export function mapAttempt(
   row: typeof schema.agentClaimAttempts.$inferSelect,

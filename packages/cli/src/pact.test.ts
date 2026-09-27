@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { redactSecrets } from "@opensesame/sdk-cli";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";

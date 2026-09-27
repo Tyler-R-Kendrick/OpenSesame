@@ -1,8 +1,4 @@
-import {
-  type AuditEvent,
-  JsonObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 

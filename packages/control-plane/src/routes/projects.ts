@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 import { appendAuditEvent, recordSecretChangelog } from "@opensesame/audit";
 import {
   ActiveProjectResponseSchema,
-  AddProjectMemberRequestSchema,
-  ChangeProjectMemberRoleRequestSchema,
   CreateProjectRequestSchema,
   CreateTemporaryProjectRequestSchema,
   CreateTemporaryProjectResponseSchema,
@@ -12,7 +10,6 @@ import {
   SetActiveProjectRequestSchema,
 } from "@opensesame/contracts";
 import {
-  type JsonObject,
   PERSONAL_PROJECT_SLUG,
   type Project,
   type ProjectMembership,

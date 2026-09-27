@@ -4,20 +4,14 @@ import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   IDP_REGISTRY_CONFIG_PATH,
-  discardIdpRegistry,
   listIdpRegistrations,
 } from "../idp-registry.js";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
-import {
-  ORG_PROFILE_CONFIG_PATH,
-  activeOrgProfileId,
-  discardOrgProfile,
-} from "../orgs.js";
+import { ORG_PROFILE_CONFIG_PATH, activeOrgProfileId } from "../orgs.js";
 import {
   PROJECTS_CONFIG_PATH,
   PROJECTS_KEY,
   projectsState,
-  rehydrateProjects,
 } from "../projects.js";
 import {
   BODY_PATH,

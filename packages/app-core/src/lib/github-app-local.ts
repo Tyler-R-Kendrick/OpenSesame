@@ -1,7 +1,6 @@
 import {
   type JsonObject,
   type JsonValue,
-  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";

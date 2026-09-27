@@ -12,7 +12,6 @@
  */
 
 import {
-  GUIDE_LANG_HEADER,
   GUIDE_LANG_VERSION,
   GUIDE_LIMITS,
   type GuideInstruction,

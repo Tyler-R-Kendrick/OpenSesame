@@ -9,8 +9,6 @@ import {
   type AgentClaimAttempt,
   type AgentRegistration,
   type Principal,
-  digestAgentAccessToken,
-  digestAgentClaimAttemptToken,
   digestAgentUserCode,
   generateAgentAccessToken,
   generateAgentAccessTokenId,
@@ -18,7 +16,6 @@ import {
   generateAgentClaimAttemptToken,
   generateAgentUserCode,
   hmacDigest,
-  verifyAgentUserCode,
 } from "@opensesame/os-domain";
 import { markAgentRegistrationClaimPending } from "@opensesame/os-domain";
 import {

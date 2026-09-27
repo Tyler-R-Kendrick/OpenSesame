@@ -2,7 +2,6 @@ import {
   type JsonObject,
   isNumber,
   isString,
-  isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
 import { assertCallbackTransaction } from "./callback-transaction.js";

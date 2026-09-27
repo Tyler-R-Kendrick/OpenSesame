@@ -12,7 +12,7 @@ import {
 } from "./fixtures.js";
 import type { ResolveInput } from "./resolve-input.js";
 import { explainCapability, resolveComposition } from "./resolve.js";
-import type { CapabilityId, ConsentReceipt, EffectivePlan } from "./types.js";
+import type { CapabilityId, EffectivePlan } from "./types.js";
 
 const CORE = ["settings.core", "vault.passwords"];
 const NOW = "2026-09-22T00:00:00.000Z";

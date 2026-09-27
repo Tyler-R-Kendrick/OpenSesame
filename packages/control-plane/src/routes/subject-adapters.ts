@@ -253,8 +253,11 @@ export function verifyInteractionBinding(
 
   if (interaction.requestDigest === undefined) {
     // No operation digest. Legitimate only for a session kind; a digest kind
-    // that reached approval without one is a proof bound to nothing.
-    return adapterForKind.requiresDigest
+    // that reached approval without one is a proof bound to nothing. The
+    // executor's own list is consulted too: if it and the registry disagree,
+    // the digest is demanded.
+    return adapterForKind.requiresDigest ||
+      DIGEST_REQUIRED_KINDS.has(interaction.kind)
       ? { ok: false, reason: "missing_digest" }
       : { ok: true };
   }

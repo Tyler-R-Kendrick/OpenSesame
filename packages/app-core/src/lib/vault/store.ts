@@ -44,20 +44,8 @@ import { createDuressVaultActivationHost } from "../duress/store/vault-activatio
 import { sessionRootDigestFromHeader } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
-import {
-  kvDelete,
-  kvDeleteDurable,
-  kvDurability,
-  kvGet,
-  kvSet,
-} from "../kv.js";
+import { kvDelete, kvDeleteDurable, kvDurability, kvSet } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
-import {
-  activeProject,
-  carryProjectsViewInto,
-  projectsState,
-  scopedKey,
-} from "../projects.js";
 import {
   BODY_PATH,
   GUEST_TOMB,
@@ -65,13 +53,9 @@ import {
   VfsError,
   deleteFile,
   deletePlaintextFile,
-  listTombs,
   lockTomb,
-  readFile,
-  readPlaintextFile,
   readSealedFile,
   unlockTomb,
-  writeFile,
   writePlaintextFile,
   writeSealedFile,
 } from "../vfs.js";
@@ -142,7 +126,6 @@ import {
   assertKeepsPrimaryUnlock,
   createPasskeyUnlockCeremony,
   hasSecondStep,
-  normalizeRecoveryCode,
   openRecoveryLedger,
   openText,
   openTotpSecret,
@@ -152,7 +135,6 @@ import {
   sealText,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
-  webauthnRpId,
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";

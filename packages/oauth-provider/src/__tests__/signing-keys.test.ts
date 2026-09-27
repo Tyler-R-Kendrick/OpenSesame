@@ -1,4 +1,4 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { EnvSigningKeyProvider } from "../keys/dev-signing-key-provider.js";
 

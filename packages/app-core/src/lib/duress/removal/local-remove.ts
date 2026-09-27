@@ -3,11 +3,7 @@
  * Not forensic erasure; not replicated content tombstones; not origin wipe.
  */
 
-import {
-  type InventoryEntry,
-  type StorageInventory,
-  assertOwnedPath,
-} from "./inventory.js";
+import { type InventoryEntry, assertOwnedPath } from "./inventory.js";
 
 export type RemovalResourceKind =
   | "compartment_tomb"

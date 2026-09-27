@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import type { startServer } from "../server.js";
+import { startServer } from "../server.js";
 import {
   collectConsentScopes,
   renderConsentPage,
@@ -86,8 +86,7 @@ class Jar {
 }
 
 async function startOriginServer(): Promise<Started> {
-  const { startServer: start } = await import("../server.js");
-  return start({
+  return startServer({
     config: {
       host: "127.0.0.1",
       port: 0,

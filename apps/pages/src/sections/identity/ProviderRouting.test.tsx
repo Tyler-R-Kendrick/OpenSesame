@@ -9,15 +9,7 @@ import { providersSeams } from "@opensesame/app-core/lib/providers.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 /** @vitest-environment jsdom */
 import { identityHookSeams } from "../../bindings/identity.js";
 

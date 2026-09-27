@@ -1,16 +1,3 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
 /**
  * Compiler-driven exposure presentation for settings.
  * Never invent security claims; only format CONTRACT ExposureSummary.

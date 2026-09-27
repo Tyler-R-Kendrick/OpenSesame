@@ -210,7 +210,6 @@ export function DirectoryForm({
   kind,
 }: { model: DirectoryModel; kind: LocalIdentityKind }) {
   const { draft, busy, error, setDraft, change } = model;
-  const label = LABELS[kind];
   const input = useRef<HTMLInputElement>(null);
   const draftId = draft?.id;
   useEffect(() => {

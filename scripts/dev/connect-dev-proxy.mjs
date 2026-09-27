@@ -24,11 +24,8 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import {
-  createServer as createHttpServer,
-  request as httpRequest,
-} from "node:http";
+import { existsSync, mkdirSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { tmpdir } from "node:os";
 import { networkInterfaces } from "node:os";

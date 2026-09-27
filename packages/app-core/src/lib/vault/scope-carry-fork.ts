@@ -2,7 +2,7 @@
  * Fork an unlocked vault into the active project tomb (shared device key).
  */
 
-import { type VaultHeader, emptyBody } from "@opensesame/vault-core";
+import type { VaultHeader } from "@opensesame/vault-core";
 import { carryProjectsViewInto, projectsState } from "../projects.js";
 import { HEADER_PATH, unlockTomb, writePlaintextFile } from "../vfs.js";
 

@@ -1,4 +1,4 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import {
   VaultCorruptError,
   type VaultHeader,
@@ -17,11 +17,9 @@ import {
   assertPinPolicy,
   assertWebauthnHost,
   checkWebauthnHost,
-  createPasskeyUnlockCeremony,
   describeWebauthnError,
   exportRawVaultKey,
   formatWebauthnHostError,
-  getPasskeyUnlockCeremony,
   isIpHostname,
   localhostEquivalentHref,
   openTotpSecret,

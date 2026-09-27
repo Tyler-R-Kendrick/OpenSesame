@@ -11,7 +11,6 @@ import {
   createPostgresOidcStore,
   createPostgresPairwiseStore,
 } from "../src/index.js";
-import type { Database } from "../src/repos/postgres.js";
 import { makePrincipal } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
 

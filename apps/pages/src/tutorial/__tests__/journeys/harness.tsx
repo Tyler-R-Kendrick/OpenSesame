@@ -55,7 +55,7 @@ import type {
   SupportPageContext,
 } from "@opensesame/support-agent";
 import { createSupportSession } from "@opensesame/support-agent";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeAll } from "vitest";

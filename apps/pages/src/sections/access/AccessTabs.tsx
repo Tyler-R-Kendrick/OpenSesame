@@ -1,4 +1,3 @@
-import { accessPath } from "@opensesame/app-core/lib/access-routes.js";
 import { Link } from "react-router";
 
 import { useStripItem } from "../../lib/strip.js";

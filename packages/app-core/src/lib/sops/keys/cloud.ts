@@ -24,7 +24,6 @@ import {
   type JsonObject,
   isJsonObject,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import { b64, unb64 } from "../aes-record.js";
 import { assertSopsHttpsEndpoint, awsKeysMatch } from "../cloud-endpoint.js";

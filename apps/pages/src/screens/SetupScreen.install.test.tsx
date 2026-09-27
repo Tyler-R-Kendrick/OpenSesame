@@ -3,23 +3,17 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  type ProviderFields,
-  addProvider as addProviderWith,
   clearInstallOffer,
   commit,
   installNow,
   offering,
   openSetup,
   resetSetupScreen,
-  ways,
 } from "./setup/test-harness.js";
 import { createSetupSeams } from "./setup/test-seams.js";
 
 const seams = createSetupSeams();
 const { completeSetup } = seams;
-
-const addProvider = (preset: RegExp, fields: ProviderFields) =>
-  addProviderWith(seams, preset, fields);
 
 beforeEach(() => resetSetupScreen(seams));
 

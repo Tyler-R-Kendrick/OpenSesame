@@ -19,7 +19,6 @@ import {
   LocalDirectoryError,
   type LocalIdentity,
   type LocalIdentityKind,
-  type LocalMembership,
 } from "./local-directory-types.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";

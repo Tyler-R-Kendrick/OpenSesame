@@ -6,7 +6,6 @@ import {
   authenticateLocalPasskey,
   enrollLocalPasskey,
 } from "./local-passkeys.js";
-import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";

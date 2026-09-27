@@ -6,6 +6,7 @@ export function RegistrationExtras(props: {
   tomb: string;
   registration: LocalApplication | undefined;
   revision: number | undefined;
+  onApplied?: () => void;
 }) {
   return (
     <>
@@ -13,6 +14,7 @@ export function RegistrationExtras(props: {
         registration={props.registration}
         tomb={props.tomb}
         revision={props.revision}
+        onApplied={props.onApplied}
       />
       <ApplicationDiagnostics
         policy={props.registration?.scopeRoles}

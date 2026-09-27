@@ -1,16 +1,3 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
 /**
  * Alert route enrollment, consent, revocation, readiness (ALERT-D).
  * No first-activation permission prompt — routes must be ready at enroll.

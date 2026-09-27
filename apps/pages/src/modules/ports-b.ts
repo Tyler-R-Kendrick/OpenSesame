@@ -19,10 +19,8 @@
 
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import type { PagesWebMcpTool } from "@opensesame/app-core/webmcp/tool-shared.js";
-import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { isString } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
-import type { ComponentType, ReactNode } from "react";
 
 /** Kept as the name the wave-B runtimes import; the contract carries it all now. */
 export type ContextWithPorts = ApprovedCapabilityContext;

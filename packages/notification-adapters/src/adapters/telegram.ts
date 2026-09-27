@@ -57,7 +57,6 @@ import {
   classifyHttpStatus,
   classifyThrown,
   deliveryAbortSignal,
-  httpOutcome,
 } from "../http.js";
 import { renderNotification } from "../templates.js";
 

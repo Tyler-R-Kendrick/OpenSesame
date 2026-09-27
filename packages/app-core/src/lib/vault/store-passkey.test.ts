@@ -1,6 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { WrongPasswordError, randomBytes } from "@opensesame/vault-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet } from "../kv.js";
 import {
   BODY_PATH,
@@ -70,6 +70,9 @@ Object.assign(unlockMethodsSeams, {
     }
     return ceremony.prfOutput;
   },
+});
+afterAll(() => {
+  Object.assign(unlockMethodsSeams, originalUnlockMethodsSeams);
 });
 
 beforeEach(async () => {

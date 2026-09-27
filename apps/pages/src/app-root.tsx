@@ -7,16 +7,8 @@ import {
   lazy,
   useContext,
   useEffect,
-  useRef,
 } from "react";
-import {
-  Link,
-  Navigate,
-  Route,
-  Routes,
-  matchPath,
-  useLocation,
-} from "react-router";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
 import { Wrapped } from "./components/ShellWrappers.js";
 import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
@@ -30,7 +22,6 @@ import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.j
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
-import { keyboardIsIdle, landFocus } from "./lib/focus.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import {
   useSessionGuards as defaultUseSessionGuards,

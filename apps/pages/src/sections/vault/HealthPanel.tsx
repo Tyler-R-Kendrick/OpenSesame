@@ -1,5 +1,4 @@
 import {
-  type HealthIssue,
   ISSUE_EXPLANATION,
   ISSUE_LABEL,
   buildHealthReport,

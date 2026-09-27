@@ -6,7 +6,7 @@ import {
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { capabilitiesPanelSeams } from "./CapabilitiesPanel.js";
 import {
   PERSONAL_SELECTION,

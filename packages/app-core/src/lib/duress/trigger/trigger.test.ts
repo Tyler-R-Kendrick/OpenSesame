@@ -159,7 +159,9 @@ describe("TRIGGER-A enrollment", () => {
   });
 });
 
-describe("TRIGGER-B select", () => {
+// Every select and enrollment derives at the production PBKDF2 floor, which
+// a test may not lower: seconds alone, far more under the parallel run.
+describe("TRIGGER-B select", { timeout: 90_000 }, () => {
   it("preserves leading zeros and ignores incomplete submissions", async () => {
     const state = await enrollTrigger({
       state: baseState(),
@@ -178,12 +180,7 @@ describe("TRIGGER-B select", () => {
     }
   });
 
-  it("returns ambiguous without releasing keys when two slots collide", async () => {
-    // Force collision by sealing two slots under the same code via autoRehearse
-    // with replace disabled — second enroll must fail. Simulate by direct draft
-    // that bypasses collision only if we use different codes that somehow open
-    // both: not possible with honest crypto. Instead enroll two different codes
-    // and assert single-match uniqueness.
+  it("matches each of two distinct codes to its own profile", async () => {
     let state = await enrollTrigger({
       state: baseState(),
       code: "11112222",
@@ -200,10 +197,37 @@ describe("TRIGGER-B select", () => {
     });
     const a = await selectTrigger("11112222", state);
     const b = await selectTrigger("33334444", state);
-    expect(a.status).toBe("matched");
-    expect(b.status).toBe("matched");
-    if (a.status === "matched") disposeTriggerMatch(a);
-    if (b.status === "matched") disposeTriggerMatch(b);
+    expect(a).toMatchObject({ status: "matched", profileId: "a" });
+    expect(b).toMatchObject({ status: "matched", profileId: "b" });
+    disposeTriggerMatch(a);
+    disposeTriggerMatch(b);
+  });
+
+  it("returns ambiguous without releasing keys when two slots collide", async () => {
+    // Enrollment refuses a colliding code, so build the colliding state the
+    // way a merge of two devices' enrollments could: each slot sealed under
+    // the same code, in separate states, then put side by side.
+    const code = "55557777";
+    const first = await enrollTrigger({
+      state: baseState(),
+      code,
+      profileId: "a",
+      triggerKind: "application_code",
+      plaintext: plain("decoy"),
+    });
+    const second = await enrollTrigger({
+      state: baseState(),
+      code,
+      profileId: "b",
+      triggerKind: "application_code",
+      plaintext: plain("restricted"),
+    });
+    const merged = {
+      ...first,
+      triggers: [...first.triggers, ...second.triggers],
+    };
+    const hit = await selectTrigger(code, merged);
+    expect(hit).toEqual({ status: "ambiguous" });
   });
 
   it("detects concurrent policy revision edits", async () => {

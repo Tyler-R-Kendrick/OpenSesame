@@ -167,7 +167,6 @@ describe("viewportIndex", () => {
   });
 
   it("a zero-height scroller is the whole list, not a degenerate window", () => {
-    const el = scroller(0, 10);
     const rows = [rowAt(0, 20), rowAt(20, 20), rowAt(40, 20)];
     const scrolled = scroller(0, 25);
     expect(viewportIndex(scrolled, rows, "high")).toBe(0);

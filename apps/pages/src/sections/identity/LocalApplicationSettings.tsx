@@ -71,24 +71,29 @@ function useRegistration(tomb: string, applicationId: string) {
       previous.focus();
   }, [busy]);
   const generation = useRef(0);
-  const reload = useCallback(() => {
-    const request = ++generation.current;
-    setState(null);
-    void readLocalApplications(tomb).then(
-      (next) => {
-        if (request === generation.current) {
-          setState(next);
-          setError("");
-        }
-      },
-      () => {
-        if (request === generation.current)
-          setError(
-            "Could not read application registration. Unlock the vault and reload.",
-          );
-      },
-    );
-  }, [tomb]);
+  // `quiet` keeps what is on screen until the fresh read lands (after a
+  // write this screen did not make itself, such as a recipe import).
+  const reload = useCallback(
+    (quiet = false) => {
+      const request = ++generation.current;
+      if (!quiet) setState(null);
+      void readLocalApplications(tomb).then(
+        (next) => {
+          if (request === generation.current) {
+            setState(next);
+            setError("");
+          }
+        },
+        () => {
+          if (request === generation.current)
+            setError(
+              "Could not read application registration. Unlock the vault and reload.",
+            );
+        },
+      );
+    },
+    [tomb],
+  );
   useEffect(() => {
     reload();
     return () => {
@@ -212,7 +217,7 @@ function RegistrationEditor({
         registered={Boolean(registration)}
         removing={removing}
         removeButton={removeButton}
-        onReload={model.reload}
+        onReload={() => model.reload()}
         onRemove={() => {
           if (!removing) {
             setRemoving(true);
@@ -235,6 +240,7 @@ function RegistrationEditor({
         tomb={tomb}
         registration={registration}
         revision={model.state?.revision}
+        onApplied={() => model.reload(true)}
       />
     </div>
   );

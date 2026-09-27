@@ -1,4 +1,3 @@
-import { X509Certificate } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -13,12 +12,7 @@ import {
 } from "../listener.js";
 import { bindingPeerOf, requestEvidenceOf } from "../request-evidence.js";
 import { EMPTY_BINDINGS } from "../service-admission.js";
-import {
-  type DisposablePki,
-  type Issued,
-  createDisposablePki,
-  writeBindings,
-} from "./pki.js";
+import { type DisposablePki, type Issued, createDisposablePki } from "./pki.js";
 import { pinnedAgent, rawHandshake, tlsRequest } from "./tls-client.js";
 
 /** Whether any RFC 9440 field survived to the handler. */

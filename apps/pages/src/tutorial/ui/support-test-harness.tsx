@@ -20,7 +20,7 @@ import {
   supportSessionSeams,
 } from "../session.js";
 import { SupportLauncher } from "./SupportLauncher.js";
-import { type TestEngine, buildEngine } from "./support-test-engine.js";
+import { buildEngine } from "./support-test-engine.js";
 
 const original = { ...supportSessionSeams };
 
@@ -34,7 +34,6 @@ beforeAll(async () => {
 // The identity help these answers cite belongs to the identity capability;
 // a panel on a deployment without it has nothing written to draw from.
 let revokeRealm: (() => void) | null = null;
-let engine: TestEngine | null = null;
 let cleared = 0;
 const lockHandlers = new Set<() => void>();
 
@@ -79,7 +78,6 @@ export function mount(
   revokeRealm?.();
   revokeRealm = registerTutorialRealm();
   const built = buildEngine(agent, transport, warning);
-  engine = built;
   Object.assign(supportSessionSeams, {
     loadEngine: () => Promise.resolve(built),
     ...supportLifecycleSeams(),
@@ -123,6 +121,5 @@ export function resetSupport(): void {
   revokeRealm = null;
   Object.assign(supportSessionSeams, original);
   lockHandlers.clear();
-  engine = null;
   cleared = 0;
 }

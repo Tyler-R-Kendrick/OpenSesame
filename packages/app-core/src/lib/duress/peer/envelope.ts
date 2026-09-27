@@ -1,16 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
+import type { JsonObject } from "../json-boundary.js";
 /**
  * Signed/encrypted peer request+receipt verification (PEER-B).
  * Scope, audience, nonce, expiry, epoch, replay. Reject unknown algs, none,
