@@ -10,12 +10,16 @@ import * as schema from "./schema/index.js";
  * business depending on the issuer, and `packages/oauth-provider` already owns
  * that contract.
  */
-export interface OidcStorePayload extends Record<string, unknown> {
+/**
+ * A payload as it is stored and read back: JSON, with the lookup keys and the
+ * `consumed` stamp (epoch seconds) the provider's adapter contract names.
+ */
+export type OidcStorePayload = JsonObject & {
   uid?: string;
   userCode?: string;
   grantId?: string;
-  consumed?: unknown;
-}
+  consumed?: number;
+};
 
 export interface OidcStore {
   upsert(
@@ -68,11 +72,10 @@ export function oidcRowValues(
   payload: OidcStorePayload,
   expiresAt: Date | null,
 ) {
-  const storedPayload: JsonObject = overlapCast(payload);
   return {
     model,
     id,
-    payload: storedPayload,
+    payload,
     expiresAt,
     uid: isString(payload.uid) ? payload.uid : null,
     userCode: isString(payload.userCode) ? payload.userCode : null,
