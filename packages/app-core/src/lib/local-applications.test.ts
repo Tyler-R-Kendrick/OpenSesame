@@ -254,23 +254,30 @@ it("does not admit a disabled application even after signing in again", async ()
   ).rejects.toThrow("unavailable");
 });
 
-it("rejects stale concurrent edits and retains the first persisted configuration", async () => {
-  const results = await Promise.allSettled([
-    configureLocalApplication(tomb, 0, app, registration()),
-    configureLocalApplication(
-      tomb,
-      0,
-      app,
-      registration([`${redirect}/other`]),
+it("admits exactly one of two concurrent edits and retains the one that landed", async () => {
+  const candidates = [[redirect], [`${redirect}/other`]];
+  const results = await Promise.allSettled(
+    candidates.map((uris) =>
+      configureLocalApplication(tomb, 0, app, registration(uris)),
     ),
-  ]);
-  expect(results.map((result) => result.status)).toEqual([
-    "fulfilled",
-    "rejected",
-  ]);
+  );
+  // Both writes race for the directory lock after their access check; the
+  // revision compare-and-set admits whichever arrives first and refuses the
+  // other. Which one arrives first is the scheduler's call, not the ledger's.
+  const landed = results.flatMap((result, index) =>
+    result.status === "fulfilled" ? [index] : [],
+  );
+  expect(landed).toHaveLength(1);
+  // Refused as stale, not for any other reason: a write refused by
+  // validation would leave the lock untested.
+  const refused = results.flatMap((result) =>
+    result.status === "rejected" ? [String(result.reason)] : [],
+  );
+  expect(refused).toHaveLength(1);
+  expect(refused[0]).toMatch(/changed\. Reload before saving/);
   expect(
     (await readLocalApplications(tomb)).applications[0]?.redirectUris,
-  ).toEqual([redirect]);
+  ).toEqual(candidates[landed[0] ?? -1]);
 });
 
 it("never repairs corrupt authority data by overwriting it", async () => {
