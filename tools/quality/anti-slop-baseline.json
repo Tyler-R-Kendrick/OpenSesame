@@ -11,8 +11,8 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 189,
-    "violations": 604,
+    "files": 188,
+    "violations": 602,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
@@ -20,7 +20,7 @@
       "anti-slop/no-module-mocking": 2,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 165,
+      "anti-slop/no-runtime-typeof": 163,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 38,
       "anti-slop/no-unknown-returns": 3,
@@ -528,9 +528,6 @@
     "packages/ceremony-kit/src/invocation-link.ts": {
       "anti-slop/no-known-value-widening": 1,
       "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "packages/cli/src/mcp-commands.test.ts": {
-      "anti-slop/no-runtime-typeof": 2
     },
     "packages/control-plane/src/__tests__/mfa-factors.test.ts": {
       "anti-slop/no-conditional-empty-object-spread": 1

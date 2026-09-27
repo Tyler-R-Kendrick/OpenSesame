@@ -6,7 +6,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import type { startServer } from "../server.js";
+import { startServer } from "../server.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 type App = Started["app"];
@@ -64,8 +64,7 @@ async function stopDocServer(doc: DocServer): Promise<void> {
 }
 
 async function startControlPlane(clock?: () => Date): Promise<Started> {
-  const { startServer: start } = await import("../server.js");
-  return start({
+  return startServer({
     config: {
       host: "127.0.0.1",
       port: 0,

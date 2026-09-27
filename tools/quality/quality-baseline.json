@@ -18,7 +18,7 @@
   "totals": {
     "files": 457,
     "violations": 721,
-    "oversizedLines": 234478
+    "oversizedLines": 234476
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -939,10 +939,10 @@
       "max-lines": 413
     },
     "packages/control-plane/src/__tests__/origin-claim-admin.test.ts": {
-      "max-lines": 962
+      "max-lines": 961
     },
     "packages/control-plane/src/__tests__/origin-consent-ui.test.ts": {
-      "max-lines": 668
+      "max-lines": 667
     },
     "packages/control-plane/src/__tests__/origin-profile-issuer.test.ts": {
       "max-lines": 617
