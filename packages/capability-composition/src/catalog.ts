@@ -2,8 +2,8 @@
  * Catalog construction and validation.
  *
  * `buildCatalog` stamps every descriptor with its exposure digest;
- * `validateCatalog` checks the whole authored corpus as one unit — ids,
- * bounds, graph well-formedness, tier rules, module ownership, and that no
+ * `validateCatalog` checks the whole authored corpus as one unit — known
+ * fields, ids, bounds, graph well-formedness, tier rules, module ownership, and that no
  * stored digest disagrees with the declared exposure.
  */
 import { exposureDigest } from "./canonical.js";
@@ -13,6 +13,7 @@ import {
   checkReferences,
   hasDuplicates,
 } from "./catalog-graph.js";
+import { checkShape } from "./catalog-shape.js";
 import {
   type Diagnostic,
   type ValidationResult,
@@ -275,6 +276,7 @@ export function validateCatalog(c: CapabilityCatalog): ValidationResult {
   });
   c.capabilities.forEach((d, i) => {
     const path = `capabilities[${i}]`;
+    checkShape(d, path, diags);
     checkText(d, path, diags);
     checkEnvironments(d, path, diags);
     checkModules(d, path, diags);

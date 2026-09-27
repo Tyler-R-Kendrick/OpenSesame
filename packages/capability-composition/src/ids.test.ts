@@ -40,6 +40,14 @@ describe("identifier syntax", () => {
     expect(isOpaqueId("has space")).toBe(false);
   });
 
+  it("starts an opaque id with a letter or digit, so no id is a path step or a flag", () => {
+    expect(isOpaqueId("0vault")).toBe(true);
+    expect(isOpaqueId("prj_4f2a")).toBe(true);
+    for (const id of ["..", ".", ".hidden", "-rf", ":scope", "_x"]) {
+      expect(isOpaqueId(id), id).toBe(false);
+    }
+  });
+
   it("sorts ids uniquely and locale-free", () => {
     expect(sortIds(["b.x", "a.y", "b.x", "a.b"])).toEqual([
       "a.b",

@@ -31,6 +31,7 @@ export {
   sha256Hex,
   sortConflicts,
 } from "./canonical.js";
+export { MAX_DESCRIPTOR_LIST } from "./catalog-shape.js";
 export {
   MAX_CATALOG_CAPABILITIES,
   MAX_DEPENDENCY_DEPTH,
