@@ -28,10 +28,7 @@
           "press": "Save Git remote"
         },
         {
-          "count": [
-            "main .panel",
-            "main h2"
-          ]
+          "count": ["main .panel", "main h2"]
         },
         {
           "report": "main h2"
@@ -43,9 +40,7 @@
           "visit": "connections/resend"
         },
         {
-          "count": [
-            "main .panel"
-          ]
+          "count": ["main .panel"]
         },
         {
           "report": "main h2"
@@ -75,9 +70,7 @@
           "pressOptional": "Bind"
         },
         {
-          "count": [
-            "#local-connectors select"
-          ]
+          "count": ["#local-connectors select"]
         },
         {
           "shot": "1280-access-bind"
