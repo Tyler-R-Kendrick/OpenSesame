@@ -78,7 +78,7 @@ export const atTailPlaneScenarios = Object.freeze([
     "CLIENT",
     "A guest stays usable without Host or Identity",
     vitest(
-      "@opensesame/pages",
+      "@opensesame/app-core",
       "src/lib/vault/store.test.ts",
       "isolates a guest whenever any vault on the device is sealed",
     ),

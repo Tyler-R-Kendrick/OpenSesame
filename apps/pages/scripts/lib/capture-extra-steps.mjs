@@ -6,6 +6,7 @@
 import { approvalSteps } from "./capture-approval-steps.mjs";
 import { ceremonySteps } from "./capture-ceremony-steps.mjs";
 import { factorSteps } from "./capture-factor-steps.mjs";
+import { fileSteps } from "./capture-file-steps.mjs";
 import { invokeSteps } from "./capture-invoke-steps.mjs";
 import { markSteps } from "./capture-mark-steps.mjs";
 import { menuSteps } from "./capture-menu-steps.mjs";
@@ -19,6 +20,7 @@ export function extraSteps({ press }) {
     ...ceremonySteps({ press }),
     ...approvalSteps(),
     ...factorSteps({ press }),
+    ...fileSteps({ press }),
     ...invokeSteps(),
     ...markSteps({ press }),
     ...placeSteps(),

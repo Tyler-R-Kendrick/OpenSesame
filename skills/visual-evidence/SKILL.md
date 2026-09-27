@@ -109,8 +109,11 @@ every screen the app has.
 
 Steps are `guest`, `tab`, `press`, `open`, `visit` (an in-app route), `arrive`
 (a cold load of an address under the base, a link's fragment included),
+`pickFileOptional` (answer the file picker a key opens with a fixture),
 `escape` and `shot`. `EVIDENCE_ORIGIN` serves the build from another origin —
-evidence of a dedicated deployment. Add a verb to
+evidence of a dedicated deployment. `EVIDENCE_DIST` captures a build other
+than `apps/pages/dist` — the base, built in its own `git worktree`, so the
+branch's sources are never swapped in a checkout someone else is using. Add a verb to
 `STEPS` in the script when a journey needs one; keep them named after what a
 person does, not after the DOM.
 

@@ -1,22 +1,22 @@
 {
-  "commit": "dc3d11878c90f1088d094ff18f5ee9d301e4a57d",
-  "generatedAt": "2026-09-21T02:12:20.104Z",
+  "commit": "6f67022953a39d6d4a00fd7b5fbddf2dd7d6a3e3",
+  "generatedAt": "2026-09-27T05:13:45.379Z",
   "cases": [
     {
       "id": "KP-model-ts",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection src/lib/capability-bind.test.ts",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection src/lib/capability-bind.test.ts",
       "result": "passed",
       "detail": "exit 0"
     },
     {
       "id": "KP-cloud-adapters",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection/adapters",
       "result": "passed",
       "detail": "exit 0"
     },
     {
       "id": "KP-age-keys",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/age-keys",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/age-keys",
       "result": "passed",
       "detail": "exit 0"
     },
@@ -34,19 +34,19 @@
     },
     {
       "id": "KP-live-aws",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters/aws-kms.test.ts -t aws-kms live",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection/adapters/aws-kms.test.ts -t aws-kms live",
       "result": "blocked",
       "detail": "OPENSESAME_TEST_AWS_KMS_KEY_ARN unset — live AWS wrap/unwrap not run"
     },
     {
       "id": "KP-live-azure",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters/azure-key-vault-keys.test.ts -t azure-key-vault-keys live",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection/adapters/azure-key-vault-keys.test.ts -t azure-key-vault-keys live",
       "result": "blocked",
       "detail": "OPENSESAME_TEST_AZURE_KEY_VAULT_KEY_ID unset — live Azure wrap/unwrap not run"
     },
     {
       "id": "KP-live-gcp",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/vault/protection/adapters/gcp-kms.test.ts -t gcp-kms live",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection/adapters/gcp-kms.test.ts -t gcp-kms live",
       "result": "blocked",
       "detail": "OPENSESAME_TEST_GCP_KMS_KEY_NAME unset — live GCP wrap/unwrap not run"
     },

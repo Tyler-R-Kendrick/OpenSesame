@@ -41,15 +41,24 @@ function record(caseId, status, detail) {
 
 // ── 1. the engine's own suites, against checked-in upstream fixtures ──
 {
-  const ok = run("engine unit and fixture suites", "pnpm", [
+  // The engine lives in @opensesame/app-core (ADR 0133); its sheets in Pages.
+  const engine = run("engine unit and fixture suites", "pnpm", [
+    "--filter",
+    "@opensesame/app-core",
+    "exec",
+    "vitest",
+    "run",
+    "src/lib/sops",
+  ]);
+  const sheets = run("settings sheet suites", "pnpm", [
     "--filter",
     "@opensesame/pages",
     "exec",
     "vitest",
     "run",
-    "src/lib/sops",
     "src/sections/settings/sops",
   ]);
+  const ok = engine && sheets;
   for (const caseId of [
     "SB-001",
     "SB-002",
@@ -113,7 +122,7 @@ function record(caseId, status, detail) {
   ]) {
     record(caseId, ok ? "passed" : "failed", {
       evidenceKind: "unit-contract",
-      test: "vitest src/lib/sops src/sections/settings/sops",
+      test: "vitest app-core src/lib/sops + pages src/sections/settings/sops",
       command: "pnpm verify:sops-browser",
       runtime: `node ${process.version}`,
       artifact: "docs/evidence/2026-09-22-browser-local-sops/results.json",
