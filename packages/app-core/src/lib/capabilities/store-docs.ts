@@ -141,13 +141,17 @@ export function scopedVaultSelection(
 ): VaultCapabilitySelection | null {
   const v = docs.vaultSelection;
   if (!v) return null;
-  if (
-    v.installationId !== state.installationId ||
-    v.vaultId !== state.vaultId
-  ) {
+  // Vault files travel between devices, so a record another installation
+  // wrote is that device's own disables: set it aside, as before.
+  if (v.installationId !== state.installationId) {
     note("vault selection: scoped to another installation; ignored");
     return null;
   }
+  // A record naming another vault, under this vault's own key, was lifted from
+  // elsewhere. Dropping it would lift the restriction, and this scope may only
+  // narrow: hand it to the resolver, which denies a foreign vault record.
+  if (v.vaultId !== state.vaultId)
+    note("vault selection: written for another vault; denies");
   return v;
 }
 
@@ -177,6 +181,10 @@ export function vaultSelectionWith(
   now: string,
 ): VaultCapabilitySelection {
   const current = state.vaultSelection;
+  // A foreign record already denies every optional capability; rewriting it
+  // as this vault's own would narrow it to `disabled` and so widen.
+  if (current && current.vaultId !== (state.vaultId ?? "no-vault"))
+    return current;
   const disabled = current?.disabled.includes(id)
     ? current.disabled
     : [...(current?.disabled ?? []), id].sort();
