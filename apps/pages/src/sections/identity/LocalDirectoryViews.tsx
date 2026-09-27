@@ -99,43 +99,45 @@ export function DirectoryRows({
                     <IconCheck size={16} />
                   )}
                 </button>
+                <button
+                  type="button"
+                  className={
+                    removing === entry.id
+                      ? "icon-btn icon-btn--sm icon-btn--danger is-armed"
+                      : "icon-btn icon-btn--sm icon-btn--danger"
+                  }
+                  disabled={busy || draft !== null}
+                  aria-label={
+                    removing === entry.id ? "Confirm deletion" : "Delete"
+                  }
+                  title={removing === entry.id ? "Confirm deletion" : "Delete"}
+                  onClick={() =>
+                    removing === entry.id
+                      ? void change({ action: "delete", id: entry.id })
+                      : setRemoving(entry.id)
+                  }
+                >
+                  <IconTrash size={16} />
+                </button>
                 {removing === entry.id ? (
-                  <>
-                    <button
-                      type="button"
-                      className="icon-btn icon-btn--sm icon-btn--danger is-armed"
-                      disabled={busy || draft !== null}
-                      aria-label="Confirm deletion"
-                      title="Confirm deletion"
-                      onClick={() =>
-                        void change({ action: "delete", id: entry.id })
-                      }
-                    >
-                      <IconTrash size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn icon-btn--sm"
-                      disabled={busy}
-                      aria-label={`Keep ${label.singular}`}
-                      title={`Keep ${label.singular}`}
-                      onClick={() => setRemoving(null)}
-                    >
-                      <IconX size={16} />
-                    </button>
-                  </>
-                ) : (
                   <button
                     type="button"
-                    className="icon-btn icon-btn--sm icon-btn--danger"
-                    disabled={busy || draft !== null}
-                    aria-label="Delete"
-                    title="Delete"
-                    onClick={() => setRemoving(entry.id)}
+                    className="icon-btn icon-btn--sm"
+                    disabled={busy}
+                    aria-label={`Keep ${label.singular}`}
+                    title={`Keep ${label.singular}`}
+                    onClick={(event) => {
+                      // Keep hands focus back to the key it disarmed, not
+                      // to the page's top.
+                      const primary =
+                        event.currentTarget.previousElementSibling;
+                      setRemoving(null);
+                      if (primary instanceof HTMLButtonElement) primary.focus();
+                    }}
                   >
-                    <IconTrash size={16} />
+                    <IconX size={16} />
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
             <DirectoryAuthority

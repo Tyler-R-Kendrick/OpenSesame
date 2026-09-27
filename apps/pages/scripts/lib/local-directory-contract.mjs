@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { localAgentContract } from "./local-agent-contract.mjs";
 import { localApplicationContract } from "./local-application-contract.mjs";
+import { localDeviceContract } from "./local-device-contract.mjs";
 import {
   localMembershipContract,
   localMembershipSetup,
@@ -13,6 +14,7 @@ import { localPasskeyContract } from "./local-passkey-contract.mjs";
 // assigned last; the membership contract then proves the guest is refused.
 export async function localDirectoryContract(page, tabTo) {
   await directoryRecordsContract(page, tabTo);
+  await localDeviceContract(page, tabTo);
   await localMembershipSetup(page, tabTo);
   await localApplicationContract(page, tabTo);
   await localMembershipContract(page, tabTo);

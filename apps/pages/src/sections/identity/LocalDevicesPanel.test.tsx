@@ -2,6 +2,11 @@ import {
   readLocalPasskeys,
   revokeLocalPasskey,
 } from "@opensesame/app-core/lib/local-credentials.js";
+import {
+  readLocalDevices,
+  registerLocalDevice,
+  thisDeviceId,
+} from "@opensesame/app-core/lib/local-devices.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
@@ -142,14 +147,114 @@ it.skip("distinguishes unreadable credentials from an empty directory and refuse
 
 it("lists this browser as a device, not people or passkeys", async () => {
   openDevices();
-  expect(await screen.findByText("This device")).toBeTruthy();
+  const heading = await screen.findByRole("heading", { level: 3 });
+  const row = heading.closest("li");
+  if (!row) throw new Error("expected this device's row");
+  expect(within(row).getByRole("img", { name: "This device" })).toBeTruthy();
   expect(screen.queryByText("Passkeys", { exact: true })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Test person" })).toBeNull();
-  await userEvent.click(screen.getByRole("button", { name: /Rename / }));
+  // The device you are on can be renamed, never removed.
+  expect(within(row).queryByRole("button", { name: /^Remove / })).toBeNull();
+  await userEvent.click(within(row).getByRole("button", { name: /^Edit / }));
+  expect(document.activeElement).toBe(screen.getByLabelText("Name"));
+  expect(screen.queryByLabelText("Platform")).toBeNull();
   await userEvent.clear(screen.getByLabelText("Name"));
   await userEvent.type(screen.getByLabelText("Name"), "Desk laptop");
-  await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
   expect(
     await screen.findByRole("heading", { name: "Desk laptop" }),
   ).toBeTruthy();
+});
+
+it("registers a new device from the panel's add key, then removes it behind an armed key", async () => {
+  openDevices();
+  await screen.findByRole("img", { name: "This device" });
+  const add = screen.getByRole("button", { name: "New device" });
+  await userEvent.click(add);
+  expect(document.activeElement).toBe(screen.getByLabelText("Name"));
+  expect(add).toHaveProperty("disabled", true);
+  await userEvent.type(screen.getByLabelText("Name"), "Work laptop");
+  const commit = screen.getByRole("button", { name: "Register device" });
+  expect(commit).toHaveProperty("disabled", true);
+  await userEvent.selectOptions(screen.getByLabelText("Platform"), "Windows");
+  await userEvent.click(commit);
+
+  const heading = await screen.findByRole("heading", { name: "Work laptop" });
+  const row = heading.closest("li");
+  if (!row) throw new Error("expected the registered row");
+  expect(
+    within(row).getByRole("img", {
+      name: "Registered, not yet opened on that device",
+    }),
+  ).toBeTruthy();
+  expect(within(row).getByText(/Windows · added .* · never seen/)).toBeTruthy();
+  const stored = await readLocalDevices(fixture.tomb);
+  expect(stored.find((device) => device.name === "Work laptop")).toMatchObject({
+    platform: "Windows",
+    lastSeenAt: "",
+  });
+
+  const remove = within(row).getByRole("button", {
+    name: "Remove Work laptop",
+  });
+  await userEvent.click(remove);
+  await userEvent.click(
+    within(row).getByRole("button", { name: "Keep Work laptop" }),
+  );
+  expect(document.activeElement).toBe(remove);
+  expect(await readLocalDevices(fixture.tomb)).toHaveLength(stored.length);
+  await userEvent.click(remove);
+  await userEvent.click(
+    within(row).getByRole("button", { name: "Confirm removing Work laptop" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("heading", { name: "Work laptop" })).toBeNull(),
+  );
+  expect(await readLocalDevices(fixture.tomb)).toHaveLength(stored.length - 1);
+});
+
+it("claims a registration as this browser and folds in its own record", async () => {
+  await registerLocalDevice(fixture.tomb, {
+    name: "Kitchen tablet",
+    platform: "Android",
+  });
+  openDevices();
+  await screen.findByRole("img", { name: "This device" });
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: "Claim Kitchen tablet as this device",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", {
+        name: "Claim Kitchen tablet as this device",
+      }),
+    ).toBeNull(),
+  );
+  const row = screen
+    .getByRole("heading", { name: "Kitchen tablet" })
+    .closest("li");
+  if (!row) throw new Error("expected the claimed row");
+  expect(within(row).getByRole("img", { name: "This device" })).toBeTruthy();
+  const stored = await readLocalDevices(fixture.tomb);
+  expect(stored.filter((device) => device.id === thisDeviceId())).toEqual([
+    expect.objectContaining({ name: "Kitchen tablet" }),
+  ]);
+});
+
+it("follows a change made on another surface and reloads on demand", async () => {
+  openDevices();
+  await screen.findByRole("img", { name: "This device" });
+  await act(() =>
+    registerLocalDevice(fixture.tomb, {
+      name: "Studio Mac",
+      platform: "macOS",
+    }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Studio Mac" }),
+  ).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Reload devices" }));
+  expect(screen.getByRole("heading", { name: "Studio Mac" })).toBeTruthy();
 });
