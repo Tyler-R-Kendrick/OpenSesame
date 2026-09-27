@@ -72,13 +72,13 @@ describe("searchHelpTopics", () => {
     expect(searchHelpTopics("add a user")[0]?.id).toBe(
       "help.identity.account.add",
     );
-    // "kdbx" is a keyword. "nother manag" is no word of any topic, so the
-    // ranking finds nothing and only a substring of the import answer
-    // ("…from another manager…") reaches it.
+    // "kdbx" is a keyword. "ocking dro" is no word of any topic, so the
+    // ranking finds nothing and only a substring of the lock answer
+    // ("Locking drops the vault keys…") reaches it.
     expect(searchHelpTopics("kdbx")[0]?.id).toBe("help.vault.import");
-    expect(rankHelpTopics("nother manag")).toEqual([]);
-    expect(searchHelpTopics("nother manag").map((topic) => topic.id)).toEqual([
-      "help.vault.import",
+    expect(rankHelpTopics("ocking dro")).toEqual([]);
+    expect(searchHelpTopics("ocking dro").map((topic) => topic.id)).toEqual([
+      "help.lock",
     ]);
     expect(searchHelpTopics("   ")).toBe(HELP_TOPICS);
   });

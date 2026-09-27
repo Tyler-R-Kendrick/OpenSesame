@@ -26,7 +26,6 @@ const vault = vi.hoisted(
   (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const saveItem = vi.hoisted(() => vi.fn<(item: VaultItem) => Promise<void>>());
-const compileSecretToHost = vi.hoisted(() => vi.fn());
 const issueCertificateFromHost = vi.hoisted(() =>
   vi.fn<
     (input: {
@@ -50,11 +49,6 @@ Object.assign(vaultHooksSeams, {
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
-
-import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
-const originalConnectionSeams = { ...connectionSeams };
-Object.assign(connectionSeams, { compileSecretToHost });
-afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
 import { certsSeams } from "@opensesame/app-core/lib/certs.js";
 Object.assign(certsSeams, {
@@ -136,7 +130,6 @@ describe("ItemEditor", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
     saveItem.mockResolvedValue(undefined);
-    compileSecretToHost.mockResolvedValue(undefined);
     issueCertificateFromHost.mockResolvedValue(issuedCertificate);
     acknowledgeCertificateDelivery.mockResolvedValue(undefined);
   });
@@ -486,9 +479,8 @@ describe("ItemEditor", () => {
   });
 
   it("saves a secret's connection reference on this device alone", async () => {
-    // Grant compilation left Pages with the rest of its server plane
-    // (ed1d403d, ADR 0128): the save seals the reference locally and
-    // nothing is compiled or sent anywhere.
+    // ADR 0128: the reference is sealed locally; nothing is compiled or sent.
+    const sent = vi.spyOn(globalThis, "fetch");
     renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: "Add connection reference" }),
@@ -508,7 +500,8 @@ describe("ItemEditor", () => {
     expect(saved.name).toBe("Deploy hook");
     expect(saved.value).toBe("whsec_1");
     expect(saved.connectionRef).toBe("conn/github/pat");
-    expect(compileSecretToHost).not.toHaveBeenCalled();
+    expect(sent).not.toHaveBeenCalled();
+    sent.mockRestore();
   });
 
   it("keeps grantee editing out of secret ceremonies and preserves grants", async () => {

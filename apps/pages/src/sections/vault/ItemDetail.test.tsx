@@ -442,33 +442,47 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it("reports when the Host has no connection for the ref", async () => {
-    listConnections.mockResolvedValue([]);
-    const secret: SecretItem = {
-      ...base("secret", "itm_secret", "Deploy hook"),
-      value: "whsec_123",
-      ceiling: [],
-      grantees: [],
-      connectionRef: "conn/github/missing",
-    };
-    vault.current = { items: [secret], folders: [] };
-    renderAt("itm_secret");
-    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
-  });
-
-  it("reports when the Host is disconnected", async () => {
-    planes.value = { host: "degraded", identity: "connected" };
-    const secret: SecretItem = {
-      ...base("secret", "itm_secret", "Deploy hook"),
-      value: "whsec_123",
-      ceiling: [],
-      grantees: [],
-      connectionRef: "conn/github/pat",
-    };
-    vault.current = { items: [secret], folders: [] };
-    renderAt("itm_secret");
-    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
+  it("never looks up receipts, whatever the Host or connection state", async () => {
+    // Pages keeps no Host fetch (ADR 0128): the line is the same whether the
+    // Host would have had no connection, been degraded, had no receipts or
+    // failed, and nothing is asked of it.
+    const worlds = [
+      () => listConnections.mockResolvedValue([]),
+      () => {
+        planes.value = { host: "degraded", identity: "connected" };
+      },
+      () => {
+        listConnections.mockResolvedValue([
+          { connectionId: "con_1", connectionRef: "conn/github/pat" },
+        ]);
+        connectionEvents.mockResolvedValue([]);
+      },
+      () => listConnections.mockRejectedValue(new Error("host exploded")),
+    ];
+    for (const arrange of worlds) {
+      arrange();
+      vault.current = {
+        items: [
+          {
+            ...base("secret", "itm_secret", "Hook"),
+            value: "v",
+            ceiling: [],
+            grantees: [],
+            connectionRef: "conn/github/pat",
+          },
+        ],
+        folders: [],
+      };
+      const view = renderAt("itm_secret");
+      expect(
+        await screen.findByText(
+          "Connection receipts are unavailable on this device.",
+        ),
+      ).toBeTruthy();
+      view.unmount();
+    }
     expect(listConnections).not.toHaveBeenCalled();
+    expect(connectionEvents).not.toHaveBeenCalled();
   });
 
   it("updates a secret value through the update panel", async () => {
@@ -626,37 +640,6 @@ describe("ItemDetail edge branches", () => {
     vault.current = { items: [card], folders: [] };
     renderAt("itm_card");
     expect(screen.getByText("09/----")).toBeTruthy();
-  });
-
-  it("reports when a connection has no receipts yet", async () => {
-    listConnections.mockResolvedValue([
-      { connectionId: "con_1", connectionRef: "conn/github/pat" },
-    ]);
-    connectionEvents.mockResolvedValue([]);
-    const secret: SecretItem = {
-      ...base("secret", "itm_secret", "Hook"),
-      value: "v",
-      ceiling: [],
-      grantees: [],
-      connectionRef: "conn/github/pat",
-    };
-    vault.current = { items: [secret], folders: [] };
-    renderAt("itm_secret");
-    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
-  });
-
-  it("degrades gracefully when the receipt lookup fails", async () => {
-    listConnections.mockRejectedValue(new Error("host exploded"));
-    const secret: SecretItem = {
-      ...base("secret", "itm_secret", "Hook"),
-      value: "v",
-      ceiling: [],
-      grantees: [],
-      connectionRef: "conn/github/pat",
-    };
-    vault.current = { items: [secret], folders: [] };
-    renderAt("itm_secret");
-    expect(await screen.findByText(/unavailable on this device/)).toBeTruthy();
   });
 
   it("falls back to the generic provider for a bare connection ref", () => {
