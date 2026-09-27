@@ -1,15 +1,18 @@
+import { kvSet } from "@opensesame/app-core/lib/kv.js";
 import {
   readLocalPasskeys,
   revokeLocalPasskey,
 } from "@opensesame/app-core/lib/local-credentials.js";
 import {
+  LOCAL_DEVICES_PATH,
   readLocalDevices,
   registerLocalDevice,
   thisDeviceId,
+  touchThisDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
-import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
+import { lockAllTombs, writeFile } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   act,
@@ -21,7 +24,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, onTestFinished, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 import { LocalDirectoryPanel } from "./LocalDirectoryPanel.js";
@@ -222,36 +225,128 @@ it("registers a new device from the panel's add key, then removes it behind an a
     expect(screen.queryByRole("heading", { name: "Work laptop" })).toBeNull(),
   );
   expect(await readLocalDevices(fixture.tomb)).toHaveLength(stored.length - 1);
+  // The row left with the key that had focus; focus lands on the add key.
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "New device" }),
+    ),
+  );
 });
 
-it("claims a registration as this browser and folds in its own record", async () => {
+it("claims a registration behind an armed key, and lands focus on the claimed row", async () => {
   await registerLocalDevice(fixture.tomb, {
     name: "Kitchen tablet",
     platform: "Android",
   });
   openDevices();
   await screen.findByRole("img", { name: "This device" });
+  const claim = await screen.findByRole("button", {
+    name: "Claim Kitchen tablet as this device",
+  });
+  // The first press only arms it, and keep disarms it with focus handed back.
+  await userEvent.click(claim);
   await userEvent.click(
-    await screen.findByRole("button", {
-      name: "Claim Kitchen tablet as this device",
+    screen.getByRole("button", { name: "Leave Kitchen tablet unclaimed" }),
+  );
+  expect(document.activeElement).toBe(claim);
+  expect(
+    (await readLocalDevices(fixture.tomb)).some(
+      (device) => device.name === "Kitchen tablet" && device.lastSeenAt === "",
+    ),
+  ).toBe(true);
+
+  await userEvent.click(claim);
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Confirm claiming Kitchen tablet as this device",
     }),
   );
+  // The claimed record takes this browser's id, so its row is a new
+  // element: read it again rather than hold the registration's.
+  const claimedRow = () =>
+    screen.getByRole("heading", { name: "Kitchen tablet" }).closest("li");
   await waitFor(() =>
     expect(
-      screen.queryByRole("button", {
-        name: "Claim Kitchen tablet as this device",
+      within(claimedRow() as HTMLElement).getByRole("img", {
+        name: "This device",
       }),
-    ).toBeNull(),
+    ).toBeTruthy(),
   );
-  const row = screen
-    .getByRole("heading", { name: "Kitchen tablet" })
-    .closest("li");
-  if (!row) throw new Error("expected the claimed row");
-  expect(within(row).getByRole("img", { name: "This device" })).toBeTruthy();
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      within(claimedRow() as HTMLElement).getByRole("button", {
+        name: "Edit Kitchen tablet",
+      }),
+    ),
+  );
   const stored = await readLocalDevices(fixture.tomb);
   expect(stored.filter((device) => device.id === thisDeviceId())).toEqual([
     expect.objectContaining({ name: "Kitchen tablet" }),
   ]);
+});
+
+it("says so when a full list leaves this browser unlisted", async () => {
+  for (
+    let index = (await readLocalDevices(fixture.tomb)).length;
+    index < 63;
+    index += 1
+  )
+    await registerLocalDevice(fixture.tomb, {
+      name: `Device ${index}`,
+      platform: "Linux",
+    });
+  // The list is full once this browser has touched it; then another opens it.
+  await touchThisDevice(fixture.tomb);
+  const previous = thisDeviceId();
+  kvSet("opensesame.this-device-id", crypto.randomUUID());
+  onTestFinished(() => kvSet("opensesame.this-device-id", previous));
+  openDevices();
+  expect(
+    await screen.findByRole("img", {
+      name: /this browser is not among them/,
+    }),
+  ).toBeTruthy();
+  expect(await readLocalDevices(fixture.tomb)).toHaveLength(64);
+});
+
+it("renames a seen device whose stored platform is empty", async () => {
+  const now = new Date().toISOString();
+  await writeFile(
+    fixture.tomb,
+    LOCAL_DEVICES_PATH,
+    new TextEncoder().encode(
+      JSON.stringify({
+        version: 1,
+        revision: 1,
+        devices: [
+          {
+            id: "old-box",
+            name: "Old box",
+            platform: "",
+            createdAt: now,
+            lastSeenAt: now,
+          },
+        ],
+      }),
+    ),
+  );
+  openDevices();
+  const row = (await screen.findByRole("heading", { name: "Old box" })).closest(
+    "li",
+  );
+  if (!row) throw new Error("expected the stored row");
+  await userEvent.click(
+    within(row).getByRole("button", { name: "Edit Old box" }),
+  );
+  expect(screen.queryByLabelText("Platform")).toBeNull();
+  await userEvent.clear(screen.getByLabelText("Name"));
+  await userEvent.type(screen.getByLabelText("Name"), "Attic box");
+  const save = screen.getByRole("button", { name: "Save changes" });
+  expect(save).toHaveProperty("disabled", false);
+  await userEvent.click(save);
+  expect(
+    await screen.findByRole("heading", { name: "Attic box" }),
+  ).toBeTruthy();
 });
 
 it("follows a change made on another surface and reloads on demand", async () => {

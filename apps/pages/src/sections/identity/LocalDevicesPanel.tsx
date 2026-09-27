@@ -2,6 +2,7 @@ import { kvDurability } from "@opensesame/app-core/lib/kv.js";
 import {
   type LocalDevice,
   readLocalDevices,
+  thisDeviceId,
   touchThisDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
@@ -14,6 +15,7 @@ import {
   DeviceForm,
   DeviceRows,
   type DevicesModel,
+  NEW_DEVICE_KEY_ID,
   newDeviceDraft,
 } from "./LocalDeviceRows.js";
 
@@ -34,6 +36,7 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
         <h2>Devices</h2>
         <fieldset className="vtree__keys" aria-label="Device commands">
           <IconKey
+            id={NEW_DEVICE_KEY_ID}
             label="New device"
             small
             disabled={busy || !devices || draft !== null}
@@ -70,6 +73,12 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
           {devices?.length === 0 ? (
             <StatusMark tone="idle" label="No devices yet." />
           ) : null}
+          {devices && devices.length > 0 && !listsThisBrowser(devices) ? (
+            <StatusMark
+              tone="warn"
+              label="This vault lists as many devices as it can hold, so this browser is not among them. Remove one, then reload."
+            />
+          ) : null}
         </div>
         <DeviceRows model={model} />
         <DeviceForm model={model} />
@@ -78,15 +87,29 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   );
 }
 
+function listsThisBrowser(devices: LocalDevice[]): boolean {
+  const mine = thisDeviceId();
+  return devices.some((device) => device.id === mine);
+}
+
 function useDevices(tomb: string): DevicesModel & {
   load: (clearError: boolean) => void;
 } {
   const [devices, setDevices] = useState<LocalDevice[] | null>(null);
   const [draft, setDraft] = useState<DeviceDraft | null>(null);
-  const [removing, setRemoving] = useState<string | null>(null);
+  const [armed, setArmed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [focusAfter, setFocusAfter] = useState<string | null>(null);
   const generation = useRef(0);
+
+  // After a change lands, put focus on the control named for it — the key
+  // that was pressed may have left with its row, which drops focus on body.
+  useEffect(() => {
+    if (busy || !focusAfter) return;
+    setFocusAfter(null);
+    document.getElementById(focusAfter)?.focus();
+  }, [busy, focusAfter]);
 
   const read = useCallback(
     async (clearError: boolean) => {
@@ -98,7 +121,10 @@ function useDevices(tomb: string): DevicesModel & {
         const next = await readLocalDevices(tomb);
         if (current !== generation.current) return;
         setDevices(next);
-        setRemoving((id) => (next.some((row) => row.id === id) ? id : null));
+        // An armed key whose device left stays armed for nothing.
+        setArmed((key) =>
+          key && next.some((row) => key.endsWith(`:${row.id}`)) ? key : null,
+        );
       } catch {
         if (current === generation.current) setError(READ_ERROR);
       }
@@ -131,7 +157,7 @@ function useDevices(tomb: string): DevicesModel & {
     };
   }, [tomb, read]);
 
-  async function run(action: () => Promise<LocalDevice[]>) {
+  async function run(action: () => Promise<LocalDevice[]>, focusId?: string) {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -140,7 +166,8 @@ function useDevices(tomb: string): DevicesModel & {
       generation.current += 1;
       setDevices(next);
       setDraft(null);
-      setRemoving(null);
+      setArmed(null);
+      if (focusId) setFocusAfter(focusId);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -157,8 +184,8 @@ function useDevices(tomb: string): DevicesModel & {
     devices,
     draft,
     setDraft,
-    removing,
-    setRemoving,
+    armed,
+    setArmed,
     busy,
     error,
     run,
