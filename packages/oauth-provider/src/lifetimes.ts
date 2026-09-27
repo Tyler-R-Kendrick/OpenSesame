@@ -58,9 +58,16 @@ export const ARTIFACT_LIFETIMES = {
    * bound to a key cannot outlive the one it replaced, so rotation never
    * makes it last forever.
    */
-  RefreshToken: (ctx: KoaContext, token: KoaContext, client: KoaContext) => {
-    const rotated = overlapCast<KoaContext, ContextView>(ctx).oidc?.entities
-      ?.RotatedRefreshToken;
+  RefreshToken: (
+    ctx: KoaContext | undefined,
+    token: KoaContext,
+    client: KoaContext,
+  ) => {
+    // A token made outside a request (a background job) has no context.
+    const rotated = overlapCast<
+      KoaContext | undefined,
+      ContextView | undefined
+    >(ctx)?.oidc?.entities?.RotatedRefreshToken;
     const { applicationType, clientAuthMethod } = clientOf(client);
     if (
       rotated &&

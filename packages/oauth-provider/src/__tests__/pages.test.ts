@@ -84,7 +84,8 @@ describe("providerPages", () => {
       "WXYZ-1234",
     );
     expect(page.body).toContain("&lt;b&gt;Evil&lt;/b&gt;");
-    expect(page.body).toContain("WXYZ-1234");
+    expect(page.body).toContain('<code class="user-code">WXYZ-1234</code>');
+    expect(page.body).toContain(".user-code{font-size:1.75rem");
     expect(page.body).toContain('name="abort"');
     expect(page.body).not.toMatch(EXTERNAL);
   });

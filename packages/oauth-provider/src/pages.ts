@@ -49,7 +49,8 @@ const PLAIN_STYLES = [
 /**
  * The provider's own form controls, whatever the skin: its device-code
  * field arrives bare, and a field under 16px makes iOS zoom in on focus
- * and never zoom back. Every key and field meets the 44px touch floor.
+ * and never zoom back. Every key and field meets the 44px touch floor, and
+ * the code a person compares against their device reads at a glance.
  */
 const FORM_STYLES = [
   "input[type=text]{display:block;box-sizing:border-box;width:100%;",
@@ -57,6 +58,7 @@ const FORM_STYLES = [
   "font-size:16px;text-align:center;text-transform:uppercase;",
   "letter-spacing:.1em}input[type=text]::placeholder{text-transform:none;",
   "letter-spacing:normal}button,.btn{min-height:44px}",
+  ".user-code{font-size:1.75rem;letter-spacing:.08em}",
 ].join("");
 
 const ESCAPES = new Map([
@@ -158,7 +160,7 @@ function codeConfirmPage(
     ctx,
     "Confirm the device",
     `<p class="lede"><strong>${escapeHtml(label)}</strong> is asking to sign in. Your device should show this code:</p>
-    <p><code>${escapeHtml(userCode)}</code></p>
+    <p><code class="user-code">${escapeHtml(userCode)}</code></p>
     <p>If you did not start this, the code does not match, or you do not know the device, abort.</p>
     ${form}
     <button class="btn btn-primary" autofocus type="submit" form="op.deviceConfirmForm">Continue</button>

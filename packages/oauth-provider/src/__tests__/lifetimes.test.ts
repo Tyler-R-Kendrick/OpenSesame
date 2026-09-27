@@ -51,6 +51,14 @@ describe("ARTIFACT_LIFETIMES", () => {
       14 * DAY,
     );
   });
+
+  it("gives a refresh token made outside a request the full lifetime", () => {
+    const browser = koa({ applicationType: "web", clientAuthMethod: "none" });
+    const unbound = koa({ isSenderConstrained: () => false });
+    expect(ARTIFACT_LIFETIMES.RefreshToken(undefined, unbound, browser)).toBe(
+      14 * DAY,
+    );
+  });
 });
 
 describe("introspectionAllowed", () => {
