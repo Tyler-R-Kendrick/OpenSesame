@@ -4,14 +4,21 @@ import {
 } from "@opensesame/app-core/lib/configuration/recipes.js";
 import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
 import { applyImportedRecipe } from "@opensesame/app-core/sections/identity/application-recipe-panel-model.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 
 export function ApplicationRecipePanel(props: {
   registration: LocalApplicationRegistration | undefined;
   tomb?: string;
   revision?: number;
+  /** An import was written; the owner reloads what it shows. */
+  onApplied?: () => void;
 }) {
+  // The directory's revision as this panel last knew it: its own write moves
+  // it on before the owner's reload arrives, so a repeat import is not
+  // refused as a change made elsewhere.
+  const [revision, setRevision] = useState(props.revision);
+  useEffect(() => setRevision(props.revision), [props.revision]);
   const [imported, setImported] = useState("");
   const [organization, setOrganization] = useState("");
   const [result, setResult] = useState("");
@@ -80,9 +87,14 @@ export function ApplicationRecipePanel(props: {
               imported,
               organization,
               tomb: props.tomb,
-              revision: props.revision,
+              revision,
               fallback: recipe,
-            }).then(setResult);
+            }).then((applied) => {
+              setResult(applied.message);
+              if (applied.revision === undefined) return;
+              setRevision(applied.revision);
+              props.onApplied?.();
+            });
           }}
         />
         {result ? <p className="hint">{result}</p> : null}

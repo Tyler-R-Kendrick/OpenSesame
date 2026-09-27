@@ -23,20 +23,26 @@ export type ApplyImportedRecipeInput = {
   fallback: ReturnType<typeof exportRecipe>;
 };
 
+/** What the panel shows, and the directory's revision after an applied write. */
+export type ApplyImportedRecipeResult = Readonly<{
+  message: string;
+  revision?: number;
+}>;
+
 export async function applyImportedRecipe(
   input: ApplyImportedRecipeInput,
-): Promise<string> {
+): Promise<ApplyImportedRecipeResult> {
   let manifest = input.fallback;
   try {
     // SAFETY: test/fixture or boundary-checked value matches typeof manifest.
     manifest = JSON.parse(input.imported) as typeof manifest;
   } catch {
-    return "Imported recipe is not JSON.";
+    return { message: "Imported recipe is not JSON." };
   }
   const bound = importRecipe(manifest, { organization: input.organization });
-  if (!bound.ok) return bound.message;
+  if (!bound.ok) return { message: bound.message };
   if (!input.tomb || input.revision === undefined) {
-    return "Unlock the vault before applying a recipe.";
+    return { message: "Unlock the vault before applying a recipe." };
   }
   const tomb = input.tomb;
   // The first write is checked against the revision the panel was drawn
@@ -66,10 +72,12 @@ export async function applyImportedRecipe(
       },
     );
   } catch (err) {
-    if (err instanceof LocalDirectoryError) return err.message;
+    if (err instanceof LocalDirectoryError) return { message: err.message };
     throw err;
   }
-  return applied.ok
-    ? `Applied ${applied.applied.join(", ")} to ${input.organization}. Repeat import keeps the same applicationId.`
-    : applied.message;
+  if (!applied.ok) return { message: applied.message };
+  return {
+    message: `Applied ${applied.applied.join(", ")} to ${input.organization}. Repeat import keeps the same applicationId.`,
+    revision,
+  };
 }

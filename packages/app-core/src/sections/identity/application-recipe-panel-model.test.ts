@@ -58,24 +58,32 @@ describe("applyImportedRecipe", () => {
   });
 
   it("writes from the revision the panel was drawn from, then follows on", async () => {
-    expect(await apply(4)).toBe(
-      "Applied app-a, app-b to org-1. Repeat import keeps the same applicationId.",
-    );
+    expect(await apply(4)).toEqual({
+      message:
+        "Applied app-a, app-b to org-1. Repeat import keeps the same applicationId.",
+      revision: 6,
+    });
     expect(store.seen).toEqual([4, 5]);
   });
 
+  it("hands back the revision a repeat import must start from", async () => {
+    const first = await apply(4);
+    expect(await apply(first.revision)).toMatchObject({ revision: 8 });
+    expect(store.seen).toEqual([4, 5, 6, 7]);
+  });
+
   it("refuses to overwrite a change made since the panel was drawn", async () => {
-    expect(await apply(3)).toBe(
-      "Application configuration changed. Reload before saving.",
-    );
+    expect(await apply(3)).toEqual({
+      message: "Application configuration changed. Reload before saving.",
+    });
     expect(store.seen).toEqual([3]);
     expect(store.stored).toBe(4);
   });
 
   it("asks for an unlocked vault before writing anything", async () => {
-    expect(await apply(undefined)).toBe(
-      "Unlock the vault before applying a recipe.",
-    );
+    expect(await apply(undefined)).toEqual({
+      message: "Unlock the vault before applying a recipe.",
+    });
     expect(store.seen).toEqual([]);
   });
 });
