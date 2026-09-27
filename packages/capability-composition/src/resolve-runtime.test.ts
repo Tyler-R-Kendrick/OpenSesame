@@ -350,3 +350,29 @@ describe("an alternatives slot named like a prototype member", () => {
     ]);
   });
 });
+
+describe("module completeness (carried from #470's not-shipped rule)", () => {
+  it("a capability whose module did not ship is not distributed, and never approved", () => {
+    const baseline = resolveWithConsent(familyInput()).plan;
+    const target = baseline.approvedCapabilities.find(
+      (id) => baseline.capabilities[id]?.tier === "optional",
+    );
+    if (target === undefined) throw new Error("fixture approves no optional");
+    const dropped = `${target}/runtime`;
+    expect(baseline.approvedModules).toContain(dropped);
+    const distribution = {
+      ...FIXTURE_DISTRIBUTION,
+      moduleIds: FIXTURE_DISTRIBUTION.moduleIds.filter((m) => m !== dropped),
+    };
+    // The same receipt, so only the missing module can change the verdict.
+    const { receipt } = resolveWithConsent(familyInput());
+    const plan = resolveComposition(familyInput({ distribution, receipt }));
+    expect(plan.capabilities[target]).toMatchObject({
+      distributed: false,
+      approved: false,
+    });
+    expect(plan.capabilities[target]?.reasons).toContain("NOT_DISTRIBUTED");
+    expect(plan.approvedCapabilities).not.toContain(target);
+    expect(plan.approvedModules).not.toContain(dropped);
+  });
+});

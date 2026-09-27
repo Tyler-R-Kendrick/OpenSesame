@@ -303,8 +303,21 @@ const PERMISSION_REASONS: ReadonlySet<ReasonCode> = new Set<ReasonCode>([
   "DENIED_BY_WORKSPACE",
 ]);
 
+/**
+ * An optional capability is in this distribution only when every module it
+ * declares shipped with it. A distribution can list the capability yet drop a
+ * module (a report-gate build whose entry is absent); approving it then would
+ * claim code the page cannot load.
+ */
+function shipped(ctx: ResolveContext, d: CapabilityDescriptor): boolean {
+  return (
+    ctx.distributed.has(d.id) &&
+    d.moduleIds.every((m) => ctx.distributedModules.has(m))
+  );
+}
+
 function optionalAxis(ctx: ResolveContext, d: CapabilityDescriptor): Axis {
-  const distributed = ctx.distributed.has(d.id);
+  const distributed = shipped(ctx, d);
   const runtimeSupported = runtimeSupports(ctx, d);
   const blocked: ReasonCode[] = policyReasons(ctx, d.id);
   if (!distributed) blocked.push("NOT_DISTRIBUTED");
