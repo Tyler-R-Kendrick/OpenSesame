@@ -12,6 +12,7 @@ import { PNG } from "pngjs";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   BASELINE_DIR,
+  MAX_CONTENT_DIFF_RATIO,
   MAX_DIFF_RATIO,
   OUTPUT_DIR,
   baselinePath,
@@ -37,6 +38,30 @@ const RUN_ID = `unit-test-${process.pid}-${Date.now()}`;
 
 const createdBaselines: string[] = [];
 const createdOutputs: string[] = [];
+
+/**
+ * A white screen whose first `rows` rows are black content, and a capture
+ * where the first `changed` content pixels turn white.
+ */
+function contentPair(
+  width: number,
+  height: number,
+  rows: number,
+  changed: number,
+): { baseline: Buffer; capturedPng: Buffer } {
+  const draw = (flip: number) => {
+    const img = new PNG({ width, height });
+    img.data.fill(255);
+    for (let px = 0; px < width * rows; px += 1) {
+      if (px < flip) continue;
+      img.data[px * 4] = 0;
+      img.data[px * 4 + 1] = 0;
+      img.data[px * 4 + 2] = 0;
+    }
+    return PNG.sync.write(img);
+  };
+  return { baseline: draw(0), capturedPng: draw(changed) };
+}
 
 function baselineName(suffix: string): string {
   return `${RUN_ID}-${suffix}`;
@@ -165,19 +190,10 @@ describe("visual-contract compare unit", () => {
 
     it("within-budget drift still matches", () => {
       const name = baselineName("tolerant");
-      // Flip 1 pixel of 64 (1.56% > 1.5% would fail; use a larger canvas so
-      // a single flipped pixel stays under the budget).
-      const width = 16;
-      const height = 16;
-      const baselineImg = new PNG({ width, height });
-      baselineImg.data.fill(255);
-      const capturedImg = new PNG({ width, height });
-      capturedImg.data.fill(255);
-      capturedImg.data[0] = 0;
-      capturedImg.data[1] = 0;
-      capturedImg.data[2] = 0;
-      const baseline = PNG.sync.write(baselineImg);
-      const capturedPng = PNG.sync.write(capturedImg);
+      // A 16x16 screen whose top five rows are content (80 pixels): one
+      // flipped pixel inside them is 0.39% of the frame and 1.25% of the
+      // content, under both budgets.
+      const { baseline, capturedPng } = contentPair(16, 16, 5, 1);
       makeBaseline(name, baseline);
       const captured = makeCaptured(name, capturedPng);
 
@@ -185,7 +201,26 @@ describe("visual-contract compare unit", () => {
 
       expect(result.diffPixelCount).toBeGreaterThanOrEqual(0);
       expect(result.diffRatio).toBeLessThanOrEqual(MAX_DIFF_RATIO);
+      expect(result.contentDiffRatio).toBeLessThanOrEqual(
+        MAX_CONTENT_DIFF_RATIO,
+      );
       expect(result.matched).toBe(true);
+    });
+
+    it("fails a change a mostly-empty screen would hide in the whole frame", () => {
+      const name = baselineName("sparse");
+      // One content row on a 32x32 screen, five of its pixels changed: 0.49%
+      // of the frame, inside 1.5%, but 5 of 32 content pixels, far past 5%.
+      const { baseline, capturedPng } = contentPair(32, 32, 1, 5);
+      makeBaseline(name, baseline);
+      const captured = makeCaptured(name, capturedPng);
+
+      const result = compareAgainstBaseline(name, captured);
+
+      expect(result.diffRatio).toBeLessThanOrEqual(MAX_DIFF_RATIO);
+      expect(result.contentPixels).toBe(32);
+      expect(result.contentDiffRatio).toBeGreaterThan(MAX_CONTENT_DIFF_RATIO);
+      expect(result.matched).toBe(false);
     });
   });
 

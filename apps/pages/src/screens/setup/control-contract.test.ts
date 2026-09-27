@@ -153,6 +153,20 @@ describe("the lint fails on the code that actually got through", () => {
     expect(result.output).toContain("go-needs-verb");
   });
 
+  it.each(["uppercase", "capitalize"])(
+    "rejects a rule that forces %s case",
+    (value) => {
+      const result = runLint(
+        ...brokenTree(
+          "drift.css",
+          `.label {\n  text-transform: ${value};\n}\n`,
+        ),
+      );
+      expect(result.code).toBe(1);
+      expect(result.output).toContain("sentence-case");
+    },
+  );
+
   it("rejects a second definition of the commit control", () => {
     const broken = brokenTree(
       "drift.css",
