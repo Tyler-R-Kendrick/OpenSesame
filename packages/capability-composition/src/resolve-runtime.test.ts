@@ -11,7 +11,11 @@ import {
   fixtureSelection,
 } from "./fixtures.js";
 import type { ResolveInput } from "./resolve-input.js";
-import { explainCapability, resolveComposition } from "./resolve.js";
+import {
+  capabilityState,
+  explainCapability,
+  resolveComposition,
+} from "./resolve.js";
 import type { CapabilityId, EffectivePlan } from "./types.js";
 
 const CORE = ["settings.core", "vault.passwords"];
@@ -296,3 +300,53 @@ function blank(id: string) {
     itemKinds: [],
   };
 }
+
+describe("prototype-named ids (carried from #470's adversarial suite)", () => {
+  const plan = resolveComposition(fixtureResolveInput());
+
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__"])(
+    "explainCapability(%s) reads as never distributed, never throws",
+    (id) => {
+      const explanation = explainCapability(plan, id);
+      expect(explanation.state.approved).toBe(false);
+      expect(explanation.state.reasons).toEqual(["NOT_DISTRIBUTED"]);
+      expect(capabilityState(plan, id)).toBeUndefined();
+    },
+  );
+});
+
+describe("an alternatives slot named like a prototype member", () => {
+  it("reads as unchosen, not as the prototype's function", () => {
+    const catalog = buildCatalog(
+      FIXTURE_CATALOG.capabilities.map(({ exposureDigest: _digest, ...d }) =>
+        d.id === "sharing.household"
+          ? {
+              ...d,
+              alternatives: d.alternatives.map((a) => ({
+                ...a,
+                slot: "constructor",
+              })),
+            }
+          : d,
+      ),
+      1,
+    );
+    const plan = resolveComposition(
+      fixtureResolveInput({
+        catalog,
+        installation: {
+          ...FIXTURE_INSTALLATION,
+          selectedOptional: ["sharing.household"],
+          chosenAlternatives: {},
+        },
+      }),
+    );
+    expect(plan.conflicts).toEqual([
+      expect.objectContaining({
+        code: "ALTERNATIVE_NOT_CHOSEN",
+        capability: "sharing.household",
+        subject: "constructor",
+      }),
+    ]);
+  });
+});

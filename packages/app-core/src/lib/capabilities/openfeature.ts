@@ -26,11 +26,11 @@ import {
   type ResolutionDetails,
   StandardResolutionReasons,
 } from "@openfeature/web-sdk";
-import type {
-  CapabilityId,
-  CapabilityLifecycle,
-  CapabilityState,
-  EffectivePlan,
+import {
+  type CapabilityId,
+  type CapabilityLifecycle,
+  type EffectivePlan,
+  capabilityState,
 } from "@opensesame/capability-composition";
 import {
   isBoolean,
@@ -85,12 +85,6 @@ type ResolvedFlag = Readonly<{
   reason: Reason;
 }>;
 
-function stateOf(plan: EffectivePlan, id: string): CapabilityState | undefined {
-  return Object.hasOwn(plan.capabilities, id)
-    ? plan.capabilities[id]
-    : undefined;
-}
-
 /** `composition.plan` carries the digest and approved ids only — never policy text. */
 function planFlag(plan: EffectivePlan): JsonValue {
   return {
@@ -109,7 +103,7 @@ function lookupFlag(key: string, ready: ReadyPlan): ResolvedFlag | null {
   }
   if (!key.startsWith(CAPABILITY_PREFIX)) return null;
   const rest = key.slice(CAPABILITY_PREFIX.length);
-  const state = stateOf(plan, rest);
+  const state = capabilityState(plan, rest);
   if (state !== undefined) {
     return {
       kind: "boolean",
@@ -119,7 +113,7 @@ function lookupFlag(key: string, ready: ReadyPlan): ResolvedFlag | null {
   }
   if (!rest.endsWith(LIFECYCLE_SUFFIX)) return null;
   const id = rest.slice(0, -LIFECYCLE_SUFFIX.length);
-  if (stateOf(plan, id) === undefined) return null;
+  if (capabilityState(plan, id) === undefined) return null;
   const lifecycle = Object.hasOwn(snapshot.lifecycle, id)
     ? snapshot.lifecycle[id]
     : undefined;

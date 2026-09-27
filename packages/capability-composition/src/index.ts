@@ -59,7 +59,11 @@ export {
   PERSONAL_LOCAL_NETWORK,
   PERSONAL_LOCAL_REVISION,
 } from "./resolve-axes.js";
-export { explainCapability, resolveComposition } from "./resolve.js";
+export {
+  capabilityState,
+  explainCapability,
+  resolveComposition,
+} from "./resolve.js";
 export { diagnoseRuntimeDocuments } from "./diagnose.js";
 export { reviewCompositionChange } from "./review.js";
 export {
