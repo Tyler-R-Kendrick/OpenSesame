@@ -41,7 +41,7 @@ type VisualPrefsProps = {
 
 function AppearancePrefs(props: VisualPrefsProps) {
   return (
-    <section className="panel">
+    <section className="panel" id="settings-appearance">
       <div className="panel__head">
         <div>
           <h2>Appearance</h2>
@@ -126,7 +126,7 @@ function LockingPrefs(props: VisualPrefsProps) {
         },
       ];
   return (
-    <section className="panel">
+    <section className="panel" id="settings-locking">
       <div className="panel__head">
         <div>
           <h2>Locking</h2>

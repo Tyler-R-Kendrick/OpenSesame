@@ -58,7 +58,7 @@ export function KeybindingsViewsPanel() {
   }
 
   return (
-    <section className="panel">
+    <section className="panel" id="settings-keybindings">
       <div className="panel__head">
         <div>
           <h2>Keybindings and views</h2>

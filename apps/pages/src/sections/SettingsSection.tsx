@@ -65,10 +65,13 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
     navigate(settingsPath("security", redirected), { replace: true });
   }, [category, hash, navigate]);
 
+  // Every tab's rail entries are links to its panels; only Security used to
+  // follow one, so General › Locking or Vaults › Travel changed the address
+  // and left the page where it was.
   useEffect(() => {
-    if (category !== "security") return;
     const id = hash.replace(/^#/, "");
-    if (!id || SECURITY_FRAGMENT_REDIRECT.has(id)) return;
+    if (!id) return;
+    if (category === "security" && SECURITY_FRAGMENT_REDIRECT.has(id)) return;
     const target = panelFromHash(hash);
     if (target) scrollToPanel(target);
   }, [category, hash]);

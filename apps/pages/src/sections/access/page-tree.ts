@@ -4,12 +4,13 @@ import {
   pageTabTree,
 } from "../../lib/page-to-tree.js";
 
+import { APPROVAL_LABELS } from "@opensesame/app-core/lib/approvals-route.js";
 import {
   ACCESS_LABELS,
   type ACCESS_VIEWS,
 } from "@opensesame/app-core/lib/section-view-names.js";
 export type AccessPlanes = {
-  host?: boolean;
+  /** An Identity API is configured, so Requests draws its inbox. */
   identity?: boolean;
   shares?: readonly { id: string; label: string }[];
 };
@@ -57,14 +58,18 @@ function tab(
   };
 }
 
-/** Access page: each tab is a subtree of the panels that tab actually shows. */
+/**
+ * Access page: each tab is a subtree of the panels that tab actually draws,
+ * in the order it draws them. Nothing here names a Host panel: the page has
+ * none, and a rail entry for one opened its tab with nothing to land on.
+ */
 export function accessPageSources({
-  host = false,
   identity = false,
   shares = [],
 }: AccessPlanes = {}): PageTreeSource[] {
   return [
     tab("grants", [
+      panel("grants", "access-book", "Portable grants"),
       panel("grants", "local-grants", "Local application grants"),
       panel(
         "grants",
@@ -72,31 +77,26 @@ export function accessPageSources({
         "Identity shares",
         shares.map((share) => leaf("grants", `share-${share.id}`, share.label)),
       ),
-      ...(host ? [panel("grants", "host-grants", "Grants")] : []),
     ]),
     tab("requests", [
+      // The inbox addressed to an Identity session draws only where an
+      // Identity API is configured (ADR 0090), and above the local list.
+      ...(identity
+        ? [panel("requests", "hosted-requests", APPROVAL_LABELS.inbox)]
+        : []),
       panel("requests", "local-requests", "Local requests"),
-      ...(host ? [panel("requests", "host-requests", "Requests")] : []),
     ]),
     tab("sessions", [
       panel("sessions", "local-sessions", "Local sessions"),
       panel("sessions", "local-authority-templates", "Audience templates"),
       panel("sessions", "vault-share-sessions", "Vault share sessions"),
-      ...(host
-        ? [
-            panel("sessions", "host-shared-sessions", "Host shared sessions"),
-            panel("sessions", "host-sessions", "Host task sessions"),
-          ]
-        : []),
     ]),
     tab("connectors", [panel("connectors", "local-connectors", "Connectors")]),
     tab("resources", [
       panel("resources", "local-resources", "Local resources"),
-      ...(identity ? [panel("resources", "resource-sites", "Sites")] : []),
     ]),
     tab("policies", [
       panel("policies", "local-policies", "Local application policies"),
-      ...(host ? [panel("policies", "host-policies", "Policies")] : []),
     ]),
   ];
 }

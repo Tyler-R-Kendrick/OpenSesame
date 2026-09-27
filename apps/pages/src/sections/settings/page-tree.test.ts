@@ -90,7 +90,22 @@ describe("settingsPageTree", () => {
         ?.children.map((node) => node.label);
     // A rail entry for a panel that returned null opened General at its
     // top with nothing to show for it.
-    expect(general(false)).toEqual([]);
-    expect(general(true)).toEqual(["Install"]);
+    const always = ["Appearance", "Locking", "Keybindings and views"];
+    expect(general(false)).toEqual(always);
+    expect(general(true)).toEqual(["Install", ...always]);
+  });
+
+  it("gives every tab its panels, so no tab is a caret-less row among branches", () => {
+    const tabs = settingsPageTree();
+    // A tab with nothing under it drew without a caret, one indent left of
+    // its siblings, and read as a level above them.
+    expect(
+      tabs.filter((tab) => tab.children.length === 0).map((tab) => tab.id),
+    ).toEqual([]);
+    expect(
+      tabs
+        .find((tab) => tab.id === "danger")
+        ?.children.map((node) => node.href),
+    ).toEqual(["/settings/danger#settings-delete-vault"]);
   });
 });

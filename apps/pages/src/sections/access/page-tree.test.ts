@@ -20,6 +20,7 @@ describe("access page tree", () => {
     const headings = (id: string) =>
       tree.find((node) => node.id === id)?.children.map((node) => node.label);
     expect(headings("grants")).toEqual([
+      "Portable grants",
       "Local application grants",
       "Identity shares",
     ]);
@@ -45,32 +46,29 @@ describe("access page tree", () => {
     expect(tree.every((node) => pageTreeItemCount(node) === 0)).toBe(true);
   });
 
-  it("adds host and identity panels only when those planes are on the page", () => {
+  it("names only panels the page draws: the Identity inbox where one is configured, never a Host panel", () => {
     const tree = accessPageTree({
-      host: true,
       identity: true,
       shares: [{ id: "s1", label: "vault: Budget" }],
     });
-    const headings = tree.flatMap((node) =>
-      node.children.map((child) => child.label),
-    );
-    expect(headings).toEqual([
-      "Local application grants",
-      "Identity shares",
-      "Grants",
-      "Local requests",
-      "Requests",
-      "Local sessions",
-      "Audience templates",
-      "Vault share sessions",
-      "Host shared sessions",
-      "Host task sessions",
-      "Connectors",
-      "Local resources",
-      "Sites",
-      "Local application policies",
-      "Policies",
+    const ids = tree.flatMap((node) => node.children.map((child) => child.id));
+    expect(ids).toEqual([
+      "access-book",
+      "local-grants",
+      "identity-shares",
+      "hosted-requests",
+      "local-requests",
+      "local-sessions",
+      "local-authority-templates",
+      "vault-share-sessions",
+      "local-connectors",
+      "local-resources",
+      "local-policies",
     ]);
+    expect(ids.filter((id) => id.startsWith("host-"))).toEqual([]);
+    expect(
+      tree.find((node) => node.id === "requests")?.children[0]?.label,
+    ).toBe("Requests for you");
     expect(pageTreeLeaves(tree).map((node) => node.label)).toEqual([
       "vault: Budget",
     ]);

@@ -24,7 +24,7 @@ export function SettingsDangerPanel() {
   const count = `${items.length} ${items.length === 1 ? "item" : "items"}`;
 
   return (
-    <section className="panel set__danger">
+    <section className="panel set__danger" id="settings-delete-vault">
       <div className="panel__head">
         <div>
           <h2>Delete this vault</h2>
