@@ -14,7 +14,6 @@ import type {
   ExternalIdentity,
   Interaction,
   InteractionKind,
-  InteractionStatus,
   NotificationDelivery,
   NotificationPreferences,
   Organization,

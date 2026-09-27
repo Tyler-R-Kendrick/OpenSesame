@@ -33,7 +33,7 @@ import {
   probeOrphanSession,
 } from "./identity.js";
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
-import { loadSettings, saveSettings } from "./settings.js";
+import { saveSettings } from "./settings.js";
 const networkEligible = localNetworkFetchSeams.eligible;
 
 beforeEach(() => {

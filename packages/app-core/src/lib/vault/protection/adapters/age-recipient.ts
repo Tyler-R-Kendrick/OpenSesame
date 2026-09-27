@@ -29,19 +29,6 @@ import {
   isAgeIdentity,
   isAgeRecipient,
 } from "../../../age-keys.js";
-import {
-  type AuthorizedEnrollmentRequest,
-  type AuthorizedOpenRequest,
-  type AuthorizedProofRequest,
-  type ClientRootKeyHandle,
-  type KeyProtectorAdapter,
-  type PendingProtection,
-  type ProtectionProof,
-  assertNotCanceled,
-  assertSessionGeneration,
-  mintRootKeyHandle,
-} from "../adapter.js";
-import { assertAgeRecoveryIndependent } from "../age-bootstrap.js";
 import { canonicalizeToBytes } from "../canonicalize.js";
 import { contextsEqual } from "../capsule.js";
 import { ProtectionError } from "../errors.js";

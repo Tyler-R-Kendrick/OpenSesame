@@ -2,11 +2,10 @@
  * Postgres wallet-registration repository (ADR 0086).
  */
 
-import { and, desc, eq, lte } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as coreSchema from "../schema/index.js";
 import * as walletSchema from "../schema/wallet-interactions.js";
-import { ConflictError, NotFoundError, type UnitOfWork } from "./interfaces.js";
+import { ConflictError, type UnitOfWork } from "./interfaces.js";
 import type {
   WalletRegistration,
   WalletRegistrationRepository,

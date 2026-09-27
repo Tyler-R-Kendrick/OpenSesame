@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { overlapCast } from "@opensesame/os-domain";
-import { type JWTPayload, importSPKI, jwtVerify } from "jose";
+import { importSPKI, jwtVerify } from "jose";
 import { describe, expect, it } from "vitest";
 import {
   GOOGLE_WALLET_ENV,

@@ -23,7 +23,6 @@ import { buildIssuerMetadata, issuerMetadataUrl } from "./metadata.js";
 import { MemoryNonceStore } from "./nonce.js";
 import {
   MemoryPreAuthorizedCodeStore,
-  PRE_AUTHORIZED_CODE_GRANT_TYPE,
   createCredentialOffer,
 } from "./offer.js";
 import { verifyProofOfPossession } from "./proof.js";

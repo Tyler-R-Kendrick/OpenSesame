@@ -4,59 +4,12 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  ApprovalQuorumLedger,
   type CustodyGrant,
-  LocalShareMaterialGuard,
-  type RecoveryRequest,
-  type ShareEnvelope,
   assertOutsideCompartmentCustody,
-  authorizeReenrollment,
-  combineRecoveryShares,
   countIndependentApprovers,
   countIndependentCustodians,
-  createGenerationRegistry,
-  digestRecoveryRequest,
-  issueTargetDeviceChallenge,
-  proveTargetDevice,
-  reconstructAfterQuorum,
-  replaceKeyCustodian,
-  reportApprovalQuorum,
-  revokeGeneration,
   roleAllows,
-  rotateGeneration,
-  runAvailabilityDrill,
-  sealApproval,
-  splitRecoverySecret,
 } from "./custody.js";
-
-function macKeys() {
-  return {
-    shareMac: crypto.getRandomValues(new Uint8Array(32)),
-    approvalMac: crypto.getRandomValues(new Uint8Array(32)),
-    deviceMac: crypto.getRandomValues(new Uint8Array(32)),
-  };
-}
-
-async function mintRequest(
-  overrides: Partial<Omit<RecoveryRequest, "digest">> = {},
-): Promise<RecoveryRequest> {
-  const base = {
-    requestId: "req-1",
-    incidentIds: ["inc-1"] as const,
-    vaultRef: "v1",
-    compartmentRefs: ["c-outside"] as const,
-    targetDeviceBinding: "device-target",
-    ephemeralRecipientKeyB64: btoa("ephemeral-recipient-key-32b!!!!!!!!"),
-    policyRevision: 1,
-    keyEpoch: 1,
-    recoveryGeneration: 1,
-    nonce: "nonce-1",
-    expiresAt: new Date(Date.now() + 600_000).toISOString(),
-    ...overrides,
-  };
-  const digest = await digestRecoveryRequest(base);
-  return { ...base, digest };
-}
 
 const approver = (
   ref: string,

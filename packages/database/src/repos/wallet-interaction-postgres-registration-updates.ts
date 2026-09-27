@@ -2,7 +2,7 @@
  * Postgres wallet-registration repository (ADR 0086).
  */
 
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as coreSchema from "../schema/index.js";
 import * as walletSchema from "../schema/wallet-interactions.js";
@@ -15,15 +15,10 @@ import type {
 const schema = { ...coreSchema, ...walletSchema };
 type Database = PostgresJsDatabase<typeof coreSchema>;
 type ResolveDb = (uow?: UnitOfWork) => Database;
-type BoundaryValue = { code?: string };
 
 function overlapCast<T>(value: string): T {
   // SAFETY: column checks constrain these closed enums at write time.
   return value as T;
-}
-
-function isUniqueViolation(err: BoundaryValue): boolean {
-  return err.code === "23505";
 }
 
 function mapWalletRegistration(

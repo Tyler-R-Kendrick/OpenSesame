@@ -12,7 +12,6 @@ import {
   type Fixture,
   makeInteraction,
   makeProofAttempt,
-  refusalText,
 } from "./wallet-interaction-test-helpers.js";
 
 function proofAttemptContract(label: string, setup: () => Promise<Fixture>) {

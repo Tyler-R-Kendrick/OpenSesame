@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
   AgentAuthError,
@@ -9,13 +8,8 @@ import {
   AgentClaimInitRequestSchema,
   AgentIdentityRequestSchema,
 } from "@opensesame/contracts";
-import {
-  digestAgentClaimAttemptToken,
-  isNumber,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { isNumber, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import type { Variables } from "../middleware/context.js";
 import {
@@ -31,14 +25,7 @@ import {
   revokeAccessToken,
   revokeRegistration,
 } from "../services/agent-auth.js";
-import {
-  AGENT_AUTH_CLAIM_CSP,
-  AGENT_AUTH_OAUTH_CLIENT_ID,
-  agentAuthClaimRedirectUri,
-  renderAgentAuthClaimPage,
-  renderAgentAuthLoginPage,
-  safeAgentAuthReturnTo,
-} from "../ui/agent-auth-pages.js";
+import { renderAgentAuthClaimPage } from "../ui/agent-auth-pages.js";
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 

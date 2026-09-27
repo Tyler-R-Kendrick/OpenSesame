@@ -1,5 +1,5 @@
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
-import { type JsonObject, isJsonObject, isString } from "@opensesame/os-domain";
+import { type JsonObject, isJsonObject } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

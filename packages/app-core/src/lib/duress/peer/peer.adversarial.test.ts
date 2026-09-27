@@ -2,7 +2,7 @@
  * PEER-F adversarial transport / pairing / origin tests.
  */
 import { describe, expect, it, vi } from "vitest";
-import { type JsonObject, overlapCast } from "../json-boundary.js";
+import { overlapCast } from "../json-boundary.js";
 import {
   PeerPairingRegistry,
   allowCertWeakeningForTailscale,

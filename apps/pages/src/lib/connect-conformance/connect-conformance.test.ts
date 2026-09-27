@@ -13,17 +13,12 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
-import {
-  type DraftState,
-  initialDraftState,
-  withParam,
-} from "@opensesame/app-core/lib/connect-draft.js";
+import type { DraftState } from "@opensesame/app-core/lib/connect-draft.js";
 import { toConnectorDraft } from "@opensesame/app-core/lib/connect-draft.js";
 import {
   type ConnectMethodKind,
   type ConnectPlan,
   connectPlans,
-  fillTemplate,
   isConnectable,
 } from "@opensesame/app-core/lib/connect-plan.js";
 import {

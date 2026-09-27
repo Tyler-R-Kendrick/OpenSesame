@@ -1,5 +1,4 @@
 /** @vitest-environment jsdom */
-import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -7,31 +6,12 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { UnlockScreen } from "./UnlockScreen.js";
 import {
-  FEDERATED_BUTTON,
-  STRONG,
-  UPSTREAM,
-  beginSignIn,
-  chooseSealMethod,
   continueAsGuest,
-  endSession,
-  goLocalOnly,
-  identifierInput,
-  listFederatedProviders,
-  lookupOrgByDomain,
-  lookupOrgTenant,
-  masterInput,
-  openSignIn,
-  requestEmailMagicLink,
   resetUnlockHarness,
   resumeGuestSession,
-  sessionHolder,
-  submitButton,
-  submitIdentifier,
-  upstreamHolder,
-  userMenuTrigger,
   v,
 } from "./unlock-screen-harness.js";
 

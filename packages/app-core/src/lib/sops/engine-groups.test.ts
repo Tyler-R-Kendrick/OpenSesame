@@ -4,8 +4,6 @@
  * several identities and several documents, kept out of `engine.test.ts`.
  */
 import { describe, expect, it } from "vitest";
-import { parseJsonTree } from "./json-codec.js";
-import { entry, scalarText } from "./model.js";
 import {
   NEVER,
   TestSession,

@@ -49,7 +49,6 @@ import type {
   GoogleUriEntry,
 } from "./google.js";
 import { assertPassPayloadSafe } from "./payload.js";
-import { WalletInputError } from "./provider.js";
 
 /** The language tag recorded on every `LocalizedString`. */
 const DEFAULT_LANGUAGE = "en-US";

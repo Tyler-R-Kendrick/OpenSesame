@@ -14,7 +14,7 @@ import {
   setGuestsAllowed,
 } from "@opensesame/app-core/lib/guest-access.js";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   PERSONAL_SELECTION,
   installPanelFixture,

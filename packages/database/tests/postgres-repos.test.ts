@@ -1,10 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ConflictError, NotFoundError } from "../src/repos/interfaces.js";
-import {
-  type Database,
-  createPostgresRepositories,
-} from "../src/repos/postgres.js";
+import { createPostgresRepositories } from "../src/repos/postgres.js";
 import * as schema from "../src/schema/index.js";
 import {
   makeApprovalActivation,

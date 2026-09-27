@@ -1,7 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  ZipError,
   findSkippedAttachments,
   readZipEntryNames,
   readZipText,

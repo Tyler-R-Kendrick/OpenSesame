@@ -4,10 +4,6 @@
  * re-implement compiler rules.
  */
 
-import type {
-  PolicyDocument,
-  PolicyProfile,
-} from "@opensesame/contracts/duress";
 import { SCENARIO_IDS, type ScenarioId } from "@opensesame/contracts/duress";
 import { includesStringLiteral } from "../json-boundary.js";
 

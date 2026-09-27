@@ -1,16 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
+import type { BoundaryValue } from "../json-boundary.js";
 /**
  * Canary enrollment registry — optional receiver, route revoke (CANARY-A/E).
  * No production session or key authority is admitted here.

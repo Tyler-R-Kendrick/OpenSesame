@@ -14,7 +14,7 @@ import {
   DEFAULT_PASSWORD_REPO_NAME,
   listGithubRepos,
 } from "../../lib/github-history.js";
-import { type RepoChoice, mergeChoices } from "./GithubBackupRepoResolve.js";
+import { mergeChoices } from "./GithubBackupRepoResolve.js";
 
 export function seedKey(rows: AppInstallAccount[]): string {
   return rows

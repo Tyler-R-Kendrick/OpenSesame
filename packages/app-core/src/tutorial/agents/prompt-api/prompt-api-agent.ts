@@ -271,22 +271,9 @@ export async function acquirePromptApiModel(
   );
 }
 
-type ActiveSession = {
-  readonly session: LocalModelSession;
-  readonly instructions: string;
-};
-
 export function createPromptApiSupportAgent(
   options: PromptApiAgentOptions = {},
 ): SupportAgentPort {
-  let active: ActiveSession | null = null;
-
-  function dropSession(): void {
-    // Clear this agent's pointer only. The shared session stays warm for the
-    // next ask and for any other on-device caller; vault lock releases it.
-    active = null;
-  }
-
   /**
    * Reuses the session unless the instruction changed, because the instruction
    * is the page context: a stale session would answer about the previous page.
@@ -302,7 +289,6 @@ export function createPromptApiSupportAgent(
       recordProgress(options),
       null,
     );
-    active = { session, instructions };
     if (signal.aborted) throw abortedError();
     return session;
   }
@@ -352,7 +338,6 @@ export function createPromptApiSupportAgent(
       } catch (cause) {
         rethrowAbort(cause);
         if (!isContextExhausted(cause)) throw protocolError(cause);
-        dropSession();
         releaseLocalModelSession();
         try {
           return await ask(api, instructions, text, runOptions.signal);
@@ -364,7 +349,8 @@ export function createPromptApiSupportAgent(
     },
 
     destroy(): void {
-      dropSession();
+      // The agent holds no session of its own. The shared one stays warm for
+      // the next ask and for any other on-device caller; vault lock releases it.
     },
   };
 }

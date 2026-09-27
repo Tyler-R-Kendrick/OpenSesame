@@ -5,15 +5,7 @@ import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js"
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { GUEST_TOMB, lockAllTombs } from "@opensesame/app-core/lib/vfs.js";

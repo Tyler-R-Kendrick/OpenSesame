@@ -7,9 +7,6 @@ import {
   compose,
   fakeBundle,
   makeFixtureTree,
-  policy,
-  profileFile,
-  selection,
 } from "./capability-fixtures.mjs";
 import {
   canonicalJson,

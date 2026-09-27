@@ -3,22 +3,9 @@ import {
   type JsonValue,
   isJsonObject,
 } from "@opensesame/os-domain";
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { buildConsentReceipt } from "./consent.js";
+import { parseInstancePolicy, parseWorkspaceRestriction } from "./documents.js";
 import {
-  parseConsentReceipt,
-  parseDistributionContract,
-} from "./documents-runtime.js";
-import {
-  parseInstallationSelection,
-  parseInstancePolicy,
-  parseVaultSelection,
-  parseWorkspaceRestriction,
-} from "./documents.js";
-import {
-  FIXTURE_CATALOG,
-  FIXTURE_DISTRIBUTION,
   FIXTURE_INSTALLATION,
   FIXTURE_POLICIES,
   fixtureResolveInput,

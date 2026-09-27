@@ -1,8 +1,7 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  overlapCast,
+import type {
+  BoundaryValue,
+  JsonObject,
+  JsonValue,
 } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { bitwardenCsv, bitwardenJson } from "./formats/bitwarden.js";

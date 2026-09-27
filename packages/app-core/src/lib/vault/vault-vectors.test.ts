@@ -12,7 +12,6 @@ import {
   WrongPasswordError,
   b64ToBytes,
   openVaultBody,
-  openVaultFile,
   readVaultFile,
   unwrapRawVaultKeyFromPassword,
 } from "@opensesame/vault-core";

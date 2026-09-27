@@ -1,9 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import http from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type BoundaryValue,
-  type JsonObject,
   type JsonValue,
   overlapCast,
 } from "@opensesame/os-domain";

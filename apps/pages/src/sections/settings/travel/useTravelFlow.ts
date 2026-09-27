@@ -14,7 +14,6 @@ import {
 } from "@opensesame/app-core/lib/travel/index.js";
 import { useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
-import type { StatusTone } from "../../../components/StatusMark.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import {
   type TravelNotice,

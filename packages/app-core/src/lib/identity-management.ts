@@ -4,7 +4,6 @@ import {
 } from "@opensesame/contracts";
 import {
   type BoundaryValue,
-  type JsonObject,
   isBoolean,
   isJsonObject,
   isString,

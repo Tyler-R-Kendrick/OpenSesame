@@ -2,24 +2,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import { kvDelete } from "./kv.js";
 import {
   PERSONAL_PROJECT_ID,
-  PROJECTS_CONFIG_PATH,
   PROJECTS_KEY,
   createProject,
-  forgetDepartedProjects,
   hydrateProjectsFromVfs,
   listProjects,
-  refreshProjectsView,
   rehydrateProjects,
   setActiveProject,
 } from "./projects.js";
 import { VaultStore } from "./vault/store.js";
-import {
-  listTombs,
-  lockAllTombs,
-  readFile,
-  registerTomb,
-  unregisterTomb,
-} from "./vfs.js";
+import { listTombs, lockAllTombs } from "./vfs.js";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -42,10 +33,6 @@ async function personalWithTwoProjects() {
   await setActiveProject(trip.id);
   await store.forkUnlockedIntoActiveScope();
   return { store, work, trip };
-}
-
-async function sealedView(tomb: string): Promise<string> {
-  return new TextDecoder().decode(await readFile(tomb, PROJECTS_CONFIG_PATH));
 }
 
 describe("the list after unlock (ADR 0143)", () => {

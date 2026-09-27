@@ -1,4 +1,4 @@
-import { diag, has } from "./compiler-util.js";
+import { diag } from "./compiler-util.js";
 import type { CompilerCatalog, CompilerDiagnostic } from "./evidence.js";
 import type { PolicyProfile } from "./policy.js";
 

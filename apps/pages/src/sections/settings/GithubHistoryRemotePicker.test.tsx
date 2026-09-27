@@ -2,7 +2,15 @@ import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const listGithubRepos = vi.hoisted(() => vi.fn());
 const createGithubPasswordRepo = vi.hoisted(() => vi.fn());
@@ -14,6 +22,7 @@ Object.assign(githubHistorySeams, {
   createGithubPasswordRepo,
   remoteFromRepo: (repo: { cloneUrl: string }) => repo.cloneUrl,
 });
+afterAll(() => Object.assign(githubHistorySeams, originalGithubHistorySeams));
 
 import type { CapabilityConnectorBinding } from "@opensesame/app-core/lib/capabilities.js";
 import type { Connection } from "@opensesame/app-core/lib/connections.js";

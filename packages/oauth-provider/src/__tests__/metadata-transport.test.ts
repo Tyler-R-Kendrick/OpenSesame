@@ -1,5 +1,4 @@
 import http from "node:http";
-import type { AddressInfo } from "node:net";
 import { overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
