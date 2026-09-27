@@ -83,8 +83,8 @@ export function readStoreManifest(
  * a login, and a card at that path is worth more than a guess — so the path
  * is left as it is. An entry that says what the item already says, in other
  * words (a `pass` trailer without the empty lists Pages writes, or a manifest
- * an older Pages saved), is unchanged, not updated, so a second import writes
- * nothing.
+ * an older Pages saved), is unchanged, not updated — `planManifestMerge`
+ * judges that by the item it would write — so a second import writes nothing.
  */
 export function planStoreManifest(
   entries: StorePlainEntry[],
@@ -93,18 +93,13 @@ export function planStoreManifest(
 ): ManifestPlan {
   const plan = planManifestMerge(entries, items, folders);
   const byId = new Map(items.map((item) => [item.id, item]));
-  const said = (item: VaultItem) =>
-    JSON.stringify(vaultItemToEntry(item, folders));
   const updates: VaultItem[] = [];
   let kept = 0;
-  let unchanged = plan.unchanged;
   for (const update of plan.updates) {
-    const current = byId.get(update.id);
-    if (current?.kind !== update.kind) kept += 1;
-    else if (said(current) === said(update)) unchanged += 1;
+    if (byId.get(update.id)?.kind !== update.kind) kept += 1;
     else updates.push(update);
   }
-  return { ...plan, updates, unchanged, kept };
+  return { ...plan, updates, kept };
 }
 
 export function manifestFacts(

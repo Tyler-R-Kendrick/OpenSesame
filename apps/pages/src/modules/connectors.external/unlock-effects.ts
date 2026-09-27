@@ -55,7 +55,7 @@ export function connectorUnlockEffects(
           // A sealed token arms the live transport, and a staged one lands
           // with the first open tomb.
           await connectorUnlockSeams
-            .hydrateVercelConnectAuth(tomb, { ephemeral: guest })
+            .hydrateVercelConnectAuth(tomb, { ephemeral: guest, signal: scope })
             .catch(() => {
               // A corrupt record reads as no Connect session, not a trapped
               // vault.

@@ -29,6 +29,7 @@ import {
   definitionFields,
 } from "@opensesame/vault-item-types";
 import { describe, expect, it } from "vitest";
+import { planManifestMerge } from "../../../lib/vault/store-sync.js";
 import { type FixtureVault, everyKindVault } from "./store-manifest.fixture.js";
 import {
   planStoreManifest,
@@ -38,6 +39,14 @@ import {
 
 /** The keys a vault assigns for itself, which no import can carry over. */
 const OWN = new Set(["id", "createdAt", "updatedAt", "deletedAt", "folderId"]);
+
+/** What an import never carries into a vault, whatever the file says. */
+const NOT_CONFERRED = new Set([
+  "unlocksVault",
+  "ceiling",
+  "grantees",
+  "connectionRef",
+]);
 
 /** Drop the vault-assigned `id` of every nested row (a URI, a field, a grant). */
 function withoutRowIds(value: JsonValue): JsonValue {
@@ -57,8 +66,9 @@ function comparable(item: VaultItem, folders: readonly Folder[]): JsonObject {
     folder: folders.find((folder) => folder.id === item.folderId)?.name ?? null,
   };
   for (const [key, value] of Object.entries(record)) {
-    // `unlocksVault` is a claim about the vault that enrolled the passkey.
-    if (OWN.has(key) || key === "unlocksVault" || value === undefined) continue;
+    // `unlocksVault` is a claim about the vault that enrolled the passkey,
+    // and a secret's authority is never conferred by a file (see below).
+    if (OWN.has(key) || NOT_CONFERRED.has(key) || value === undefined) continue;
     out[key] = withoutRowIds(value);
   }
   return out;
@@ -98,6 +108,48 @@ describe("store path manifest round trip, every kind", () => {
       );
     },
   );
+
+  it("confers no authority: a new secret arrives with no ceiling, grantees or ConnectionRef", () => {
+    const secrets = plan.adds.filter((item) => item.kind === "secret");
+    expect(secrets.length).toBeGreaterThan(0);
+    for (const secret of secrets) {
+      expect(secret).toMatchObject({
+        ceiling: [],
+        grantees: [],
+        connectionRef: "",
+      });
+    }
+  });
+
+  it("never widens an existing secret's authority, whatever the file says", () => {
+    const secret = vault.items.find((item) => item.kind === "secret");
+    expect(secret?.kind).toBe("secret");
+    if (secret?.kind !== "secret") return;
+    const narrow: VaultItem = {
+      ...secret,
+      ceiling: [],
+      grantees: [],
+      connectionRef: "",
+    };
+    const items = vault.items.map((item) =>
+      item.id === secret.id ? narrow : item,
+    );
+    // The file is the one this vault saved, with the secret's value rotated
+    // so it is a real update, and the wide authority it held before.
+    const widened = entries.map((entry) =>
+      entry.path.endsWith(secret.name)
+        ? { ...entry, secret: "rotated" }
+        : entry,
+    );
+    const again = planStoreManifest(widened, items, vault.folders);
+    const update = again.updates.find((item) => item.id === secret.id);
+    expect(update).toMatchObject({
+      value: "rotated",
+      ceiling: [],
+      grantees: [],
+      connectionRef: "",
+    });
+  });
 
   it("keeps line one a single line, so pass seal stores each entry exactly", () => {
     for (const entry of entries) expect(entry.secret).not.toMatch(/[\r\n]/u);
@@ -249,9 +301,10 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
       notes: "yubikey",
     });
     expect(by.get("dev.local")).toMatchObject({ privateKeyPem: KEY_PEM });
+    // The value comes back; the ConnectionRef the file named does not.
     expect(by.get("Deploy hook")).toMatchObject({
       value: "whsec_old",
-      connectionRef: "conn_1",
+      connectionRef: "",
     });
     expect(by.get("Recovery")).toMatchObject({ notes: "seed words" });
   });
@@ -265,6 +318,15 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
       newFolders: [],
       unchanged: entries.length,
       kept: 0,
+    });
+  });
+
+  it("is unchanged to the merge planner itself, not only to the Import sheet", () => {
+    const { items, folders } = oldVault();
+    expect(planManifestMerge(entries, items, folders)).toMatchObject({
+      adds: [],
+      updates: [],
+      unchanged: entries.length,
     });
   });
 

@@ -282,6 +282,27 @@ export function customFieldsIn(value: JsonValue | undefined): CustomField[] {
 }
 
 /**
+ * What an import may never confer: a secret's agent ceiling, its grantees and
+ * the ConnectionRef it answers for. A manifest carries them so the sealed
+ * store keeps them, but authority is granted in its own ceremony, never by a
+ * file (`lib/vault/import/merge.ts` clears them for the same reason). A new
+ * item arrives with none; an existing one keeps its own.
+ */
+export function withoutConferredAuthority(
+  incoming: VaultItem,
+  current: VaultItem | null,
+): VaultItem {
+  if (incoming.kind !== "secret") return incoming;
+  const own = current?.kind === "secret" ? current : null;
+  return {
+    ...incoming,
+    ceiling: own ? own.ceiling : [],
+    grantees: own ? own.grantees : [],
+    connectionRef: own ? own.connectionRef : "",
+  };
+}
+
+/**
  * The item a merge writes over `current`. A whole-item entry (format 2)
  * replaces its content; a first-format one grafts only what it carried. Either
  * way the item keeps its identity, its folder, its star and — for a passkey —

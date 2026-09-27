@@ -197,10 +197,19 @@ describe("store path manifest conformance (spec/conformance/store-manifest.json)
     expect(items.map((item) => item.kind)).toEqual(
       fixture.sealed.map((entry) => entry.kind),
     );
-    // The items it made save the same file again.
-    expect(JSON.parse(storeManifestFile(items, folders).text)).toEqual(
-      fixture.manifest,
+    // The items it made save the same file again, but for the one thing an
+    // import never confers: the secret comes back without the ConnectionRef
+    // the file named.
+    const answers = (entry: { path: string }) =>
+      entry.path === "Dev/Deploy hook";
+    const resaved: Array<{ path: string; secret: string; trailer: string }> =
+      JSON.parse(storeManifestFile(items, folders).text);
+    expect(resaved.filter((entry) => !answers(entry))).toEqual(
+      fixture.manifest.filter((entry) => !answers(entry)),
     );
+    const hook = resaved.find(answers);
+    expect(hook?.secret).toBe("whsec_conformance");
+    expect(hook?.trailer).not.toContain("conn_deploy_hook");
 
     const second = planStoreManifest(entries, items, folders);
     expect(second).toMatchObject({

@@ -16,7 +16,7 @@ import {
   parseTrailerMeta,
   splitStorePath,
 } from "./store-sync-entry.js";
-import { graftOnto } from "./store-sync-values.js";
+import { graftOnto, withoutConferredAuthority } from "./store-sync-values.js";
 
 export { entryToVaultItem } from "./store-sync-codec.js";
 export {
@@ -122,19 +122,28 @@ function planManifestMergeDefault(
     const current = byPath.get(normalizedStorePath(entry.path));
     if (!current) {
       if (folderId) usedFolderIds.add(folderId);
-      adds.push(incoming);
+      adds.push(withoutConferredAuthority(incoming, null));
       continue;
     }
-    const currentEntry = vaultItemToEntry(current, folders);
+    const whole = isWholeItemMeta(parseTrailerMeta(entry.trailer));
+    const next = withoutConferredAuthority(
+      graftOnto(current, incoming, whole),
+      current,
+    );
+    // Judged by what the merge would write, not by the file's text: a
+    // first-format line for an item that now encodes as format 2, or a
+    // trailer whose only difference is authority it may not confer, changes
+    // nothing.
+    const before = vaultItemToEntry(current, folders);
+    const after = vaultItemToEntry(next, folders);
     if (
-      currentEntry.secret === entry.secret &&
-      currentEntry.trailer.trim() === entry.trailer.trim()
+      before.secret === after.secret &&
+      before.trailer.trim() === after.trailer.trim()
     ) {
       unchanged += 1;
       continue;
     }
-    const whole = isWholeItemMeta(parseTrailerMeta(entry.trailer));
-    updates.push(graftOnto(current, incoming, whole));
+    updates.push(next);
   }
   return {
     adds,

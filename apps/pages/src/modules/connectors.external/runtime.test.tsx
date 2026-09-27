@@ -201,7 +201,12 @@ describe("connectors.external runtime", () => {
         signal: effectSignal,
       });
       expect(seal).toHaveBeenCalledWith("personal", { ephemeral: true });
-      expect(hydrate).toHaveBeenCalledWith("personal", { ephemeral: false });
+      // The hydrate carries the unlock's signal, so a read that answers
+      // after a lock arms nothing.
+      expect(hydrate).toHaveBeenCalledWith("personal", {
+        ephemeral: false,
+        signal: expect.any(AbortSignal),
+      });
 
       // Disable mid-flight: a pending effect settles as aborted, and its
       // late result has no owner.
