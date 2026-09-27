@@ -244,7 +244,9 @@ export const LIB_RULES = [
         "settings records, setup record, runtime config, editors",
       ),
   ),
-  core(`${L}webauthn`, "vault.local-unlock", "WebAuthn support detection"),
+  ...each(L, ["webauthn", "browser-reset"], (p) =>
+    core(p, "vault.local-unlock", "WebAuthn detection; resetting this browser"),
+  ),
   shared(
     `${L}activity-log`,
     "append API used by core; the section is activity.log",

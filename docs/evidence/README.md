@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-27-reset-browser/`](2026-09-27-reset-browser/README.md) | Reset this browser, from the lock screens |
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
 | [`2026-09-27-access-connectors/`](2026-09-27-access-connectors/README.md) | Access › Connectors lists what Connections configures |
 | [`2026-09-26-status-touch/`](2026-09-26-status-touch/README.md) | A status mark's touch twin |

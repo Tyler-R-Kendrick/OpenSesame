@@ -5,10 +5,23 @@
  */
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import {
+  assertOwnedStorageWrites,
+  recordStorageWrite,
+} from "@opensesame/app-core/test-host-storage-writes.js";
+import { afterEach } from "vitest";
 import { closeJsdomGaps } from "./jsdom-gaps.js";
 import { shellBuild } from "./shell-build.js";
 
 configureHost(
-  composeHost(browserPorts(), { env: import.meta.env, ...shellBuild }),
+  composeHost(browserPorts(), {
+    env: import.meta.env,
+    ...shellBuild,
+    recordStorageWrite,
+  }),
 );
 closeJsdomGaps();
+
+// A test that wrote a Web Storage key the app does not own fails here, even
+// when the code under test swallowed the write's outcome.
+afterEach(assertOwnedStorageWrites);

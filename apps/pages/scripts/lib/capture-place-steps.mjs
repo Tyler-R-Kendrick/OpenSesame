@@ -5,7 +5,7 @@
  * `capture-evidence.mjs`'s own.
  */
 export function placeSteps() {
-  return { reveal, openDetails };
+  return { reveal, openDetails, scrollToCardEnd };
 }
 
 /**
@@ -37,5 +37,19 @@ export async function openDetails(page, testId) {
   if (!(await details.count())) return;
   if (await details.evaluate((node) => node.open)) return;
   await details.locator("summary").first().click();
+  await page.waitForTimeout(600);
+}
+
+/**
+ * Scroll until the card's last row sits at the bottom of the screen, the way
+ * a person reaches a card's foot on a phone. Both builds draw the card, so
+ * both are pictured from the same place whatever the card holds.
+ */
+export async function scrollToCardEnd(page) {
+  const card = page.locator(".unlock__card").first();
+  if (!(await card.count())) return;
+  await card.evaluate((node) => {
+    node.scrollIntoView({ block: "end", behavior: "instant" });
+  });
   await page.waitForTimeout(600);
 }

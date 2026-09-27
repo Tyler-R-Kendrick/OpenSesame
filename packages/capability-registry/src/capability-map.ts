@@ -37,6 +37,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vaults.travel": "vault.local-unlock",
     "vault.second_step.code": "vault.local-unlock",
     "vault.recovery_codes": "vault.local-unlock",
+    "device.browser_reset": "vault.local-unlock",
 
     // --- core: encrypted backup -----------------------------------------
     "vault.export": "backup.local-encrypted",
