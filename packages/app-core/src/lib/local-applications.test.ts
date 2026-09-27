@@ -268,9 +268,13 @@ it("admits exactly one of two concurrent edits and retains the one that landed",
     result.status === "fulfilled" ? [index] : [],
   );
   expect(landed).toHaveLength(1);
-  expect(results.filter((result) => result.status === "rejected")).toHaveLength(
-    1,
+  // Refused as stale, not for any other reason: a write refused by
+  // validation would leave the lock untested.
+  const refused = results.flatMap((result) =>
+    result.status === "rejected" ? [String(result.reason)] : [],
   );
+  expect(refused).toHaveLength(1);
+  expect(refused[0]).toMatch(/changed\. Reload before saving/);
   expect(
     (await readLocalApplications(tomb)).applications[0]?.redirectUris,
   ).toEqual(candidates[landed[0] ?? -1]);
