@@ -1,6 +1,7 @@
 import { kvDurability } from "@opensesame/app-core/lib/kv.js";
 import {
   type LocalDevice,
+  isDeviceListFull,
   readLocalDevices,
   thisDeviceId,
   touchThisDevice,
@@ -11,6 +12,7 @@ import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import {
+  type ArmedKey,
   type DeviceDraft,
   DeviceForm,
   DeviceRows,
@@ -30,7 +32,7 @@ const READ_ERROR =
  */
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   const model = useDevices(tomb);
-  const { devices, draft, setDraft, busy, error, load } = model;
+  const { devices, draft, setDraft, busy, error, reload } = model;
   return (
     <section className="panel" aria-label="Devices">
       <div className="panel__head">
@@ -45,11 +47,7 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
           >
             <IconPlus size={15} />
           </IconKey>
-          <ReloadKey
-            label="Reload devices"
-            disabled={busy}
-            onReload={() => load(true)}
-          />
+          <ReloadKey label="Reload devices" disabled={busy} onReload={reload} />
         </fieldset>
       </div>
       <div className="panel__body">
@@ -74,7 +72,9 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
           {devices?.length === 0 ? (
             <StatusMark tone="idle" label="No devices yet." />
           ) : null}
-          {devices && devices.length > 0 && !listsThisBrowser(devices) ? (
+          {devices &&
+          isDeviceListFull(devices) &&
+          !listsThisBrowser(devices) ? (
             <StatusMark
               tone="warn"
               label="This vault lists as many devices as it can hold, so this browser is not among them. Remove one, then reload."
@@ -93,37 +93,45 @@ function listsThisBrowser(devices: LocalDevice[]): boolean {
   return devices.some((device) => device.id === mine);
 }
 
-function useDevices(tomb: string): DevicesModel & {
-  load: (clearError: boolean) => void;
-} {
+/**
+ * The rows, the armed key and the read error, kept consistent: every path
+ * that replaces the rows disarms a key whose device left, and a read that
+ * lands clears a read error (never a refusal of something the person did).
+ */
+function useDeviceRows() {
   const [devices, setDevices] = useState<LocalDevice[] | null>(null);
-  const [draft, setDraft] = useState<DeviceDraft | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState<ArmedKey | null>(null);
   const [error, setError] = useState("");
-  const generation = useRef(0);
+  const showRows = useCallback((next: LocalDevice[]) => {
+    setDevices(next);
+    setArmed((key) =>
+      key && next.some((row) => row.id === key.id) ? key : null,
+    );
+    setError((current) => (current === READ_ERROR ? "" : current));
+  }, []);
+  return { devices, armed, setArmed, error, setError, showRows };
+}
 
+function useDevices(tomb: string): DevicesModel & { reload: () => void } {
+  const rows = useDeviceRows();
+  const { showRows, setError, setArmed } = rows;
+  const [draft, setDraft] = useState<DeviceDraft | null>(null);
+  const [busy, setBusy] = useState(false);
+  const generation = useRef(0);
   const focusAfter = useFocusAfter(busy);
 
-  const read = useCallback(
-    async (clearError: boolean) => {
+  // Load through `load`, and drop a result a later load has overtaken.
+  const load = useCallback(
+    async (source: () => Promise<LocalDevice[]>) => {
       const current = ++generation.current;
-      // An invalidation from elsewhere must not wipe an alert the person is
-      // still reading; the explicit reload and the first read may.
-      if (clearError) setError("");
       try {
-        const next = await readLocalDevices(tomb);
-        if (current !== generation.current) return;
-        setDevices(next);
-        // An armed key whose device left stays armed for nothing.
-        setArmed((key) =>
-          key && next.some((row) => key.endsWith(`:${row.id}`)) ? key : null,
-        );
+        const next = await source();
+        if (current === generation.current) showRows(next);
       } catch {
         if (current === generation.current) setError(READ_ERROR);
       }
     },
-    [tomb],
+    [showRows, setError],
   );
 
   // Mark this browser seen once per tomb, then follow changes. The touch is
@@ -131,26 +139,16 @@ function useDevices(tomb: string): DevicesModel & {
   // that touched again would re-enter itself forever.
   useEffect(() => {
     let cancelled = false;
-    void touchThisDevice(tomb)
-      .then((next) => {
-        if (cancelled) return;
-        generation.current += 1;
-        setDevices(next);
-        // No error reset: rows drawn by the touch's own notification can be
-        // acted on before this lands, and that refusal must stay visible.
-      })
-      .catch(() => {
-        if (!cancelled) setError(READ_ERROR);
-      });
+    void load(() => touchThisDevice(tomb));
     const off = subscribeLocalIamChanges(() => {
-      if (!cancelled) void read(false);
+      if (!cancelled) void load(() => readLocalDevices(tomb));
     });
     return () => {
       cancelled = true;
       generation.current += 1;
       off();
     };
-  }, [tomb, read]);
+  }, [tomb, load]);
 
   async function run(action: () => Promise<LocalDevice[]>, focusId?: string) {
     if (busy) return;
@@ -159,7 +157,7 @@ function useDevices(tomb: string): DevicesModel & {
     try {
       const next = await action();
       generation.current += 1;
-      setDevices(next);
+      showRows(next);
       setDraft(null);
       setArmed(null);
       if (focusId) focusAfter(focusId);
@@ -176,14 +174,19 @@ function useDevices(tomb: string): DevicesModel & {
 
   return {
     tomb,
-    devices,
+    devices: rows.devices,
     draft,
     setDraft,
-    armed,
+    armed: rows.armed,
     setArmed,
     busy,
-    error,
+    error: rows.error,
     run,
-    load: (clearError) => void read(clearError),
+    // The explicit reload clears what is shown and touches again, so a
+    // browser left off a full list is listed once a slot has been freed.
+    reload: () => {
+      setError("");
+      void load(() => touchThisDevice(tomb));
+    },
   };
 }

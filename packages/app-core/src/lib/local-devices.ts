@@ -59,6 +59,14 @@ export function isDevicePlatform(value: string): value is DevicePlatform {
   return (DEVICE_PLATFORMS as readonly string[]).includes(value);
 }
 
+/**
+ * The list holds as many devices as it can: a browser that opens the vault
+ * unlisted now stays unlisted until one is removed.
+ */
+export function isDeviceListFull(devices: readonly LocalDevice[]): boolean {
+  return devices.length >= MAX_DEVICES;
+}
+
 /** A device registered here that has not yet opened the vault itself. */
 export function isPendingDevice(device: LocalDevice): boolean {
   return device.lastSeenAt === "";

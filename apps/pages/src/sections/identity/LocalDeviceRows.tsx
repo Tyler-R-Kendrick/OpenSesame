@@ -30,6 +30,9 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
+/** A key one more press will fire: which action, on which device. */
+export type ArmedKey = { action: "remove" | "claim"; id: string };
+
 /** `id` is empty for a device being registered. */
 export type DeviceDraft = {
   id: string;
@@ -44,9 +47,9 @@ export type DevicesModel = {
   devices: LocalDevice[] | null;
   draft: DeviceDraft | null;
   setDraft: (draft: DeviceDraft | null) => void;
-  /** The armed key, as `remove:<id>` or `claim:<id>`, or null. */
-  armed: string | null;
-  setArmed: (key: string | null) => void;
+  /** The key one more press will fire, or null. */
+  armed: ArmedKey | null;
+  setArmed: (key: ArmedKey | null) => void;
   busy: boolean;
   error: string;
   /**
@@ -146,7 +149,7 @@ function DeviceRow({
           {isPendingDevice(device) ? (
             <ArmedKeys
               model={model}
-              armKey={`claim:${device.id}`}
+              armKey={{ action: "claim", id: device.id }}
               label={`Claim ${device.name} as this device`}
               confirmLabel={`Confirm claiming ${device.name} as this device`}
               keepLabel={`Leave ${device.name} unclaimed`}
@@ -172,7 +175,7 @@ function DeviceRow({
           {device.id === mine ? null : (
             <ArmedKeys
               model={model}
-              armKey={`remove:${device.id}`}
+              armKey={{ action: "remove", id: device.id }}
               danger
               label={`Remove ${device.name}`}
               confirmLabel={`Confirm removing ${device.name}`}
@@ -208,7 +211,7 @@ function ArmedKeys({
   children,
 }: {
   model: DevicesModel;
-  armKey: string;
+  armKey: ArmedKey;
   danger?: boolean;
   label: string;
   confirmLabel: string;
@@ -217,7 +220,7 @@ function ArmedKeys({
   children: ReactNode;
 }) {
   const { draft, busy, armed, setArmed } = model;
-  const isArmed = armed === armKey;
+  const isArmed = armed?.action === armKey.action && armed.id === armKey.id;
   const primary = useRef<HTMLButtonElement>(null);
   return (
     <>

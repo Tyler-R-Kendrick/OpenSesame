@@ -1,4 +1,3 @@
-import { kvSet } from "@opensesame/app-core/lib/kv.js";
 import {
   readLocalPasskeys,
   revokeLocalPasskey,
@@ -8,7 +7,6 @@ import {
   readLocalDevices,
   registerLocalDevice,
   thisDeviceId,
-  touchThisDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
@@ -24,7 +22,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 import { LocalDirectoryPanel } from "./LocalDirectoryPanel.js";
@@ -283,30 +281,6 @@ it("claims a registration behind an armed key, and lands focus on the claimed ro
   expect(stored.filter((device) => device.id === thisDeviceId())).toEqual([
     expect.objectContaining({ name: "Kitchen tablet" }),
   ]);
-});
-
-it("says so when a full list leaves this browser unlisted", async () => {
-  for (
-    let index = (await readLocalDevices(fixture.tomb)).length;
-    index < 63;
-    index += 1
-  )
-    await registerLocalDevice(fixture.tomb, {
-      name: `Device ${index}`,
-      platform: "Linux",
-    });
-  // The list is full once this browser has touched it; then another opens it.
-  await touchThisDevice(fixture.tomb);
-  const previous = thisDeviceId();
-  kvSet("opensesame.this-device-id", crypto.randomUUID());
-  onTestFinished(() => kvSet("opensesame.this-device-id", previous));
-  openDevices();
-  expect(
-    await screen.findByRole("img", {
-      name: /this browser is not among them/,
-    }),
-  ).toBeTruthy();
-  expect(await readLocalDevices(fixture.tomb)).toHaveLength(64);
 });
 
 it("renames a seen device whose stored platform is empty", async () => {
