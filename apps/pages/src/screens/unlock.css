@@ -524,6 +524,22 @@
   line-height: 1.5;
 }
 
+/* What a reset left behind: a glyph and the area's name per row. */
+.unlock__left {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.unlock__left li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* First-run sign-in panel — identity before sealing. */
 .signin {
   display: grid;

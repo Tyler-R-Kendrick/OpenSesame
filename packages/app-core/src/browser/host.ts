@@ -166,5 +166,8 @@ export function browserPorts(): Ports {
     get indexedDB() {
       return globalThis.indexedDB ?? undefined;
     },
+    get cacheStorage() {
+      return globalThis.caches ?? undefined;
+    },
   };
 }

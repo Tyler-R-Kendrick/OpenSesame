@@ -1,0 +1,120 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "goOffline": null
+        },
+        {
+          "pressOptional": "Erase everything in this browser"
+        },
+        {
+          "wait": 4
+        },
+        {
+          "address": null
+        },
+        {
+          "lookForResetPanel": null
+        },
+        {
+          "report": ".unlock__left"
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__left li"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "measure": ".door__roads"
+        },
+        {
+          "shot": "390-offline-reset-left"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "goOffline": null
+        },
+        {
+          "pressOptional": "Erase everything in this browser"
+        },
+        {
+          "wait": 4
+        },
+        {
+          "address": null
+        },
+        {
+          "lookForResetPanel": null
+        },
+        {
+          "report": ".unlock__left"
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__left li"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "measure": ".door__roads"
+        },
+        {
+          "shot": "1280-offline-reset-left"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-offline-reset-left",
+      "width": 390,
+      "title": "Offline reset beside a sealed vault — 390 × 844, touch",
+      "caption": "Beside a sealed vault, taken offline, then Erase. Before, the tab stayed on /vault with the reset panel open. Its writes were halted and its memory still offered the erased vault. After, the tab always leaves for a fresh document. The front door shows what was left first, above the roads in, with two keys: erase again, or dismiss.",
+      "before": "stays on /vault · panel 168×127 @53,358 · the erased vault still offered",
+      "after": "lands on /OpenSesame/ · notice 324×127 @33,78, above the roads (@33,310) · rows 294×20 @48,92 and @48,118 · keys 44×44 @48,147 and @100,147"
+    },
+    {
+      "shot": "1280-offline-reset-left",
+      "width": 1280,
+      "title": "Offline reset beside a sealed vault — 1280 × 900, mouse",
+      "caption": "Beside a sealed vault, taken offline, then Erase. Before, the tab stayed on /vault with the reset panel open. Its writes were halted and its memory still offered the erased vault. After, the tab always leaves for a fresh document. The front door shows what was left first, above the roads in, with two keys: erase again, or dismiss.",
+      "before": "stays on /vault · panel 168×115 @157,555",
+      "after": "lands on /OpenSesame/ · notice 480×115 @109,187, above the roads (@109,418) · keys 32×32 @124,256 and 24×24 @164,260"
+    }
+  ]
+}

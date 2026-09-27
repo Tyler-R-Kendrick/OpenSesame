@@ -135,6 +135,13 @@ describe("VaultsScreen — the front door", () => {
     expect(onPicked).not.toHaveBeenCalled();
   });
 
+  it("offers to reset this browser beneath the list", () => {
+    renderScreen();
+    expect(
+      screen.getByRole("button", { name: "Reset this browser?" }),
+    ).toBeTruthy();
+  });
+
   it("carries the sign-in tab beside the list", () => {
     renderScreen();
     fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));

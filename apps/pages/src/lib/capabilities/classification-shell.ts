@@ -63,6 +63,16 @@ export const SHELL_RULES = [
   ),
   optional("src/sw/", "notifications.web-push", "worker parts (S08)"),
   core(
+    "src/lib/storage-",
+    null,
+    "what the app owns in a browser, and the halt a reset puts on writes",
+  ),
+  core(
+    "src/sw/cache-names",
+    "install.pwa",
+    "the worker's cache names; Reset this browser removes only these",
+  ),
+  core(
     "src/app-root",
     SHELL,
     "route table (S05); MIXED — optional imports move to contributions",

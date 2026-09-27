@@ -233,7 +233,7 @@ async function recheckOrphan(): Promise<void> {
 }
 
 /** Wait for every revoke to land, including ones started while waiting. */
-async function settleRevokes(): Promise<void> {
+export async function settleRevokes(): Promise<void> {
   while (pendingRevoke) {
     const inFlight = pendingRevoke;
     await inFlight;

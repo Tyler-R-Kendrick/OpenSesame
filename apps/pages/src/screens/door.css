@@ -176,3 +176,8 @@
     padding-block: 0.75rem;
   }
 }
+
+/* The door's roads and sign-in are centred; its foot follows them. */
+.door .unlock__foot {
+  justify-items: center;
+}
