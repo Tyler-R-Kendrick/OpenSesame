@@ -59,9 +59,7 @@
           "pressNamedOptional": "Register device"
         },
         {
-          "count": [
-            "section[aria-label='Devices'] .identity-row"
-          ]
+          "count": ["section[aria-label='Devices'] .identity-row"]
         },
         {
           "report": "section[aria-label='Devices'] .identity-row h3"
@@ -135,9 +133,7 @@
           "pressNamedOptional": "Register device"
         },
         {
-          "count": [
-            "section[aria-label='Devices'] .identity-row"
-          ]
+          "count": ["section[aria-label='Devices'] .identity-row"]
         },
         {
           "report": "section[aria-label='Devices'] .identity-row h3"
