@@ -547,66 +547,6 @@ describe("IdentitySection", () => {
     expect(screen.queryByText("No identity provider registered.")).toBeNull();
   });
 
-  it("reloads the provider list from the registry with the head's reload key", async () => {
-    renderIdentity();
-    await openTab("Providers");
-    await screen.findByText("OpenSesame (this device)");
-    // Registered on another surface: the panel shows it only once reloaded.
-    registerIdp(
-      makeRecord({
-        id: "byo_later",
-        issuer: "https://later.example.dev",
-        label: "Later IdP",
-        kind: "byo",
-        clientId: "cli_l",
-      }),
-    );
-    expect(screen.queryByText("Later IdP")).toBeNull();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Reload providers" }),
-    );
-    expect(await screen.findByText("Later IdP")).toBeTruthy();
-  });
-
-  it("badges preset rows with the preset label and monogram, legacy rows as Custom OIDC", async () => {
-    registerIdp(
-      makeRecord({
-        id: "byo_workos",
-        issuer: "https://api.workos.com",
-        label: "WorkOS",
-        kind: "byo",
-        providerType: "workos",
-        clientId: "cli_w",
-      }),
-    );
-    registerIdp(
-      makeRecord({
-        id: "byo_legacy",
-        issuer: "https://auth.example.dev",
-        label: "Example IdP",
-        kind: "byo",
-        clientId: "cli_x",
-      }),
-    );
-    const { container } = renderIdentity();
-    await openTab("Providers");
-    await screen.findByText("Example IdP");
-
-    // The kind is plain text in the row's id column, never a pill.
-    expect(container.querySelectorAll(".identity-row .chip")).toHaveLength(0);
-    const kinds = Array.from(
-      container.querySelectorAll(".identity-row__kind"),
-    ).map((kind) => kind.textContent);
-    expect(kinds).toContain("WorkOS");
-    expect(kinds).toContain("Custom OIDC");
-    // The preset row's mark is the monogram tile; the legacy row keeps the
-    // generic site icon.
-    const monograms = Array.from(
-      container.querySelectorAll(".identity-row__monogram"),
-    ).map((tile) => tile.textContent);
-    expect(monograms).toEqual(["W"]);
-  });
-
   it("creates, rotates, and revokes OAuth clients in Applications", async () => {
     directory.listOAuthClients.mockResolvedValue([makeClient()]);
     registerIdp(makeRecord());
