@@ -15,12 +15,16 @@ import {
   type InstanceCapabilityPolicy,
   PERSONAL_LOCAL_INSTANCE,
   type PolicyProvenance,
+  type ResolveInput,
   type RuntimeFacts,
   type VaultCapabilitySelection,
+  diagnoseRuntimeDocuments,
 } from "@opensesame/capability-composition";
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
+import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { withoutPresetResidue } from "./preset-residue.js";
 import type { PersistedDocs } from "./store-persist.js";
+import { storeSeams } from "./store-seams.js";
 
 export type StoreState = {
   catalog: CapabilityCatalog | null;
@@ -196,5 +200,46 @@ export function vaultSelectionWith(
     vaultId: state.vaultId ?? "no-vault",
     revision: `emergency-${now}`,
     disabled,
+  };
+}
+
+/**
+ * What the resolver cannot act on in the documents it was given — an id no
+ * catalog entry matches, a core id in a policy, an unknown slot. The plan
+ * simply leaves such an id out, so without these a typo in a policy or a
+ * selection would vanish without a word (carried from #470: "unknown ids are
+ * conflicts, never silently dropped").
+ */
+export function documentDiagnostics(input: ResolveInput): string[] {
+  return diagnoseRuntimeDocuments(input).map((d) => `${d.path}: ${d.message}`);
+}
+
+/** Everything the resolver reads, taken from the store's state as it is now. */
+export function resolveInputFor(
+  state: StoreState,
+  instanceId: string,
+  installation: InstallationCapabilitySelection | null,
+  receipt: ConsentReceipt | null,
+): ResolveInput {
+  if (!state.catalog || !state.distribution) {
+    throw new Error("composition store has not booted");
+  }
+  return {
+    catalog: state.catalog,
+    distribution: state.distribution,
+    instancePolicy: state.policy,
+    provenance: state.provenance,
+    policyValid: state.policyValid,
+    workspace: storeSeams.workspaceRestriction(instanceId, state.vaultId),
+    installation,
+    vault: state.vaultSelection,
+    receipt,
+    facts: collectRuntimeFacts({
+      evaluatedModuleIds: evaluatedModuleIds(),
+      activeWorkerVariant: state.baseFacts?.activeWorkerVariant ?? null,
+      now: storeSeams.now(),
+    }),
+    installationId: state.installationId,
+    vaultId: state.vaultId,
   };
 }

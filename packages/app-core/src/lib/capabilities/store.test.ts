@@ -302,7 +302,7 @@ describe("invalidation", () => {
 });
 
 describe("a vault record written for somewhere else", () => {
-  async function withRecord(overrides: Record<string, string>) {
+  async function withRecord(overrides: Record<string, string | string[]>) {
     await bootPersonalLocal(compositionStore, "personal");
     const { draft, receipt } = draftFor(compositionStore, [PASSKEYS], "r1");
     await compositionStore.commit(draft, receipt);
@@ -357,5 +357,29 @@ describe("a vault record written for somewhere else", () => {
       disabled: [PASSKEYS],
     });
     expect(approved(compositionStore)).toContain(PASSKEYS);
+  });
+});
+
+describe("ids the resolver cannot act on", () => {
+  it("a selection naming an unknown capability is diagnosed, not silently dropped (#470)", async () => {
+    await bootPersonalLocal(compositionStore, "personal");
+    const { draft } = draftFor(
+      compositionStore,
+      [PASSKEYS, "ghost.capability"],
+      "r1",
+    );
+    durable.set(SELECTION_KEY, JSON.stringify(draft));
+    await compositionStore.revalidate("test");
+    const { diagnostics } = compositionStore.getSnapshot();
+    expect(diagnostics.filter((d) => d.includes("ghost.capability"))).toEqual([
+      "installation.selectedOptional[1]: `ghost.capability` is not in the catalog and cannot activate",
+    ]);
+    // Once per resolve, never accumulated.
+    compositionStore.invalidate("again");
+    expect(
+      compositionStore
+        .getSnapshot()
+        .diagnostics.filter((d) => d.includes("ghost.capability")),
+    ).toHaveLength(1);
   });
 });
