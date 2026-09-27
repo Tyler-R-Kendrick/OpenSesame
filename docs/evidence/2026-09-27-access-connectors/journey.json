@@ -1,0 +1,157 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/git"
+        },
+        {
+          "fill": {
+            "label": "Remote URL",
+            "text": "https://codeberg.org/octo/vault-backup.git"
+          }
+        },
+        {
+          "fill": {
+            "label": "Token",
+            "text": "evidence-placeholder-token"
+          }
+        },
+        {
+          "press": "Save Git remote"
+        },
+        {
+          "count": ["main .panel", "main h2"]
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "shot": "1280-connector-page"
+        },
+        {
+          "visit": "connections/resend"
+        },
+        {
+          "count": ["main .panel"]
+        },
+        {
+          "report": "main h2"
+        },
+        {
+          "scrollToOptional": "Create connector"
+        },
+        {
+          "shot": "1280-resend-page"
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "count": [
+            "#local-connectors .identity-row",
+            "#local-connectors input"
+          ]
+        },
+        {
+          "report": "#local-connectors h3"
+        },
+        {
+          "shot": "1280-access-connectors"
+        },
+        {
+          "pressOptional": "Bind"
+        },
+        {
+          "count": ["#local-connectors select"]
+        },
+        {
+          "shot": "1280-access-bind"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "connections/git"
+        },
+        {
+          "fill": {
+            "label": "Remote URL",
+            "text": "https://codeberg.org/octo/vault-backup.git"
+          }
+        },
+        {
+          "fill": {
+            "label": "Token",
+            "text": "evidence-placeholder-token"
+          }
+        },
+        {
+          "press": "Save Git remote"
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "count": [
+            "#local-connectors .identity-row",
+            "#local-connectors input"
+          ]
+        },
+        {
+          "report": "#local-connectors h3"
+        },
+        {
+          "shot": "390-access-connectors"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-resend-page",
+      "width": 1280,
+      "title": "A connector page (Resend) \u2014 1280 \u00d7 900",
+      "caption": "The connector page configures the connector and nothing else. Its own Access panel, a second place to grant use keyed by provider rather than connection, is gone: grants are made on Access \u203a Connectors.",
+      "before": "3 panels: Vercel Connect, Create connector, Access",
+      "after": "2 panels: Vercel Connect, Create connector"
+    },
+    {
+      "shot": "1280-access-connectors",
+      "width": 1280,
+      "title": "Access \u203a Connectors after saving a Git remote on Connections \u2014 1280 \u00d7 900",
+      "caption": "The same guest saved a Git remote on Connections \u203a Git first. Before, Access \u203a Connectors never read the Connections list (it waited on a Host that is never configured) and asked for a Nango directory. After, the connector is a row: Bind, Configure, and a link back to its page on Connections.",
+      "before": "0 connector rows, directory form (2 inputs)",
+      "after": "1 row: Git (any remote), Bind / Configure / Open in Connections"
+    },
+    {
+      "shot": "1280-access-bind",
+      "width": 1280,
+      "title": "Binding that connector \u2014 1280 \u00d7 900",
+      "caption": "Who may use it, under which policy, until when \u2014 the one share ledger Access already reads.",
+      "before": "nothing to bind (0 selects)",
+      "after": "bind form: Identity, Policy, Duration (3 selects)"
+    },
+    {
+      "shot": "390-access-connectors",
+      "width": 390,
+      "title": "Access \u203a Connectors on a phone \u2014 390 \u00d7 844",
+      "caption": "The same row at phone width.",
+      "before": "0 connector rows, directory form (2 inputs)",
+      "after": "1 row: Git (any remote)"
+    }
+  ]
+}
