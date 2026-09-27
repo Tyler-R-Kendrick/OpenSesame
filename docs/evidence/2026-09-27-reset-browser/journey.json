@@ -1,0 +1,167 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "report": ".unlock__foot"
+        },
+        {
+          "measure": ".unlock__foot .unlock__switch"
+        },
+        {
+          "shot": "390-front-door"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "shot": "390-front-door-reset"
+        },
+        {
+          "escape": null
+        },
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "report": ".unlock__foot"
+        },
+        {
+          "measure": ".unlock__foot .unlock__switch"
+        },
+        {
+          "shot": "390-unlock"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "shot": "390-unlock-reset"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "scrollToCardEnd": null
+        },
+        {
+          "report": ".unlock__foot"
+        },
+        {
+          "measure": ".unlock__foot .unlock__switch"
+        },
+        {
+          "shot": "1280-front-door"
+        },
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "report": ".unlock__foot"
+        },
+        {
+          "measure": ".unlock__foot .unlock__switch"
+        },
+        {
+          "pressOptional": "Reset this browser"
+        },
+        {
+          "measure": ".unlock__danger"
+        },
+        {
+          "measure": ".unlock__danger .icon-btn"
+        },
+        {
+          "shot": "1280-unlock-reset"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-front-door",
+      "width": 390,
+      "title": "Front door, foot of the card — 390 × 844, touch",
+      "caption": "A device nobody has set up. The card's foot now carries the reset question, centred under the sign-in roads.",
+      "before": "foot: none — no way to start over short of the browser's site-data settings",
+      "after": "\"Reset this browser?\" 148×44 @121,484"
+    },
+    {
+      "shot": "390-front-door-reset",
+      "width": 390,
+      "title": "Front door, reset opened — 390 × 844, touch",
+      "caption": "Pressing the question opens the consequence and two keys: erase, or keep. Focus lands on Keep.",
+      "before": "nothing to open",
+      "after": "panel 277×179 @57,484 · keys 44×44 @72,604 and @124,604"
+    },
+    {
+      "shot": "390-unlock",
+      "width": 390,
+      "title": "Unlock form beside a sealed vault — 390 × 844, touch",
+      "caption": "The guest road and \"Forgotten how to unlock?\" (delete this one vault) are unchanged. The origin-wide reset sits beneath them.",
+      "before": "foot links: guest 133×44 @53,396 · forgotten 187×44 @53,448",
+      "after": "same two links at the same positions, plus reset 148×44 @53,500"
+    },
+    {
+      "shot": "390-unlock-reset",
+      "width": 390,
+      "title": "Unlock form, reset opened — 390 × 844, touch",
+      "caption": "The guest road stays on screen while the panel is open (AGENTS.md §5).",
+      "before": "nothing to open",
+      "after": "panel 277×179 @53,500 · keys 44×44 @68,621 and @120,621"
+    },
+    {
+      "shot": "1280-front-door",
+      "width": 1280,
+      "title": "Front door — 1280 × 900, mouse",
+      "caption": "Desktop front door, with the question under the sign-in roads.",
+      "before": "foot: none",
+      "after": "\"Reset this browser?\" 148×20 @275,638"
+    },
+    {
+      "shot": "1280-unlock-reset",
+      "width": 1280,
+      "title": "Unlock form, reset opened — 1280 × 900, mouse",
+      "caption": "Desktop unlock form with the panel open. The keys match the existing \"Forgotten how to unlock?\" panel: a danger key and a small Keep key.",
+      "before": "foot: guest @157,561 · forgotten @157,589, nothing to open",
+      "after": "panel 277×167 @157,529 · erase 32×32, keep 24×24"
+    }
+  ]
+}
