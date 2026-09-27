@@ -198,24 +198,6 @@ const STEPS = {
       await page.waitForTimeout(800);
     }
   },
-  /** Click a rail row by its exact name, the way a person follows it. */
-  async rail(page, name) {
-    const row = page.locator(`.railtree__row[aria-label="${name}"]`).first();
-    if ((await row.count()) === 0)
-      throw new Error(
-        `capture-evidence rail("${name}"): no rail row matched — refusing a silent miss`,
-      );
-    await row.click();
-    await page.waitForTimeout(1500);
-  },
-  /** `expand`, for a branch only one of the two builds draws as one. */
-  async expandOptional(page, label) {
-    const row = page
-      .locator(".railtree__row[aria-expanded]")
-      .filter({ hasText: label })
-      .first();
-    if (await row.count()) await STEPS.expand(page, label);
-  },
   ...extraSteps({ press }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
