@@ -514,6 +514,13 @@ kbd {
   color: var(--err);
 }
 
+/* A key that one more press will fire. A neutral one (a claim) is armed in
+   ink; only a destructive one is armed in the error colour. */
+.icon-btn.is-armed {
+  background: var(--ink);
+  color: var(--canvas);
+}
+
 .icon-btn--danger.is-armed {
   background: var(--err);
   color: var(--err-ink);
