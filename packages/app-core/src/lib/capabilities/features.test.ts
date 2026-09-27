@@ -40,6 +40,7 @@ function planWith(
       selected: approved.includes(entry.id),
       dependencyOf: [],
       runtimeSupported: true,
+      missingEnvironments: [],
       approved: entry.tier === "core" || approved.includes(entry.id),
       restartRequired: false,
       reasons: [],

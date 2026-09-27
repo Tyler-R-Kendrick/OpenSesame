@@ -12,6 +12,7 @@ function core(approved: boolean): CapabilityState {
     selected: approved,
     dependencyOf: [],
     runtimeSupported: true,
+    missingEnvironments: [],
     approved,
     restartRequired: false,
     reasons: approved ? ["CORE"] : ["PROHIBITED_BY_INSTANCE"],

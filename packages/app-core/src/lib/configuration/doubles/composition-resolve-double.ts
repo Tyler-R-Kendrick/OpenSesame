@@ -118,6 +118,7 @@ function statesOf(
       selected: state.selected,
       dependencyOf: pass.dependencyOf.get(entry.id) ?? [],
       runtimeSupported: state.runtimeSupported,
+      missingEnvironments: [],
       approved: isApproved,
       restartRequired,
       reasons,

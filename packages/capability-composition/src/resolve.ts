@@ -27,6 +27,7 @@ import {
 import { type ClosureResult, computeClosure } from "./resolve-closure.js";
 import type { ResolveInput } from "./resolve-input.js";
 import { type WorkerSelection, selectWorkerVariant } from "./resolve-worker.js";
+import { missingEnvironments } from "./runtime-support.js";
 import type {
   CapabilityExplanation,
   CapabilityId,
@@ -201,6 +202,7 @@ function buildState(
     selected: axis.selected,
     dependencyOf: sortIds(pass.closure.dependents.get(axis.id) ?? []),
     runtimeSupported: axis.runtimeSupported,
+    missingEnvironments: d ? missingEnvironments(facts, d) : [],
     approved,
     restartRequired,
     reasons: sortReasons(reasons),
@@ -336,6 +338,7 @@ function unknownState(id: CapabilityId): CapabilityState {
     selected: false,
     dependencyOf: [],
     runtimeSupported: false,
+    missingEnvironments: [],
     approved: false,
     restartRequired: false,
     reasons: ["NOT_DISTRIBUTED"],

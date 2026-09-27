@@ -13,6 +13,7 @@ import { isWorkerModule, sortIds } from "./ids.js";
 import { sortReasons } from "./reasons.js";
 import type { ResolveInput } from "./resolve-input.js";
 import { withdrawnCore } from "./resolve-withdraw.js";
+import { missingEnvironments } from "./runtime-support.js";
 import type {
   CapabilityDescriptor,
   CapabilityId,
@@ -250,15 +251,7 @@ function runtimeSupports(
   ctx: ResolveContext,
   d: CapabilityDescriptor,
 ): boolean {
-  const hosts = new Set(ctx.input.facts.environments);
-  if (!d.environments.every((e) => hosts.has(e))) return false;
-  if (
-    d.environments.includes("service-worker") &&
-    !ctx.input.facts.serviceWorkerAvailable
-  ) {
-    return false;
-  }
-  return true;
+  return missingEnvironments(ctx.input.facts, d).length === 0;
 }
 
 function workerVariantExists(ctx: ResolveContext, constraint: string): boolean {

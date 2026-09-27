@@ -9,6 +9,7 @@ import type {
   CapabilityId,
   CapabilityTier,
   EgressDeclaration,
+  ExecutionEnvironment,
   ModuleId,
   OperationId,
 } from "./types-catalog.js";
@@ -63,6 +64,8 @@ export type CapabilityState = Readonly<{
   dependencyOf: readonly CapabilityId[];
   /** Runtime prerequisites hold in the supplied facts. */
   runtimeSupported: boolean;
+  /** The declared environments this realm cannot host; empty when supported. */
+  missingEnvironments: readonly ExecutionEnvironment[];
   /** In the approved closure: loadable and invokable under this plan. */
   approved: boolean;
   /** Evaluated in this realm although no longer approved. */
