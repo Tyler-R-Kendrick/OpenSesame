@@ -48,7 +48,7 @@ function contentPair(
   height: number,
   rows: number,
   changed: number,
-): { baseline: Buffer; capturedPng: Buffer } {
+) {
   const draw = (flip: number) => {
     const img = new PNG({ width, height });
     img.data.fill(255);
