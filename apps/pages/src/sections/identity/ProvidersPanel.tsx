@@ -26,7 +26,7 @@ import {
   identityErrorText,
   providerChipLabel,
 } from "@opensesame/app-core/sections/identity-section-model.js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import {
   IconLogin,
@@ -37,9 +37,54 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
 import { brandFor } from "../../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { monogram } from "../connections/connector-marks.js";
+
+/**
+ * The rows to draw: first-class providers are intersected with the live
+ * catalog when it answers; BYO rows and the device IdP always show. A read
+ * the panel has moved past (a later refresh, or leaving) is dropped, and an
+ * unreachable catalog filters nothing — the same list drawn before it
+ * answers.
+ */
+function useProviderCatalog(providers: IdpRecord[]) {
+  const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
+    null,
+  );
+  const generation = useRef(0);
+  const refresh = useCallback(() => {
+    const current = ++generation.current;
+    listFederatedProviders().then(
+      (found) => {
+        if (current === generation.current) setCatalog(found);
+      },
+      () => {
+        if (current === generation.current) setCatalog([]);
+      },
+    );
+  }, []);
+  useEffect(() => {
+    refresh();
+    return () => {
+      generation.current += 1;
+    };
+  }, [refresh]);
+  const rows = useMemo(() => {
+    if (!catalog || catalog.length === 0) return providers;
+    const listed = new Set(catalog.map((provider) => provider.id));
+    return providers.filter(
+      (record) =>
+        record.kind === "device" ||
+        record.kind === "byo" ||
+        listed.has(record.id),
+    );
+  }, [catalog, providers]);
+  return { rows, refresh };
+}
+
+const REGISTER_KEY_ID = "identity-register-idp";
 
 /**
  * Who vouches for the people here. OpenSesame (this device) is always first
@@ -58,38 +103,17 @@ export function ProvidersPanel({
   onChanged: (providers: IdpRecord[]) => void;
   onOpenCeremony: () => void;
 }) {
-  const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
-    null,
-  );
-  const [loads, setLoads] = useState(0);
+  const { rows, refresh } = useProviderCatalog(providers);
   const registerRef = useGuideTarget<HTMLButtonElement>(
     "identity.register-idp",
   );
+  const focusAfter = useFocusAfter(false);
 
-  // `loads` is the reload key's: the registry mirror and the catalog are
-  // read again, as every other Identity list's reload does.
-  useEffect(() => {
-    let cancelled = false;
-    void loads;
-    void (async () => {
-      const found = await listFederatedProviders();
-      if (!cancelled) setCatalog(found);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loads]);
-
-  const rows = useMemo(() => {
-    if (!catalog || catalog.length === 0) return providers;
-    const listed = new Set(catalog.map((provider) => provider.id));
-    return providers.filter(
-      (record) =>
-        record.kind === "device" ||
-        record.kind === "byo" ||
-        listed.has(record.id),
-    );
-  }, [catalog, providers]);
+  // A removed row takes its focused key with it; focus lands on Register.
+  const rowRemoved = (next: IdpRecord[]) => {
+    onChanged(next);
+    focusAfter(byId(REGISTER_KEY_ID));
+  };
 
   return (
     <section className="panel">
@@ -99,6 +123,7 @@ export function ProvidersPanel({
         </div>
         <fieldset className="vtree__keys" aria-label="Provider commands">
           <IconKey
+            id={REGISTER_KEY_ID}
             label="Register an IdP"
             small
             keyRef={registerRef}
@@ -110,7 +135,7 @@ export function ProvidersPanel({
             label="Reload providers"
             onReload={() => {
               onChanged(listIdpRegistrations());
-              setLoads((count) => count + 1);
+              refresh();
             }}
           />
         </fieldset>
@@ -123,7 +148,7 @@ export function ProvidersPanel({
               key={record.id}
               record={record}
               online={online}
-              onChanged={onChanged}
+              onChanged={rowRemoved}
             />
           ))}
         </ul>
@@ -199,13 +224,17 @@ function ProviderRow({
         <div className="identity-row__id">
           <h3>{record.label}</h3>
           <code className="identity-ref">{record.issuer}</code>
+          {/* The kind is a label, not a status: plain text in the id column,
+              never a pill (DESIGN.md § Status is a symbol). */}
+          {device ? null : (
+            <span className="identity-row__kind">{chipLabel}</span>
+          )}
+          {record.kind === "byo" ? (
+            <span className="identity-row__when">
+              registered {formatTime(record.registeredAt)}
+            </span>
+          ) : null}
         </div>
-        {device ? null : <span className="chip">{chipLabel}</span>}
-        {record.kind === "byo" ? (
-          <span className="identity-row__when">
-            registered {formatTime(record.registeredAt)}
-          </span>
-        ) : null}
         {device ? null : (
           <ProviderActions
             record={record}
@@ -217,11 +246,6 @@ function ProviderRow({
           />
         )}
       </div>
-      {confirming ? (
-        <p className="hint">
-          The server-side registration is disabled by the operator, not deleted.
-        </p>
-      ) : null}
       {error ? (
         <>
           <StatusMark tone="err" label={error} />
@@ -279,7 +303,11 @@ function ProviderActions({
       </IconKey>
       <IconKey
         keyRef={removeRef}
-        label={confirming ? "Remove it" : "Remove"}
+        label={
+          confirming
+            ? "Remove it from this browser; the operator disables the server registration"
+            : "Remove"
+        }
         small
         danger
         armed={confirming}

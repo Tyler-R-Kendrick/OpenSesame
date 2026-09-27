@@ -26,6 +26,7 @@ const CORE_INFRA = [
   "last-vault",
   "theme",
   "focus",
+  "use-focus-after",
   "gestures",
   "modal-focus",
   "strip",

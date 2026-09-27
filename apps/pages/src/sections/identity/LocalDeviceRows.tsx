@@ -2,7 +2,8 @@
  * The Devices list's rows and its one form, drawn with the same keys as the
  * rest of Identity (DESIGN.md § Actions are symbols): edit is the pencil,
  * removal is an armed trash key with a keep beside it, and a registration
- * this browser is the device for is claimed with the check.
+ * this browser is the device for is claimed with the check — armed the same
+ * way, because a claim folds this browser's own record away for good.
  */
 
 import {
@@ -16,7 +17,7 @@ import {
   updateLocalDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { formatTime } from "@opensesame/app-core/sections/identity-section-model.js";
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
@@ -28,6 +29,9 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+
+/** A key one more press will fire: which action, on which device. */
+export type ArmedKey = { action: "remove" | "claim"; id: string };
 
 /** `id` is empty for a device being registered. */
 export type DeviceDraft = {
@@ -43,12 +47,27 @@ export type DevicesModel = {
   devices: LocalDevice[] | null;
   draft: DeviceDraft | null;
   setDraft: (draft: DeviceDraft | null) => void;
-  removing: string | null;
-  setRemoving: (id: string | null) => void;
+  /** The key one more press will fire, or null. */
+  armed: ArmedKey | null;
+  setArmed: (key: ArmedKey | null) => void;
   busy: boolean;
   error: string;
-  run: (action: () => Promise<LocalDevice[]>) => Promise<void>;
+  /**
+   * Run a change; on success focus lands on the element with `focusId`,
+   * since the key that was pressed may be gone with its row.
+   */
+  run: (
+    action: () => Promise<LocalDevice[]>,
+    focusId?: string,
+  ) => Promise<void>;
 };
+
+/** The panel head's add key, where focus goes when a row it was on leaves. */
+export const NEW_DEVICE_KEY_ID = "local-device-new";
+
+export function editKeyId(id: string): string {
+  return `local-device-edit-${id}`;
+}
 
 export function newDeviceDraft(): DeviceDraft {
   return { id: "", name: "", platform: "", pending: true };
@@ -105,7 +124,7 @@ function DeviceRow({
   mine: string;
   model: DevicesModel;
 }) {
-  const { tomb, draft, setDraft, busy, run } = model;
+  const { tomb, draft, setDraft, busy } = model;
   const state = deviceState(device, mine);
   const locked = busy || draft !== null;
   return (
@@ -128,16 +147,24 @@ function DeviceRow({
         </div>
         <div className="actions">
           {isPendingDevice(device) ? (
-            <IconKey
+            <ArmedKeys
+              model={model}
+              armKey={{ action: "claim", id: device.id }}
               label={`Claim ${device.name} as this device`}
-              small
-              disabled={locked}
-              onClick={() => void run(() => claimLocalDevice(tomb, device.id))}
+              confirmLabel={`Confirm claiming ${device.name} as this device`}
+              keepLabel={`Leave ${device.name} unclaimed`}
+              onConfirm={() =>
+                model.run(
+                  () => claimLocalDevice(tomb, device.id),
+                  editKeyId(mine),
+                )
+              }
             >
               <IconCheck size={16} />
-            </IconKey>
+            </ArmedKeys>
           ) : null}
           <IconKey
+            id={editKeyId(device.id)}
             label={`Edit ${device.name}`}
             small
             disabled={locked}
@@ -146,7 +173,22 @@ function DeviceRow({
             <IconEdit size={16} />
           </IconKey>
           {device.id === mine ? null : (
-            <RemoveKeys device={device} model={model} />
+            <ArmedKeys
+              model={model}
+              armKey={{ action: "remove", id: device.id }}
+              danger
+              label={`Remove ${device.name}`}
+              confirmLabel={`Confirm removing ${device.name}`}
+              keepLabel={`Keep ${device.name}`}
+              onConfirm={() =>
+                model.run(
+                  () => removeLocalDevice(tomb, device.id),
+                  NEW_DEVICE_KEY_ID,
+                )
+              }
+            >
+              <IconTrash size={16} />
+            </ArmedKeys>
           )}
         </div>
       </div>
@@ -154,42 +196,52 @@ function DeviceRow({
   );
 }
 
-function RemoveKeys({
-  device,
+/**
+ * A key that one press arms and a second press fires, with a keep beside it
+ * while armed that hands focus back to the key it disarmed.
+ */
+function ArmedKeys({
   model,
+  armKey,
+  danger = false,
+  label,
+  confirmLabel,
+  keepLabel,
+  onConfirm,
+  children,
 }: {
-  device: LocalDevice;
   model: DevicesModel;
+  armKey: ArmedKey;
+  danger?: boolean;
+  label: string;
+  confirmLabel: string;
+  keepLabel: string;
+  onConfirm: () => Promise<void>;
+  children: ReactNode;
 }) {
-  const { tomb, draft, busy, removing, setRemoving, run } = model;
-  const armed = removing === device.id;
+  const { draft, busy, armed, setArmed } = model;
+  const isArmed = armed?.action === armKey.action && armed.id === armKey.id;
   const primary = useRef<HTMLButtonElement>(null);
   return (
     <>
       <IconKey
         keyRef={primary}
-        label={
-          armed ? `Confirm removing ${device.name}` : `Remove ${device.name}`
-        }
+        label={isArmed ? confirmLabel : label}
         small
-        danger
-        armed={armed}
+        danger={danger}
+        armed={isArmed}
         disabled={busy || draft !== null}
-        onClick={() =>
-          armed
-            ? void run(() => removeLocalDevice(tomb, device.id))
-            : setRemoving(device.id)
-        }
+        onClick={() => (isArmed ? void onConfirm() : setArmed(armKey))}
       >
-        <IconTrash size={16} />
+        {children}
       </IconKey>
-      {armed ? (
+      {isArmed ? (
         <IconKey
-          label={`Keep ${device.name}`}
+          label={keepLabel}
           small
           disabled={busy}
           onClick={() => {
-            setRemoving(null);
+            setArmed(null);
             primary.current?.focus();
           }}
         >
@@ -232,20 +284,25 @@ export function DeviceForm({ model }: { model: DevicesModel }) {
   const input = useDraftFocus(draft?.id, error, busy);
   if (!draft) return null;
   const creating = draft.id === "";
-  const ready = draft.name.trim() !== "" && draft.platform !== "";
+  // A seen device's platform is not edited, so only a pending one needs it.
+  const ready =
+    draft.name.trim() !== "" && (!draft.pending || draft.platform !== "");
   return (
     <form
       aria-label={creating ? "New device" : `Edit ${draft.name || "device"}`}
       onSubmit={(event) => {
         event.preventDefault();
-        void run(() =>
-          creating
-            ? registerLocalDevice(tomb, draft)
-            : updateLocalDevice(tomb, draft.id, {
-                name: draft.name,
-                ...(draft.pending ? { platform: draft.platform } : {}),
-              }),
-        );
+        void run(() => {
+          if (creating) return registerLocalDevice(tomb, draft);
+          // A device that has been seen reported its own platform; only a
+          // registration's is still the person's to change.
+          if (!draft.pending)
+            return updateLocalDevice(tomb, draft.id, { name: draft.name });
+          return updateLocalDevice(tomb, draft.id, {
+            name: draft.name,
+            platform: draft.platform,
+          });
+        });
       }}
     >
       <div className="field">

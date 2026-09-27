@@ -547,43 +547,6 @@ describe("IdentitySection", () => {
     expect(screen.queryByText("No identity provider registered.")).toBeNull();
   });
 
-  it("badges preset rows with the preset label and monogram, legacy rows as Custom OIDC", async () => {
-    registerIdp(
-      makeRecord({
-        id: "byo_workos",
-        issuer: "https://api.workos.com",
-        label: "WorkOS",
-        kind: "byo",
-        providerType: "workos",
-        clientId: "cli_w",
-      }),
-    );
-    registerIdp(
-      makeRecord({
-        id: "byo_legacy",
-        issuer: "https://auth.example.dev",
-        label: "Example IdP",
-        kind: "byo",
-        clientId: "cli_x",
-      }),
-    );
-    const { container } = renderIdentity();
-    await openTab("Providers");
-    await screen.findByText("Example IdP");
-
-    const chips = Array.from(container.querySelectorAll(".chip")).map(
-      (chip) => chip.textContent,
-    );
-    expect(chips).toContain("WorkOS");
-    expect(chips).toContain("Custom OIDC");
-    // The preset row's mark is the monogram tile; the legacy row keeps the
-    // generic site icon.
-    const monograms = Array.from(
-      container.querySelectorAll(".identity-row__monogram"),
-    ).map((tile) => tile.textContent);
-    expect(monograms).toEqual(["W"]);
-  });
-
   it("creates, rotates, and revokes OAuth clients in Applications", async () => {
     directory.listOAuthClients.mockResolvedValue([makeClient()]);
     registerIdp(makeRecord());

@@ -1,0 +1,138 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "press": "^Devices$"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "pressNamedOptional": "New device"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Kitchen tablet"
+          }
+        },
+        {
+          "selectOptional": {
+            "label": "Platform",
+            "value": "Android"
+          }
+        },
+        {
+          "pressNamedOptional": "Register device"
+        },
+        {
+          "count": ["section[aria-label='Devices'] .identity-row"]
+        },
+        {
+          "pressNamedOptional": "Claim Kitchen tablet as this device"
+        },
+        {
+          "count": [
+            "section[aria-label='Devices'] .identity-row",
+            "section[aria-label='Devices'] .is-armed"
+          ]
+        },
+        {
+          "report": "section[aria-label='Devices'] .identity-row h3"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-claim"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "press": "^Devices$"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "pressNamedOptional": "New device"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Kitchen tablet"
+          }
+        },
+        {
+          "selectOptional": {
+            "label": "Platform",
+            "value": "Android"
+          }
+        },
+        {
+          "pressNamedOptional": "Register device"
+        },
+        {
+          "count": ["section[aria-label='Devices'] .identity-row"]
+        },
+        {
+          "pressNamedOptional": "Claim Kitchen tablet as this device"
+        },
+        {
+          "count": [
+            "section[aria-label='Devices'] .identity-row",
+            "section[aria-label='Devices'] .is-armed"
+          ]
+        },
+        {
+          "report": "section[aria-label='Devices'] .identity-row h3"
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-claim"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-claim",
+      "width": 390,
+      "title": "Claiming a registration \u2014 390 \u00d7 844",
+      "caption": "One press on the claim key used to fold this browser's own record into the registration, with no way back. It now arms first, with a keep key beside it, like Remove.",
+      "before": "1 press claimed: 1 row left, 0 armed keys",
+      "after": "1 press arms: 2 rows, 1 armed key + keep"
+    },
+    {
+      "shot": "1280-claim",
+      "width": 1280,
+      "title": "Claiming a registration \u2014 1280 \u00d7 800",
+      "caption": "One press on the claim key used to fold this browser's own record into the registration, with no way back. It now arms first, with a keep key beside it, like Remove.",
+      "before": "1 press claimed: 1 row left, 0 armed keys",
+      "after": "1 press arms: 2 rows, 1 armed key + keep"
+    }
+  ]
+}

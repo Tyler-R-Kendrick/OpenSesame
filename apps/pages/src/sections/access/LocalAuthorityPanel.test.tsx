@@ -72,6 +72,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 it("lists local records without a backend and cancels with keyboard focus restored", async () => {
@@ -87,6 +88,22 @@ it("lists local records without a backend and cancels with keyboard focus restor
   await waitFor(() => expect(document.activeElement).toBe(button));
   expect(revokeRecordedLocalGrant).not.toHaveBeenCalled();
   expect(listRecordedLocalGrants).toHaveBeenCalledWith("vault-a");
+});
+
+it("restores focus even when a frame fires before the confirmation's removal commits", async () => {
+  // Under load a frame can run before React commits the render that closes
+  // the confirmation, while the row's key is still disabled beside it.
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 0;
+  });
+  render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
+  await screen.findByText("Test person → Test application");
+  const button = screen.getByRole("button", { name: "Revoke grant" });
+  button.focus();
+  await userEvent.keyboard("{Enter}");
+  await userEvent.keyboard("{Enter}");
+  await waitFor(() => expect(document.activeElement).toBe(button));
 });
 
 it("shows only application grants and revokes through the same encrypted-store operation", async () => {

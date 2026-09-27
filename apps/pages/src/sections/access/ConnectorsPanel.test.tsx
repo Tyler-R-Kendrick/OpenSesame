@@ -58,6 +58,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   clearPendingConnectorDirectory();
   connectorDirectorySeams.listDirectory = originalList;
   connectionSeams.listConnections = originalConnections;
@@ -171,6 +172,28 @@ it("returns the keyboard to the row's Bind when its form is cancelled", async ()
     ),
   );
   expect(screen.queryByRole("group", { name: /^Bind GitHub/ })).toBeNull();
+});
+
+it("returns the keyboard to Bind even when a frame fires before the form's removal commits", async () => {
+  // Under load a frame can run before React commits the render that closes
+  // the form, when the row's Bind is not in the document yet.
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 0;
+  });
+  const fixture = await seeded();
+  render(<ConnectorsPanel tomb={fixture.tomb} />);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  const [githubRow] = screen.getAllByRole("listitem");
+  // SAFETY: fixture constructed in this test matches the declared contract.
+  const row = within(githubRow as HTMLElement);
+  await userEvent.click(row.getByRole("button", { name: "Bind" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      row.getByRole("button", { name: "Bind" }),
+    ),
+  );
 });
 
 it("re-syncs with the sealed key from the command strip", async () => {

@@ -25,7 +25,7 @@ import {
   IconRefresh,
 } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
-import { keyboardIsIdle } from "../../lib/focus.js";
+import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
 import { ConnectorRows, bindButtonId } from "./ConnectorRows.js";
 import { formatTime } from "./format.js";
 import { useConnectorDirectory } from "./useConnectorDirectory.js";
@@ -125,15 +125,14 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
   const [settingsRow, setSettingsRow] = useState<string | null>(null);
   const view = panelView(state, editing);
 
+  const focusAfter = useFocusAfter(state.busy);
+
   function closeBind() {
     const rowId = bindingRow;
     setBindingRow(null);
     // The row's Bind steps aside while the form is open, so the button that
     // opened it is gone by now; its replacement is where the keyboard lands.
-    requestAnimationFrame(() => {
-      if (!rowId || !keyboardIsIdle()) return;
-      document.getElementById(bindButtonId(rowId))?.focus();
-    });
+    if (rowId) focusAfter(byId(bindButtonId(rowId)));
   }
 
   return (

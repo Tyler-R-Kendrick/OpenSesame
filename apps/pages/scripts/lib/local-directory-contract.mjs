@@ -118,5 +118,9 @@ async function directoryRecordsContract(page, tabTo) {
     await expect(
       panel.getByRole("heading", { name: label, exact: true }),
     ).toHaveCount(0);
+    // The row left with the focused key; focus lands on the add key.
+    await expect(
+      panel.getByRole("button", { name: `New ${kind}`, exact: true }),
+    ).toBeFocused();
   }
 }

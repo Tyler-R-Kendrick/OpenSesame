@@ -81,4 +81,7 @@ export async function localDeviceContract(page, tabTo) {
   await expect(
     panel.getByRole("heading", { name: label, exact: true }),
   ).toHaveCount(0);
+  // The row left with the key that had focus; focus lands on the add key,
+  // not on the page's top.
+  await expect(create).toBeFocused();
 }

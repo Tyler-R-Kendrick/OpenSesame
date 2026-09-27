@@ -2,6 +2,7 @@
 
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { kvSet } from "./kv.js";
 import {
   LocalDeviceError,
   claimLocalDevice,
@@ -14,6 +15,13 @@ import {
   updateLocalDevice,
 } from "./local-devices.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
+
+/** Open the vault as a different browser: a fresh this-device id. */
+function becomeAnotherBrowser(): string {
+  const id = crypto.randomUUID();
+  kvSet("opensesame.this-device-id", id);
+  return id;
+}
 
 let tomb: string;
 
@@ -95,6 +103,21 @@ describe("registering a device", () => {
     expect(devices).toHaveLength(64);
     expect(await readLocalDevices(tomb)).toHaveLength(64);
   });
+
+  it("leaves a full list full, and readable, when yet another browser opens the vault", async () => {
+    for (let index = 0; index < 63; index += 1)
+      await registerLocalDevice(tomb, {
+        name: `Device ${index}`,
+        platform: "Linux",
+      });
+    await touchThisDevice(tomb);
+    const late = becomeAnotherBrowser();
+    const devices = await touchThisDevice(tomb);
+    expect(devices).toHaveLength(64);
+    expect(devices.some((device) => device.id === late)).toBe(false);
+    // Before the cap, this read threw "The device list is not valid".
+    expect(await readLocalDevices(tomb)).toHaveLength(64);
+  });
 });
 
 describe("editing a device", () => {
@@ -168,6 +191,31 @@ describe("removing a device", () => {
     expect(await removeLocalDevice(tomb, tablet.id)).toHaveLength(1);
     await expect(removeLocalDevice(tomb, thisDeviceId())).rejects.toThrow(
       "cannot remove the device you are on",
+    );
+  });
+});
+
+describe("concurrent changes", () => {
+  it("keeps every change when a touch, a registration and a claim race", async () => {
+    await touchThisDevice(tomb);
+    const registered = await registerLocalDevice(tomb, {
+      name: "Work laptop",
+      platform: "Windows",
+    });
+    const laptop = registered.find((row) => row.name === "Work laptop");
+    if (!laptop) throw new Error("expected the registered laptop");
+    await Promise.all([
+      claimLocalDevice(tomb, laptop.id),
+      touchThisDevice(tomb),
+      registerLocalDevice(tomb, { name: "Phone", platform: "Android" }),
+    ]);
+    const devices = await readLocalDevices(tomb);
+    expect(devices.map((row) => row.name).sort()).toEqual([
+      "Phone",
+      "Work laptop",
+    ]);
+    expect(devices.find((row) => row.id === thisDeviceId())?.name).toBe(
+      "Work laptop",
     );
   });
 });
