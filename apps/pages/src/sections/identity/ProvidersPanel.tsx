@@ -40,6 +40,51 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { brandFor } from "../../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { monogram } from "../connections/connector-marks.js";
+import { useFocusAfter } from "./use-focus-after.js";
+
+/**
+ * The rows to draw: first-class providers are intersected with the live
+ * catalog when it answers; BYO rows and the device IdP always show. A read
+ * the panel has moved past (a later refresh, or leaving) is dropped, and an
+ * unreachable catalog filters nothing — the same list drawn before it
+ * answers.
+ */
+function useProviderCatalog(providers: IdpRecord[]) {
+  const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
+    null,
+  );
+  const generation = useRef(0);
+  const refresh = useCallback(() => {
+    const current = ++generation.current;
+    listFederatedProviders().then(
+      (found) => {
+        if (current === generation.current) setCatalog(found);
+      },
+      () => {
+        if (current === generation.current) setCatalog([]);
+      },
+    );
+  }, []);
+  useEffect(() => {
+    refresh();
+    return () => {
+      generation.current += 1;
+    };
+  }, [refresh]);
+  const rows = useMemo(() => {
+    if (!catalog || catalog.length === 0) return providers;
+    const listed = new Set(catalog.map((provider) => provider.id));
+    return providers.filter(
+      (record) =>
+        record.kind === "device" ||
+        record.kind === "byo" ||
+        listed.has(record.id),
+    );
+  }, [catalog, providers]);
+  return { rows, refresh };
+}
+
+const REGISTER_KEY_ID = "identity-register-idp";
 
 /**
  * Who vouches for the people here. OpenSesame (this device) is always first
@@ -58,39 +103,17 @@ export function ProvidersPanel({
   onChanged: (providers: IdpRecord[]) => void;
   onOpenCeremony: () => void;
 }) {
-  const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
-    null,
-  );
-  const generation = useRef(0);
+  const { rows, refresh } = useProviderCatalog(providers);
   const registerRef = useGuideTarget<HTMLButtonElement>(
     "identity.register-idp",
   );
+  const focusAfter = useFocusAfter(false);
 
-  // Read the catalog; a later read (or leaving) makes an earlier one moot.
-  const refresh = useCallback(() => {
-    const current = ++generation.current;
-    void listFederatedProviders().then((found) => {
-      if (current === generation.current) setCatalog(found);
-    });
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    return () => {
-      generation.current += 1;
-    };
-  }, [refresh]);
-
-  const rows = useMemo(() => {
-    if (!catalog || catalog.length === 0) return providers;
-    const listed = new Set(catalog.map((provider) => provider.id));
-    return providers.filter(
-      (record) =>
-        record.kind === "device" ||
-        record.kind === "byo" ||
-        listed.has(record.id),
-    );
-  }, [catalog, providers]);
+  // A removed row takes its focused key with it; focus lands on Register.
+  const rowRemoved = (next: IdpRecord[]) => {
+    onChanged(next);
+    focusAfter(REGISTER_KEY_ID);
+  };
 
   return (
     <section className="panel">
@@ -100,6 +123,7 @@ export function ProvidersPanel({
         </div>
         <fieldset className="vtree__keys" aria-label="Provider commands">
           <IconKey
+            id={REGISTER_KEY_ID}
             label="Register an IdP"
             small
             keyRef={registerRef}
@@ -124,7 +148,7 @@ export function ProvidersPanel({
               key={record.id}
               record={record}
               online={online}
-              onChanged={onChanged}
+              onChanged={rowRemoved}
             />
           ))}
         </ul>

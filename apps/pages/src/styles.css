@@ -526,6 +526,18 @@ kbd {
   color: var(--err-ink);
 }
 
+/* Hovering an armed key must not make it look idle: the pointer is usually
+   still on it after the press that armed it. */
+.icon-btn.is-armed:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.icon-btn--danger.is-armed:hover:not(:disabled) {
+  background: var(--err);
+  color: var(--err-ink);
+}
+
 .vtree__keys {
   display: flex;
   align-items: center;

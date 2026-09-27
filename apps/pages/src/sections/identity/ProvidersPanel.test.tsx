@@ -110,3 +110,31 @@ it("arms remove with the operator's note in its label, and keep hands focus back
   expect(document.activeElement).toBe(remove);
   expect(remove.getAttribute("aria-label")).toBe("Remove");
 });
+
+it("lands focus on the register key once a removed provider's row leaves", async () => {
+  registerIdp(makeRecord({}));
+  render(<Harness />);
+  await screen.findByText("Example IdP");
+  const remove = screen.getByRole("button", { name: "Remove" });
+  await userEvent.click(remove);
+  await userEvent.click(screen.getByRole("button", { name: /^Remove it/ }));
+  expect(screen.queryByText("Example IdP")).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Register an IdP" }),
+  );
+});
+
+it("lists every registered provider when the catalog cannot be read", async () => {
+  listFederatedProviders.mockRejectedValue(new Error("offline"));
+  registerIdp(
+    makeRecord({ id: "google", kind: "first-class", label: "Google" }),
+  );
+  render(<Harness />);
+  // Unfiltered, as before the catalog answers — and no unhandled rejection.
+  expect(await screen.findByText("Google")).toBeTruthy();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reload providers" }),
+  );
+  expect(screen.getByText("Google")).toBeTruthy();
+  expect(listFederatedProviders).toHaveBeenCalledTimes(2);
+});
