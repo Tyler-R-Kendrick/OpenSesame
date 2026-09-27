@@ -91,9 +91,18 @@ export default defineConfig({
     launchOptions,
     trace: "retain-on-failure",
     screenshot: "off",
+    // A fresh context installs Pages' service worker, and its first
+    // `controllerchange` reloads the page (apps/pages/src/main.tsx) — at a
+    // moment of its own choosing, so a capture could land on the blank frame
+    // between the two documents. The contract is the rendered app, not the
+    // worker; the other Pages harnesses block it the same way.
+    serviceWorkers: "block",
   },
   webServer: {
-    command: `pnpm --filter @opensesame/pages build && pnpm --filter @opensesame/pages exec vite preview --port ${PORT} --strictPort`,
+    // turbo builds the workspace packages Pages imports first; a bare
+    // `pnpm --filter @opensesame/pages build` fails on a fresh checkout whose
+    // dependencies have never been built.
+    command: `pnpm exec turbo run build --filter=@opensesame/pages && pnpm --filter @opensesame/pages exec vite preview --port ${PORT} --strictPort`,
     // Playwright 1.55.1 rejects a webServer config specifying both `port`
     // and `url` ("Either 'port' or 'url' should be specified"); `url` alone
     // both pins the readiness check and matches `use.baseURL` above, so it's

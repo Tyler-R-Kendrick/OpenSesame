@@ -220,7 +220,8 @@ expand/collapse without changing the selected child. Arrow Left/Right use the
 same behavior. Rows without children remain navigation links. The vault's
 filter views, folders, and `health` — and the settings categories — appear
 under their parent as entries with live counts. A path strip pins the tomb
-root at the top of the vault pane; the mobile tab bar keeps labeled icons.
+root at the top of the vault pane; on a phone the same sections are named
+rows of a drawer behind one key in the top bar.
 
 A visible cursor row owns focus — inverse video, always rendered — and
 moving it with the keyboard previews that item in the buffer, ranger's own
@@ -326,20 +327,18 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
 - **Every hover-only affordance has a touch twin.** The `⋯` row menu is
   revealed by hover for a mouse and by a long press for a finger; the back
   key is also a rightward swipe on the pane. Nothing is gesture-only.
-- **The frame is rows, not overlays.** The tab bar is a row of the app grid
+- **The frame is rows, not overlays.** The statusline is a row of the app grid
   rather than a bar floating over the content, so nothing scrolls under it,
-  and `env(safe-area-inset-*)` keeps it clear of the home indicator.
-- **The chrome earns its height.** Seven 44px keys are 308px and the smallest
-  phone is 320, so the statusline runs edge to edge with no gutter and one
-  left-aligned row of equal keys — it may never fold onto a second row, which
-  costs a 568px screen a sixth of itself. Rotated, the frame has 390px of
-  height and two full-width bottom bars stacked in it, so above 640px of width
-  the statusline and the tab bar stop stacking and share one row. The top bar,
-  the statusline and the tab bar together stay under a third of the screen.
-- **The tab bar's labels ride its own width**, not the viewport's
-  (`clamp(…, 2.9cqi, …)`), because in landscape that bar shares its row and has
-  far less than the screen to divide between five words. A nav label is never
-  truncated to an ellipsis where the word would have fitted at a legible size.
+  and `env(safe-area-inset-*)` keeps it, and the sections drawer, clear of the
+  home indicator.
+- **The chrome earns its height.** Below 900px the phone keeps the top bar and
+  one statusline row and nothing else: the sections are a drawer behind one
+  top-bar key, and what the wide statusline carries (the planes, help,
+  notifications, the keymap, the connectors) are named rows behind the top
+  bar's overflow key. The statusline runs edge to edge, one row of 44px keys,
+  and may never fold onto a second row, which costs a 568px screen a sixth of
+  itself. The top bar and the statusline together stay under a third of the
+  screen, rotated included.
 - **Nothing floating rests on a control.** A screen with no statusline seats
   the support mark as a fixed corner overlay; the card beneath it therefore
   keeps that corner clear, and the front door tightens its own rhythm below

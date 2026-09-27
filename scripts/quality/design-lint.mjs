@@ -285,7 +285,19 @@ function checkCss(file, source) {
     report,
     lineOf,
   );
-  // 2. `.go` is defined once per app, in that app's control home.
+  // 2. Sentence case everywhere (DESIGN.md § Overview): case is written in
+  //    the string, never forced by a rule, so no label turns to capitals.
+  for (const match of source
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ""))
+    .matchAll(/text-transform\s*:\s*(uppercase|capitalize)\b/g)) {
+    report(
+      file,
+      lineOf(source, match.index ?? 0),
+      "sentence-case",
+      "Sentence case everywhere: write the label's case in its string, never text-transform it. See DESIGN.md § Overview.",
+    );
+  }
+  // 3. `.go` is defined once per app, in that app's control home.
   if (GO_HOMES.includes(relative(root, file))) return;
   for (const match of source.matchAll(/^\.go(-row|-verb)?\b[^{]*\{/gm)) {
     report(

@@ -37,6 +37,14 @@ const PIXELMATCH_THRESHOLD = 0.1;
 /** Share of pixels allowed to differ before the contract is considered broken. */
 export const MAX_DIFF_RATIO = 0.015;
 
+/**
+ * The same diff, as a share of the screen's content: every pixel that is not
+ * the page background in either image. A mostly-empty screen has so few
+ * content pixels that a real change (a key moved, a heading gone) hides
+ * inside 1.5% of the whole frame; against its content it cannot.
+ */
+export const MAX_CONTENT_DIFF_RATIO = 0.05;
+
 export function isUpdateMode(): boolean {
   return process.env.VISUAL_UPDATE === "1";
 }
@@ -63,6 +71,10 @@ export interface VisualCompareResult {
   diffPixelCount: number;
   diffRatio: number;
   totalPixels: number;
+  /** Pixels that are not the page background in the baseline or the capture. */
+  contentPixels: number;
+  /** diffPixelCount / contentPixels (0 when there is no content at all). */
+  contentDiffRatio: number;
   /** Present when dimensions match and a pixel-diff image was produced. */
   diffPng?: Buffer;
 }
@@ -85,6 +97,8 @@ export function comparePngBuffers(
       diffPixelCount: -1,
       diffRatio: 1,
       totalPixels,
+      contentPixels: totalPixels,
+      contentDiffRatio: 1,
     };
   }
 
@@ -102,14 +116,61 @@ export function comparePngBuffers(
   );
   const totalPixels = width * height;
   const diffRatio = totalPixels === 0 ? 0 : diffPixelCount / totalPixels;
-  const matched = diffRatio <= MAX_DIFF_RATIO;
+  const contentPixels = countContentPixels(img1.data, img2.data);
+  const contentDiffRatio =
+    contentPixels === 0 ? 0 : diffPixelCount / contentPixels;
+  const matched =
+    diffRatio <= MAX_DIFF_RATIO && contentDiffRatio <= MAX_CONTENT_DIFF_RATIO;
   return {
     matched,
     diffPixelCount,
     diffRatio,
     totalPixels,
+    contentPixels,
+    contentDiffRatio,
     diffPng: PNG.sync.write(diff),
   };
+}
+
+/** The most common RGBA in `data` — the page background of a screenshot. */
+function dominantColor(data: Uint8Array): number {
+  const counts = new Map<number, number>();
+  let best = 0;
+  let bestCount = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const rgba =
+      ((data[i] ?? 0) << 24) |
+      ((data[i + 1] ?? 0) << 16) |
+      ((data[i + 2] ?? 0) << 8) |
+      (data[i + 3] ?? 0);
+    const count = (counts.get(rgba) ?? 0) + 1;
+    counts.set(rgba, count);
+    if (count > bestCount) {
+      best = rgba;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/** Pixels that differ from the baseline's background in either image. */
+function countContentPixels(
+  baseline: Uint8Array,
+  captured: Uint8Array,
+): number {
+  const background = dominantColor(baseline);
+  const at = (data: Uint8Array, i: number) =>
+    ((data[i] ?? 0) << 24) |
+    ((data[i + 1] ?? 0) << 16) |
+    ((data[i + 2] ?? 0) << 8) |
+    (data[i + 3] ?? 0);
+  let content = 0;
+  for (let i = 0; i < baseline.length; i += 4) {
+    if (at(baseline, i) !== background || at(captured, i) !== background) {
+      content += 1;
+    }
+  }
+  return content;
 }
 
 /**
@@ -196,7 +257,9 @@ export async function captureAndVerify(
       ? `"${name}" capture dimensions do not match the .impeccable baseline ` +
           `(${result.totalPixels} px vs captured image). See output/${name}-actual.png.`
       : `"${name}" differs from the .impeccable baseline by ${pct}% of pixels ` +
-          `(budget ${(MAX_DIFF_RATIO * 100).toFixed(2)}%). ` +
+          `(budget ${(MAX_DIFF_RATIO * 100).toFixed(2)}%) and ` +
+          `${(result.contentDiffRatio * 100).toFixed(2)}% of its content ` +
+          `(budget ${(MAX_CONTENT_DIFF_RATIO * 100).toFixed(2)}%). ` +
           `See output/${name}-diff.png and output/${name}-actual.png.`,
   ).toBe(true);
 }

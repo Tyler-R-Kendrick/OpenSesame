@@ -74,9 +74,7 @@
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
   text-align: start;
-  text-transform: uppercase;
   color: var(--ink);
   /* Darker than the notes pane so the label reads as a subheader in day and
      night — not a paper band that collapses the two-tone split. */
@@ -914,7 +912,11 @@
     padding-top: 2.5rem;
   }
 
+  /* The shell carries the phone's gutter here, so the card must not take
+     the wide screens' 2.5rem off it again: the seal and unlock forms keep
+     the front door's width instead of stepping 20px in on each side. */
   .unlock__card {
+    width: min(100%, 27rem);
     padding: 1.5rem 1.15rem 1.35rem;
   }
 

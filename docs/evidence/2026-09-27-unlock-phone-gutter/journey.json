@@ -1,0 +1,141 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "measure": ".door__roads"
+        },
+        {
+          "shot": "390-front-door"
+        },
+        {
+          "press": "Use without an account"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "measure": ".unlock__card"
+        },
+        {
+          "measure": "#master"
+        },
+        {
+          "measure": ".unlock__brand .wordmark__slots"
+        },
+        {
+          "measure": ".unlock__brand-tools"
+        },
+        {
+          "shot": "390-seal"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [
+        {
+          "measure": ".door__roads"
+        },
+        {
+          "press": "Use without an account"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "measure": ".unlock__card"
+        },
+        {
+          "measure": "#master"
+        },
+        {
+          "measure": ".unlock__brand .wordmark__slots"
+        },
+        {
+          "measure": ".unlock__brand-tools"
+        },
+        {
+          "shot": "320-seal"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "steps": [
+        {
+          "press": "Use without an account"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "press": "Password"
+        },
+        {
+          "measure": ".unlock__card"
+        },
+        {
+          "measure": "#master"
+        },
+        {
+          "shot": "1440-seal"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "320-seal",
+      "width": 320,
+      "title": "Seal this device \u2014 320 \u00d7 568",
+      "caption": "The seal form sat 20px further in on each side than the front door it is reached from, because the phone gutter was counted twice. At 320 it also put the theme key on the wordmark's last letter.",
+      "before": "field 240px @53 vs door roads 254px @33; theme key 223\u2013267 over wordmark 76\u2013259 (36px overlap)",
+      "after": "field 254px @33; wordmark 56\u2013239, theme key from 243 (4px clear)"
+    },
+    {
+      "shot": "390-seal",
+      "width": 390,
+      "title": "Seal this device \u2014 390 \u00d7 844",
+      "caption": "Same form on a common phone: the field takes the width the door's roads take.",
+      "before": "field 284px @53 (door roads 324px @33)",
+      "after": "field 324px @33"
+    },
+    {
+      "shot": "390-front-door",
+      "width": 390,
+      "title": "Front door \u2014 390 \u00d7 844 (unchanged)",
+      "caption": "The door already had the right width; the seal form now matches it.",
+      "before": "roads 324px @33",
+      "after": "roads 324px @33"
+    },
+    {
+      "shot": "1440-seal",
+      "width": 1440,
+      "title": "Seal this device \u2014 1440 \u00d7 900 (unchanged)",
+      "caption": "The fix is inside the \u2264480px block; the wide split layout does not move.",
+      "before": "card 432px @232, field 270px @394",
+      "after": "card 432px @232, field 270px @394"
+    }
+  ]
+}
