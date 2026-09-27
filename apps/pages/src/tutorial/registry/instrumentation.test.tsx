@@ -9,18 +9,26 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import type { Folder, LoginItem, VaultItem } from "@opensesame/vault-core";
 import { connectivityBarDependencies } from "../../components/ConnectivityBar.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { IMPORT_COMMAND } from "../../modules/vault.interop-formats/runtime.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";
 
-// The connector surfaces bind targets the connectors capability declares.
+// The connector surfaces bind targets the connectors capability declares,
+// and Import is the formats capability's key in the vault path strip.
 let revokeRealm = () => {};
+let revokeImport = () => {};
 beforeAll(() => {
   revokeRealm = registerTutorialRealm();
+  revokeImport = registerContributionForTest("vault-command", IMPORT_COMMAND);
 });
-afterAll(() => revokeRealm());
+afterAll(() => {
+  revokeRealm();
+  revokeImport();
+});
 
 type VaultSnapshot = {
   items: VaultItem[];
@@ -63,6 +71,7 @@ Object.assign(connectivityBarDependencies, {
 
 import {
   duplicateGuideTargetMounts,
+  isKnownGuideTarget,
   isMountedGuideTarget,
   resolveGuideTargetElement,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
@@ -155,7 +164,8 @@ describe("instrumented screens", () => {
     const empty = renderVault();
     expect(isMountedGuideTarget("vault.list")).toBe(true);
     expect(isMountedGuideTarget("vault.create")).toBe(true);
-    expect(isMountedGuideTarget("vault.import")).toBe(false);
+    expect(isMountedGuideTarget("vault.import")).toBe(true);
+    expect(isMountedGuideTarget("vault.export")).toBe(true);
     // The filter key is always there to point at; the roads themselves are
     // inside the sheet it opens, so they bind when it does and not before.
     expect(isMountedGuideTarget("vault.filter")).toBe(true);
@@ -169,7 +179,8 @@ describe("instrumented screens", () => {
     vault.current = { ...emptyVault, items: [weakLogin()] };
     renderVault();
     expect(isMountedGuideTarget("vault.create")).toBe(true);
-    expect(isMountedGuideTarget("vault.import")).toBe(false);
+    expect(isMountedGuideTarget("vault.import")).toBe(true);
+    expect(isMountedGuideTarget("vault.export")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: /^Filter — / }));
     expect(isMountedGuideTarget("vault.filter.logins")).toBe(true);
     expect(
@@ -237,7 +248,9 @@ describe("instrumented screens", () => {
   // The statusline carried five glyphs, the Host among them; the Host glyph
   // left it with the Host plane (ed1d403d, ADR 0090 — Pages never names a
   // Host). Identity is the one authority plane left there to point at; the
-  // key vault glyph stays reachable but is not a support target.
+  // key vault glyph stays reachable but is not a support target. The Host's
+  // target went with its glyph: a model is never offered an id that cannot
+  // mount (ADR 0088).
   it("binds only the identity plane on the statusline", () => {
     connectors.current = [
       connectorStatus({ detail: "signed in" }),
@@ -260,6 +273,7 @@ describe("instrumented screens", () => {
         "aria-label",
       ),
     ).toBe("Identity — signed in");
+    expect(isKnownGuideTarget("connectivity.host")).toBe(false);
     expect(isMountedGuideTarget("connectivity.host")).toBe(false);
     expect(resolveGuideTargetElement("connectivity.identity")).toBe(
       screen.getByRole("button", { name: "Identity — signed in" }),

@@ -117,10 +117,10 @@ impl ConnectionBroker {
     /// Whether this connection can be executed as configured (CONN-CAPABILITY).
     ///
     /// A browser-targeted connection that needs a Host-held TLS identity is
-    /// `Unsupported`, with the reason the PWA's `assertBrowserExecution` gate
-    /// keys on. Nothing is exported and nothing is proxied to make it work
-    /// (AT-BROWSER-KEY). A connection with no transport record is `Supported`:
-    /// an unconfigured optional feature is not an error.
+    /// `Unsupported`, with a reason a browser client can show. Nothing is
+    /// exported and nothing is proxied to make it work (AT-BROWSER-KEY). A
+    /// connection with no transport record is `Supported`: an unconfigured
+    /// optional feature is not an error.
     ///
     /// # Errors
     ///

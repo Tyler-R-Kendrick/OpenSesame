@@ -23,9 +23,7 @@ function settingsPanelWired() {
   const src = fs.existsSync(settingsSection)
     ? fs.readFileSync(settingsSection, "utf8")
     : "";
-  return /DuressSettingsPanel|DuressEnrollmentPanel|DuressProfilesPanel/.test(
-    src,
-  );
+  return /DuressEnrollmentPanel/.test(src);
 }
 
 async function probeSecurityDuressPanel(page, snap, blockers, check) {

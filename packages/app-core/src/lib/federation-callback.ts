@@ -6,15 +6,6 @@
 import { isString } from "@opensesame/os-domain";
 import type { AmbientReasonCode } from "./ambient-auth/types.js";
 
-const AUTH_PARAM_NAMES = [
-  "code",
-  "state",
-  "iss",
-  "error",
-  "error_description",
-  "session_state",
-] as const;
-
 export type ParsedAuthCallback =
   | { kind: "none" }
   | { kind: "malformed"; reason: AmbientReasonCode }
@@ -92,12 +83,6 @@ export function parseAuthCallback(
 export function isAuthCallbackSearch(search: string): boolean {
   const parsed = parseAuthCallback(search);
   return parsed.kind !== "none";
-}
-
-export function stripAuthParams(href: string): string {
-  const url = new URL(href, "https://example.invalid");
-  for (const name of AUTH_PARAM_NAMES) url.searchParams.delete(name);
-  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function sanitizeDescription(value: string | null): string | null {

@@ -4,8 +4,12 @@ import {
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
 import { githubHistorySeams } from "@opensesame/app-core/lib/github-history.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
-import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
+import {
+  listLocalShares,
+  revokeLocalShare,
+} from "@opensesame/app-core/lib/local-share-grants.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
@@ -19,14 +23,14 @@ const originalConnectionSeams = { ...connectionSeams };
 const originalBackupSeams = { ...backupSeams };
 const originalGithubHistorySeams = { ...githubHistorySeams };
 const originalVaultHooksSeams = { ...vaultHooksSeams };
+const originalIdentitySeams = { ...identitySeams };
 
 const listIntegrations = vi.fn();
 const listConnections = vi.fn();
 const listGithubInstallations = vi.fn();
 const listGithubRepos = vi.fn();
-const connectionEvents = vi.fn();
-const bindConnection = vi.fn();
-const unbindConnection = vi.fn();
+/** Every request a Pages library could send a Host goes through this seam. */
+const hostFetch = vi.fn(async () => new Response(null, { status: 599 }));
 
 const baseConnection = overlapCast({
   connectionId: "con_gh",
@@ -58,19 +62,16 @@ const baseConnection = overlapCast({
   updatedAt: "2026-01-01T00:00:00Z",
 }) satisfies Connection;
 
-let liveConnection: Connection = baseConnection;
-
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
-  liveConnection = baseConnection;
-  Object.assign(connectionSeams, {
-    listIntegrations,
-    listConnections,
-    connectionEvents,
-    bindConnection,
-    unbindConnection,
-  });
+  hostFetch.mockClear();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(null, { status: 599 })),
+  );
+  Object.assign(identitySeams, { hostFetch });
+  Object.assign(connectionSeams, { listIntegrations, listConnections });
   Object.assign(backupSeams, { listGithubInstallations });
   Object.assign(githubHistorySeams, { listGithubRepos });
   listIntegrations.mockResolvedValue([
@@ -86,7 +87,7 @@ beforeEach(() => {
       githubAppHtmlUrl: "https://github.com/apps/opensesame",
     },
   ]);
-  listConnections.mockImplementation(async () => [liveConnection]);
+  listConnections.mockResolvedValue([baseConnection]);
   listGithubInstallations.mockResolvedValue([
     {
       id: "42",
@@ -111,47 +112,6 @@ beforeEach(() => {
       defaultBranch: "main",
     },
   ]);
-  connectionEvents.mockResolvedValue([
-    {
-      id: "evt_1",
-      kind: "bound",
-      at: "2026-09-18T12:00:00Z",
-      detail: "identity · owner",
-    },
-  ]);
-  bindConnection.mockImplementation(async (_id, body) => {
-    liveConnection = {
-      ...baseConnection,
-      bindings: [
-        {
-          id: "bind_1",
-          targetKind: "identity",
-          targetId: body.targetId,
-          targetLabel: body.targetLabel,
-          createdAt: "2026-09-18T12:00:00Z",
-        },
-      ],
-    };
-    return liveConnection;
-  });
-  unbindConnection.mockImplementation(async () => {
-    liveConnection = { ...baseConnection, bindings: [] };
-    connectionEvents.mockResolvedValue([
-      {
-        id: "evt_2",
-        kind: "unbound",
-        at: "2026-09-18T12:05:00Z",
-        detail: "identity · owner",
-      },
-      {
-        id: "evt_1",
-        kind: "bound",
-        at: "2026-09-18T12:00:00Z",
-        detail: "identity · owner",
-      },
-    ]);
-    return liveConnection;
-  });
 });
 
 afterEach(() => {
@@ -160,6 +120,7 @@ afterEach(() => {
   Object.assign(backupSeams, originalBackupSeams);
   Object.assign(githubHistorySeams, originalGithubHistorySeams);
   Object.assign(vaultHooksSeams, originalVaultHooksSeams);
+  Object.assign(identitySeams, originalIdentitySeams);
   lockAllTombs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -193,4 +154,38 @@ it("puts the GitHub account, permissions, and repositories on the card and recor
   await waitFor(async () => {
     expect(await listLocalShares(fixture.tomb)).toHaveLength(1);
   });
+  const [share] = await listLocalShares(fixture.tomb);
+  expect(share).toMatchObject({
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "github",
+    policy: "invoke",
+  });
+  // The grant is the local share alone: no Host binding, no Host request.
+  expect(hostFetch).not.toHaveBeenCalled();
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("does not re-issue the grant after it was revoked in Access", async () => {
+  const fixture = await localRequestFixture();
+  Object.assign(vaultHooksSeams, {
+    useVault: () => ({ ...vaultStore.getSnapshot(), tomb: fixture.tomb }),
+  });
+
+  const first = render(<GithubCardDetails connection={baseConnection} />);
+  await waitFor(async () => {
+    expect(await listLocalShares(fixture.tomb)).toHaveLength(1);
+  });
+  first.unmount();
+
+  const [share] = await listLocalShares(fixture.tomb);
+  await revokeLocalShare(fixture.tomb, share?.id ?? "");
+  expect(await listLocalShares(fixture.tomb)).toEqual([]);
+
+  render(<GithubCardDetails connection={baseConnection} />);
+  // The card draws its rows only after it has decided about the grant, so
+  // once the account is on screen the decision was made: stay revoked.
+  await screen.findByTestId("github-install-account");
+  expect(await listLocalShares(fixture.tomb)).toEqual([]);
+  expect(hostFetch).not.toHaveBeenCalled();
 });

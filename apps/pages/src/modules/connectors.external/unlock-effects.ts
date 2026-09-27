@@ -9,13 +9,17 @@
 
 import type { UnlockEffectContribution } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { sealPendingConnectorDirectory } from "@opensesame/app-core/lib/connector-directory.js";
-import { hydrateVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
+import {
+  disarmVercelConnectAuth,
+  hydrateVercelConnectAuth,
+} from "@opensesame/app-core/lib/vercel-connect-session.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
 
-/** Test seam: the two sealing calls, swappable without a module mock. */
+/** Test seam: the sealing calls, swappable without a module mock. */
 export const connectorUnlockSeams = {
   sealPendingConnectorDirectory,
   hydrateVercelConnectAuth,
+  disarmVercelConnectAuth,
 };
 
 export function connectorUnlockEffects(
@@ -37,17 +41,27 @@ export function connectorUnlockEffects(
     },
     {
       id: "hydrate-vercel-connect",
-      run: ({ tomb, guest, signal }) =>
-        runUnlessAborted(anySignal([lease, signal]), async () => {
+      run: ({ tomb, guest, signal }) => {
+        const scope = anySignal([lease, signal]);
+        // The live bearer belongs to this unlock: a lock, a switch to
+        // another vault or the capability's end takes it out of memory. The
+        // sealed record stays in the tomb for the next unlock.
+        scope.addEventListener(
+          "abort",
+          () => connectorUnlockSeams.disarmVercelConnectAuth(),
+          { once: true },
+        );
+        return runUnlessAborted(scope, async () => {
           // A sealed token arms the live transport, and a staged one lands
           // with the first open tomb.
           await connectorUnlockSeams
-            .hydrateVercelConnectAuth(tomb, { ephemeral: guest })
+            .hydrateVercelConnectAuth(tomb, { ephemeral: guest, signal: scope })
             .catch(() => {
               // A corrupt record reads as no Connect session, not a trapped
               // vault.
             });
-        }),
+        });
+      },
     },
   ];
 }

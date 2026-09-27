@@ -142,7 +142,7 @@ and a Claude Code `PostToolUse` hook:
    views. Each has an accessible name and tooltip. Text-button styles in
    `VaultSection` or `VaultPathbar` are a hard lint failure; render tests pin
    all three commands and their location. Import opens the file picker;
-   Export opens the existing encrypted-backup panel, never a plaintext dump.
+   Export opens the encrypted-backup sheet, never a plaintext dump.
    The path/count status row stays at the pane bottom in empty and populated
    views; only the item area scrolls, never the command or status strip.
 

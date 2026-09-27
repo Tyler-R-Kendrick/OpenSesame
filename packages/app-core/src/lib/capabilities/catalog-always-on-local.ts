@@ -77,12 +77,7 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Push encrypted vault snapshots to a private repository through the GitHub App or a forge git remote, and sync them back.",
     {
       dependencies: ["connectors.external"],
-      operationIds: [
-        "backup.status",
-        "backup.target.set",
-        "sync_targets.read",
-        "sync_targets.trigger",
-      ],
+      operationIds: ["backup.status", "backup.target.set"],
       egress: [
         {
           class: "external-service",

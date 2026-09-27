@@ -24,7 +24,10 @@ export type DuressCapabilityId =
 export type DuressCapability = Readonly<{
   id: DuressCapabilityId;
   title: string;
-  /** Import specifier relative to packages/app-core/src/lib/duress/. */
+  /**
+   * Import specifier relative to packages/app-core/src/lib/duress/. The `ui`
+   * entry is the Pages shell's panel (ADR 0133), so it climbs to apps/pages.
+   */
   modulePath: string;
   /** Modes that may fetch this module. Never includes "off". */
   modes: readonly Exclude<DuressFeatureMode, "off">[];
@@ -134,7 +137,8 @@ export const DURESS_CAPABILITIES: readonly DuressCapability[] = [
   {
     id: "duress.ui",
     title: "Duress settings UI",
-    modulePath: "../../components/duress/DuressSettingsPanel.js",
+    modulePath:
+      "../../../../../apps/pages/src/components/duress/DuressSettingsPanel.js",
     modes: ["local_only", "optional_peer"],
     kind: "ui",
   },

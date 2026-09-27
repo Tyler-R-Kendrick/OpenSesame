@@ -49,6 +49,28 @@ export function markSteps({ press }) {
       await cdp.detach();
       await page.waitForTimeout(200);
     },
+    /**
+     * Tap the mark in main that says exactly these words — a flash beside
+     * other marks, so its bubble shows the sentence the glyph carries. Given
+     * a list, the first sentence this build shows is tapped: the base may
+     * still show an earlier flash where the branch shows a new one.
+     */
+    async tapMarkNamed(page, labels) {
+      const wanted = [labels].flat();
+      for (const label of wanted) {
+        const mark = page
+          .locator(`main .status-mark[aria-label=${JSON.stringify(label)}]`)
+          .first();
+        if (!(await mark.count())) continue;
+        await mark.scrollIntoViewIfNeeded();
+        await press(mark);
+        await page.waitForTimeout(300);
+        return;
+      }
+      throw new Error(
+        `capture-evidence tapMarkNamed: no mark says ${wanted.join(" or ")} — refusing a silent miss`,
+      );
+    },
     /** What the bubble says, if anything is showing. */
     async bubble(page) {
       const texts = await page.locator(".status-bubble").allInnerTexts();

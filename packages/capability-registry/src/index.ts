@@ -26,7 +26,9 @@ import {
   MODEL_PLANE_REDIRECT,
   NEVER_AGENT_SECRET,
   OPS_PLANE,
+  PAGES_BINDS_BY_LOCAL_SHARE,
   PAGES_HAS_NO_HOST,
+  PAGES_HAS_NO_SECRET_CONFIGS,
   PM_PLANE,
 } from "./exclusions.js";
 import { generalAuthorityCapabilities } from "./general-authority.js";
@@ -605,12 +607,17 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: "opensesame connect attach",
-      pwa: "lib/connections.ts:bindConnection",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_open_connect_ceremony",
+      webmcp: null,
     },
-    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+    excluded: {
+      pwa: PAGES_BINDS_BY_LOCAL_SHARE,
+      webmcp: PAGES_BINDS_BY_LOCAL_SHARE,
+      mcp_host: HUMAN_CEREMONY,
+      mcp_client: HUMAN_CEREMONY,
+    },
   },
   {
     id: "connections.rotate",
@@ -751,12 +758,17 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame config keys",
-      pwa: "route:/settings",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_settings_read",
+      webmcp: null,
     },
-    excluded: { mcp_client: SCOPED_AGENT_ONLY, mcp_host: SCOPED_AGENT_ONLY },
+    excluded: {
+      mcp_client: SCOPED_AGENT_ONLY,
+      mcp_host: SCOPED_AGENT_ONLY,
+      pwa: PAGES_HAS_NO_SECRET_CONFIGS,
+      webmcp: PAGES_HAS_NO_SECRET_CONFIGS,
+    },
   },
   {
     id: "configs.audit",
@@ -781,17 +793,15 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: "opensesame config set",
-      pwa: "route:/settings",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
       mcp_host: SCOPED_AGENT_ONLY,
-      webmcp: {
-        reason: "secret value entry stays in the human settings UI",
-        adr: ADR_AGENT_SURFACE_PARITY,
-      },
+      pwa: PAGES_HAS_NO_SECRET_CONFIGS,
+      webmcp: PAGES_HAS_NO_SECRET_CONFIGS,
     },
   },
   {
@@ -852,38 +862,6 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: "sync_pull",
       mcp_client: "sync_pull",
       webmcp: null,
-    },
-  },
-  {
-    id: "sync_targets.read",
-    title: "Read replication sync targets",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: "opensesame_settings_read",
-    },
-    excluded: { mcp_client: SCOPED_AGENT_ONLY, mcp_host: SCOPED_AGENT_ONLY },
-  },
-  {
-    id: "sync_targets.trigger",
-    title: "Trigger a sync-target replication run",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: DEFERRED,
-      mcp_client: DEFERRED,
-      webmcp: DEFERRED,
     },
   },
   {
@@ -1135,13 +1113,15 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "route:/settings",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: "opensesame_settings_read",
+      webmcp: null,
     },
     excluded: {
       mcp_host: SCOPED_AGENT_ONLY,
+      pwa: PAGES_HAS_NO_HOST,
+      webmcp: PAGES_HAS_NO_HOST,
     },
   },
   ...backupSyncCapabilities,
@@ -1608,20 +1588,6 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   ...itemTypeCapabilities,
-  {
-    id: "vault.export",
-    title: "Export/backup the vault (plaintext-capable)",
-    plane: "client_local",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: "route:/settings",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: { webmcp: NEVER_AGENT_SECRET },
-  },
 
   // ── Client-local plane: app shell surfaces ─────────────────────────────
   {

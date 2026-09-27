@@ -1,7 +1,7 @@
 /**
- * `/invoke/:kind` (ADR 0140 plan step 10): the authenticator hand-off, moved
- * here from `apps/ceremonies`. A link names a request by reference — an MFA
- * user code or request id, or a wallet protocol's request URI — and this
+ * `/invoke/:kind` (ADR 0140 plan step 10): the authenticator hand-off. A
+ * link names a request by reference — an MFA user code or request id, or a
+ * wallet protocol's request URI — and this
  * screen hands it to the native app as ceremony-kit built the link, and for
  * an MFA user code also offers the browser ceremony the spec names as its
  * fallback (`/device`, which takes the code from its own address into
@@ -11,8 +11,8 @@
  * held in memory. Nothing here calls anything: no Identity API, no vault,
  * and a `request_uri` or credential offer is never fetched — the app reads
  * it. Nothing navigates to a custom scheme by itself either: the person
- * presses the key, as they did in `apps/ceremonies`. A refused link is the
- * parser's words on a mark, and in the tray.
+ * presses the key. A refused link is the parser's words on a mark, and in
+ * the tray.
  *
  * Loaded only on this route (`lazy-routes.tsx`).
  */
@@ -24,6 +24,7 @@ import {
 import {
   INVOCATION_LABELS,
   type InvocationEntry,
+  clearInvocationNotice,
   invocationEntry,
   reportInvocation,
 } from "@opensesame/app-core/lib/invoke-route.js";
@@ -123,7 +124,10 @@ function useEntry(): InvocationEntry {
   });
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on arrival
   useEffect(() => {
+    // A link that hands on answers an earlier refusal still in the tray, as
+    // an approval or interaction that proceeds clears its own notice.
     if (entry.kind === "refused") reportInvocation(entry.words);
+    else clearInvocationNotice();
     if (location.search || location.hash) {
       navigate(location.pathname, { replace: true });
     }

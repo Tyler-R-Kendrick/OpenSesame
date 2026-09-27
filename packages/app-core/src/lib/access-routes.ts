@@ -50,17 +50,3 @@ export function accessViewFromLocation(
   if (params.get("request")) return "requests";
   return "grants";
 }
-
-export function grantCeremonyPath(
-  input: { connectionId?: string; secretId?: string } | null,
-): string {
-  const base = accessNewPath("grants");
-  if (input === null) return base;
-  if (input.connectionId) {
-    return `${base}?connection=${encodeURIComponent(input.connectionId)}`;
-  }
-  if (input.secretId) {
-    return `${base}?secret=${encodeURIComponent(input.secretId)}`;
-  }
-  return base;
-}

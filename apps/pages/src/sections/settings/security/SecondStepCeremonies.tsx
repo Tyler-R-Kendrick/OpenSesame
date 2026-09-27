@@ -13,13 +13,7 @@ import {
   secretOf,
   unusedText,
 } from "@opensesame/app-core/sections/settings/security/second-step-ceremonies-model.js";
-import {
-  type FormEvent,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   type CeremonyAlt,
   CeremonyAlts,
@@ -915,16 +909,5 @@ export function CodeCeremony({
       ]}
       primary={{ label: "Done", onClick: onDone }}
     />
-  );
-}
-
-/** For the sheet head: the glyph a second step wears. */
-export function secondStepIcon(kind: "totp" | CodeChannel): ReactNode {
-  return kind === "totp" ? (
-    <IconPhone size={16} />
-  ) : kind === "email" ? (
-    <IconMail size={16} />
-  ) : (
-    <IconMessage size={16} />
   );
 }

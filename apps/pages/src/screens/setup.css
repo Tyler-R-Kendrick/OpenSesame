@@ -217,10 +217,6 @@
   text-align: right;
 }
 
-.wrote-list__val--off {
-  color: var(--ink-3);
-}
-
 /* Above the phone the ceremony is the same column, centred. Only the thumb bar
    unpins: on a wide viewport the action belongs with the content it commits,
    because there is no thumb to reach with. */
@@ -307,11 +303,6 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--ink-3);
-}
-
-.ways__count {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-2);
 }
 
 .ways__list {

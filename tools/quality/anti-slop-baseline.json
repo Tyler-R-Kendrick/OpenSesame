@@ -11,8 +11,8 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 186,
-    "violations": 598,
+    "files": 183,
+    "violations": 595,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
@@ -20,12 +20,12 @@
       "anti-slop/no-module-mocking": 2,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 163,
+      "anti-slop/no-runtime-typeof": 162,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 38,
       "anti-slop/no-unknown-returns": 3,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 111
+      "anti-slop/require-safety-comment-for-type-assertion": 109
     }
   },
   "files": {
@@ -181,12 +181,6 @@
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
     "apps/pages/src/modules/test-context.ts": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/modules/vault.interop-formats/runtime.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/modules/vault.interop-formats/runtime.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
     "apps/pages/src/sections/access/HostedRequestsPanel.test.tsx": {
@@ -472,9 +466,6 @@
     },
     "packages/app-core/src/sections/settings/item-type-marketplace-model.ts": {
       "anti-slop/no-known-value-widening": 1
-    },
-    "packages/app-core/src/tutorial/registry/catalog.test.ts": {
-      "anti-slop/no-runtime-typeof": 1
     },
     "packages/capability-registry/src/surfaces.ts": {
       "anti-slop/no-known-value-widening": 2

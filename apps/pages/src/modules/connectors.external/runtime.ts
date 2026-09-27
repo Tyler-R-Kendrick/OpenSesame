@@ -55,10 +55,9 @@ export const HYDRATE_KEYS: readonly string[] = [DIRECTORY_KEY, FIRST_RUN_KEY];
 /**
  * Authored beside the registry (`connections-catalog.ts`, `-goals.ts`):
  * the Connections targets and route, plus the settings ceremonies that live
- * on connector pages (`settings.backup`, `settings.model-provider`,
- * `settings.secret-configs`, `settings.sync-targets`). `backup.git-remote`
- * depends on this capability, so `settings.backup` is declared whenever its
- * category link can mount. `CONNECTIONS_HELP` has no contribution kind yet.
+ * on connector pages (`settings.backup`, `settings.model-provider`).
+ * `backup.git-remote` depends on this capability, so `settings.backup` is
+ * declared whenever its category link can mount. `CONNECTIONS_HELP` has no contribution kind yet.
  */
 export const TUTORIAL = {
   targets: CONNECTIONS_TARGETS,

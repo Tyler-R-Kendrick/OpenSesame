@@ -64,7 +64,10 @@ const shots = path.join(
 const origin =
   process.env.EVIDENCE_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
-const dist = fileURLToPath(new URL("../dist", import.meta.url));
+// `EVIDENCE_DIST` captures another build — the base, built in its own worktree.
+const dist =
+  process.env.EVIDENCE_DIST ??
+  fileURLToPath(new URL("../dist", import.meta.url));
 
 /**
  * `remote` maps an external URL to a repository-relative file served in its

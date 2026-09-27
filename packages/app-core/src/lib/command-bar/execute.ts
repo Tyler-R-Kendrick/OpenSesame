@@ -7,6 +7,7 @@ import {
 import {
   type AppCommand,
   type CommandOutcome,
+  commandPathAuthorized,
   isCommandSection,
 } from "./types.js";
 
@@ -147,6 +148,11 @@ function openSection(
   // Refused, not imported: a section that is not registered has no route
   // to open, and nothing here reaches for the module that would have one.
   if (!isCommandSection(command.path)) {
+    return { ok: false, message: NOT_AVAILABLE_MESSAGE };
+  }
+  // Listed is not authorized: the capability that registered the path must
+  // still hold a current lease under a plan that approves it (§4.2).
+  if (!commandPathAuthorized(command.path)) {
     return { ok: false, message: NOT_AVAILABLE_MESSAGE };
   }
   ports.navigate(command.path);

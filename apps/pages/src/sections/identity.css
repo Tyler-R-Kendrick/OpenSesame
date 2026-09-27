@@ -138,11 +138,6 @@
   font-weight: 600;
 }
 
-.identity-claim {
-  display: grid;
-  gap: 0.75rem;
-}
-
 .identity-byoidc .label {
   display: inline-flex;
   align-items: center;
@@ -288,20 +283,6 @@
 
 /* --- guest note + member add ---------------------------------------------- */
 
-.identity-guest {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding: 0.75rem 0.875rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-}
-
-.identity-guest .hint {
-  margin: 0;
-}
-
 .identity-addmember {
   display: grid;
   gap: 0.75rem;
@@ -311,7 +292,4 @@
 }
 .identity-session {
   margin-block-start: 0.75rem;
-}
-.identity-authenticator-intro {
-  max-inline-size: 65ch;
 }

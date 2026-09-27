@@ -1,7 +1,6 @@
 /**
- * The review's refusals and endings, ported from the "refusals in words" and
- * "what never reaches the page" suites of
- * `apps/ceremonies/src/pages/ApprovalReview.test.tsx`.
+ * The review's refusals and endings: every refusal said in words, and what
+ * never reaches the screen.
  */
 import { describe, expect, it } from "vitest";
 import {

@@ -290,19 +290,3 @@ function nonceRetry(
 function requestSignal(signal: AbortSignal | null | undefined) {
   return signal ? AbortSignal.any([signal, lifetime.signal]) : lifetime.signal;
 }
-
-export async function revokeBrowserPairing(rawHost: string): Promise<void> {
-  const active = currentBrowserGrant(rawHost);
-  try {
-    if (active) {
-      const response = await pairedHostFetch(
-        rawHost,
-        `/api/v1/browser-clients/${encodeURIComponent(active.clientId)}`,
-        { method: "DELETE" },
-      );
-      if (!response.ok) throw new BrowserPairingError("pairing_failed");
-    }
-  } finally {
-    clearBrowserPairing();
-  }
-}

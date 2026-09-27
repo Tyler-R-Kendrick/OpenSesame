@@ -124,7 +124,7 @@ fi
 cp "$PAGES_DIST/index.html" "$PAGES_DIST/404.html"
 
 # Deployment endpoints ride beside the bundle as os-runtime-config.json — the
-# app reads it at boot (src/lib/runtime-config.ts). VITE_* is build-time only,
+# app reads it at boot (packages/app-core/src/lib/runtime-config.ts). VITE_* is build-time only,
 # and a deploy that bakes nothing must not ship a vault whose sign-in silently
 # dead-ends. Only the provided keys are written.
 # The same writer the GitHub Pages workflow and Vercel run.

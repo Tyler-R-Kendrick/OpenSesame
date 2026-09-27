@@ -12,6 +12,8 @@ export type ConnectTransport = {
   canManage: boolean;
   /** Acquire a token to prove it (relay only: the page never holds one). */
   canProve: boolean;
+  /** This session holds a Connect credential (a token or a management key). */
+  held: boolean;
 };
 
 function snapshot(): string {
@@ -36,5 +38,6 @@ export function useConnectTransport(): ConnectTransport {
     relay,
     canManage: relay ? key : token,
     canProve: relay && key,
+    held: key || token,
   };
 }
