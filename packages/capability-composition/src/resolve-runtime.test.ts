@@ -376,3 +376,57 @@ describe("module completeness (carried from #470's not-shipped rule)", () => {
     expect(plan.approvedModules).not.toContain(dropped);
   });
 });
+
+describe("catalogs the resolver was never meant to see (carried from #470)", () => {
+  function catalogWith(extra: ReturnType<typeof blank>[]) {
+    const catalog = buildCatalog(
+      FIXTURE_CATALOG.capabilities
+        .filter((d) => d.tier === "core")
+        .map(({ exposureDigest: _digest, ...d }) => d)
+        .concat(extra),
+      1,
+    );
+    const distribution = {
+      ...FIXTURE_DISTRIBUTION,
+      capabilityIds: catalog.capabilities.map((d) => d.id),
+      moduleIds: catalog.capabilities.flatMap((d) => d.moduleIds),
+    };
+    return { catalog, distribution };
+  }
+
+  it("a dependency no catalog entry names is a conflict, never auto-enabled", () => {
+    const { catalog, distribution } = catalogWith([
+      { ...blank("a.root"), dependencies: ["ghost.cap"] },
+    ]);
+    const { plan } = resolveWithConsent(
+      fixtureResolveInput({
+        catalog,
+        distribution,
+        installation: fixtureSelection({ selectedOptional: ["a.root"] }),
+      }),
+    );
+    expect(plan.conflicts).toEqual([
+      expect.objectContaining({
+        code: "DEPENDENCY_NOT_DISTRIBUTED",
+        capability: "a.root",
+        subject: "ghost.cap",
+      }),
+    ]);
+    expect(plan.approvedCapabilities).toEqual(CORE);
+  });
+
+  it("a dependency cycle terminates, and approves nothing without consent", () => {
+    const { catalog, distribution } = catalogWith([
+      { ...blank("a.one"), dependencies: ["a.two"] },
+      { ...blank("a.two"), dependencies: ["a.one"] },
+    ]);
+    const input = fixtureResolveInput({
+      catalog,
+      distribution,
+      installation: fixtureSelection({ selectedOptional: ["a.one"] }),
+    });
+    expect(resolveComposition(input).approvedCapabilities).toEqual(CORE);
+    const { plan } = resolveWithConsent(input);
+    expect(plan.approvedCapabilities).toEqual(["a.one", "a.two", ...CORE]);
+  });
+});

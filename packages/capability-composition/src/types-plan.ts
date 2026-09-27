@@ -18,25 +18,33 @@ import type { NetworkPolicy, PolicyProvenance } from "./types-documents.js";
 // Effective plan
 // ---------------------------------------------------------------------------
 
-export type ReasonCode =
-  | "CORE"
-  | "NOT_DISTRIBUTED"
-  | "PROHIBITED_BY_INSTANCE"
-  | "NOT_PERMITTED_BY_INSTANCE"
-  | "DENIED_BY_WORKSPACE"
-  | "DISABLED_IN_VAULT"
-  | "NOT_SELECTED"
-  | "REQUIRED_NOT_ACCEPTED"
-  | "CONSENT_REQUIRED"
-  | "DEPENDENCY_CONFLICT"
-  | "ALTERNATIVE_NOT_CHOSEN"
-  | "UNSUPPORTED_RUNTIME"
-  | "POLICY_UNVERIFIED"
-  | "PROFILE_MISMATCH"
-  | "NETWORK_POLICY_DENIES"
-  | "WORKER_GRAPH_UNAVAILABLE"
-  | "NOT_CACHED_OFFLINE"
-  | "RESTART_REQUIRED";
+/**
+ * The closed reason vocabulary, in presentation order. The type is derived
+ * from the list, so a code cannot exist without an order (carried from #470's
+ * `satisfies Record<ReasonCode, …>` exhaustiveness).
+ */
+export const REASON_CODES = [
+  "CORE",
+  "NOT_DISTRIBUTED",
+  "POLICY_UNVERIFIED",
+  "PROFILE_MISMATCH",
+  "PROHIBITED_BY_INSTANCE",
+  "NOT_PERMITTED_BY_INSTANCE",
+  "DENIED_BY_WORKSPACE",
+  "DISABLED_IN_VAULT",
+  "UNSUPPORTED_RUNTIME",
+  "NETWORK_POLICY_DENIES",
+  "WORKER_GRAPH_UNAVAILABLE",
+  "NOT_SELECTED",
+  "REQUIRED_NOT_ACCEPTED",
+  "DEPENDENCY_CONFLICT",
+  "ALTERNATIVE_NOT_CHOSEN",
+  "CONSENT_REQUIRED",
+  "NOT_CACHED_OFFLINE",
+  "RESTART_REQUIRED",
+] as const;
+
+export type ReasonCode = (typeof REASON_CODES)[number];
 
 /**
  * Independent axes. A capability may be permitted but unselected, selected
