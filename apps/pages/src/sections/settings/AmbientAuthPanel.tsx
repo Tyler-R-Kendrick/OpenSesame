@@ -47,7 +47,7 @@ export function AmbientAuthPanel() {
   return (
     // A panel like its neighbours on Security: its key ends the head at the
     // panel's edge. As a card with a text-width row, the × floated mid-row.
-    <section className="panel" aria-labelledby={id}>
+    <section className="panel" id="ambient-auth" aria-labelledby={id}>
       <div className="panel__head">
         <h2 id={id}>Automatic sign-in</h2>
         {deployed ? null : (

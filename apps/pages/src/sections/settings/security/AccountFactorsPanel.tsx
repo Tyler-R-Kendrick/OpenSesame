@@ -2,19 +2,10 @@ import {
   type AccountFactor,
   type AccountFactorKind,
   type AccountFactorList,
-  accountFactorsOffered,
   listAccountFactors,
 } from "@opensesame/app-core/lib/account-factors.js";
 import { describeAccount } from "@opensesame/app-core/lib/account.js";
-import { subscribeIdentitySession } from "@opensesame/app-core/lib/identity.js";
-import { subscribeSettings } from "@opensesame/app-core/lib/settings.js";
-import {
-  type RefObject,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconPlus, IconTrash } from "../../../components/Icons.js";
 import { firstControl, landFocus } from "../../../lib/focus.js";
@@ -22,20 +13,7 @@ import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { ACCOUNT_TITLE } from "./AccountFactorCeremony.js";
 import { MethodRow } from "./MethodRow.js";
 import type { SheetRequest } from "./MethodSheet.js";
-
-function subscribe(listener: () => void): () => void {
-  const offIdentity = subscribeIdentitySession(listener);
-  const offSettings = subscribeSettings(listener);
-  return () => {
-    offIdentity();
-    offSettings();
-  };
-}
-
-/** Whether an Identity API is configured and a session is held, live. */
-function useOffered(): boolean {
-  return useSyncExternalStore(subscribe, () => accountFactorsOffered());
-}
+import { useAccountFactorsOffered as useOffered } from "./account-offered.js";
 
 function added(factor: AccountFactor): string {
   const tail = factor.id.slice(-4);
@@ -76,6 +54,7 @@ export function AccountFactorsPanel({
   return (
     <section
       className="panel set__security"
+      id="account-factors"
       aria-label="Your account"
       ref={guideRef}
     >

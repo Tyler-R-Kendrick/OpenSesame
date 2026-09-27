@@ -49,6 +49,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.onDispose(stopTailnetSync);
     activation.register("settings-panel", {
       id: "tailnet-sync",
+      label: "Tailnet sync",
       category: "vaults",
       Panel: TailnetSyncPanel,
       order: 10,

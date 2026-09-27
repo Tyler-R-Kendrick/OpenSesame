@@ -20,7 +20,6 @@ describe("access page tree", () => {
     const headings = (id: string) =>
       tree.find((node) => node.id === id)?.children.map((node) => node.label);
     expect(headings("grants")).toEqual([
-      "Portable grants",
       "Local application grants",
       "Identity shares",
     ]);
@@ -46,9 +45,11 @@ describe("access page tree", () => {
     expect(tree.every((node) => pageTreeItemCount(node) === 0)).toBe(true);
   });
 
-  it("names only panels the page draws: the Identity inbox where one is configured, never a Host panel", () => {
+  it("names only panels the page draws: each conditional one when it draws, never a Host panel", () => {
     const tree = accessPageTree({
       identity: true,
+      book: true,
+      receipts: true,
       shares: [{ id: "s1", label: "vault: Budget" }],
     });
     const ids = tree.flatMap((node) => node.children.map((child) => child.id));
@@ -61,6 +62,7 @@ describe("access page tree", () => {
       "local-sessions",
       "local-authority-templates",
       "vault-share-sessions",
+      "access-receipts",
       "local-connectors",
       "local-resources",
       "local-policies",

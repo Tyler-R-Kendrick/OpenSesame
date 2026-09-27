@@ -1,0 +1,102 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "rail": "Security"
+        },
+        {
+          "report": ".railtree__row[aria-level='3'] .railtree__name"
+        },
+        {
+          "shot": "1280-settings-security"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "rail": "Grants"
+        },
+        {
+          "report": "#grants-tree > .railtree__row .railtree__name"
+        },
+        {
+          "count": [
+            "#access-book",
+            "#grants-tree [aria-label='Portable grants']"
+          ]
+        },
+        {
+          "shot": "1280-access-grants"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "report": ".page-index a"
+        },
+        {
+          "shot": "390-settings-security"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-settings-security",
+      "width": 1280,
+      "title": "Settings \u203a Security in the rail (1280 \u00d7 900)",
+      "caption": "The page draws eight panels; the rail named four. Unlock methods, Second step, Recovery and Automatic sign-in were unreachable from it.",
+      "before": "rail: 4 entries (Vault key protection, Formats, Age keys, Transport)",
+      "after": "rail: 8 entries, the page's eight in the page's order"
+    },
+    {
+      "shot": "1280-access-grants",
+      "width": 1280,
+      "title": "Access \u203a Grants in the rail, empty access book (1280 \u00d7 900)",
+      "caption": "Portable grants draws only while the access book holds a grant. The rail listed it anyway, so it opened Grants with nothing to land on.",
+      "before": "rail lists Portable grants; page has 0 #access-book",
+      "after": "rail lists only the 2 panels the page draws"
+    },
+    {
+      "shot": "390-settings-security",
+      "width": 390,
+      "title": "Settings \u203a Security on a phone (390 \u00d7 844)",
+      "caption": "The phone's On this page strip is built from the same tree, so it gained the same four panels.",
+      "before": "4 links",
+      "after": "8 links"
+    }
+  ]
+}

@@ -78,6 +78,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     // category is one no settings route renders on its own.
     activation.register("settings-panel", {
       id: MODEL_PROVIDER_PANEL,
+      label: "Model provider",
       category: "capabilities.ai-models",
       Panel: EmbeddedModelProviderPanel,
       order: 10,

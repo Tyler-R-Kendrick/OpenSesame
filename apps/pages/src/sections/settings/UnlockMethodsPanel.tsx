@@ -221,7 +221,7 @@ function UnlockMethodsBody() {
 
   return (
     <>
-      <section className="panel set__security">
+      <section className="panel set__security" id="unlock-methods">
         <div className="panel__head">
           <div>
             <h2>Unlock methods</h2>
@@ -263,7 +263,11 @@ function UnlockMethodsBody() {
         </div>
       </section>
 
-      <section className="panel set__security" ref={secondStepRef}>
+      <section
+        className="panel set__security"
+        id="second-step"
+        ref={secondStepRef}
+      >
         <div className="panel__head">
           <div>
             <h2>Second step</h2>
@@ -302,7 +306,7 @@ function UnlockMethodsBody() {
         </div>
       </section>
 
-      <section className="panel set__security" ref={recoveryRef}>
+      <section className="panel set__security" id="recovery" ref={recoveryRef}>
         <div className="panel__head">
           <div>
             <h2>Recovery</h2>

@@ -59,7 +59,7 @@ function readBook(file: File, done: (outcome: Outcome) => void) {
  * `access:/new` and opened nothing. Each panel's own + adds its kind (a
  * share, a request). Import is the file chooser itself.
  */
-export function AccessPathbar({ onImported }: { onImported: () => void }) {
+export function AccessPathbar() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   return (
     <div
@@ -83,10 +83,8 @@ export function AccessPathbar({ onImported }: { onImported: () => void }) {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = "";
             if (!file) return;
-            readBook(file, (next) => {
-              setOutcome(next);
-              if (next.tone === "ok") onImported();
-            });
+            // The book tells its subscribers (the Grants panel, the rail).
+            readBook(file, setOutcome);
           }}
         />
       </label>

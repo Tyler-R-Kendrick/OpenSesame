@@ -1,7 +1,18 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  accessBookSeams,
+  addLocalGrant,
+  removeLocalGrant,
+} from "@opensesame/app-core/lib/access-book.js";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 
 import { registerLegacyShell } from "../../components/legacy-sections.test-support.js";
 import { AccessRailTree } from "./AccessRailTree.js";
@@ -124,4 +135,60 @@ it("collapses the selected tab subtree and keeps the Access view", () => {
   expect(screen.getByLabelText("Current route").textContent).toBe(
     "/access?view=grants",
   );
+});
+
+it("lists Portable grants while the access book holds one, and only then", () => {
+  const original = { ...accessBookSeams };
+  let stored: string | null = null;
+  Object.assign(accessBookSeams, {
+    read: () => stored,
+    write: (raw: string) => {
+      stored = raw;
+    },
+  });
+  try {
+    setup("/access?view=grants");
+    fireEvent.click(screen.getByRole("treeitem", { name: "Grants" }));
+    expect(
+      screen.queryByRole("treeitem", { name: "Portable grants" }),
+    ).toBeNull();
+    let id = "";
+    act(() => {
+      id = addLocalGrant({ title: "Nightly deploy" }).id;
+    });
+    // The rail follows the book without a remount, as the page's panel does.
+    expect(
+      screen.getByRole("treeitem", { name: "Portable grants" }),
+    ).toBeTruthy();
+    act(() => removeLocalGrant(id));
+    expect(
+      screen.queryByRole("treeitem", { name: "Portable grants" }),
+    ).toBeNull();
+  } finally {
+    Object.assign(accessBookSeams, original);
+  }
+});
+
+it("scrolls to a panel already named in the address when its row is clicked again", () => {
+  const scrollBy = vi.fn();
+  vi.stubGlobal("scrollBy", scrollBy);
+  const panel = document.createElement("section");
+  panel.id = "local-grants";
+  document.body.append(panel);
+  try {
+    setup("/access?view=grants#local-grants");
+    fireEvent.click(screen.getByRole("treeitem", { name: "Grants" }));
+    // The link is the current address, so it navigates nowhere; the row
+    // still takes the reader to the panel.
+    fireEvent.click(
+      screen.getByRole("treeitem", { name: "Local application grants" }),
+    );
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Current route").textContent).toBe(
+      "/access?view=grants#local-grants",
+    );
+  } finally {
+    panel.remove();
+    vi.unstubAllGlobals();
+  }
 });

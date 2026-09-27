@@ -1,10 +1,36 @@
 import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { describe, expect, it } from "vitest";
 import {
   capabilitiesSettingsSections,
   settingsPageSources,
   settingsPageTree,
 } from "./page-tree.js";
+
+const SEALED_STORE = {
+  id: "sealed-store",
+  label: "Sealed store",
+  category: "vaults",
+  order: 50,
+};
+const FORMATS = {
+  id: "formats-interoperability",
+  label: "Formats",
+  category: "security",
+  order: 40,
+};
+const AMBIENT = {
+  id: "ambient-auth",
+  label: "Automatic sign-in",
+  category: "security",
+  order: 30,
+};
+
+const childIds = (
+  tabs: ReturnType<typeof settingsPageTree>,
+  id: string,
+): string[] =>
+  tabs.find((node) => node.id === id)?.children.map((node) => node.id) ?? [];
 
 describe("settingsPageTree", () => {
   it("lists each settings tab as a first-level child, never nested under another tab", () => {
@@ -60,12 +86,14 @@ describe("settingsPageTree", () => {
         { id: "personal", label: "personal" },
         { id: "proj-1", label: "project · 4f2a" },
       ],
+      contributed: [SEALED_STORE],
     });
     const vaults = tabs.find((node) => node.id === "vaults");
     expect(vaults?.children.map((node) => node.label)).toEqual([
       "personal",
       "project · 4f2a",
       "Travel",
+      "Item types",
       "Sample data",
       "Sealed store",
     ]);
@@ -109,5 +137,71 @@ describe("settingsPageTree", () => {
         .find((tab) => tab.id === "danger")
         ?.children.map((node) => node.href),
     ).toEqual(["/settings/danger#settings-delete-vault"]);
+  });
+
+  it("lists Security's panels in the order the page draws them", () => {
+    expect(childIds(settingsPageTree(), "security")).toEqual([
+      "vault-key-protection",
+      "unlock-methods",
+      "second-step",
+      "recovery",
+      "age-keys",
+      "transport",
+    ]);
+    // Duress and the account's factors draw only when they apply; a
+    // capability's panels take the slot after the account, in their order.
+    expect(
+      childIds(
+        settingsPageTree({
+          duress: true,
+          account: true,
+          contributed: [FORMATS, AMBIENT],
+        }),
+        "security",
+      ),
+    ).toEqual([
+      "vault-key-protection",
+      "duress-profiles",
+      "unlock-methods",
+      "second-step",
+      "recovery",
+      "account-factors",
+      "ambient-auth",
+      "formats-interoperability",
+      "age-keys",
+      "transport",
+    ]);
+  });
+
+  it("names a contributed panel only while its capability contributes it", () => {
+    const labels = (contributed: (typeof FORMATS)[]) =>
+      settingsPageTree({ contributed }).flatMap((tab) =>
+        tab.children.map((node) => node.label),
+      );
+    expect(labels([])).not.toContain("Formats");
+    expect(labels([])).not.toContain("Sealed store");
+    expect(labels([FORMATS, SEALED_STORE])).toEqual(
+      expect.arrayContaining(["Formats", "Sealed store"]),
+    );
+  });
+
+  it("opens a contributed tab onto the panels its module says it draws", () => {
+    const revoke = registerContributionForTest("settings-category", {
+      id: "notifications",
+      label: "Notifications",
+      guideId: "settings.notifications",
+      Panel: () => null,
+      panels: [{ id: "notif-channels", label: "Channels" }],
+      order: 300,
+    });
+    try {
+      const tabs = settingsPageTree();
+      expect(tabs.map((tab) => tab.id)).toContain("notifications");
+      expect(childIds(tabs, "notifications")).toEqual(["notif-channels"]);
+      // Every tab, core or contributed, is the same kind of row.
+      expect(tabs.filter((tab) => tab.children.length === 0)).toEqual([]);
+    } finally {
+      revoke();
+    }
   });
 });

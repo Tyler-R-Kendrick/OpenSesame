@@ -87,6 +87,12 @@ export type SettingsCategoryContribution = Readonly<{
   Panel: ComponentType;
   order: number;
   /**
+   * The panels `Panel` always draws, in page order: the rail lists them
+   * under the tab, so a contributed tab opens like the core ones do. `id` is
+   * each panel's root element id.
+   */
+  panels?: readonly Readonly<{ id: string; label: string }>[];
+  /**
    * The category's files beyond its own `config.yaml` (ADR 0134): what
    * Settings' file viewer lists and writes for it. The Form is drawn from
    * the same files.
@@ -107,9 +113,14 @@ export type SetupPanelContribution = Readonly<{
  * has. A category is a destination; a panel is a block within one, so an
  * optional feature can add its rows to Security without the core file
  * importing the component and carrying it into every build.
+ *
+ * The rail lists a category's panels by the same contributions, so `id` is
+ * the id of the panel's root element (the rail's `#` target) and `label` is
+ * its heading.
  */
 export type SettingsPanelContribution = Readonly<{
   id: string;
+  label: string;
   category: string;
   Panel: ComponentType;
   order: number;
