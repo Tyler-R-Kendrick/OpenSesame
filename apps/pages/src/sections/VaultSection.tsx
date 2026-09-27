@@ -24,6 +24,7 @@ import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { ExportKey } from "./vault/ExportKey.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
@@ -103,6 +104,8 @@ export function VaultSection() {
     location.pathname === "/vault" ||
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
   const canShare = useContributions("secret-share").length > 0;
+  // Keys a capability adds after New item — Import, from the formats it reads.
+  const commands = useContributions("vault-command");
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) => {
@@ -240,6 +243,10 @@ export function VaultSection() {
               >
                 <IconPlus size={15} />
               </Link>
+              {commands.map(({ id, Command }) => (
+                <Command key={id} />
+              ))}
+              <ExportKey />
             </>
           }
         />

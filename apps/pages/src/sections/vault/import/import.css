@@ -1,0 +1,146 @@
+/* The import sheet (`vault.interop-formats`): a preview a person reads
+   before one commit writes anything. Facts and marks come from the shared
+   ceremony card; this file lays out what only an import has — the folder
+   choice, the preview table and the records a file left out. */
+
+.imp .sheet__body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.imp__preview {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+}
+
+.imp__plain {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.imp__marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.imp__options {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.imp__options legend {
+  padding: 0 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.imp__folderlist {
+  display: block;
+  font-size: 0.8125rem;
+  font-style: normal;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.imp__table {
+  max-height: 17rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.imp__table:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.imp__table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.imp__table th,
+.imp__table td {
+  max-width: 9rem;
+  padding: 0.4rem 0.6rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  font-weight: 400;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imp__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.imp__table tbody th {
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.imp__table tbody tr:last-child th,
+.imp__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.imp__more {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.imp__skipped > summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.imp__skipped ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.imp__skipped li {
+  display: grid;
+  grid-template-columns: minmax(5rem, 11rem) 1fr;
+  gap: 0.6rem;
+  color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  /* Three columns cannot fit a phone; the folder is stated by the choice
+     just above the table, so it is the one to drop. */
+  .imp__table th:last-child,
+  .imp__table td:last-child {
+    display: none;
+  }
+}

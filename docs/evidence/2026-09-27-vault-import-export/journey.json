@@ -1,0 +1,234 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "measure": "fieldset.vtree__keys"
+        },
+        {
+          "measure": "fieldset.vtree__keys .icon-btn"
+        },
+        {
+          "count": ["fieldset.vtree__keys .icon-btn", "[role=treeitem]"]
+        },
+        {
+          "shot": "390-vault-keys"
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-27-vault-import-export/app.env"
+          }
+        },
+        {
+          "measure": ".sheet"
+        },
+        {
+          "report": ".sheet .found dt, .sheet .found dd"
+        },
+        {
+          "report": ".sheet .found__do button"
+        },
+        {
+          "shot": "390-import-preview"
+        },
+        {
+          "pressOptional": "^Import 2 items$"
+        },
+        {
+          "report": ".sheet .found__top"
+        },
+        {
+          "shot": "390-import-done"
+        },
+        {
+          "pressOptional": "^Done$"
+        },
+        {
+          "count": ["[role=treeitem]"]
+        },
+        {
+          "report": "[role=treeitem]"
+        },
+        {
+          "shot": "390-imported"
+        },
+        {
+          "pressOptional": "^Export items$"
+        },
+        {
+          "measure": ".sheet"
+        },
+        {
+          "report": ".sheet .found dt, .sheet .found dd"
+        },
+        {
+          "shot": "390-export-sheet"
+        },
+        {
+          "pressOptional": "^Save backup$"
+        },
+        {
+          "report": ".sheet .found__top"
+        },
+        {
+          "shot": "390-export-saved"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "measure": "fieldset.vtree__keys"
+        },
+        {
+          "measure": "fieldset.vtree__keys .icon-btn"
+        },
+        {
+          "count": ["fieldset.vtree__keys .icon-btn", "[role=treeitem]"]
+        },
+        {
+          "shot": "1280-vault-keys"
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-27-vault-import-export/app.env"
+          }
+        },
+        {
+          "measure": ".sheet"
+        },
+        {
+          "report": ".sheet .found dt, .sheet .found dd"
+        },
+        {
+          "report": ".sheet .found__do button"
+        },
+        {
+          "shot": "1280-import-preview"
+        },
+        {
+          "pressOptional": "^Import 2 items$"
+        },
+        {
+          "report": ".sheet .found__top"
+        },
+        {
+          "shot": "1280-import-done"
+        },
+        {
+          "pressOptional": "^Done$"
+        },
+        {
+          "count": ["[role=treeitem]"]
+        },
+        {
+          "report": "[role=treeitem]"
+        },
+        {
+          "shot": "1280-imported"
+        },
+        {
+          "pressOptional": "^Export items$"
+        },
+        {
+          "measure": ".sheet"
+        },
+        {
+          "report": ".sheet .found dt, .sheet .found dd"
+        },
+        {
+          "shot": "1280-export-sheet"
+        },
+        {
+          "pressOptional": "^Save backup$"
+        },
+        {
+          "report": ".sheet .found__top"
+        },
+        {
+          "shot": "1280-export-saved"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-vault-keys",
+      "width": 390,
+      "title": "Vault path strip — 390 × 844, touch",
+      "caption": "A password vault just sealed. The command group is filter, +, import, export again.",
+      "before": "2 icon keys (filter, +) · group 140×44",
+      "after": "4 icon keys (filter, +, import, export) · 44×44 each · group 236×44"
+    },
+    {
+      "shot": "1280-vault-keys",
+      "width": 1280,
+      "title": "Vault path strip — 1280 × 900",
+      "caption": "The same group on a desktop, where the filter lives in the rail.",
+      "before": "1 visible key (+) · group 69×24",
+      "after": "3 visible keys (+, import, export) · 24×24 each · group 125×24"
+    },
+    {
+      "shot": "390-import-preview",
+      "width": 390,
+      "title": "Import picked app.env — 390 × 844, touch",
+      "caption": "Import opens the OS file picker; the file chosen opens the preview sheet. Nothing is written yet.",
+      "before": "no Import key — no picker, no sheet",
+      "after": "sheet 390×743 · Format .env file · Secrets 2 · Folders 1 · commit “Import 2 items”"
+    },
+    {
+      "shot": "1280-import-preview",
+      "width": 1280,
+      "title": "Import picked app.env — 1280 × 900",
+      "caption": "The side sheet: facts, the format it was read as, where items land, skip copies, the rows to be written.",
+      "before": "no Import key — no picker, no sheet",
+      "after": "sheet 424×900 · 2 preview rows · the adapter's note as a fact"
+    },
+    {
+      "shot": "390-imported",
+      "width": 390,
+      "title": "After the commit — 390 × 844, touch",
+      "caption": "Import 2 items, then Done: the items are in the vault, sealed.",
+      "before": "14 tree rows · nothing imported",
+      "after": "17 tree rows · Imported .env/ with EXAMPLE_TOKEN.secret, SERVICE_URL.secret"
+    },
+    {
+      "shot": "1280-imported",
+      "width": 1280,
+      "title": "After the commit — 1280 × 900",
+      "caption": "The same on a desktop.",
+      "before": "14 tree rows",
+      "after": "17 tree rows · Imported .env/ (2)"
+    },
+    {
+      "shot": "390-export-saved",
+      "width": 390,
+      "title": "Export — 390 × 844, touch",
+      "caption": "Export opens the encrypted-backup sheet; Save backup downloads the offline-backup envelope.",
+      "before": "no Export key",
+      "after": "sheet 390×327 · Saved · opensesame-offline-backup-2026-09-27.json · ciphertext only"
+    },
+    {
+      "shot": "1280-export-sheet",
+      "width": 1280,
+      "title": "Export — 1280 × 900",
+      "caption": "The facts of the file before it is written: vault, live items, its key, what it holds.",
+      "before": "no Export key",
+      "after": "sheet 424×900 · Vault personal · Items 2 · Opens with the master password"
+    }
+  ]
+}

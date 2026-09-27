@@ -1,0 +1,22 @@
+[
+  {
+    "path": "Dev/GitHub",
+    "secret": "correct-horse-7",
+    "trailer": "{\"kind\":\"login\",\"username\":\"octo\",\"uris\":[\"https://github.com\",\"gist.github.com\"],\"uriMatches\":[\"domain\",\"host\"]}\notpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub\n"
+  },
+  {
+    "path": "Bank",
+    "secret": "Fjord-Lantern-9",
+    "trailer": "{\"kind\":\"login\",\"notes\":\"Branch 12\",\"username\":\"avery\",\"totp\":\"JBSWY3DPEHPK3PXP\",\"uris\":[],\"uriMatches\":[]}\n"
+  },
+  {
+    "path": "Dev/Deploy hook",
+    "secret": "whsec_conformance",
+    "trailer": "{\"kind\":\"secret\",\"connectionRef\":\"conn_deploy_hook\"}\n"
+  },
+  {
+    "path": "Personal/Recovery kit",
+    "secret": "Paper kit in the fire safe.",
+    "trailer": "{\"kind\":\"note\"}\n"
+  }
+]
