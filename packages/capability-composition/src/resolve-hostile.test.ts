@@ -92,6 +92,28 @@ describe("an alternatives slot named like a prototype member", () => {
 });
 
 describe("module completeness (carried from #470's not-shipped rule)", () => {
+  it("a worker unit is not a page module: the build never lists it, and it does not count", () => {
+    const distribution = {
+      ...FIXTURE_DISTRIBUTION,
+      moduleIds: FIXTURE_DISTRIBUTION.moduleIds.filter(
+        (m) => m !== "notifications.web-push/worker",
+      ),
+    };
+    const { plan } = resolveWithConsent(
+      familyInput({
+        distribution,
+        installation: fixtureSelection({
+          selectedOptional: ["notifications.web-push"],
+        }),
+      }),
+    );
+    expect(plan.capabilities["notifications.web-push"]).toMatchObject({
+      distributed: true,
+      approved: true,
+      reasons: [],
+    });
+  });
+
   it("a capability whose module did not ship is not distributed, and never approved", () => {
     const baseline = resolveWithConsent(familyInput()).plan;
     const target = baseline.approvedCapabilities.find(

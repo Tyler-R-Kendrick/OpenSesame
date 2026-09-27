@@ -6,8 +6,9 @@
  * a policy their listing is residue of the projection — nobody chose it —
  * and reading it as an operator's withdrawal would take git backup and
  * browser-local sign-in away from every Personal and Family device set up
- * before. It is dropped when the policy is read. A policy written by hand, or
- * projected by a version-2 preset, still withdraws them.
+ * before. It is dropped when the policy is read, from `required` and
+ * `optional` as well, where the projection listed them as offered. A policy
+ * written by hand, or projected by a version-2 preset, still withdraws them.
  */
 
 import type {
@@ -37,8 +38,21 @@ export function withoutPresetResidue(
   if (from === null || from.version !== 1 || !PRESET_IDS.has(from.id)) {
     return policy;
   }
-  const listed = policy.capabilities.prohibited;
-  const prohibited = listed.filter((id) => !PROMOTED_TO_ALWAYS_ON.has(id));
-  if (prohibited.length === listed.length) return policy;
-  return { ...policy, capabilities: { ...policy.capabilities, prohibited } };
+  // The projection also listed the promoted ids as offered: in `optional`
+  // (or `required`) they are residue too, and a core id there is only a
+  // standing diagnostic on every boot.
+  const caps = policy.capabilities;
+  const keep = (ids: readonly CapabilityId[]) =>
+    ids.filter((id) => !PROMOTED_TO_ALWAYS_ON.has(id));
+  const stripped = {
+    ...caps,
+    required: keep(caps.required),
+    optional: keep(caps.optional),
+    prohibited: keep(caps.prohibited),
+  };
+  const unchanged =
+    stripped.required.length === caps.required.length &&
+    stripped.optional.length === caps.optional.length &&
+    stripped.prohibited.length === caps.prohibited.length;
+  return unchanged ? policy : { ...policy, capabilities: stripped };
 }

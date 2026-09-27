@@ -65,6 +65,7 @@ export {
   resolveComposition,
 } from "./resolve.js";
 export { diagnoseRuntimeDocuments } from "./diagnose.js";
+export { isVaultForeign } from "./resolve-axes.js";
 export { reviewCompositionChange } from "./review.js";
 export {
   type ConsentCandidates,

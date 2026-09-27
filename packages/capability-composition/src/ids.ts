@@ -44,6 +44,16 @@ export function moduleCapability(v: ModuleId): CapabilityId | null {
   return v.slice(0, v.indexOf("/"));
 }
 
+/**
+ * A worker unit (`<id>/worker`) runs in a service worker variant, never on the
+ * page: the build keeps it out of the module table and the distribution's
+ * `moduleIds` (capability-distribution.mjs), and a worker variant satisfies it
+ * (`workerGraphConstraint`).
+ */
+export function isWorkerModule(v: ModuleId): boolean {
+  return isModuleId(v) && v.slice(v.indexOf("/") + 1) === "worker";
+}
+
 /** Instance, installation, and vault ids: `^[A-Za-z0-9._:-]+$`, 1–128. */
 export function isOpaqueId(v: string): boolean {
   return (
