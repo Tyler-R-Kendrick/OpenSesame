@@ -70,9 +70,14 @@ function sectionsFor(
 ): PageTreeSource[] {
   switch (category) {
     case "general":
-      return snapshot.install
-        ? [panel("general", "settings-install", "Install")]
-        : [];
+      return [
+        ...(snapshot.install
+          ? [panel("general", "settings-install", "Install")]
+          : []),
+        panel("general", "settings-appearance", "Appearance"),
+        panel("general", "settings-locking", "Locking"),
+        panel("general", "settings-keybindings", "Keybindings and views"),
+      ];
     case "security":
       return [
         panel("security", "vault-key-protection", "Vault key protection"),
@@ -97,6 +102,8 @@ function sectionsFor(
         snapshot.guests ?? true,
         snapshot.instancePolicy ?? false,
       );
+    case "danger":
+      return [panel("danger", "settings-delete-vault", "Delete this vault")];
     default:
       return [];
   }
@@ -104,7 +111,9 @@ function sectionsFor(
 
 /**
  * Settings page: each tab is a subtree of the panels/headings that tab shows.
- * The rail must not keep a second hardcoded hierarchy.
+ * The rail must not keep a second hardcoded hierarchy. Every tab lists its
+ * panels, so every tab is the same kind of row: one left with nothing under
+ * it drew without a caret, one indent left of its siblings.
  */
 export function settingsPageSources(
   snapshot: SettingsRailSnapshot = {},

@@ -149,8 +149,8 @@ describe("SettingsSection", () => {
 
   it("opens on General with appearance and locking controls", () => {
     renderSettings();
-    expect(screen.getByText("Appearance")).toBeTruthy();
-    expect(screen.getByText("Locking")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Appearance" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Locking" })).toBeTruthy();
     // Child panels from other categories stay unmounted.
     expect(screen.queryByTestId("unlock-methods-panel")).toBeNull();
     expect(screen.queryByTestId("taskbus-panel")).toBeNull();
@@ -276,6 +276,18 @@ describe("SettingsSection", () => {
     expect(
       screen.getByRole("heading", { name: "Identity providers" }),
     ).toBeTruthy();
+  });
+
+  it("lands a rail link on its panel on every tab, not only Security", () => {
+    const scrollBy = vi.fn();
+    vi.stubGlobal("scrollBy", scrollBy);
+    renderSettings("/settings#settings-locking");
+    expect(document.getElementById("settings-locking")).toBeTruthy();
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    cleanup();
+    renderSettings("/settings/danger#settings-delete-vault");
+    expect(document.getElementById("settings-delete-vault")).toBeTruthy();
+    expect(scrollBy).toHaveBeenCalledTimes(2);
   });
 
   it("destroys the vault only after confirmation", async () => {

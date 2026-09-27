@@ -13,6 +13,7 @@ import { menuSteps } from "./capture-menu-steps.mjs";
 import { networkSteps } from "./capture-network-steps.mjs";
 import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
+import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
 
 export function extraSteps({ press }) {
@@ -25,6 +26,7 @@ export function extraSteps({ press }) {
     ...invokeSteps(),
     ...markSteps({ press }),
     ...placeSteps(),
+    ...railSteps(),
     ...routingSteps(),
     ...orgSignInSteps(),
     ...networkSteps(),

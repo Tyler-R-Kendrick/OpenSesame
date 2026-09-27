@@ -1,0 +1,138 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "expandOptional": "General"
+        },
+        {
+          "expandOptional": "Danger"
+        },
+        {
+          "measure": ".railtree__row[aria-level='2']:is([aria-label='General'],[aria-label='Security'],[aria-label='Vaults'],[aria-label='Capabilities'],[aria-label='Danger']) > .railtree__name"
+        },
+        {
+          "count": [".railtree__row[aria-level='2'][aria-expanded]"]
+        },
+        {
+          "shot": "1280-settings-rail"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "expand": "Capabilities"
+        },
+        {
+          "rail": "Encryption"
+        },
+        {
+          "address": null
+        },
+        {
+          "measure": "#feature-encryption"
+        },
+        {
+          "shot": "1280-settings-link-lands"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "expand": "Grants"
+        },
+        {
+          "measure": "#grants-tree > .railtree__row > .railtree__name"
+        },
+        {
+          "shot": "1280-access-grants"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "count": [".page-index a"]
+        },
+        {
+          "measure": ".page-index"
+        },
+        {
+          "shot": "390-settings-general"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-settings-rail",
+      "width": 1280,
+      "title": "Settings rail, General and Danger open (1280 \u00d7 800)",
+      "caption": "Settings had the Access defect too. General and Danger listed no panels, so they drew as caret-less rows one indent left of Security, Vaults and Capabilities, and could not open. Now every tab opens onto the panels its page draws.",
+      "before": "tab names x=33,52,52,52,33; carets on 3 of 5 tabs",
+      "after": "all five at x=52; carets on 5 of 5; General \u203a Appearance, Locking, Keybindings and views; Danger \u203a Delete this vault"
+    },
+    {
+      "shot": "1280-settings-link-lands",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities \u203a Encryption, followed from the rail (1280 \u00d7 800)",
+      "caption": "A rail entry for a Settings panel changed the address and left the page where it was on every tab but Security. Following it now brings the panel to the top, as it already did on Security.",
+      "before": "#feature-encryption top at y=339, page not scrolled",
+      "after": "#feature-encryption top at y=16"
+    },
+    {
+      "shot": "1280-access-grants",
+      "width": 1280,
+      "title": "Access \u203a Grants in the rail (1280 \u00d7 800)",
+      "caption": "The Access tree now names the panels the page draws, in its order. Portable grants was drawn first on the page but missing from the rail. The Host panels the tree listed when a Host is configured are gone, because the page has none.",
+      "before": "Grants \u203a Local application grants, Identity shares",
+      "after": "Grants \u203a Portable grants, Local application grants, Identity shares"
+    },
+    {
+      "shot": "390-settings-general",
+      "width": 390,
+      "title": "Settings \u203a General on a phone (390 \u00d7 844)",
+      "caption": "A phone reaches a tab's panels through the On this page strip, built from the same tree. General listed no panels, so it had no strip; it now has one, like Security.",
+      "before": "no page index (0 links)",
+      "after": "page index 390\u00d752, 3 links: Appearance, Locking, Keybindings and views"
+    }
+  ]
+}
