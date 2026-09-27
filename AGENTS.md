@@ -195,7 +195,7 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # landscape, in a real coarse-pointer context. Every interactive control is
 # 44px, no form control is under 16px (iOS zooms a smaller one on focus and
 # never zooms back), nothing floating rests on a control, the statusline is
-# one row, the tab bar ends on the last pixel, the chrome stays under a third
+# one row, the sections sit in a drawer, the chrome stays under a third
 # of the screen, and no strip hides its own selected item. Run before touching
 # layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \

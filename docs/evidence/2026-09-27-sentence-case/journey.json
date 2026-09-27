@@ -1,0 +1,76 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "measure": ".unlock__notes-summary-label"
+        },
+        {
+          "report": ".unlock__notes-summary-label"
+        },
+        {
+          "shot": "390-door-notes"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "measure": ".unlock__notes-summary-label"
+        },
+        {
+          "shot": "1280-door-notes"
+        },
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollTo": "Formats"
+        },
+        {
+          "measure": ".fmt__table thead th"
+        },
+        {
+          "report": ".fmt__table thead th"
+        },
+        {
+          "shot": "1280-formats"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-door-notes",
+      "width": 390,
+      "title": "Front door, release notes \u2014 390 \u00d7 844",
+      "caption": "The release notes subheader was forced to capitals by the stylesheet; DESIGN.md asks for sentence case everywhere.",
+      "before": "rendered \"RELEASE NOTES \u00b7 0.1.0\", letter-spaced",
+      "after": "rendered \"Release notes \u00b7 0.1.0\""
+    },
+    {
+      "shot": "1280-door-notes",
+      "width": 1280,
+      "title": "Front door, release notes \u2014 1280 \u00d7 900",
+      "caption": "Same subheader beside the gate on a wide screen.",
+      "before": "label 175\u00d720 @691,106 (\"RELEASE NOTES \u00b7 0.1.0\")",
+      "after": "label 164\u00d720 @691,106 (\"Release notes \u00b7 0.1.0\")"
+    },
+    {
+      "shot": "1280-formats",
+      "width": 1280,
+      "title": "Settings \u203a Security \u203a Formats \u2014 1280 \u00d7 900",
+      "caption": "The formats table's column heads were capitals too.",
+      "before": "FORMAT 266 \u00b7 READ 193 \u00b7 WRITE 222 \u00b7 RUNTIME 279 (px wide)",
+      "after": "Format 274 \u00b7 Read 192 \u00b7 Write 220 \u00b7 Runtime 275 (px wide)"
+    }
+  ]
+}

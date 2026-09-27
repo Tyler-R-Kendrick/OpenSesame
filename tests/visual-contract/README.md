@@ -5,24 +5,23 @@ Pixel-level visual regression contract for `apps/pages` against the
 
 ## Why this exists
 
-`.impeccable/design.json` names this app's design identity **"Authority
-Vault"**: a navy sidebar (`#152033`), a teal accent (`#0f766e`) on a light
-`#eef1f6` content area, an unlock-first session gate, a search+filter vault
-list, and Source Sans 3 / IBM Plex Mono typography — explicitly *not*
-Bitwarden purple, per the design contract's "Competitor Marks Rule". Those
+[`DESIGN.md`](../../DESIGN.md) is the design contract for `apps/pages`: one
+light paper surface with a hairline-divided rail, zero-spread neutrals, teal
+as the single accent for state and identity (primary actions are ink), the
+mono terminal voice with sans prose, the slot-reel `open-sesame` wordmark,
+and the front door as the first screen of an empty device (ADR 0115). Those
 are qualities a type checker and a unit test suite cannot see. This package
 renders the real app with Playwright and diffs it, pixel by pixel, against
-six checked-in reference screenshots so a change that silently breaks the
-Authority Vault look (wrong sidebar color, a regressed unlock card, a
-reflowed vault list) fails a test instead of shipping.
+six checked-in reference screenshots so a change that silently moves one of
+those screens fails a test instead of shipping.
 
 The six baselines it enforces:
 
 | Baseline | What it captures |
 | --- | --- |
-| `pages-desktop.png` / `pages-mobile.png` | First paint of the app shell on load |
-| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The unlock screen, settled (first-run master-password form) |
-| `vault-list-desktop.png` / `vault-list-mobile.png` | The vault landing page, right after completing unlock |
+| `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, then sign-in with the guest road and "Use without an account" |
+| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only seal form behind "Use without an account" (`#master`, `#confirm`, the no-recovery checkbox) |
+| `vault-list-desktop.png` / `vault-list-mobile.png` | The empty vault, right after sealing |
 
 ## Running it locally
 
@@ -41,8 +40,10 @@ pnpm --filter @opensesame/visual-contract test:visual
 
 This drives `playwright test` (config: `playwright.config.ts`), which:
 
-1. Starts `apps/pages` for real via its own `webServer` — `pnpm --filter
-   @opensesame/pages build && pnpm --filter @opensesame/pages preview` on
+1. Starts `apps/pages` for real via its own `webServer` — `pnpm exec turbo
+   run build --filter=@opensesame/pages` (which builds the workspace
+   packages Pages imports first, so a fresh checkout works) and `vite
+   preview` on
    its own strict port `5182`, so it never reuses a developer's `5180`
    dev server — with `VITE_BASE=/`
    overriding that app's GitHub-Pages default of `/OpenSesame/` (Playwright's
@@ -53,10 +54,19 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
 2. Runs `tests/vault-visual-contract.spec.ts` under two projects —
    `desktop` (1440×900, matching the checked-in baselines) and `mobile`
    (390×844, `devices["iPhone 13"]` with
-   `isMobile`/`hasTouch`) — driving the real first-run unlock flow using the
-   selectors read directly from `apps/pages/src/screens/UnlockScreen.tsx`
-   (`#master`, `#confirm`, the `"Seal this device"` button) and
-   `VaultSection.tsx` (`.vault`, heading `"All items"`).
+   `isMobile`/`hasTouch`) — walking the first run a visitor walks today:
+   the front door (`apps/pages/src/screens/FrontDoor.tsx`, `.door`), the
+   "Use without an account" road to the seal form
+   (`apps/pages/src/screens/UnlockScreen.tsx`: `#master`, `#confirm`,
+   the `"Seal this device"` button), and the vault
+   (`apps/pages/src/sections/VaultSection.tsx`, `.vault`, the empty state
+   `"Nothing here"`). Every test gets a fresh browser context, so every run
+   is a true first run. Nothing is mocked: Pages calls no backend by default
+   (ADR 0090), so a request that leaves the preview origin, or an uncaught
+   page error, fails the test. Service workers are blocked
+   (`serviceWorkers: "block"`, as in the other Pages harnesses): a fresh
+   context would otherwise install one and reload on its first
+   `controllerchange`, at a moment of its own choosing.
 3. Screenshots each screen with `page.screenshot()` (not Playwright's own
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
    filenames to diff against the pre-existing `.impeccable/screenshots/*.png`
@@ -104,19 +114,20 @@ they're correct. In practice that means:
 
 ## Known caveats (read before trusting a "pass")
 
-- **`pages-*` and `vault-unlock-*` currently show the same screen.**
-  `apps/pages` (`src/App.tsx`) renders `UnlockScreen` for every URL while
-  the vault is locked, and every Playwright test gets a fresh browser
-  context (empty OPFS, no enrolled password), so both baselines land on
-  the first-run master-password form. They are captured at two different
-  points — `pages-*` right as `.unlock__card` mounts, `vault-unlock-*`
-  after `document.fonts.ready` — so they aren't literally byte-identical
-  files, but expect them to look very close. Both captures wait for
-  `document.fonts.ready` so a blocked webfonts fetch cannot flake the
-  first-paint shot. Animations and transitions are disabled for capture so
-  the `.unlock__card` settle keyframe cannot land mid-tween. If `apps/pages`
-  ever grows a real loading/splash state distinct from unlock, revisit
-  `tests/vault-visual-contract.spec.ts` so `pages-*` captures that instead.
+- **A mostly-empty screen is cheap to match.** The budget is a share of all
+  pixels, and these screens are mostly paper: a capture of a blank frame once
+  passed `pages-mobile` inside 1.5%. Each capture therefore asserts its
+  landmark (the door's card, `#master`, `.vault`) is visible immediately
+  before and after the screenshot. Keep that when adding a screen.
+- **Motion is frozen for capture.** An init script sets `animation: none` and
+  `transition: none`, so the `.unlock__card` settle and the wordmark's slot
+  reel stand on their final frame (the reel's letters are its static state,
+  `apps/pages/src/components/wordmark.css`). Every capture waits for
+  `document.fonts.ready`. Pages uses the system font stacks plus the
+  self-hosted Share Tech Mono of the wordmark, so there is no webfont
+  network dependency. Two consecutive runs reproduce five of the six
+  captures byte for byte; `pages-mobile` varies by about 200 pixels of
+  antialiasing in the wordmark (0.06%, far inside the budget).
 - **Resolved: desktop viewport now matches the checked-in baselines.** This
   package was originally speced with a 1280×800 desktop viewport, but the
   six PNGs in `.impeccable/screenshots/` were measured (via their PNG
@@ -126,16 +137,6 @@ they're correct. In practice that means:
   `playwright.config.ts`'s `desktop` project viewport was corrected to
   1440×900 to match rather than rebaselining. The three mobile baselines
   are 390×844, which already matched this suite's mobile viewport.
-- **Google Fonts is a live network dependency.** `apps/pages/index.html`
-  loads Source Sans 3 / IBM Plex Mono from `fonts.googleapis.com` /
-  `fonts.gstatic.com` (with a CSS system-font fallback if blocked). If the
-  runtime executing this suite has no outbound access to those hosts, text
-  will render in fallback fonts and may trip the pixel-diff budget even
-  though the app itself is behaving correctly. In practice this has shown
-  up as one-off flakiness specifically on the `pages-*` shot (captured
-  before `document.fonts.ready`, unlike the other five) — a lone failure
-  there on an otherwise-green run is this, not a regression; a second run
-  confirms it.
 - **Resolved: mobile browser engine and pixel density.**
   `devices["iPhone 13"]` sets `defaultBrowserType: "webkit"` to emulate
   real Mobile Safari, but only Chromium is preinstalled in this repo's
@@ -162,7 +163,7 @@ the diff — most strikingly, `pages-desktop.png`/`pages-mobile.png` were
 screenshots of an entirely different, since-abandoned dark navy/yellow
 "NEXT DECISION" surface (the exact "yellow airport depth-band world"
 `DESIGN.md`'s Do/Don't list calls out by name), not a rendering of the
-current teal "Authority Vault" unlock screen at all; the `vault-unlock-*`
+then-current teal unlock screen at all; the `vault-unlock-*`
 and `vault-list-*` baselines were stale by smaller, genuine content/copy
 changes (e.g. the unlock screen's security-transparency copy grew a
 "PIN ≥ 6 chars, salted PBKDF2" clause after those baselines were captured).
@@ -170,6 +171,23 @@ None of the differences traced back to this build-out's own changes
 (telemetry wiring, a11y fixes) — every diff was inspected visually before
 rebaselining, per the rule above that a baseline update must be
 intentional and reviewed, not blind.
+
+**2026-09-27.** All six were re-seeded from `main` at `3a832827` plus the fix
+below, after each failure was read. They predated, by a month of deliberate
+product changes: the front door as the first screen (ADR 0115, `20d3c0fb`),
+the slot-reel wordmark (DESIGN.md § Mark, `b8d2048e`), the release notes
+beside the gate and the pad moved onto the card (`ed1d403d`), "Reset this
+browser?" on the lock screens (`3a832827`), the phone chrome without a tab
+bar or statusline (`4358f7fe`), the command bar (`e48fb139`), the Activity
+section (`424bc48c`), hidden `trash/` (`34e46bc9`), and `-` for an empty
+count (`b13e1f6a`). One difference was a regression, not a design change:
+`ed1d403d` left the phone block's own gutter in place, so the seal and unlock
+forms sat 20px further in on each side than the front door (at 320px the
+theme key covered the wordmark's last letter). That was fixed in
+`apps/pages/src/screens/unlock.css` before re-seeding; evidence in
+`docs/evidence/2026-09-27-unlock-phone-gutter/`. The spec had also drifted:
+`pages-*` could capture the blank frame of a service-worker reload, and it
+mocked Host and Identity APIs Pages no longer calls.
 
 ## What the orchestrator should do next
 
