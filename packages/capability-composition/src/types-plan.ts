@@ -40,6 +40,7 @@ export const REASON_CODES = [
   "DEPENDENCY_CONFLICT",
   "ALTERNATIVE_NOT_CHOSEN",
   "CONSENT_REQUIRED",
+  "RELOAD_REQUIRED",
   "NOT_CACHED_OFFLINE",
   "RESTART_REQUIRED",
 ] as const;
@@ -235,6 +236,7 @@ export type CapabilityLifecycle =
   | "disabled"
   | "disabled-restart-required"
   | "cached-offline"
+  | "reload-required"
   | "revocation-pending";
 
 /**

@@ -8,6 +8,7 @@
  */
 
 import type {
+  CapabilityId,
   ExecutionEnvironment,
   ModuleId,
   RuntimeFacts,
@@ -52,6 +53,7 @@ export type CollectFactsInput = Readonly<{
   evaluatedModuleIds?: readonly ModuleId[];
   activeWorkerVariant: string | null;
   cleanRealm?: boolean;
+  approvedAtLoad?: readonly CapabilityId[];
   now: string;
 }>;
 
@@ -64,6 +66,7 @@ export function collectRuntimeFacts(input: CollectFactsInput): RuntimeFacts {
     activeWorkerVariant: input.activeWorkerVariant,
     cleanRealm: input.cleanRealm ?? evaluatedIds.length === 0,
     evaluatedModuleIds: [...evaluatedIds].sort(),
+    approvedAtLoad: [...(input.approvedAtLoad ?? [])].sort(),
     now: input.now,
   };
 }

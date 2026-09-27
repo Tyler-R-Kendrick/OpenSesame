@@ -320,6 +320,10 @@ export class CompositionStore {
       state.receipt,
     );
     const plan = resolveComposition(input);
+    // While nothing has run, whatever this plan approves may start as the
+    // document loads; once a module has run, the set stays as it was.
+    if (input.facts.cleanRealm)
+      state.approvedAtLoad = plan.approvedCapabilities;
     // Recomputed per resolve, never accumulated: they describe these documents.
     this.#documentNotes = documentDiagnostics(input);
     this.#minted = mintLease(plan.identity, state.generation);

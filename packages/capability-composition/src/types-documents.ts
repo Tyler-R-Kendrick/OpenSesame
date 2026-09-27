@@ -146,6 +146,12 @@ export type RuntimeFacts = Readonly<{
   cleanRealm: boolean;
   /** Module ids already evaluated in this realm (for RESTART_REQUIRED). */
   evaluatedModuleIds: readonly ModuleId[];
+  /**
+   * What this document approved while its realm was still clean. Those start
+   * without a reload even after other modules have run; only a capability
+   * approved later, needing a fresh document, waits (RELOAD_REQUIRED).
+   */
+  approvedAtLoad: readonly CapabilityId[];
   /** ISO 8601 evaluation time, supplied explicitly. */
   now: string;
 }>;

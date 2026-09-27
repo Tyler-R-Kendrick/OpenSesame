@@ -205,6 +205,9 @@ export async function activateApprovedCapability(
       id,
     );
   }
+  if (capabilityState(plan, id)?.reasons.includes("RELOAD_REQUIRED")) {
+    throw new CapabilityDenied("RELOAD_REQUIRED", id);
+  }
   const child = deriveLease(lease);
   bindLeaseToCapability(child.lease, id);
   const ctx = contextFor(id, child.lease);

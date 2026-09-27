@@ -174,9 +174,24 @@ function buildState(
       : optionalReasons(ctx, pass, axis, joinRefused);
   if (pass.worker.unavailable.has(axis.id))
     reasons.push("WORKER_GRAPH_UNAVAILABLE");
-  const restartRequired =
-    !approved && (d?.moduleIds ?? []).some((m) => ctx.evaluatedModules.has(m));
+  const evaluated = (d?.moduleIds ?? []).some((m) =>
+    ctx.evaluatedModules.has(m),
+  );
+  const restartRequired = !approved && evaluated;
   if (restartRequired) reasons.push("RESTART_REQUIRED");
+  // Approved after load, but it must start in a fresh document and this one
+  // has already run other modules: it stays approved and waits for a reload
+  // rather than starting half-registered (carried from #470's
+  // restart-required rule). What the document approved at load still starts.
+  const facts = ctx.input.facts;
+  if (
+    approved &&
+    !evaluated &&
+    d?.requiresDocumentReload === true &&
+    !facts.cleanRealm &&
+    !facts.approvedAtLoad.includes(axis.id)
+  )
+    reasons.push("RELOAD_REQUIRED");
   return {
     id: axis.id,
     tier: axis.tier,

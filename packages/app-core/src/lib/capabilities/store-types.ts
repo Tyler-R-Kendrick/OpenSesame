@@ -109,6 +109,7 @@ function lifecycleFor(
   if (state.approved) {
     if (activity === "active") return "active";
     if (activity === "loading") return "loading";
+    if (state.reasons.includes("RELOAD_REQUIRED")) return "reload-required";
     return "approved-not-loaded";
   }
   if (state.restartRequired) return "disabled-restart-required";

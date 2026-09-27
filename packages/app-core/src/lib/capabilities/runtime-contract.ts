@@ -320,7 +320,9 @@ export type CapabilityDenialCode =
   /** No live registration of the current generation vouches for the call. */
   | "NOT_REGISTERED"
   /** Cross-context admission could not be serialized (no Web Locks). */
-  | "NO_SERIALIZATION";
+  | "NO_SERIALIZATION"
+  /** Approved, but it starts only in a fresh document: reload first. */
+  | "RELOAD_REQUIRED";
 
 /** Thrown before any handler import when authority is missing or stale. */
 export class CapabilityDenied extends Error {
