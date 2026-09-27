@@ -75,7 +75,10 @@ describe("docs index", () => {
     expect(renderIndex(first, ["A"], [["2"]])).not.toContain("| 1 |");
   });
 
-  it("the committed indexes are current", () => {
+  // A child process over the whole docs tree: about 0.1s alone, but on a
+  // loaded runner the spawn alone outlasted Vitest's 5s default and failed
+  // a check whose indexes were current.
+  it("the committed indexes are current", { timeout: 60_000 }, () => {
     expect(() =>
       execFileSync(
         "node",
