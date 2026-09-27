@@ -42,7 +42,7 @@ describe("providerPages", () => {
     expect(page.body).not.toContain("<img");
     expect(page.body).not.toContain("state");
     expect(page.body).not.toMatch(EXTERNAL);
-    expect(page.body).toContain("<style>.btn{color:teal}</style>");
+    expect(page.body).toContain("<style>.btn{color:teal}");
   });
 
   it("keeps the device form and the button that submits it", async () => {
@@ -56,6 +56,9 @@ describe("providerPages", () => {
     );
     expect(page.body).toContain(form);
     expect(page.body).toContain('form="op.deviceInputForm"');
+    // The bare field meets the touch floor: 16px text, 44px tall.
+    expect(page.body).toContain("font-size:16px");
+    expect(page.body).toContain("min-height:44px");
     expect(page.body).not.toMatch(EXTERNAL);
   });
 

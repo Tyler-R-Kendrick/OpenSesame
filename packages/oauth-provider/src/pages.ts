@@ -46,6 +46,19 @@ const PLAIN_STYLES = [
   "code{font-size:1.5em}",
 ].join("");
 
+/**
+ * The provider's own form controls, whatever the skin: its device-code
+ * field arrives bare, and a field under 16px makes iOS zoom in on focus
+ * and never zoom back. Every key and field meets the 44px touch floor.
+ */
+const FORM_STYLES = [
+  "input[type=text]{display:block;box-sizing:border-box;width:100%;",
+  "min-height:44px;margin:0 0 .75rem;padding:0 .75rem;font:inherit;",
+  "font-size:16px;text-align:center;text-transform:uppercase;",
+  "letter-spacing:.1em}input[type=text]::placeholder{text-transform:none;",
+  "letter-spacing:normal}button,.btn{min-height:44px}",
+].join("");
+
 const ESCAPES = new Map([
   ["&", "&amp;"],
   ["<", "&lt;"],
@@ -80,7 +93,7 @@ function drawWith(styles: string): Draw {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>${escapeHtml(title)}</title>
-  <style>${styles}</style>
+  <style>${styles}${FORM_STYLES}</style>
 </head>
 <body>
   <main>
