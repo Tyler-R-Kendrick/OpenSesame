@@ -21,6 +21,7 @@ import {
   validationOf,
 } from "./diagnostics.js";
 import { isCapabilityId, isModuleId, isUnitName } from "./ids.js";
+import { keyAccessProblem } from "./key-access.js";
 import type {
   CapabilityCatalog,
   CapabilityDescriptor,
@@ -44,12 +45,6 @@ const EGRESS_CLASSES = new Set([
   "external-service",
   "peer-or-local-network",
   "user-mediated-navigation",
-]);
-const KEY_ACCESS = new Set([
-  "none",
-  "item-plaintext",
-  "protector-wrap",
-  "provider-bearer",
 ]);
 
 export type CatalogIndex = ReadonlyMap<CapabilityId, CapabilityDescriptor>;
@@ -117,14 +112,11 @@ function checkText(
       ),
     );
   }
-  if (!KEY_ACCESS.has(d.keyAccess)) {
+  const keyAccess = keyAccessProblem(d.keyAccess);
+  if (keyAccess !== null) {
     pushDiagnostic(
       diags,
-      diagnostic(
-        "INVALID_VALUE",
-        `${path}.keyAccess`,
-        "unknown key access class",
-      ),
+      diagnostic("INVALID_VALUE", `${path}.keyAccess`, keyAccess),
     );
   }
 }

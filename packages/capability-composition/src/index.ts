@@ -73,6 +73,13 @@ export {
   computeConsentDelta,
   consentCandidatesOf,
 } from "./consent.js";
+export {
+  KEY_ACCESS_CLASSES,
+  keyAccessClasses,
+  keyAccessDigestBody,
+  keyAccessProblem,
+} from "./key-access.js";
+export { isServiceOrigin } from "./origins.js";
 export { BLOCKING_REASONS, REASON_CODES, sortReasons } from "./reasons.js";
 export {
   FIXTURE_CATALOG,
