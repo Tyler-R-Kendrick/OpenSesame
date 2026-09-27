@@ -26,7 +26,7 @@ import {
   identityErrorText,
   providerChipLabel,
 } from "@opensesame/app-core/sections/identity-section-model.js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import {
   IconLogin,
@@ -61,24 +61,25 @@ export function ProvidersPanel({
   const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
     null,
   );
-  const [loads, setLoads] = useState(0);
+  const generation = useRef(0);
   const registerRef = useGuideTarget<HTMLButtonElement>(
     "identity.register-idp",
   );
 
-  // `loads` is the reload key's: the registry mirror and the catalog are
-  // read again, as every other Identity list's reload does.
+  // Read the catalog; a later read (or leaving) makes an earlier one moot.
+  const refresh = useCallback(() => {
+    const current = ++generation.current;
+    void listFederatedProviders().then((found) => {
+      if (current === generation.current) setCatalog(found);
+    });
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
-    void loads;
-    void (async () => {
-      const found = await listFederatedProviders();
-      if (!cancelled) setCatalog(found);
-    })();
+    refresh();
     return () => {
-      cancelled = true;
+      generation.current += 1;
     };
-  }, [loads]);
+  }, [refresh]);
 
   const rows = useMemo(() => {
     if (!catalog || catalog.length === 0) return providers;
@@ -110,7 +111,7 @@ export function ProvidersPanel({
             label="Reload providers"
             onReload={() => {
               onChanged(listIdpRegistrations());
-              setLoads((count) => count + 1);
+              refresh();
             }}
           />
         </fieldset>
@@ -199,13 +200,17 @@ function ProviderRow({
         <div className="identity-row__id">
           <h3>{record.label}</h3>
           <code className="identity-ref">{record.issuer}</code>
+          {/* The kind is a label, not a status: plain text in the id column,
+              never a pill (DESIGN.md § Status is a symbol). */}
+          {device ? null : (
+            <span className="identity-row__kind">{chipLabel}</span>
+          )}
+          {record.kind === "byo" ? (
+            <span className="identity-row__when">
+              registered {formatTime(record.registeredAt)}
+            </span>
+          ) : null}
         </div>
-        {device ? null : <span className="chip">{chipLabel}</span>}
-        {record.kind === "byo" ? (
-          <span className="identity-row__when">
-            registered {formatTime(record.registeredAt)}
-          </span>
-        ) : null}
         {device ? null : (
           <ProviderActions
             record={record}
@@ -217,11 +222,6 @@ function ProviderRow({
           />
         )}
       </div>
-      {confirming ? (
-        <p className="hint">
-          The server-side registration is disabled by the operator, not deleted.
-        </p>
-      ) : null}
       {error ? (
         <>
           <StatusMark tone="err" label={error} />
@@ -279,7 +279,11 @@ function ProviderActions({
       </IconKey>
       <IconKey
         keyRef={removeRef}
-        label={confirming ? "Remove it" : "Remove"}
+        label={
+          confirming
+            ? "Remove it from this browser; the operator disables the server registration"
+            : "Remove"
+        }
         small
         danger
         armed={confirming}

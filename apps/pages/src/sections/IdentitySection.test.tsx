@@ -547,6 +547,27 @@ describe("IdentitySection", () => {
     expect(screen.queryByText("No identity provider registered.")).toBeNull();
   });
 
+  it("reloads the provider list from the registry with the head's reload key", async () => {
+    renderIdentity();
+    await openTab("Providers");
+    await screen.findByText("OpenSesame (this device)");
+    // Registered on another surface: the panel shows it only once reloaded.
+    registerIdp(
+      makeRecord({
+        id: "byo_later",
+        issuer: "https://later.example.dev",
+        label: "Later IdP",
+        kind: "byo",
+        clientId: "cli_l",
+      }),
+    );
+    expect(screen.queryByText("Later IdP")).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reload providers" }),
+    );
+    expect(await screen.findByText("Later IdP")).toBeTruthy();
+  });
+
   it("badges preset rows with the preset label and monogram, legacy rows as Custom OIDC", async () => {
     registerIdp(
       makeRecord({
@@ -571,11 +592,13 @@ describe("IdentitySection", () => {
     await openTab("Providers");
     await screen.findByText("Example IdP");
 
-    const chips = Array.from(container.querySelectorAll(".chip")).map(
-      (chip) => chip.textContent,
-    );
-    expect(chips).toContain("WorkOS");
-    expect(chips).toContain("Custom OIDC");
+    // The kind is plain text in the row's id column, never a pill.
+    expect(container.querySelectorAll(".identity-row .chip")).toHaveLength(0);
+    const kinds = Array.from(
+      container.querySelectorAll(".identity-row__kind"),
+    ).map((kind) => kind.textContent);
+    expect(kinds).toContain("WorkOS");
+    expect(kinds).toContain("Custom OIDC");
     // The preset row's mark is the monogram tile; the legacy row keeps the
     // generic site icon.
     const monograms = Array.from(
