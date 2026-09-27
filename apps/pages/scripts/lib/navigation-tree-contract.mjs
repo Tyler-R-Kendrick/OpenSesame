@@ -66,12 +66,16 @@ async function accessContract(page, tabTo) {
     "Grants",
     "Requests",
     "Sessions",
+    "Connectors",
     "Resources",
     "Policies",
   ]) {
-    await expect(
-      page.getByRole("treeitem", { name, exact: true }),
-    ).toBeVisible();
+    // Every tab is the same kind of row: a sibling that opens onto its
+    // panels, never a caret-less row one indent left of the others.
+    const row = page.getByRole("treeitem", { name, exact: true });
+    await expect(row).toBeVisible();
+    await expect(row).toHaveAttribute("aria-level", "2");
+    await expect(row).toHaveAttribute("aria-expanded", "false");
   }
   await expandNamed(page, tree, { name: "Grants", exact: true });
   await expect(page.locator("#grants-tree")).toBeVisible();
@@ -82,11 +86,14 @@ async function accessContract(page, tabTo) {
     }),
   ).toBeVisible();
   await tabTo(page, tree);
+  // The panels in the order the Grants page draws them.
   await page.keyboard.press("ArrowDown");
-  await expect(page).toHaveURL(/\/access\?view=grants#local-grants$/);
+  await expect(page).toHaveURL(/\/access\?view=grants#access-book$/);
   await expect(
     page.getByRole("tab", { name: "Grants", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowDown");
+  await expect(page).toHaveURL(/\/access\?view=grants#local-grants$/);
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/access\?view=grants#identity-shares$/);
   const grants = page.getByRole("treeitem", { name: "Grants", exact: true });

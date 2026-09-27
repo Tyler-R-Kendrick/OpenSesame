@@ -9,10 +9,7 @@ import type { TreeProps } from "@opensesame/app-core/lib/capabilities/runtime-co
 import { useLocation, useSearchParams } from "react-router";
 import { PageTreeBranch } from "../../components/PageTreeBranch.js";
 
-import {
-  useHostConfigured,
-  useIdentityConfigured,
-} from "../../lib/use-configured.js";
+import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { accessPageTree } from "../../sections/access/page-tree.js";
 import { useShareLeaves } from "../../sections/access/share-leaves.js";
@@ -21,7 +18,6 @@ import { ACCESS_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export function AccessRailTree(_props: TreeProps) {
   const [params] = useSearchParams();
   const { hash } = useLocation();
-  const host = useHostConfigured();
   const identity = useIdentityConfigured();
   const view = ACCESS_VIEWS.find((id) => id === params.get("view")) ?? "grants";
   const current = `/access?view=${view}${hash}`;
@@ -29,7 +25,7 @@ export function AccessRailTree(_props: TreeProps) {
   const shares = useShareLeaves(tomb);
   return (
     <div className="railtree__kids" id="access-tree">
-      {accessPageTree({ host, identity, shares }).map((node) => (
+      {accessPageTree({ identity, shares }).map((node) => (
         <PageTreeBranch key={node.id} node={node} level={2} current={current} />
       ))}
     </div>

@@ -48,22 +48,40 @@ it("lists every Access tab as a subtree of that tab's page panels", () => {
       .filter((row) => row.getAttribute("aria-level") === "2")
       .map((row) => row.getAttribute("aria-label")),
   ).toEqual(ACCESS_VIEWS.map((id) => ACCESS_LABELS[id]));
-  const grants = screen.getByRole("treeitem", { name: "Grants" });
-  expect(grants.getAttribute("aria-expanded")).toBe("false");
+  // Every tab is the same kind of row, so no tab is drawn one indent in
+  // from its sibling and read as its child.
+  for (const id of ACCESS_VIEWS) {
+    const row = screen.getByRole("treeitem", { name: ACCESS_LABELS[id] });
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    expect(row.querySelector(".railtree__caret")).toBeTruthy();
+  }
   expect(document.getElementById("grants-tree")).toBeNull();
-  // Requests shows one panel, so it is a place, not a directory of one.
-  expect(
-    screen
-      .getByRole("treeitem", { name: "Requests" })
-      .getAttribute("aria-expanded"),
-  ).toBeNull();
-  fireEvent.click(grants);
+  fireEvent.click(screen.getByRole("treeitem", { name: "Grants" }));
   expect(document.getElementById("grants-tree")).toBeTruthy();
+  const panel = screen.getByRole("treeitem", {
+    name: "Local application grants",
+  });
+  expect(panel.getAttribute("aria-level")).toBe("3");
+  // A panel with nothing to list is a place to jump to, not a caret onto nothing.
+  expect(panel.getAttribute("aria-expanded")).toBeNull();
   expect(
     screen
-      .getByRole("treeitem", { name: "Local application grants" })
+      .getByRole("treeitem", { name: "Identity shares" })
+      .getAttribute("aria-expanded"),
+  ).toBe("false");
+  // Opening another tab lists its panels beside Grants', not under them.
+  fireEvent.click(screen.getByRole("treeitem", { name: "Requests" }));
+  expect(
+    screen
+      .getByRole("treeitem", { name: "Local requests" })
       .getAttribute("aria-level"),
   ).toBe("3");
+  expect(
+    screen
+      .getAllByRole("treeitem")
+      .filter((row) => row.getAttribute("aria-level") === "2")
+      .map((row) => row.getAttribute("aria-label")),
+  ).toEqual(ACCESS_VIEWS.map((id) => ACCESS_LABELS[id]));
 });
 
 it("navigates tab subtrees through the same view query as the page tabs", () => {
