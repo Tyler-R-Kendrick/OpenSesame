@@ -18,6 +18,7 @@ import {
   NEW_DEVICE_KEY_ID,
   newDeviceDraft,
 } from "./LocalDeviceRows.js";
+import { useFocusAfter } from "./use-focus-after.js";
 
 const READ_ERROR =
   "Could not read devices from this vault. Unlock it and reload; restore a backup if the problem persists.";
@@ -100,16 +101,9 @@ function useDevices(tomb: string): DevicesModel & {
   const [armed, setArmed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [focusAfter, setFocusAfter] = useState<string | null>(null);
   const generation = useRef(0);
 
-  // After a change lands, put focus on the control named for it — the key
-  // that was pressed may have left with its row, which drops focus on body.
-  useEffect(() => {
-    if (busy || !focusAfter) return;
-    setFocusAfter(null);
-    document.getElementById(focusAfter)?.focus();
-  }, [busy, focusAfter]);
+  const focusAfter = useFocusAfter(busy);
 
   const read = useCallback(
     async (clearError: boolean) => {
@@ -142,7 +136,8 @@ function useDevices(tomb: string): DevicesModel & {
         if (cancelled) return;
         generation.current += 1;
         setDevices(next);
-        setError("");
+        // No error reset: rows drawn by the touch's own notification can be
+        // acted on before this lands, and that refusal must stay visible.
       })
       .catch(() => {
         if (!cancelled) setError(READ_ERROR);
@@ -167,7 +162,7 @@ function useDevices(tomb: string): DevicesModel & {
       setDevices(next);
       setDraft(null);
       setArmed(null);
-      if (focusId) setFocusAfter(focusId);
+      if (focusId) focusAfter(focusId);
     } catch (caught) {
       setError(
         caught instanceof Error

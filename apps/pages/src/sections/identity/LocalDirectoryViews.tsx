@@ -6,6 +6,7 @@ import type {
 } from "@opensesame/app-core/lib/local-directory.js";
 import { useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
 import {
   IconCheck,
   IconEdit,
@@ -32,8 +33,15 @@ export type DirectoryModel = {
   removing: string | null;
   setRemoving: (id: string | null) => void;
   busy: boolean;
+  /**
+   * True until the panel's first seed has landed: the directory's own keys
+   * wait for it, since a change on the snapshot drawn mid-seed is refused.
+   * A record's credentials and settings keep their own stores and do not.
+   */
+  seeding: boolean;
   error: string;
-  change: (change: LocalDirectoryChange) => Promise<void>;
+  /** Apply a change; on success focus lands on the element with `focusId`. */
+  change: (change: LocalDirectoryChange, focusId?: string) => Promise<void>;
 };
 
 export function DirectoryRows({
@@ -45,9 +53,7 @@ export function DirectoryRows({
   kind: LocalIdentityKind;
   tomb: string;
 }) {
-  const { directory, draft, setDraft, busy, removing, setRemoving, change } =
-    model;
-  const label = LABELS[kind];
+  const { directory, draft, busy, change } = model;
   return (
     <ul className="identity-rows">
       {directory?.entries
@@ -67,78 +73,7 @@ export function DirectoryRows({
                 </div>
                 <code className="identity-ref">{entry.id}</code>
               </div>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--sm"
-                  disabled={busy || draft !== null}
-                  onClick={() => setDraft(entry)}
-                  aria-label={`Edit ${entry.name}`}
-                  title={`Edit ${entry.name}`}
-                >
-                  <IconEdit size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--sm"
-                  disabled={busy || draft !== null}
-                  aria-label={entry.enabled ? "Disable" : "Enable"}
-                  title={entry.enabled ? "Disable" : "Enable"}
-                  onClick={() =>
-                    void change({
-                      action: "update",
-                      id: entry.id,
-                      name: entry.name,
-                      enabled: !entry.enabled,
-                    })
-                  }
-                >
-                  {entry.enabled ? (
-                    <IconX size={16} />
-                  ) : (
-                    <IconCheck size={16} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className={
-                    removing === entry.id
-                      ? "icon-btn icon-btn--sm icon-btn--danger is-armed"
-                      : "icon-btn icon-btn--sm icon-btn--danger"
-                  }
-                  disabled={busy || draft !== null}
-                  aria-label={
-                    removing === entry.id ? "Confirm deletion" : "Delete"
-                  }
-                  title={removing === entry.id ? "Confirm deletion" : "Delete"}
-                  onClick={() =>
-                    removing === entry.id
-                      ? void change({ action: "delete", id: entry.id })
-                      : setRemoving(entry.id)
-                  }
-                >
-                  <IconTrash size={16} />
-                </button>
-                {removing === entry.id ? (
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--sm"
-                    disabled={busy}
-                    aria-label={`Keep ${label.singular}`}
-                    title={`Keep ${label.singular}`}
-                    onClick={(event) => {
-                      // Keep hands focus back to the key it disarmed, not
-                      // to the page's top.
-                      const primary =
-                        event.currentTarget.previousElementSibling;
-                      setRemoving(null);
-                      if (primary instanceof HTMLButtonElement) primary.focus();
-                    }}
-                  >
-                    <IconX size={16} />
-                  </button>
-                ) : null}
-              </div>
+              <DirectoryRowKeys model={model} entry={entry} kind={kind} />
             </div>
             <DirectoryAuthority
               tomb={tomb}
@@ -150,6 +85,90 @@ export function DirectoryRows({
           </li>
         ))}
     </ul>
+  );
+}
+
+/** The add key in a directory panel's head; focus lands there when a row leaves. */
+export function newEntryKeyId(kind: LocalIdentityKind): string {
+  return `local-directory-new-${kind}`;
+}
+
+/**
+ * A record's keys: edit, enable/disable, and delete behind an armed key
+ * whose keep hands focus back to it. A confirmed delete takes the row, and
+ * the focused key with it, so focus lands on the panel's add key instead.
+ */
+function DirectoryRowKeys({
+  model,
+  entry,
+  kind,
+}: {
+  model: DirectoryModel;
+  entry: LocalIdentity;
+  kind: LocalIdentityKind;
+}) {
+  const { draft, setDraft, busy, seeding, removing, setRemoving, change } =
+    model;
+  const deleteKey = useRef<HTMLButtonElement>(null);
+  const locked = busy || seeding || draft !== null;
+  const armed = removing === entry.id;
+  return (
+    <div className="actions">
+      <IconKey
+        label={`Edit ${entry.name}`}
+        small
+        disabled={locked}
+        onClick={() => setDraft(entry)}
+      >
+        <IconEdit size={16} />
+      </IconKey>
+      <IconKey
+        label={entry.enabled ? "Disable" : "Enable"}
+        small
+        disabled={locked}
+        onClick={() =>
+          void change({
+            action: "update",
+            id: entry.id,
+            name: entry.name,
+            enabled: !entry.enabled,
+          })
+        }
+      >
+        {entry.enabled ? <IconX size={16} /> : <IconCheck size={16} />}
+      </IconKey>
+      <IconKey
+        keyRef={deleteKey}
+        label={armed ? "Confirm deletion" : "Delete"}
+        small
+        danger
+        armed={armed}
+        disabled={locked}
+        onClick={() =>
+          armed
+            ? void change(
+                { action: "delete", id: entry.id },
+                newEntryKeyId(kind),
+              )
+            : setRemoving(entry.id)
+        }
+      >
+        <IconTrash size={16} />
+      </IconKey>
+      {armed ? (
+        <IconKey
+          label={`Keep ${LABELS[kind].singular}`}
+          small
+          disabled={busy}
+          onClick={() => {
+            setRemoving(null);
+            deleteKey.current?.focus();
+          }}
+        >
+          <IconX size={16} />
+        </IconKey>
+      ) : null}
+    </div>
   );
 }
 
@@ -262,16 +281,9 @@ export function DirectoryForm({
         />
       </div>
       <FormCommit label="Save changes" disabled={busy || !draft.name.trim()}>
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={busy}
-          onClick={() => setDraft(null)}
-          aria-label="Cancel"
-          title="Cancel"
-        >
+        <IconKey label="Cancel" disabled={busy} onClick={() => setDraft(null)}>
           <IconX size={16} />
-        </button>
+        </IconKey>
       </FormCommit>
     </form>
   ) : null;

@@ -11,62 +11,64 @@ import {
 } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { IconKey, ReloadKey } from "../../components/IconKey.js";
+import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import { DirectoryForm, DirectoryRows, LABELS } from "./LocalDirectoryViews.js";
+import {
+  DirectoryForm,
+  DirectoryRows,
+  LABELS,
+  newEntryKeyId,
+} from "./LocalDirectoryViews.js";
+import { useFocusAfter } from "./use-focus-after.js";
 
 export function LocalDirectoryPanel({ kind }: { kind: LocalIdentityKind }) {
   const { tomb } = useVault();
   return <DirectoryEditor key={`${tomb}:${kind}`} tomb={tomb} kind={kind} />;
 }
 
-function useDirectory(tomb: string) {
-  const [directory, setDirectory] = useState<LocalDirectory | null>(null);
-  const [draft, setDraft] = useState<LocalIdentity | null>(null);
-  const [removing, setRemoving] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const generation = useRef(0);
-  const readDirectory = useCallback(
-    async (clearError = false) => {
-      const current = ++generation.current;
-      // Subscription invalidations must not wipe a save/validation alert the
-      // operator is still looking at (control-character refusal, revision
-      // conflict, etc.). Explicit Reload and the initial seed may clear.
-      if (clearError) setError("");
-      try {
-        const next = await readLocalDirectory(tomb);
-        if (current === generation.current) setDirectory(next);
-      } catch (error) {
-        if (current === generation.current)
-          setError(
-            error instanceof LocalDirectoryError
-              ? error.message
-              : "Could not read the local directory. Unlock this vault and reload; restore a backup if the problem persists.",
-          );
-      }
-    },
-    [tomb],
-  );
-  // Seed defaults once per tomb. Do not fold this into the IAM subscription:
-  // ensureDefaultAccess writes devices/shares and notifies, which would
-  // re-enter load forever and leave the panel stuck on "Loading directory…".
+const READ_ERROR =
+  "Could not read the local directory. Unlock this vault and reload; restore a backup if the problem persists.";
+
+function readErrorText(error: unknown): string {
+  return error instanceof LocalDirectoryError ? error.message : READ_ERROR;
+}
+
+/**
+ * Seed defaults once per tomb, then follow changes. Returns whether the
+ * first seed is still in flight. Do not fold the seed into the
+ * subscription: ensureDefaultAccess writes and notifies, which would
+ * re-enter it forever and leave the panel stuck on "Loading directory…".
+ *
+ * Until the seed's own read lands, the rows on screen come from a snapshot
+ * its writes are about to replace, and a change made on it would be refused
+ * as "changed in another tab" — so the directory's keys wait for it.
+ */
+function useDirectorySeed(
+  tomb: string,
+  readDirectory: (clearError: boolean) => Promise<void>,
+  setError: (error: string) => void,
+  generation: { current: number },
+): boolean {
+  const [seeding, setSeeding] = useState(true);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         await ensureDefaultAccess(tomb);
       } catch (error) {
-        if (!cancelled)
-          setError(
-            error instanceof LocalDirectoryError
-              ? error.message
-              : "Could not read the local directory. Unlock this vault and reload; restore a backup if the problem persists.",
-          );
+        if (!cancelled) {
+          setError(readErrorText(error));
+          setSeeding(false);
+        }
         return;
       }
-      if (!cancelled) await readDirectory(true);
+      if (cancelled) return;
+      // Not a clearing read: the panel mounts per tomb with no error, and a
+      // clearing read could wipe one raised after the rows appeared.
+      await readDirectory(false);
+      if (!cancelled) setSeeding(false);
     })();
     const off = subscribeLocalIamChanges(() => {
       if (!cancelled) void readDirectory(false);
@@ -76,11 +78,39 @@ function useDirectory(tomb: string) {
       generation.current += 1;
       off();
     };
-  }, [tomb, readDirectory]);
+  }, [tomb, readDirectory, setError, generation]);
+  return seeding;
+}
+
+function useDirectory(tomb: string) {
+  const [directory, setDirectory] = useState<LocalDirectory | null>(null);
+  const [draft, setDraft] = useState<LocalIdentity | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const generation = useRef(0);
+  const focusAfter = useFocusAfter(busy);
+  const readDirectory = useCallback(
+    async (clearError = false) => {
+      const current = ++generation.current;
+      // Subscription invalidations must not wipe a save/validation alert the
+      // operator is still looking at (control-character refusal, revision
+      // conflict, etc.). Only the explicit Reload clears.
+      if (clearError) setError("");
+      try {
+        const next = await readLocalDirectory(tomb);
+        if (current === generation.current) setDirectory(next);
+      } catch (error) {
+        if (current === generation.current) setError(readErrorText(error));
+      }
+    },
+    [tomb],
+  );
+  const seeding = useDirectorySeed(tomb, readDirectory, setError, generation);
   const load = () => void readDirectory(true);
 
-  async function change(command: LocalDirectoryChange) {
-    if (!directory || busy) return;
+  async function change(command: LocalDirectoryChange, focusId?: string) {
+    if (!directory || busy || seeding) return;
     setBusy(true);
     setError("");
     try {
@@ -89,6 +119,7 @@ function useDirectory(tomb: string) {
       );
       setDraft(null);
       setRemoving(null);
+      if (focusId) focusAfter(focusId);
     } catch (error) {
       setError(
         error instanceof LocalDirectoryError
@@ -107,6 +138,7 @@ function useDirectory(tomb: string) {
     removing,
     setRemoving,
     busy,
+    seeding,
     error,
     load,
     change,
@@ -118,7 +150,7 @@ function DirectoryEditor({
   kind,
 }: { tomb: string; kind: LocalIdentityKind }) {
   const model = useDirectory(tomb);
-  const { directory, draft, setDraft, busy, error, load } = model;
+  const { directory, draft, setDraft, busy, seeding, error, load } = model;
   const label = LABELS[kind];
 
   return (
@@ -132,26 +164,20 @@ function DirectoryEditor({
           className="vtree__keys"
           aria-label={`${label.heading} commands`}
         >
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !directory || draft !== null}
-            title={`New ${label.singular}`}
-            aria-label={`New ${label.singular}`}
+          <IconKey
+            id={newEntryKeyId(kind)}
+            label={`New ${label.singular}`}
+            small
+            disabled={busy || seeding || !directory || draft !== null}
             onClick={() => setDraft({ id: "", kind, name: "", enabled: true })}
           >
             <IconPlus size={15} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
+          </IconKey>
+          <ReloadKey
+            label="Reload directory"
             disabled={busy}
-            title="Reload directory"
-            aria-label="Reload directory"
-            onClick={() => void load()}
-          >
-            <IconRefresh size={15} />
-          </button>
+            onReload={() => void load()}
+          />
         </fieldset>
       </div>
       <div className="panel__body">
