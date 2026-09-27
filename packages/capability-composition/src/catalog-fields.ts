@@ -1,5 +1,5 @@
 /**
- * A descriptor's shape: every field it carries is one the contract knows,
+ * A descriptor's declared fields: every field it carries is one the contract knows,
  * and every list is bounded (carried from #470's descriptor parser, which
  * refused an unknown field and a list past its bound). A catalog is authored
  * in code, but a misspelt field there — `requiresDocumentReloud: true` —
@@ -7,6 +7,7 @@
  * without the constraint its author meant it to have.
  */
 import { type Diagnostic, diagnostic, pushDiagnostic } from "./diagnostics.js";
+import { listed } from "./key-access.js";
 import type { CapabilityDescriptor } from "./types.js";
 
 /** Longest list a descriptor may declare in any one field. */
@@ -36,26 +37,26 @@ const DESCRIPTOR_FIELDS = new Set(
   } satisfies { [K in keyof CapabilityDescriptor]-?: true }),
 );
 
-function listsOf(
+function listLengths(
   d: CapabilityDescriptor,
-): ReadonlyArray<readonly [string, readonly unknown[]]> {
+): ReadonlyArray<readonly [string, number]> {
   return [
-    ["dependencies", d.dependencies],
-    ["alternatives", d.alternatives],
-    ["operationIds", d.operationIds],
-    ["moduleIds", d.moduleIds],
-    ["environments", d.environments],
-    ["egress", d.egress],
-    ["browserPermissions", d.browserPermissions],
-    ["itemKinds", d.itemKinds],
-    ["keyAccess", typeof d.keyAccess === "string" ? [] : d.keyAccess],
+    ["dependencies", d.dependencies.length],
+    ["alternatives", d.alternatives.length],
+    ["operationIds", d.operationIds.length],
+    ["moduleIds", d.moduleIds.length],
+    ["environments", d.environments.length],
+    ["egress", d.egress.length],
+    ["browserPermissions", d.browserPermissions.length],
+    ["itemKinds", d.itemKinds.length],
+    ["keyAccess", listed(d.keyAccess).length],
     ...d.alternatives.map(
-      (a, i) => [`alternatives[${i}].oneOf`, a.oneOf] as const,
+      (a, i) => [`alternatives[${i}].oneOf`, a.oneOf.length] as const,
     ),
   ];
 }
 
-export function checkShape(
+export function checkDeclaredFields(
   d: CapabilityDescriptor,
   path: string,
   diags: Diagnostic[],
@@ -71,8 +72,8 @@ export function checkShape(
       ),
     );
   }
-  for (const [field, list] of listsOf(d)) {
-    if (list.length <= MAX_DESCRIPTOR_LIST) continue;
+  for (const [field, length] of listLengths(d)) {
+    if (length <= MAX_DESCRIPTOR_LIST) continue;
     pushDiagnostic(
       diags,
       diagnostic(

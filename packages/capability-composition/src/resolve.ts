@@ -29,12 +29,14 @@ import type { ResolveInput } from "./resolve-input.js";
 import { type WorkerSelection, selectWorkerVariant } from "./resolve-worker.js";
 import { missingEnvironments } from "./runtime-support.js";
 import type {
+  CapabilityDescriptor,
   CapabilityExplanation,
   CapabilityId,
   CapabilityState,
   EffectivePlan,
   PlanConflict,
   ReasonCode,
+  RuntimeFacts,
 } from "./types.js";
 
 export type { ResolveInput } from "./resolve-input.js";
@@ -157,6 +159,21 @@ function optionalReasons(
   return reasons;
 }
 
+/**
+ * An approved capability not yet run here that must start in a fresh
+ * document, approved after this one had already run other modules: it stays
+ * approved and waits for a reload rather than starting half-registered
+ * (carried from #470's restart-required rule). What the document approved
+ * while still clean starts as usual.
+ */
+function owesReload(
+  facts: RuntimeFacts,
+  d: CapabilityDescriptor | undefined,
+): boolean {
+  if (d === undefined || !d.requiresDocumentReload) return false;
+  return !facts.cleanRealm && !facts.approvedAtLoad.includes(d.id);
+}
+
 function buildState(
   ctx: ResolveContext,
   pass: Pass,
@@ -180,18 +197,7 @@ function buildState(
   );
   const restartRequired = !approved && evaluated;
   if (restartRequired) reasons.push("RESTART_REQUIRED");
-  // Approved after load, but it must start in a fresh document and this one
-  // has already run other modules: it stays approved and waits for a reload
-  // rather than starting half-registered (carried from #470's
-  // restart-required rule). What the document approved at load still starts.
-  const facts = ctx.input.facts;
-  if (
-    approved &&
-    !evaluated &&
-    d?.requiresDocumentReload === true &&
-    !facts.cleanRealm &&
-    !facts.approvedAtLoad.includes(axis.id)
-  )
+  if (approved && !evaluated && owesReload(ctx.input.facts, d))
     reasons.push("RELOAD_REQUIRED");
   return {
     id: axis.id,
@@ -202,7 +208,7 @@ function buildState(
     selected: axis.selected,
     dependencyOf: sortIds(pass.closure.dependents.get(axis.id) ?? []),
     runtimeSupported: axis.runtimeSupported,
-    missingEnvironments: d ? missingEnvironments(facts, d) : [],
+    missingEnvironments: d ? missingEnvironments(ctx.input.facts, d) : [],
     approved,
     restartRequired,
     reasons: sortReasons(reasons),

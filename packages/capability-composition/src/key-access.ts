@@ -19,8 +19,16 @@ function isKeyAccessClass(value: string): value is KeyAccessClass {
   return KEY_ACCESS_CLASSES.some((c) => c === value);
 }
 
-function listed(k: KeyAccess): readonly string[] {
-  return typeof k === "string" ? [k] : k;
+/** A declaration as written: validation takes it before it is known good. */
+type Declared = string | readonly string[];
+
+/** The classes as declared, a bare class read as a list of one. */
+export function listed(k: Declared): readonly string[] {
+  return isSingle(k) ? [k] : k;
+}
+
+function isSingle(k: Declared): k is string {
+  return !Array.isArray(k);
 }
 
 /** The classes held, sorted, without `"none"`: the empty list holds nothing. */
@@ -39,7 +47,7 @@ export function keyAccessDigestBody(k: KeyAccess): string | string[] {
 }
 
 /** Why a declaration is not a key-access set, or `null` when it is one. */
-export function keyAccessProblem(k: KeyAccess): string | null {
+export function keyAccessProblem(k: Declared): string | null {
   const list = listed(k);
   if (list.length === 0) return "key access lists at least one class";
   if (!list.every(isKeyAccessClass)) return "unknown key access class";

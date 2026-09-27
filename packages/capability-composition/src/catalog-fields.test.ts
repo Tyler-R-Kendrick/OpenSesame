@@ -1,9 +1,9 @@
 /**
- * Descriptor shape: an unknown field and an over-long list are catalog errors
+ * Descriptor fields: an unknown field and an over-long list are catalog errors
  * (carried from #470's descriptor parser).
  */
 import { describe, expect, it } from "vitest";
-import { MAX_DESCRIPTOR_LIST } from "./catalog-shape.js";
+import { MAX_DESCRIPTOR_LIST } from "./catalog-fields.js";
 import { buildCatalog, validateCatalog } from "./catalog.js";
 import { FIXTURE_CATALOG } from "./fixtures.js";
 import type { CapabilityCatalog, CapabilityDescriptor } from "./types.js";
@@ -21,8 +21,8 @@ function withFirst(
   return { ...FIXTURE_CATALOG, capabilities: [over(first), ...rest] };
 }
 
-describe("descriptor shape", () => {
-  it("the fixture catalog is well-shaped", () => {
+describe("descriptor fields", () => {
+  it("the fixture catalog declares only known fields, within bounds", () => {
     expect(validateCatalog(FIXTURE_CATALOG)).toEqual({ ok: true });
   });
 

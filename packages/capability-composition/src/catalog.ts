@@ -7,13 +7,13 @@
  * stored digest disagrees with the declared exposure.
  */
 import { exposureDigest } from "./canonical.js";
+import { checkDeclaredFields } from "./catalog-fields.js";
 import {
   MAX_DEPENDENCY_DEPTH,
   checkGraph,
   checkReferences,
   hasDuplicates,
 } from "./catalog-graph.js";
-import { checkShape } from "./catalog-shape.js";
 import {
   type Diagnostic,
   type ValidationResult,
@@ -276,7 +276,7 @@ export function validateCatalog(c: CapabilityCatalog): ValidationResult {
   });
   c.capabilities.forEach((d, i) => {
     const path = `capabilities[${i}]`;
-    checkShape(d, path, diags);
+    checkDeclaredFields(d, path, diags);
     checkText(d, path, diags);
     checkEnvironments(d, path, diags);
     checkModules(d, path, diags);

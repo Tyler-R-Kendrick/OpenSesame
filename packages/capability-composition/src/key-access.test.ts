@@ -41,7 +41,7 @@ describe("keyAccessProblem", () => {
     [["protector-wrap", "protector-wrap"], "key access repeats a class"],
     [["none", "item-plaintext"], "none cannot be combined with another class"],
   ] as const)("%j → %s", (k, problem) => {
-    expect(keyAccessProblem(k as KeyAccess)).toBe(problem);
+    expect(keyAccessProblem(k)).toBe(problem);
   });
 
   it("an invalid set is a catalog error at the descriptor's path", () => {
