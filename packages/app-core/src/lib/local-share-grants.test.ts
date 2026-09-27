@@ -7,7 +7,7 @@ import {
   listShareTargets,
   revokeLocalShare,
 } from "./local-share-grants.js";
-import { lockAllTombs } from "./vfs.js";
+import { lockAllTombs, writeFile } from "./vfs.js";
 
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
@@ -52,4 +52,44 @@ it("grants a connector under the invoke policy", async () => {
   });
   expect(shares[0]?.policy).toBe("invoke");
   expect(shares[0]?.resourceId).toBe("github");
+});
+
+/** A trail that refuses every entry: corrupt, so each append fails to read it. */
+async function breakAccessTrail(tomb: string): Promise<void> {
+  await writeFile(tomb, "config/access-audit", new TextEncoder().encode("{}"));
+}
+
+it("a connector grant stands when the trail will not take its entry", async () => {
+  const fixture = await localRequestFixture();
+  await breakAccessTrail(fixture.tomb);
+  const shares = await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "github",
+    resourceLabel: "GitHub",
+    policy: "invoke",
+    durationSeconds: 86400,
+  });
+  expect(shares).toHaveLength(1);
+  expect(await listLocalShares(fixture.tomb)).toHaveLength(1);
+});
+
+it("a connector revoke the trail will not record leaves the share for a retry", async () => {
+  const fixture = await localRequestFixture();
+  const [share] = await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "github",
+    resourceLabel: "GitHub",
+    policy: "invoke",
+    durationSeconds: 86400,
+  });
+  if (!share) throw new Error("expected a share");
+  await breakAccessTrail(fixture.tomb);
+  await expect(revokeLocalShare(fixture.tomb, share.id)).rejects.toThrow(
+    /corrupt/,
+  );
+  expect((await listLocalShares(fixture.tomb)).map((row) => row.id)).toEqual([
+    share.id,
+  ]);
 });

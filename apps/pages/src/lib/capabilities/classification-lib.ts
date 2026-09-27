@@ -147,6 +147,7 @@ const ACCESS_FILES = [
   "local-rbac",
   "local-share-grants",
   "local-share-reach",
+  "standing-connection-grants",
   "host-authorization",
   "browser-pairing",
 ];

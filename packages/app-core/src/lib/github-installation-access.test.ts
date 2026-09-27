@@ -11,7 +11,11 @@ import {
 } from "./github-installation-access.js";
 import { identitySeams } from "./identity.js";
 import { localRequestFixture } from "./local-request.fixture.js";
-import { listLocalShares, revokeLocalShare } from "./local-share-grants.js";
+import {
+  createLocalShare,
+  listLocalShares,
+  revokeLocalShare,
+} from "./local-share-grants.js";
 import { lockAllTombs } from "./vfs.js";
 
 const originalConnectionSeams = { ...connectionSeams };
@@ -176,4 +180,46 @@ it("a first visit with a live connection and no history issues the grant", async
     baseConnection,
   );
   expect(shouldEnsureGithubAccessGrant(snapshot, baseConnection)).toBe(true);
+});
+
+it("someone else's GitHub revocation does not withhold the owner's grant", async () => {
+  const fixture = await localRequestFixture();
+  const [other] = await createLocalShare(fixture.tomb, {
+    principalId: fixture.applicationId,
+    resourceKind: "connection",
+    resourceId: "github",
+    resourceLabel: "GitHub",
+    policy: "invoke",
+    durationSeconds: 86400,
+  });
+  if (!other) throw new Error("expected a GitHub share");
+  await revokeLocalShare(fixture.tomb, other.id);
+
+  const snapshot = await loadGithubInstallationSnapshot(
+    fixture.tomb,
+    baseConnection,
+  );
+  expect(snapshot.ownerId).toBe(fixture.personId);
+  expect(shouldEnsureGithubAccessGrant(snapshot, baseConnection)).toBe(true);
+});
+
+it("the owner's revocation holds however others are granted after it", async () => {
+  const fixture = await localRequestFixture();
+  const [share] = await ensureGithubAccessGrant(fixture.tomb, baseConnection);
+  if (!share) throw new Error("expected a GitHub share");
+  await revokeLocalShare(fixture.tomb, share.id);
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.applicationId,
+    resourceKind: "connection",
+    resourceId: "github",
+    resourceLabel: "GitHub",
+    policy: "invoke",
+    durationSeconds: 86400,
+  });
+
+  const snapshot = await loadGithubInstallationSnapshot(
+    fixture.tomb,
+    baseConnection,
+  );
+  expect(shouldEnsureGithubAccessGrant(snapshot, baseConnection)).toBe(false);
 });

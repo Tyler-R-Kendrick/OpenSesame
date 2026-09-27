@@ -75,6 +75,11 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "subject",
   "providerId",
   "materialization",
+  // A local share's policy (ADR 0015): a closed enum of share-policy ids —
+  // use, invoke, open, items. Recorded with `subject` on connector share
+  // grants and revocations, so a revoked standing grant stays revoked for
+  // that principal and policy only.
+  "policy",
   // External notification channels and approval ceremonies (ADR 0084). Every
   // one of these is an id, a digest, a closed enum member, or a reason code —
   // the vocabulary a reviewer needs to answer "why was this allowed, and could

@@ -130,6 +130,27 @@ any synced directory's. A binding there writes a `connection` share
 Access › Resources already reads (ADR 0115). The connector page carries no
 access panel of its own: one place to grant, no second authority model.
 
+A `connection` share's `resourceId` says what it covers:
+
+- **A provider id** (`github`, `slack`) covers every connection of that
+  provider. The standing grants (the owner may invoke, the support agent may
+  use), GitHub's grant and Access › Grants' connector shares are keyed this
+  way. Access › Connectors lists each one on every row of that provider,
+  marked `all <provider>`.
+- **A connection's ledger id** (`host:<connectionId>` for a connector
+  Connections configured, `nango:<integration>/<connection>` for a directory
+  row) covers that one connection. A binding made on an Access › Connectors
+  row is keyed this way.
+
+A revocation on Access is final for that connector, principal and policy.
+The sealed trail records each revoke and each grant a person makes, with
+`subject` and `policy`. Standing grants are re-issued only while the newest
+of those events for the grant is not a revocation — for that principal and
+policy only, so revoking the support agent's grant never withholds the
+owner's, GitHub's included. A revocation is recorded before its share is
+removed, so a trail that refuses it leaves the share in place for a retry;
+a grant's entry is best-effort, since the share it records already stands.
+
 ## Consequences
 
 - 186 connectors (166 in Vercel's registry, 20 more from the integration
