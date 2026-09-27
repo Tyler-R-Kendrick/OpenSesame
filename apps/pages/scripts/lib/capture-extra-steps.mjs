@@ -9,6 +9,7 @@ import { factorSteps } from "./capture-factor-steps.mjs";
 import { invokeSteps } from "./capture-invoke-steps.mjs";
 import { markSteps } from "./capture-mark-steps.mjs";
 import { menuSteps } from "./capture-menu-steps.mjs";
+import { networkSteps } from "./capture-network-steps.mjs";
 import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
@@ -26,6 +27,7 @@ export function extraSteps({ press }) {
     ...railSteps(),
     ...routingSteps(),
     ...orgSignInSteps(),
+    ...networkSteps(),
     /**
      * Pick a labelled radio when this build has it — a connector's
      * connection method. A base build without the choice is a legitimate

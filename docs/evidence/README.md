@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-27-reset-browser/`](2026-09-27-reset-browser/README.md) | Reset this browser, from the lock screens |
 | [`2026-09-27-rail-siblings/`](2026-09-27-rail-siblings/README.md) | Every rail tab is a sibling, and every panel link lands |
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
 | [`2026-09-27-access-rail/`](2026-09-27-access-rail/README.md) | Access tabs are siblings in the rail |
