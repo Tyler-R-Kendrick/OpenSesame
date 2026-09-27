@@ -1,7 +1,7 @@
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
-import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
+import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 
 import {
@@ -65,14 +65,10 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
 
   // Every tab's rail entries are links to its panels; only Security used to
   // follow one, so General › Locking or Vaults › Travel changed the address
-  // and left the page where it was.
-  useEffect(() => {
-    const id = hash.replace(/^#/, "");
-    if (!id) return;
-    if (category === "security" && SECURITY_FRAGMENT_REDIRECT.has(id)) return;
-    const target = panelFromHash(hash);
-    if (target) scrollToPanel(target);
-  }, [category, hash]);
+  // and left the page where it was. useHashTarget waits for a panel that
+  // mounts late (Transport is lazy, a capability's panel arrives with its
+  // module) rather than looking once and giving up.
+  useHashTarget();
 }
 
 export function SettingsSection({

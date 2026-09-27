@@ -6,7 +6,7 @@ export function railSteps() {
   return {
     /** Click a rail row by its exact name, the way a person follows it. */
     async rail(page, name) {
-      const row = page.locator(`.railtree__row[aria-label="${name}"]`).first();
+      const row = page.getByRole("treeitem", { name, exact: true }).first();
       if ((await row.count()) === 0)
         throw new Error(
           `capture-evidence rail("${name}"): no rail row matched — refusing a silent miss`,

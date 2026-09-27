@@ -12,7 +12,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 
 import { registerLegacyShell } from "../../components/legacy-sections.test-support.js";
 import { AccessRailTree } from "./AccessRailTree.js";
@@ -166,5 +166,29 @@ it("lists Portable grants while the access book holds one, and only then", () =>
     ).toBeNull();
   } finally {
     Object.assign(accessBookSeams, original);
+  }
+});
+
+it("scrolls to a panel already named in the address when its row is clicked again", () => {
+  const scrollBy = vi.fn();
+  vi.stubGlobal("scrollBy", scrollBy);
+  const panel = document.createElement("section");
+  panel.id = "local-grants";
+  document.body.append(panel);
+  try {
+    setup("/access?view=grants#local-grants");
+    fireEvent.click(screen.getByRole("treeitem", { name: "Grants" }));
+    // The link is the current address, so it navigates nowhere; the row
+    // still takes the reader to the panel.
+    fireEvent.click(
+      screen.getByRole("treeitem", { name: "Local application grants" }),
+    );
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Current route").textContent).toBe(
+      "/access?view=grants#local-grants",
+    );
+  } finally {
+    panel.remove();
+    vi.unstubAllGlobals();
   }
 });
