@@ -204,6 +204,7 @@ const EXPECTED_ALLOWLIST = [
   "subject",
   "providerId",
   "materialization",
+  "policy",
   "channelKind",
   "bindingId",
   "transactionDigest",

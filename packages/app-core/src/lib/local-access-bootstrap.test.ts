@@ -2,6 +2,7 @@
 
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { recordAccessAuditEvent } from "./local-access-audit.js";
 import { ensureDefaultAccess } from "./local-access-bootstrap.js";
 import { readLocalApplications } from "./local-applications.js";
 import { readLocalDevices, thisDeviceId } from "./local-devices.js";
@@ -11,7 +12,12 @@ import {
 } from "./local-directory-bootstrap.js";
 import { readLocalDirectory } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
-import { listLocalShares } from "./local-share-grants.js";
+import {
+  type LocalShare,
+  createLocalShare,
+  listLocalShares,
+  revokeLocalShare,
+} from "./local-share-grants.js";
 import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
 
 let tomb: string;
@@ -146,5 +152,91 @@ describe("ensureDefaultAccess", () => {
           share.resourceId === "guest",
       ),
     ).toBe(true);
+  });
+
+  it("keeps a standing connector grant revoked on Access, for that principal only", async () => {
+    await ensureDefaultAccess(tomb);
+    const connector = (shares: LocalShare[]) =>
+      shares.filter((share) => share.resourceKind === "connection");
+    const standing = connector(await listLocalShares(tomb));
+    const agentGrant = standing.find(
+      (share) => share.principalId === SUPPORT_AGENT_ID,
+    );
+    expect(agentGrant).toBeTruthy();
+    const provider = agentGrant?.resourceId ?? "";
+    const ownerGrant = standing.find(
+      (share) =>
+        share.resourceId === provider && share.principalId !== SUPPORT_AGENT_ID,
+    );
+    expect(ownerGrant).toBeTruthy();
+
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    await ensureDefaultAccess(tomb);
+
+    const after = connector(await listLocalShares(tomb)).filter(
+      (share) => share.resourceId === provider,
+    );
+    // The support agent stays revoked; the owner's grant is untouched.
+    expect(after.map((share) => share.principalId)).toEqual([
+      ownerGrant?.principalId,
+    ]);
+  });
+
+  it("renews a revoked standing grant again once a person re-grants it", async () => {
+    await ensureDefaultAccess(tomb);
+    const agentGrant = (await listLocalShares(tomb)).find(
+      (share) =>
+        share.resourceKind === "connection" &&
+        share.principalId === SUPPORT_AGENT_ID,
+    );
+    const provider = agentGrant?.resourceId ?? "";
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    await createLocalShare(tomb, {
+      principalId: SUPPORT_AGENT_ID,
+      resourceKind: "connection",
+      resourceId: provider,
+      resourceLabel: provider,
+      policy: "use",
+      durationSeconds: 3600,
+    });
+    // The one-hour grant is inside the renewal window, so the standing
+    // grant replaces it now that the trail's newest word is a grant.
+    await ensureDefaultAccess(tomb);
+    const renewed = (await listLocalShares(tomb)).find(
+      (share) =>
+        share.resourceId === provider && share.principalId === SUPPORT_AGENT_ID,
+    );
+    expect(renewed?.expiresAt ?? 0).toBeGreaterThan(Date.now() + 86400_000);
+  });
+
+  it("does not read a revocation that names no principal as covering the standing grants", async () => {
+    // Learn which providers get standing grants, in a scratch tomb.
+    const scratch = `access-bootstrap-probe-${crypto.randomUUID()}`;
+    unlockTomb(scratch, (await mintVaultKey()).vaultKey);
+    await ensureDefaultAccess(scratch);
+    const providers = new Set(
+      (await listLocalShares(scratch))
+        .filter((share) => share.resourceKind === "connection")
+        .map((share) => share.resourceId),
+    );
+    expect(providers.size).toBeGreaterThan(0);
+
+    // What revokeLocalShare wrote before it recorded whose grant it was —
+    // e.g. a guest's hand-made grant, revoked long ago.
+    for (const provider of providers)
+      await recordAccessAuditEvent(tomb, {
+        eventType: "access.connection.revoked",
+        outcome: "succeeded",
+        targetType: "connection",
+        targetId: provider,
+        metadata: { providerId: provider, action: "revoke", kind: "share" },
+      });
+    await ensureDefaultAccess(tomb);
+    const issued = new Set(
+      (await listLocalShares(tomb))
+        .filter((share) => share.resourceKind === "connection")
+        .map((share) => share.resourceId),
+    );
+    expect(issued).toEqual(providers);
   });
 });
