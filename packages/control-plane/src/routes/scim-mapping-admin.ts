@@ -1,12 +1,9 @@
-import type { OrganizationRole } from "@opensesame/os-domain";
 import { isString, overlapCast } from "@opensesame/os-domain";
 import { type Context, Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 import { putGroupRoleMapping } from "./scim-groups.js";
-
-const ROLES = new Set<OrganizationRole>(["owner", "admin", "member"]);
 
 export const scimMappingAdminRoutes = new Hono<{ Variables: Variables }>();
 

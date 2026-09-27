@@ -2,7 +2,6 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
-import { overlapCast } from "@opensesame/os-domain";
 import type { OAuthProviderEnv } from "../types.js";
 
 export class UnsafeMetadataUrlError extends Error {

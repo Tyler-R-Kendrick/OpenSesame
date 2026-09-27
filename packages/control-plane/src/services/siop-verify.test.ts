@@ -1,9 +1,4 @@
-import {
-  type JsonValue,
-  isString,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type JsonValue, overlapCast } from "@opensesame/os-domain";
 import { parsePublicEcP256Jwk } from "@opensesame/siop-v2";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";

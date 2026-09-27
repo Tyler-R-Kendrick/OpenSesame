@@ -7,7 +7,7 @@ import {
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import type { InstallationCapabilitySelection } from "@opensesame/capability-composition";
 import { cleanup, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   PERSONAL_SELECTION,
   installPanelFixture,

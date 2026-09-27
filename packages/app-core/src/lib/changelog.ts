@@ -1,11 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isJsonObject,
-  isNumber,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 /**
  * Identity secret/config changelog client (read-only UI surface).
  *

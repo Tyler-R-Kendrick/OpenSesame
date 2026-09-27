@@ -1,4 +1,4 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { SignJWT, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { PROVIDER_ID_JAG_TYP, SERVICE_ASSERTION_TYP } from "./constants.js";

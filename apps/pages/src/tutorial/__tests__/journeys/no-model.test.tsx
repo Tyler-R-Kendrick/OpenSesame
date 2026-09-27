@@ -20,7 +20,7 @@ import {
   HELP_TOPICS,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { GUIDE_ERROR_TEXT, UNAVAILABLE_TEXT } from "../../ui/messages.js";
+import { UNAVAILABLE_TEXT } from "../../ui/messages.js";
 import { openSupport, renderJourney, resetJourney } from "./harness.jsx";
 
 /** Starts the walkthrough offered beside a named goal in the panel. */

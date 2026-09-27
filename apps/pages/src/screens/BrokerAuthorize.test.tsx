@@ -7,7 +7,15 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const fed = vi.hoisted(() => ({
   beginSignIn: vi.fn(),
@@ -24,11 +32,13 @@ Object.assign(federationSeams, {
   clearSession: fed.clearSession,
   loadSession: fed.loadSession,
 });
+afterAll(() => Object.assign(federationSeams, originalFederationSeams));
 import { siteBrokerSeams } from "@opensesame/app-core/lib/site-broker.js";
 const originalSiteBrokerSeams = { ...siteBrokerSeams };
 Object.assign(siteBrokerSeams, {
   deliverToRp: vi.fn(originalSiteBrokerSeams.deliverToRp),
 });
+afterAll(() => Object.assign(siteBrokerSeams, originalSiteBrokerSeams));
 
 import { FederationError } from "@opensesame/app-core/lib/federation.js";
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
@@ -39,7 +49,6 @@ import {
   addDomainRule,
   approveConsent,
   consentFor,
-  deliverToRp,
 } from "@opensesame/app-core/lib/site-broker.js";
 import { BrokerAuthorize } from "./BrokerAuthorize.js";
 

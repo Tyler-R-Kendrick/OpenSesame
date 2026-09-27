@@ -16,8 +16,6 @@ import {
   clearInstallOffer,
   commit,
   fieldNamed,
-  installNow,
-  offering,
   openSetup,
   openWaysIn,
   resetSetupScreen,

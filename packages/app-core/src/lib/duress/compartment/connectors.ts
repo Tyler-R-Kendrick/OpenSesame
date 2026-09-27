@@ -1,16 +1,3 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
 /**
  * Decoy/restricted external connections (UX-C / AT-093 / INV-28).
  * Default off. Only explicit safe low-authority connections.

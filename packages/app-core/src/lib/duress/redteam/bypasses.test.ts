@@ -3,7 +3,6 @@
  * Failures are intentional findings — do not force-pass.
  */
 
-import { defined } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
 import {
   assertContextAllows,
@@ -16,16 +15,10 @@ import {
   DURESS_PIN_PBKDF2_ITERATIONS,
   createIndependentCompartmentKey,
   openPrfAndCode,
-  openProfileSlot,
   sealPrfAndCode,
   sealProfileSlot,
 } from "../crypto/slots.js";
 import { overlapCast } from "../json-boundary.js";
-import {
-  combineRecoveryShares,
-  roleAllows,
-  splitRecoverySecret,
-} from "../recovery/custody.js";
 import {
   assertOwnedPath,
   isUnsupportedDestructiveAction,

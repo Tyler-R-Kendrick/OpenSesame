@@ -1,10 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Secret drop transport (docs/design/secret-drop.md, ADR 0062).
  *
@@ -80,10 +74,6 @@ export type DropSession = {
 /** Seal a payload under a fresh drop key (see `@opensesame/vault-core`). */
 export function sealDrop(payload: DropPayload): Promise<SealedDrop> {
   return sealDropFormat(payload).catch(asDropError);
-}
-
-function obj(value: BoundaryValue): JsonObject {
-  return isJsonObject(value) ? value : {};
 }
 
 /** Claim lifecycle states the server reports, mapped onto drop states. */

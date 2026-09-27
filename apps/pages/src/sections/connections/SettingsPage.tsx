@@ -10,22 +10,13 @@ import {
   subscribeLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
 import {
-  VERB_CHIP,
-  VERB_LABEL,
-  connectionVerb,
-  providerVerb,
-} from "@opensesame/app-core/lib/identity-graph.js";
-import {
   hasConnectRoute,
   isVercelCatalogId,
 } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import {
   CATEGORY_LABELS,
   type Flash,
-  STATUS_CHIP,
   connectorCeremonyRoot,
-  connectorPath,
-  errorText,
   statusSentence,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
@@ -35,11 +26,7 @@ import {
   IconConnection,
   IconExternal,
 } from "../../components/Icons.js";
-import {
-  StatusMark,
-  type StatusTone,
-  statusTone,
-} from "../../components/StatusMark.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AwsKmsConnectPanel } from "./AwsKmsConnectPanel.js";
 import { AzureKeyVaultKeysConnectPanel } from "./AzureKeyVaultKeysConnectPanel.js";
@@ -395,5 +382,3 @@ export function ConnectorSettingsPage({
     </div>
   );
 }
-
-type ConnectorTitleStatus = { tone: StatusTone; label: string };

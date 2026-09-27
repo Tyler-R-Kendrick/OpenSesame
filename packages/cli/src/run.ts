@@ -12,7 +12,6 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   type BoundaryValue,
-  type JsonValue,
   configuredEndpoint,
   isNumber,
   isString,

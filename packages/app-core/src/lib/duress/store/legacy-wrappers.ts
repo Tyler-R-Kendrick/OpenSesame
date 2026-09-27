@@ -1,16 +1,3 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
 /**
  * Legacy unlock-wrapper inventory for enrollment migration (STORE-B).
  * Scans plaintext tomb headers only — never opens sealed bodies.

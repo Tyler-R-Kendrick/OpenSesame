@@ -5,9 +5,17 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
@@ -24,6 +32,7 @@ Object.assign(federationSeams, {
   completeSignIn: fed.completeSignIn,
   adoptBrokeredSession: fed.adoptBrokeredSession,
 });
+afterAll(() => Object.assign(federationSeams, originalFederationSeams));
 
 import { orgSeams } from "@opensesame/app-core/lib/orgs.js";
 Object.assign(orgSeams, { joinOrgTenant: fed.joinOrgTenant });
@@ -43,9 +52,16 @@ import { FederationError } from "@opensesame/app-core/lib/federation.js";
 import { resetFederationReturnCeremony } from "@opensesame/app-core/screens/federation-return-model.js";
 import { FederationReturn } from "./FederationReturn.js";
 
+/** Where the router is now, so a test can wait for a navigation to land. */
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{`${pathname}${search}`}</output>;
+}
+
 function renderReturn() {
   return render(
     <MemoryRouter initialEntries={["/?code=abc&state=xyz"]}>
+      <LocationProbe />
       <Routes>
         <Route path="/" element={<FederationReturn />} />
         <Route path="/settings" element={<p>settings landed</p>} />
@@ -93,8 +109,12 @@ describe("FederationReturn", () => {
   it("falls back to the app root when there is no returnTo", async () => {
     fed.completeSignIn.mockResolvedValue(null);
     renderReturn();
-    // Navigated to "/", which still hosts this screen; no error shown.
-    await waitFor(() => expect(fed.completeSignIn).toHaveBeenCalledTimes(1));
+    // Navigated to "/", which still hosts this screen; no error shown. Wait
+    // for the navigation itself: an absence checked before it proves nothing.
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe("/"),
+    );
+    expect(fed.completeSignIn).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

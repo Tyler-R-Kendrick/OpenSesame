@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ConflictError, type UnitOfWork } from "@opensesame/database";
+import { ConflictError } from "@opensesame/database";
 import type { ExternalIdentity } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 

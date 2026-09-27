@@ -32,12 +32,13 @@ describe("CodeField", () => {
     ).toBe("true");
   });
 
-  it("constrains entry to digits, so a paste of a spaced code lands whole", () => {
+  it("constrains entry to digits, so a paste of a spaced code lands whole", async () => {
     const { onChange, onComplete } = renderField();
     fireEvent.change(screen.getByLabelText("Authenticator code"), {
       target: { value: "123 456" },
     });
     expect(onChange).toHaveBeenCalledWith("123456");
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
   });
 
   it("completes itself once every slot is filled", async () => {

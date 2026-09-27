@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
@@ -14,6 +13,7 @@ import {
   assertConsumedApplicationRequest,
   localRequestJourney,
 } from "./lib/local-request-journey.mjs";
+import { reviewCaptureDir } from "./lib/review-captures.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -26,10 +26,7 @@ const harness = createHarness({
   base: "/OpenSesame/",
   out: "/tmp/local-iam",
 });
-const captures = fileURLToPath(
-  new URL("../.impeccable/review", import.meta.url),
-);
-fs.mkdirSync(captures, { recursive: true });
+const captures = reviewCaptureDir();
 
 async function bundle(entry, name) {
   const result = await build({

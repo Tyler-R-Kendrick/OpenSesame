@@ -5,8 +5,10 @@
  */
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import { closeJsdomGaps } from "./jsdom-gaps.js";
 import { shellBuild } from "./shell-build.js";
 
 configureHost(
   composeHost(browserPorts(), { env: import.meta.env, ...shellBuild }),
 );
+closeJsdomGaps();

@@ -2,7 +2,7 @@
  * Device-native Identity host — provisional + claims without a remote API.
  */
 
-import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import {

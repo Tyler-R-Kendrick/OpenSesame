@@ -6,13 +6,7 @@
  * drops the token. Webhook deliveries enqueue a sync nudge the SPA drains.
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { githubAppCorsHeaders, mintGithubAppJwt } from "./github-app.mjs";
-import {
-  clearWebhookQueue,
-  drainWebhookNudges,
-  enqueueWebhookNudge,
-} from "./webhook-queue.mjs";
+import { mintGithubAppJwt } from "./github-app.mjs";
 
 export const API = "https://api.github.com";
 export const API_VERSION = "2022-11-28";

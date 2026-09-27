@@ -3,7 +3,15 @@ import type { SecretItem } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { identityHookSeams } from "../bindings/identity.js";
 const online = vi.hoisted(() => ({ value: true }));
 const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
@@ -12,15 +20,11 @@ const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
 const hostEligible = vi.hoisted(() => ({ value: true }));
 const connect = vi.hoisted(() => vi.fn());
 const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
-  () => ({
-    connecting: false,
-    error: null,
-  }),
+  () => ({ connecting: false, error: null }),
 );
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
-
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 Object.assign(identitySeams, {
@@ -46,14 +50,13 @@ const vault: { items: SecretItem[]; tomb: string; status: string } = vi.hoisted(
 );
 const addItems = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveItem = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault,
   useVaultStore: () => ({ addItems, saveItem }),
 });
-
+afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 import * as githubInstallation from "@opensesame/app-core/lib/github-installation-access.js";
 vi.spyOn(
   githubInstallation,
@@ -70,7 +73,6 @@ vi.spyOn(githubInstallation, "shouldEnsureGithubAccessGrant").mockReturnValue(
   false,
 );
 vi.spyOn(githubInstallation, "ensureGithubAccessGrant").mockResolvedValue([]);
-
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
 const discoverConnections = vi.hoisted(() => vi.fn().mockResolvedValue(0));
@@ -90,15 +92,12 @@ const createIntegration = vi.hoisted(() => vi.fn());
 const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
-
 import {
-  type Connection,
   ConnectionsError,
   type Provider,
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
 import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
-import { ConnectionsSection } from "./ConnectionsSection.js";
 import {
   CONNECTIONS_CATALOG as catalog,
   makeConnection,
@@ -127,7 +126,7 @@ Object.assign(connectionSeams, {
   startGithubAppRegistration,
   submitGithubAppManifest,
 });
-
+afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 const bundledRef = { current: new Array<Provider>() };
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
@@ -145,9 +144,10 @@ embeddedCatalogSeams.writeEmbeddedProviders = vi
 
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
-Object.assign(passkeyCeremonyNoteSeams, {
-  PasskeyCeremonyNote: () => null,
-});
+Object.assign(passkeyCeremonyNoteSeams, { PasskeyCeremonyNote: () => null });
+afterAll(() =>
+  Object.assign(passkeyCeremonyNoteSeams, originalPasskeyCeremonyNoteSeams),
+);
 
 // Every screen here mounts guide targets `connectors.external` contributes
 // (`connections.reload`, `.connected`, `.catalog`, `.provider-picker`,

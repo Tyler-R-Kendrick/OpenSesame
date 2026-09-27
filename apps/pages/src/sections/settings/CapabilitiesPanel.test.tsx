@@ -6,7 +6,7 @@ import {
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { capabilitiesPanelSeams } from "./CapabilitiesPanel.js";
 import {
   PERSONAL_SELECTION,
@@ -77,8 +77,11 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Shared drops" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
+    // The double records a commit when it is asked, not when it settles, and
+    // the review stays up until Apply's commit has settled. Wait for the
+    // tiles to come back, not for the record.
     fireEvent.click(
-      screen.getByRole("switch", { name: "Agent tools (WebMCP)" }),
+      await screen.findByRole("switch", { name: "Agent tools (WebMCP)" }),
     );
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(2));

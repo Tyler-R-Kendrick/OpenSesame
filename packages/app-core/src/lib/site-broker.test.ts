@@ -5,7 +5,6 @@ import {
   POLICY_KEY,
   addDomainRule,
   approveConsent,
-  brokerAuthorizeUrl,
   buildErrorMessage,
   buildSuccessMessage,
   consentCovers,
@@ -19,10 +18,7 @@ import {
   parseBrokerRequest as parseRequest,
   removeDomainRule,
   revokeConsent,
-  scriptTagSrc,
   setDomainRuleEffect,
-  staticSiteExplicitSnippet,
-  staticSiteSnippet,
 } from "./site-broker.js";
 
 const parseBrokerRequest = (search: string) =>

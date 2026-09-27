@@ -61,19 +61,6 @@ export function ConnectionCard({
         ? "Authorize"
         : "Re-authorize";
 
-  async function act(label: string, work: () => Promise<void>, done: string) {
-    setBusy(label);
-    try {
-      await work();
-      onFlash({ tone: "ok", text: done });
-      onChanged();
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function reauthorize() {
     const popup = openConsentPopup("about:blank");
     setBusy("authorize");

@@ -3,7 +3,6 @@ import type { WebauthnHostCheck } from "@opensesame/app-core/lib/vault/unlock-me
 import type { JsonObject } from "@opensesame/os-domain";
 import {
   cleanup,
-  fireEvent,
   render,
   screen,
   waitFor,
@@ -80,9 +79,10 @@ Object.assign(passwordSeams, {
 
 import { qrSeams } from "../../components/QrCode.js";
 const originalQrSeams = { ...qrSeams };
-Object.assign(qrSeams, {
+const qrStub = {
   QrCode: ({ value }: { value: string }) => <div data-testid="qr">{value}</div>,
-});
+};
+Object.assign(qrSeams, qrStub);
 
 const identityApi = vi.hoisted(() => ({ current: "http://127.0.0.1:8788" }));
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
@@ -349,8 +349,9 @@ describe("UnlockMethodsPanel", () => {
       row("Authenticator app").getByRole("button", { name: "Add" }),
     );
     const dialog = sheet();
-    await waitFor(() => expect(store.beginTotpEnrollment).toHaveBeenCalled());
-    expect(dialog.getByTestId("qr").textContent).toContain("ABCDEFGH");
+    const qr = await dialog.findByTestId("qr");
+    expect(qr.textContent).toContain("ABCDEFGH");
+    expect(store.beginTotpEnrollment).toHaveBeenCalled();
     // A keyed vault: the rail starts at Scan, no key step.
     expect(dialog.getByText("1 · Scan")).toBeTruthy();
     expect(dialog.queryByText(/Key/)).toBeNull();
@@ -544,11 +545,7 @@ afterEach(() => {
       label: password.length >= 12 ? "Strong" : "Weak",
     }),
   });
-  Object.assign(qrSeams, {
-    QrCode: ({ value }: { value: string }) => (
-      <div data-testid="qr">{value}</div>
-    ),
-  });
+  Object.assign(qrSeams, qrStub);
   Object.assign(identitySeams, { identityBase: () => identityApi.current });
   deviceIdentitySeams.remoteIdentityApi = () => identityApi.current;
   Object.assign(federationSeams, { loadSession: () => null });

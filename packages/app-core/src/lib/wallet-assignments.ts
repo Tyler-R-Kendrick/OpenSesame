@@ -12,7 +12,6 @@ import {
   onWalletTombChange,
   walletStorageKey,
   walletStorageScope,
-  walletStorageTomb,
 } from "./wallet-storage-scope.js";
 
 const STORAGE_KEY = "opensesame.wallet.instrument-budgets.v1";

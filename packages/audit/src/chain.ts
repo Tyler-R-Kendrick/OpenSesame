@@ -2,7 +2,6 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import {
   type AuditEvent,
   type BoundaryValue,
-  type JsonObject,
   isFunction,
   isString,
   isTypeofObject,

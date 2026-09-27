@@ -1,4 +1,4 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { createVault, sealJson } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvSet } from "../kv.js";

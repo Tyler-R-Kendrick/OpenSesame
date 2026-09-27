@@ -57,11 +57,7 @@ import {
   attachInteractionActivationRoutes,
   spendInteractionActivation,
 } from "./interaction-activation.js";
-import {
-  inboxRef,
-  requesterRef,
-  resolveInboxRef,
-} from "./interaction-handles.js";
+import { requesterRef, resolveInboxRef } from "./interaction-handles.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 import {
   type BindingRefusal,

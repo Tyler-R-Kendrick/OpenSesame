@@ -1,16 +1,4 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type JsonValue,
-  type MutableJsonObject,
-  isBoolean,
-  isJsonObject,
-  isNumber,
-  isString,
-  isTypeofObject,
-  overlapCast,
-  readString,
-} from "../json-boundary.js";
+import type { BoundaryValue } from "../json-boundary.js";
 /**
  * Durable incident intent journal (STORE-C).
  * Intent is written before session fence activation; restart recovers the fence snapshot.
