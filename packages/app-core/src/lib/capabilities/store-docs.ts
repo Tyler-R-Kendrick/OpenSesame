@@ -19,6 +19,7 @@ import {
   type RuntimeFacts,
   type VaultCapabilitySelection,
   diagnoseRuntimeDocuments,
+  isVaultForeign,
 } from "@opensesame/capability-composition";
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
 import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
@@ -177,6 +178,18 @@ export function adoptDocs(
   state.committedGeneration = docs.committedGeneration;
 }
 
+/**
+ * The vault id the store's vault records and the resolver both use. With no
+ * vault open, an emergency disable still needs a record to hold it; it is
+ * written for `no-vault`, and the resolver must be told the same id, or it
+ * reads that record as foreign and denies everything instead of one thing.
+ */
+const NO_VAULT = "no-vault";
+
+function vaultIdOf(state: StoreState): string {
+  return state.vaultId ?? NO_VAULT;
+}
+
 /** The current vault selection with `id` added to its disables. */
 export function vaultSelectionWith(
   state: StoreState,
@@ -186,8 +199,12 @@ export function vaultSelectionWith(
 ): VaultCapabilitySelection {
   const current = state.vaultSelection;
   // A foreign record already denies every optional capability; rewriting it
-  // as this vault's own would narrow it to `disabled` and so widen.
-  if (current && current.vaultId !== (state.vaultId ?? "no-vault"))
+  // as this vault's own would narrow it to `disabled` and so widen. Foreign is
+  // the resolver's own test — vault, installation or instance.
+  if (
+    current &&
+    isVaultForeign(current, instanceId, state.installationId, vaultIdOf(state))
+  )
     return current;
   const disabled = current?.disabled.includes(id)
     ? current.disabled
@@ -197,7 +214,7 @@ export function vaultSelectionWith(
     kind: "VaultCapabilitySelection",
     instanceId,
     installationId: state.installationId,
-    vaultId: state.vaultId ?? "no-vault",
+    vaultId: vaultIdOf(state),
     revision: `emergency-${now}`,
     disabled,
   };
@@ -240,6 +257,8 @@ export function resolveInputFor(
       now: storeSeams.now(),
     }),
     installationId: state.installationId,
-    vaultId: state.vaultId,
+    // With no vault open the only record is an emergency one, written for
+    // `no-vault`; name the same id so it reads as this session's own.
+    vaultId: state.vaultId ?? (state.vaultSelection === null ? null : NO_VAULT),
   };
 }
