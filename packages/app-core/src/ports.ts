@@ -126,6 +126,8 @@ export type Ports = {
   /** The origin-private file system root (`navigator.storage.getDirectory`). */
   readonly originFiles?: () => Promise<FileSystemDirectoryHandle>;
   readonly indexedDB?: IDBFactory;
+  /** The Cache API (`caches`): where the service worker keeps the offline shell. */
+  readonly cacheStorage?: CacheStorage;
 };
 
 function missing(port: string): Error {
@@ -238,4 +240,12 @@ export function indexedDatabases(): IDBFactory {
   const factory = host().indexedDB;
   if (!factory) throw missing("IndexedDB");
   return factory;
+}
+
+export function maybeIndexedDatabases(): IDBFactory | undefined {
+  return host().indexedDB;
+}
+
+export function maybeCacheStorage(): CacheStorage | undefined {
+  return host().cacheStorage;
 }

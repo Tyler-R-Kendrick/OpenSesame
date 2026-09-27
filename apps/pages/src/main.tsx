@@ -1,5 +1,6 @@
 // Must stay first: installs the host the shared core reads (ADR 0133).
 import "./host/boot.js";
+import { onBrowserReset } from "@opensesame/app-core/lib/browser-reset-channel.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { registerDuressUiModule } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { StrictMode } from "react";
@@ -55,6 +56,11 @@ armInstall();
 // address bar before anything renders, and on every later in-page arrival,
 // whatever is enabled (ADR 0144).
 watchLinkedPairing();
+
+// Another tab reset this browser (screens/unlock/ResetBrowser.tsx): what this
+// tab holds describes storage that is gone, so it starts again as a first
+// visit rather than write any of it back.
+onBrowserReset(() => window.location.replace(import.meta.env.BASE_URL));
 
 // The shared core never imports UI (ADR 0133); the shell says how to load the
 // duress settings panel when the duress runtime warms its capabilities.

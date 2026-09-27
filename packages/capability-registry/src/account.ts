@@ -1,4 +1,4 @@
-import { AUTH_CEREMONY } from "./exclusions.js";
+import { AUTH_CEREMONY, DEVICE_VAULT_CEREMONY } from "./exclusions.js";
 /**
  * The signed-in account (ADR 0091) and its own factors (ADR 0140 D10).
  *
@@ -8,7 +8,9 @@ import { AUTH_CEREMONY } from "./exclusions.js";
  * what a second step on that account would need. None of it is agent work:
  * every entry is withheld from every agent surface (ADR 0023). The factors
  * are Settings › Security rows in Pages, beside the vault's own keys, owned
- * by `identity.federation`.
+ * by `identity.federation`. Resetting the browser is the widest exit: the
+ * sign-out, then every store the app keeps on the origin — a device-vault
+ * ceremony at the unlock boundary (ADR 0089), never an agent's.
  */
 import type { Capability } from "./index.js";
 
@@ -124,6 +126,25 @@ export const accountCapabilities: readonly Capability[] = [
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,
+    },
+  },
+  {
+    id: "device.browser_reset",
+    title:
+      "Reset this browser: sign out, then erase every vault, setting, database, cache and service worker the app keeps on this origin",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/browser-reset.ts:resetBrowser",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: DEVICE_VAULT_CEREMONY,
+      mcp_client: DEVICE_VAULT_CEREMONY,
+      webmcp: DEVICE_VAULT_CEREMONY,
     },
   },
 ];
