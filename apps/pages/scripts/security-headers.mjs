@@ -61,12 +61,26 @@ const LOOPBACK_DEV_SOURCES = Object.freeze([
   "ws://127.0.0.1:*",
 ]);
 
-/** A bare origin and nothing else: no path, no credentials, no trailing slash. */
+/**
+ * An allowed service origin, by the grammar the policy parser enforces
+ * (`isServiceOrigin`, packages/capability-composition/src/origins.ts): a bare
+ * origin — no path, no credentials, no trailing slash — over https, or over
+ * http only to loopback. Anything else never reaches `connect-src`.
+ */
 function isOrigin(value) {
   try {
     const url = new URL(value);
     // `url.origin` is a string, so a non-string input can never equal it.
-    return url.origin === value && !url.username && !url.password;
+    if (url.origin !== value || url.username || url.password) return false;
+    if (url.protocol === "https:") return true;
+    const host = url.hostname;
+    return (
+      url.protocol === "http:" &&
+      (host === "localhost" ||
+        host.endsWith(".localhost") ||
+        host === "[::1]" ||
+        /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host))
+    );
   } catch {
     return false;
   }

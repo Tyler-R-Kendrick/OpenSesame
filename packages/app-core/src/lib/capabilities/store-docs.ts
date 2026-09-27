@@ -40,6 +40,8 @@ export type StoreState = {
   vaultSelection: VaultCapabilitySelection | null;
   emergencyDisabled: Set<CapabilityId>;
   baseFacts: RuntimeFacts | null;
+  /** What a plan approved while no module had run in this document yet. */
+  approvedAtLoad: readonly CapabilityId[];
   committedGeneration: number;
   generation: number;
 };
@@ -65,6 +67,7 @@ export function initialState(): StoreState {
     vaultSelection: null,
     emergencyDisabled: new Set(),
     baseFacts: null,
+    approvedAtLoad: [],
     committedGeneration: 0,
     generation: 0,
   };
@@ -254,6 +257,7 @@ export function resolveInputFor(
     facts: collectRuntimeFacts({
       evaluatedModuleIds: evaluatedModuleIds(),
       activeWorkerVariant: state.baseFacts?.activeWorkerVariant ?? null,
+      approvedAtLoad: state.approvedAtLoad,
       now: storeSeams.now(),
     }),
     installationId: state.installationId,

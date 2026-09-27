@@ -9,6 +9,7 @@ import type {
   CapabilityId,
   CapabilityTier,
   EgressDeclaration,
+  ExecutionEnvironment,
   ModuleId,
   OperationId,
 } from "./types-catalog.js";
@@ -40,7 +41,7 @@ export const REASON_CODES = [
   "DEPENDENCY_CONFLICT",
   "ALTERNATIVE_NOT_CHOSEN",
   "CONSENT_REQUIRED",
-  "NOT_CACHED_OFFLINE",
+  "RELOAD_REQUIRED",
   "RESTART_REQUIRED",
 ] as const;
 
@@ -62,6 +63,8 @@ export type CapabilityState = Readonly<{
   dependencyOf: readonly CapabilityId[];
   /** Runtime prerequisites hold in the supplied facts. */
   runtimeSupported: boolean;
+  /** The declared environments this realm cannot host; empty when supported. */
+  missingEnvironments: readonly ExecutionEnvironment[];
   /** In the approved closure: loadable and invokable under this plan. */
   approved: boolean;
   /** Evaluated in this realm although no longer approved. */
@@ -235,6 +238,7 @@ export type CapabilityLifecycle =
   | "disabled"
   | "disabled-restart-required"
   | "cached-offline"
+  | "reload-required"
   | "revocation-pending";
 
 /**

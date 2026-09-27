@@ -15,8 +15,14 @@ import {
   parseResultOf,
 } from "./diagnostics.js";
 import { MAX_OPAQUE_ID_LENGTH, isCapabilityId } from "./ids.js";
+import { isServiceOrigin } from "./origins.js";
 import type { ObjectReader } from "./parse-fields.js";
-import { MAX_ORIGIN_LENGTH, REVISION_BOUNDS } from "./parse-primitives.js";
+import {
+  MAX_ORIGIN_LENGTH,
+  REVISION_BOUNDS,
+  indexPath,
+  joinPath,
+} from "./parse-primitives.js";
 import { checkDisjoint, isSlotName, rootReader } from "./parse-support.js";
 import type {
   DeliveryPreference,
@@ -59,8 +65,21 @@ function readNetwork(reader: ObjectReader): NetworkPolicy | undefined {
     "allowedServiceOrigins",
     ORIGIN_BOUNDS,
   );
+  const malformed = (allowedServiceOrigins ?? []).filter((origin, index) => {
+    if (isServiceOrigin(origin)) return false;
+    network.report(
+      "INVALID_VALUE",
+      indexPath(joinPath(network.path, "allowedServiceOrigins"), index),
+      "an allowed origin is scheme://host[:port] exactly, https unless loopback",
+    );
+    return true;
+  });
   network.finish();
-  if (externalServices === undefined || allowedServiceOrigins === undefined) {
+  if (
+    externalServices === undefined ||
+    allowedServiceOrigins === undefined ||
+    malformed.length > 0
+  ) {
     return undefined;
   }
   return { externalServices, allowedServiceOrigins };

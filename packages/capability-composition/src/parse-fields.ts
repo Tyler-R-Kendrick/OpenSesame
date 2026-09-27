@@ -84,7 +84,7 @@ export class ObjectReader {
       this.report(
         "INVALID_ID",
         field.path,
-        `\`${key}\` must be 1–128 characters of [A-Za-z0-9._:-]`,
+        `\`${key}\` must be 1–128 characters of [A-Za-z0-9._:-], starting with a letter or digit`,
       );
       return undefined;
     }

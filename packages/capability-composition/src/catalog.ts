@@ -2,11 +2,12 @@
  * Catalog construction and validation.
  *
  * `buildCatalog` stamps every descriptor with its exposure digest;
- * `validateCatalog` checks the whole authored corpus as one unit — ids,
- * bounds, graph well-formedness, tier rules, module ownership, and that no
+ * `validateCatalog` checks the whole authored corpus as one unit — known
+ * fields, ids, bounds, graph well-formedness, tier rules, module ownership, and that no
  * stored digest disagrees with the declared exposure.
  */
 import { exposureDigest } from "./canonical.js";
+import { checkDeclaredFields } from "./catalog-fields.js";
 import {
   MAX_DEPENDENCY_DEPTH,
   checkGraph,
@@ -21,6 +22,7 @@ import {
   validationOf,
 } from "./diagnostics.js";
 import { isCapabilityId, isModuleId, isUnitName } from "./ids.js";
+import { keyAccessProblem } from "./key-access.js";
 import type {
   CapabilityCatalog,
   CapabilityDescriptor,
@@ -44,12 +46,6 @@ const EGRESS_CLASSES = new Set([
   "external-service",
   "peer-or-local-network",
   "user-mediated-navigation",
-]);
-const KEY_ACCESS = new Set([
-  "none",
-  "item-plaintext",
-  "protector-wrap",
-  "provider-bearer",
 ]);
 
 export type CatalogIndex = ReadonlyMap<CapabilityId, CapabilityDescriptor>;
@@ -117,14 +113,11 @@ function checkText(
       ),
     );
   }
-  if (!KEY_ACCESS.has(d.keyAccess)) {
+  const keyAccess = keyAccessProblem(d.keyAccess);
+  if (keyAccess !== null) {
     pushDiagnostic(
       diags,
-      diagnostic(
-        "INVALID_VALUE",
-        `${path}.keyAccess`,
-        "unknown key access class",
-      ),
+      diagnostic("INVALID_VALUE", `${path}.keyAccess`, keyAccess),
     );
   }
 }
@@ -283,6 +276,7 @@ export function validateCatalog(c: CapabilityCatalog): ValidationResult {
   });
   c.capabilities.forEach((d, i) => {
     const path = `capabilities[${i}]`;
+    checkDeclaredFields(d, path, diags);
     checkText(d, path, diags);
     checkEnvironments(d, path, diags);
     checkModules(d, path, diags);

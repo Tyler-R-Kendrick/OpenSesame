@@ -152,6 +152,13 @@ export class FakeStore implements CompositionStoreForWorker {
     this.snapshot = snapshot;
     for (const listener of this.listeners) listener();
   }
+
+  /** Every `setOfflineSaved` report, in order. */
+  readonly savedReports: (readonly string[])[] = [];
+
+  setOfflineSaved(moduleIds: readonly string[]): void {
+    this.savedReports.push(moduleIds);
+  }
 }
 
 type Handler = (event: { data: JsonObject }) => void;

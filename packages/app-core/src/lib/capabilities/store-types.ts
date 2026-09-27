@@ -15,6 +15,10 @@ import type {
   PolicyProvenance,
   RuntimeFacts,
 } from "@opensesame/capability-composition";
+import {
+  isWorkerModule,
+  moduleCapability,
+} from "@opensesame/capability-composition";
 import { type KvDurability, kvDurability } from "../kv.js";
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
 
@@ -101,14 +105,38 @@ export function durabilityOf(
   return "unknown";
 }
 
+/**
+ * Whether every page module the plan approves for `id` is in the worker's
+ * offline cache. A capability with no page module has nothing to save, so it
+ * never claims to be saved.
+ */
+function savedOffline(
+  plan: EffectivePlan,
+  id: CapabilityId,
+  saved: ReadonlySet<string>,
+): boolean {
+  const modules = plan.approvedModules.filter(
+    (m) => moduleCapability(m) === id && !isWorkerModule(m),
+  );
+  return modules.length > 0 && modules.every((m) => saved.has(m));
+}
+
 function lifecycleFor(
+  plan: EffectivePlan,
   state: CapabilityState,
   activity: CapabilityActivity | undefined,
+  saved: ReadonlySet<string>,
 ): CapabilityLifecycle {
   if (!state.distributed) return "not-distributed";
   if (state.approved) {
     if (activity === "active") return "active";
     if (activity === "loading") return "loading";
+    if (state.reasons.includes("RELOAD_REQUIRED")) return "reload-required";
+    // Approved, not running here, and its code is saved for offline use
+    // (carried from #470's cached status). Cache state is reported by the
+    // worker and projected here, never resolved: a cache report must not
+    // re-resolve the plan and revoke every running lease.
+    if (savedOffline(plan, state.id, saved)) return "cached-offline";
     return "approved-not-loaded";
   }
   if (state.restartRequired) return "disabled-restart-required";
@@ -122,12 +150,13 @@ export function lifecycleMap(
   plan: EffectivePlan,
   distribution: DistributionContract,
   activity: ReadonlyMap<CapabilityId, CapabilityActivity>,
+  saved: ReadonlySet<string> = new Set(),
 ): Readonly<Record<CapabilityId, CapabilityLifecycle>> {
   const out: Record<CapabilityId, CapabilityLifecycle> = {};
   const distributed = new Set(distribution.capabilityIds);
   for (const [id, state] of Object.entries(plan.capabilities)) {
     out[id] = distributed.has(id)
-      ? lifecycleFor(state, activity.get(id))
+      ? lifecycleFor(plan, state, activity.get(id), saved)
       : "not-distributed";
   }
   return out;

@@ -18,7 +18,7 @@ export const MAX_REVISION_LENGTH = 64;
 
 const CAPABILITY_ID_RE = /^[a-z][a-z0-9]*(\.[a-z0-9]+(-[a-z0-9]+)*)+$/;
 const UNIT_RE = /^[a-z][a-z0-9-]*$/;
-const OPAQUE_ID_RE = /^[A-Za-z0-9._:-]+$/;
+const OPAQUE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 
 /** `family.name[-name]`, e.g. `connectors.external`; at most 64 characters. */
 export function isCapabilityId(v: string): boolean {
@@ -54,7 +54,12 @@ export function isWorkerModule(v: ModuleId): boolean {
   return isModuleId(v) && v.slice(v.indexOf("/") + 1) === "worker";
 }
 
-/** Instance, installation, and vault ids: `^[A-Za-z0-9._:-]+$`, 1–128. */
+/**
+ * Instance, installation, and vault ids: `^[A-Za-z0-9][A-Za-z0-9._:-]*$`,
+ * 1–128. The first character is a letter or digit (carried from #470): a
+ * vault id is a storage path segment (`tomb/<vaultId>/…`), so `..`, `.x` or a
+ * leading `-` or `:` never names one.
+ */
 export function isOpaqueId(v: string): boolean {
   return (
     v.length > 0 && v.length <= MAX_OPAQUE_ID_LENGTH && OPAQUE_ID_RE.test(v)

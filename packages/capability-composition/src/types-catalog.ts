@@ -80,6 +80,15 @@ export type KeyAccessClass =
   | "provider-bearer";
 
 /**
+ * The key material a capability can reach: one class, or every class it holds
+ * at once — a capability that reads item plaintext and also carries a
+ * provider's bearer declares both, so consent names both (carried from #470,
+ * whose descriptors declared vault read, vault write and device keys as
+ * separate flags). `"none"` is the empty set and never combines.
+ */
+export type KeyAccess = KeyAccessClass | readonly KeyAccessClass[];
+
+/**
  * One alternative implementation path for a dependency. A capability may
  * depend on exactly one of several alternatives (e.g. sharing over an
  * Identity-API drop versus a future local transport). Selecting one requires
@@ -107,7 +116,7 @@ export type CapabilityDescriptor = Readonly<{
   environments: readonly ExecutionEnvironment[];
   egress: readonly EgressDeclaration[];
   browserPermissions: readonly BrowserPermission[];
-  keyAccess: KeyAccessClass;
+  keyAccess: KeyAccess;
   /** True when the feature needs an Identity/Host/daemon/native component. */
   requiresService: boolean;
   /** One sentence on what works offline; "" when nothing changes offline. */

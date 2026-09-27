@@ -8,10 +8,11 @@
  * Acceptance is a different path: `verifyPolicyEnvelope` for the signature,
  * S01's `parseInstancePolicy` for the payload, `checkRevision` for order.
  */
-import type {
-  CapabilityCatalog,
-  DistributionContract,
-  InstanceCapabilityPolicy,
+import {
+  type CapabilityCatalog,
+  type DistributionContract,
+  type InstanceCapabilityPolicy,
+  isServiceOrigin,
 } from "@opensesame/capability-composition";
 import {
   type BoundaryValue,
@@ -141,13 +142,7 @@ function readNetwork(value: JsonValue | undefined): NetworkPreview {
   const externalServices: NetworkPreview["externalServices"] =
     declared === "allow" || declared === "deny" ? declared : "unknown";
   const allowedServiceOrigins = isJsonObject(value)
-    ? idList(value.allowedServiceOrigins).filter((origin) => {
-        try {
-          return new URL(origin).origin === origin;
-        } catch {
-          return false;
-        }
-      })
+    ? idList(value.allowedServiceOrigins).filter(isServiceOrigin)
     : [];
   return { externalServices, allowedServiceOrigins };
 }

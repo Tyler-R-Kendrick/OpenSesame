@@ -15,6 +15,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { compareIds, sortIds } from "./ids.js";
+import { keyAccessDigestBody } from "./key-access.js";
 import type {
   CapabilityDescriptor,
   ConsentReceipt,
@@ -154,7 +155,7 @@ export function exposureDigest(
     egress: normalizeEgress(d.egress),
     environments: sortIds(d.environments),
     id: d.id,
-    keyAccess: d.keyAccess,
+    keyAccess: keyAccessDigestBody(d.keyAccess),
     moduleIds: sortIds(d.moduleIds),
     requiresService: d.requiresService,
     workerGraphConstraint: d.workerGraphConstraint,

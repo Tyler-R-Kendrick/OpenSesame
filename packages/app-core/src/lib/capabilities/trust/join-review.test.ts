@@ -54,6 +54,29 @@ describe("previewJoinDocument (S03, TRUST-02/07)", () => {
     expect(preview.provenance).toBe("invitation-unverified");
   });
 
+  it("lists only the origins the policy parser accepts: https, or http to loopback", async () => {
+    const preview = await previewJoinDocument(
+      doc({
+        ...FAMILY_POLICY,
+        network: {
+          externalServices: "allow",
+          allowedServiceOrigins: [
+            "https://id.example.test",
+            "http://plain.example.test",
+            "https://id.example.test/",
+            "http://api.localhost:8787",
+          ],
+        },
+      }),
+      FIXTURE_DISTRIBUTION,
+      FIXTURE_CATALOG,
+    );
+    expect(preview.ok && preview.network.allowedServiceOrigins).toEqual([
+      "https://id.example.test",
+      "http://api.localhost:8787",
+    ]);
+  });
+
   it("previews a signed envelope with an embedded key and shows the fingerprint to compare", async () => {
     const signer = await generatePolicySigningKey();
     const envelope = await signPolicyEnvelope(signer, {

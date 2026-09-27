@@ -16,6 +16,7 @@ export {
   isModuleId,
   isOpaqueId,
   isUnitName,
+  isWorkerModule,
   moduleCapability,
   sortIds,
 } from "./ids.js";
@@ -31,6 +32,7 @@ export {
   sha256Hex,
   sortConflicts,
 } from "./canonical.js";
+export { MAX_DESCRIPTOR_LIST } from "./catalog-fields.js";
 export {
   MAX_CATALOG_CAPABILITIES,
   MAX_DEPENDENCY_DEPTH,
@@ -73,6 +75,13 @@ export {
   computeConsentDelta,
   consentCandidatesOf,
 } from "./consent.js";
+export {
+  KEY_ACCESS_CLASSES,
+  keyAccessClasses,
+  keyAccessDigestBody,
+  keyAccessProblem,
+} from "./key-access.js";
+export { isServiceOrigin } from "./origins.js";
 export { BLOCKING_REASONS, REASON_CODES, sortReasons } from "./reasons.js";
 export {
   FIXTURE_CATALOG,

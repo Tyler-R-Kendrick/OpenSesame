@@ -14,9 +14,11 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "agents.webmcp",
     "WebMCP tools",
     "Register this page's fenced tools with the browser's model context so an in-browser agent can read and navigate it.",
-    {
-      requiresDocumentReload: true,
-    },
+    // Starts in place: `registerTool` may be called at any time, and
+    // `verify:webmcp` chooses it after boot and reads four native tools
+    // without a reload. Declaring a reload here would hold it back for one
+    // (RELOAD_REQUIRED) that it does not need.
+    {},
   ),
   optional(
     "support.local-ai",

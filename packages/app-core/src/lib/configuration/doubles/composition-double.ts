@@ -91,8 +91,12 @@ function lifecycleOf(
   active: ReadonlySet<CapabilityId>,
 ): CapabilityLifecycle {
   if (!state.distributed) return "not-distributed";
-  if (state.approved)
-    return active.has(state.id) ? "active" : "approved-not-loaded";
+  if (state.approved) {
+    if (active.has(state.id)) return "active";
+    return state.reasons.includes("RELOAD_REQUIRED")
+      ? "reload-required"
+      : "approved-not-loaded";
+  }
   if (state.restartRequired) return "disabled-restart-required";
   if (state.reasons.includes("CONSENT_REQUIRED")) return "consent-required";
   if (state.reasons.includes("NOT_SELECTED")) return "not-selected";

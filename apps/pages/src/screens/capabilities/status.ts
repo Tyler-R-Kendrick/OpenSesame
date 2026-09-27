@@ -3,8 +3,8 @@
  *
  * Each claim is its own: deselected, prohibited by operator, unavailable in
  * this distribution, unsupported by this browser, consent required, active,
- * restart required. None implies another, and a preview never reads as
- * applied. The ladder is read in three passes — what this installation can
+ * restart required, reload to start, saved offline. None implies another,
+ * and a preview never reads as applied. The ladder is read in three passes — what this installation can
  * even run, what the draft is previewing, and what is running now — so no
  * single test collapses two different truths.
  */
@@ -17,13 +17,17 @@ import type { StatusTone } from "../../components/StatusMark.js";
 
 export type CapabilityStatus = Readonly<{ tone: StatusTone; label: string }>;
 
+/** Approved, waiting for a fresh document before it can start. */
+const RELOAD: CapabilityStatus = { tone: "warn", label: "reload to start" };
+
 /** Nothing this installation cannot run gets past here. */
 function availability(state: CapabilityState): CapabilityStatus | null {
   if (state.tier === "core") {
     // Always on is the default; an operator may still withdraw it (ADR 0142).
-    return state.approved
-      ? { tone: "ok", label: "always on" }
-      : { tone: "err", label: "withdrawn by operator" };
+    if (!state.approved) return { tone: "err", label: "withdrawn by operator" };
+    return state.reasons.includes("RELOAD_REQUIRED")
+      ? RELOAD
+      : { tone: "ok", label: "always on" };
   }
   if (!state.distributed) {
     return { tone: "idle", label: "unavailable in this distribution" };
@@ -66,6 +70,13 @@ function standing(
   }
   if (lifecycle === "active") return { tone: "ok", label: "active" };
   if (lifecycle === "loading") return { tone: "ok", label: "starting" };
+  if (
+    lifecycle === "reload-required" ||
+    state.reasons.includes("RELOAD_REQUIRED")
+  )
+    return RELOAD;
+  if (state.approved && lifecycle === "cached-offline")
+    return { tone: "ok", label: "saved offline" };
   if (state.approved) return { tone: "ok", label: "approved" };
   if (
     state.reasons.includes("CONSENT_REQUIRED") ||

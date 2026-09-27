@@ -34,6 +34,7 @@ export const FACTS: RuntimeFacts = {
   activeWorkerVariant: null,
   cleanRealm: true,
   evaluatedModuleIds: [],
+  approvedAtLoad: [],
   now: "2026-09-22T00:00:00.000Z",
 };
 
