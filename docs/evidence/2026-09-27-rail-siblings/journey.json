@@ -22,9 +22,7 @@
           "measure": ".railtree__row[aria-level='2']:is([aria-label='General'],[aria-label='Security'],[aria-label='Vaults'],[aria-label='Capabilities'],[aria-label='Danger']) > .railtree__name"
         },
         {
-          "count": [
-            ".railtree__row[aria-level='2'][aria-expanded]"
-          ]
+          "count": [".railtree__row[aria-level='2'][aria-expanded]"]
         },
         {
           "shot": "1280-settings-rail"
@@ -92,9 +90,7 @@
           "tab": "Settings"
         },
         {
-          "count": [
-            ".page-index a"
-          ]
+          "count": [".page-index a"]
         },
         {
           "measure": ".page-index"
