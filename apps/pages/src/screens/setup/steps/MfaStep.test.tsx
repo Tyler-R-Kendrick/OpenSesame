@@ -19,6 +19,11 @@ beforeEach(() => {
     identity: "down",
     identityBase: "",
   });
+  // Settings round-trip through the local map, so a pick is read back.
+  settingsSeams.loadSettings = () => ({
+    ...seams.currentSettings(),
+    capabilityConnectors,
+  });
   settingsSeams.saveSettings = (next) => {
     capabilityConnectors = next.capabilityConnectors ?? capabilityConnectors;
   };
@@ -29,7 +34,7 @@ afterEach(() => {
 });
 
 describe("MfaStep", () => {
-  it.skip("lists configurable connectors for each of the three MFA families", () => {
+  it("lists configurable connectors for each of the three MFA families", () => {
     render(<MfaStep />);
 
     expect(
@@ -46,20 +51,41 @@ describe("MfaStep", () => {
     expect(screen.getByRole("region", { name: "Email code" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Text message" })).toBeTruthy();
 
-    expect(screen.getByRole("button", { name: /This vault/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Bitwarden/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Resend/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /SendGrid/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Twilio/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /MessageBird/ })).toBeTruthy();
+    // Every connector is a choice object to pick; the vault's own
+    // authenticator needs no account, so it carries no connect key.
+    expect(screen.getByRole("button", { name: /^This vault/ })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Connect This vault" }),
+    ).toBeNull();
+    // One that needs an account also carries its connect icon key — offered
+    // without a Host (Connect completes Pages alone, ADR 0090).
+    for (const name of ["Bitwarden", "Resend", "SendGrid", "Twilio"]) {
+      expect(
+        screen.getByRole("button", { name: new RegExp(`^${name}`) }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: `Connect ${name}` }),
+      ).toBeTruthy();
+    }
+    expect(screen.getByRole("button", { name: /^MessageBird/ })).toBeTruthy();
   });
 
-  it.skip("binds this-vault authenticator instantly without a Host", () => {
+  it("binds this-vault authenticator instantly without a Host", () => {
+    // Start the binding elsewhere so the pick is observable.
+    capabilityConnectors = {
+      ...capabilityConnectors,
+      mfa_authenticator: { providerId: "bitwarden" },
+    };
     render(<MfaStep />);
-    fireEvent.click(screen.getByRole("button", { name: /This vault/ }));
+    const pick = screen.getByRole("button", { name: /^This vault/ });
+    expect(pick.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("img", { name: "Instant" })).toBeTruthy();
+    fireEvent.click(pick);
     expect(capabilityConnectors.mfa_authenticator.providerId).toBe(
       "vault-self",
     );
-    expect(screen.getByText("Ready")).toBeTruthy();
+    expect(pick.getAttribute("aria-pressed")).toBe("true");
+    // The status is a glyph whose sentence is its accessible name.
+    expect(screen.getByRole("img", { name: "Ready" })).toBeTruthy();
   });
 });
