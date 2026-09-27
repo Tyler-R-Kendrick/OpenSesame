@@ -182,9 +182,11 @@ describe("shell after unlock", () => {
     // The vault's generation resolved, but its activation pass never ends.
     publish({ status: "unlocked", snapshot: snapshotAt(2, "personal") });
     expect(screen.queryByText("consent screen")).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByText("consent screen")).toBeTruthy(),
-    );
-    expect(counts).toEqual({ mounts: 1, unmounts: 0 });
+    // The mount lands from a timer, outside act: the DOM can show the screen
+    // a tick before its effect has run, so wait for both.
+    await waitFor(() => {
+      expect(screen.getByText("consent screen")).toBeTruthy();
+      expect(counts).toEqual({ mounts: 1, unmounts: 0 });
+    });
   });
 });

@@ -13,11 +13,7 @@ import Provider, {
 import { withDynamicClientLoader } from "./adapter/dynamic-client-adapter.js";
 import { createMemoryAdapterConstructor } from "./adapter/memory-adapter.js";
 import type { OidcAdapterConstructor } from "./adapter/types.js";
-import {
-  type LookupAccount,
-  type MapClaims,
-  createFindAccount,
-} from "./claims/find-account.js";
+import { createFindAccount } from "./claims/find-account.js";
 import { createClientAdmissionPolicy } from "./clients/admission.js";
 import {
   findOriginClient,
@@ -28,22 +24,22 @@ import {
   type ClientRecordStore,
   MemoryClientRecordStore,
 } from "./clients/store.js";
-import {
-  type FindStoredConsent,
-  createLoadExistingGrant,
-} from "./consent/load-existing-grant.js";
+import { createLoadExistingGrant } from "./consent/load-existing-grant.js";
 import { readOAuthProviderEnv } from "./env.js";
 import {
   CLIENT_CREDENTIALS_FEATURE,
-  SERVICE_ACCESS_TOKEN_MAX_SECONDS,
   assertConfidentialClientCredentials,
   clientCredentialsExtraMetadata,
   createJwtClientAuthReplayGuard,
 } from "./grants/client-credentials.js";
-import { type JwtReplayCache, ReplayCache } from "./grants/replay-cache.js";
+import { ReplayCache } from "./grants/replay-cache.js";
+import {
+  ARTIFACT_LIFETIMES,
+  introspectionAllowed,
+  revocationAllowed,
+} from "./lifetimes.js";
 import { SafeMetadataFetcher } from "./metadata/safe-fetcher.js";
 import {
-  type MtlsTransport,
   buildMtlsFeature,
   combineExtraClientMetadata,
   mtlsClientAuthMethods,
@@ -51,6 +47,7 @@ import {
   mtlsDiscoveryConfiguration,
 } from "./mtls/feature.js";
 import { parseOriginClientId } from "./origin/canonical.js";
+import { providerPages } from "./pages.js";
 import {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback as pairwiseCallback,
@@ -63,43 +60,8 @@ import type {
 } from "./types.js";
 export { createLoadExistingGrant } from "./consent/load-existing-grant.js";
 export { canonicalResource, isResourceAllowed } from "./resource-indicators.js";
-export interface CreateOpenSesameProviderOptions {
-  issuer?: string;
-  env?: Partial<OAuthProviderEnv>;
-  processEnv?: NodeJS.ProcessEnv;
-  adapter?: OidcAdapterConstructor;
-  pairwiseStore?: PairwiseSubjectStore;
-  /**
-   * Durable client records (ADR 0050 R-C). Defaults to an in-memory store
-   * seeded from `options.clients`, so existing callers behave unchanged.
-   */
-  clientStore?: ClientRecordStore;
-  clients?: ClientMetadata[];
-  /**
-   * Deployment/system principal that owns newly auto-admitted origin clients
-   * (ADR 0050 R-A). Optional so existing callers behave unchanged; the
-   * control plane always passes it.
-   */
-  systemOwnerPrincipalId?: string;
-  /** When omitted, MemoryAdapter is used (tests / local). Production should pass Postgres adapter. */
-  jwks?: Configuration["jwks"];
-  /**
-   * Durable consent lookup for grant reuse across sessions. When provided,
-   * a returning account whose stored consent covers every requested scope
-   * skips the consent interaction: `loadExistingGrant` materialises a Grant
-   * from this record instead of prompting again. Absent (the default), only
-   * oidc-provider's session-scoped grant reuse applies — existing callers
-   * behave unchanged. Return `null` when no live consent exists.
-   */
-  findStoredConsent?: FindStoredConsent;
-  /** Null/suspended accounts fail issuance (ADV-17). Absent: any id is `{sub}`. */
-  lookupAccount?: LookupAccount;
-  /** Extra claim mapping; reserved protocol claims are fenced (ADV-16). */
-  mapClaims?: MapClaims;
-  replayCache?: JwtReplayCache;
-  /** RFC 8705 (ID-OAUTH): set only with a TLS listener; absent keeps mTLS off. */
-  transport?: MtlsTransport;
-}
+import type { CreateOpenSesameProviderOptions } from "./options.js";
+export type { CreateOpenSesameProviderOptions };
 export interface OpenSesameProviderBundle {
   provider: Provider;
   env: OAuthProviderEnv;
@@ -353,8 +315,10 @@ export function createOpenSesameProvider(
     return toOidcClientMetadata(record);
   });
 
+  const pages = providerPages(options.pages);
   const configuration: Configuration = {
     adapter,
+    renderError: pages.renderError,
     clients: staticClients,
     jwks,
     subjectTypes: ["pairwise"],
@@ -372,12 +336,13 @@ export function createOpenSesameProvider(
       : undefined),
     pkce: { required: () => true },
     scopes: ["openid", "offline_access", "profile", "email"],
-    ttl: { ClientCredentials: SERVICE_ACCESS_TOKEN_MAX_SECONDS },
+    ttl: ARTIFACT_LIFETIMES,
     features: {
       devInteractions: { enabled: false },
-      deviceFlow: { enabled: true },
-      revocation: { enabled: true },
-      introspection: { enabled: true },
+      deviceFlow: { enabled: true, ...pages.deviceFlow },
+      rpInitiatedLogout: { enabled: true, ...pages.rpInitiatedLogout },
+      revocation: { enabled: true, allowedPolicy: revocationAllowed },
+      introspection: { enabled: true, allowedPolicy: introspectionAllowed },
       userinfo: { enabled: true },
       pushedAuthorizationRequests: { enabled: true },
       dPoP: { enabled: true, allowReplay: false },
