@@ -56,5 +56,17 @@ export function extraSteps({ press }) {
       await field.selectOption({ label: option });
       await page.waitForTimeout(400);
     },
+    /**
+     * Choose an option in a labelled select when this build has it — a
+     * device's platform. A base build without the field is a legitimate
+     * difference, not a miss.
+     */
+    async selectOptional(page, { label, value }) {
+      const select = page.getByLabel(label, { exact: true }).first();
+      if ((await select.count()) && (await select.isEnabled())) {
+        await select.selectOption(value);
+        await page.waitForTimeout(400);
+      }
+    },
   };
 }

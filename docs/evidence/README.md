@@ -56,6 +56,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-27-rail-panels/`](2026-09-27-rail-panels/README.md) | Every rail entry is a panel the page draws |
 | [`2026-09-27-provider-wide-grants/`](2026-09-27-provider-wide-grants/README.md) | Access › Connectors lists provider-wide grants |
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
+| [`2026-09-27-identity-devices/`](2026-09-27-identity-devices/README.md) | Identity › Devices — register, edit, claim and remove, like every other Identity list |
 | [`2026-09-27-connect-forget-key/`](2026-09-27-connect-forget-key/README.md) | Forget Vercel Connect, and a hand-off that clears an earlier refusal |
 | [`2026-09-27-access-rail/`](2026-09-27-access-rail/README.md) | Access tabs are siblings in the rail |
 | [`2026-09-27-access-connectors/`](2026-09-27-access-connectors/README.md) | Access › Connectors lists what Connections configures |

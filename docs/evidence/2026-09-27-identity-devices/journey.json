@@ -1,0 +1,220 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "press": "^Devices$"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "count": [
+            "section[aria-label='Devices'] .vtree__keys button",
+            "section[aria-label='Devices'] .identity-row",
+            "section[aria-label='Devices'] .chip",
+            "section[aria-label='Devices'] .status-mark"
+          ]
+        },
+        {
+          "report": "section[aria-label='Devices'] .identity-row__when"
+        },
+        {
+          "measure": "section[aria-label='Devices'] .panel__head"
+        },
+        {
+          "shot": "390-list"
+        },
+        {
+          "pressNamedOptional": "New device"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Work laptop"
+          }
+        },
+        {
+          "selectOptional": {
+            "label": "Platform",
+            "value": "Windows"
+          }
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-form"
+        },
+        {
+          "pressNamedOptional": "Register device"
+        },
+        {
+          "count": ["section[aria-label='Devices'] .identity-row"]
+        },
+        {
+          "report": "section[aria-label='Devices'] .identity-row h3"
+        },
+        {
+          "shot": "390-registered"
+        },
+        {
+          "pressNamedOptional": "Remove Work laptop"
+        },
+        {
+          "shot": "390-armed"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "press": "^Devices$"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "count": [
+            "section[aria-label='Devices'] .vtree__keys button",
+            "section[aria-label='Devices'] .identity-row",
+            "section[aria-label='Devices'] .chip",
+            "section[aria-label='Devices'] .status-mark"
+          ]
+        },
+        {
+          "report": "section[aria-label='Devices'] .identity-row__when"
+        },
+        {
+          "measure": "section[aria-label='Devices'] .panel__head"
+        },
+        {
+          "shot": "1280-list"
+        },
+        {
+          "pressNamedOptional": "New device"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Work laptop"
+          }
+        },
+        {
+          "selectOptional": {
+            "label": "Platform",
+            "value": "Windows"
+          }
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-form"
+        },
+        {
+          "pressNamedOptional": "Register device"
+        },
+        {
+          "count": ["section[aria-label='Devices'] .identity-row"]
+        },
+        {
+          "report": "section[aria-label='Devices'] .identity-row h3"
+        },
+        {
+          "shot": "1280-registered"
+        },
+        {
+          "pressNamedOptional": "Remove Work laptop"
+        },
+        {
+          "shot": "1280-armed"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-list",
+      "width": 390,
+      "title": "Identity \u203a Devices \u2014 390 \u00d7 844",
+      "caption": "The panel head gains the add and reload keys every other Identity list has; this device's status is a mark, not a pill; each row says platform, when it was added and when it was last seen.",
+      "before": "0 head keys, 1 text pill (.chip), no dates",
+      "after": "2 head keys (New device, Reload devices), 1 status mark, platform \u00b7 added \u00b7 last seen"
+    },
+    {
+      "shot": "390-form",
+      "width": 390,
+      "title": "Registering a device \u2014 390 \u00d7 844",
+      "caption": "New device opens the same form the directory lists use: name, platform, the commit square and cancel. Focus lands in Name.",
+      "before": "no way to add a device",
+      "after": "Name + Platform form, Register device commit"
+    },
+    {
+      "shot": "390-registered",
+      "width": 390,
+      "title": "A registered device \u2014 390 \u00d7 844",
+      "caption": "The registration is listed as not yet opened on that device, with a claim key for when that device opens the vault, edit, and remove.",
+      "before": "1 row (this browser only)",
+      "after": "2 rows; Work laptop marked registered, never seen"
+    },
+    {
+      "shot": "390-armed",
+      "width": 390,
+      "title": "Removal is armed \u2014 390 \u00d7 844",
+      "caption": "Remove arms first and offers Keep beside it, as People, Agents, Applications and Organizations do; the device you are on has no remove key.",
+      "before": "one press deleted a device",
+      "after": "armed trash key + Keep"
+    },
+    {
+      "shot": "1280-list",
+      "width": 1280,
+      "title": "Identity \u203a Devices \u2014 1280 \u00d7 800",
+      "caption": "The panel head gains the add and reload keys every other Identity list has; this device's status is a mark, not a pill; each row says platform, when it was added and when it was last seen.",
+      "before": "0 head keys, 1 text pill (.chip), no dates",
+      "after": "2 head keys (New device, Reload devices), 1 status mark, platform \u00b7 added \u00b7 last seen"
+    },
+    {
+      "shot": "1280-form",
+      "width": 1280,
+      "title": "Registering a device \u2014 1280 \u00d7 800",
+      "caption": "New device opens the same form the directory lists use: name, platform, the commit square and cancel. Focus lands in Name.",
+      "before": "no way to add a device",
+      "after": "Name + Platform form, Register device commit"
+    },
+    {
+      "shot": "1280-registered",
+      "width": 1280,
+      "title": "A registered device \u2014 1280 \u00d7 800",
+      "caption": "The registration is listed as not yet opened on that device, with a claim key for when that device opens the vault, edit, and remove.",
+      "before": "1 row (this browser only)",
+      "after": "2 rows; Work laptop marked registered, never seen"
+    },
+    {
+      "shot": "1280-armed",
+      "width": 1280,
+      "title": "Removal is armed \u2014 1280 \u00d7 800",
+      "caption": "Remove arms first and offers Keep beside it, as People, Agents, Applications and Organizations do; the device you are on has no remove key.",
+      "before": "one press deleted a device",
+      "after": "armed trash key + Keep"
+    }
+  ]
+}

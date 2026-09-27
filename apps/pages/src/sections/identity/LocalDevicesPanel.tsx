@@ -1,191 +1,167 @@
+import { kvDurability } from "@opensesame/app-core/lib/kv.js";
 import {
   type LocalDevice,
-  removeLocalDevice,
-  renameLocalDevice,
-  thisDeviceId,
+  readLocalDevices,
   touchThisDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
-import { useEffect, useState } from "react";
-import { FormCommit } from "../../components/FormCommit.js";
-import { IconKey } from "../../components/IconKey.js";
-import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IconKey, ReloadKey } from "../../components/IconKey.js";
+import { IconPlus } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import {
+  type DeviceDraft,
+  DeviceForm,
+  DeviceRows,
+  type DevicesModel,
+  newDeviceDraft,
+} from "./LocalDeviceRows.js";
 
+const READ_ERROR =
+  "Could not read devices from this vault. Unlock it and reload; restore a backup if the problem persists.";
+
+/**
+ * Identity › Devices for this vault: the same commands as every other
+ * Identity list — register one, reload, edit, remove behind an armed key —
+ * over the device inventory (`local-devices.ts`).
+ */
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
-  const [devices, setDevices] = useState<LocalDevice[] | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState<LocalDevice | null>(null);
-  const mine = thisDeviceId();
+  const model = useDevices(tomb);
+  const { devices, draft, setDraft, busy, error, load } = model;
+  return (
+    <section className="panel" aria-label="Devices">
+      <div className="panel__head">
+        <h2>Devices</h2>
+        <fieldset className="vtree__keys" aria-label="Device commands">
+          <IconKey
+            label="New device"
+            small
+            disabled={busy || !devices || draft !== null}
+            onClick={() => setDraft(newDeviceDraft())}
+          >
+            <IconPlus size={15} />
+          </IconKey>
+          <ReloadKey
+            label="Reload devices"
+            disabled={busy}
+            onReload={() => load(true)}
+          />
+        </fieldset>
+      </div>
+      <div className="panel__body">
+        <div className="actions">
+          {kvDurability() === "memory" ? (
+            <StatusMark
+              tone="warn"
+              label="Browser storage is unavailable. Changes last only until this tab closes."
+            />
+          ) : null}
+          {error ? (
+            <>
+              <StatusMark tone="err" label={error} />
+              <span role="alert" className="visually-hidden">
+                {error}
+              </span>
+            </>
+          ) : null}
+          {!devices && !error ? (
+            <StatusMark tone="idle" label="Loading devices…" />
+          ) : null}
+          {devices?.length === 0 ? (
+            <StatusMark tone="idle" label="No devices yet." />
+          ) : null}
+        </div>
+        <DeviceRows model={model} />
+        <DeviceForm model={model} />
+      </div>
+    </section>
+  );
+}
 
+function useDevices(tomb: string): DevicesModel & {
+  load: (clearError: boolean) => void;
+} {
+  const [devices, setDevices] = useState<LocalDevice[] | null>(null);
+  const [draft, setDraft] = useState<DeviceDraft | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const generation = useRef(0);
+
+  const read = useCallback(
+    async (clearError: boolean) => {
+      const current = ++generation.current;
+      // An invalidation from elsewhere must not wipe an alert the person is
+      // still reading; the explicit reload and the first read may.
+      if (clearError) setError("");
+      try {
+        const next = await readLocalDevices(tomb);
+        if (current !== generation.current) return;
+        setDevices(next);
+        setRemoving((id) => (next.some((row) => row.id === id) ? id : null));
+      } catch {
+        if (current === generation.current) setError(READ_ERROR);
+      }
+    },
+    [tomb],
+  );
+
+  // Mark this browser seen once per tomb, then follow changes. The touch is
+  // a write that notifies, so it stays out of the subscription: a listener
+  // that touched again would re-enter itself forever.
   useEffect(() => {
-    let alive = true;
+    let cancelled = false;
     void touchThisDevice(tomb)
       .then((next) => {
-        if (alive) {
-          setDevices(next);
-          setError("");
-        }
+        if (cancelled) return;
+        generation.current += 1;
+        setDevices(next);
+        setError("");
       })
       .catch(() => {
-        if (alive) setError("Could not read devices from this vault.");
+        if (!cancelled) setError(READ_ERROR);
       });
+    const off = subscribeLocalIamChanges(() => {
+      if (!cancelled) void read(false);
+    });
     return () => {
-      alive = false;
+      cancelled = true;
+      generation.current += 1;
+      off();
     };
-  }, [tomb]);
+  }, [tomb, read]);
 
   async function run(action: () => Promise<LocalDevice[]>) {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
-      setDevices(await action());
+      const next = await action();
+      generation.current += 1;
+      setDevices(next);
       setDraft(null);
+      setRemoving(null);
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "Could not update the device list.",
+          : "Could not save this change. Check that the vault is unlocked and browser storage has space, then retry. Your draft has been kept.",
       );
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <section className="panel" aria-label="Devices">
-      <div className="panel__head">
-        <h2>Devices</h2>
-      </div>
-      <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {!devices && !error ? <output>Loading devices…</output> : null}
-        <ul className="identity-rows">
-          {devices?.map((device) => (
-            <DeviceRow
-              key={device.id}
-              device={device}
-              mine={mine}
-              busy={busy}
-              editing={draft !== null}
-              onRename={() => setDraft(device)}
-              onRemove={() =>
-                void run(() => removeLocalDevice(tomb, device.id))
-              }
-            />
-          ))}
-        </ul>
-        {draft ? (
-          <RenameForm
-            draft={draft}
-            busy={busy}
-            onChange={(name) => setDraft({ ...draft, name })}
-            onSave={() =>
-              void run(() => renameLocalDevice(tomb, draft.id, draft.name))
-            }
-            onCancel={() => setDraft(null)}
-          />
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-function DeviceRow({
-  device,
-  mine,
-  busy,
-  editing,
-  onRename,
-  onRemove,
-}: {
-  device: LocalDevice;
-  mine: string;
-  busy: boolean;
-  editing: boolean;
-  onRename: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <li className="identity-row" id={device.id}>
-      <div className="identity-row__main">
-        <div className="identity-row__id">
-          <h3>{device.name}</h3>
-          <code className="identity-ref">{device.platform}</code>
-        </div>
-        {device.id === mine ? (
-          <span className="chip">This device</span>
-        ) : (
-          <span className="chip">{device.platform}</span>
-        )}
-        <div className="actions">
-          <IconKey
-            label={`Rename ${device.name}`}
-            small
-            disabled={busy || editing}
-            onClick={onRename}
-          >
-            <IconEdit size={16} />
-          </IconKey>
-          {device.id === mine ? null : (
-            <IconKey
-              label={`Remove ${device.name}`}
-              small
-              danger
-              disabled={busy || editing}
-              onClick={onRemove}
-            >
-              <IconTrash size={16} />
-            </IconKey>
-          )}
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function RenameForm({
-  draft,
-  busy,
-  onChange,
-  onSave,
-  onCancel,
-}: {
-  draft: LocalDevice;
-  busy: boolean;
-  onChange: (name: string) => void;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSave();
-      }}
-    >
-      <div className="field">
-        <label className="label" htmlFor="local-device-name">
-          Name
-        </label>
-        <input
-          id="local-device-name"
-          required
-          maxLength={128}
-          disabled={busy}
-          value={draft.name}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </div>
-      <FormCommit label="Save name" disabled={busy || !draft.name.trim()}>
-        <IconKey label="Cancel" disabled={busy} onClick={onCancel}>
-          <IconX size={16} />
-        </IconKey>
-      </FormCommit>
-    </form>
-  );
+  return {
+    tomb,
+    devices,
+    draft,
+    setDraft,
+    removing,
+    setRemoving,
+    busy,
+    error,
+    run,
+    load: (clearError) => void read(clearError),
+  };
 }

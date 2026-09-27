@@ -3914,7 +3914,7 @@
   },
   {
     "id": "identity.local.directory.manage",
-    "title": "Manage vault-local identities, memberships and application registrations",
+    "title": "Manage vault-local identities, devices, memberships and application registrations",
     "plane": "client_local",
     "kind": "admin",
     "surfaces": {

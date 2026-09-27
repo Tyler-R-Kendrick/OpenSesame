@@ -218,7 +218,7 @@ export const identityManagementCapabilities: readonly Capability[] = [
   {
     id: "identity.local.directory.manage",
     title:
-      "Manage vault-local identities, memberships and application registrations",
+      "Manage vault-local identities, devices, memberships and application registrations",
     plane: "client_local",
     kind: "admin",
     surfaces: {

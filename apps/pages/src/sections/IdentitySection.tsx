@@ -23,7 +23,6 @@ import {
 import {
   beginSignIn,
   defaultUpstream,
-  upstreamByIssuer,
 } from "@opensesame/app-core/lib/federation.js";
 import { isGuestSession } from "@opensesame/app-core/lib/guest-isolation.js";
 import {
@@ -34,11 +33,9 @@ import {
 import {
   IDP_PRESETS,
   type IdpPreset,
-  presetFor,
   presetIssuer,
 } from "@opensesame/app-core/lib/idp-presets.js";
 import {
-  DEVICE_IDP_ID,
   type IdpProviderType,
   type IdpRecord,
   dismissIdpCeremony,
@@ -56,7 +53,6 @@ import {
 } from "@opensesame/app-core/lib/orgs.js";
 import {
   type FederatedProviderSummary,
-  brokeredByoUpstream,
   listFederatedProviders,
   providerUpstream,
 } from "@opensesame/app-core/lib/providers.js";
@@ -91,13 +87,13 @@ import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { monogram } from "./connections/connector-marks.js";
 import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
 import * as Directory from "./identity/DirectoryTabs.js";
 import { EditApplication } from "./identity/EditApplication.js";
 import { type IdentityTab, IdentityTabs } from "./identity/IdentityTabs.js";
 import { LocalDirectoryPanel } from "./identity/LocalDirectoryPanel.js";
+import { ProvidersPanel } from "./identity/ProvidersPanel.js";
 import { useEnabledIdentityViews } from "./identity/identity-views.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
@@ -106,7 +102,6 @@ import "./identity.css";
 import {
   formatTime,
   identityErrorText,
-  providerChipLabel,
   stateChip,
   truncateId,
 } from "@opensesame/app-core/sections/identity-section-model.js";
@@ -1338,231 +1333,6 @@ function OrgMembersCard({ online }: { online: boolean }) {
         ) : null}
       </div>
     </section>
-  );
-}
-
-/* --------------------------------------------------------------- providers */
-
-/**
- * Who vouches for the people here. OpenSesame (this device) is always first
- * (ADR 0118). Additional rows come from the local registry mirror — the only
- * list a browser can hold for upstreams. First-class rows are intersected with
- * the live catalog when it answers; BYO rows are the registry mirror itself.
- */
-function ProvidersPanel({
-  online,
-  providers,
-  onChanged,
-  onOpenCeremony,
-}: {
-  online: boolean;
-  providers: IdpRecord[];
-  onChanged: (providers: IdpRecord[]) => void;
-  onOpenCeremony: () => void;
-}) {
-  const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
-    null,
-  );
-  const registerRef = useGuideTarget<HTMLButtonElement>(
-    "identity.register-idp",
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const found = await listFederatedProviders();
-      if (!cancelled) setCatalog(found);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const rows = useMemo(() => {
-    if (!catalog || catalog.length === 0) return providers;
-    const listed = new Set(catalog.map((provider) => provider.id));
-    return providers.filter(
-      (record) =>
-        record.kind === "device" ||
-        record.kind === "byo" ||
-        listed.has(record.id),
-    );
-  }, [catalog, providers]);
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Providers</h2>
-        </div>
-        <fieldset className="vtree__keys" aria-label="Provider commands">
-          <IconKey
-            label="Register an IdP"
-            small
-            keyRef={registerRef}
-            onClick={onOpenCeremony}
-          >
-            <IconPlus size={15} />
-          </IconKey>
-        </fieldset>
-      </div>
-
-      <div className="panel__body">
-        <ul className="identity-rows">
-          {rows.map((record) => (
-            <ProviderRow
-              key={record.id}
-              record={record}
-              online={online}
-              onChanged={onChanged}
-            />
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-function ProviderMark({
-  device,
-  brand,
-  presetLabel,
-}: {
-  device: boolean;
-  brand: ReturnType<typeof brandFor>;
-  presetLabel: string | null;
-}) {
-  if (device) return <IconShield size={18} />;
-  if (brand) return <brand.Icon size={18} />;
-  if (presetLabel) {
-    return (
-      <span className="identity-row__monogram" aria-hidden="true">
-        {monogram(presetLabel)}
-      </span>
-    );
-  }
-  return <IconSite size={18} />;
-}
-
-function ProviderRow({
-  record,
-  online,
-  onChanged,
-}: {
-  record: IdpRecord;
-  online: boolean;
-  onChanged: (providers: IdpRecord[]) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const device = record.kind === "device" || record.id === DEVICE_IDP_ID;
-  const brand = record.kind === "first-class" ? brandFor(record.id) : null;
-  const preset = record.providerType ? presetFor(record.providerType) : null;
-
-  async function signIn() {
-    setBusy(true);
-    setError(null);
-    try {
-      if (record.kind === "byo") {
-        await beginSignIn(
-          brokeredByoUpstream({
-            issuer: record.issuer,
-            label: record.label,
-          }),
-        );
-      } else {
-        const summary: FederatedProviderSummary = {
-          id: record.id,
-          label: record.label,
-          kind: "oidc",
-          browserCapable: upstreamByIssuer(record.issuer)?.id === record.id,
-        };
-        await beginSignIn(providerUpstream(summary), {
-          providerHint: record.id,
-        });
-      }
-    } catch (caught) {
-      setError(identityErrorText(caught));
-      setBusy(false);
-    }
-  }
-
-  function remove() {
-    // Local mirror only: the server-side registration is disabled by the
-    // operator, never deleted from a browser.
-    onChanged(removeIdpRegistration(record.id));
-  }
-
-  const chipLabel = providerChipLabel(device, record.kind, preset?.label);
-
-  return (
-    <li className="identity-row" id={record.id}>
-      <div className="identity-row__main">
-        <span className="identity-row__mark">
-          <ProviderMark
-            device={device}
-            brand={brand}
-            presetLabel={preset?.label ?? null}
-          />
-        </span>
-        <div className="identity-row__id">
-          <h3>{record.label}</h3>
-          <code className="identity-ref">{record.issuer}</code>
-        </div>
-        {device ? null : <span className="chip">{chipLabel}</span>}
-        {record.kind === "byo" ? (
-          <span className="identity-row__when">
-            registered {formatTime(record.registeredAt)}
-          </span>
-        ) : null}
-        {device ? null : (
-          <div className="actions">
-            <IconKey
-              label={busy ? "Starting sign-in" : "Sign in"}
-              small
-              disabled={busy || !online}
-              onClick={() => void signIn()}
-            >
-              <IconLogin size={16} />
-            </IconKey>
-            {confirming ? (
-              <>
-                <IconKey label="Remove it" small danger onClick={remove}>
-                  <IconTrash size={16} />
-                </IconKey>
-                <IconKey
-                  label="Keep it"
-                  small
-                  onClick={() => setConfirming(false)}
-                >
-                  <IconX size={16} />
-                </IconKey>
-              </>
-            ) : (
-              <IconKey
-                label="Remove"
-                small
-                danger
-                onClick={() => setConfirming(true)}
-              >
-                <IconTrash size={16} />
-              </IconKey>
-            )}
-          </div>
-        )}
-      </div>
-      {confirming ? (
-        <p className="hint">
-          The server-side registration is disabled by the operator, not deleted.
-        </p>
-      ) : null}
-      {error ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> {error}
-        </p>
-      ) : null}
-    </li>
   );
 }
 
