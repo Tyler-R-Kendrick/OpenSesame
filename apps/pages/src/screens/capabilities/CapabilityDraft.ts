@@ -65,18 +65,24 @@ function permitted(plan: EffectivePlan | null, id: CapabilityId): boolean {
 
 /**
  * Choosing a purpose is a preview: the preset's default roots become the
- * draft's roots, filtered to what this plan permits and distributes, and its
- * required roots are what the person will be accepting. Nothing is applied.
+ * draft's roots, filtered to what this plan permits and distributes, its
+ * default alternatives fill the slots those roots need, and its required
+ * roots are what the person will be accepting. Nothing is applied.
  */
 export function applyPreset(
   draft: CapabilityDraft,
   preset: CapabilityPreset,
   plan: EffectivePlan | null,
 ): CapabilityDraft {
+  const alternatives = { ...draft.alternatives };
+  for (const [slot, id] of Object.entries(preset.defaultAlternatives ?? {})) {
+    if (permitted(plan, id)) alternatives[slot] = id;
+  }
   return {
     ...draft,
     preset: preset.id,
     roots: preset.defaultSelected.filter((id) => permitted(plan, id)),
+    alternatives,
     acceptedRequired: preset.required.filter((id) => permitted(plan, id)),
   };
 }

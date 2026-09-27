@@ -33,6 +33,11 @@ export type Preset = Readonly<{
   optional: readonly CapabilityId[];
   /** Pre-ticked in the draft; still needs Apply. */
   defaultSelected: readonly CapabilityId[];
+  /**
+   * The choice pre-filled for an alternatives slot a pre-ticked root needs,
+   * so a preset's draft resolves without a question it already answers.
+   */
+  defaultAlternatives: Readonly<Record<string, CapabilityId>>;
   network: NetworkPolicy;
 }>;
 
@@ -84,6 +89,7 @@ export const PRESETS: readonly Preset[] = [
     required: [],
     optional: LOCAL_FUNCTIONS,
     defaultSelected: [],
+    defaultAlternatives: {},
     network: ALLOW,
   },
   {
@@ -95,6 +101,8 @@ export const PRESETS: readonly Preset[] = [
     required: [],
     optional: [...LOCAL_FUNCTIONS, "sharing.household"],
     defaultSelected: ["sharing.household", "sharing.drops"],
+    // Household sharing needs a transport; drops is the one Family offers.
+    defaultAlternatives: { transport: "sharing.drops" },
     network: DENY,
   },
   {
@@ -106,6 +114,7 @@ export const PRESETS: readonly Preset[] = [
     required: [],
     optional: everyOptional(),
     defaultSelected: [],
+    defaultAlternatives: {},
     network: ALLOW,
   },
   {
@@ -117,6 +126,7 @@ export const PRESETS: readonly Preset[] = [
     required: [],
     optional: everyOptional(),
     defaultSelected: [],
+    defaultAlternatives: {},
     network: ALLOW,
   },
   {
@@ -127,6 +137,7 @@ export const PRESETS: readonly Preset[] = [
     required: [],
     optional: everyOptional(),
     defaultSelected: [],
+    defaultAlternatives: {},
     network: ALLOW,
   },
 ];
