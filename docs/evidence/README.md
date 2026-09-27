@@ -53,6 +53,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-27-sample-data-and-manifest/`](2026-09-27-sample-data-and-manifest/README.md) | Sample data and the sealed-store manifest, restored |
 | [`2026-09-27-reset-browser/`](2026-09-27-reset-browser/README.md) | Reset this browser, from the lock screens |
 | [`2026-09-27-rail-siblings/`](2026-09-27-rail-siblings/README.md) | Every rail tab is a sibling, and every panel link lands |
+| [`2026-09-27-rail-panels/`](2026-09-27-rail-panels/README.md) | Every rail entry is a panel the page draws |
 | [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
 | [`2026-09-27-connect-forget-key/`](2026-09-27-connect-forget-key/README.md) | Forget Vercel Connect, and a hand-off that clears an earlier refusal |
 | [`2026-09-27-access-rail/`](2026-09-27-access-rail/README.md) | Access tabs are siblings in the rail |
