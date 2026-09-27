@@ -2,9 +2,9 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, it } from "vitest";
-import { useFocusAfter } from "./use-focus-after.js";
+import { type FocusTarget, byId, useFocusAfter } from "./use-focus-after.js";
 
-let request: (id: string) => void = () => undefined;
+let request: (target: FocusTarget) => void = () => undefined;
 let settle: () => void = () => undefined;
 
 function Harness() {
@@ -25,8 +25,9 @@ afterEach(cleanup);
 
 it("lands focus on the named control once the change settles, when focus was lost", () => {
   render(<Harness />);
-  (document.activeElement as HTMLElement | null)?.blur();
-  act(() => request("landing"));
+  if (document.activeElement instanceof HTMLElement)
+    document.activeElement.blur();
+  act(() => request(byId("landing")));
   expect(document.activeElement).toBe(document.body);
   act(() => settle());
   expect(document.activeElement).toBe(
@@ -36,9 +37,20 @@ it("lands focus on the named control once the change settles, when focus was los
 
 it("leaves focus where the person moved it while the change was in flight", () => {
   render(<Harness />);
-  act(() => request("landing"));
+  act(() => request(byId("landing")));
   const elsewhere = screen.getByLabelText("Elsewhere");
   elsewhere.focus();
   act(() => settle());
   expect(document.activeElement).toBe(elsewhere);
+});
+
+it("asks a lookup for its target only once the change settles", () => {
+  let landing: HTMLElement | null = null;
+  render(<Harness />);
+  if (document.activeElement instanceof HTMLElement)
+    document.activeElement.blur();
+  act(() => request(() => landing));
+  landing = screen.getByRole("button", { name: "Landing" });
+  act(() => settle());
+  expect(document.activeElement).toBe(landing);
 });

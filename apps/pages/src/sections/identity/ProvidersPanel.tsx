@@ -37,10 +37,10 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
 import { brandFor } from "../../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { monogram } from "../connections/connector-marks.js";
-import { useFocusAfter } from "./use-focus-after.js";
 
 /**
  * The rows to draw: first-class providers are intersected with the live
@@ -112,7 +112,7 @@ export function ProvidersPanel({
   // A removed row takes its focused key with it; focus lands on Register.
   const rowRemoved = (next: IdpRecord[]) => {
     onChanged(next);
-    focusAfter(REGISTER_KEY_ID);
+    focusAfter(byId(REGISTER_KEY_ID));
   };
 
   return (

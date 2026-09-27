@@ -3,7 +3,7 @@ import "./local-authority.css";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconTrash, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
-import { keyboardIsIdle } from "../../lib/focus.js";
+import { useFocusAfter } from "../../lib/use-focus-after.js";
 import {
   type LocalAuthorityRow,
   useLocalAuthority,
@@ -24,15 +24,14 @@ export function LocalAuthorityPanel({
   const [pending, setPending] = useState<LocalAuthorityRow | null>(null);
   const reload = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
+  const focusAfter = useFocusAfter(state.busy);
   function close() {
     setPending(null);
-    requestAnimationFrame(() => {
-      if (keyboardIsIdle())
-        (trigger.current?.isConnected
-          ? trigger.current
-          : reload.current
-        )?.focus();
-    });
+    // The row's key when it is still there, the panel's reload when the
+    // revocation took the row with it.
+    focusAfter(() =>
+      trigger.current?.isConnected ? trigger.current : reload.current,
+    );
   }
   return (
     <section

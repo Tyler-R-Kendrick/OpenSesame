@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   DirectoryForm,
@@ -21,7 +22,6 @@ import {
   LABELS,
   newEntryKeyId,
 } from "./LocalDirectoryViews.js";
-import { useFocusAfter } from "./use-focus-after.js";
 
 export function LocalDirectoryPanel({ kind }: { kind: LocalIdentityKind }) {
   const { tomb } = useVault();
@@ -30,10 +30,6 @@ export function LocalDirectoryPanel({ kind }: { kind: LocalIdentityKind }) {
 
 const READ_ERROR =
   "Could not read the local directory. Unlock this vault and reload; restore a backup if the problem persists.";
-
-function readErrorText(error: unknown): string {
-  return error instanceof LocalDirectoryError ? error.message : READ_ERROR;
-}
 
 /**
  * Seed defaults once per tomb, then follow changes. Returns whether the
@@ -59,7 +55,9 @@ function useDirectorySeed(
         await ensureDefaultAccess(tomb);
       } catch (error) {
         if (!cancelled) {
-          setError(readErrorText(error));
+          setError(
+            error instanceof LocalDirectoryError ? error.message : READ_ERROR,
+          );
           setSeeding(false);
         }
         return;
@@ -101,7 +99,10 @@ function useDirectory(tomb: string) {
         const next = await readLocalDirectory(tomb);
         if (current === generation.current) setDirectory(next);
       } catch (error) {
-        if (current === generation.current) setError(readErrorText(error));
+        if (current === generation.current)
+          setError(
+            error instanceof LocalDirectoryError ? error.message : READ_ERROR,
+          );
       }
     },
     [tomb],
@@ -119,7 +120,7 @@ function useDirectory(tomb: string) {
       );
       setDraft(null);
       setRemoving(null);
-      if (focusId) focusAfter(focusId);
+      if (focusId) focusAfter(byId(focusId));
     } catch (error) {
       setError(
         error instanceof LocalDirectoryError

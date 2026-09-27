@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
 import {
   type ArmedKey,
   type DeviceDraft,
@@ -20,7 +21,6 @@ import {
   NEW_DEVICE_KEY_ID,
   newDeviceDraft,
 } from "./LocalDeviceRows.js";
-import { useFocusAfter } from "./use-focus-after.js";
 
 const READ_ERROR =
   "Could not read devices from this vault. Unlock it and reload; restore a backup if the problem persists.";
@@ -160,7 +160,7 @@ function useDevices(tomb: string): DevicesModel & { reload: () => void } {
       showRows(next);
       setDraft(null);
       setArmed(null);
-      if (focusId) focusAfter(focusId);
+      if (focusId) focusAfter(byId(focusId));
     } catch (caught) {
       setError(
         caught instanceof Error
