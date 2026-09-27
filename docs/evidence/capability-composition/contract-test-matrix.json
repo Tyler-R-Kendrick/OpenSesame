@@ -98,6 +98,16 @@
       "passed": 8,
       "failed": 0,
       "note": "minimal-local and family-local in both modes, single-provider-selected, enterprise-selected and rich-explicit selective, enterprise-selected hardened; each emitted dist re-verified by verify-capability-graph.mjs with no violation. Before this run the three hardened builds failed (core statically reached drops, local AI, WebMCP and wallet modules) and every selective build reported entry reachability and mixed chunks."
+    },
+    {
+      "id": "run-app-core-capabilities",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities",
+      "vitest": "4.1.11",
+      "testFiles": 24,
+      "tests": 188,
+      "passed": 188,
+      "failed": 0,
+      "note": "Recorded when LIFE-02 and LIFE-03 were carried forward from #470 (2026-09-27)."
     }
   ],
   "contracts": [
@@ -719,16 +729,36 @@
     {
       "id": "LIFE-02",
       "statement": "A generation bump invalidates every lease minted under the previous generation.",
-      "status": "pending",
+      "status": "covered",
       "owner": "S06 store/lease (apps/pages/src/lib/capabilities/{store,lease}.ts)",
-      "note": "No landed test names LIFE-02. store.test.ts 'commit writes durably, then publishes a new generation that aborts the old lease' and 'onVaultChange and invalidate bump the generation and abort the lease' cover the behaviour without the label."
+      "tests": [
+        {
+          "file": "packages/app-core/src/lib/capabilities/lease.test.ts",
+          "name": "LIFE-02: a generation bump invalidates every lease of the previous one is current for its own generation and stale for any other",
+          "observed": "run-passed",
+          "run": "run-app-core-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/lease.test.ts",
+          "name": "only a minted lease counts (#470's gate bound to issued leases) an object carrying the current generation and a fresh signal is refused",
+          "observed": "run-passed",
+          "run": "run-app-core-capabilities"
+        }
+      ]
     },
     {
       "id": "LIFE-03",
       "statement": "A vault switch re-resolves the plan against that vault's restriction.",
-      "status": "pending",
+      "status": "covered",
       "owner": "S19 lifecycle / S06 store",
-      "note": "No landed test names LIFE-03; store.test.ts 'onVaultChange and invalidate bump the generation and abort the lease' is the nearest landed test."
+      "tests": [
+        {
+          "file": "packages/app-core/src/lib/capabilities/store-vault.test.ts",
+          "name": "LIFE-03: a vault switch re-resolves against that vault's restriction each vault's own disables apply only while it is open (#470's allow-nothing vault)",
+          "observed": "run-passed",
+          "run": "run-app-core-capabilities"
+        }
+      ]
     },
     {
       "id": "LIFE-04",
@@ -862,7 +892,7 @@
           "run": "run-pages-dispatch"
         }
       ],
-      "note": "Enforced at the boundary since 2026-09-27 (ownership.md §4.2 dispatch gates): the WebMCP execute wrapper takes assertCurrentOperationAuthority under the registering lease and admits every tool not declared read-only with admitOperation — those refusals are observed through the wrapper an agent calls and fail when the wrapper's check is removed. Command paths (command bar, WebMCP navigation) and g-jumps take the capability-level check; their end-to-end refusals after a disable are also produced by generation fencing (a revoked registration is no longer listed), so for them the gate is defence in depth, exercised directly by dispatch.test.ts. Before this date both functions had no caller and the row rested on unit tests alone."
+      "note": "Enforced at the boundary since 2026-09-27 (ownership.md \u00a74.2 dispatch gates): the WebMCP execute wrapper takes assertCurrentOperationAuthority under the registering lease and admits every tool not declared read-only with admitOperation \u2014 those refusals are observed through the wrapper an agent calls and fail when the wrapper's check is removed. Command paths (command bar, WebMCP navigation) and g-jumps take the capability-level check; their end-to-end refusals after a disable are also produced by generation fencing (a revoked registration is no longer listed), so for them the gate is defence in depth, exercised directly by dispatch.test.ts. Before this date both functions had no caller and the row rested on unit tests alone."
     },
     {
       "id": "LIFE-05",
@@ -934,7 +964,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -946,7 +978,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -958,7 +992,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -970,7 +1006,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -982,7 +1020,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -994,7 +1034,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1006,7 +1048,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1018,7 +1062,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1030,7 +1076,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1042,7 +1090,9 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": ["run-vault-family"],
+      "runs": [
+        "run-vault-family"
+      ],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {

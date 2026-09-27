@@ -19,6 +19,15 @@ export type MintedLease = Readonly<{
   abort: (reason: string) => void;
 }>;
 
+/**
+ * Every lease this module minted. A lease is an ordinary frozen object, and
+ * its generation is public, so an object that merely carries the current
+ * generation and a fresh signal must not pass as current — only a lease the
+ * store handed out can (carried from #470's lease store, which bound its
+ * gate to the leases it had issued).
+ */
+const MINTED = new WeakSet<ActivationLease>();
+
 export function mintLease(
   identity: PlanIdentity,
   generation: number,
@@ -29,6 +38,7 @@ export function mintLease(
     generation,
     signal: controller.signal,
   });
+  MINTED.add(lease);
   return {
     lease,
     abort: (reason: string) => {
@@ -37,12 +47,19 @@ export function mintLease(
   };
 }
 
-/** True while the lease belongs to `currentGeneration` and was not aborted. */
+/**
+ * True while the lease was minted here, belongs to `currentGeneration`, and
+ * was not aborted.
+ */
 export function leaseIsCurrent(
   lease: ActivationLease,
   currentGeneration: number,
 ): boolean {
-  return !lease.signal.aborted && lease.generation === currentGeneration;
+  return (
+    MINTED.has(lease) &&
+    !lease.signal.aborted &&
+    lease.generation === currentGeneration
+  );
 }
 
 /** Throw `CapabilityDenied("STALE_LEASE")` unless the lease is current. */
@@ -76,5 +93,6 @@ export function deriveLease(parent: ActivationLease): MintedLease {
     generation: parent.generation,
     signal: controller.signal,
   });
+  MINTED.add(lease);
   return { lease, abort };
 }
