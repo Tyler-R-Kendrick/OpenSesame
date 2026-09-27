@@ -80,9 +80,13 @@ describe("errorText", () => {
     expect(errorText(error)).toMatch(/classic PAT/);
   });
 
-  it.skip("never renders a Zod issue wall", () => {
+  it("never renders a Zod issue wall", () => {
     const zodish = Object.assign(new Error("boom"), { issues: [{}] });
-    expect(errorText(zodish)).toMatch(/does not understand/);
+    const text = errorText(zodish);
+    expect(text).toBe("The response could not be read. Try Reload.");
+    expect(text).not.toContain("boom");
+    // Pages copy never names a Host (AGENTS.md §5, ADR 0128).
+    expect(text).not.toMatch(/host/i);
   });
 
   it("falls back to a plain sentence for unknown values", () => {

@@ -4,8 +4,13 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { expect, it } from "vitest";
 import { CatalogPanel } from "./CatalogPanel.js";
+import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
-it.skip("keeps browse-catalog tiles out of sequential Tab order", () => {
+// The catalog mounts `connections.catalog`, `.provider-picker` and `.custom`,
+// which `connectors.external` declares when it activates (ADR 0130).
+declareConnectionsTutorial();
+
+it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const { container } = render(
     <MemoryRouter>
       <CatalogPanel providers={vercelConnectCatalog()} />
@@ -20,6 +25,10 @@ it.skip("keeps browse-catalog tiles out of sequential Tab order", () => {
     0,
   );
   const stripe = container.querySelector("#catalog-stripe");
+  // A catalog entry Vercel Connect cannot broker is no link at all, and says
+  // so with a StatusMark glyph — the sentence is its name, not a pill.
   expect(stripe?.querySelector("a")).toBeNull();
-  expect(stripe?.textContent).toMatch(/Not connectable/);
+  const blocked = stripe?.querySelector('[role="img"]');
+  expect(blocked?.getAttribute("aria-label")).toBe("Not connectable");
+  expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });

@@ -11,8 +11,8 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 188,
-    "violations": 602,
+    "files": 186,
+    "violations": 598,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
@@ -25,7 +25,7 @@
       "anti-slop/no-unknown-parameters": 38,
       "anti-slop/no-unknown-returns": 3,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 115
+      "anti-slop/require-safety-comment-for-type-assertion": 111
     }
   },
   "files": {
@@ -189,9 +189,6 @@
     "apps/pages/src/modules/vault.interop-formats/runtime.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
-    "apps/pages/src/sections/access/ConnectorsPanel.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 3
-    },
     "apps/pages/src/sections/access/HostedRequestsPanel.test.tsx": {
       "anti-slop/no-known-value-widening": 1
     },
@@ -315,9 +312,6 @@
     "packages/app-core/src/lib/connector-settings.ts": {
       "anti-slop/no-known-value-widening": 1,
       "anti-slop/no-runtime-typeof": 2
-    },
-    "packages/app-core/src/lib/connectors.test.ts": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
     },
     "packages/app-core/src/lib/contributions.test-support.ts": {
       "anti-slop/no-conditional-empty-object-spread": 1

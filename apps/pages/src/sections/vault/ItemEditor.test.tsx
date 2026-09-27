@@ -26,7 +26,6 @@ const vault = vi.hoisted(
   (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const saveItem = vi.hoisted(() => vi.fn<(item: VaultItem) => Promise<void>>());
-const compileSecretToHost = vi.hoisted(() => vi.fn());
 const issueCertificateFromHost = vi.hoisted(() =>
   vi.fn<
     (input: {
@@ -50,11 +49,6 @@ Object.assign(vaultHooksSeams, {
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
-
-import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
-const originalConnectionSeams = { ...connectionSeams };
-Object.assign(connectionSeams, { compileSecretToHost });
-afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
 import { certsSeams } from "@opensesame/app-core/lib/certs.js";
 Object.assign(certsSeams, {
@@ -136,7 +130,6 @@ describe("ItemEditor", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
     saveItem.mockResolvedValue(undefined);
-    compileSecretToHost.mockResolvedValue(undefined);
     issueCertificateFromHost.mockResolvedValue(issuedCertificate);
     acknowledgeCertificateDelivery.mockResolvedValue(undefined);
   });
@@ -485,37 +478,30 @@ describe("ItemEditor", () => {
     expect(saved.passwordChangedAt).toBe("2026-08-01T00:00:00Z");
   });
 
-  it.skip("compiles secret grants to the Host after saving", async () => {
+  it("saves a secret's connection reference on this device alone", async () => {
+    // ADR 0128: the reference is sealed locally; nothing is compiled or sent.
+    const sent = vi.spyOn(globalThis, "fetch");
     renderEditor("/vault/new/secret");
     await userEvent.click(
       screen.getByRole("button", { name: "Add connection reference" }),
     );
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
+    await userEvent.clear(screen.getByLabelText(/Secret value/i));
     await userEvent.type(screen.getByLabelText(/Secret value/i), "whsec_1");
     await userEvent.type(
       screen.getByLabelText(/Connection reference/i),
       "conn/github/pat",
     );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    await waitFor(() => expect(compileSecretToHost).toHaveBeenCalled());
     expect(await screen.findByText("navigated away")).toBeTruthy();
-  });
-
-  it.skip("warns but still saves when the Host grant compile fails", async () => {
-    compileSecretToHost.mockRejectedValue(new Error("host down"));
-    renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add connection reference" }),
-    );
-    await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
-    await userEvent.type(
-      screen.getByLabelText(/Connection reference/i),
-      "conn/github/pat",
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    await waitFor(() => expect(compileSecretToHost).toHaveBeenCalled());
-    expect(await screen.findByText("navigated away")).toBeTruthy();
-    expect(saveItem).toHaveBeenCalled();
+    const saved = savedItem();
+    if (saved.kind !== "secret") throw new Error("expected saved secret");
+    expect(saved.name).toBe("Deploy hook");
+    expect(saved.value).toBe("whsec_1");
+    expect(saved.connectionRef).toBe("conn/github/pat");
+    expect(sent).not.toHaveBeenCalled();
+    sent.mockRestore();
   });
 
   it("keeps grantee editing out of secret ceremonies and preserves grants", async () => {

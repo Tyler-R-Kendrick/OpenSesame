@@ -27,7 +27,10 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   fixture = await localRequestFixture();
+  // The panels read the session's tomb from the reactive vault state, so the
+  // fixture's tomb is the one that state names.
   Object.assign(vaultHooksSeams, {
+    useVault: () => ({ ...originalVault.useVault(), tomb: fixture.tomb }),
     useVaultStore: () => ({ activeTomb: () => fixture.tomb }),
   });
   vi.spyOn(globalThis, "fetch").mockRejectedValue(
@@ -58,7 +61,7 @@ function openDevices(tomb = fixture.tomb) {
   );
 }
 
-it.skip("revokes a real enrolled passkey and its authentication from Devices without a backend", async () => {
+it("revokes a real enrolled passkey and its authentication from Devices without a backend", async () => {
   openPeople();
   const personHeading = await screen.findByRole("heading", {
     level: 3,
@@ -78,7 +81,15 @@ it.skip("revokes a real enrolled passkey and its authentication from Devices wit
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm revocation" }),
   );
-  await screen.findByRole("img", { name: "No passkeys enrolled." });
+  // One mark carries the disclosure's status, and the outcome of the action
+  // the person just took outranks the empty state (LocalPasskeys.tsx
+  // `passkeySurfaceStatus`): idle, because no passkey is left.
+  const outcome = await screen.findByRole("img", { name: "Passkey revoked." });
+  expect(outcome.className).toContain("status-mark--idle");
+  expect(screen.queryByRole("button", { name: "Revoke passkey" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Confirm revocation" }),
+  ).toBeNull();
   expect(await readLocalPasskeys(fixture.tomb)).toHaveLength(0);
   expect(
     await currentLocalIdentitySession(fixture.tomb, fixture.personId),
@@ -86,7 +97,7 @@ it.skip("revokes a real enrolled passkey and its authentication from Devices wit
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 
-it.skip("refreshes an open passkey disclosure after another surface revokes its credential", async () => {
+it("refreshes an open passkey disclosure after another surface revokes its credential", async () => {
   openPeople();
   const personHeading = await screen.findByRole("heading", {
     level: 3,
@@ -111,7 +122,7 @@ it.skip("refreshes an open passkey disclosure after another surface revokes its 
   );
 });
 
-it.skip("distinguishes unreadable credentials from an empty directory and refuses stale controls", async () => {
+it("distinguishes unreadable credentials from an empty directory and refuses stale controls", async () => {
   openPeople();
   const personHeading = await screen.findByRole("heading", {
     level: 3,

@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { installOrgDirectory } from "../../lib/orgs-directory.js";
 import { AgentsPanel } from "./AgentsPanel.js";
 import { EditApplication } from "./EditApplication.js";
 import { UsersPanel } from "./UsersPanel.js";
@@ -14,12 +15,17 @@ let users: JsonObject[] = [];
 let agents: JsonObject[] = [];
 let refuseRegistration = false;
 let writes: { path: string; body: JsonObject }[] = [];
+// The organization directory belongs to `identity.federation` (ADR 0130); a
+// deployment that shows Users took it, so these cases install it as its
+// runtime does, and put back the refusal after.
+let uninstallOrgDirectory: (() => void) | null = null;
 function input(init?: RequestInit): JsonObject {
   const body = JSON.parse(String(init?.body));
   if (!isJsonObject(body)) throw new Error("Expected object");
   return body;
 }
 beforeEach(() => {
+  uninstallOrgDirectory = installOrgDirectory();
   vi.spyOn(identitySeams, "identityBase").mockReturnValue(
     "https://identity.example",
   );
@@ -100,10 +106,12 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  uninstallOrgDirectory?.();
+  uninstallOrgDirectory = null;
   vi.restoreAllMocks();
 });
 
-it.skip("creates and updates users only within the selected owned organization", async () => {
+it("creates and updates users only within the selected owned organization", async () => {
   const user = userEvent.setup();
   render(
     <MemoryRouter>
@@ -117,7 +125,7 @@ it.skip("creates and updates users only within the selected owned organization",
   await user.click(screen.getByRole("button", { name: "New user" }));
   await user.type(screen.getByLabelText("Username / sign-in subject"), "alice");
   await user.type(screen.getByLabelText("Display name (optional)"), "Alice");
-  await user.click(screen.getByRole("button", { name: "Create user" }));
+  await user.click(screen.getByRole("button", { name: "Save user" }));
   await screen.findByRole("button", { name: "Edit alice" });
   expect(users).toEqual([
     { id: "user-1", userName: "alice", displayName: "Alice", active: true },
@@ -131,7 +139,7 @@ it.skip("creates and updates users only within the selected owned organization",
   await waitFor(() => expect(users[0]?.active).toBe(false));
 });
 
-it.skip("registers, edits and confirms revocation without showing the claim bearer", async () => {
+it("registers, edits and confirms revocation without showing the claim bearer", async () => {
   const user = userEvent.setup();
   render(<AgentsPanel online />);
   await screen.findByText("No agents registered.");
@@ -148,7 +156,7 @@ it.skip("registers, edits and confirms revocation without showing the claim bear
     screen.getByLabelText("Agent public-key thumbprint"),
     "a".repeat(43),
   );
-  await user.click(screen.getByRole("button", { name: "Register agent" }));
+  await user.click(screen.getByRole("button", { name: "Save agent" }));
   await screen.findByRole("button", { name: "Edit Deploy" });
   expect(writes[0]?.body).toEqual({
     displayName: "Deploy",
@@ -166,7 +174,7 @@ it.skip("registers, edits and confirms revocation without showing the claim bear
   await waitFor(() => expect(agents[0]?.state).toBe("revoked"));
 });
 
-it.skip("keeps a refused agent draft and disables offline mutations", async () => {
+it("keeps a refused agent draft and disables offline mutations", async () => {
   const user = userEvent.setup();
   refuseRegistration = true;
   const view = render(<AgentsPanel online />);
@@ -177,11 +185,11 @@ it.skip("keeps a refused agent draft and disables offline mutations", async () =
     screen.getByLabelText("Agent public-key thumbprint"),
     "a".repeat(43),
   );
-  await user.click(screen.getByRole("button", { name: "Register agent" }));
+  await user.click(screen.getByRole("button", { name: "Save agent" }));
   await screen.findByRole("alert");
   expect(screen.getByDisplayValue("Draft")).toBeTruthy();
   view.rerender(<AgentsPanel online={false} />);
-  expect(screen.getByRole("button", { name: "Register agent" })).toHaveProperty(
+  expect(screen.getByRole("button", { name: "Save agent" })).toHaveProperty(
     "disabled",
     true,
   );
