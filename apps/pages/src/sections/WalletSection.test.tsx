@@ -126,7 +126,7 @@ describe("WalletSection", () => {
     expect(screen.queryByText(/What Wallet manages/i)).toBeNull();
   });
 
-  it.skip("adds, edits, and removes a budget", async () => {
+  it("adds, edits, and removes a budget", async () => {
     const user = userEvent.setup();
     renderWallet("/wallet/budgets");
     expect(
@@ -137,7 +137,7 @@ describe("WalletSection", () => {
     const ceiling = screen.getByLabelText("Ceiling (subunits)");
     await user.clear(ceiling);
     await user.type(ceiling, "250");
-    await user.click(screen.getByRole("button", { name: "Create budget" }));
+    await user.click(screen.getByRole("button", { name: "Save budget" }));
     expect(screen.getByText("Groceries")).toBeTruthy();
     expect(screen.getByText(/250 · 250 left/i)).toBeTruthy();
 
@@ -170,7 +170,7 @@ describe("WalletSection", () => {
     ).toBe("/vault/new/card");
   });
 
-  it.skip("assigns a vault card to a budget from either side", async () => {
+  it("assigns a vault card to a budget from either side", async () => {
     const user = userEvent.setup();
     vault.current = { ...vault.current, items: [cardItem()] };
     renderWallet("/wallet/budgets");
@@ -180,7 +180,7 @@ describe("WalletSection", () => {
     await user.clear(ceiling);
     await user.type(ceiling, "100");
     await user.click(screen.getByRole("checkbox", { name: "Corporate card" }));
-    await user.click(screen.getByRole("button", { name: "Create budget" }));
+    await user.click(screen.getByRole("button", { name: "Save budget" }));
     expect(screen.getByText(/Travel/)).toBeTruthy();
     expect(screen.getByText(/Corporate card/)).toBeTruthy();
 

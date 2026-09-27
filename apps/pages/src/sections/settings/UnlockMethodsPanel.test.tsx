@@ -1,132 +1,33 @@
-import type { WebauthnHostCheck } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 /** @vitest-environment jsdom */
-import type { JsonObject } from "@opensesame/os-domain";
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-/** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const vault: { current: { header: JsonObject | null; guest?: boolean } } =
-  vi.hoisted(() => ({
-    current: { header: null },
-  }));
-const store = vi.hoisted(() => ({
-  enrollPasskey: vi.fn(),
-  removePasskey: vi.fn(),
-  enrollPin: vi.fn(),
-  removePin: vi.fn(),
-  enrollPassword: vi.fn(),
-  changeMasterPassword: vi.fn(),
-  removePassword: vi.fn(),
-  beginTotpEnrollment: vi.fn(),
-  confirmTotpEnrollment: vi.fn(),
-  cancelTotpEnrollment: vi.fn(),
-  removeTotp: vi.fn(),
-  beginCodeEnrollment: vi.fn(),
-  confirmCodeEnrollment: vi.fn(),
-  cancelCodeEnrollment: vi.fn(),
-  removeCode: vi.fn(),
-  describeCodeChannel: vi.fn(),
-  recoveryCodes: vi.fn(),
-  generateRecoveryCodes: vi.fn(),
-}));
-
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {
-  useVault: () => vault.current,
-  useVaultStore: () => store,
-});
-
-const listAvailableUnlockMethods = vi.hoisted(() => vi.fn(() => ["password"]));
-const checkWebauthnHost = vi.hoisted(() =>
-  vi.fn(
-    (): WebauthnHostCheck => ({
-      ok: true,
-      hostname: "localhost",
-      reason: "",
-      fixUrl: null,
-    }),
-  ),
-);
-const describeWebauthnError = vi.hoisted(() =>
-  vi.fn((error: { message?: string }) =>
-    error instanceof Error ? `webauthn: ${error.message}` : "webauthn failed",
-  ),
-);
-
-import { unlockMethodsSeams } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { webauthnHostSeams } from "@opensesame/app-core/lib/vault/webauthn-host.js";
-const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
-const originalWebauthnHostSeams = { ...webauthnHostSeams };
-Object.assign(unlockMethodsSeams, { listAvailableUnlockMethods });
-Object.assign(webauthnHostSeams, { checkWebauthnHost, describeWebauthnError });
-
-import { passwordSeams } from "@opensesame/app-core/lib/vault/password.js";
-const originalPasswordSeams = { ...passwordSeams };
-Object.assign(passwordSeams, {
-  estimateStrength: (password: string) => ({
-    score: password.length >= 12 ? 3 : 1,
-    label: password.length >= 12 ? "Strong" : "Weak",
-  }),
-});
-
-import { qrSeams } from "../../components/QrCode.js";
-const originalQrSeams = { ...qrSeams };
-const qrStub = {
-  QrCode: ({ value }: { value: string }) => <div data-testid="qr">{value}</div>,
-};
-Object.assign(qrSeams, qrStub);
-
-const identityApi = vi.hoisted(() => ({ current: "http://127.0.0.1:8788" }));
-import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
-import { federationSeams } from "@opensesame/app-core/lib/federation.js";
-import { identitySeams } from "@opensesame/app-core/lib/identity.js";
-const originalIdentitySeams = { ...identitySeams };
-const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
-const originalFederationSeams = { ...federationSeams };
-Object.assign(identitySeams, { identityBase: () => identityApi.current });
-deviceIdentitySeams.remoteIdentityApi = () => identityApi.current;
-Object.assign(federationSeams, { loadSession: () => null });
-
+import { MemoryRouter } from "react-router";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { UnlockMethodsPanel } from "./UnlockMethodsPanel.js";
+import {
+  checkWebauthnHost,
+  guestHeader,
+  identityApi,
+  installUnlockSeams,
+  listAvailableUnlockMethods,
+  passwordOnlyHeader,
+  pinAndPasswordHeader,
+  row,
+  sheet,
+  store,
+  vault,
+} from "./unlock-methods-panel.test-support.js";
 
-function passwordOnlyHeader() {
-  vault.current = { header: { wrap: {}, kdf: {}, unlocks: {} } };
-  listAvailableUnlockMethods.mockReturnValue(["password"]);
-}
-
-function pinAndPasswordHeader() {
-  vault.current = {
-    header: { wrap: {}, kdf: {}, unlocks: { pin: {} } },
-  };
-  listAvailableUnlockMethods.mockReturnValue(["password", "pin"]);
-}
-
-function guestHeader() {
-  vault.current = { header: null, guest: true };
-  listAvailableUnlockMethods.mockReturnValue([]);
-}
-
-/** The one row a method has, found by its name. */
-function row(name: string) {
-  const heading = screen.getByText(name, { selector: ".sw__name" });
-  const container = heading.closest(".sw");
-  if (!(container instanceof HTMLElement)) {
-    throw new Error(`no row for ${name}`);
-  }
-  return within(container);
-}
-
-function sheet() {
-  return within(screen.getByRole("dialog"));
-}
+const restoreSeams = installUnlockSeams();
+afterAll(restoreSeams);
 
 describe("UnlockMethodsPanel", () => {
   beforeEach(() => {
@@ -169,7 +70,7 @@ describe("UnlockMethodsPanel", () => {
     vi.clearAllMocks();
   });
 
-  it.skip("lists every method as read-only state with one action and no inputs", () => {
+  it("lists every method as read-only state with one action and no inputs", () => {
     render(<UnlockMethodsPanel />);
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(document.querySelectorAll("input")).toHaveLength(0);
@@ -178,7 +79,8 @@ describe("UnlockMethodsPanel", () => {
     expect(
       row("Password").getByRole("button", { name: "Change" }),
     ).toBeTruthy();
-    expect(row("Password").getByText("Enrolled")).toBeTruthy();
+    // State is a glyph whose sentence is its accessible name, never a pill.
+    expect(row("Password").getByRole("img", { name: "Enrolled" })).toBeTruthy();
     expect(
       row("Authenticator app").getByRole("button", { name: "Add" }),
     ).toBeTruthy();
@@ -190,7 +92,7 @@ describe("UnlockMethodsPanel", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it.skip("adds a PIN through the sheet: matching entries, then the row reports it", async () => {
+  it("adds a PIN through the sheet: matching entries, then the row reports it", async () => {
     render(<UnlockMethodsPanel />);
     await userEvent.click(row("PIN").getByRole("button", { name: "Add" }));
     const dialog = sheet();
@@ -199,23 +101,27 @@ describe("UnlockMethodsPanel", () => {
     expect(set).toHaveProperty("disabled", true);
     await userEvent.type(dialog.getByLabelText("PIN"), "48291037");
     await userEvent.type(dialog.getByLabelText("Confirm PIN"), "4829103");
-    expect(dialog.getByText("Does not match")).toBeTruthy();
+    expect(dialog.getByRole("img", { name: "Does not match" })).toBeTruthy();
+    expect(dialog.getByRole("button", { name: "Set PIN" })).toHaveProperty(
+      "disabled",
+      true,
+    );
     await userEvent.type(dialog.getByLabelText("Confirm PIN"), "7");
-    expect(dialog.getByText("Matches")).toBeTruthy();
+    expect(dialog.getByRole("img", { name: "Matches" })).toBeTruthy();
     await userEvent.click(dialog.getByRole("button", { name: "Set PIN" }));
     await waitFor(() =>
       expect(store.enrollPin).toHaveBeenCalledWith("48291037"),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText(/PIN unlock enrolled/)).toBeTruthy();
+    expect(await screen.findByText(/PIN unlock enrolled/)).toBeTruthy();
   });
 
-  it.skip("names the PIN rule live and keeps the button disabled until it holds", async () => {
+  it("names the PIN rule live and keeps the button disabled until it holds", async () => {
     render(<UnlockMethodsPanel />);
     await userEvent.click(row("PIN").getByRole("button", { name: "Add" }));
     const dialog = sheet();
     await userEvent.type(dialog.getByLabelText("PIN"), "11111111");
-    expect(dialog.getByText(/repeated/i)).toBeTruthy();
+    expect(dialog.getByRole("img", { name: /repeated/i })).toBeTruthy();
     await userEvent.type(dialog.getByLabelText("Confirm PIN"), "11111111");
     expect(dialog.getByRole("button", { name: "Set PIN" })).toHaveProperty(
       "disabled",
@@ -340,7 +246,7 @@ describe("UnlockMethodsPanel", () => {
     expect(window.location.search).toBe("");
   });
 
-  it.skip("turns the authenticator on only once a code matches, then hands over recovery codes", async () => {
+  it("turns the authenticator on only once a code matches, then hands over recovery codes", async () => {
     store.confirmTotpEnrollment
       .mockRejectedValueOnce(new Error("That code did not match."))
       .mockResolvedValueOnce(undefined);
@@ -365,7 +271,9 @@ describe("UnlockMethodsPanel", () => {
     await userEvent.click(dialog.getByRole("button", { name: "I scanned it" }));
     await userEvent.type(dialog.getByLabelText("Six digits"), "000000");
     await userEvent.click(dialog.getByRole("button", { name: "Turn on" }));
-    await waitFor(() => expect(dialog.getByText("Did not match")).toBeTruthy());
+    await waitFor(() =>
+      expect(dialog.getByRole("img", { name: "Did not match" })).toBeTruthy(),
+    );
     expect(store.generateRecoveryCodes).not.toHaveBeenCalled();
     await userEvent.clear(dialog.getByLabelText("Six digits"));
     await userEvent.type(dialog.getByLabelText("Six digits"), "123456");
@@ -420,7 +328,7 @@ describe("UnlockMethodsPanel", () => {
     expect(store.confirmTotpEnrollment).not.toHaveBeenCalled();
   });
 
-  it.skip("removes the authenticator only after the confirmation card", async () => {
+  it("removes the authenticator only after the confirmation card", async () => {
     vault.current = {
       header: { wrap: {}, kdf: {}, unlocks: { totp: {}, recovery: {} } },
     };
@@ -430,12 +338,15 @@ describe("UnlockMethodsPanel", () => {
       since: "2026-08-30T00:00:00Z",
     });
     render(<UnlockMethodsPanel />);
-    expect(row("Authenticator app").getByText("On")).toBeTruthy();
+    expect(
+      row("Authenticator app").getByRole("img", { name: "On" }),
+    ).toBeTruthy();
     await userEvent.click(
       row("Authenticator app").getByRole("button", { name: "Remove" }),
     );
     const dialog = sheet();
     expect(dialog.getByText("Remove the authenticator?")).toBeTruthy();
+    expect(store.removeTotp).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(dialog.getByText(/1 unused codes are discarded/)).toBeTruthy(),
     );
@@ -480,17 +391,33 @@ describe("UnlockMethodsPanel", () => {
     await waitFor(() => expect(dialog.getByText("aaaa-bbbb")).toBeTruthy());
   });
 
-  it.skip("says why email and text codes are unavailable without an Identity API", () => {
+  it("says why email and text codes are unavailable without an Identity API", () => {
     identityApi.current = "";
-    render(<UnlockMethodsPanel />);
-    expect(row("Email code").getByText("Unavailable")).toBeTruthy();
+    // The row's one key is a route link, so it renders inside a router.
+    render(
+      <MemoryRouter>
+        <UnlockMethodsPanel />
+      </MemoryRouter>,
+    );
     expect(
-      row("Email code").getByRole("link", { name: "Connections" }),
+      row("Email code").getByRole("img", { name: "Unavailable" }),
     ).toBeTruthy();
+    expect(
+      row("Email code").getByText("Needs a sign-in service to send it."),
+    ).toBeTruthy();
+    const capabilities = row("Email code").getByRole("link", {
+      name: "Set up a sign-in service under Capabilities",
+    });
+    expect(capabilities.getAttribute("href")).toBe("/settings/capabilities");
     expect(row("Text message").queryByRole("button")).toBeNull();
+    expect(
+      row("Text message").getByRole("link", {
+        name: "Set up a sign-in service under Capabilities",
+      }),
+    ).toBeTruthy();
   });
 
-  it.skip("shows the recovery codes left and can make a new set", async () => {
+  it("shows the recovery codes left and can make a new set", async () => {
     vault.current = {
       header: { wrap: {}, kdf: {}, unlocks: { totp: {}, recovery: {} } },
     };
@@ -502,7 +429,9 @@ describe("UnlockMethodsPanel", () => {
     store.generateRecoveryCodes.mockResolvedValue(["eeee-ffff", "gggg-hhhh"]);
     render(<UnlockMethodsPanel />);
     await userEvent.click(
-      row("Recovery codes").getByRole("button", { name: "View" }),
+      row("Recovery codes").getByRole("button", {
+        name: "View recovery codes",
+      }),
     );
     const dialog = sheet();
     await waitFor(() => expect(dialog.getByText("1 of 2 left")).toBeTruthy());
@@ -519,34 +448,4 @@ describe("UnlockMethodsPanel", () => {
     await waitFor(() => expect(store.generateRecoveryCodes).toHaveBeenCalled());
     await waitFor(() => expect(dialog.getByText("eeee-ffff")).toBeTruthy());
   });
-});
-
-afterEach(() => {
-  Object.assign(vaultHooksSeams, originalVaultHooksSeams);
-  Object.assign(unlockMethodsSeams, originalUnlockMethodsSeams);
-  Object.assign(webauthnHostSeams, originalWebauthnHostSeams);
-  Object.assign(passwordSeams, originalPasswordSeams);
-  Object.assign(qrSeams, originalQrSeams);
-  Object.assign(identitySeams, originalIdentitySeams);
-  deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
-  Object.assign(federationSeams, originalFederationSeams);
-  Object.assign(vaultHooksSeams, {
-    useVault: () => vault.current,
-    useVaultStore: () => store,
-  });
-  Object.assign(unlockMethodsSeams, { listAvailableUnlockMethods });
-  Object.assign(webauthnHostSeams, {
-    checkWebauthnHost,
-    describeWebauthnError,
-  });
-  Object.assign(passwordSeams, {
-    estimateStrength: (password: string) => ({
-      score: password.length >= 12 ? 3 : 1,
-      label: password.length >= 12 ? "Strong" : "Weak",
-    }),
-  });
-  Object.assign(qrSeams, qrStub);
-  Object.assign(identitySeams, { identityBase: () => identityApi.current });
-  deviceIdentitySeams.remoteIdentityApi = () => identityApi.current;
-  Object.assign(federationSeams, { loadSession: () => null });
 });

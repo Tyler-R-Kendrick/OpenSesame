@@ -6,6 +6,7 @@ import {
 import { githubHistorySeams } from "@opensesame/app-core/lib/github-history.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
@@ -164,10 +165,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it.skip("puts the GitHub account, permissions, and repositories on the card and records the grant for Access", async () => {
+it("puts the GitHub account, permissions, and repositories on the card and records the grant for Access", async () => {
   const fixture = await localRequestFixture();
+  // The card reads the open vault's tomb from `useVault()`; the grant it
+  // records for Access lands in that tomb's share ledger.
   Object.assign(vaultHooksSeams, {
-    useVaultStore: () => ({ activeTomb: () => fixture.tomb }),
+    useVault: () => ({ ...vaultStore.getSnapshot(), tomb: fixture.tomb }),
   });
 
   render(<GithubCardDetails connection={baseConnection} />);
