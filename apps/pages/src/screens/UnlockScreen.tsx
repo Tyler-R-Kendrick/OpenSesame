@@ -64,6 +64,7 @@ import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
+import { ResetBrowser } from "./unlock/ResetBrowser.js";
 import { ResetVault } from "./unlock/ResetVault.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { StrengthMeter } from "./unlock/StrengthMeter.js";
@@ -1032,21 +1033,14 @@ function UnlockForm({
             />
           ) : null}
           {!firstRun && !showSignIn ? (
-            showReset ? (
-              <ResetVault
-                onDelete={() => void store.destroy()}
-                onKeep={() => setShowReset(false)}
-              />
-            ) : (
-              <button
-                type="button"
-                className="unlock__switch"
-                onClick={() => setShowReset(true)}
-              >
-                Forgotten how to unlock?
-              </button>
-            )
+            <ResetVault
+              open={showReset}
+              onOpen={() => setShowReset(true)}
+              onDelete={() => void store.destroy()}
+              onKeep={() => setShowReset(false)}
+            />
           ) : null}
+          {showReset ? null : <ResetBrowser />}
         </div>
       </div>
       <ReleaseNotes />
