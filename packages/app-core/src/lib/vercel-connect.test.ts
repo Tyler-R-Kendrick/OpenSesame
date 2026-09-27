@@ -80,7 +80,7 @@ describe("Vercel Connect SDK", () => {
     expect(vercelConnectSeams.revokeToken).toBe(revokeToken);
   });
 
-  it.skip("lists connectors from api.vercel.com, never the token route", async () => {
+  it("lists connectors from api.vercel.com, never the token route", async () => {
     setVercelConnectAuth({
       token: "vercel_token",
       teamId: "team_1",
@@ -108,7 +108,7 @@ describe("Vercel Connect SDK", () => {
     expect(headers.get("authorization")).toBe("Bearer vercel_token");
   });
 
-  it.skip("creates over REST and authorizes through startAuthorization", async () => {
+  it("creates over REST and authorizes through startAuthorization", async () => {
     setVercelConnectAuth({ token: "vercel_token", teamId: "team_1" });
     const spy = stubConnect((url, init) => {
       expect(url).not.toContain("/connect/token");
@@ -179,7 +179,7 @@ describe("Vercel Connect SDK", () => {
     }
   });
 
-  it.skip("reads and revokes a connector through the SDK", async () => {
+  it("reads and revokes a connector through the SDK", async () => {
     setVercelConnectAuth({ token: "vercel_token", teamId: "team_1" });
     vercelConnectSeams.getConnectorMetadata = vi.fn().mockResolvedValue({
       id: "scl_slack",
@@ -224,7 +224,7 @@ describe("Vercel Connect SDK", () => {
 });
 
 describe("Connections live path", () => {
-  it.skip("list/create/authorize go to Connect, not Host, when a token is set", async () => {
+  it("list/create/authorize go to Connect, not Host, when a token is set", async () => {
     setVercelConnectAuth({ token: "vercel_token" });
     const spy = stubConnect((url, init) => {
       expect(String(url)).toContain("api.vercel.com");
@@ -255,7 +255,7 @@ describe("Connections live path", () => {
     expect(vercelConnectSeams.startAuthorization).toHaveBeenCalled();
   });
 
-  it.skip("remembers Connect connectors from list/create and ignores Host ids", async () => {
+  it("remembers Connect connectors from list/create and ignores Host ids", async () => {
     setVercelConnectAuth({ token: "vercel_token" });
     stubConnect(() => jsonResponse({ connectors: [slackConnector()] }));
     expect(isConnectConnector("scl_slack")).toBe(false);

@@ -99,7 +99,7 @@ describe("HealthPanel", () => {
     ).toBeTruthy();
   });
 
-  it.skip("flags weak, reused, old, and 2FA-less passwords", () => {
+  it("flags weak, reused, old, and 2FA-less passwords", () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
     vault.current = {
       items: [
@@ -121,8 +121,17 @@ describe("HealthPanel", () => {
     renderPanel();
     expect(screen.getByText(/items need attention|item needs/)).toBeTruthy();
     // Both share "letmein" → reused on both; the first is also weak/old/no-2fa.
-    expect(screen.getAllByText("Reused").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Weak").length).toBeGreaterThanOrEqual(1);
+    // Each issue is a StatusMark glyph whose accessible name is the label.
+    expect(
+      screen.getAllByRole("img", { name: "Reused" }).length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByRole("img", { name: "Weak" }).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("img", { name: "No 2FA" })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("img", { name: "Over a year old" }),
+    ).toHaveLength(1);
     expect(screen.getByText(/no authenticator secret/i)).toBeTruthy();
     expect(screen.getByText(/more than a year/i)).toBeTruthy();
     // Reuse names the other account.

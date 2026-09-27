@@ -451,7 +451,7 @@ describe("IdentitySection", () => {
     expect(connect).toHaveBeenCalled();
   });
 
-  it.skip("shows the me card and linked identities with a session", async () => {
+  it("shows the me card and linked identities with a session", async () => {
     directory.listLinkedIdentities.mockResolvedValue([
       {
         id: "xid_1",
@@ -466,8 +466,8 @@ describe("IdentitySection", () => {
     renderIdentity();
 
     expect(await screen.findByText("Linked identities")).toBeTruthy();
-    // The me card: state badge, assurance chip, copyable principal id.
-    expect(screen.getByText("active")).toBeTruthy();
+    // The me card: state mark, assurance chip, copyable principal id.
+    expect(await mark("active")).toBeTruthy();
     // "verified" appears on both the me card and the identity row.
     expect(screen.getAllByText("verified").length).toBeGreaterThan(0);
     expect(screen.getByText("prn_op")).toBeTruthy();
@@ -476,7 +476,7 @@ describe("IdentitySection", () => {
     expect(screen.getByText("https://accounts.google.com")).toBeTruthy();
   });
 
-  it.skip("flags a provisional principal as Guest without demanding another IdP", async () => {
+  it("flags a provisional principal as Guest without demanding another IdP", async () => {
     directory.getMe.mockResolvedValue({
       id: "prn_guest",
       state: "provisional",
@@ -486,7 +486,7 @@ describe("IdentitySection", () => {
     });
     registerIdp(makeRecord());
     renderIdentity();
-    expect(await screen.findByText("Guest")).toBeTruthy();
+    expect((await mark("Guest")).className).toContain("status-mark--warn");
     expect(
       screen.queryByText(/No identity provider vouches for this identity yet/),
     ).toBeNull();
@@ -495,7 +495,7 @@ describe("IdentitySection", () => {
     ).toBeNull();
   });
 
-  it.skip("unlinks an identity only after confirmation", async () => {
+  it("unlinks an identity only after confirmation", async () => {
     directory.listLinkedIdentities.mockResolvedValue([
       {
         id: "xid_1",
@@ -509,10 +509,10 @@ describe("IdentitySection", () => {
     registerIdp(makeRecord());
     renderIdentity();
     await screen.findByText("ada@example.com");
-
-    await userEvent.click(screen.getByRole("button", { name: /^Unlink$/i }));
+    for (const key of ["Unlink", "Keep it", "Unlink"])
+      await userEvent.click(firstButton(key)); // arm, disarm, arm again
     expect(directory.unlinkIdentity).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: /Unlink it/i }));
+    await userEvent.click(firstButton("Unlink"));
     await waitFor(() =>
       expect(directory.unlinkIdentity).toHaveBeenCalledWith("xid_1"),
     );

@@ -68,14 +68,17 @@ describe("rankHelpTopics", () => {
 });
 
 describe("searchHelpTopics", () => {
-  it.skip("ranks by words and falls back to a substring of the prose", () => {
+  it("ranks by words and falls back to a substring of the prose", () => {
     expect(searchHelpTopics("add a user")[0]?.id).toBe(
       "help.identity.account.add",
     );
-    // "kdbx" is a keyword; ".1pux" only ever appears inside an answer.
+    // "kdbx" is a keyword. "ocking dro" is no word of any topic, so the
+    // ranking finds nothing and only a substring of the lock answer
+    // ("Locking drops the vault keys…") reaches it.
     expect(searchHelpTopics("kdbx")[0]?.id).toBe("help.vault.import");
-    expect(searchHelpTopics(".1pux").map((topic) => topic.id)).toEqual([
-      "help.vault.import",
+    expect(rankHelpTopics("ocking dro")).toEqual([]);
+    expect(searchHelpTopics("ocking dro").map((topic) => topic.id)).toEqual([
+      "help.lock",
     ]);
     expect(searchHelpTopics("   ")).toBe(HELP_TOPICS);
   });

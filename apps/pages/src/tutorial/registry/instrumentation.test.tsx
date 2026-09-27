@@ -234,14 +234,13 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("vault.health.findings")).toBe(false);
   });
 
-  it.skip("binds only the two authority planes on the statusline", () => {
+  // The statusline carried five glyphs, the Host among them; the Host glyph
+  // left it with the Host plane (ed1d403d, ADR 0090 — Pages never names a
+  // Host). Identity is the one authority plane left there to point at; the
+  // key vault glyph stays reachable but is not a support target.
+  it("binds only the identity plane on the statusline", () => {
     connectors.current = [
-      connectorStatus(),
-      connectorStatus({
-        id: "identity",
-        name: "Identity",
-        detail: "signed in",
-      }),
+      connectorStatus({ detail: "signed in" }),
       connectorStatus({
         id: "keys",
         name: "Key vault",
@@ -254,13 +253,17 @@ describe("instrumented screens", () => {
       </MemoryRouter>,
     );
 
-    expect(isMountedGuideTarget("connectivity.host")).toBe(true);
+    expect(screen.getAllByRole("button", { name: / — / })).toHaveLength(2);
     expect(isMountedGuideTarget("connectivity.identity")).toBe(true);
     expect(
-      resolveGuideTargetElement("connectivity.host")?.getAttribute(
+      resolveGuideTargetElement("connectivity.identity")?.getAttribute(
         "aria-label",
       ),
-    ).toBe("Host — 127.0.0.1:18787");
+    ).toBe("Identity — signed in");
+    expect(isMountedGuideTarget("connectivity.host")).toBe(false);
+    expect(resolveGuideTargetElement("connectivity.identity")).toBe(
+      screen.getByRole("button", { name: "Identity — signed in" }),
+    );
   });
 
   /**

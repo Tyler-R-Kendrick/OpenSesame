@@ -18,7 +18,7 @@
   "totals": {
     "files": 457,
     "violations": 720,
-    "oversizedLines": 234246
+    "oversizedLines": 234101
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -230,7 +230,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
-      "max-lines": 552
+      "max-lines": 451
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.tsx": {
       "complexity": 1,
@@ -257,7 +257,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemDetail.test.tsx": {
-      "max-lines": 678
+      "max-lines": 659
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
@@ -265,7 +265,7 @@
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 665
+      "max-lines": 651
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
@@ -300,7 +300,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 642
+      "max-lines": 631
     },
     "crates/agent-events/src/lib.rs": {
       "max-lines": 792

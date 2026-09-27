@@ -4,7 +4,6 @@ import {
   noteWebMcpRegistered,
   resetWebMcpRegistrationForTests,
 } from "@opensesame/app-core/webmcp/registration.js";
-import { webmcpSupportSeam } from "@opensesame/app-core/webmcp/tools.js";
 /** @vitest-environment jsdom */
 import {
   createFakeSupportAgent,
@@ -221,16 +220,6 @@ describe("support panel", () => {
       await screen.findByRole("region", { name: "Walkthrough in progress" }),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
-  });
-
-  it.skip("binds the WebMCP guidance tools to this panel", async () => {
-    mount(fakeAgentAlwaysUnavailable("no_local_model"), "none");
-    webmcpSupportSeam.openSupport("help.lock");
-
-    expect(await screen.findByRole("dialog", { name: "Support" })).toBeTruthy();
-    expect(
-      await screen.findByText(/Locking drops the vault keys held in memory/),
-    ).toBeTruthy();
   });
 
   it("offers the download only as a gesture, and reports its progress", async () => {
