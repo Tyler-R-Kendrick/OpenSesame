@@ -106,6 +106,15 @@ export async function loadApprovedModule(
       id,
     );
   }
+  // Approved, but waiting for a fresh document: refused here, before any
+  // import, whoever asks for the module.
+  if (
+    capabilityState(plan, moduleCapability(id))?.reasons.includes(
+      "RELOAD_REQUIRED",
+    )
+  ) {
+    throw new CapabilityDenied("RELOAD_REQUIRED", id);
+  }
   const entries = await table();
   assertLeaseCurrent(lease, currentGeneration(), id);
   const key = `${plan.identity.distributionId}::${id}`;

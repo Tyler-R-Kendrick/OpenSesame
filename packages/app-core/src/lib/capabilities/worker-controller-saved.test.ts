@@ -93,6 +93,33 @@ describe("saved module ids", () => {
     expect(workerStatus().savedModuleIds).toEqual([]);
   });
 
+  it("a late readiness from the release that stopped controlling saves nothing", async () => {
+    const { container } = await saving();
+    container.emit("message", {
+      type: "WORKER_INFO",
+      releaseId: "r2def",
+      variant: "core-only",
+      scopePath: "/OpenSesame/",
+    });
+    // The same plan is posted again, now to r2def; r1abc answers late.
+    expect(container.posted.at(-1)).toMatchObject({
+      type: "PLAN_ASSETS",
+      releaseId: "r2def",
+    });
+    container.emit("message", {
+      type: "OFFLINE_READY",
+      releaseId: "r1abc",
+      planDigest: "sha256:plan1",
+    });
+    expect(workerStatus().savedModuleIds).toEqual([]);
+    container.emit("message", {
+      type: "OFFLINE_READY",
+      releaseId: "r2def",
+      planDigest: "sha256:plan1",
+    });
+    expect(workerStatus().savedModuleIds).toEqual(MODULES);
+  });
+
   it("switching delivery to shell-only claims nothing saved", async () => {
     const { container, store, settled } = await saving();
     container.emit("message", {

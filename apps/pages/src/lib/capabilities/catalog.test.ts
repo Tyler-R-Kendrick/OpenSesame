@@ -175,7 +175,14 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
       "notifications.web-push/worker",
     ]);
     expect(push.browserPermissions).toContain("notifications");
-    expect(descriptor("agents.webmcp").requiresDocumentReload).toBe(true);
+    // WebMCP starts in place (verify:webmcp reads its tools with no reload);
+    // silent sign-in runs on boot, so it alone waits for a fresh document.
+    expect(descriptor("agents.webmcp").requiresDocumentReload).toBe(false);
+    expect(
+      CAPABILITY_CATALOG.capabilities
+        .filter((d) => d.requiresDocumentReload)
+        .map((d) => d.id),
+    ).toEqual(["identity.ambient-sso"]);
     expect(descriptor("vault.passkey-records").browserPermissions).toContain(
       "webauthn",
     );

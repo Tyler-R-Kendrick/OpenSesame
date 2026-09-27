@@ -23,8 +23,9 @@ export type ControllerState = {
   listenersAttached: boolean;
   workerReleaseId: string | null;
   lastPlanKey: string | null;
-  /** The module ids posted for the plan the worker is saving, by plan digest. */
+  /** The plan posted to the worker saving it: its release, digest and modules. */
   postedPlan: Readonly<{
+    releaseId: string;
     planDigest: string;
     moduleIds: readonly string[];
   }> | null;

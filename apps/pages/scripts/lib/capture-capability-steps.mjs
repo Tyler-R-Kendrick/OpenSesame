@@ -28,6 +28,23 @@ export function capabilitySteps({ press, openSettings }) {
       const add = capabilityOffSwitch(page, title);
       if (await add.count()) await apply(page, add.first());
     },
+    /**
+     * Switch an optional capability on and stop at its review, unapplied —
+     * so a sheet can show what the review says before anything changes.
+     */
+    async propose(page, title) {
+      await openSettings(page, "Capabilities");
+      const add = capabilityOffSwitch(page, title);
+      if (!(await add.count()))
+        throw new Error(
+          `capture-evidence propose("${title}"): no off switch matched`,
+        );
+      await press(add.first());
+      await page
+        .getByTestId("capability-review")
+        .waitFor({ state: "visible", timeout: 20_000 });
+      await page.waitForTimeout(400);
+    },
     /** A whole section, by its own switch — what a person actually turns on. */
     async feature(page, title) {
       await openSettings(page, "Capabilities");

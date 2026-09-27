@@ -69,7 +69,11 @@ export function syncPlan(snapshot: CompositionSnapshotForWorker): void {
   });
   if (!posted) return;
   state.lastPlanKey = key;
-  state.postedPlan = { planDigest: plan.identity.planDigest, moduleIds };
+  state.postedPlan = {
+    releaseId: state.workerReleaseId,
+    planDigest: plan.identity.planDigest,
+    moduleIds,
+  };
   publish({ offlineStatus: "saving" });
 }
 
@@ -77,6 +81,7 @@ export function syncPlan(snapshot: CompositionSnapshotForWorker): void {
 function onPlanRejected(reason: BoundaryValue): void {
   diagnose(`PLAN_REJECTED:${isString(reason) ? reason : "unknown"}`);
   publish({ offlineStatus: "online-only" });
+  state.postedPlan = null;
   if (reason !== "release-mismatch") return;
   state.workerReleaseId = null;
   state.lastPlanKey = null;
@@ -86,21 +91,32 @@ function onPlanRejected(reason: BoundaryValue): void {
 function onWorkerInfo(releaseId: BoundaryValue): void {
   if (!isString(releaseId)) return;
   state.workerReleaseId = releaseId;
-  // Another release keeps its own caches: nothing is known saved in them yet.
-  if (releaseId !== state.status.releaseId)
+  // Another release keeps its own caches: nothing is known saved in them yet,
+  // and a plan posted to the old one is not this one's to answer.
+  if (releaseId !== state.status.releaseId) {
+    state.postedPlan = null;
     publish({ releaseId, savedModuleIds: [] });
-  else publish({ releaseId });
+  } else publish({ releaseId });
   if (state.latest) syncPlan(state.latest);
 }
 
 /**
  * The worker saved every file of the plan it names, all or nothing
  * (`src/sw/plan-assets.ts`), so that plan's modules are now saved. A
- * readiness for some other plan says nothing about these modules.
+ * readiness for some other plan, or from a release no longer controlling the
+ * page, says nothing about these modules.
  */
-function onOfflineReady(planDigest: BoundaryValue): void {
+function onOfflineReady(
+  releaseId: BoundaryValue,
+  planDigest: BoundaryValue,
+): void {
   const posted = state.postedPlan;
-  if (!posted || planDigest !== posted.planDigest) {
+  if (
+    !posted ||
+    releaseId !== posted.releaseId ||
+    releaseId !== state.workerReleaseId ||
+    planDigest !== posted.planDigest
+  ) {
     publish({ offlineStatus: "saved" });
     return;
   }
@@ -115,7 +131,7 @@ export function onWorkerMessage(data: BoundaryValue): void {
       onWorkerInfo(data.releaseId);
       break;
     case "OFFLINE_READY":
-      onOfflineReady(data.planDigest);
+      onOfflineReady(data.releaseId, data.planDigest);
       break;
     case "OFFLINE_PARTIAL":
       publish({ offlineStatus: "partial" });

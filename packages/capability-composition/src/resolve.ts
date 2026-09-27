@@ -26,6 +26,7 @@ import {
 } from "./resolve-axes.js";
 import { type ClosureResult, computeClosure } from "./resolve-closure.js";
 import type { ResolveInput } from "./resolve-input.js";
+import { holdDependentsForReload } from "./resolve-reload.js";
 import { type WorkerSelection, selectWorkerVariant } from "./resolve-worker.js";
 import { missingEnvironments } from "./runtime-support.js";
 import type {
@@ -290,6 +291,7 @@ export function resolveComposition(input: ResolveInput): EffectivePlan {
     if (axis !== undefined)
       capabilities[id] = buildState(ctx, pass, axis, joinRefused);
   }
+  holdDependentsForReload(capabilities);
   const roots = sortIds(
     [...pass.candidates].filter((id) => ctx.selectedRoots.includes(id)),
   );

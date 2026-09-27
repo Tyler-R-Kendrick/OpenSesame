@@ -116,7 +116,11 @@ test("NET-07: allowed service origins appear exactly, and an open allow is named
       policy({
         network: {
           externalServices: "allow",
-          allowedServiceOrigins: ["https://id.example.test", "not-an-origin"],
+          allowedServiceOrigins: [
+            "https://id.example.test",
+            "not-an-origin",
+            "http://plain.example.test",
+          ],
         },
       }),
     ),

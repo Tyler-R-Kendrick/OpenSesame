@@ -25,7 +25,11 @@ import {
 import { beforeEach, describe, expect, it } from "vitest";
 import { NOW, bootPersonalLocal, freshRealm } from "./__tests__/harness.js";
 import { evaluatedModuleIds } from "./facts.js";
-import { activateApprovedCapability, loaderSeams } from "./loader.js";
+import {
+  activateApprovedCapability,
+  loadApprovedModule,
+  loaderSeams,
+} from "./loader.js";
 import type { CapabilityModule } from "./runtime-contract.js";
 import { storeSeams } from "./store-seams.js";
 import { compositionStore } from "./store.js";
@@ -146,6 +150,17 @@ describe("RELOAD_REQUIRED at the loader", () => {
       name: "CapabilityDenied",
       code: "RELOAD_REQUIRED",
     });
+    expect(imports).toEqual([PASSKEYS]);
+  });
+
+  it("loadApprovedModule refuses its module too, whoever asks, before any import", async () => {
+    await bootPersonalLocal(compositionStore);
+    await commit([PASSKEYS], "r1");
+    await activateApprovedCapability(PASSKEYS, compositionStore.currentLease());
+    await commit([PASSKEYS, WEBMCP], "r2");
+    await expect(
+      loadApprovedModule(`${WEBMCP}/runtime`, compositionStore.currentLease()),
+    ).rejects.toMatchObject({ code: "RELOAD_REQUIRED" });
     expect(imports).toEqual([PASSKEYS]);
   });
 

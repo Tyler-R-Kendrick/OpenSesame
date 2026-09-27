@@ -8,9 +8,11 @@
  * without a word, the document is refused with the entry named.
  */
 
+/** The hosts egress treats as loopback (`targetAddressSpaceFor` in app-core). */
 function isLoopbackHost(hostname: string): boolean {
   return (
     hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
     hostname === "[::1]" ||
     /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
   );

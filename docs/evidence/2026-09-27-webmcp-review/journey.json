@@ -1,0 +1,66 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "propose": "WebMCP tools"
+        },
+        {
+          "report": "[data-testid=\"capability-review\"] dl"
+        },
+        {
+          "revealSelector": "[data-testid=\"capability-review\"]"
+        },
+        {
+          "shot": "1280-webmcp-review"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "propose": "WebMCP tools"
+        },
+        {
+          "report": "[data-testid=\"capability-review\"] dl"
+        },
+        {
+          "revealSelector": "[data-testid=\"capability-review\"]"
+        },
+        {
+          "shot": "390-webmcp-review"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-webmcp-review",
+      "width": 1280,
+      "title": "Settings › Capabilities: the review for switching WebMCP tools on — 1280 × 900",
+      "caption": "A guest switches WebMCP tools on, and the review opens before anything is applied. Before, the review said <strong>reload after enabling: WebMCP tools</strong>. That was never true: <code>verify:webmcp</code> chooses WebMCP after boot and reads its four native tools without a reload. Nothing enforced the flag until this PR taught the loader to hold such a capability back (<code>RELOAD_REQUIRED</code>). Enforced, the false flag broke that gate, so the flag is now truthful and the row reads —. Every other row is unchanged.",
+      "before": "reload after enabling: WebMCP tools",
+      "after": "reload after enabling: —"
+    },
+    {
+      "shot": "390-webmcp-review",
+      "width": 390,
+      "title": "The same review on a phone — 390 × 844",
+      "caption": "The same walk at phone width.",
+      "before": "reload after enabling: WebMCP tools",
+      "after": "reload after enabling: —"
+    }
+  ]
+}

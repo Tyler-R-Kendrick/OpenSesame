@@ -7,11 +7,15 @@
  * exempt: a later resolve must not strand what boot was already starting.
  */
 import { describe, expect, it } from "vitest";
+import { buildCatalog } from "./catalog.js";
 import { buildConsentReceipt } from "./consent.js";
 import {
+  FIXTURE_CATALOG,
+  FIXTURE_DISTRIBUTION,
   FIXTURE_FACTS,
   FIXTURE_INSTALLATION,
   FIXTURE_POLICIES,
+  fixtureDescriptor,
   fixtureResolveInput,
   fixtureSelection,
 } from "./fixtures.js";
@@ -80,5 +84,56 @@ describe("RELOAD_REQUIRED", () => {
       if (state.id === PUSH) continue;
       expect(state.reasons, state.id).not.toContain("RELOAD_REQUIRED");
     }
+  });
+});
+
+describe("RELOAD_REQUIRED holds dependents back", () => {
+  const catalog = buildCatalog(
+    FIXTURE_CATALOG.capabilities
+      .filter((d) => d.tier === "core")
+      .map(({ exposureDigest: _digest, ...d }) => d)
+      .concat([
+        fixtureDescriptor("a.fresh", { requiresDocumentReload: true }),
+        fixtureDescriptor("a.mid", { dependencies: ["a.fresh"] }),
+        fixtureDescriptor("a.top", { dependencies: ["a.mid"] }),
+        fixtureDescriptor("a.apart"),
+      ]),
+    1,
+  );
+
+  function dirtyPlan() {
+    const input: ResolveInput = fixtureResolveInput({
+      catalog,
+      distribution: {
+        ...FIXTURE_DISTRIBUTION,
+        capabilityIds: catalog.capabilities.map((d) => d.id),
+        moduleIds: catalog.capabilities.flatMap((d) => d.moduleIds),
+      },
+      installation: fixtureSelection({
+        instanceId: "personal-local",
+        acceptedRequired: [],
+        selectedOptional: ["a.top", "a.apart"],
+      }),
+      facts: {
+        ...FIXTURE_FACTS,
+        cleanRealm: false,
+        evaluatedModuleIds: ["vault.passwords/runtime"],
+      },
+    });
+    const receipt = buildConsentReceipt(
+      resolveComposition(input),
+      catalog,
+      FIXTURE_FACTS.now,
+    );
+    return resolveComposition({ ...input, receipt });
+  }
+
+  it("every approved dependent, transitively, waits with it; an unrelated one does not", () => {
+    const plan = dirtyPlan();
+    for (const id of ["a.fresh", "a.mid", "a.top"]) {
+      expect(plan.capabilities[id]?.approved, id).toBe(true);
+      expect(plan.capabilities[id]?.reasons, id).toEqual(["RELOAD_REQUIRED"]);
+    }
+    expect(plan.capabilities["a.apart"]?.reasons).toEqual([]);
   });
 });

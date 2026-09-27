@@ -32,6 +32,7 @@ describe("isServiceOrigin", () => {
     "http://localhost:8787",
     "http://127.0.0.1:8788",
     "http://[::1]:9090",
+    "http://api.localhost:8787",
   ])("accepts %s", (origin) => {
     expect(isServiceOrigin(origin)).toBe(true);
   });
