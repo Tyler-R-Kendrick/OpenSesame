@@ -964,9 +964,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -978,9 +976,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -992,9 +988,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1006,9 +1000,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1020,9 +1012,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-plane.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1034,9 +1024,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1048,9 +1036,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1062,9 +1048,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1076,9 +1060,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {
@@ -1090,9 +1072,7 @@
         "apps/pages/src/lib/capabilities/__tests__/vault-records.test.ts"
       ],
       "observed": "run-passed",
-      "runs": [
-        "run-vault-family"
-      ],
+      "runs": ["run-vault-family"],
       "note": "Named by a landed test that drives the real catalog, the real shipped profiles and the real VaultStore. The family had no identifier anywhere in the checkout before this; the ids are assigned here from the acceptance statements."
     },
     {

@@ -12,3 +12,4 @@ the method is in [validation](../../validation/capability-composition.md).
 | `contract-test-matrix.json` | Each contract and the test that proves it, or `pending` where none has landed. |
 | [`red-team.md`](red-team.md) | What was attacked, what held, and what was not attempted. |
 | [`limitations.md`](limitations.md) | What the feature does not claim. |
+| [`measurements.md`](measurements.md) | Mutation, coverage, fuzz and property numbers, re-runnable. |

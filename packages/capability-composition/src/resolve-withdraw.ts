@@ -21,7 +21,8 @@ export function withdrawnCore(
     return d?.tier === "core" && d.moduleIds.length > 0;
   };
   const out = new Set(policy.capabilities.prohibited.filter(modular));
-  let grew = out.size > 0;
+  // One pass at least: it is how an empty set is found to stay empty.
+  let grew = true;
   while (grew) {
     grew = false;
     for (const d of index.values()) {

@@ -8,10 +8,6 @@ import { REASON_CODES, type ReasonCode } from "./types-plan.js";
 
 export { REASON_CODES };
 
-const ORDER: ReadonlyMap<ReasonCode, number> = new Map(
-  REASON_CODES.map((code, index) => [code, index]),
-);
-
 /**
  * Codes that make a capability ineligible for any closure — they describe
  * the ceiling, the runtime, or the network, not a person's choice.
@@ -35,7 +31,9 @@ export const CONSENT_ONLY_REASONS: ReadonlySet<ReasonCode> =
 
 /** Unique reasons in vocabulary order. */
 export function sortReasons(codes: Iterable<ReasonCode>): ReasonCode[] {
+  // Looked up per call rather than in a table built at load: the list is
+  // eighteen long, and every code is in it (ReasonCode is derived from it).
   return [...new Set(codes)].sort(
-    (a, b) => (ORDER.get(a) ?? 0) - (ORDER.get(b) ?? 0),
+    (a, b) => REASON_CODES.indexOf(a) - REASON_CODES.indexOf(b),
   );
 }
