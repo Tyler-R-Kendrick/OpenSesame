@@ -53,6 +53,30 @@ describe("cache names", () => {
   });
 });
 
+describe("variant isolation (carried from #470's sw-variants)", () => {
+  it("each worker variant of one release has its own cache, never another's", () => {
+    // A core-only worker opens only CURRENT; the push worker only
+    // CURRENT_PUSH. Neither name reads back as the other variant's.
+    expect(CURRENT).not.toBe(CURRENT_PUSH);
+    expect(parseCacheName(CURRENT, SCOPE)?.variant).toBe("core-only");
+    expect(parseCacheName(CURRENT_PUSH, SCOPE)?.variant).toBe("push");
+  });
+
+  it("a variant switch within a release retires neither variant's cache", () => {
+    // A window may still run the other variant until the transition ends;
+    // the next release's activation retires both together.
+    const input = {
+      scopePath: SCOPE,
+      releaseId: "cur",
+      retained: new Set<string>(),
+    };
+    expect(staleCacheNames([CURRENT, CURRENT_PUSH], input)).toEqual([]);
+    expect(
+      staleCacheNames([CURRENT, CURRENT_PUSH], { ...input, releaseId: "next" }),
+    ).toEqual([CURRENT, CURRENT_PUSH]);
+  });
+});
+
 describe("cleanup (PWA-04)", () => {
   it("names only this scope's other, unretained releases as stale", () => {
     expect(
