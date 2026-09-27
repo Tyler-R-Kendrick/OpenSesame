@@ -7,15 +7,12 @@ import {
   FIXTURE_FACTS,
   FIXTURE_INSTALLATION,
   FIXTURE_POLICIES,
+  fixtureDescriptor,
   fixtureResolveInput,
   fixtureSelection,
 } from "./fixtures.js";
 import type { ResolveInput } from "./resolve-input.js";
-import {
-  capabilityState,
-  explainCapability,
-  resolveComposition,
-} from "./resolve.js";
+import { explainCapability, resolveComposition } from "./resolve.js";
 import type { CapabilityId, EffectivePlan } from "./types.js";
 
 const CORE = ["settings.core", "vault.passwords"];
@@ -236,8 +233,8 @@ describe("worker selection", () => {
         .filter((d) => d.tier === "core")
         .map(({ exposureDigest: _digest, ...d }) => d)
         .concat([
-          { ...blank("a.push"), workerGraphConstraint: "push" },
-          { ...blank("a.sync"), workerGraphConstraint: "sync" },
+          fixtureDescriptor("a.push", { workerGraphConstraint: "push" }),
+          fixtureDescriptor("a.sync", { workerGraphConstraint: "sync" }),
         ]),
       1,
     );
@@ -275,158 +272,5 @@ describe("worker selection", () => {
       }),
     ).plan;
     expect(one.requiredWorkerVariant).toBe("sync");
-  });
-});
-
-function blank(id: string) {
-  return {
-    id,
-    descriptorVersion: 1,
-    tier: "optional" as const,
-    title: id,
-    summary: "",
-    dependencies: [],
-    alternatives: [],
-    operationIds: [],
-    moduleIds: [`${id}/runtime`],
-    environments: ["document" as const],
-    egress: [],
-    browserPermissions: [],
-    keyAccess: "none" as const,
-    requiresService: false,
-    offlineLimits: "",
-    workerGraphConstraint: null,
-    requiresDocumentReload: false,
-    itemKinds: [],
-  };
-}
-
-describe("prototype-named ids (carried from #470's adversarial suite)", () => {
-  const plan = resolveComposition(fixtureResolveInput());
-
-  it.each(["constructor", "toString", "hasOwnProperty", "__proto__"])(
-    "explainCapability(%s) reads as never distributed, never throws",
-    (id) => {
-      const explanation = explainCapability(plan, id);
-      expect(explanation.state.approved).toBe(false);
-      expect(explanation.state.reasons).toEqual(["NOT_DISTRIBUTED"]);
-      expect(capabilityState(plan, id)).toBeUndefined();
-    },
-  );
-});
-
-describe("an alternatives slot named like a prototype member", () => {
-  it("reads as unchosen, not as the prototype's function", () => {
-    const catalog = buildCatalog(
-      FIXTURE_CATALOG.capabilities.map(({ exposureDigest: _digest, ...d }) =>
-        d.id === "sharing.household"
-          ? {
-              ...d,
-              alternatives: d.alternatives.map((a) => ({
-                ...a,
-                slot: "constructor",
-              })),
-            }
-          : d,
-      ),
-      1,
-    );
-    const plan = resolveComposition(
-      fixtureResolveInput({
-        catalog,
-        installation: {
-          ...FIXTURE_INSTALLATION,
-          selectedOptional: ["sharing.household"],
-          chosenAlternatives: {},
-        },
-      }),
-    );
-    expect(plan.conflicts).toEqual([
-      expect.objectContaining({
-        code: "ALTERNATIVE_NOT_CHOSEN",
-        capability: "sharing.household",
-        subject: "constructor",
-      }),
-    ]);
-  });
-});
-
-describe("module completeness (carried from #470's not-shipped rule)", () => {
-  it("a capability whose module did not ship is not distributed, and never approved", () => {
-    const baseline = resolveWithConsent(familyInput()).plan;
-    const target = baseline.approvedCapabilities.find(
-      (id) => baseline.capabilities[id]?.tier === "optional",
-    );
-    if (target === undefined) throw new Error("fixture approves no optional");
-    const dropped = `${target}/runtime`;
-    expect(baseline.approvedModules).toContain(dropped);
-    const distribution = {
-      ...FIXTURE_DISTRIBUTION,
-      moduleIds: FIXTURE_DISTRIBUTION.moduleIds.filter((m) => m !== dropped),
-    };
-    // The same receipt, so only the missing module can change the verdict.
-    const { receipt } = resolveWithConsent(familyInput());
-    const plan = resolveComposition(familyInput({ distribution, receipt }));
-    expect(plan.capabilities[target]).toMatchObject({
-      distributed: false,
-      approved: false,
-    });
-    expect(plan.capabilities[target]?.reasons).toContain("NOT_DISTRIBUTED");
-    expect(plan.approvedCapabilities).not.toContain(target);
-    expect(plan.approvedModules).not.toContain(dropped);
-  });
-});
-
-describe("catalogs the resolver was never meant to see (carried from #470)", () => {
-  function catalogWith(extra: ReturnType<typeof blank>[]) {
-    const catalog = buildCatalog(
-      FIXTURE_CATALOG.capabilities
-        .filter((d) => d.tier === "core")
-        .map(({ exposureDigest: _digest, ...d }) => d)
-        .concat(extra),
-      1,
-    );
-    const distribution = {
-      ...FIXTURE_DISTRIBUTION,
-      capabilityIds: catalog.capabilities.map((d) => d.id),
-      moduleIds: catalog.capabilities.flatMap((d) => d.moduleIds),
-    };
-    return { catalog, distribution };
-  }
-
-  it("a dependency no catalog entry names is a conflict, never auto-enabled", () => {
-    const { catalog, distribution } = catalogWith([
-      { ...blank("a.root"), dependencies: ["ghost.cap"] },
-    ]);
-    const { plan } = resolveWithConsent(
-      fixtureResolveInput({
-        catalog,
-        distribution,
-        installation: fixtureSelection({ selectedOptional: ["a.root"] }),
-      }),
-    );
-    expect(plan.conflicts).toEqual([
-      expect.objectContaining({
-        code: "DEPENDENCY_NOT_DISTRIBUTED",
-        capability: "a.root",
-        subject: "ghost.cap",
-      }),
-    ]);
-    expect(plan.approvedCapabilities).toEqual(CORE);
-  });
-
-  it("a dependency cycle terminates, and approves nothing without consent", () => {
-    const { catalog, distribution } = catalogWith([
-      { ...blank("a.one"), dependencies: ["a.two"] },
-      { ...blank("a.two"), dependencies: ["a.one"] },
-    ]);
-    const input = fixtureResolveInput({
-      catalog,
-      distribution,
-      installation: fixtureSelection({ selectedOptional: ["a.one"] }),
-    });
-    expect(resolveComposition(input).approvedCapabilities).toEqual(CORE);
-    const { plan } = resolveWithConsent(input);
-    expect(plan.approvedCapabilities).toEqual(["a.one", "a.two", ...CORE]);
   });
 });

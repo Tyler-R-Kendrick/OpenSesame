@@ -50,6 +50,14 @@ function describe(
   };
 }
 
+/** A bare optional descriptor — the shape a test catalog starts from. */
+export function fixtureDescriptor(
+  id: string,
+  overrides: Partial<Declared> = {},
+): Declared {
+  return describe(id, id, "", overrides);
+}
+
 const IDENTITY_API = {
   class: "external-service",
   purpose: "the configured Identity API",

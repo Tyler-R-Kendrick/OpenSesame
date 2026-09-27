@@ -10,6 +10,7 @@
 import {
   FIXTURE_FACTS,
   FIXTURE_POLICIES,
+  type VaultCapabilitySelection,
 } from "@opensesame/capability-composition";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -302,7 +303,7 @@ describe("invalidation", () => {
 });
 
 describe("a vault record written for somewhere else", () => {
-  async function withRecord(overrides: Record<string, string | string[]>) {
+  async function withRecord(overrides: Partial<VaultCapabilitySelection>) {
     await bootPersonalLocal(compositionStore, "personal");
     const { draft, receipt } = draftFor(compositionStore, [PASSKEYS], "r1");
     await compositionStore.commit(draft, receipt);
