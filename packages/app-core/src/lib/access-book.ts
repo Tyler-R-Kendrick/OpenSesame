@@ -75,8 +75,19 @@ function load(): LocalGrant[] {
   }
 }
 
+const listeners = new Set<() => void>();
+
+/** Called after every write to the book, so a view of it can follow. */
+export function subscribeAccessBook(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 function save(rows: LocalGrant[]): void {
   accessBookSeams.write(JSON.stringify({ version: 1, grants: rows }));
+  for (const listener of [...listeners]) listener();
 }
 
 export function listLocalGrants(): LocalGrant[] {

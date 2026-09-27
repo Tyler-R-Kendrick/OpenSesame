@@ -95,7 +95,7 @@ export function Receipts({
   }, [load, online, sessionKey]);
 
   return (
-    <section className="panel">
+    <section className="panel" id="access-receipts">
       <div className="panel__head">
         <div>
           <h2>Receipts</h2>

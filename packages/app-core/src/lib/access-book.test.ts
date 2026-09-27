@@ -6,6 +6,7 @@ import {
   importAccessBook,
   listLocalGrants,
   removeLocalGrant,
+  subscribeAccessBook,
 } from "./access-book.js";
 
 const original = { ...accessBookSeams };
@@ -38,6 +39,27 @@ describe("access book", () => {
     expect(listLocalGrants()).toEqual([]);
     expect(importAccessBook(raw)).toEqual({ added: 1 });
     expect(importAccessBook(raw)).toEqual({ added: 0 });
+  });
+
+  it("tells a subscriber after every write, until it unsubscribes", () => {
+    let stored: string | null = null;
+    Object.assign(accessBookSeams, {
+      read: () => stored,
+      write: (raw: string) => {
+        stored = raw;
+      },
+    });
+    const seen: number[] = [];
+    const off = subscribeAccessBook(() => seen.push(listLocalGrants().length));
+    const grant = addLocalGrant({ title: "Nightly deploy" });
+    const raw = exportAccessBook();
+    removeLocalGrant(grant.id);
+    importAccessBook(raw);
+    // The listener runs after the write, so it reads the book as written.
+    expect(seen).toEqual([1, 0, 1]);
+    off();
+    removeLocalGrant(grant.id);
+    expect(seen).toEqual([1, 0, 1]);
   });
 
   it("skips junk rows and replaces a non-timestamp expiry", () => {
