@@ -167,7 +167,7 @@ async function frontDoor(page, stop) {
   }
 }
 
-/** Every section behind the tab bar, and the tab the Access strip hides. */
+/** Every section behind the sections drawer, and the tab the Access strip hides. */
 async function sections(page, stop) {
   for (const [label, name] of [
     ["connections", "Connections"],

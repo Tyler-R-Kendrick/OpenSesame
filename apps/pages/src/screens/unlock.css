@@ -74,9 +74,7 @@
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
   text-align: start;
-  text-transform: uppercase;
   color: var(--ink);
   /* Darker than the notes pane so the label reads as a subheader in day and
      night — not a paper band that collapses the two-tone split. */

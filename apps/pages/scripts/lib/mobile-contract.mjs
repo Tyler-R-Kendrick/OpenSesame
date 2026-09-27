@@ -27,7 +27,7 @@ export const NO_ZOOM_FLOOR = 16;
 /**
  * Phones this gate speaks for. 320 is the floor width still in the wild, and
  * landscape is not an afterthought: rotated, a phone has 390px of height for a
- * top bar, a statusline, a tab bar and the content between them, which is
+ * top bar, a statusline and the content between them, which is
  * where a frame built in portrait falls apart.
  */
 export const PHONES = [
