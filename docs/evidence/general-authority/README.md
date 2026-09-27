@@ -69,8 +69,8 @@ These distinguish "nobody wrote the test" from "the code does not build" from
 | `test-file-missing` | The TypeScript test file the scenario names does not exist. |
 | `suite-failed-to-run` | The suite errored before collecting, so zero assertions ran. Not the same as the test being absent. |
 | `vacuous-no-subject` | A sweep found nothing to check. Recorded as blocked, because a sweep with no subject proves nothing. |
-| `second-local-ledger-present` | A module under `apps/pages/src/lib` whose name is in the authority family (`grant`, `share`, `authority`, `rbac`, `permission`) appears in neither `declared` nor `notLedgers` of `local-ledger-inventory.json`. The filename signal cannot tell a rival ledger from a different concern — `local-grant-store.ts` holds application OIDC grants and is legitimately not the ledger — so the ask is to classify it with a reason, not to delete it (INV-GA-10). |
-| `live-stack-not-configured` | A `live` scenario's stack was not configured. A live result is never inferred from a unit run. |
+| `second-local-ledger-present` | A module under `packages/app-core/src/lib` (where Pages' non-UI logic moved in ADR 0133) whose name is in the authority family (`grant`, `share`, `authority`, `rbac`, `permission`) appears in neither `declared` nor `notLedgers` of `local-ledger-inventory.json`. The filename signal cannot tell a rival ledger from a different concern — `local-grant-store.ts` holds application OIDC grants and is legitimately not the ledger — so the ask is to classify it with a reason, not to delete it (INV-GA-10). |
+| `live-stack-not-configured` | A `provider` or `live` scenario's external service was not configured in this environment; the report's detail (and its *Not settled* list) names what is missing, e.g. `OPENSESAME_OPENFGA_URL` for GA-V-32. An environment gate, not a missing test: a provider or live result is never inferred from a unit run. |
 | `harness-missing` | The harness a contract needs does not exist yet, named in the detail. |
 | `harness-error` | The harness itself misbehaved. Always a defect here, never in the code under test. |
 | `not-executed` | `--no-run` was passed. |

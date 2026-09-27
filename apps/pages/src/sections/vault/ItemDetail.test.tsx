@@ -40,7 +40,6 @@ const planes = vi.hoisted(() => ({
   value: { host: "live", identity: "connected" },
 }));
 const listConnections = vi.hoisted(() => vi.fn());
-const connectionEvents = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
@@ -54,7 +53,7 @@ afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 Object.assign(planeHookSeams, { usePlaneStatus: () => planes.value });
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
-Object.assign(connectionSeams, { listConnections, connectionEvents });
+Object.assign(connectionSeams, { listConnections });
 afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
 import { ItemDetail } from "./ItemDetail.js";
@@ -109,7 +108,6 @@ describe("ItemDetail", () => {
     planes.value = { host: "live", identity: "connected" };
     copySecret.mockResolvedValue("copied");
     listConnections.mockResolvedValue([]);
-    connectionEvents.mockResolvedValue([]);
     store.saveItem.mockResolvedValue(undefined);
   });
 
@@ -414,7 +412,6 @@ describe("ItemDetail", () => {
       screen.getByText("Connection receipts are unavailable on this device."),
     ).toBeTruthy();
     expect(listConnections).not.toHaveBeenCalled();
-    expect(connectionEvents).not.toHaveBeenCalled();
     expect(
       screen.getByRole("link", { name: /^Grant or invoke$/i }),
     ).toBeTruthy();
@@ -446,6 +443,7 @@ describe("ItemDetail", () => {
     // Pages keeps no Host fetch (ADR 0128): the line is the same whether the
     // Host would have had no connection, been degraded, had no receipts or
     // failed, and nothing is asked of it.
+    const sent = vi.spyOn(globalThis, "fetch");
     const worlds = [
       () => listConnections.mockResolvedValue([]),
       () => {
@@ -455,7 +453,6 @@ describe("ItemDetail", () => {
         listConnections.mockResolvedValue([
           { connectionId: "con_1", connectionRef: "conn/github/pat" },
         ]);
-        connectionEvents.mockResolvedValue([]);
       },
       () => listConnections.mockRejectedValue(new Error("host exploded")),
     ];
@@ -482,7 +479,8 @@ describe("ItemDetail", () => {
       view.unmount();
     }
     expect(listConnections).not.toHaveBeenCalled();
-    expect(connectionEvents).not.toHaveBeenCalled();
+    expect(sent).not.toHaveBeenCalled();
+    sent.mockRestore();
   });
 
   it("updates a secret value through the update panel", async () => {
@@ -551,7 +549,6 @@ describe("ItemDetail edge branches", () => {
     planes.value = { host: "live", identity: "connected" };
     copySecret.mockResolvedValue("copied");
     listConnections.mockResolvedValue([]);
-    connectionEvents.mockResolvedValue([]);
     store.saveItem.mockResolvedValue(undefined);
   });
 

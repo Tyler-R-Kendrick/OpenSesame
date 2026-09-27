@@ -94,6 +94,8 @@ function sectionsFor(
           keepEmpty: true,
         })),
         panel("vaults", "travel", "Travel"),
+        panel("vaults", "sample-data", "Sample data"),
+        panel("vaults", "sealed-store", "Sealed store"),
       ];
     case "capabilities":
       return capabilitiesSettingsSections(

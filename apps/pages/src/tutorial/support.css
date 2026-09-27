@@ -291,8 +291,7 @@
 
 /* ——— The written help, which needs no model ————————————————— */
 
-.support__help,
-.support__goals {
+.support__help {
   display: grid;
   gap: 0.45rem;
 }

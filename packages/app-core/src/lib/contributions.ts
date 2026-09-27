@@ -17,6 +17,10 @@
  */
 
 import type { ContributionKind } from "@opensesame/capability-composition";
+import {
+  type NavigationKind,
+  assertNavigationAuthority,
+} from "./capabilities/dispatch.js";
 import { contributions, subscribeRegistry } from "./capabilities/registry.js";
 import type { ContributionEntry } from "./capabilities/runtime-contract.js";
 
@@ -93,6 +97,25 @@ export function contributionsSnapshot<K extends ContributionKind>(
       : Object.freeze([...fromRegistry, ...extra].sort(compare));
   merged.set(kind, { registry: fromRegistry, version: injectedVersion, out });
   return out as readonly ContributionEntry<K>[];
+}
+
+/**
+ * The dispatch gate for a destination (`capabilities/dispatch.ts`): refuse,
+ * with `CapabilityDenied`, a command path or keymap jump whose registering
+ * capability is no longer approved under a current lease. The command bar,
+ * the WebMCP navigation tool and the `g` jumps call it before they move.
+ *
+ * An entry on the test channel stands in for a module's lease in a jsdom
+ * suite that never booted a store; production never writes that channel
+ * (`capabilities/dispatch.test.ts` holds it to test files), so there the registry
+ * alone answers.
+ */
+export function assertNavigationContribution<K extends NavigationKind>(
+  kind: K,
+  match: (entry: ContributionEntry<K>) => boolean,
+): void {
+  if (injectedOf(kind).some(match)) return;
+  assertNavigationAuthority(kind, match);
 }
 
 export function subscribeInjected(listener: () => void): () => void {

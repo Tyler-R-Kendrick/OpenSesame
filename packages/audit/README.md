@@ -29,7 +29,7 @@ truncated to 256 characters.
 | `createChainedAuditSink(options)` | Wraps a sink so each event carries the previous event's digest; retries a predecessor conflict on `audit_events_previous_digest_uidx` |
 | `verifyAuditChain`, `auditEventDigest`, `canonicalAuditPayload`, `AUDIT_CHAIN_GENESIS` | Chain verification and the bytes a digest covers |
 | `redactAuditMetadata`, `isDeniedAuditMetadataKey`, `AUDIT_METADATA_ALLOWLIST`, `AUDIT_VALUE_MAX_LENGTH` | The redaction pass (also at `@opensesame/audit/redact`) |
-| `SECRET_CHANGELOG_EVENT_TYPES`, `recordSecretChangelog`, `filterSecretChangelogEvents`, `isSecretChangelogEventType` | Frozen changelog event names, kept in step with the Host's changelog hook and Pages |
+| `SECRET_CHANGELOG_EVENT_TYPES`, `recordSecretChangelog`, `filterSecretChangelogEvents`, `isSecretChangelogEventType` | Frozen changelog event names, kept in step with the Host's changelog hook |
 
 ## Develop
 

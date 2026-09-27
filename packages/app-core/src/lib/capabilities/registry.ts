@@ -28,6 +28,7 @@ type Registration = Readonly<{
   kind: ContributionKind;
   capability: CapabilityId;
   generation: number;
+  lease: ActivationLease;
   entry: unknown;
 }>;
 
@@ -108,6 +109,7 @@ export function registerContribution<K extends ContributionKind>(
     kind,
     capability,
     generation: lease.generation,
+    lease,
     entry,
   });
   notify();
@@ -146,6 +148,36 @@ export function contributions<K extends ContributionKind>(
   const stable = entries.length === 0 ? EMPTY : Object.freeze(entries);
   cache.set(kind, { version, entries: stable });
   return stable as readonly ContributionEntry<K>[];
+}
+
+/** Who registered a live entry, and under which lease. */
+export type LiveRegistration<K extends ContributionKind> = Readonly<{
+  capability: CapabilityId;
+  lease: ActivationLease;
+  entry: ContributionEntry<K>;
+}>;
+
+/**
+ * The current-generation registrations of `kind` whose entry `match`es —
+ * what a dispatch gate resolves authority from (`dispatch.ts`). Entries of
+ * an older generation are never answered, so a superseded registration
+ * cannot vouch for a call even before its module is disposed.
+ */
+export function liveRegistrations<K extends ContributionKind>(
+  kind: K,
+  match: (entry: ContributionEntry<K>) => boolean,
+): readonly LiveRegistration<K>[] {
+  const current = compositionStore.getSnapshot().generation;
+  const out: LiveRegistration<K>[] = [];
+  for (const r of registrations.values()) {
+    if (r.kind !== kind || r.generation !== current) continue;
+    // Only `registerContribution<K>` writes `registrations`, typed on entry.
+    // SAFETY: the kind check above established it went in as ContributionEntry<K>.
+    const entry = r.entry as ContributionEntry<K>;
+    if (match(entry))
+      out.push({ capability: r.capability, lease: r.lease, entry });
+  }
+  return out;
 }
 
 export function subscribeRegistry(listener: () => void): () => void {

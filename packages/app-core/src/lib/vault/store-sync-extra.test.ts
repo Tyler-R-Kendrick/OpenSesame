@@ -111,7 +111,7 @@ describe("entryToVaultItem kinds", () => {
 });
 
 describe("vaultItemToEntry kinds", () => {
-  it("maps a card with its holder line into notes", () => {
+  it("maps a card by its number, the holder in values and notes alone", () => {
     const card = createItem("card", "Visa");
     if (card.kind !== "card") throw new Error("expected card");
     card.number = "4111111111111111";
@@ -119,11 +119,31 @@ describe("vaultItemToEntry kinds", () => {
     card.notes = "expires soon";
     const entry = vaultItemToEntry(card, []);
     expect(entry.secret).toBe("4111111111111111");
-    expect(entry.trailer).toContain("A. Rowan\\nexpires soon");
+    expect(JSON.parse(entry.trailer)).toEqual({
+      kind: "card",
+      v: 2,
+      notes: "expires soon",
+      values: { cardholder: "A. Rowan" },
+    });
 
     const bare = createItem("card", "Bare");
-    const bareEntry = vaultItemToEntry(bare, []);
-    expect(bareEntry.trailer).not.toContain("\\n");
+    expect(vaultItemToEntry(bare, []).trailer).toBe('{"kind":"card","v":2}\n');
+  });
+
+  it("keeps line one a single line, moving a multi-line value into the trailer", () => {
+    const note = createItem("note", "Two lines");
+    note.notes = "first\nsecond";
+    const noteEntry = vaultItemToEntry(note, []);
+    expect(noteEntry.secret).toBe("");
+    expect(entryToVaultItem(noteEntry).notes).toBe("first\nsecond");
+
+    const secret = createItem("secret", "Deploy key");
+    secret.value = "-----BEGIN KEY-----\nAAAA\n-----END KEY-----";
+    const secretEntry = vaultItemToEntry(secret, []);
+    expect(secretEntry.secret).toBe("");
+    const back = entryToVaultItem(secretEntry);
+    if (back.kind !== "secret") throw new Error("expected secret");
+    expect(back.value).toBe(secret.value);
   });
 
   it("maps a passkey by credential id", () => {

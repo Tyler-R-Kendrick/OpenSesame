@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import { getBundledProviders } from "./embedded-catalog.js";
 import { kvRefresh } from "./kv.js";
+import { recordAccessAuditEvent } from "./local-access-audit.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { listDeviceVaults } from "./vaults.js";
@@ -233,6 +234,24 @@ export async function revokeSharesForSession(
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
+async function dropShare(tomb: string, id: string): Promise<LocalShare> {
+  if (!text(id, 36))
+    throw new LocalDirectoryError("This share is unavailable.");
+  const current = await readAll(tomb);
+  const removed = current.find((row) => row.id === id);
+  if (!removed) throw new LocalDirectoryError("This share is unavailable.");
+  await writeAll(
+    tomb,
+    current.filter((row) => row.id !== id),
+  );
+  return removed;
+}
+
+/**
+ * A person revokes a share. Revoking a connector share is audited on the
+ * sealed Access trail (ADR 0015), which is also how a connector page knows
+ * not to re-issue a standing grant somebody took away.
+ */
 export async function revokeLocalShare(
   tomb: string,
   id: string,
@@ -242,15 +261,22 @@ export async function revokeLocalShare(
     const { assertAccessCapability } = await import("./local-rbac.js");
     await assertAccessCapability(tomb, "manage_grants");
   }
-  if (!text(id, 36))
-    throw new LocalDirectoryError("This share is unavailable.");
-  const current = await readAll(tomb);
-  if (!current.some((row) => row.id === id))
-    throw new LocalDirectoryError("This share is unavailable.");
-  await writeAll(
-    tomb,
-    current.filter((row) => row.id !== id),
-  );
+  const removed = await dropShare(tomb, id);
+  if (removed.resourceKind === "connection") {
+    await recordAccessAuditEvent(tomb, {
+      eventType: "access.connection.revoked",
+      outcome: "succeeded",
+      targetType: "connection",
+      targetId: removed.resourceId,
+      metadata: {
+        providerId: removed.resourceId,
+        resourceType: "connection",
+        resourceId: removed.resourceId,
+        action: "revoke",
+        kind: "share",
+      },
+    });
+  }
   return listLocalShares(tomb);
 }
 
@@ -284,7 +310,8 @@ export async function ensureLocalShare(
   if (existing && existing.expiresAt - now > RENEW_WITHIN_MS) {
     return current;
   }
-  if (existing) await revokeLocalShare(tomb, existing.id, SYSTEM_SHARE_WRITE);
+  // A renewal replaces the share; it is not a revocation.
+  if (existing) await dropShare(tomb, existing.id);
   const share: CreateLocalShareInput = {
     principalId: input.principalId,
     resourceKind: input.resourceKind,

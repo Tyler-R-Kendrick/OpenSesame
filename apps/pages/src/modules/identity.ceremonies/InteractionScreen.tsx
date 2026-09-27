@@ -1,7 +1,7 @@
 /**
  * `/i/:ref` (ADR 0086; ADR 0140 plan step 9, D7): the phone half of a
- * cross-device approval, moved here from `apps/mobile-mfa`. Resolving the
- * link needs nothing; reading what it asks needs an Identity session; an
+ * cross-device approval. Resolving the link needs nothing; reading what it
+ * asks needs an Identity session; an
  * approval needs a passkey touch bound to this request — never a vault. The
  * route opens before unlock, on a locked or empty device too.
  *

@@ -143,11 +143,17 @@ export async function armVercelConnectAuth(
   pending = next;
 }
 
-/** Unlock path: seal any staged credential, then hydrate from the tomb. */
+/**
+ * Unlock path: seal any staged credential, then hydrate from the tomb. The
+ * unlock's `signal` fences every step after an await: an unlock that ended
+ * while the tomb was being read arms nothing, so a lock or a switch to
+ * another vault can never be followed by this vault's bearer going live.
+ */
 export async function hydrateVercelConnectAuth(
   tomb: string,
-  opts: VercelConnectAuthOpts = {},
+  opts: VercelConnectAuthOpts & { signal?: AbortSignal } = {},
 ): Promise<boolean> {
+  if (opts.signal?.aborted) return false;
   if (pending && !opts.ephemeral) {
     await writeVercelConnectAuth(tomb, pending);
     pending = null;
@@ -156,6 +162,7 @@ export async function hydrateVercelConnectAuth(
     return true;
   }
   const sealed = await readVercelConnectAuth(tomb);
+  if (opts.signal?.aborted) return false;
   if (!sealed) {
     if (!pending) setVercelConnectAuth(null);
     return false;

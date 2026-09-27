@@ -271,20 +271,3 @@ export function installationIdFromLocation(search: string): string | null {
 export function githubBackupReturnTo(): string {
   return `${pageOrigin()}/settings`;
 }
-
-export function githubAppInstallUrl(input: {
-  htmlUrl: string | null;
-  state?: string;
-}): string | null {
-  const base = input.htmlUrl?.replace(/\/$/u, "");
-  if (!base) return null;
-  const url = new URL(`${base}/installations/new`);
-  if (input.state) url.searchParams.set("state", input.state);
-  return url.toString();
-}
-
-export function githubAppFailureReason(raw: string | null): string {
-  if (!raw) return "GitHub App setup did not finish.";
-  if (raw.includes("state")) return "GitHub App setup state did not match.";
-  return raw;
-}

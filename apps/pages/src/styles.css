@@ -695,10 +695,6 @@ input[type="radio"] {
   padding-left: 1.1rem;
 }
 
-.banner--warn {
-  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
-}
-
 .note > span {
   flex: 1;
   min-width: 0;
@@ -750,13 +746,6 @@ input[type="radio"] {
   min-width: 0;
 }
 
-.conn-pair__qr {
-  display: grid;
-  gap: 0.45rem;
-  margin-top: 0.75rem;
-  justify-items: start;
-}
-
 .detail__totp-qr {
   display: grid;
   gap: 0.45rem;
@@ -795,12 +784,6 @@ input[type="radio"] {
   border-color: color-mix(in srgb, var(--err) 30%, var(--line));
 }
 
-.chip--accent {
-  color: var(--accent);
-  background: var(--accent-wash);
-  border-color: var(--accent-line);
-}
-
 /* A status is a glyph (DESIGN.md § Status is a symbol) — unframed. In a
    bordered square a ✓ read as a ticked checkbox, a lock as a button, and a
    red × beside a heading as a key that deletes it; a key is the only thing
@@ -825,17 +808,6 @@ input[type="radio"] {
 
 .status-mark--err {
   color: var(--err);
-}
-
-.chip--sample {
-  color: var(--ink-3);
-  background: transparent;
-  border-color: var(--line-strong);
-  border-style: dashed;
-  letter-spacing: 0.03em;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.05rem 0.35rem;
 }
 
 /* ——— App frame ——————————————————————————————————————————— */
@@ -1108,16 +1080,6 @@ input[type="radio"] {
   background: var(--ink-3);
 }
 
-.dot--ok {
-  background: var(--ok);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
-}
-
-.dot--warn {
-  background: var(--warn);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
-}
-
 /* ——— Main region ————————————————————————————————————————— */
 
 .main {
@@ -1170,16 +1132,6 @@ body {
   .topbar {
     display: none;
   }
-}
-
-.topbar__title {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.topbar__spacer {
-  margin-left: auto;
 }
 
 .crumbs {
@@ -1598,12 +1550,6 @@ body {
   border-bottom: none;
 }
 
-.scroll-x {
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
 .empty {
   display: grid;
   justify-items: center;
@@ -1756,7 +1702,6 @@ body {
 
   .access-tab,
   .identity-tab,
-  .grant-choice,
   .sites-effect,
   .set__nav-link {
     min-height: 2.75rem;
@@ -2179,44 +2124,6 @@ body {
   display: inline-block;
 }
 
-.project-switcher__button {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: 100%;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid var(--rail-line);
-  border-radius: var(--radius);
-  background: var(--rail-2);
-  color: var(--rail-fg);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* The top bar is rail-coloured at every width now, so the switcher keeps the
-   rail palette here rather than the surface one it used when this bar was
-   mobile-only. */
-.topbar .project-switcher__button {
-  width: auto;
-  max-width: 12rem;
-}
-
-.project-switcher__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.project-switcher__caret {
-  font-size: 0.75rem;
-  opacity: 0.7;
-}
-
 .project-switcher__backdrop {
   position: fixed;
   inset: 0;
@@ -2251,68 +2158,6 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--ink-3);
-}
-
-.project-switcher__row {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.project-switcher__item {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.45rem;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 0.8125rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.project-switcher__item:hover {
-  background: var(--surface-2);
-}
-
-.project-switcher__item.is-active {
-  font-weight: 600;
-}
-
-.project-switcher__item-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-switcher__delete {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--ink-3);
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.project-switcher__delete:hover {
-  color: var(--err);
-}
-
-.project-switcher__delete.is-armed {
-  padding: 0.3rem 0.45rem;
-  color: var(--err);
-  font-weight: 600;
 }
 
 .project-switcher__new {
@@ -2363,41 +2208,6 @@ body {
 .account-switcher {
   position: relative;
   display: inline-block;
-}
-
-.account-switcher__button {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: 100%;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid var(--rail-line);
-  border-radius: var(--radius);
-  background: var(--rail-2);
-  color: var(--rail-fg);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.topbar .account-switcher__button {
-  width: auto;
-  max-width: 12rem;
-}
-
-.account-switcher__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.account-switcher__caret {
-  font-size: 0.75rem;
-  opacity: 0.7;
 }
 
 .account-switcher__backdrop {
@@ -2882,15 +2692,6 @@ body {
   color: var(--warn);
 }
 
-.conn__req {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ink-3);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
-  padding: 0.05rem 0.35rem;
-}
-
 /* ——— Ceremony sheet ——————————————————————————————————————
    Repairing a connection is never why you came, so it opens over what you were
    doing and closing it puts you back. */
@@ -3020,35 +2821,6 @@ body {
 .ceremony {
   display: grid;
   gap: 0.9rem;
-}
-
-.ceremony__head {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.ceremony__head p {
-  font-size: 0.8438rem;
-  color: var(--ink-2);
-  line-height: 1.45;
-}
-
-.ceremony__looking {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.875rem;
-  color: var(--ink-2);
-}
-
-.spin {
-  width: 1rem;
-  height: 1rem;
-  flex: none;
-  border-radius: 50%;
-  border: 2px solid var(--line-strong);
-  border-top-color: var(--accent);
-  animation: turn 700ms linear infinite;
 }
 
 @keyframes turn {
@@ -3193,16 +2965,6 @@ body {
   color: var(--accent);
 }
 
-/* What installing actually buys, in the margin voice, under the card that
-   offers it. It is the one claim on the screen the code has to keep. */
-.keep__why {
-  font-family: var(--font);
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--ink-2);
-  max-width: 44ch;
-}
-
 /* ——— Ceremony alternatives ——— */
 
 /* The rule between "what we found" and "or do something else". */
@@ -3329,13 +3091,6 @@ fieldset.picker {
   color: var(--canvas);
 }
 
-.qr-block {
-  display: grid;
-  gap: 0.6rem;
-  justify-items: center;
-  text-align: center;
-}
-
 /* One standing sentence per ceremony, pinned below the scroll. */
 .sheet__foot {
   border-top: 1px solid var(--line);
@@ -3345,26 +3100,6 @@ fieldset.picker {
 
 .sheet__foot .hint {
   margin: 0;
-}
-
-/* Pairing writes three endpoints. Showing them is what makes the Endpoints
-   panel safe to collapse — you have already seen the values. */
-.ceremony__done {
-  display: grid;
-  justify-items: center;
-  gap: 0.7rem;
-  padding: 0.5rem 0;
-}
-
-.ceremony__done-mark {
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  background: var(--ok-wash);
-  border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line));
-  color: var(--ok);
 }
 
 .wrote {

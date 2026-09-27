@@ -10,10 +10,10 @@
     "TEST-PARITY",
     "TEST-REPORT"
   ],
-  "generatedAt": "2026-09-17T19:34:21.398Z",
-  "head": "041aad7955fac098b0dad5adc615a3d7e7492428",
+  "generatedAt": "2026-09-27T07:00:21.034Z",
+  "head": "3f379b93db44ce1ae42a5052aa8d08ffb9222cd7",
   "treeDirty": true,
-  "treeChangedDuringRun": false,
+  "treeChangedDuringRun": true,
   "executed": true,
   "command": "pnpm test:authority-fabric",
   "cargoExecution": "one `cargo test -p <crate> --lib -- --format terse` per crate; each scenario reads its own test's line",
@@ -22,9 +22,9 @@
   "summary": {
     "total": 118,
     "byStatus": {
-      "pass": 117,
+      "pass": 116,
       "fail": 0,
-      "blocked": 0,
+      "blocked": 1,
       "unsupported": 1
     },
     "byTier": {
@@ -41,9 +41,9 @@
         "unsupported": 0
       },
       "provider": {
-        "pass": 1,
+        "pass": 0,
         "fail": 0,
-        "blocked": 0,
+        "blocked": 1,
         "unsupported": 0
       },
       "live": {
@@ -59,7 +59,7 @@
         "unsupported": 1
       }
     },
-    "gate": "pass"
+    "gate": "blocked"
   },
   "scenarios": [
     {
@@ -327,6 +327,18 @@
       "reproduce": "cargo +1.88.0 test -p opensesame-enforcement --lib -- --exact descriptor::tests::a_dimension_left_out_is_not_a_descriptor"
     },
     {
+      "id": "GA-V-33b",
+      "workItem": "TEST-STACK",
+      "area": "DOMAIN",
+      "tier": "integration",
+      "invariant": "INV-GA-05",
+      "title": "An authority expiry reaches the lifecycle.* feed from a running gateway",
+      "status": "pass",
+      "reason": null,
+      "detail": "lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan ran and passed",
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan"
+    },
+    {
       "id": "GA-V-23",
       "workItem": "TEST-SCENARIOS",
       "area": "CLIENT",
@@ -336,7 +348,7 @@
       "status": "pass",
       "reason": null,
       "detail": "\"isolates a guest whenever any vault on the device is sealed\" ran and passed",
-      "reproduce": "pnpm --filter @opensesame/pages exec vitest run --reporter=json src/lib/vault/store.test.ts"
+      "reproduce": "pnpm --filter @opensesame/app-core exec vitest run --reporter=json src/lib/vault/store.test.ts"
     },
     {
       "id": "GA-V-24",
@@ -344,11 +356,11 @@
       "area": "CLIENT",
       "tier": "unit",
       "invariant": "INV-GA-11",
-      "title": "A guest beside a sealed vault runs in its own tomb and hands it back",
+      "title": "A guest beside a sealed vault runs in its own tomb, never touches the sealed vault, and stays the unlock screen's account on lock",
       "status": "pass",
       "reason": null,
-      "detail": "\"runs a guest beside a sealed vault in its own tomb and hands the vault back on lock\" ran and passed",
-      "reproduce": "pnpm --filter @opensesame/pages exec vitest run --reporter=json src/lib/vault/store.test.ts"
+      "detail": "\"runs a guest beside a sealed vault in its own tomb and keeps guest unlock on lock\" ran and passed",
+      "reproduce": "pnpm --filter @opensesame/app-core exec vitest run --reporter=json src/lib/vault/store.test.ts"
     },
     {
       "id": "GA-V-25",
@@ -419,7 +431,7 @@
       "title": "apps/pages keeps one local authority ledger, not two",
       "status": "pass",
       "reason": null,
-      "detail": "all 7 authority-named modules under apps/pages/src/lib are classified in docs/implementation/general-authority/local-ledger-inventory.json, with 1 declared the ledger",
+      "detail": "all 6 authority-named modules under packages/app-core/src/lib are classified in docs/implementation/general-authority/local-ledger-inventory.json, with 1 declared the ledger",
       "reproduce": null
     },
     {
@@ -429,10 +441,10 @@
       "tier": "provider",
       "invariant": "INV-GA-03",
       "title": "No check true against the baseline OpenFGA model returns false against the delta",
-      "status": "pass",
-      "reason": null,
-      "detail": "\"No check true against the baseline OpenFGA model returns false against the delta\" ran and passed",
-      "reproduce": "pnpm --filter @opensesame/policy exec vitest run --reporter=json src/__tests__/authority-additivity.test.ts"
+      "status": "blocked",
+      "reason": "live-stack-not-configured",
+      "detail": "OPENSESAME_OPENFGA_URL is unset; GA-V-32 needs a live OpenFGA to replay baseline allows against the delta",
+      "reproduce": null
     },
     {
       "id": "GA-V-33",
@@ -455,8 +467,8 @@
       "title": "Two product names never become two models or two ledgers",
       "status": "pass",
       "reason": null,
-      "detail": "\"AccessLease and AuthorityRecord are the same schema (INV-GA-08 naming)\" ran and passed",
-      "reproduce": "pnpm --filter @opensesame/contracts exec vitest run --reporter=json src/__tests__/authority-grant.test.ts"
+      "detail": "\"does not export an AccessLease domain type beside AuthorityGrant\" ran and passed",
+      "reproduce": "pnpm --filter @opensesame/os-domain exec vitest run --reporter=json src/__tests__/authority-naming.test.ts"
     },
     {
       "id": "GA-V-50",
@@ -540,7 +552,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents::delegated_invoke_tests::family_expiry_stops_queued_fixture_work ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents::delegated_invoke_tests::family_expiry_stops_queued_fixture_work"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents::delegated_invoke_tests::family_expiry_stops_queued_fixture_work"
     },
     {
       "id": "GA-V-36",
@@ -612,7 +624,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents::delegated_invoke_tests::adversarial_an_action_outside_the_child_grant_is_refused ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents::delegated_invoke_tests::adversarial_an_action_outside_the_child_grant_is_refused"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents::delegated_invoke_tests::adversarial_an_action_outside_the_child_grant_is_refused"
     },
     {
       "id": "GA-V-42",
@@ -624,7 +636,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents::delegated_invoke_tests::contract_revocation_ends_delegated_exercise ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents::delegated_invoke_tests::contract_revocation_ends_delegated_exercise"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents::delegated_invoke_tests::contract_revocation_ends_delegated_exercise"
     },
     {
       "id": "GA-V-43",
@@ -684,7 +696,7 @@
       "status": "pass",
       "reason": null,
       "detail": "a_native_binary_is_refused_by_the_spawn_path_itself ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --features wasm-runtime,fixtures --test payloads -- --exact a_native_binary_is_refused_by_the_spawn_path_itself"
+      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --test payloads --features wasm-runtime,fixtures -- --exact a_native_binary_is_refused_by_the_spawn_path_itself"
     },
     {
       "id": "GA-V-48",
@@ -696,7 +708,7 @@
       "status": "pass",
       "reason": null,
       "detail": "a_guest_that_loops_forever_runs_out_of_fuel ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --features wasm-runtime,fixtures --test guests -- --exact a_guest_that_loops_forever_runs_out_of_fuel"
+      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --test guests --features wasm-runtime,fixtures -- --exact a_guest_that_loops_forever_runs_out_of_fuel"
     },
     {
       "id": "GA-V-49",
@@ -747,18 +759,6 @@
       "reproduce": "cargo +1.88.0 test -p opensesame-authz --lib -- --exact issuance::tests::absent_platforms_are_refused"
     },
     {
-      "id": "GA-V-33b",
-      "workItem": "TEST-STACK",
-      "area": "DOMAIN",
-      "tier": "integration",
-      "invariant": "INV-GA-05",
-      "title": "An authority expiry reaches the lifecycle.* feed from a running gateway",
-      "status": "pass",
-      "reason": null,
-      "detail": "lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan"
-    },
-    {
       "id": "GA-V-59",
       "workItem": "DNS-SCOPE",
       "area": "DNS",
@@ -780,7 +780,7 @@
       "status": "pass",
       "reason": null,
       "detail": "a_native_binary_is_refused_by_the_spawn_path_itself ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --features wasm-runtime,fixtures --test payloads -- --exact a_native_binary_is_refused_by_the_spawn_path_itself"
+      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --test payloads --features wasm-runtime,fixtures -- --exact a_native_binary_is_refused_by_the_spawn_path_itself"
     },
     {
       "id": "GA-V-61",
@@ -803,8 +803,8 @@
       "title": "Evaluation cannot loop under an adversarial interleaving",
       "status": "pass",
       "reason": null,
-      "detail": "shuttle_authority::evaluation_cannot_loop_under_adversarial_interleaving ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-domain --features concurrency-test --lib -- --exact shuttle_authority::evaluation_cannot_loop_under_adversarial_interleaving"
+      "detail": "evaluation_cannot_loop_under_adversarial_interleaving ran and passed",
+      "reproduce": "cargo +1.88.0 test -p opensesame-domain --test shuttle_authority --features concurrency-test -- --exact evaluation_cannot_loop_under_adversarial_interleaving"
     },
     {
       "id": "GA-V-62",
@@ -852,7 +852,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke"
     },
     {
       "id": "AT-LIVE-WRITER",
@@ -900,7 +900,7 @@
       "status": "pass",
       "reason": null,
       "detail": "a_native_binary_is_refused_by_the_spawn_path_itself ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --features wasm-runtime,fixtures --test payloads -- --exact a_native_binary_is_refused_by_the_spawn_path_itself"
+      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --test payloads --features wasm-runtime,fixtures -- --exact a_native_binary_is_refused_by_the_spawn_path_itself"
     },
     {
       "id": "AT-PREEXISTING",
@@ -924,7 +924,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke"
     },
     {
       "id": "AT-CLOCK",
@@ -996,7 +996,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents_projection::tests::at_fga_stale_freshness_fence_denies_before_dispatch ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents_projection::tests::at_fga_stale_freshness_fence_denies_before_dispatch"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents_projection::tests::at_fga_stale_freshness_fence_denies_before_dispatch"
     },
     {
       "id": "AT-STATE-RESTORE",
@@ -1128,7 +1128,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::intents::delegated_invoke_tests::property_budgets_deny_when_spent ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::intents::delegated_invoke_tests::property_budgets_deny_when_spent"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::intents::delegated_invoke_tests::property_budgets_deny_when_spent"
     },
     {
       "id": "AT-PARAMETERS",
@@ -1176,7 +1176,7 @@
       "status": "pass",
       "reason": null,
       "detail": "routes::local_authority_routes::authority_grants::tests::at_control_role_admin_cannot_issue_export_or_policy_edit ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact routes::local_authority_routes::authority_grants::tests::at_control_role_admin_cannot_issue_export_or_policy_edit"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact routes::local_authority_routes::authority_grants::tests::at_control_role_admin_cannot_issue_export_or_policy_edit"
     },
     {
       "id": "AT-COHORT-CYCLE",
@@ -1308,7 +1308,7 @@
       "status": "pass",
       "reason": null,
       "detail": "session_channel::tests::an_observer_is_in_the_room_and_never_hears_about_an_item ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact session_channel::tests::an_observer_is_in_the_room_and_never_hears_about_an_item"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact session_channel::tests::an_observer_is_in_the_room_and_never_hears_about_an_item"
     },
     {
       "id": "AT-SESSION-END",
@@ -1332,7 +1332,7 @@
       "status": "pass",
       "reason": null,
       "detail": "session_channel::tests::a_lapsed_grant_stops_the_item_events_and_leaves_the_person_in_the_room ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- --exact session_channel::tests::a_lapsed_grant_stops_the_item_events_and_leaves_the_person_in_the_room"
+      "reproduce": "cargo +1.88.0 test -p opensesame-gateway --lib -- --exact session_channel::tests::a_lapsed_grant_stops_the_item_events_and_leaves_the_person_in_the_room"
     },
     {
       "id": "AT-PROVIDER-LATE",
@@ -1416,7 +1416,7 @@
       "status": "pass",
       "reason": null,
       "detail": "a_guest_that_loops_forever_runs_out_of_fuel ran and passed",
-      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --features wasm-runtime,fixtures --test guests -- --exact a_guest_that_loops_forever_runs_out_of_fuel"
+      "reproduce": "cargo +1.88.0 test -p opensesame-sandbox --test guests --features wasm-runtime,fixtures -- --exact a_guest_that_loops_forever_runs_out_of_fuel"
     },
     {
       "id": "AT-MULTIWRITER",
@@ -1452,7 +1452,7 @@
       "status": "pass",
       "reason": null,
       "detail": "\"isolates a guest whenever any vault on the device is sealed\" ran and passed",
-      "reproduce": "pnpm --filter @opensesame/pages exec vitest run --reporter=json src/lib/vault/store.test.ts"
+      "reproduce": "pnpm --filter @opensesame/app-core exec vitest run --reporter=json src/lib/vault/store.test.ts"
     },
     {
       "id": "AT-LEGACY",

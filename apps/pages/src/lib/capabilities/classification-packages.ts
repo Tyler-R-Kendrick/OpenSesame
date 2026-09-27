@@ -16,6 +16,11 @@ export const PACKAGE_RULES = [
     "MSAL: only lib/ambient-auth/entra.ts and auth/redirect-bridge.ts",
   ),
   optional(
+    `${NM}@azure/msal-common`,
+    "identity.ambient-sso",
+    "reached only through @azure/msal-browser",
+  ),
+  optional(
     `${NM}@vercel/connect`,
     "connectors.external",
     "only lib/vercel-connect.ts",
@@ -39,6 +44,11 @@ export const PACKAGE_RULES = [
     `${NM}@ai-sdk/provider`,
     "support.local-ai",
     "LanguageModelV2 types (command-bar/prompt-model.ts)",
+  ),
+  optional(
+    `${NM}@ai-sdk/gateway`,
+    "support.local-ai",
+    "the gateway provider only `ai` imports; unclaimed, it left vendor-ai-sdk in a chunk cycle",
   ),
   optional(
     `${NM}driver.js`,
@@ -69,6 +79,16 @@ export const PACKAGE_RULES = [
     `${NM}hash-wasm`,
     "vault.interop-formats",
     "Argon2 for KDBX key derivation",
+  ),
+  optional(
+    `${NM}@xmldom/xmldom`,
+    "vault.interop-formats",
+    "the XML parser kdbxweb requires for a KDBX document",
+  ),
+  optional(
+    "__vite-browser-external",
+    "vault.interop-formats",
+    "Vite's empty stand-in for the Node `crypto` kdbxweb's UMD header requires",
   ),
   optional(
     `${NM}@opensesame/wallet-budget`,

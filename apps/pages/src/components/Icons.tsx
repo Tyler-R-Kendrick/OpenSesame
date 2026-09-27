@@ -217,17 +217,6 @@ export function IconGitBranch(props: IconProps) {
   );
 }
 
-/** TaskBus / NATS: concentric broadcast arcs. */
-export function IconBroadcast(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <circle cx="12" cy="12" r="2" />
-      <path d="M8.3 8.3a5.2 5.2 0 0 0 0 7.4M15.7 15.7a5.2 5.2 0 0 0 0-7.4" />
-      <path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 18.4a9 9 0 0 0 0-12.8" />
-    </Svg>
-  );
-}
-
 /** A phone, for the Mobile MFA hand-off. */
 export function IconMail(props: IconProps) {
   return (

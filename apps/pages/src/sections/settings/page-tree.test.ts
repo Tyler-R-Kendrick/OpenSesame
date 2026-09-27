@@ -54,7 +54,7 @@ describe("settingsPageTree", () => {
     ).toBe("Instance policy");
   });
 
-  it("mirrors vaults on this device under the Vaults tab only, then Travel", () => {
+  it("mirrors vaults on this device under the Vaults tab only, then its panels", () => {
     const tabs = settingsPageTree({
       vaults: [
         { id: "personal", label: "personal" },
@@ -66,6 +66,8 @@ describe("settingsPageTree", () => {
       "personal",
       "project · 4f2a",
       "Travel",
+      "Sample data",
+      "Sealed store",
     ]);
     const capabilities = tabs.find((node) => node.id === "capabilities");
     expect(capabilities?.children.map((node) => node.label)).not.toContain(

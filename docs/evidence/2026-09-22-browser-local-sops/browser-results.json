@@ -2,7 +2,7 @@
   {
     "caseId": "SB-001",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -12,7 +12,7 @@
   {
     "caseId": "SB-002",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -22,7 +22,7 @@
   {
     "caseId": "SB-006",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -32,7 +32,7 @@
   {
     "caseId": "SB-007",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -42,7 +42,7 @@
   {
     "caseId": "SB-008",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -52,7 +52,7 @@
   {
     "caseId": "SB-009",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -62,7 +62,7 @@
   {
     "caseId": "SB-010",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -72,7 +72,7 @@
   {
     "caseId": "SB-011",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -82,7 +82,7 @@
   {
     "caseId": "SB-012",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -92,7 +92,7 @@
   {
     "caseId": "SB-013",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -102,7 +102,7 @@
   {
     "caseId": "SB-014",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -112,7 +112,7 @@
   {
     "caseId": "SB-015",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -122,7 +122,7 @@
   {
     "caseId": "SB-016",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -132,7 +132,7 @@
   {
     "caseId": "SB-017",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -142,7 +142,7 @@
   {
     "caseId": "SB-018",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -152,7 +152,7 @@
   {
     "caseId": "SB-020",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -162,7 +162,7 @@
   {
     "caseId": "SB-021",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -172,7 +172,7 @@
   {
     "caseId": "SB-022",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -182,7 +182,7 @@
   {
     "caseId": "SB-023",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -192,7 +192,7 @@
   {
     "caseId": "SB-024",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -202,7 +202,7 @@
   {
     "caseId": "SB-025",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -212,7 +212,7 @@
   {
     "caseId": "SB-026",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -222,7 +222,7 @@
   {
     "caseId": "SB-029",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -232,7 +232,7 @@
   {
     "caseId": "SB-030",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -242,7 +242,7 @@
   {
     "caseId": "SB-031",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -252,7 +252,7 @@
   {
     "caseId": "SB-032",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -262,7 +262,7 @@
   {
     "caseId": "SB-033",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -272,7 +272,7 @@
   {
     "caseId": "SB-034",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -282,7 +282,7 @@
   {
     "caseId": "SB-036",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -292,7 +292,7 @@
   {
     "caseId": "SB-037",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -302,7 +302,7 @@
   {
     "caseId": "SB-038",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -312,7 +312,7 @@
   {
     "caseId": "SB-039",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -322,7 +322,7 @@
   {
     "caseId": "SB-040",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -332,7 +332,7 @@
   {
     "caseId": "SB-041",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -342,7 +342,7 @@
   {
     "caseId": "SB-042",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -352,7 +352,7 @@
   {
     "caseId": "SB-043",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -362,7 +362,7 @@
   {
     "caseId": "SB-044",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -372,7 +372,7 @@
   {
     "caseId": "SB-045",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -382,7 +382,7 @@
   {
     "caseId": "SB-046",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -392,7 +392,7 @@
   {
     "caseId": "SB-047",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -402,7 +402,7 @@
   {
     "caseId": "SB-048",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -412,7 +412,7 @@
   {
     "caseId": "SB-049",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -422,7 +422,7 @@
   {
     "caseId": "SB-050",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -432,7 +432,7 @@
   {
     "caseId": "SB-051",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -442,7 +442,7 @@
   {
     "caseId": "SB-052",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -452,7 +452,7 @@
   {
     "caseId": "SB-056",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -462,7 +462,7 @@
   {
     "caseId": "SB-057",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -472,7 +472,7 @@
   {
     "caseId": "SB-059",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -482,7 +482,7 @@
   {
     "caseId": "SB-060",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -492,7 +492,7 @@
   {
     "caseId": "SB-061",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -502,7 +502,7 @@
   {
     "caseId": "SB-062",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -512,7 +512,7 @@
   {
     "caseId": "SB-063",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -522,7 +522,7 @@
   {
     "caseId": "SB-065",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -532,7 +532,7 @@
   {
     "caseId": "SB-066",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -542,7 +542,7 @@
   {
     "caseId": "SB-068",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -552,7 +552,7 @@
   {
     "caseId": "SB-069",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -562,7 +562,7 @@
   {
     "caseId": "SB-070",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -572,7 +572,7 @@
   {
     "caseId": "SB-077",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",
@@ -582,7 +582,7 @@
   {
     "caseId": "SB-078",
     "evidenceKind": "unit-contract",
-    "test": "vitest src/lib/sops src/sections/settings/sops",
+    "test": "vitest app-core src/lib/sops + pages src/sections/settings/sops",
     "command": "pnpm verify:sops-browser",
     "runtime": "node v22.22.2",
     "artifact": "docs/evidence/2026-09-22-browser-local-sops/results.json",

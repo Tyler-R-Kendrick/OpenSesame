@@ -10,6 +10,11 @@ export function markdown(report) {
     (entry) =>
       `| \`${entry.id}\` | ${entry.workItem} | ${entry.tier} | ${entry.invariant} | **${entry.status}** | ${entry.title} | ${entry.reason ?? ""} |`,
   );
+  // The reason column is a code; what would settle the row is in its detail,
+  // so an environment gate reads as one and not as a missing test.
+  const unsettled = report.scenarios
+    .filter((entry) => entry.status !== "pass" && entry.detail)
+    .map((entry) => `- \`${entry.id}\` (${entry.status}): ${entry.detail}`);
   const tiers = report.tierVocabulary.map((tier) => {
     const counts = report.summary.byTier[tier];
     const parts = Object.entries(counts)
@@ -48,7 +53,9 @@ ${tiers.join("\n")}
 | ID | Work item | Tier | Contract | Status | Scenario | Reason |
 |---|---|---|---|---|---|---|
 ${rows.join("\n")}
-`;
+${
+  unsettled.length === 0 ? "" : `\n## Not settled\n\n${unsettled.join("\n")}\n`
+}`;
 }
 
 export function printSummary(current) {

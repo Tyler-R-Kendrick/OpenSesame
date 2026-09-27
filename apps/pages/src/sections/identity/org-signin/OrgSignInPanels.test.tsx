@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 /**
- * Identity › Organizations' sign-in panels (ADR 0140 plan step 12), ported
- * from `apps/console/src/pages/OrgSignInPage.test.tsx`: drawn only with an
- * Identity API and a session, an owner's upstream, domains and tokens, a
+ * Identity › Organizations' sign-in panels (ADR 0140 plan step 12): drawn
+ * only with an Identity API and a session, an owner's upstream, domains and
+ * tokens, a
  * member told so without a call, and every refusal a glyph on its panel.
  * The minted token's own tests are in `OrgSignInTokens.test.tsx`.
  */

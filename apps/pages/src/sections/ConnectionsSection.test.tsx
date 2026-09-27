@@ -66,7 +66,6 @@ vi.spyOn(
   installations: [],
   repos: [],
   shares: [],
-  events: [],
   auditEvents: [],
 });
 vi.spyOn(githubInstallation, "shouldEnsureGithubAccessGrant").mockReturnValue(
@@ -81,10 +80,7 @@ const authorizeConnection = vi.hoisted(() => vi.fn());
 const awaitConsent = vi.hoisted(() => vi.fn());
 const revokeConnection = vi.hoisted(() => vi.fn());
 const refreshConnection = vi.hoisted(() => vi.fn());
-const bindConnection = vi.hoisted(() => vi.fn());
-const unbindConnection = vi.hoisted(() => vi.fn());
 const updateConnectionPolicy = vi.hoisted(() => vi.fn());
-const connectionEvents = vi.hoisted(() => vi.fn());
 const setConnectionCredential = vi.hoisted(() => vi.fn());
 const setConnectionConfiguration = vi.hoisted(() => vi.fn());
 const listIntegrations = vi.hoisted(() => vi.fn().mockResolvedValue([]));
@@ -114,10 +110,7 @@ Object.assign(connectionSeams, {
   awaitConsent,
   revokeConnection,
   refreshConnection,
-  bindConnection,
-  unbindConnection,
   updateConnectionPolicy,
-  connectionEvents,
   setConnectionCredential,
   setConnectionConfiguration,
   listIntegrations,
@@ -168,7 +161,6 @@ describe("ConnectionsSection gallery", () => {
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });
@@ -302,7 +294,6 @@ describe("ConnectionsSection connector page", () => {
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    connectionEvents.mockResolvedValue([]);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections/github");
@@ -414,7 +405,6 @@ describe("ConnectionsSection deeper branches", () => {
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });
@@ -522,7 +512,6 @@ describe("ConnectionsSection remaining branches", () => {
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });

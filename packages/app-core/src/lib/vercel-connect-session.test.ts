@@ -55,6 +55,28 @@ describe("Vercel Connect session handoff", () => {
     expect(vercelConnectAuth()?.teamId).toBe("team_1");
   });
 
+  it("arms nothing when the unlock ends while the sealed record is read", async () => {
+    let answer: ((bytes: Uint8Array) => void) | undefined;
+    vi.spyOn(vfs, "readFile").mockImplementation(
+      () =>
+        new Promise<Uint8Array>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const unlock = new AbortController();
+    const hydrating = hydrateVercelConnectAuth(tomb, { signal: unlock.signal });
+    // The lock lands, and its disarm runs, before the read answers.
+    unlock.abort("lock");
+    disarmVercelConnectAuth();
+    answer?.(
+      new TextEncoder().encode(
+        JSON.stringify({ version: 1, token: "sealed_token" }),
+      ),
+    );
+    await expect(hydrating).resolves.toBe(false);
+    expect(vercelConnectAuth()).toBeNull();
+  });
+
   it("hydrates a sealed record on unlock and disarms on lock", async () => {
     vi.spyOn(vfs, "readFile").mockResolvedValue(
       new TextEncoder().encode(

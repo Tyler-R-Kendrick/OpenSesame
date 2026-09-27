@@ -17,6 +17,7 @@ import { CONNECTIONS_HELP } from "./connections-goals.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
 import { SETUP_GOALS, SHELL_GOALS, TRANSPORT_GOALS } from "./setup-goals.js";
+import { SHELL_HELP } from "./shell-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 export type GuideGoalDescriptor = {
   readonly id: GuideGoalId;
@@ -215,20 +216,6 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
-    id: "settings.changelog",
-    title: "Read what this build shipped",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "settings.changelog"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings"',
-      'wait route "/settings" timeout=15000',
-      'focus "settings.general" "What this build shipped is not a settings page." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
     id: "vault.item-types.install",
     title: "Install a vault item type",
     routes: [],
@@ -250,9 +237,9 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "vault.export"',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings"',
-      'wait route "/settings" timeout=15000',
-      'focus "settings.general" "Moving a vault is not a settings page." side=bottom',
+      'navigate "/vault"',
+      'wait route "/vault" timeout=15000',
+      'focus "vault.export" "The export is the sealed body plus its wrapping header. The master password still opens it." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -362,29 +349,6 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     ],
   },
   {
-    id: "help.vault.import",
-    title: "How do I bring items in from another password manager?",
-    answer: "Bringing items in from another manager is not a settings page.",
-    routes: [],
-    goal: "vault.import",
-    keywords: [
-      "import",
-      "migrate",
-      "bring",
-      "move",
-      "1password",
-      "bitwarden",
-      "lastpass",
-      "keepass",
-      "kdbx",
-      "csv",
-      "json",
-      "env",
-      "another password manager",
-      "transfer",
-    ],
-  },
-  {
     id: "help.vault.health.review",
     title: "Which of my passwords are weak or reused?",
     answer:
@@ -464,6 +428,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
       "install",
     ],
   },
+  ...SHELL_HELP,
 ];
 
 /**

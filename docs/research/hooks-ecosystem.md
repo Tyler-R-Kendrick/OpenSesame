@@ -327,7 +327,7 @@ migration order:
 | Local storage | Concrete `StoreRoot`; `TombBackend` enum | A future `ObjectStore` **under** `path::confined_*` | 3 (deferred) | Ciphertext-only iff below `confined_*`; plaintext at `StoreRoot` — forbidden level |
 | Password managers | Bespoke by design (ADR 0052/0053), plaintext human plane | Split: agent-safe metadata ops (WIT) vs native bridge trait | 3 for metadata ops; Tier X for plaintext | Plaintext is the product; never enters a guest |
 
-Client-side, `apps/pages/src/lib/vault/import/types.ts` (`ImportAdapter`,
+Client-side, `packages/app-core/src/lib/vault/import/types.ts` (`ImportAdapter`,
 13 registered adapters) is already a genuine community-shaped TS plugin
 interface for password-manager *imports* — plaintext stays inside the
 user's browser vault, which is the one place it belongs. It is the

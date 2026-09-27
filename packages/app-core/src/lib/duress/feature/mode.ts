@@ -169,7 +169,7 @@ async function importCapability(cap: DuressCapability): Promise<void> {
       await import("../store/compartment-guard.js");
       return;
     case "duress.settings":
-      await import("../settings/arming.js");
+      await import("../settings/runtime.js");
       return;
     case "duress.compartment":
       await import("../compartment/project.js");

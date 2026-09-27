@@ -11,10 +11,7 @@
  * Identity API adds is the networked control-plane.
  */
 
-import {
-  identityBase,
-  isRemoteIdentityConfigured,
-} from "@opensesame/app-core/lib/identity.js";
+import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
 import { useSettingsEpoch } from "./use-settings.js";
 
 /** Always false — Pages no longer speaks Host (ADR 0128). */
@@ -39,21 +36,4 @@ export function useHostConfigured(): boolean {
 export function useIdentityConfigured(): boolean {
   useSettingsEpoch();
   return isRemoteIdentityConfigured();
-}
-
-/**
- * Is any Identity plane available — remote URL or the device-native host?
- *
- * Prefer this for surfaces that speak `/v1/*` through `identityFetch` and are
- * backed on-device (Active project from vault projects). Prefer
- * `useIdentityConfigured` for control-plane-only roads.
- */
-export function useIdentityPlane(): boolean {
-  useSettingsEpoch();
-  return identityBase().trim().length > 0;
-}
-
-/** @deprecated Prefer useIdentityConfigured — same remote-only meaning. */
-export function useRemoteIdentityConfigured(): boolean {
-  return useIdentityConfigured();
 }

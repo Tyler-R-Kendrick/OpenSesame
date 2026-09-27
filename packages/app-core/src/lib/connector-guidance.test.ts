@@ -4,8 +4,6 @@ import {
   canConfigureAutomatically,
   configurationDefaults,
   configurationPayload,
-  connectorSteps,
-  connectorSummary,
   fieldGuidance,
   isConnectionCatalogProvider,
   needsScopeSelection,
@@ -30,24 +28,6 @@ const provider = (overrides: Partial<Provider> = {}): Provider => ({
 });
 
 describe("connector setup guidance", () => {
-  it("explains purpose and the shortest setup path", () => {
-    expect(connectorSummary(provider())).toContain(
-      "Use this connection to protect a vault key",
-    );
-    expect(connectorSteps(provider())).toHaveLength(3);
-  });
-
-  it("adapts the steps to OAuth and API keys", () => {
-    expect(
-      connectorSteps(provider({ authKind: "oauth2_authorization_code" })).join(
-        " ",
-      ),
-    ).toContain("consent window");
-    expect(
-      connectorSteps(provider({ authKind: "api_key" })).join(" "),
-    ).toContain("least-privilege API key");
-  });
-
   it("provides visible field help and safe examples", () => {
     expect(
       fieldGuidance({
@@ -125,10 +105,7 @@ describe("connector setup guidance", () => {
     });
   });
 
-  it("explains delegated Host credentials before manual overrides", () => {
-    expect(connectorSteps(provider({ id: "aws-kms" })).join(" ")).toContain(
-      "workload identity",
-    );
+  it("explains the default credential chain before manual overrides", () => {
     expect(
       fieldGuidance({
         name: "access_key_id",

@@ -1,8 +1,8 @@
 /**
  * The two seams WebMCP tools call through, bound by whoever owns the live
- * function: the shell binds the router (`webmcp/lifecycle.ts`, and the
- * `agents.webmcp` surface under its lease), the support panel binds its
- * open/start functions while mounted (`tutorial/session.ts`).
+ * function: the `agents.webmcp` surface binds the router under its lease,
+ * the support panel binds its open/start functions while mounted
+ * (`tutorial/session.ts`).
  *
  * They live apart from the tools and the navigation tool so the core can
  * bind them without shipping either: a build that excluded `agents.webmcp`

@@ -31,10 +31,26 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.import",
     description:
-      "Opens the file picker for an import from another password manager or a .env file, then hands the chosen file to the Settings import panel.",
+      "Opens the file picker for an export from another password manager, a .env file or an OpenSesame encrypted backup. The chosen file is read on this device and previewed in a sheet beside the list; nothing is written until its one commit is pressed.",
     role: "ceremony",
     routes: ["/vault"],
-    capabilityId: "vault.items.write_meta",
+    capabilityId: "vault.import",
+  },
+  {
+    id: "vault.sample-data",
+    description:
+      "The Sample data key under Settings, Vaults: loads a set of synthetic items, each badged, into a folder of its own, or removes every one of them at once. Real items are never touched.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: "vault.sample_data",
+  },
+  {
+    id: "vault.store-manifest",
+    description:
+      "The Sealed store key under Settings, Vaults: saves the vault as a plain-text store path manifest for the command-line sealed store to seal and shred. The vault's Import key reads one back and merges it by path.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "vault.store_manifest.export",
   },
   {
     id: "vault.filter",

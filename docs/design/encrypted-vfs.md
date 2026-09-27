@@ -4,10 +4,10 @@ Design contract. Decision record:
 [ADR 0063](../adr/0063-encrypted-vfs-tombs.md). Read first:
 `packages/app-core/src/lib/kv.ts` (current OPFS layer),
 `packages/app-core/src/lib/vault/store.ts` (header/body/prefs keys, sealing),
-`packages/app-core/src/lib/vault/crypto.ts` (`SealedBlob`, key wrap),
+`packages/vault-core/src/crypto.ts` (`SealedBlob`, key wrap),
 `packages/app-core/src/lib/idp-registry.ts`, `packages/app-core/src/lib/settings.ts`,
-`packages/app-core/src/lib/projects.ts`, `apps/pages/src/lib/vault/host-backup.ts`
-(ciphertext push — stays the git persistence path, unchanged).
+`packages/app-core/src/lib/projects.ts`, `packages/app-core/src/lib/vault-backup-sync.ts`
+(ciphertext push to the bound git remotes — stays the git persistence path).
 
 ## What changes
 
@@ -58,9 +58,10 @@ Migrate on unlock, per tomb:
 
 ### 4. What does NOT change
 
-- Git persistence: `host-backup.ts` ciphertext push + ADR 0039 backup
-  actor. Sealed VFS files ride the same push. No browser git, no git
-  credentials in the browser.
+- Git persistence: `vault-backup-sync.ts` pushes the ciphertext snapshot
+  through the Connect relay, and ADR 0039's backup actor does the same on a
+  Host. Sealed VFS files ride the same push. No browser git; a forge token,
+  where a remote uses one, is read from a sealed vault item at push time.
 - Key wrap/enrollments, crypto primitives, OPFS transport, memory
   fallback.
 

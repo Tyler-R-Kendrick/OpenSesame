@@ -17,16 +17,10 @@ import type { PagesWebMcpTool } from "./tool-shared.js";
 
 export const SETTINGS_READ_TOOL: PagesWebMcpTool = {
   name: "opensesame_settings_read",
-  // First: the operation that owns the tool (support.local-ai registers it,
-  // and the model plane is what it reports); the rest are the registry
-  // capabilities it also serves (ADR 0065).
-  capabilityIds: [
-    "model_plane.read",
-    "configs.browse",
-    "sync_targets.read",
-    "changelog.read",
-    "backup.status",
-  ],
+  // The operation that owns the tool (support.local-ai registers it, and the
+  // model plane is what it reports). It used to also name configs.browse,
+  // sync_targets.read and backup.status, none of which it returns.
+  capabilityIds: ["model_plane.read"],
   scope: "session",
   readOnly: true,
   description:

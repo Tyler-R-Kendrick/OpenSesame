@@ -1,9 +1,8 @@
 /**
- * Settings › Notifications as a model (ADR 0084; ADR 0140 plan step 6): what
- * `apps/ceremonies/src/pages/NotificationSettings.tsx` did in its component,
- * over the document (`document.ts`), the channel words (`channels.ts`) and
- * the Identity API (`transport.ts`). Plan step 11 draws it and backs the
- * document with a `VirtualFileProvider`.
+ * Settings › Notifications as a model (ADR 0084; ADR 0140), over the
+ * document (`document.ts`), the channel words (`channels.ts`) and the
+ * Identity API (`transport.ts`). The `notifications.routing` module in
+ * `apps/pages` draws it and backs the document with a `VirtualFileProvider`.
  *
  * Two habits carry the screen's honesty, and both live here rather than in
  * whatever draws it:

@@ -40,8 +40,13 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "vault.interop-formats",
     "Import and export formats",
-    "Read other managers' exports (KDBX, CXF, CSV, ZIP, browser and manager formats) and write CXF; the Formats panel in Settings.",
+    "Import other managers' exports (KDBX, CXF, CSV, ZIP, browser and manager formats), an encrypted backup or a sealed-store path manifest from the vault's Import key; the Formats panel and the Sealed store manifest in Settings.",
     {
+      operationIds: [
+        "vault.import",
+        "vault.store_manifest.export",
+        "vault.store_manifest.import",
+      ],
       // KDBX key derivation runs Argon2 in Wasm on large files.
       environments: ["document", "dedicated-worker"],
       keyAccess: "item-plaintext",
@@ -72,7 +77,6 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The Connections section and Access › Connectors: the embedded catalogue, Vercel Connect sessions, the GitHub App, and a Nango-compatible directory read by reference.",
     {
       operationIds: [
-        "connections.bindings",
         "connections.create",
         "connections.credential.set",
         "connections.inspect",
@@ -114,14 +118,9 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "agent_identities.read",
         "authority.portal.templates.manage",
         "authority.portal.templates.read",
-        "browser.client.revoke",
         "browser.grant.renew",
         "browser.identity.authenticate",
         "browser.pairing.begin",
-        "changelog.read",
-        "configs.browse",
-        "configs.permissions.read",
-        "configs.set",
         "delegations.claim",
         "host.health.pages",
         "host.whoami",
@@ -131,7 +130,6 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.local.requests.manage",
         "receipts.read",
         "shared_sessions.join_request",
-        "transport.capabilities.discover",
         "transport.identity.reference",
         "transport.status.view",
         "transport.verify.run",

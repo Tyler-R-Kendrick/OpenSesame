@@ -31,23 +31,25 @@ describe("authored route-scoped capability context", () => {
     );
   });
 
-  it("places Host pairing and metadata permissions on their relevant routes", () => {
+  it("places browser pairing and identity verification on their relevant routes", () => {
     const ids = (route: string) =>
       capabilitiesForContext(CAPABILITIES, route, []).map((item) => item.id);
     expect(ids("/settings/capabilities")).toContain("browser.pairing.begin");
-    expect(ids("/settings/capabilities")).toContain("configs.permissions.read");
+    expect(ids("/settings/capabilities")).toContain(
+      "browser.identity.authenticate",
+    );
     expect(ids("/connections")).toContain("browser.identity.authenticate");
-    expect(ids("/vault")).not.toContain("configs.permissions.read");
+    expect(ids("/vault")).not.toContain("browser.identity.authenticate");
     expect(ids("/vault")).not.toContain("browser.pairing.begin");
     expect(ids("/access-review")).not.toContain("tasks.list");
   });
 
   it("does not let unrelated registry growth fill another route's model context", () => {
     const unrelated = CAPABILITIES.find(
-      (item) => item.id === "configs.permissions.read",
+      (item) => item.id === "browser.identity.authenticate",
     );
     expect(unrelated).toBeDefined();
-    if (!unrelated) throw new Error("Missing permissions regression fixture");
+    if (!unrelated) throw new Error("Missing verification regression fixture");
     const extended = [
       ...CAPABILITIES,
       ...Array.from({ length: 100 }, () => unrelated),
