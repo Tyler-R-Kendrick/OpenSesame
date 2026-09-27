@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fuzz as fuzzAgentAuthContracts } from "./agent_auth_contracts.js";
 import { fuzz as fuzzAgentAuthTokens } from "./agent_auth_tokens.js";
 import { fuzz as fuzzAuditRedact } from "./audit_redact.js";
+import { fuzz as fuzzCapabilityComposition } from "./capability_composition.js";
 import { fuzz as fuzzClaimEngine } from "./claim_engine.js";
 import { fuzz as fuzzClientAdmission } from "./client_admission.js";
 import { fuzz as fuzzContractsParse } from "./contracts_parse.js";
@@ -365,5 +366,26 @@ describe("webauthn_ceremony fuzz target", () => {
 
   it("falls back to a default challenge on an empty buffer", () => {
     expect(() => fuzzWebauthnCeremony(Buffer.alloc(0))).not.toThrow();
+  });
+});
+
+describe("capability_composition fuzz target (carried from #470)", () => {
+  it("resolves hostile documents without escaping throws", () => {
+    expect(() =>
+      fuzzCapabilityComposition(Buffer.from("random fuzz bytes")),
+    ).not.toThrow();
+    expect(() => fuzzCapabilityComposition(Buffer.alloc(0))).not.toThrow();
+    expect(() =>
+      fuzzCapabilityComposition(Buffer.from([0, 1, 2, 3, 255, 254, 253])),
+    ).not.toThrow();
+  });
+
+  it("holds its oracles over many seeded inputs", () => {
+    for (let seed = 0; seed < 400; seed++) {
+      const bytes = Buffer.from(
+        Array.from({ length: 96 }, (_, i) => (seed * 131 + i * 17) % 256),
+      );
+      expect(() => fuzzCapabilityComposition(bytes)).not.toThrow();
+    }
   });
 });

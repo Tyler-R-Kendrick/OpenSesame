@@ -1784,6 +1784,9 @@ importers:
       '@opensesame/auth-upstream':
         specifier: workspace:*
         version: link:../../../packages/auth-upstream
+      '@opensesame/capability-composition':
+        specifier: workspace:*
+        version: link:../../../packages/capability-composition
       '@opensesame/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
