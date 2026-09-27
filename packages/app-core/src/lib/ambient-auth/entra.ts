@@ -9,6 +9,7 @@ import { verifyBrowserIdTokenClaims } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
 import { randomString } from "@opensesame/sdk-browser";
 import type { UpstreamIdentity } from "../federation.js";
+import { rememberEntraInstance } from "./entra-instances.js";
 import { matchesAuthGeneration } from "./generation.js";
 import type { ProviderConnection } from "./provider.js";
 import type { AmbientReasonCode, PassiveOutcome } from "./types.js";
@@ -83,6 +84,9 @@ async function loadMsalSdk(input: {
     },
   });
   await pca.initialize();
+  // Resetting this browser clears what this instance cached, account
+  // records included (`entra-instances.ts`).
+  rememberEntraInstance(input.clientId, () => pca.clearCache());
   return {
     getAllAccounts: () => pca.getAllAccounts(),
     ssoSilent: async (request) => {

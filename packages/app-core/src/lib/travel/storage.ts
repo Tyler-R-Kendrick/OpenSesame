@@ -15,6 +15,7 @@
 import { originFiles } from "../../ports.js";
 import { kvDurability, kvFileName, kvForgetFiles } from "../kv.js";
 import { projectScopedKeys } from "../projects.js";
+import { haltedWriteError, storageWritesHalted } from "../storage-halt.js";
 import { listTombs, registerTomb, unregisterTomb } from "../vfs.js";
 import type { VaultNamespace } from "./bundle-format.js";
 
@@ -116,6 +117,7 @@ export const originTravelStorage: TravelStorage = {
     }
   },
   async write(file, text) {
+    if (storageWritesHalted()) throw haltedWriteError();
     const handle = await (await root()).getFileHandle(file, { create: true });
     const writable = await handle.createWritable();
     await writable.write(text);

@@ -30,6 +30,8 @@ import { firstControl, landFocus } from "../lib/focus.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { AccountRow } from "./unlock/AccountRow.js";
+import { ResetBrowser } from "./unlock/ResetBrowser.js";
+import { ResetLeftNotice } from "./unlock/ResetLeftNotice.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 
 import { useDeviceVaults } from "../bindings/vaults.js";
@@ -94,6 +96,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
   return (
     <div className="unlock">
       <div className="unlock__card">
+        <ResetLeftNotice />
         <div className="unlock__brand">
           <IconMark className="unlock__mark" size={28} title="open-sesame" />
           <h1 className="visually-hidden">Vaults</h1>
@@ -219,6 +222,10 @@ export function VaultsScreen({ providers, onPicked }: Props) {
             ) : null}
           </div>
         )}
+
+        <div className="unlock__foot">
+          <ResetBrowser />
+        </div>
       </div>
     </div>
   );

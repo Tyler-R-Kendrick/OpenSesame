@@ -1,0 +1,32 @@
+/* The only thing drawn while this browser is being reset. */
+.reset-gate {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink-2);
+}
+
+.reset-gate__mark {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius);
+}
+
+.reset-gate__mark svg {
+  animation: reset-gate-turn 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reset-gate__mark svg {
+    animation: none;
+  }
+}
+
+@keyframes reset-gate-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}

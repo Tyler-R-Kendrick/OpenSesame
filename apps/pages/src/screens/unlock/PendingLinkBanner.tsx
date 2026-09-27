@@ -10,6 +10,9 @@
  * here: the return screen opens it and the person goes straight into the app.
  * A deferred account link gets no banner either — the bell's "Finish
  * attaching your sign-in" prompt is already waiting after unlock.)
+ *
+ * It is also where the fresh document a reset left for says what the reset
+ * left behind (`ResetLeftNotice`), ahead of the outcome.
  */
 
 import {
@@ -22,6 +25,7 @@ import { describeOutcome } from "@opensesame/app-core/screens/unlock/pending-lin
 import { useEffect, useReducer } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconSignOut } from "../../components/Icons.js";
+import { ResetLeftNotice } from "./ResetLeftNotice.js";
 
 export function PendingLinkBanner() {
   // A reload drops in-memory notices while the assertion lives on in
@@ -34,53 +38,58 @@ export function PendingLinkBanner() {
   const [, bump] = useReducer((epoch: number) => epoch + 1, 0);
 
   const outcome = readAuthOutcome();
-  if (!outcome) return null;
+  // What the last reset left behind comes before anything else on the
+  // screen the fresh document opens on (`ResetLeftNotice`).
+  if (!outcome) return <ResetLeftNotice />;
   const model = describeOutcome(outcome);
 
   return (
-    <output
-      className={
-        model.tone === "plain"
-          ? "note unlock__outcome"
-          : `note note--${model.tone} unlock__outcome`
-      }
-      aria-live="polite"
-    >
-      <span>{model.text}</span>
-      {outcome.kind === "authenticated" ? (
-        <IconKey
-          label="Sign out"
-          small
+    <>
+      <ResetLeftNotice />
+      <output
+        className={
+          model.tone === "plain"
+            ? "note unlock__outcome"
+            : `note note--${model.tone} unlock__outcome`
+        }
+        aria-live="polite"
+      >
+        <span>{model.text}</span>
+        {outcome.kind === "authenticated" ? (
+          <IconKey
+            label="Sign out"
+            small
+            onClick={() => {
+              signOut();
+              bump();
+            }}
+          >
+            <IconSignOut size={16} />
+          </IconKey>
+        ) : null}
+        <button
+          type="button"
+          className="icon-btn unlock__outcome-dismiss"
+          aria-label="Dismiss"
           onClick={() => {
-            signOut();
+            clearAuthOutcome();
             bump();
           }}
         >
-          <IconSignOut size={16} />
-        </IconKey>
-      ) : null}
-      <button
-        type="button"
-        className="icon-btn unlock__outcome-dismiss"
-        aria-label="Dismiss"
-        onClick={() => {
-          clearAuthOutcome();
-          bump();
-        }}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <path d="m6 6 12 12M18 6 6 18" />
-        </svg>
-      </button>
-    </output>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </output>
+    </>
   );
 }

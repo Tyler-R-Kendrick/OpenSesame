@@ -30,6 +30,7 @@ import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { JoinRoadButton } from "./join/JoinRoad.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
+import { ResetBrowser } from "./unlock/ResetBrowser.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import "./unlock.css";
 import "./door.css";
@@ -119,6 +120,10 @@ export function FrontDoor({
             onUseLocalOnly={onUseLocalOnly}
           />
         </GuideTarget>
+
+        <div className="unlock__foot">
+          <ResetBrowser />
+        </div>
       </div>
       <ReleaseNotes />
     </div>
