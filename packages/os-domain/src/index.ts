@@ -1,4 +1,5 @@
 export * from "./json.js";
+export * from "./fnv1a.js";
 export * from "./access-domain/index.js";
 export * from "./authority-templates/index.js";
 export * from "./cohort/index.js";

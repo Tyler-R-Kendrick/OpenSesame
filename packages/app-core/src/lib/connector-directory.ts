@@ -24,6 +24,7 @@
 
 import {
   type BoundaryValue,
+  fnv1a32Hex,
   isJsonObject,
   isNumber,
   isString,
@@ -236,16 +237,6 @@ export async function sealPendingConnectorDirectory(
 
 /* ---------------------------------------------------- naming for the PAM plane */
 
-/** FNV-1a over a string: eight hex characters, the same every time. */
-function digest(value: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash.toString(16).padStart(8, "0");
-}
-
 /**
  * The share-grant resource id for a directory connection — stable across
  * syncs, and never longer than the ledger admits. When the human-readable
@@ -256,7 +247,7 @@ function digest(value: string): string {
 export function connectorResourceId(connection: DirectoryConnection): string {
   const readable = `nango:${connection.integrationId}/${connection.connectionId}`;
   if (readable.length <= 128) return readable;
-  return `nango:${connection.integrationId.slice(0, 100)}#${digest(readable)}`;
+  return `nango:${connection.integrationId.slice(0, 100)}#${fnv1a32Hex(readable)}`;
 }
 
 export function connectorResourceLabel(

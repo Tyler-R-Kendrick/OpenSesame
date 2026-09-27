@@ -1,6 +1,6 @@
+import { fnv1a32Hex } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
-  fnv1a,
   manifestFromBoundary,
   releaseIdFromManifest,
   shellEntry,
@@ -18,7 +18,7 @@ describe("release id", () => {
 
   it("falls back to a manifest hash without a shell revision", () => {
     const id = releaseIdFromManifest([]);
-    expect(id).toBe(`dev-${fnv1a("[]")}`);
+    expect(id).toBe(`dev-${fnv1a32Hex("[]")}`);
     expect(id).not.toContain(":");
     expect(releaseIdFromManifest(["index.html"])).toMatch(/^dev-[0-9a-f]{8}$/);
   });

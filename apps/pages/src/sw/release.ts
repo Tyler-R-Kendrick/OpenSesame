@@ -13,6 +13,7 @@
 
 import {
   type BoundaryValue,
+  fnv1a32Hex,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -32,16 +33,6 @@ export function shellEntry(manifest: readonly ManifestEntry[]): string | null {
   return null;
 }
 
-/** Deterministic 32-bit FNV-1a over a string, as eight hex digits. */
-export function fnv1a(input: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash.toString(16).padStart(8, "0");
-}
-
 /**
  * The release id: the shell's revision when the manifest carries one, else
  * a hash of the manifest as a whole (the dev server hands the worker an
@@ -58,7 +49,7 @@ export function releaseIdFromManifest(
     )
       return entry.revision;
   }
-  return `dev-${fnv1a(JSON.stringify(manifest))}`;
+  return `dev-${fnv1a32Hex(JSON.stringify(manifest))}`;
 }
 
 /** Narrow whatever the build injected; anything else is an empty manifest. */
