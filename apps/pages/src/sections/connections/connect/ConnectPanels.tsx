@@ -9,7 +9,6 @@ import { useIdentitySession } from "../../../bindings/identity.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import { ConnectCreateForm } from "./ConnectCreateForm.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
-import { ConnectorAccessPanel } from "./ConnectorAccessPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { UserTokenPanel } from "./UserTokenPanel.js";
 import { useConnectTransport } from "./useConnectTransport.js";
@@ -23,7 +22,8 @@ export function isConnectConnection(connection: Connection | null): boolean {
 /**
  * A connector page on Vercel Connect: never blank. Before a connector exists
  * the whole configuration is on the page, filled from the plan; once it
- * exists, its settings, a person's own token and who may use it.
+ * exists, its settings and a person's own token. Who may use it is decided
+ * on Access › Connectors, which lists every connector this page configures.
  */
 export function ConnectPanels({
   provider,
@@ -85,10 +85,6 @@ export function ConnectPanels({
           onFlash={onFlash}
         />
       ) : null}
-      <ConnectorAccessPanel
-        providerId={provider.id}
-        label={provider.displayName}
-      />
     </>
   );
 }

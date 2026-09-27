@@ -2,13 +2,14 @@
  * Access › Connectors — the connectors this device knows, and who is bound
  * to each (ADR 0115).
  *
- * A directory row names where the list came from and when; every connector
- * beneath it is a terse row with its bindings listed under it (see
- * `ConnectorRows.tsx`). Bind opens one form under one row; Configure opens
- * that connector's sealed settings; Revoke asks nothing twice — a binding is
- * time-boxed already, and the ledger records the revocation. No Host is
- * needed for any of it: the directory is sealed in this vault, and the
- * bindings are local share grants.
+ * The rows are the connectors configured on the Connections page and, when
+ * one is synced, a Nango-compatible directory's; a directory line names where
+ * that list came from and when. Every connector is a terse row with its
+ * bindings listed under it (see `ConnectorRows.tsx`). Bind opens one form
+ * under one row; Configure opens that connector's sealed settings; Revoke
+ * asks nothing twice — a binding is time-boxed already, and the ledger
+ * records the revocation. No Host is needed for any of it: the directory is
+ * sealed in this vault, and the bindings are local share grants.
  */
 
 import {
@@ -96,15 +97,33 @@ function DirectoryLine({ directory }: { directory: ConnectorDirectory }) {
   );
 }
 
+/** What the panel draws, from what it has read. */
+function panelView(
+  state: ReturnType<typeof useConnectorDirectory>,
+  editing: boolean,
+) {
+  const hasRows = state.rows.length > 0;
+  return {
+    // Sync, edit and reload act on the rows. Before there are any the form
+    // below is the only thing to do, and three dead keys above it read as a
+    // second, broken way to do it.
+    showCommands: Boolean(state.directory) || hasRows,
+    // The directory form is the first thing only when there is nothing to
+    // bind: connectors from Connections need no directory to be bound.
+    showForm: editing || (state.loaded && !state.directory && !hasRows),
+    directoryEmpty: state.loaded && Boolean(state.directory) && !hasRows,
+    mixedSources:
+      state.rows.some((row) => row.source === "connections") &&
+      state.rows.some((row) => row.source === "directory"),
+  };
+}
+
 export function ConnectorsPanel({ tomb }: { tomb: string }) {
   const state = useConnectorDirectory(tomb);
   const [editing, setEditing] = useState(false);
   const [bindingRow, setBindingRow] = useState<string | null>(null);
   const [settingsRow, setSettingsRow] = useState<string | null>(null);
-  const showForm = editing || (state.loaded && !state.directory);
-  const mixedSources =
-    state.rows.some((row) => row.source === "host") &&
-    state.rows.some((row) => row.source === "directory");
+  const view = panelView(state, editing);
 
   function closeBind() {
     const rowId = bindingRow;
@@ -126,10 +145,7 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
     >
       <div className="panel__head">
         <h2>Connectors</h2>
-        {/* Sync, edit and reload act on a directory. Before one is saved the
-            form below is the only thing to do, and three dead keys above it
-            read as a second, broken way to do it. */}
-        {state.directory ? (
+        {view.showCommands ? (
           <ConnectorCommands
             busy={state.busy}
             canSync={Boolean(state.directory)}
@@ -150,7 +166,7 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
         <StatusNote
           message={state.message ? { tone: "ok", text: state.message } : null}
         />
-        {showForm ? (
+        {view.showForm ? (
           <ConnectorDirectoryForm
             tomb={tomb}
             terse
@@ -161,12 +177,12 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
             }}
           />
         ) : null}
-        {state.loaded && state.directory && state.rows.length === 0 ? (
+        {view.directoryEmpty ? (
           <p>No connectors yet — the directory holds none.</p>
         ) : null}
         <ConnectorRows
           state={state}
-          mixedSources={mixedSources}
+          mixedSources={view.mixedSources}
           bindingRow={bindingRow}
           settingsRow={settingsRow}
           onOpenBind={(row) => {

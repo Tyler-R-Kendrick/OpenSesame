@@ -1,3 +1,4 @@
+import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import {
   clearPendingConnectorDirectory,
   connectorDirectorySeams,
@@ -42,6 +43,7 @@ const slack: DirectoryConnection = {
 };
 
 const originalList = connectorDirectorySeams.listDirectory;
+const originalConnections = connectionSeams.listConnections;
 
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
@@ -50,12 +52,15 @@ beforeEach(() => {
     integrations: [],
     connections: [github, slack],
   }));
+  // Nothing configured on the Connections page: these rows are the directory's.
+  connectionSeams.listConnections = vi.fn(async () => []);
 });
 
 afterEach(() => {
   cleanup();
   clearPendingConnectorDirectory();
   connectorDirectorySeams.listDirectory = originalList;
+  connectionSeams.listConnections = originalConnections;
   kvDelete("connector-directory.v1");
   lockAllTombs();
   vi.unstubAllGlobals();
