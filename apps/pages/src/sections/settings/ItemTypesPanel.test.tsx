@@ -75,7 +75,9 @@ function offer(text: string) {
   const parsed = parseDefinition(text, "community");
   if (!parsed.ok) throw new Error("fixture does not parse");
   const definition = parsed.definition;
-  return { ok: true as const, path: "t.json", text, sha256: "", definition };
+  // The index refuses a path listed twice, so no two offers share one.
+  const path = `item-types/${definition.metadata.id}.json`;
+  return { ok: true as const, path, text, sha256: "", definition };
 }
 
 const originalHooks = { ...vaultHooksSeams };
