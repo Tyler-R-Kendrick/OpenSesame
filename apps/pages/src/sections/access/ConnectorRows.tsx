@@ -36,12 +36,15 @@ import type {
 function BindingRow({
   share,
   name,
+  providerWide,
   busy,
   disabled,
   onRevoke,
 }: {
   share: LocalShare;
   name: string;
+  /** Granted on the provider, so it covers every connection of it. */
+  providerWide: boolean;
   busy: boolean;
   disabled: boolean;
   onRevoke: () => void;
@@ -52,6 +55,14 @@ function BindingRow({
       <span className="access-binding__policy">
         {policyLabel("connection", share.policy)}
       </span>
+      {providerWide ? (
+        <span
+          className="chip"
+          title={`Every ${share.resourceLabel} connection`}
+        >
+          all {share.resourceLabel}
+        </span>
+      ) : null}
       <span className="access-binding__until">
         until {formatTime(new Date(share.expiresAt).toISOString())}
       </span>
@@ -106,6 +117,7 @@ function RowChips({
 
 /** The row's bindings, flagged where their connector is off. */
 function RowBindings({
+  rowId,
   displayName,
   setting,
   bindings,
@@ -113,6 +125,7 @@ function RowBindings({
   busy,
   onRevoke,
 }: {
+  rowId: string;
   displayName: string;
   setting: ConnectorSetting;
   bindings: readonly LocalShare[];
@@ -129,6 +142,7 @@ function RowBindings({
           key={share.id}
           share={share}
           name={names.get(share.principalId) ?? share.principalId}
+          providerWide={share.resourceId !== rowId}
           busy={busy}
           disabled={!setting.enabled}
           onRevoke={() => onRevoke(share)}
@@ -278,6 +292,7 @@ function ConnectorRowItem({
         />
       ) : null}
       <RowBindings
+        rowId={row.id}
         displayName={displayName}
         setting={setting}
         bindings={bindings}

@@ -62,3 +62,34 @@ it("records allowlisted Access audit metadata and drops SII/PII keys", async () 
   expect(serialized).not.toContain("Ada Lovelace");
   expect(serialized).not.toContain("ghp_");
 });
+
+it("never trims the newest revocation for a grant, while the trail stays capped", async () => {
+  const fixture = await localRequestFixture();
+  const decide = (
+    eventType: "access.connection.granted" | "access.connection.revoked",
+    subject: string,
+  ) =>
+    recordAccessAuditEvent(fixture.tomb, {
+      eventType,
+      outcome: "succeeded",
+      targetType: "connection",
+      targetId: "slack",
+      metadata: { subject, policy: "use", action: "grant", kind: "share" },
+    });
+  await decide("access.connection.revoked", "agent");
+  // 300 later decisions about other principals — more than the trail holds.
+  for (let index = 0; index < 300; index += 1)
+    await decide("access.connection.granted", `person-${index}`);
+
+  const events = await listAccessAuditEvents(fixture.tomb);
+  expect(events).toHaveLength(256);
+  expect(
+    events.some(
+      (event) =>
+        event.eventType === "access.connection.revoked" &&
+        event.metadata.subject === "agent",
+    ),
+  ).toBe(true);
+  // Still newest first: the last decision recorded leads the trail.
+  expect(events[0]?.metadata.subject).toBe("person-299");
+});

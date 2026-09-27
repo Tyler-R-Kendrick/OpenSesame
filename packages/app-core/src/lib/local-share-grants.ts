@@ -214,7 +214,44 @@ export async function createLocalShare(
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writeAll(tomb, next);
+  // A person granting a connector is on the trail as a revocation is, so a
+  // grant made after a revocation lets the standing grant renew again. The
+  // share is already written: a trail that will not take the entry leaves an
+  // earlier revocation newest, so the standing grant stays off (the safe way)
+  // and the grant the person made still stands — failing here would only
+  // invite a retry that grants twice.
+  if (share.resourceKind === "connection" && !options?.bypassAccessCheck)
+    await recordConnectionShareEvent(
+      tomb,
+      "access.connection.granted",
+      share,
+    ).catch(() => undefined);
   return next.filter((row) => row.expiresAt > Date.now());
+}
+
+/** The sealed Access trail entry for a connector share granted or revoked. */
+async function recordConnectionShareEvent(
+  tomb: string,
+  eventType: "access.connection.granted" | "access.connection.revoked",
+  share: LocalShare,
+): Promise<void> {
+  await recordAccessAuditEvent(tomb, {
+    eventType,
+    outcome: "succeeded",
+    targetType: "connection",
+    targetId: share.resourceId,
+    metadata: {
+      providerId: share.resourceId,
+      resourceType: "connection",
+      resourceId: share.resourceId,
+      // Whose grant, under which policy — a standing grant a person took
+      // away is not re-issued for that principal and policy.
+      subject: share.principalId,
+      policy: share.policy,
+      action: eventType === "access.connection.granted" ? "grant" : "revoke",
+      kind: "share",
+    },
+  });
 }
 
 export async function revokeSharesForSession(
@@ -234,23 +271,20 @@ export async function revokeSharesForSession(
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
-async function dropShare(tomb: string, id: string): Promise<LocalShare> {
-  if (!text(id, 36))
-    throw new LocalDirectoryError("This share is unavailable.");
+/** The share, if it is there — a renewal replacing it, not a revocation. */
+async function dropShare(tomb: string, id: string): Promise<void> {
   const current = await readAll(tomb);
-  const removed = current.find((row) => row.id === id);
-  if (!removed) throw new LocalDirectoryError("This share is unavailable.");
-  await writeAll(
-    tomb,
-    current.filter((row) => row.id !== id),
-  );
-  return removed;
+  const next = current.filter((row) => row.id !== id);
+  if (next.length !== current.length) await writeAll(tomb, next);
 }
 
 /**
  * A person revokes a share. Revoking a connector share is audited on the
  * sealed Access trail (ADR 0015), which is also how a connector page knows
- * not to re-issue a standing grant somebody took away.
+ * not to re-issue a standing grant somebody took away — so the revocation is
+ * recorded before the share goes. A trail that will not take it fails the
+ * revoke with the share still in place, for the person to retry; the other
+ * order could drop the share with nothing to keep it from being re-issued.
  */
 export async function revokeLocalShare(
   tomb: string,
@@ -261,22 +295,21 @@ export async function revokeLocalShare(
     const { assertAccessCapability } = await import("./local-rbac.js");
     await assertAccessCapability(tomb, "manage_grants");
   }
-  const removed = await dropShare(tomb, id);
-  if (removed.resourceKind === "connection") {
-    await recordAccessAuditEvent(tomb, {
-      eventType: "access.connection.revoked",
-      outcome: "succeeded",
-      targetType: "connection",
-      targetId: removed.resourceId,
-      metadata: {
-        providerId: removed.resourceId,
-        resourceType: "connection",
-        resourceId: removed.resourceId,
-        action: "revoke",
-        kind: "share",
-      },
-    });
-  }
+  if (!text(id, 36))
+    throw new LocalDirectoryError("This share is unavailable.");
+  const current = await readAll(tomb);
+  const removed = current.find((row) => row.id === id);
+  if (!removed) throw new LocalDirectoryError("This share is unavailable.");
+  if (removed.resourceKind === "connection")
+    await recordConnectionShareEvent(
+      tomb,
+      "access.connection.revoked",
+      removed,
+    );
+  await writeAll(
+    tomb,
+    current.filter((row) => row.id !== id),
+  );
   return listLocalShares(tomb);
 }
 

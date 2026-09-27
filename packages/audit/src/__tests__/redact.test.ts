@@ -181,6 +181,7 @@ describe("redaction boundaries (mutation coverage)", () => {
       "subject",
       "providerId",
       "materialization",
+      "policy",
       "channelKind",
       "bindingId",
       "transactionDigest",
