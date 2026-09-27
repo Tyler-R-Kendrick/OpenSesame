@@ -139,9 +139,10 @@ declare module "oidc-provider" {
 
   export class Provider {
     constructor(issuer: string, configuration?: Configuration);
+    /** A Node request listener, mounted beside the product's own routes. */
     callback(): (
-      req: import("@opensesame/os-domain").BoundaryValue,
-      res: import("@opensesame/os-domain").BoundaryValue,
+      req: import("node:http").IncomingMessage,
+      res: import("node:http").ServerResponse,
     ) => void;
     Client: {
       find(id: string): Promise<import("@opensesame/os-domain").BoundaryValue>;

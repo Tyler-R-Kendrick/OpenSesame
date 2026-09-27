@@ -1,3 +1,8 @@
+// The package's entry is TypeScript source (every workspace package's is), so
+// a consumer compiles these files itself and needs oidc-provider's ambient
+// declaration, which the library does not ship. Referencing it here brings it
+// into any program that imports the package.
+/// <reference path="./oidc-provider-shim.d.ts" />
 export type {
   ClientAdmissionMode,
   ClientState,
