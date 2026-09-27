@@ -1,3 +1,5 @@
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   canonicalize,
@@ -20,6 +22,30 @@ describe("canonicalize", () => {
     expect(canonicalize({ a: undefined, b: 2 })).toBe('{"b":2}');
     expect(() => canonicalize(Number.NaN)).toThrow(TypeError);
     expect(() => canonicalize(new Date(0))).toThrow(TypeError);
+  });
+});
+
+/** The same value with every object's keys in reverse insertion order. */
+function reversedKeys(v: BoundaryValue): BoundaryValue {
+  if (Array.isArray(v)) return v.map(reversedKeys);
+  if (!isJsonObject(v)) return v;
+  return Object.fromEntries(
+    Object.entries(v)
+      .reverse()
+      .map(([k, inner]) => [k, reversedKeys(inner)]),
+  );
+}
+
+describe("canonicalize over arbitrary JSON (carried from #470)", () => {
+  it("round-trips to the same JSON value and ignores key order", () => {
+    fc.assert(
+      fc.property(fc.jsonValue(), (v) => {
+        const text = canonicalize(v);
+        expect(JSON.parse(text)).toEqual(JSON.parse(JSON.stringify(v)));
+        expect(canonicalize(reversedKeys(v))).toBe(text);
+      }),
+      { numRuns: 500, seed: 20260922 },
+    );
   });
 });
 
