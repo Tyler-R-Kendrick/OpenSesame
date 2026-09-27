@@ -74,10 +74,13 @@ export function applyPreset(
   preset: CapabilityPreset,
   plan: EffectivePlan | null,
 ): CapabilityDraft {
-  const alternatives = { ...draft.alternatives };
-  for (const [slot, id] of Object.entries(preset.defaultAlternatives ?? {})) {
-    if (permitted(plan, id)) alternatives[slot] = id;
-  }
+  // A preset replaces the roots outright, so it replaces the slot choices
+  // too: the previous ones answered a question for roots that are gone.
+  const alternatives = Object.fromEntries(
+    Object.entries(preset.defaultAlternatives ?? {}).filter(([, id]) =>
+      permitted(plan, id),
+    ),
+  );
   return {
     ...draft,
     preset: preset.id,

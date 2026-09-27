@@ -1,4 +1,3 @@
-import { fnv1a32Hex } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   manifestFromBoundary,
@@ -18,7 +17,8 @@ describe("release id", () => {
 
   it("falls back to a manifest hash without a shell revision", () => {
     const id = releaseIdFromManifest([]);
-    expect(id).toBe(`dev-${fnv1a32Hex("[]")}`);
+    // Pinned: a release id is a cache name, so the hash must not drift.
+    expect(id).toBe("dev-741638a5");
     expect(id).not.toContain(":");
     expect(releaseIdFromManifest(["index.html"])).toMatch(/^dev-[0-9a-f]{8}$/);
   });

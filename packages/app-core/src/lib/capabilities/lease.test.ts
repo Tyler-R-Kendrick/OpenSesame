@@ -81,6 +81,17 @@ describe("only a minted lease counts (#470's gate bound to issued leases)", () =
     );
   });
 
+  it("deriving from a forged lease does not launder it", () => {
+    const forged: ActivationLease = Object.freeze({
+      identity: IDENTITY,
+      generation: 7,
+      signal: new AbortController().signal,
+    });
+    const child = deriveLease(forged).lease;
+    expect(child.signal.aborted).toBe(true);
+    expect(leaseIsCurrent(child, 7)).toBe(false);
+  });
+
   it("a copy of a real lease is refused too", () => {
     const { lease } = mintLease(IDENTITY, 7);
     expect(leaseIsCurrent({ ...lease }, 7)).toBe(false);

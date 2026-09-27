@@ -7,4 +7,12 @@ describe("fnv1a32Hex", () => {
     expect(fnv1a32Hex("a")).toBe("e40c292c");
     expect(fnv1a32Hex("foobar")).toBe("bf9cf968");
   });
+
+  it("hashes UTF-16 code units, as both copies it replaced did", () => {
+    // Not the UTF-8 byte vectors: these pin that ids and cache names made
+    // before the consolidation still hash the same.
+    expect(fnv1a32Hex("é")).toBe("6c0b6c44");
+    expect(fnv1a32Hex("日本")).toBe("5ffcbea4");
+    expect(fnv1a32Hex("\u{1F510}")).toBe("db2d24e8");
+  });
 });

@@ -381,11 +381,19 @@ describe("capability_composition fuzz target (carried from #470)", () => {
   });
 
   it("holds its oracles over many seeded inputs", () => {
+    // 400 distinct inputs from a linear congruential stream (the old
+    // `(seed*131 + i*17) % 256` repeated after 256 seeds).
+    let state = 20260922;
+    const next = () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state >>> 24;
+    };
+    const seen = new Set<string>();
     for (let seed = 0; seed < 400; seed++) {
-      const bytes = Buffer.from(
-        Array.from({ length: 96 }, (_, i) => (seed * 131 + i * 17) % 256),
-      );
+      const bytes = Buffer.from(Array.from({ length: 96 }, next));
+      seen.add(bytes.toString("hex"));
       expect(() => fuzzCapabilityComposition(bytes)).not.toThrow();
     }
+    expect(seen.size).toBe(400);
   });
 });

@@ -83,7 +83,10 @@ export function deriveLease(parent: ActivationLease): MintedLease {
   const abort = (reason: string) => {
     if (!controller.signal.aborted) controller.abort(reason);
   };
-  if (parent.signal.aborted) abort("parent-aborted");
+  // A child of a lease this module never minted is born stale: deriving
+  // must not launder a forged or copied lease into a current one.
+  if (!MINTED.has(parent)) abort("unminted-parent");
+  else if (parent.signal.aborted) abort("parent-aborted");
   else
     parent.signal.addEventListener("abort", () => abort("parent-aborted"), {
       once: true,

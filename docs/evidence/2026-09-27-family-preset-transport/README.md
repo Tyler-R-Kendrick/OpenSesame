@@ -1,9 +1,9 @@
 # The Family preset fills the transport Household sharing needs — 2026-09-27
 
 Two real builds of `apps/pages` walked by `journey.json` with
-`apps/pages/scripts/capture-evidence.mjs`: the before is `main`'s
-`presets.ts`, `capabilities-ports.ts` and `CapabilityDraft.ts`; the after is
-this branch. Both start on an empty device: *Set up your own* →
+`apps/pages/scripts/capture-evidence.mjs`: the before is `presets.ts`,
+`capabilities-ports.ts` and `CapabilityDraft.ts` as they are on `main` (this
+PR's base in the stack does not touch them); the after is this branch. Both start on an empty device: *Set up your own* →
 *Customize this installation* → *Family*, then *Save on this device* opens
 the review.
 
