@@ -108,6 +108,6 @@ describe("the owner's view of a session", () => {
     fireEvent.change(field, { target: { value: code } });
     fireEvent.click(paste.getByRole("button", { name: "Read the request" }));
     await paste.findByRole("img", { name: "The session is locked" });
-    expect((field as HTMLInputElement).value).toBe(code);
+    expect(field).toHaveProperty("value", code);
   });
 });
