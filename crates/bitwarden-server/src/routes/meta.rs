@@ -91,6 +91,7 @@ pub async fn sync(
 ) -> ApiResult<Json<Value>> {
     let folders = server.db.bitwarden_folders(&user.id).await?;
     let ciphers = server.db.bitwarden_ciphers(&user.id).await?;
+    let two_factor = super::two_factor::enabled(&server, &user.id).await?;
     let domains = if query.exclude_domains.unwrap_or(false) {
         Value::Null
     } else {
@@ -101,7 +102,7 @@ pub async fn sync(
         })
     };
     Ok(Json(json!({
-        "profile": profile(&user),
+        "profile": profile(&user, two_factor),
         "folders": folders.iter().map(folder_json).collect::<Vec<_>>(),
         "collections": [],
         "policies": [],

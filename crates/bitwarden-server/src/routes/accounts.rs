@@ -15,8 +15,12 @@ use crate::wire::cipher::{is_enc_string, normalize};
 use crate::BitwardenServer;
 use opensesame_storage::bitwarden::{BitwardenCredentials, BitwardenUser};
 
-pub async fn profile(Authed { user, .. }: Authed) -> Json<Value> {
-    Json(profile_json(&user))
+pub async fn profile(
+    State(server): State<BitwardenServer>,
+    Authed { user, .. }: Authed,
+) -> ApiResult<Json<Value>> {
+    let two_factor = super::two_factor::enabled(&server, &user.id).await?;
+    Ok(Json(profile_json(&user, two_factor)))
 }
 
 /// Epoch milliseconds; a client syncs when this moves.
@@ -75,6 +79,24 @@ fn keys_json(user: &BitwardenUser) -> Value {
 
 pub async fn keys(Authed { user, .. }: Authed) -> Json<Value> {
     Json(keys_json(&user))
+}
+
+/// Another account's public key, which a client encrypts to when it shares
+/// with that person. Any signed-in account may read it, as on Bitwarden.
+pub async fn public_key(
+    State(server): State<BitwardenServer>,
+    _: Authed,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> ApiResult<Json<Value>> {
+    let user = server
+        .db
+        .bitwarden_user_by_id(&id)
+        .await?
+        .ok_or_else(ApiError::not_found)?;
+    let key = user.public_key.ok_or_else(ApiError::not_found)?;
+    Ok(Json(
+        json!({ "userId": user.id, "publicKey": key, "object": "userKey" }),
+    ))
 }
 
 /// Set a key pair on an account that has none. An existing pair is never

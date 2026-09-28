@@ -12,6 +12,8 @@ mod folders;
 mod identity;
 mod meta;
 mod register;
+mod second_step;
+mod two_factor;
 
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
@@ -38,7 +40,27 @@ pub fn router(server: BitwardenServer) -> Router {
         )
         .route("/accounts/register/finish", post(register::register_finish));
 
-    let api = Router::new()
+    let api = account_routes()
+        .merge(vault_routes())
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
+        .route(
+            "/ciphers/import",
+            post(cipher_bulk::import).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
+        );
+
+    Router::new()
+        .route("/alive", get(meta::alive))
+        .nest(
+            "/identity",
+            identity.layer(DefaultBodyLimit::max(BODY_LIMIT)),
+        )
+        .nest("/api", api)
+        .with_state(server)
+}
+
+/// The account, its keys and its sign-in methods.
+fn account_routes() -> Router<BitwardenServer> {
+    Router::new()
         .route("/config", get(meta::config))
         .route("/alive", get(meta::alive))
         .route("/now", get(meta::alive))
@@ -53,6 +75,34 @@ pub fn router(server: BitwardenServer) -> Router {
             get(accounts::keys).post(accounts::set_keys),
         )
         .route("/accounts/kdf", post(accounts::change_kdf))
+        .route("/users/{id}/public-key", get(accounts::public_key))
+        .route("/accounts/api-key", post(two_factor::api_key))
+        .route("/accounts/rotate-api-key", post(two_factor::rotate_api_key))
+        .route(
+            "/two-factor",
+            get(two_factor::list).post(two_factor::list_proved),
+        )
+        .route(
+            "/two-factor/get-authenticator",
+            post(two_factor::get_authenticator),
+        )
+        .route(
+            "/two-factor/authenticator",
+            put(two_factor::enable_authenticator)
+                .post(two_factor::enable_authenticator)
+                .delete(two_factor::disable),
+        )
+        .route(
+            "/two-factor/disable",
+            put(two_factor::disable).post(two_factor::disable),
+        )
+        .route("/two-factor/get-recover", post(two_factor::get_recover))
+        .route("/two-factor/recover", post(two_factor::recover))
+}
+
+/// Folders and ciphers.
+fn vault_routes() -> Router<BitwardenServer> {
+    Router::new()
         .route(
             "/accounts/key-management/user-key-id",
             post(accounts::set_user_key_id).put(accounts::set_user_key_id),
@@ -101,20 +151,6 @@ pub fn router(server: BitwardenServer) -> Router {
             put(cipher_bulk::move_many).post(cipher_bulk::move_many),
         )
         .route("/ciphers/purge", post(cipher_bulk::purge))
-        .layer(DefaultBodyLimit::max(BODY_LIMIT))
-        .route(
-            "/ciphers/import",
-            post(cipher_bulk::import).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
-        );
-
-    Router::new()
-        .route("/alive", get(meta::alive))
-        .nest(
-            "/identity",
-            identity.layer(DefaultBodyLimit::max(BODY_LIMIT)),
-        )
-        .nest("/api", api)
-        .with_state(server)
 }
 
 /// Advance the account's revision date, returning the instant used.

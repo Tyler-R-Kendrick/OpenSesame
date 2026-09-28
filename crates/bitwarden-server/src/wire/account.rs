@@ -42,7 +42,7 @@ fn account_keys(user: &BitwardenUser) -> Value {
 
 /// `ProfileResponseModel`.
 #[must_use]
-pub fn profile(user: &BitwardenUser) -> Value {
+pub fn profile(user: &BitwardenUser, two_factor_enabled: bool) -> Value {
     json!({
         "id": user.id,
         "name": user.name,
@@ -52,7 +52,7 @@ pub fn profile(user: &BitwardenUser) -> Value {
         "premiumFromOrganization": false,
         "masterPasswordHint": user.master_password_hint,
         "culture": user.culture,
-        "twoFactorEnabled": false,
+        "twoFactorEnabled": two_factor_enabled,
         "key": user.user_key,
         "privateKey": user.private_key,
         "accountKeys": account_keys(user),
@@ -84,7 +84,7 @@ pub fn token_body(
     user: &BitwardenUser,
     access_token: &str,
     expires_in: i64,
-    refresh_token: &str,
+    refresh_token: Option<&str>,
 ) -> Value {
     let kdf = KdfConfig::from_stored(user.kdf);
     let mut body = json!({
@@ -92,7 +92,7 @@ pub fn token_body(
         "expires_in": expires_in,
         "token_type": "Bearer",
         "refresh_token": refresh_token,
-        "scope": "api offline_access",
+        "scope": if refresh_token.is_some() { "api offline_access" } else { "api" },
         "Key": user.user_key,
         "PrivateKey": user.private_key,
         "AccountKeys": account_keys(user),
@@ -114,6 +114,11 @@ pub fn token_body(
             "Object": "userDecryptionOptions",
         },
     });
+    if refresh_token.is_none() {
+        if let Some(target) = body.as_object_mut() {
+            target.remove("refresh_token");
+        }
+    }
     // The flat `Kdf*` members older clients read beside the options.
     if let (Some(target), Value::Object(flat)) = (body.as_object_mut(), kdf.flat_json()) {
         for (key, value) in flat {

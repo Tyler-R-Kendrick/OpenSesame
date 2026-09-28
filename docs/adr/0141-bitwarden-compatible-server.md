@@ -1,7 +1,7 @@
 # ADR 0141 — A Bitwarden-compatible server, with Argon2id and a replaceable hash
 
 - Status: Accepted; amended by [ADR 0148](0148-bitwarden-bridge-and-importer.md)
-  (an optional bridge feature, compiled on request)
+  (an optional bridge feature, compiled on request; the importer)
 - Date: 2026-09-24
 - Builds on: [ADR 0052](0052-password-manager-ecosystem-bridging.md)
   (password-manager ecosystem bridging), [ADR 0097](0097-bounded-kdf-policy.md)
@@ -60,8 +60,8 @@ flag day: no forced password reset and no re-encryption.
    number of *accepted* ones. A sign-in that verifies against an accepted scheme,
    or against the current one under older parameters, is re-hashed under the
    current scheme on the spot. PBKDF2-SHA256 in PHC form is accepted
-   verify-only; Bitwarden's server and vaultwarden store other forms, so an
-   importer would convert to it (none ships yet). The re-hash is a
+   verify-only; Bitwarden's server and vaultwarden store other forms, and
+   the importer (ADR 0148) converts vaultwarden's into it. The re-hash is a
    compare-and-set against the hash just verified, so it can never undo a
    password change that landed meanwhile. Replacing Argon2id is: implement the trait for the successor, make it
    current, keep Argon2id accepted.
@@ -92,15 +92,15 @@ flag day: no forced password reset and no re-encryption.
   domain list limits which addresses can be claimed but proves nobody receives
   that address's mail.
 - Not served: organizations and collections, Sends, attachments, emergency
-  access, two-factor providers, the notifications hub, API-key
-  (`client_credentials`) sign-in, and key rotation. A write that names an
-  organization is refused with a message saying so.
+  access, the notifications hub, and key rotation. A write that names an
+  organization is refused with a message saying so. (API-key sign-in and
+  authenticator two-step login arrived with ADR 0148 §3.)
 
 ## Consequences
 
 - A person can move from Bitwarden or vaultwarden to their own Host without
-  changing apps, by exporting the vault from the old server and importing it
-  with `bw import`.
+  changing apps: with the importer (ADR 0148), or by exporting the vault from
+  the old server and importing it with `bw import`.
 - `pnpm test:bitwarden-oracle` installs `@bitwarden/cli@2026.9.0` into
   `.cache/bitwarden-oracle/` and runs the oracle suites; they fail rather than
   skip without it. `tests/protocol.rs` covers refusals, isolation and wire

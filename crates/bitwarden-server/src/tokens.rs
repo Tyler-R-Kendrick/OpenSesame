@@ -130,24 +130,44 @@ impl TokenKeys {
     ///
     /// Returns a 500 [`ApiError`] when signing fails.
     pub fn mint_registration(&self, email: &str) -> ApiResult<String> {
-        let claims = RegistrationClaims {
-            sub: email.to_owned(),
-            aud: REGISTRATION_AUDIENCE.into(),
-            iss: self.issuer.clone(),
-            exp: Utc::now().timestamp() + REGISTRATION_TTL_SECONDS,
-        };
-        jsonwebtoken::encode(&Header::new(Algorithm::HS256), &claims, &self.encoding)
-            .map_err(|e| ApiError::internal(&e.into()))
+        self.mint_purpose(email, REGISTRATION_AUDIENCE, REGISTRATION_TTL_SECONDS)
     }
 
     /// Whether `token` is a live registration token for exactly `email`.
     #[must_use]
     pub fn verify_registration(&self, token: &str, email: &str) -> bool {
+        self.verify_purpose(token, REGISTRATION_AUDIENCE, email)
+    }
+
+    /// A short-lived token that says one thing, `subject`, for one purpose.
+    ///
+    /// # Errors
+    ///
+    /// Returns a 500 [`ApiError`] when signing fails.
+    pub fn mint_purpose(
+        &self,
+        subject: &str,
+        audience: &str,
+        ttl_seconds: i64,
+    ) -> ApiResult<String> {
+        let claims = RegistrationClaims {
+            sub: subject.to_owned(),
+            aud: audience.to_owned(),
+            iss: self.issuer.clone(),
+            exp: Utc::now().timestamp() + ttl_seconds,
+        };
+        jsonwebtoken::encode(&Header::new(Algorithm::HS256), &claims, &self.encoding)
+            .map_err(|e| ApiError::internal(&e.into()))
+    }
+
+    /// Whether `token` is live, for `audience`, and says exactly `subject`.
+    #[must_use]
+    pub fn verify_purpose(&self, token: &str, audience: &str, subject: &str) -> bool {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.set_issuer(&[&self.issuer]);
-        validation.set_audience(&[REGISTRATION_AUDIENCE]);
+        validation.set_audience(&[audience]);
         jsonwebtoken::decode::<RegistrationClaims>(token, &self.decoding, &validation)
-            .is_ok_and(|data| data.claims.sub == email)
+            .is_ok_and(|data| data.claims.sub == subject)
     }
 }
 

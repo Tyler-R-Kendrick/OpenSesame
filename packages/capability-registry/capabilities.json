@@ -912,6 +912,37 @@
     }
   },
   {
+    "id": "host.bitwarden_import",
+    "title": "Move vaultwarden and Bitwarden accounts onto the Host",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame bridge bitwarden import",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+        "adr": "0148-bitwarden-bridge-and-importer.md"
+      },
+      "mcp_client": {
+        "reason": "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+        "adr": "0148-bitwarden-bridge-and-importer.md"
+      },
+      "webmcp": {
+        "reason": "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+        "adr": "0148-bitwarden-bridge-and-importer.md"
+      }
+    }
+  },
+  {
     "id": "sync.cursor.read",
     "title": "Read this device's sync cursor",
     "plane": "client_local",

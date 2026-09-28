@@ -5,6 +5,7 @@
 
 pub mod bw;
 pub mod client;
+pub mod vaultwarden;
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};

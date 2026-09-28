@@ -7,6 +7,9 @@ description = "Bitwarden-compatible server surface: point a Bitwarden client at 
 
 [dependencies]
 opensesame-storage = { path = "../storage" }
+opensesame-provider-bitwarden = { path = "../provider-bitwarden" }
+opensesame-authenticator-core = { path = "../authenticator-core" }
+data-encoding = "2.9.0"
 anyhow = { workspace = true }
 argon2 = { workspace = true }
 axum = { workspace = true }
@@ -19,14 +22,15 @@ rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
+subtle = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
+sqlx = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]
-opensesame-provider-bitwarden = { path = "../provider-bitwarden" }
 aws-lc-rs = "1.18.0"
 hyper-util = { workspace = true, features = ["server", "server-auto", "http1", "tokio"] }
 reqwest = { workspace = true }
