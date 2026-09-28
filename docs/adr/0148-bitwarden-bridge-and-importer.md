@@ -228,6 +228,34 @@ member — decrypts it, under the oracle.
   encryption, and a breach report on an address (that would disclose it to a
   third party; the Host checks passwords by k-anonymity instead, ADR 0080 §5).
 
+### 7. Live sync and the web vault
+
+- **The notifications hub.** Bitwarden's apps hold `/notifications/hub` open
+  with Microsoft's SignalR client — WebSockets, negotiation skipped, the
+  MessagePack hub protocol — and the server speaks exactly that: the
+  handshake, pings, and `ReceiveMessage` invocations. It says two things:
+  *sync now* (`SyncVault`) whenever an account's revision moves — its own
+  change, an organization it belongs to, an emergency contact's step — and
+  *sign out* (`LogOut`) when its security stamp changes, after which the
+  connection closes. It carries no vault data, only the account id and a
+  time, so a client learns from it what polling its revision date would tell
+  it, sooner. A connection needs a current access token (a stale stamp is
+  refused); an account holds at most 32; a slow one's queue is bounded and a
+  dropped "sync now" is caught by the client's next sync. No
+  mobile push relay is used: nothing leaves the Host.
+- **The web vault.** The Host ships none. An operator who wants the browser
+  app points `OPENSESAME_BITWARDEN_WEB_VAULT` at a build of
+  `bitwarden/clients`' web app (vaultwarden's `bw_web_builds` is one), and
+  it is served beside the API: a path with no file answers with the app's
+  `index.html`, an unknown `/api` or `/identity` path stays a 404, and every
+  page carries a content security policy, `X-Frame-Options`, `nosniff` and a
+  same-origin referrer policy. A configured directory without the app
+  refuses to start rather than serving nothing. Like Sends, the web vault
+  wants the server on an origin of its own.
+
+The pinned SignalR client (10.0.0, as `bitwarden/clients` pins it) hears
+"sync" and "log out" and is refused with a stale token, under the oracle.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve

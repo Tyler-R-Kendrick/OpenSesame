@@ -41,7 +41,23 @@ fn config_from(lookup: impl Fn(&str) -> Option<String>, resource: &str) -> Optio
     if let Some(bytes) = mebibytes("OPENSESAME_BITWARDEN_STORAGE_MB") {
         config.storage_quota_bytes = i64::try_from(bytes).unwrap_or(i64::MAX);
     }
+    config.web_vault = lookup("OPENSESAME_BITWARDEN_WEB_VAULT")
+        .filter(|dir| !dir.trim().is_empty())
+        .map(std::path::PathBuf::from);
     Some(config)
+}
+
+/// A web-vault directory the operator named must hold the app; one that
+/// does not is a misconfiguration, not a reason to serve nothing quietly.
+fn check_web_vault(dir: Option<&std::path::Path>) -> anyhow::Result<()> {
+    if let Some(dir) = dir {
+        anyhow::ensure!(
+            dir.join("index.html").is_file(),
+            "OPENSESAME_BITWARDEN_WEB_VAULT names {}, which holds no index.html",
+            dir.display()
+        );
+    }
+    Ok(())
 }
 
 /// The access-token signing key: 32 or more bytes, hex-encoded. Replicas
@@ -77,8 +93,10 @@ pub fn from_env(db: Db, resource: &str) -> anyhow::Result<Router> {
             .as_deref()
             .map(String::as_str),
     )?;
+    check_web_vault(config.web_vault.as_deref())?;
     tracing::info!(
         url = %config.public_url,
+        web_vault = config.web_vault.is_some(),
         signups = ?config.signups,
         allow_pbkdf2 = config.kdf.allow_pbkdf2,
         shared_token_key = key.is_some(),
@@ -90,7 +108,7 @@ pub fn from_env(db: Db, resource: &str) -> anyhow::Result<Router> {
         HashRegistry::default(),
         key.as_deref().map(Vec::as_slice),
     );
-    Ok(Router::new().nest(MOUNT, server.router()))
+    Ok(server.mounted(MOUNT))
 }
 
 #[cfg(test)]
@@ -114,6 +132,24 @@ mod tests {
         assert_eq!(on.public_url, "https://host.example/bitwarden");
         assert_eq!(on.signups, SignupPolicy::Closed);
         assert!(on.kdf.allow_pbkdf2);
+    }
+
+    #[test]
+    fn a_web_vault_directory_must_hold_the_app() {
+        let dir = tempfile::tempdir().unwrap();
+        let on = config(&[
+            ("OPENSESAME_BITWARDEN_COMPAT", "on"),
+            (
+                "OPENSESAME_BITWARDEN_WEB_VAULT",
+                dir.path().to_str().unwrap(),
+            ),
+        ])
+        .unwrap();
+        assert_eq!(on.web_vault.as_deref(), Some(dir.path()));
+        assert!(check_web_vault(on.web_vault.as_deref()).is_err());
+        std::fs::write(dir.path().join("index.html"), "<html></html>").unwrap();
+        assert!(check_web_vault(on.web_vault.as_deref()).is_ok());
+        assert!(check_web_vault(None).is_ok());
     }
 
     #[test]
