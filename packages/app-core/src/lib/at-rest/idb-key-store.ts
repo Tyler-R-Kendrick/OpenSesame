@@ -12,6 +12,7 @@
  * sealed under a key the next document will not have.
  */
 
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import type { AtRestKeyPort } from "../../ports.js";
 import { openOwnedDatabase } from "../../ports.js";
 import { AT_REST_DATABASE } from "../storage-ownership.js";
@@ -50,22 +51,21 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-function isKeyRecord(value: unknown): value is KeyRecord {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Partial<KeyRecord>;
-  return (
-    record.id === RECORD &&
-    record.wrappingKey instanceof CryptoKey &&
-    record.iv instanceof Uint8Array &&
-    record.wrapped instanceof ArrayBuffer
-  );
-}
-
+/** The stored record, parsed; null for anything that is not one. */
 async function read(db: IDBDatabase): Promise<KeyRecord | null> {
-  const found = await request(
+  const found: BoundaryValue = await request(
     db.transaction(STORE, "readonly").objectStore(STORE).get(RECORD),
   );
-  return isKeyRecord(found) ? found : null;
+  if (!isJsonObject(found) || found.id !== RECORD) return null;
+  const { wrappingKey, iv, wrapped } = found;
+  if (
+    !(wrappingKey instanceof CryptoKey) ||
+    !(iv instanceof Uint8Array) ||
+    !(wrapped instanceof ArrayBuffer)
+  ) {
+    return null;
+  }
+  return { id: RECORD, wrappingKey, iv, wrapped };
 }
 
 async function mint(): Promise<KeyRecord> {

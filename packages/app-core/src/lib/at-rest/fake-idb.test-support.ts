@@ -3,21 +3,29 @@
  * keyed by `id`, one optional index, `add` that refuses a present key, and
  * every row readable raw — so a test can see exactly what reached disk.
  */
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryObject,
+  type BoundaryValue,
+  overlapCast,
+} from "@opensesame/os-domain";
 
-type Row = Record<string, unknown>;
-
-type FakeStore = { rows: Map<string, Row>; indexes: Map<string, string> };
+type FakeStore = {
+  rows: Map<string, BoundaryObject>;
+  indexes: Map<string, string>;
+};
 
 export type FakeDatabases = Map<string, Map<string, FakeStore>>;
 
-function request<T>(run: () => T): IDBRequest<T> {
-  const req: {
-    result?: T;
-    error?: DOMException;
-    onsuccess?: () => void;
-    onerror?: () => void;
-  } = {};
+type FakeRequest = {
+  result?: BoundaryValue;
+  error?: BoundaryValue;
+  onsuccess?: () => void;
+  onerror?: () => void;
+  onupgradeneeded?: () => void;
+};
+
+function request(run: () => BoundaryValue): IDBRequest {
+  const req: FakeRequest = {};
   queueMicrotask(() => {
     try {
       req.result = run();
@@ -30,25 +38,28 @@ function request<T>(run: () => T): IDBRequest<T> {
   return overlapCast(req);
 }
 
+function rowId(row: BoundaryObject): string {
+  return String(row.id);
+}
+
 function objectStore(store: FakeStore) {
   return {
     get: (id: string) => request(() => store.rows.get(id)),
     getAll: () => request(() => [...store.rows.values()]),
-    put: (row: Row) =>
+    put: (row: BoundaryObject) =>
       request(() => {
-        store.rows.set(String(row.id), row);
+        store.rows.set(rowId(row), row);
+        return row.id;
       }),
-    add: (row: Row) =>
+    add: (row: BoundaryObject) =>
       request(() => {
-        if (store.rows.has(String(row.id))) {
+        if (store.rows.has(rowId(row))) {
           throw new DOMException("present", "ConstraintError");
         }
-        store.rows.set(String(row.id), row);
+        store.rows.set(rowId(row), row);
+        return row.id;
       }),
-    delete: (id: string) =>
-      request(() => {
-        store.rows.delete(id);
-      }),
+    delete: (id: string) => request(() => store.rows.delete(id)),
     index: (name: string) => ({
       getAll: (value: string) =>
         request(() =>
@@ -82,24 +93,20 @@ function database(stores: Map<string, FakeStore>) {
   };
 }
 
+export type FakeIndexedDb = { factory: IDBFactory; databases: FakeDatabases };
+
 /** A factory over `databases`, which the test keeps to read rows raw. */
-export function fakeIndexedDb(databases: FakeDatabases = new Map()): {
-  factory: IDBFactory;
-  databases: FakeDatabases;
-} {
+export function fakeIndexedDb(
+  databases: FakeDatabases = new Map(),
+): FakeIndexedDb {
   const factory = {
     open(name: string) {
-      const req: {
-        result?: ReturnType<typeof database>;
-        onupgradeneeded?: () => void;
-        onsuccess?: () => void;
-        onerror?: () => void;
-      } = {};
+      const req: FakeRequest = {};
       queueMicrotask(() => {
         const fresh = !databases.has(name);
         const stores = databases.get(name) ?? new Map<string, FakeStore>();
         databases.set(name, stores);
-        req.result = database(stores);
+        req.result = overlapCast(database(stores));
         if (fresh) req.onupgradeneeded?.();
         req.onsuccess?.();
       });
@@ -114,6 +121,6 @@ export function rawRows(
   databases: FakeDatabases,
   name: string,
   store: string,
-): Row[] {
+): BoundaryObject[] {
   return [...(databases.get(name)?.get(store)?.rows.values() ?? [])];
 }

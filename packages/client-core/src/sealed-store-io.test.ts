@@ -2,13 +2,13 @@ import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   b64ToBytes,
-  isSealedForRest,
-  useClientAtRestKeys,
   bytesToB64,
+  isSealedForRest,
   loadSealedStore,
   parseSealedStore,
   persistSealedStore,
   sealDevOnly,
+  useClientAtRestKeys,
 } from "./index.js";
 
 /**

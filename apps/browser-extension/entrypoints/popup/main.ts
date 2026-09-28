@@ -11,6 +11,8 @@ type HealthResponse = {
 };
 
 const DEFAULT_HOST = ENDPOINTS.host.default;
+/** Where `hostApiBase` rests, sealed (ADR 0148). */
+const STORE = "chrome.storage.local";
 
 async function loadHostInput() {
   const input = overlapCast(document.getElementById("host"));
@@ -19,7 +21,7 @@ async function loadHostInput() {
     const stored = await chrome.storage.local.get("hostApiBase");
     // Sealed at rest (ADR 0148); a value from an older build reads as it is.
     const value = isString(stored.hostApiBase)
-      ? await openFromRest("chrome.storage.local", "hostApiBase", stored.hostApiBase)
+      ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
       : null;
     input.value = value?.trim() ? value : DEFAULT_HOST;
   } catch {
@@ -41,7 +43,7 @@ async function saveHost() {
     return;
   }
   input.value = value;
-  const sealed = await sealForRest("chrome.storage.local", "hostApiBase", value);
+  const sealed = await sealForRest(STORE, "hostApiBase", value);
   if (sealed === null) {
     // Nothing is stored in the clear: with no key to seal under, not at all.
     if (hint) {

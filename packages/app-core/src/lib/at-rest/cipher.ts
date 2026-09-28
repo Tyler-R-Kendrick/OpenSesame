@@ -63,9 +63,7 @@ export function openAtRest(
     if (bytes.length < NONCE_BYTES + TAG_BYTES) return null;
     const nonce = bytes.subarray(0, NONCE_BYTES);
     const body = bytes.subarray(NONCE_BYTES);
-    return decoder.decode(
-      xchacha20poly1305(key, nonce, binding).decrypt(body),
-    );
+    return decoder.decode(xchacha20poly1305(key, nonce, binding).decrypt(body));
   } catch {
     return null;
   }

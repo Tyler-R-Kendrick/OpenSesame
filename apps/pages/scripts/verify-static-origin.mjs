@@ -18,9 +18,7 @@
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
 //   D. deep link: the icon resolves under the base, not under the route
-//
-// After B and after C, everything the app has stored is read back raw: no
-// value, file or row may be in the clear (ADR 0148).
+// After B and C, nothing the app stored may rest in the clear (ADR 0148).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,8 +82,6 @@ const browser = await launch();
   // chrome naming it is what "you are inside the app as the guest" looks like.
   check(/guest-\d+/.test(inApp), "guest landed inside the app");
   check(!/Claim this guest session/.test(inApp), "no claim notice");
-  // A guest vault now exists; none of it, nor the guest's name, is on disk
-  // in the clear (ADR 0148).
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
   // What this installation carries, and how it changes (ADR 0130). This runs
@@ -284,15 +280,11 @@ const browser = await launch();
     "no pending-link noise",
   );
   check(/test person/i.test(landed), "prompt names the signed-in person");
-  const session = await page.evaluate(() =>
-    localStorage.getItem("opensesame:federation:session"),
-  );
-  check(
-    Boolean(session?.startsWith("osr1.")),
-    "federation session saved on device, sealed",
-  );
   setStep("C-at-rest");
-  await checkNothingInTheClear(page, check, ["pw_verify", "[Tt]est [Pp]erson"]);
+  // The federation session is saved on the device, and sealed.
+  const federation = "local:opensesame:federation:session";
+  const leaks = ["pw_verify", "[Tt]est [Pp]erson"];
+  await checkNothingInTheClear(page, check, leaks, [federation]);
   // This is a fresh device: the identity section (browser-local IAM) and the
   // provider directory are always on (ADR 0142), so there is nothing to add
   // and the walk only checks they are there.

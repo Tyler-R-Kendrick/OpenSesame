@@ -1,10 +1,10 @@
 import { originFiles } from "../ports.js";
+import { atRestReady, atRestSettled } from "./at-rest/key.js";
 import {
   openOriginFile,
   sealOriginFile,
   sealedFileBound,
 } from "./at-rest/origin-files.js";
-import { atRestReady, atRestSettled } from "./at-rest/key.js";
 import { haltedWriteError, storageWritesHalted } from "./storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
 /**
@@ -17,9 +17,9 @@ import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
  * This is the flat transport layer. The encrypted VFS (`lib/vfs.ts`,
  * ADR 0063) builds the tomb namespace on top: every vault is a tomb
  * (`tomb/<name>/…`, the personal vault is the `personal` tomb, ADR 0038),
- * sealed content under the tomb's vault key, with only the documented
- * plaintext boundary (boot endpoints, vault header params, lockout
- * counters, tomb names) stored unsealed.
+ * sealed content under the tomb's vault key. What ADR 0063 left outside
+ * the vault key (boot endpoints, vault header params, lockout counters,
+ * tomb names) is sealed under the device key here like everything else.
  */
 
 const memory = new Map<string, string>();

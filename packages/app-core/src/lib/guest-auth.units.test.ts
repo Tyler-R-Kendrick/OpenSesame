@@ -6,12 +6,12 @@
  * These tests exist to pin the small decisions that a reader would otherwise
  * have to take on trust: no bearer is stashed, which failures are swallowed or
  * surfaced, and exactly when a pending federated link is marked or cleared.
- * Each is load-bearing for
- * ADR 0033 §4 — a first-time visitor must end up on one durable principal
- * without ever typing a password.
+ * Each is load-bearing for ADR 0033 §4 — a first-time visitor must end up on
+ * one durable principal without ever typing a password.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sessionStore } from "../ports.js";
 import {
   guestAuthDependencies,
   guestAuthSeams,
@@ -20,7 +20,6 @@ import {
 import { IdentityError, type IdentitySession } from "./identity.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
 import { type VaultStatus, vaultStore } from "./vault/store.js";
-import { sessionStore } from "../ports.js";
 
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 

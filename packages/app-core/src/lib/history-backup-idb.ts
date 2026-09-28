@@ -94,7 +94,7 @@ function rowBinding(store: string, id: string): Uint8Array {
 function sealRow(
   atRest: AtRestKey,
   store: string,
-  record: { id: string; accountId?: string },
+  record: ProvisionalHistoryAccount | HistoryEntryRecord,
   accountId?: string,
 ): SealedRow {
   const sealed = sealAtRest(
@@ -136,15 +136,16 @@ function asAccount(value: BoundaryValue): ProvisionalHistoryAccount | null {
   ) {
     return null;
   }
-  return {
+  const account: ProvisionalHistoryAccount = {
     id: value.id,
     providerId: value.providerId,
     anonToken: value.anonToken,
     claimState: value.claimState,
     createdAt: value.createdAt,
-    ...(isString(value.principalId) ? { principalId: value.principalId } : {}),
-    ...(isString(value.claimedAt) ? { claimedAt: value.claimedAt } : {}),
   };
+  if (isString(value.principalId)) account.principalId = value.principalId;
+  if (isString(value.claimedAt)) account.claimedAt = value.claimedAt;
+  return account;
 }
 
 function asEntry(value: BoundaryValue): HistoryEntryRecord | null {
@@ -181,7 +182,9 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
       const account = store === ACCOUNTS ? asAccount(row) : null;
       const entry = store === ENTRIES ? asEntry(row) : null;
       if (account) {
-        await idbReq(tx.objectStore(store).put(sealRow(atRest, store, account)));
+        await idbReq(
+          tx.objectStore(store).put(sealRow(atRest, store, account)),
+        );
       } else if (entry) {
         const sealed = sealRow(atRest, store, entry, entry.accountId);
         await idbReq(tx.objectStore(store).put(sealed));
@@ -221,7 +224,9 @@ export async function putHistoryAccount(
   memoryAccounts.set(account.id, account);
   await withDb(async (db, atRest) => {
     const tx = db.transaction(ACCOUNTS, "readwrite");
-    await idbReq(tx.objectStore(ACCOUNTS).put(sealRow(atRest, ACCOUNTS, account)));
+    await idbReq(
+      tx.objectStore(ACCOUNTS).put(sealRow(atRest, ACCOUNTS, account)),
+    );
   });
 }
 
@@ -230,7 +235,9 @@ export async function getHistoryAccount(
 ): Promise<ProvisionalHistoryAccount | undefined> {
   const row = await withDb(async (db, atRest) => {
     const tx = db.transaction(ACCOUNTS, "readonly");
-    const stored: BoundaryValue = await idbReq(tx.objectStore(ACCOUNTS).get(id));
+    const stored: BoundaryValue = await idbReq(
+      tx.objectStore(ACCOUNTS).get(id),
+    );
     return asAccount(openRow(atRest, ACCOUNTS, stored ?? null));
   });
   return row ?? memoryAccounts.get(id);

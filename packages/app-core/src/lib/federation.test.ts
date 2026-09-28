@@ -82,8 +82,8 @@ function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
   };
 }
 
-import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import { localStore, sessionStore } from "../ports.js";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
 const originalNetworkEligibility = localNetworkFetchSeams.eligible;
 
 /** Node 22 shadows Storage with an unavailable experimental global. */
@@ -1230,8 +1230,7 @@ describe("an operator's own identity provider", () => {
     // The app base is the URI the operator registers at their provider.
     expect(pending.redirectUri).toBe(redirectUri());
     // A provider we do not control needs a subject and a name to be worth
-    // signing in with; the origin-profile brokers have only ever needed
-    // `openid`.
+    // signing in with; the origin-profile brokers only ever needed `openid`.
     expect(pending.scope).toBe("openid profile email");
   });
 

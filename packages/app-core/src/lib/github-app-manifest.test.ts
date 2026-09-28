@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore, sessionStore } from "../ports.js";
 import { applyConnectCallbackBase } from "./connect-callback.js";
 import {
   buildGithubAppRegistration,
@@ -15,7 +16,6 @@ import {
   stashPendingGithubAppSecret,
 } from "./github-app-secret.js";
 import { type VaultState, vaultStore } from "./vault/store.js";
-import { localStore, sessionStore } from "../ports.js";
 
 describe("github app redirect url", () => {
   it("uses the Vite origin on loopback so listing does not need Connect", () => {

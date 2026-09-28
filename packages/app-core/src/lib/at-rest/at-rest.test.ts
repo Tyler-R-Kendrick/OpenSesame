@@ -58,9 +58,7 @@ function install(atRestKeys: AtRestKeyPort | undefined): void {
   configureHost(createTestHost({ storage: { local, session }, atRestKeys }));
 }
 
-beforeEach(() =>
-  install({ loadSync: () => KEY, load: async () => KEY }),
-);
+beforeEach(() => install({ loadSync: () => KEY, load: async () => KEY }));
 
 afterEach(() => {
   forgetAtRestKeyForTest();
@@ -105,9 +103,7 @@ describe("Web Storage through the ports", () => {
     expect(localStore().getItem("opensesame.settings")).toBe(
       '{"hostApi":"https://h"}',
     );
-    expect(sessionStore().getItem("opensesame.claim")).toBe(
-      "osc_clm_a.secret",
-    );
+    expect(sessionStore().getItem("opensesame.claim")).toBe("osc_clm_a.secret");
   });
 
   it("binds a value to its area and key, so a copy does not open", () => {
@@ -127,6 +123,14 @@ describe("Web Storage through the ports", () => {
     expect(localStore().getItem("opensesame.settings")).toBe("legacy");
   });
 
+  it("reads another writer's clear value without sealing it", () => {
+    local.setItem("opensesame:session", "a relying party's");
+    expect(localStore().getItem("opensesame:session")).toBe(
+      "a relying party's",
+    );
+    expect(local.getItem("opensesame:session")).toBe("a relying party's");
+  });
+
   it("sweeps the app's own clear values and leaves everyone else's", () => {
     local.setItem("opensesame.settings", "ours");
     local.setItem("opensesame:federation:session", "ours too");
@@ -135,9 +139,7 @@ describe("Web Storage through the ports", () => {
 
     expect(sealLegacyWebStorage("local")).toBe(2);
     expect(local.getItem("opensesame.settings")).not.toBe("ours");
-    expect(local.getItem("opensesame:federation:session")).not.toBe(
-      "ours too",
-    );
+    expect(local.getItem("opensesame:federation:session")).not.toBe("ours too");
     expect(local.getItem("theirs")).toBe("not ours");
     expect(local.getItem("opensesame:session")).toBe("a relying party's");
     expect(sealLegacyWebStorage("local")).toBe(0);

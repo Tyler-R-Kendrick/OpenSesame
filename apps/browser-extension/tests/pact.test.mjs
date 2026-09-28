@@ -32,15 +32,20 @@ test("popup refuses a remote rewrite before persisting", () => {
   assertSourceOrder(src, [
     "normalizeLoopbackBaseUrl(raw)",
     "if (!value)",
-    'sealForRest("chrome.storage.local", "hostApiBase", value)',
+    'sealForRest(STORE, "hostApiBase", value)',
     "chrome.storage.local.set({ hostApiBase: sealed })",
   ]);
 });
 
 test("hostApiBase is never stored in the clear (ADR 0148)", () => {
-  for (const file of ["entrypoints/popup/main.ts", "entrypoints/background.ts"]) {
+  for (const file of [
+    "entrypoints/popup/main.ts",
+    "entrypoints/background.ts",
+  ]) {
     const src = readFileSync(join(ext, file), "utf8");
-    const writes = [...src.matchAll(/chrome\.storage\.local\.set\(\{([^}]*)\}/g)];
+    const writes = [
+      ...src.matchAll(/chrome\.storage\.local\.set\(\{([^}]*)\}/g),
+    ];
     assert.ok(writes.length > 0, `${file} writes hostApiBase somewhere`);
     for (const [, body] of writes) {
       assert.equal(body.trim(), "hostApiBase: sealed", `${file}: ${body}`);

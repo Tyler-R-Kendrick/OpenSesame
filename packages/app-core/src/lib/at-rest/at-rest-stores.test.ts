@@ -11,25 +11,22 @@ import { configureHost } from "../../host.js";
 import { loadAtRestKeyFile } from "../../node/at-rest-key-file.js";
 import { createTestHost } from "../../test-host.js";
 import {
+  appendHistoryEntry,
   listHistoryAccounts,
   listHistoryEntries,
   putHistoryAccount,
-  appendHistoryEntry,
   resetHistoryBackupMemory,
 } from "../history-backup-idb.js";
 import {
   AT_REST_DATABASE,
   HISTORY_BACKUP_DATABASE,
 } from "../storage-ownership.js";
-import { isSealedAtRest, sealAtRest, atRestBinding } from "./cipher.js";
+import { atRestBinding, isSealedAtRest, sealAtRest } from "./cipher.js";
 import { fakeIndexedDb, rawRows } from "./fake-idb.test-support.js";
 import { loadIndexedDbAtRestKey } from "./idb-key-store.js";
 import { forgetAtRestKeyForTest } from "./key.js";
-import {
-  openOriginFile,
-  sealLegacyOriginFiles,
-  sealedFileBound,
-} from "./origin-files.js";
+import { sealLegacyOriginFiles } from "./origin-files-sweep.js";
+import { openOriginFile, sealedFileBound } from "./origin-files.js";
 
 afterEach(() => {
   forgetAtRestKeyForTest();
@@ -137,7 +134,8 @@ function opfs(files: Files) {
       };
     },
   };
-  return { originFiles: () => Promise.resolve(overlapCast(root)) };
+  const handle: FileSystemDirectoryHandle = overlapCast(root);
+  return { originFiles: () => Promise.resolve(handle) };
 }
 
 describe("origin-private files", () => {
@@ -155,7 +153,10 @@ describe("origin-private files", () => {
     expect(header).not.toContain("argon2id");
     expect(files.get("their-notes.json")).toBe("theirs");
     expect(
-      await openOriginFile("opensesame-pages-tomb_personal_header.json", header ?? ""),
+      await openOriginFile(
+        "opensesame-pages-tomb_personal_header.json",
+        header ?? "",
+      ),
     ).toBe('{"kdf":"argon2id"}');
     expect(await sealLegacyOriginFiles()).toBe(0);
   });

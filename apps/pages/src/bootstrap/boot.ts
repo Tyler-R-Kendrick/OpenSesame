@@ -9,7 +9,7 @@
 
 import { captureApprovalArrivalFromPage } from "@opensesame/app-core/lib/approvals-link.js";
 import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
-import { sealLegacyOriginFiles } from "@opensesame/app-core/lib/at-rest/origin-files.js";
+import { sealLegacyOriginFiles } from "@opensesame/app-core/lib/at-rest/origin-files-sweep.js";
 import { sealLegacyWebStorage } from "@opensesame/app-core/lib/at-rest/web-storage.js";
 import { collectRuntimeFacts } from "@opensesame/app-core/lib/capabilities/facts.js";
 import { ensureInstallationId } from "@opensesame/app-core/lib/capabilities/installation.js";

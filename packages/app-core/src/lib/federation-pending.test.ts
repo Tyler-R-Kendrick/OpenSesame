@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../ports.js";
 import { PKCE_KEY } from "./federation-pending.js";
 import { completeSignIn } from "./federation.js";
-import { localStore } from "../ports.js";
 
 function stubStorage(): void {
   const memory = new Map<string, string>();

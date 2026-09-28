@@ -95,7 +95,9 @@ function key(): Promise<CryptoKey | null> {
 }
 
 function binding(store: string, name: string): Uint8Array {
-  return encoder.encode(`opensesame.client-at-rest.v1\u0000${store}\u0000${name}`);
+  return encoder.encode(
+    `opensesame.client-at-rest.v1\u0000${store}\u0000${name}`,
+  );
 }
 
 function toB64(bytes: Uint8Array): string {

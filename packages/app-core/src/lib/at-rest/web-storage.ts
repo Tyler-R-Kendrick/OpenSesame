@@ -13,7 +13,10 @@
 import { host } from "../../host.js";
 import type { WebStorage } from "../../ports.js";
 import { storageWritesHalted } from "../storage-halt.js";
-import { type WebStorageArea, ownsWebStorageKey } from "../storage-ownership.js";
+import {
+  type WebStorageArea,
+  ownsWebStorageKey,
+} from "../storage-ownership.js";
 import {
   atRestBinding,
   isSealedAtRest,
@@ -27,10 +30,10 @@ import { type AtRestKey, atRestKeyNow, onAtRestReady } from "./key.js";
  * the key loaded (flushed, sealed, when it does), and every write while the
  * key is ephemeral (never flushed).
  */
-const held: Record<WebStorageArea, Map<string, string>> = {
-  local: new Map(),
-  session: new Map(),
-};
+const held = {
+  local: new Map<string, string>(),
+  session: new Map<string, string>(),
+} satisfies Record<WebStorageArea, Map<string, string>>;
 
 /** A sealed value was read before the device key loaded. */
 export class AtRestKeyPendingError extends Error {
@@ -79,8 +82,11 @@ function read(
   if (raw === null) return null;
   const atRest = atRestKeyNow();
   if (!isSealedAtRest(raw)) {
-    // Written before values were sealed: read it, and seal it where it lies.
-    if (atRest?.durable) writeSealed(store, area, atRest, key, raw);
+    // Written before values were sealed: read it, and seal it where it lies —
+    // when it is the app's; another writer's key is theirs to read raw.
+    if (atRest?.durable && ownsWebStorageKey(key, area)) {
+      writeSealed(store, area, atRest, key, raw);
+    }
     return raw;
   }
   if (!atRest) throw new AtRestKeyPendingError(key);

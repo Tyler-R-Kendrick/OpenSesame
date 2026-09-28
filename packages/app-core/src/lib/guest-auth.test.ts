@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sessionStore } from "../ports.js";
 import {
   adoptFederatedIdentity,
   continueAsGuest,
@@ -9,7 +10,6 @@ import {
 } from "./guest-auth.js";
 import { IdentityError } from "./identity.js";
 import { clearNotices, listNotices } from "./notices.js";
-import { sessionStore } from "../ports.js";
 const connectProvisional = vi.fn();
 const identityJson = vi.fn();
 const currentSession = vi.fn();

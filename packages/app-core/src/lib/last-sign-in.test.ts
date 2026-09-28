@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../ports.js";
 import {
   LAST_SIGN_IN_KEY,
   canonicalSignInMethod,
@@ -8,7 +9,6 @@ import {
   readLastSignIn,
   rememberLastSignIn,
 } from "./last-sign-in.js";
-import { localStore } from "../ports.js";
 
 /** Node 22 shadows Storage with an unavailable experimental global. */
 function ensureLocalStorage(): void {

@@ -7,6 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore, sessionStore } from "../ports.js";
 import {
   ambientAuthSeams,
   resetAmbientAuthSeams,
@@ -26,7 +27,6 @@ import { federationSeams } from "./federation.js";
 import { identitySeams } from "./identity.js";
 import { attachAccount, signOut, switchAccount } from "./session-exit.js";
 import { vaultStore } from "./vault/store.js";
-import { localStore, sessionStore } from "../ports.js";
 
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 

@@ -4,6 +4,7 @@ import {
   signPaymentApprovalDigest,
 } from "@opensesame/wallet-consent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../ports.js";
 import {
   buildLocalPaymentApprovalDigest,
   enrollPaymentApprovalKey,
@@ -24,7 +25,6 @@ import {
   resetSpendingLedgerCache,
 } from "./spending-ledger.js";
 import { setWalletStorageTomb } from "./wallet-storage-scope.js";
-import { localStore } from "../ports.js";
 
 function ensureLocalStorage(): void {
   const map = new Map<string, string>();
