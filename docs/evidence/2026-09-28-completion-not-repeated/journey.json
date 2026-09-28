@@ -1,0 +1,31 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings" },
+        { "openSettingsFile": "general" },
+        { "caretOnLine": { "label": "settings/general/config.yaml", "text": "lockOnHide" } },
+        { "facts": "1280-typed" },
+        { "shot": "1280-typed" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings" },
+        { "openSettingsFile": "general" },
+        { "caretOnLine": { "label": "settings/general/config.yaml", "text": "lockOnHide" } },
+        { "facts": "390-typed" },
+        { "shot": "390-typed" }
+      ]
+    }
+  ],
+  "sheets": []
+}

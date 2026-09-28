@@ -13,6 +13,7 @@ export function menuSteps({ press }) {
     // Named `facts`: capture-evidence's own `measure` (selector boxes) would
     // shadow a step of that name, which left this one unreachable.
     facts,
+    caretOnLine,
   };
 }
 
@@ -87,6 +88,34 @@ async function openSettingsFile(page, category, press) {
   await page.waitForTimeout(700);
 }
 
+/**
+ * Put the caret at the end of the first line of a labelled editor that
+ * contains `text`, the way a person clicks into it — a key up follows, which
+ * is what the completions listen to.
+ */
+async function caretOnLine(page, { label, text }) {
+  const field = page.getByLabel(label, { exact: true }).first();
+  if ((await field.count()) === 0)
+    throw new Error(
+      `capture-evidence caretOnLine("${label}"): no editor matched — refusing a silent miss`,
+    );
+  await field.focus();
+  const found = await field.evaluate((node, needle) => {
+    const lines = node.value.split("\n");
+    const at = lines.findIndex((line) => line.includes(needle));
+    if (at < 0) return false;
+    const end = lines.slice(0, at + 1).join("\n").length;
+    node.setSelectionRange(end, end);
+    return true;
+  }, text);
+  if (!found)
+    throw new Error(
+      `capture-evidence caretOnLine: no line contains "${text}" — refusing a silent miss`,
+    );
+  await page.keyboard.press("End");
+  await page.waitForTimeout(400);
+}
+
 /** Log what the browser measures, so each caption quotes a number. */
 async function facts(page, name) {
   const found = await page.evaluate(() => {
@@ -118,6 +147,9 @@ async function facts(page, name) {
       })(),
       fileList: [...document.querySelectorAll(".vfiles__file")].map((row) =>
         row.textContent?.trim(),
+      ),
+      completions: [...document.querySelectorAll(".set-raw__option")].map(
+        (option) => option.textContent?.trim(),
       ),
       menuEntries: items.length,
       menuMode: document.querySelector(".ctxmenu--sheet")
