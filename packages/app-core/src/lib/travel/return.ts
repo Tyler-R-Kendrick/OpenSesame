@@ -25,7 +25,7 @@ import {
   travelGate,
 } from "./depart.js";
 import { ReturnCodeError, parseReturnCode } from "./return-code.js";
-import { filesOfVault, tombStem, vaultNamespace } from "./storage.js";
+import { filesOfVault, headerOf, vaultNamespace } from "./storage.js";
 
 export type ReturnStatus =
   /** Nothing of it is on this device: it will be restored. */
@@ -80,10 +80,6 @@ const GATE_MESSAGE = {
   storage_not_durable: "This browser is not keeping files for this site.",
 } satisfies Record<TravelGateRefusal, string>;
 
-function headerOf(id: string): string {
-  return `${tombStem(id)}header.json`;
-}
-
 /**
  * What returning `vault` would do, read from the device now. Any vault
  * already here under that id is never written over: the same files are
@@ -98,10 +94,11 @@ async function statusOf(
   if ((await deps.storage.read(headerOf(vault.id))) === null) {
     return "comes_home";
   }
-  for (const entry of vault.files) {
-    if ((await deps.storage.read(entry.file)) !== entry.text) {
-      return "occupied";
-    }
+  const here = await Promise.all(
+    vault.files.map((entry) => deps.storage.read(entry.file)),
+  );
+  if (vault.files.some((entry, i) => here[i] !== entry.text)) {
+    return "occupied";
   }
   const tombs = [...deps.storage.tombs(), vault.id];
   const extra = filesOfVault(vault.id, present, tombs).filter(
@@ -113,8 +110,8 @@ async function statusOf(
 async function statusesOf(
   deps: TravelDeps,
   payload: TravelPayload,
+  present: readonly string[],
 ): Promise<Map<string, ReturnStatus>> {
-  const present = await deps.storage.listFiles();
   const out = new Map<string, ReturnStatus>();
   for (const vault of payload.vaults) {
     out.set(vault.id, await statusOf(deps, vault, present));
@@ -161,7 +158,11 @@ export async function openReturn(
       message: "Not a travel bundle.",
     };
   }
-  const statuses = await statusesOf(deps, payload);
+  const statuses = await statusesOf(
+    deps,
+    payload,
+    await deps.storage.listFiles(),
+  );
   const vaults: ReturningVault[] = payload.vaults.map((vault) => ({
     id: vault.id,
     kind: vault.kind,
@@ -193,10 +194,10 @@ export async function completeReturn(
 ): Promise<CompleteReturnOutcome> {
   const refused = await travelGate(deps);
   if (refused) return { ok: false, code: refused };
-  const status = await statusesOf(deps, opened.payload);
+  const present = await deps.storage.listFiles();
+  const status = await statusesOf(deps, opened.payload, present);
   const restored: string[] = [];
   let writtenFiles = 0;
-  const present = await deps.storage.listFiles();
   const touched = new Set<string>();
   for (const vault of opened.payload.vaults) {
     if (status.get(vault.id) !== "comes_home") continue;
@@ -225,7 +226,13 @@ export async function completeReturn(
   // Memory may hold what this device had under these names before; the
   // files are the truth now, and the welcome re-reads them.
   deps.storage.forget(touched);
-  if (restored.length > 0) await deps.welcomeVaults(restored);
+  // Names ride in the bundle: a vault that left took its name out of every
+  // view on this device, and gets it back here.
+  if (restored.length > 0) {
+    await deps.welcomeVaults(
+      opened.payload.vaults.filter((vault) => restored.includes(vault.id)),
+    );
+  }
   const pick = (wanted: ReturnStatus) =>
     [...status].filter(([, value]) => value === wanted).map(([id]) => id);
   return {

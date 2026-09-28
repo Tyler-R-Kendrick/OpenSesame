@@ -63,6 +63,7 @@ export const TUTORIAL = {
     "identity.local.application.authorize",
     "identity.local.passkeys.manage",
     "identity.local.directory.manage",
+    "identity.local.organizations.member",
   ]),
   routes: IDENTITY_ROUTES,
 } as const;

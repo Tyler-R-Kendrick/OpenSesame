@@ -5,8 +5,16 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
-const vault: VaultFixture = { current: { items: [], folders: [] } };
+type VaultState = {
+  items: VaultItem[];
+  folders: Folder[];
+  status: string;
+  guest: boolean;
+};
+type VaultFixture = { current: VaultState };
+const vault: VaultFixture = {
+  current: { items: [], folders: [], status: "unlocked", guest: false },
+};
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
@@ -32,6 +40,8 @@ describe("Settings › Vaults › Sealed store", () => {
         { ...createItem("login", "Demo"), sample: true },
       ],
       folders: [dev],
+      status: "unlocked",
+      guest: false,
     };
   });
 
@@ -40,7 +50,8 @@ describe("Settings › Vaults › Sealed store", () => {
     downloadSeams.save = originalSave;
   });
 
-  it("saves the pass seal manifest from one icon key, sample data left out", async () => {
+  it("saves the pass seal manifest from its sheet, never from the key alone", async () => {
+    const user = userEvent.setup();
     render(<StoreManifestPanel />);
     const key = screen.getByRole("button", {
       name: "Save store path manifest",
@@ -52,7 +63,17 @@ describe("Settings › Vaults › Sealed store", () => {
       screen.getByText("opensesame pass seal <file> --shred"),
     ).toBeTruthy();
 
-    await userEvent.setup().click(key);
+    // The key opens a sheet that says what the file holds; nothing is saved.
+    await user.click(key);
+    expect(saved).toHaveLength(0);
+    const sheet = screen.getByRole("dialog", {
+      name: "Save store path manifest",
+    });
+    expect(sheet.textContent).toContain(
+      "every value in plain text, private keys included",
+    );
+
+    await user.click(screen.getByRole("button", { name: /Save manifest/ }));
 
     expect(saved).toHaveLength(1);
     expect(saved[0]?.name).toMatch(
@@ -71,10 +92,27 @@ describe("Settings › Vaults › Sealed store", () => {
     ).toBeTruthy();
   });
 
+  it.each([
+    ["a guest vault", { guest: true }, "A guest vault is not exported"],
+    ["a locked vault", { status: "locked" }, "Unlock to export"],
+  ])("refuses %s as the encrypted Export does", async (_, state, reason) => {
+    vault.current = { ...vault.current, ...state };
+    const user = userEvent.setup();
+    render(<StoreManifestPanel />);
+    await user.click(
+      screen.getByRole("button", { name: "Save store path manifest" }),
+    );
+    expect(screen.getByRole("img", { name: reason })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Save manifest/ })).toBeNull();
+    expect(saved).toHaveLength(0);
+  });
+
   it("has nothing to save from a vault of sample data alone", () => {
     vault.current = {
       items: [{ ...createItem("login", "Demo"), sample: true }],
       folders: [],
+      status: "unlocked",
+      guest: false,
     };
     render(<StoreManifestPanel />);
     expect(

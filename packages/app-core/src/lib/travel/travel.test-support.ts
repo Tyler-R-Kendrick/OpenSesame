@@ -17,6 +17,10 @@ type FakeState = {
   tombs: Set<string>;
   forgotten: string[][];
   welcomed: string[][];
+  /** Names the return handed back, by vault id. */
+  welcomedNames: Map<string, string | null>;
+  /** Files whose removal fails, as a browser refusing `removeEntry`. */
+  stuck: Set<string>;
   durable: boolean;
   duress: boolean;
   owner: boolean;
@@ -52,6 +56,8 @@ export function fakeOrigin(): FakeOrigin {
     tombs: new Set(),
     forgotten: [],
     welcomed: [],
+    welcomedNames: new Map(),
+    stuck: new Set(),
     durable: true,
     duress: false,
     owner: true,
@@ -66,6 +72,7 @@ export function fakeOrigin(): FakeOrigin {
       origin.files.set(file, text);
     },
     remove: async (file) => {
+      if (origin.stuck.has(file)) throw new Error("NoModificationAllowedError");
       origin.files.delete(file);
     },
     forget: (files) => {
@@ -88,8 +95,10 @@ export function fakeOrigin(): FakeOrigin {
     forgetVaults: async (ids) => {
       origin.vaults = origin.vaults.filter((vault) => !ids.includes(vault.id));
     },
-    welcomeVaults: async (ids) => {
-      origin.welcomed.push([...ids]);
+    welcomeVaults: async (vaults) => {
+      origin.welcomed.push(vaults.map((vault) => vault.id));
+      for (const vault of vaults)
+        origin.welcomedNames.set(vault.id, vault.name);
     },
     now: () => new Date("2026-09-24T08:00:00.000Z"),
   };

@@ -109,7 +109,12 @@ export async function sealTravelBundle(
 }
 
 function readEnvelope(json: string) {
-  if (json.length > MAX_TRAVEL_BUNDLE_BYTES) {
+  // UTF-8 never takes fewer bytes than UTF-16 code units, so the cheap
+  // length check refuses first and only a plausible size is encoded.
+  if (
+    json.length > MAX_TRAVEL_BUNDLE_BYTES ||
+    new TextEncoder().encode(json).byteLength > MAX_TRAVEL_BUNDLE_BYTES
+  ) {
     throw new TravelBundleError(
       "bundle_too_large",
       "That file is larger than any travel bundle.",

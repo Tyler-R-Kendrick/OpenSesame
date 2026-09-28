@@ -139,6 +139,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.local.application.authorize": "identity.local-iam",
     "identity.local.passkeys.manage": "identity.local-iam",
     "identity.local.directory.manage": "identity.local-iam",
+    "identity.local.organizations.read": "identity.local-iam",
+    "identity.local.organizations.membership.manage": "identity.local-iam",
     "identity.local.siop.authorize": "identity.siop",
 
     // --- optional: enterprise -------------------------------------------

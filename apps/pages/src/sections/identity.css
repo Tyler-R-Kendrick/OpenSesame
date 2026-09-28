@@ -294,3 +294,20 @@
 .identity-session {
   margin-block-start: 0.75rem;
 }
+
+/* --- the signed-in member's organizations (ADR 0105) ----------------------- */
+
+.identity-orgs {
+  margin-block-start: 0.75rem;
+}
+
+.identity-orgs__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.identity-orgs .identity-row__id > .chip {
+  justify-self: start;
+}
