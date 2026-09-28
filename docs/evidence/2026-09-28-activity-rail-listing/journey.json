@@ -278,41 +278,41 @@
     {
       "shot": "1280-rail",
       "width": 1280,
-      "title": "Activity opened in the rail \u2014 1280 \u00d7 800",
-      "caption": "A guest vault with 16 logged events. Opening activity/ used to open nothing: the row was a leaf. It now lists the first page of events, newest first, and a Load n more row, like the connector catalog.",
-      "before": "0 rows under activity/",
-      "after": "12 events + Load 3 more"
+      "title": "Activity opened in the rail \u2014 1280 \u00d7 1200",
+      "caption": "A guest vault with 16 logged events (sample data loaded and removed, a minute apart). Opening activity/ used to open nothing: the row was a leaf. It now lists the first page of events, newest first, then a Load n more row \u2014 the same paging as the connector catalog.",
+      "before": "0 rows under activity/ \u00b7 page draws all 16",
+      "after": "12 events + Load 4 more \u00b7 page draws 12"
     },
     {
       "shot": "1280-more",
       "width": 1280,
-      "title": "Load n more \u2014 1280 \u00d7 800",
-      "caption": "Following Load 3 more reveals the next page in the rail and on the page together; the row disappears when nothing is left.",
-      "before": "no such row",
-      "after": "rail 16 rows, page 16 rows"
+      "title": "Load n more \u2014 1280 \u00d7 1200",
+      "caption": "Following Load 4 more reveals the rest in the rail and on the page together, and lands on the first new row; the row disappears when nothing is left.",
+      "before": "no such row (rail 0, page 16)",
+      "after": "rail 16, page 16"
     },
     {
       "shot": "1280-search",
       "width": 1280,
-      "title": "/ search \u2014 1280 \u00d7 800",
-      "caption": "The page gains the / search key every listing has. The query narrows the page and the rail subtree together.",
-      "before": "no search key",
-      "after": "'identity' \u2192 1 row in the rail, 1 on the page"
+      "title": "/ search \u2014 1280 \u00d7 1200",
+      "caption": "The page gains the / key every listing has. The query narrows the page and the rail subtree together.",
+      "before": "no search key (rail 0, page 16)",
+      "after": "'identity' \u2192 rail 1, page 1"
     },
     {
       "shot": "390-page",
       "width": 390,
       "title": "Activity page \u2014 390 \u00d7 844",
-      "caption": "On a phone the page pages the same way: the first 12 events, / search beside refresh.",
-      "before": "every event on one page",
-      "after": "12 events, / key"
+      "caption": "On a phone the page pages the same way: the first 12 events, with / beside refresh.",
+      "before": "16 rows, refresh only",
+      "after": "12 rows, / and refresh"
     },
     {
       "shot": "390-search",
       "width": 390,
       "title": "/ search \u2014 390 \u00d7 844",
-      "caption": "The search prompt under the listing, as in the vault and the connector catalog.",
-      "before": "no search",
+      "caption": "The search prompt sits under the listing, as it does in the vault and the connector catalog.",
+      "before": "no search (16 rows)",
       "after": "'identity' \u2192 1 row"
     }
   ]
