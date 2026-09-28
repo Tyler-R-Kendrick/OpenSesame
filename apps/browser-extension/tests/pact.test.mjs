@@ -37,7 +37,7 @@ test("popup refuses a remote rewrite before persisting", () => {
   ]);
 });
 
-test("hostApiBase is never stored in the clear (ADR 0148)", () => {
+test("hostApiBase is never stored in the clear (ADR 0149)", () => {
   for (const file of [
     "entrypoints/popup/main.ts",
     "entrypoints/background.ts",

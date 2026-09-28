@@ -1,7 +1,7 @@
 # ADR 0063 — Encrypted VFS for vault + config; every vault is a tomb
 
 Status: Accepted; the plaintext boundary is amended by
-[ADR 0148](0148-nothing-stored-in-the-clear.md) — it is now sealed under the
+[ADR 0149](0149-nothing-stored-in-the-clear.md) — it is now sealed under the
 device's at-rest key
 Date: 2026-08-29
 References: ADR 0038 (personal project binding), ADR 0039 (server-side

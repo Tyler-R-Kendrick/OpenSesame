@@ -18,7 +18,7 @@
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
 //   D. deep link: the icon resolves under the base, not under the route
-// After B and C, nothing the app stored may rest in the clear (ADR 0148).
+// After B and C, nothing the app stored may rest in the clear (ADR 0149).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

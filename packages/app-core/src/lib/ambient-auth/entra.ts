@@ -76,7 +76,7 @@ async function loadMsalSdk(input: {
       authority: input.authority,
       redirectUri: input.redirectUri,
     },
-    // Tokens and account records stay in memory (ADR 0148): MSAL writes its
+    // Tokens and account records stay in memory (ADR 0149): MSAL writes its
     // cache straight to Web Storage, past the at-rest seal, and a cached
     // account is only a routing hint here — every sign-in verifies a fresh
     // ID token. MSAL still keeps the request in flight (state, PKCE
@@ -184,7 +184,7 @@ export async function acquireEntraSilent(
     authority: entraAuthority(request.connection),
     redirectUri: request.redirectUri,
   });
-  // MSAL's cache lives in memory (ADR 0148), so this sees only the accounts
+  // MSAL's cache lives in memory (ADR 0149), so this sees only the accounts
   // this document signed in; across loads, Entra itself answers a hintless
   // silent request over several sessions with interaction_required, which
   // maps to the same outcome below.

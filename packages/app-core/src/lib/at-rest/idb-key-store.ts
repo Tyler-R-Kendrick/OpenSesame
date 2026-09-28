@@ -1,5 +1,5 @@
 /**
- * The browser's at-rest key store (ADR 0148).
+ * The browser's at-rest key store (ADR 0149).
  *
  * One IndexedDB record holds a non-extractable AES-GCM key and, sealed under
  * it, the 32-byte data key. Script can use the wrapping key but never read

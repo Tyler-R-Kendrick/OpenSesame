@@ -1,5 +1,5 @@
 /**
- * The at-rest seal when things go wrong (ADR 0148): a key that never loads,
+ * The at-rest seal when things go wrong (ADR 0149): a key that never loads,
  * a flush the quota refuses, a key record that is gone while its seals
  * remain, a reset in another tab, and a file sealed under another key. In
  * every case nothing is written in the clear and nothing is overwritten.

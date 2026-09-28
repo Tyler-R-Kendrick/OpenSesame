@@ -16,7 +16,7 @@ import {
 import { ENDPOINTS, isString } from "@opensesame/os-domain";
 
 const DEFAULT_HOST = ENDPOINTS.host.default;
-/** Where `hostApiBase` rests, sealed (ADR 0148). */
+/** Where `hostApiBase` rests, sealed (ADR 0149). */
 const STORE = "chrome.storage.local";
 
 /**
@@ -27,7 +27,7 @@ async function resolveHostBase(): Promise<string> {
   try {
     const stored = await chrome.storage.local.get("hostApiBase");
     const raw = stored.hostApiBase;
-    // Sealed at rest (ADR 0148); a value from an older build reads as it is.
+    // Sealed at rest (ADR 0149); a value from an older build reads as it is.
     const value = isString(raw)
       ? await openFromRest(STORE, "hostApiBase", raw)
       : null;

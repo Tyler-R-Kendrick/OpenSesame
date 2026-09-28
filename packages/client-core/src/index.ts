@@ -189,7 +189,7 @@ function sealedFileName(name: string): string {
 
 /**
  * OPFS / memory persistence of sealed sync JSON (ciphertext only). The file
- * itself is sealed at rest too (ADR 0148), so the device id and epoch beside
+ * itself is sealed at rest too (ADR 0149), so the device id and epoch beside
  * the ciphertext are not in the clear either; with no key to seal under, the
  * store stays in memory.
  */

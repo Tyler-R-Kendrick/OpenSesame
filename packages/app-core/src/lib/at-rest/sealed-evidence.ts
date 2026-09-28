@@ -1,5 +1,5 @@
 /**
- * Whether this device already holds values sealed at rest (ADR 0148) — that
+ * Whether this device already holds values sealed at rest (ADR 0149) — that
  * is, whether a key existed here before.
  *
  * The browser mints a key only when nothing is sealed yet. A device whose key

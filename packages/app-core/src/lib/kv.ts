@@ -11,7 +11,7 @@ import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
  * Same-origin KV with OPFS primary + in-memory fallback.
  * Never uses localStorage/sessionStorage (XSS-exfiltrable; banned by ast-grep).
  * Every file's content is sealed under the device's at-rest key, bound to
- * its file name (`at-rest/origin-files.ts`, ADR 0148); with no durable key
+ * its file name (`at-rest/origin-files.ts`, ADR 0149); with no durable key
  * nothing is written to a file at all.
  *
  * This is the flat transport layer. The encrypted VFS (`lib/vfs.ts`,
@@ -115,7 +115,7 @@ export function kvForgetFiles(files: ReadonlySet<string>): void {
 /**
  * Keys whose file is sealed under a key this device does not hold. Nothing
  * writes over one: the app reads it as absent, and a first run must not put a
- * new vault where an old one still lies (ADR 0148).
+ * new vault where an old one still lies (ADR 0149).
  */
 const unreadable = new Set<string>();
 

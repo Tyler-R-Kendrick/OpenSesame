@@ -31,7 +31,7 @@ export const ORIGIN_FILE_PREFIX = "opensesame-pages-";
 export const HISTORY_BACKUP_DATABASE = "opensesame-history-backups";
 
 /**
- * The device's at-rest key (`at-rest/idb-key-store.ts`, ADR 0148). Resetting
+ * The device's at-rest key (`at-rest/idb-key-store.ts`, ADR 0149). Resetting
  * this browser deletes it with everything sealed under it.
  */
 export const AT_REST_DATABASE = "opensesame-at-rest";

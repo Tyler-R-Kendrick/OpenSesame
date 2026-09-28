@@ -17,7 +17,7 @@ if (import.meta.env.DEV) {
       );
       const store: Record<string, string | null> = {};
       for (const k of githubKeys) {
-        // Values rest sealed (ADR 0148); the ports open them.
+        // Values rest sealed (ADR 0149); the ports open them.
         const v = localStore().getItem(k);
         store[k] =
           k.includes("pem") && v

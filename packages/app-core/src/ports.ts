@@ -106,7 +106,7 @@ export type BroadcastLike = Pick<
 > & { onmessage: BroadcastChannel["onmessage"] };
 
 /**
- * Where the host keeps the device's at-rest data key (ADR 0148): 32 bytes
+ * Where the host keeps the device's at-rest data key (ADR 0149): 32 bytes
  * every stored value is sealed under. A host without one stores nothing past
  * the process rather than store it in the clear (`lib/at-rest/key.ts`).
  */
@@ -157,7 +157,7 @@ function missing(port: string): Error {
 
 /**
  * A store as the core writes it. Every value is sealed under the device's
- * at-rest key (`lib/at-rest/web-storage.ts`, ADR 0148). Every write is
+ * at-rest key (`lib/at-rest/web-storage.ts`, ADR 0149). Every write is
  * reported to the host's recorder, where it has one — the test hosts fail a test that writes a key
  * the app does not own (`lib/storage-ownership.ts`), so no key can silently
  * outlive "Reset this browser" — and once this browser is being reset

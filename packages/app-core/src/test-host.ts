@@ -7,7 +7,7 @@ export type TestHostOverrides = Readonly<
   Partial<Omit<Host, "env">> & { env?: Partial<RuntimeEnv> }
 >;
 
-/** One at-rest key per test process, at hand at once (ADR 0148). */
+/** One at-rest key per test process, at hand at once (ADR 0149). */
 const testAtRestKey = crypto.getRandomValues(new Uint8Array(32));
 export const testAtRestKeys: AtRestKeyPort = {
   loadSync: () => testAtRestKey,

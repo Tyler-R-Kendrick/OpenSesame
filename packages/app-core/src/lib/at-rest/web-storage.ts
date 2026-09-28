@@ -1,5 +1,5 @@
 /**
- * Web Storage, sealed (ADR 0148). Every value written through the ports'
+ * Web Storage, sealed (ADR 0149). Every value written through the ports'
  * `local` and `session` stores reaches `localStorage` / `sessionStorage` as
  * an at-rest seal bound to its area and key; the app reads plaintext back.
  * Key names stay readable — they are what "Reset this browser" removes by

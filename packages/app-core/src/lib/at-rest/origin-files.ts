@@ -1,5 +1,5 @@
 /**
- * Origin-private files, sealed (ADR 0148). `kv.ts` and travel
+ * Origin-private files, sealed (ADR 0149). `kv.ts` and travel
  * (`travel/storage.ts`) write every `opensesame-pages-*.json` file as an
  * at-rest seal bound to its file name, and read the plaintext back. The
  * binding is the file name, not the key, because travel moves files by name.

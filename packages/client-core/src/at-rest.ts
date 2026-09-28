@@ -1,5 +1,5 @@
 /**
- * At-rest sealing for the client plane outside the Pages app (ADR 0148): the
+ * At-rest sealing for the client plane outside the Pages app (ADR 0149): the
  * sync store's origin files and the browser extension's settings.
  *
  * One non-extractable AES-GCM key per origin, kept in IndexedDB — script can
