@@ -660,6 +660,17 @@ first owner; removing, demoting, or disabling the last enabled owner is refused.
 Role changes require local sessions to sign in again. These controls retain
 the incumbent row wrapping, typography, hairlines, and focus treatment.
 
+A signed-in person reads their own organizations under their local session:
+an Organizations label and one mark, then a native disclosure per
+organization with its role beside the name. Opening one lists its members as
+the same flat rows. Keys appear only where the session's role permits: an
+owner gets a Role select with a Save role key on each person and the armed
+Remove member key on everyone; an admin gets removal on ordinary members;
+a member, and any agent-key session, gets no keys. The keys stay enabled
+while a change is pending, so focus is never dropped. A refusal is the
+organization's mark. A committed change ends every local session, so the
+session mark says so and Sign in locally takes focus.
+
 ### Local application registration
 Access → Policies reuses this same registration disclosure from Identity →
 Applications, backed by the same encrypted store and role evaluator. Each

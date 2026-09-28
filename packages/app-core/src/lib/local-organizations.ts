@@ -2,6 +2,7 @@ import type { OrganizationRole } from "@opensesame/os-domain";
 import {
   type LocalDirectory,
   LocalDirectoryError,
+  type LocalIdentityKind,
   commitLocalDirectoryUnderLock,
   readLocalDirectory,
 } from "./local-directory.js";
@@ -9,6 +10,15 @@ import {
   type LocalSession,
   withLocalIdentitySession,
 } from "./local-sessions.js";
+
+/** One member of an organization the session belongs to, as that session may read it. */
+export type LocalOrganizationMember = Readonly<{
+  organizationId: string;
+  principalId: string;
+  role: OrganizationRole;
+  name: string;
+  kind: LocalIdentityKind;
+}>;
 
 function unavailable(): never {
   throw new LocalDirectoryError("This organization is unavailable.");
@@ -79,9 +89,16 @@ export async function readLocalOrganization(
         id: org.id,
         name: org.name,
         role: member.role,
-        members: directory.memberships.filter(
-          (row) => row.organizationId === organizationId,
-        ),
+        members: directory.memberships
+          .filter((row) => row.organizationId === organizationId)
+          .flatMap((row): LocalOrganizationMember[] => {
+            const entry = directory.entries.find(
+              (candidate) => candidate.id === row.principalId,
+            );
+            return entry
+              ? [{ ...row, name: entry.name, kind: entry.kind }]
+              : [];
+          }),
       };
     },
   );
