@@ -1,0 +1,319 @@
+{
+  "out": ".",
+  "clock": "2026-09-28T09:00:00Z",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 1200,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "tab": "activity"
+        },
+        {
+          "count": [
+            "#activity-tree [role=treeitem]",
+            "main li.identity-row"
+          ]
+        },
+        {
+          "shot": "1280-rail"
+        },
+        {
+          "railOptional": "Load 4 more"
+        },
+        {
+          "count": [
+            "#activity-tree [role=treeitem]",
+            "main li.identity-row"
+          ]
+        },
+        {
+          "shot": "1280-more"
+        },
+        {
+          "pressOptional": "Search activity"
+        },
+        {
+          "fillOptional": {
+            "label": "Search the activity log",
+            "text": "identity"
+          }
+        },
+        {
+          "count": [
+            "#activity-tree [role=treeitem]",
+            "main li.identity-row"
+          ]
+        },
+        {
+          "shot": "1280-search"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "press": "^(Load sample data|Remove \\d+ sample items)$"
+        },
+        {
+          "elapse": 65
+        },
+        {
+          "tab": "activity"
+        },
+        {
+          "count": "main li.identity-row"
+        },
+        {
+          "shot": "390-page"
+        },
+        {
+          "pressOptional": "Search activity"
+        },
+        {
+          "fillOptional": {
+            "label": "Search the activity log",
+            "text": "identity"
+          }
+        },
+        {
+          "count": "main li.identity-row"
+        },
+        {
+          "shot": "390-search"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-rail",
+      "width": 1280,
+      "title": "Activity opened in the rail \u2014 1280 \u00d7 800",
+      "caption": "A guest vault with 16 logged events. Opening activity/ used to open nothing: the row was a leaf. It now lists the first page of events, newest first, and a Load n more row, like the connector catalog.",
+      "before": "0 rows under activity/",
+      "after": "12 events + Load 3 more"
+    },
+    {
+      "shot": "1280-more",
+      "width": 1280,
+      "title": "Load n more \u2014 1280 \u00d7 800",
+      "caption": "Following Load 3 more reveals the next page in the rail and on the page together; the row disappears when nothing is left.",
+      "before": "no such row",
+      "after": "rail 16 rows, page 16 rows"
+    },
+    {
+      "shot": "1280-search",
+      "width": 1280,
+      "title": "/ search \u2014 1280 \u00d7 800",
+      "caption": "The page gains the / search key every listing has. The query narrows the page and the rail subtree together.",
+      "before": "no search key",
+      "after": "'identity' \u2192 1 row in the rail, 1 on the page"
+    },
+    {
+      "shot": "390-page",
+      "width": 390,
+      "title": "Activity page \u2014 390 \u00d7 844",
+      "caption": "On a phone the page pages the same way: the first 12 events, / search beside refresh.",
+      "before": "every event on one page",
+      "after": "12 events, / key"
+    },
+    {
+      "shot": "390-search",
+      "width": 390,
+      "title": "/ search \u2014 390 \u00d7 844",
+      "caption": "The search prompt under the listing, as in the vault and the connector catalog.",
+      "before": "no search",
+      "after": "'identity' \u2192 1 row"
+    }
+  ]
+}
