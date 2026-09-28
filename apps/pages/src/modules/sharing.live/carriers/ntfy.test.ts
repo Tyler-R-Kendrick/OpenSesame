@@ -130,11 +130,11 @@ describe("ntfy through the egress port", () => {
   });
 
   it("abandons the first request when the connect budget runs out", async () => {
-    const first: { signal: AbortSignal | null } = { signal: null };
+    const first: AbortSignal[] = [];
     const fetchImpl = vi.fn<typeof fetch>(
       (_url, init) =>
         new Promise<Response>((_resolve, reject) => {
-          first.signal = init?.signal ?? null;
+          if (init?.signal) first.push(init.signal);
           init?.signal?.addEventListener("abort", () =>
             reject(new DOMException("aborted", "AbortError")),
           );
@@ -144,11 +144,11 @@ describe("ntfy through the egress port", () => {
     const connecting = new AbortController();
     const opening = ntfyCarrier(SPEC, TOPIC, gate.egress, connecting.signal);
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalled());
-    expect(first.signal).not.toBeNull();
-    expect(first.signal?.aborted).toBe(false);
+    expect(first).toHaveLength(1);
+    expect(first[0]?.aborted).toBe(false);
     connecting.abort();
     await expect(opening).rejects.toMatchObject({ name: "AbortError" });
-    expect(first.signal?.aborted).toBe(true);
+    expect(first[0]?.aborted).toBe(true);
   });
 
   it("reports a server that says no", async () => {

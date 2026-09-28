@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import { mqttCarrier } from "./mqtt.js";
 
@@ -52,8 +53,9 @@ async function unwelcoming() {
   await new Promise<void>((resolve) =>
     listening.listen(0, "127.0.0.1", () => resolve()),
   );
-  // SAFETY: listening on a TCP port, not a pipe, so `address()` is an AddressInfo.
-  const { port } = listening.address() as AddressInfo;
+  // A TCP server (not a pipe) reports its address as an AddressInfo.
+  const address: AddressInfo = overlapCast(listening.address());
+  const { port } = address;
   return { port, count: () => upgrades };
 }
 

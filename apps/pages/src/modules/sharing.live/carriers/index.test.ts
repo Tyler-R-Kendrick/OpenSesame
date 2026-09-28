@@ -48,18 +48,18 @@ describe("withinConnect", () => {
     vi.useFakeTimers();
     const { carrier, close } = fakeCarrier();
     let arrive: (value: Carrier) => void = () => {};
-    const given: { signal: AbortSignal | null } = { signal: null };
+    const given: AbortSignal[] = [];
     const opening = withinConnect(
       (s) =>
         new Promise<Carrier>((resolve) => {
-          given.signal = s;
+          given.push(s);
           arrive = resolve;
         }),
     );
     const outcome = expect(opening).rejects.toThrow("carrier_timeout");
     await vi.advanceTimersByTimeAsync(CONNECT_MS);
     await outcome;
-    expect(given.signal?.aborted).toBe(true);
+    expect(given[0]?.aborted).toBe(true);
     expect(close).not.toHaveBeenCalled();
     // Nobody holds it now: the caller was told it failed. It must not leak.
     arrive(carrier);
