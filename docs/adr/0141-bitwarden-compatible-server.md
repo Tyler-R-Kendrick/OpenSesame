@@ -92,9 +92,9 @@ flag day: no forced password reset and no re-encryption.
   domain list limits which addresses can be claimed but proves nobody receives
   that address's mail.
 - Not served: organizations and collections, Sends, attachments, emergency
-  access, two-factor providers, the notifications hub, API-key
-  (`client_credentials`) sign-in, and key rotation. A write that names an
-  organization is refused with a message saying so.
+  access, the notifications hub, and key rotation. A write that names an
+  organization is refused with a message saying so. (API-key sign-in and
+  authenticator two-step login arrived with ADR 0148 §3.)
 
 ## Consequences
 

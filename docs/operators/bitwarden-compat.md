@@ -91,12 +91,34 @@ quietly.
   import. SSH-key items are stored and returned as sent, but the oracle does
   not cover them yet.
 
+## Two-step login and API keys
+
+People manage both from the security settings of Bitwarden's web vault, and the importer
+carries them over from vaultwarden or a live account.
+
+- **Authenticator app.** Turning it on takes the master password and a code
+  from the app, so nobody enables a step they cannot pass. Each code works
+  once; codes from one step either side of the server's clock are accepted.
+  "Remember this device" skips the step on that device for 30 days, or until
+  the account's security stamp changes.
+- **Recovery code.** Shown on request; typing it at sign-in, or on the
+  signed-out recovery page with the master password, turns two-step login off
+  and issues a new one. Wrong attempts count against the address like wrong
+  passwords.
+- **Personal API key** (`bw login --apikey`). Signs in without the second step
+  and without a refresh token, as on Bitwarden; `bw unlock` still needs the
+  master password. Rotating it retires the old key at once.
+
+Like Bitwarden's own server, the Host keeps the authenticator key, recovery
+code and API key where it can check or show them again. None of them opens a
+vault.
+
 ## What is not served
 
-Organizations and collections, Sends, attachments, emergency access, two-factor
-providers, live-sync notifications, API-key sign-in (`bw login --apikey`) and
-key rotation. Clients hide or fail those features as they do against a server
-that has them turned off.
+Organizations and collections, Sends, attachments, emergency access, other
+two-step providers (email, Duo, `YubiKey`, security keys), live-sync
+notifications and key rotation. Clients hide or fail those features as they do
+against a server that has them turned off.
 
 ## Operating notes
 

@@ -13,12 +13,15 @@ use chrono::{DateTime, Utc};
 use opensesame_provider_bitwarden::{
     Client, DeviceIdentity, EncString, Endpoints, Error, Kdf, MasterKey,
 };
-use opensesame_storage::bitwarden::{BitwardenArrival, BitwardenKdf, BitwardenUser};
+use opensesame_storage::bitwarden::{
+    ArrivingSignIn, BitwardenArrival, BitwardenKdf, BitwardenTwoFactor, BitwardenUser,
+};
 use serde_json::Value;
 use zeroize::Zeroizing;
 
 use super::{cipher, folder, keep_known_folders, leave, Arrival, CipherDates, LeftBehind, Source};
 use crate::hashing::HashRegistry;
+use crate::second_factor::{is_authenticator_key, normalize_key, AUTHENTICATOR};
 
 /// A question the old server asks before it lets the importer in.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -165,11 +168,6 @@ fn count_left_behind(sync: &Value, left: &mut LeftBehind) {
             .filter(|c| text(c, "organizationId").is_some())
             .count(),
     );
-    let two_factor = profile
-        .and_then(|p| member(p, "twoFactorEnabled"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    leave(left, "two-step login methods", usize::from(two_factor));
 }
 
 fn vault_of(user: &BitwardenUser, sync: &Value, left: &mut LeftBehind) -> BitwardenArrival {
@@ -215,9 +213,74 @@ fn vault_of(user: &BitwardenUser, sync: &Value, left: &mut LeftBehind) -> Bitwar
         user: user.clone(),
         folders,
         ciphers,
+        sign_in: ArrivingSignIn::default(),
     };
     keep_known_folders(&mut account);
     account
+}
+
+/// The account's API key and, if two-step login is on, its authenticator and
+/// recovery code: what the web vault shows the person after they re-enter
+/// their master password, read the same way. Providers that cannot move are
+/// counted.
+async fn sign_in_methods(
+    api: &Client,
+    token: &str,
+    login_hash: &str,
+    two_factor_on: bool,
+    left: &mut LeftBehind,
+) -> ArrivingSignIn {
+    let proof = serde_json::json!({ "masterPasswordHash": login_hash });
+    let read = |path: &'static str| api.post_json(path, token, &proof);
+    let mut sign_in = ArrivingSignIn {
+        api_key: read("/accounts/api-key")
+            .await
+            .ok()
+            .and_then(|body| text(&body, "apiKey")),
+        ..ArrivingSignIn::default()
+    };
+    if !two_factor_on {
+        return sign_in;
+    }
+    let providers: Vec<i64> = read("/two-factor")
+        .await
+        .ok()
+        .and_then(|body| member(&body, "data").and_then(Value::as_array).cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter(|p| member(p, "enabled").and_then(Value::as_bool) == Some(true))
+        .filter_map(|p| member(p, "type").and_then(Value::as_i64))
+        .collect();
+    let key = if providers.contains(&AUTHENTICATOR) {
+        read("/two-factor/get-authenticator")
+            .await
+            .ok()
+            .and_then(|body| text(&body, "key"))
+            .map(|key| normalize_key(&key))
+            .filter(|key| is_authenticator_key(key))
+    } else {
+        None
+    };
+    leave(
+        left,
+        "two-step login methods",
+        providers.len() - usize::from(key.is_some()),
+    );
+    if let Some(key) = key {
+        sign_in.two_factors.push(BitwardenTwoFactor {
+            provider: AUTHENTICATOR,
+            enabled: true,
+            data: key,
+            // The code the person just typed for the old server stays spent.
+            last_used_step: Utc::now().timestamp().div_euclid(30),
+        });
+        sign_in.recovery_code = read("/two-factor/get-recover")
+            .await
+            .ok()
+            .and_then(|body| text(&body, "code"))
+            .map(|code| normalize_key(&code));
+    }
+    sign_in
 }
 
 /// Sign in to the old server as the person and read their account.
@@ -276,7 +339,12 @@ pub async fn read(
     };
     let mut left = LeftBehind::new();
     count_left_behind(&sync, &mut left);
-    let account = vault_of(&user, &sync, &mut left);
+    let two_factor_on = member(profile, "twoFactorEnabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let sign_in = sign_in_methods(&api, &token, &login_hash, two_factor_on, &mut left).await;
+    let mut account = vault_of(&user, &sync, &mut left);
+    account.sign_in = sign_in;
     Ok(Source {
         arrivals: vec![Arrival {
             account,

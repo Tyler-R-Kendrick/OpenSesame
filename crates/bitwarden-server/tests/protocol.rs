@@ -93,7 +93,7 @@ async fn a_wrong_password_and_an_unknown_email_get_the_same_answer() {
     );
     let (status, body) = token_form(
         &harness,
-        &[("grant_type", "client_credentials"), ("client_id", "x")],
+        &[("grant_type", "authorization_code"), ("client_id", "x")],
     )
     .await;
     assert_eq!(

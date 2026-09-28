@@ -7,10 +7,10 @@
 //! is free, or in place of the account at that email when the operator asks
 //! for a replacement.
 
-use super::accounts::insert_user;
+use super::accounts::{bitwarden_timestamp, insert_user};
 use super::ciphers::insert_cipher;
 use super::folders::insert_folder;
-use super::{BitwardenCipher, BitwardenFolder, BitwardenUser};
+use super::{BitwardenCipher, BitwardenFolder, BitwardenTwoFactor, BitwardenUser};
 use crate::Db;
 
 /// An account as it arrives, with everything that belongs to it. Every
@@ -20,6 +20,16 @@ pub struct BitwardenArrival {
     pub user: BitwardenUser,
     pub folders: Vec<BitwardenFolder>,
     pub ciphers: Vec<BitwardenCipher>,
+    pub sign_in: ArrivingSignIn,
+}
+
+/// The sign-in methods an account brings beside its master password.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ArrivingSignIn {
+    pub api_key: Option<String>,
+    pub recovery_code: Option<String>,
+    /// Two-step providers, each as the server checks it.
+    pub two_factors: Vec<BitwardenTwoFactor>,
 }
 
 /// What became of one arrival.
@@ -67,6 +77,36 @@ async fn id_taken(
         }
     }
     Ok(false)
+}
+
+async fn write_sign_in(
+    tx: &mut sqlx::SqliteConnection,
+    user_id: &str,
+    sign_in: &ArrivingSignIn,
+) -> anyhow::Result<()> {
+    sqlx::query("UPDATE bitwarden_users SET api_key = ?, recovery_code = ? WHERE id = ?")
+        .bind(&sign_in.api_key)
+        .bind(&sign_in.recovery_code)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+    let now = bitwarden_timestamp(chrono::Utc::now());
+    for factor in &sign_in.two_factors {
+        sqlx::query(
+            "INSERT INTO bitwarden_two_factor (user_id, provider, enabled, data, \
+             last_used_step, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+        )
+        .bind(user_id)
+        .bind(factor.provider)
+        .bind(i64::from(factor.enabled))
+        .bind(&factor.data)
+        .bind(factor.last_used_step)
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+    }
+    Ok(())
 }
 
 impl Db {
@@ -123,6 +163,7 @@ impl Db {
         for cipher in &arrival.ciphers {
             insert_cipher(&mut *tx, cipher).await?;
         }
+        write_sign_in(&mut tx, &arrival.user.id, &arrival.sign_in).await?;
         tx.commit().await?;
         Ok(outcome)
     }

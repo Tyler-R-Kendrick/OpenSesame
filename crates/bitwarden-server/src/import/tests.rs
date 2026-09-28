@@ -1,5 +1,7 @@
 use chrono::Utc;
-use opensesame_storage::bitwarden::{BitwardenArrival, BitwardenKdf, BitwardenUser};
+use opensesame_storage::bitwarden::{
+    ArrivingSignIn, BitwardenArrival, BitwardenKdf, BitwardenUser,
+};
 use serde_json::json;
 
 use super::*;
@@ -71,6 +73,7 @@ fn a_cipher_never_points_at_a_folder_that_did_not_arrive() {
             cipher("u", "a", request("kept"), dates()).unwrap(),
             cipher("u", "b", request("gone"), dates()).unwrap(),
         ],
+        sign_in: ArrivingSignIn::default(),
     };
     keep_known_folders(&mut account);
     assert_eq!(account.ciphers[0].folder_id.as_deref(), Some("kept"));
@@ -86,6 +89,7 @@ async fn a_dry_run_writes_nothing_and_a_taken_email_is_left_alone() {
                 user: user(),
                 folders: Vec::new(),
                 ciphers: Vec::new(),
+                sign_in: ArrivingSignIn::default(),
             },
             left_behind: LeftBehind::new(),
         }],

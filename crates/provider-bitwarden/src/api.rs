@@ -248,6 +248,31 @@ impl Client {
         self.decode(&url, response).await
     }
 
+    /// `POST {api}{path}` with a JSON body, answered as raw JSON. The importer
+    /// uses it for the account's own sign-in settings (ADR 0148).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, API, URL, or response-validation error.
+    pub async fn post_json(
+        &self,
+        path: &str,
+        access_token: &str,
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = self.endpoints.api_url(path)?;
+        let response = self
+            .http
+            .post(url.clone())
+            .bearer_auth(access_token)
+            .header("accept", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| transport(&url, &e))?;
+        self.decode(&url, response).await
+    }
+
     /// Fetch nonsecret server version and feature information.
     ///
     /// # Errors

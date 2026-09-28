@@ -79,6 +79,34 @@ or a decrypted value on the way, exactly as it never does in service.
   password. The oracle also found that clients look up another account's
   public key (`GET /api/users/{id}/public-key`), which the server now answers.
 
+### 3. Sign-in methods beside the master password
+
+The Host serves what a Bitwarden account uses beside its master password, so
+nobody moving over has to give one up:
+
+- **The personal API key** (`client_credentials`, `client_id` `user.<id>`):
+  signs in without a second step and gets no refresh token, as on Bitwarden;
+  unlocking still takes the master password. `/accounts/api-key` shows it
+  (after the master password), `/accounts/rotate-api-key` replaces it.
+- **An authenticator app** (provider 0): RFC 6238, computed by
+  `crates/authenticator-core`, the product's one OTP implementation. Turning it
+  on proves the master password (or a setup token bound to the offered key)
+  and a code; each code is spent once by a compare-and-set on its time step;
+  a wrong code counts against the address like a wrong password.
+- **"Remember this device"** (provider 5): a token stored as a digest on the
+  device record, bound to the security stamp and 30 days.
+- **The recovery code** (provider 8 at sign-in, or the signed-out recovery
+  route with the master password): spent by compare-and-set, it turns two-step
+  login off and is replaced.
+
+Email, Duo, `YubiKey` and security-key providers are not served; an account
+that uses them in its old server is told so by the importer. The server keeps
+the authenticator key, recovery code and API key where it can check or show
+them, as Bitwarden's and vaultwarden's do. The importer carries all three:
+from vaultwarden's columns, and from a live account through the same
+password-proving calls the web vault makes. The official `bw` answers the
+challenge (`--method 0 --code`) and signs in with an API key under the oracle.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve
