@@ -99,6 +99,21 @@ async function measure(page, name) {
         .length,
       viewToggleKeys: document.querySelectorAll(".section__head .set__view-btn")
         .length,
+      capabilityViewKeys: document.querySelectorAll(
+        '[aria-label="Capability view"] button',
+      ).length,
+      // The three rail rows after Capabilities: where config.yaml sits.
+      belowCapabilities: rows
+        .slice(
+          rows.findIndex((row) =>
+            row.textContent?.trim().startsWith("Capabilities"),
+          ) + 1,
+        )
+        .slice(0, 3)
+        .map((row) => row.textContent?.trim()),
+      fileList: [...document.querySelectorAll(".vfiles__file")].map((row) =>
+        row.textContent?.trim(),
+      ),
       menuEntries: items.length,
       menuMode: document.querySelector(".ctxmenu--sheet")
         ? "sheet"

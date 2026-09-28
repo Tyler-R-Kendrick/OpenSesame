@@ -1,0 +1,42 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/capabilities" },
+        { "measure": "1280-capabilities" },
+        { "shot": "1280-capabilities" },
+        { "rightClick": "vault/" },
+        { "menuOptional": "Show hidden items" },
+        { "escape": null },
+        { "tab": "settings/" },
+        { "expand": "Capabilities" },
+        { "measure": "1280-rail" },
+        { "shot": "1280-rail" },
+        { "pressOptional": "^Source$" },
+        { "pressOptional": "Open installation-selection.yaml" },
+        { "measure": "1280-file" },
+        { "shot": "1280-file" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/capabilities" },
+        { "measure": "390-capabilities" },
+        { "shot": "390-capabilities" },
+        { "pressOptional": "^Source$" },
+        { "pressOptional": "Open installation-selection.yaml" },
+        { "measure": "390-file" },
+        { "shot": "390-file" }
+      ]
+    }
+  ],
+  "sheets": []
+}
