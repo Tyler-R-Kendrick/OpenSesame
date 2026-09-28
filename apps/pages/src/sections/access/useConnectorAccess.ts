@@ -53,8 +53,8 @@ export type ConnectorRow = Readonly<{
   detail: string;
   /** Where the row came from: imported from a directory, configured on the
       Connections page, a provider-wide grant with no connection of that
-      provider here, or a grant whose connector is gone. */
-  source: "directory" | "connections" | "provider" | "removed";
+      provider here, or a grant on a connector this device does not list. */
+  source: "directory" | "connections" | "provider" | "unlisted";
   /** The connector's own page on Connections, for a Connections row. */
   href: string | null;
   /** Null where there is no connection whose health could be read. */
@@ -73,7 +73,8 @@ export type BindInput = {
 
 type Loaded = {
   directory: ConnectorDirectory | null;
-  connections: Connection[];
+  /** Null when the Connections list could not be read. */
+  connections: Connection[] | null;
   shares: LocalShare[];
   identities: ConnectorIdentity[];
   settings: Record<string, ConnectorSetting>;
@@ -120,11 +121,14 @@ function connectionRows(connections: readonly Connection[]): ConnectorRow[] {
  * A row for every grant no connector row carries, so access that exists is
  * always listed and can be revoked: a provider-wide grant (a standing grant,
  * keyed by provider id) with no connection of that provider here, and a grant
- * on a connector that was removed or never imported on this device.
+ * on a connector this device does not list — removed, never imported, or on
+ * a Connections list that did not answer (`connectionsRead` false), which is
+ * why such a row then reports no health rather than claiming it is gone.
  */
 function grantOnlyRows(
   shares: readonly LocalShare[],
   rows: readonly ConnectorRow[],
+  connectionsRead: boolean,
 ): ConnectorRow[] {
   const covered = (share: LocalShare) =>
     rows.some(
@@ -134,36 +138,47 @@ function grantOnlyRows(
   const seen = new Map<string, ConnectorRow>();
   for (const share of shares) {
     if (covered(share) || seen.has(share.resourceId)) continue;
-    const removed = /[:/#]/.test(share.resourceId);
-    // A standing grant's label was written when it was issued; the catalog
-    // names the provider now.
-    const name = removed
-      ? share.resourceLabel
-      : (catalogProvider(share.resourceId)?.displayName ?? share.resourceLabel);
+    const unlisted = /[:/#]/.test(share.resourceId);
+    if (!unlisted) {
+      seen.set(share.resourceId, {
+        id: share.resourceId,
+        label: share.resourceLabel,
+        providerId: share.resourceId,
+        // A standing grant's label was written when it was issued; the
+        // catalog names the provider now.
+        name:
+          catalogProvider(share.resourceId)?.displayName ?? share.resourceLabel,
+        detail: `${share.resourceId} · every connection`,
+        source: "provider",
+        href: connectorPath(share.resourceId),
+        healthy: null,
+        problem: null,
+      });
+      continue;
+    }
+    const known = connectionsRead || !share.resourceId.startsWith("host:");
     seen.set(share.resourceId, {
       id: share.resourceId,
       label: share.resourceLabel,
-      providerId: removed ? "" : share.resourceId,
-      name,
-      detail: removed
-        ? share.resourceId
-        : `${share.resourceId} · every connection`,
-      source: removed ? "removed" : "provider",
-      href: removed ? null : connectorPath(share.resourceId),
-      healthy: removed ? false : null,
-      problem: removed ? "Removed" : null,
+      providerId: "",
+      name: share.resourceLabel,
+      detail: share.resourceId,
+      source: "unlisted",
+      href: null,
+      healthy: known ? false : null,
+      problem: known ? "Not configured" : null,
     });
   }
   return [...seen.values()];
 }
 
-async function readConnections(): Promise<Connection[]> {
+async function readConnections(): Promise<Connection[] | null> {
   try {
     return await listConnections();
   } catch {
     // Connections that do not answer are not this panel's failure to report:
     // the Connections page says so, and the directory rows stand.
-    return [];
+    return null;
   }
 }
 
@@ -239,6 +254,8 @@ export function useConnectorAccess(tomb: string) {
   const directory = reads.loaded?.directory ?? null;
   const shares = reads.loaded?.shares ?? [];
   const connections = reads.loaded?.connections ?? [];
+  const connectionsRead = reads.loaded?.connections !== null;
+  const settings = reads.loaded?.settings ?? {};
 
   async function run(action: () => Promise<string>): Promise<boolean> {
     if (busy) return false;
@@ -273,25 +290,29 @@ export function useConnectorAccess(tomb: string) {
         share.resourceId === row.id || share.resourceId === row.providerId,
     );
 
+  // A disabled connector stays listed with nobody bound: switching it off
+  // is an access decision too, and its row is where it is switched back on.
   const granted = useMemo(
     () => [
-      ...rows.filter((row) =>
-        shares.some(
-          (share) =>
-            share.resourceId === row.id || share.resourceId === row.providerId,
-        ),
+      ...rows.filter(
+        (row) =>
+          !settingFor(settings, row.id).enabled ||
+          shares.some(
+            (share) =>
+              share.resourceId === row.id ||
+              share.resourceId === row.providerId,
+          ),
       ),
-      ...grantOnlyRows(shares, rows),
+      ...grantOnlyRows(shares, rows, connectionsRead),
     ],
-    [rows, shares],
+    [rows, shares, settings, connectionsRead],
   );
 
   return {
     rows,
     granted,
-    settings: reads.loaded?.settings ?? {},
-    settingsFor: (row: ConnectorRow) =>
-      settingFor(reads.loaded?.settings ?? {}, row.id),
+    settings,
+    settingsFor: (row: ConnectorRow) => settingFor(settings, row.id),
     identities: reads.loaded?.identities ?? [],
     loaded: reads.loaded !== null,
     busy,

@@ -166,6 +166,9 @@ function RowActions({
   onOpenBind: () => void;
   onOpenSettings: () => void;
 }) {
+  // A grant on a connector this device does not list can only be revoked:
+  // there is nothing here to bind it to or configure.
+  if (row.source === "unlisted") return null;
   return (
     <div className="actions">
       <button

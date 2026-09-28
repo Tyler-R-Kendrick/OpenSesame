@@ -38,7 +38,19 @@
       "and family-local's externalServices deny is enforced by the egress",
       "port at runtime, which is why the two still measure alike. The CI",
       "Bundle budgets job now builds both profiles, so these numbers are",
-      "measured on every pull request. Budgets keep ~2% headroom."
+      "measured on every pull request. Budgets keep ~2% headroom.",
+      "2026-09-28: largestAsset 743 -> 748 for both. `main` on main at",
+      "38cf0c11 already measured 743.15 KiB, so the ceiling had no headroom",
+      "left. The connectors change (Access lists access, Connections",
+      "imports) adds no module to `main` -- its code is in the access and",
+      "connections runtime chunks -- but it changes which chunks share",
+      "`activation.ts`, `use-online.ts` and two small always-on runtimes",
+      "(vault.certificate-records, backup.cloud-secrets). Rollup now groups",
+      "those (~6 KiB) into `main` and moves the WebMCP registration chunk",
+      "(~5 KiB) out: +2.9 KiB net, measured from source maps of both",
+      "builds. Neither lowering experimentalMinChunkSize nor a dedicated",
+      "module-support chunk kept `main` smaller; both made it larger.",
+      "total, javascript and gzip budgets are unchanged and still pass."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -48,7 +60,7 @@
           "javascript": 4122,
           "javascriptGzip": 1241,
           "css": 171,
-          "largestAsset": 743
+          "largestAsset": 748
         }
       },
       "family-local-hardened": {
@@ -58,7 +70,7 @@
           "javascript": 4122,
           "javascriptGzip": 1241,
           "css": 171,
-          "largestAsset": 743
+          "largestAsset": 748
         }
       }
     }

@@ -100,7 +100,7 @@ export function ConnectorImport({
                 <span className="conn-tile__kind">{entry.kind}</span>
               </span>
               {entry.id === "vercel" && transport.canManage ? (
-                <StatusMark tone="ok" label="Imported" />
+                <StatusMark tone="ok" label="Ready" />
               ) : null}
             </button>
           </li>

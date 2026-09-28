@@ -134,7 +134,7 @@ it("lists a provider-wide grant on the connection it covers, and revokes it ther
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });
 
-it("lists access whose connector is not configured here, so it can be revoked", async () => {
+it("lists access whose connector is not listed here, so it can be revoked", async () => {
   const fixture = await localRequestFixture();
   // A standing grant, keyed by provider, with no GitHub connection here.
   await createLocalShare(fixture.tomb, {
@@ -162,7 +162,14 @@ it("lists access whose connector is not configured here, so it can be revoked", 
   const list = within(screen.getByRole("list", { name: "Connector access" }));
   expect(list.getByText("github · every connection")).toBeTruthy();
   expect(list.getByRole("heading", { name: "Linear" })).toBeTruthy();
-  expect(list.getByLabelText("Removed")).toBeTruthy();
+  expect(list.getByLabelText("Not configured")).toBeTruthy();
+  // Nothing here to bind it to or configure: only its grants' Revoke.
+  const linear = list.getByRole("heading", { name: "Linear" }).closest("li");
+  if (!linear) throw new Error("no row for Linear");
+  expect(within(linear).queryByRole("button", { name: "Bind" })).toBeNull();
+  expect(
+    within(linear).queryByRole("button", { name: "Configure" }),
+  ).toBeNull();
   // Slack is configured but nobody holds it: not listed.
   expect(list.queryByRole("heading", { name: "Slack" })).toBeNull();
 
@@ -180,4 +187,24 @@ it("lists access whose connector is not configured here, so it can be revoked", 
   expect(left.filter((share) => share.resourceKind === "connection")).toEqual(
     [],
   );
+});
+
+it("a Connections list that did not answer claims nothing about its grants", async () => {
+  connectionSeams.listConnections = vi.fn(async () => {
+    throw new Error("unreachable");
+  });
+  const fixture = await localRequestFixture();
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "host:scn_slack",
+    resourceLabel: "Slack",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "Slack" });
+  const list = within(screen.getByRole("list", { name: "Connector access" }));
+  expect(list.queryByLabelText("Not configured")).toBeNull();
+  expect(list.getByRole("button", { name: "Revoke" })).toBeTruthy();
 });

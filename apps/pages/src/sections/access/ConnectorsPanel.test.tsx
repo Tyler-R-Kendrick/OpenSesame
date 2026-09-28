@@ -281,3 +281,71 @@ it("configures a granted connector: alias, disable, and bind defaults", async ()
       .disabled,
   ).toBe(true);
 });
+
+it("a disabled connector stays listed after its last grant, so it can be enabled again", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  await userEvent.click(
+    accessRow("GitHub · octo@example.com").getByRole("button", {
+      name: "Configure",
+    }),
+  );
+  const form = screen.getByRole("group", {
+    name: "Configure GitHub · octo@example.com",
+  });
+  await userEvent.click(within(form).getByLabelText(/Enabled/));
+  await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+  const row = await waitFor(() => accessRow("GitHub · octo@example.com"));
+  await row.findByRole("img", { name: "Disabled" });
+  await userEvent.click(row.getByRole("button", { name: "Revoke" }));
+  await waitFor(async () =>
+    expect(await listLocalShares(fixture.tomb)).toHaveLength(0),
+  );
+  // Nobody holds it, and its row is still where it is switched back on.
+  const still = accessRow("GitHub · octo@example.com");
+  expect(still.getByText("0 bound")).toBeTruthy();
+  await userEvent.click(still.getByRole("button", { name: "Configure" }));
+  await userEvent.click(
+    within(
+      screen.getByRole("group", {
+        name: "Configure GitHub · octo@example.com",
+      }),
+    ).getByLabelText(/Enabled/),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await screen.findByRole("heading", { name: "No connector access" });
+});
+
+it("cancelling the chosen connector's form returns the keyboard to its choice", async () => {
+  const fixture = await seeded();
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  const choice = screen.getByRole("button", { name: /Slack/ });
+  await userEvent.click(choice);
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByLabelText("Identity")).toBeNull();
+  await waitFor(() => expect(document.activeElement).toBe(choice));
+});
+
+it("one bind form at a time: a row's Bind closes the choices", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add connector access" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: /Slack/ }));
+  expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
+  await userEvent.click(
+    accessRow("GitHub · octo@example.com").getByRole("button", {
+      name: "Bind",
+    }),
+  );
+  expect(
+    screen.queryByRole("group", { name: "Add connector access" }),
+  ).toBeNull();
+  expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
+});

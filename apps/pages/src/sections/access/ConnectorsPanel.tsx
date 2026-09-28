@@ -15,7 +15,7 @@ import { useState } from "react";
 import { IconPlus, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
-import { ConnectorPicker } from "./ConnectorPicker.js";
+import { ConnectorPicker, choiceId } from "./ConnectorPicker.js";
 import { ConnectorRows, bindButtonId } from "./ConnectorRows.js";
 import {
   type BindInput,
@@ -89,7 +89,16 @@ function useAccessForms(state: Access) {
         focusAfter(byId(bindButtonId(row.id)));
       });
     },
+    cancelChoice() {
+      const rowId = chosen;
+      setChosen(null);
+      // The form under the choices closes; its choice keeps the keyboard.
+      if (rowId) focusAfter(byId(choiceId(rowId)));
+    },
     openBind(row: ConnectorRow) {
+      // One bind form at a time: the choices close when a row's opens.
+      setAdding(false);
+      setChosen(null);
       setSettingsRow(null);
       setBindingRow(row.id);
     },
@@ -101,6 +110,8 @@ function useAccessForms(state: Access) {
       if (rowId) focusAfter(byId(bindButtonId(rowId)));
     },
     openSettings(row: ConnectorRow) {
+      setAdding(false);
+      setChosen(null);
       setBindingRow(null);
       setSettingsRow(row.id);
     },
@@ -182,6 +193,7 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
             busy={state.busy}
             chosen={forms.chosen}
             onChoose={(row) => forms.setChosen(row?.id ?? null)}
+            onCancel={forms.cancelChoice}
             onBind={forms.grantFromPicker}
             onClose={forms.closePicker}
           />

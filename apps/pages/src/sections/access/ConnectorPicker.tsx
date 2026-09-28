@@ -26,6 +26,11 @@ import type {
 /** Where a connector is configured before anyone can be granted it. */
 export const NEW_CONNECTOR_PATH = "/connections#catalog";
 
+/** A choice's id, where the keyboard returns when its bind form closes. */
+export function choiceId(rowId: string): string {
+  return `connector-choice-${rowId}`;
+}
+
 function Choice({
   row,
   setting,
@@ -43,6 +48,7 @@ function Choice({
   return (
     <li className="conn-tile">
       <button
+        id={choiceId(row.id)}
         type="button"
         className="conn-tile__link access-pick__choice"
         aria-pressed={chosen}
@@ -73,6 +79,7 @@ export function ConnectorPicker({
   chosen,
   onChoose,
   onBind,
+  onCancel,
   onClose,
 }: {
   rows: readonly ConnectorRow[];
@@ -83,6 +90,8 @@ export function ConnectorPicker({
   chosen: string | null;
   onChoose: (row: ConnectorRow | null) => void;
   onBind: (row: ConnectorRow, input: BindInput) => void;
+  /** The chosen connector's bind form was cancelled. */
+  onCancel: () => void;
   onClose: () => void;
 }) {
   const chosenRow = rows.find((row) => row.id === chosen) ?? null;
@@ -132,7 +141,7 @@ export function ConnectorPicker({
           busy={busy}
           initialPolicy={settingsFor(chosenRow).defaultPolicy}
           initialDuration={settingsFor(chosenRow).defaultDurationSeconds}
-          onCancel={() => onChoose(null)}
+          onCancel={onCancel}
           onBind={(input) => onBind(chosenRow, input)}
         />
       ) : null}
