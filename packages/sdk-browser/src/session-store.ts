@@ -1,7 +1,7 @@
 /**
  * What the browser client keeps between a sign-in and its callback, and after:
  * the PKCE transaction, the return path and the session. Every value reaches
- * the store sealed under the origin's at-rest key (ADR 0148,
+ * the store sealed under the origin's at-rest key (ADR 0149,
  * `@opensesame/browser-at-rest`), bound to its key; a refresh token never
  * reaches the store at all. Where the origin can keep no key, values stay in
  * memory for the life of the document rather than rest in the clear.
@@ -76,7 +76,7 @@ export type SessionStore = {
   setReturnTo(value: string | null): Promise<void>;
   /**
    * Keep the PKCE transaction for the page after the redirect. It must reach
-   * storage sealed (ADR 0148): an origin that can keep no key cannot sign in.
+   * storage sealed (ADR 0149): an origin that can keep no key cannot sign in.
    */
   savePkce(value: string): Promise<void>;
   /** Take the PKCE transaction: gone from storage before this returns. */

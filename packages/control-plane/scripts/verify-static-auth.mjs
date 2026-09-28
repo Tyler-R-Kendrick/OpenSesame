@@ -115,7 +115,7 @@ async function captureBrowserWire(context, page, scenario) {
   return { pageErrors, calls, transaction: () => ({ pending, callback }) };
 }
 
-/** Sealed at rest (ADR 0148): not the verifier, the nonce or the state. */
+/** Sealed at rest (ADR 0149): not the verifier, the nonce or the state. */
 function assertSealed(pending, callback) {
   assert.ok(pending);
   assert.match(pending.value, /^osc1\./);

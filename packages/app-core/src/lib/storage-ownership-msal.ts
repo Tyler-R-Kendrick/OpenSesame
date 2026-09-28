@@ -3,7 +3,7 @@
  * sessionStorage entries it never writes itself.
  *
  * `@azure/msal-browser` 5.22 keeps its token cache in memory
- * (`cacheLocation: "memoryStorage"`, `ambient-auth/entra.ts`, ADR 0148), but
+ * (`cacheLocation: "memoryStorage"`, `ambient-auth/entra.ts`, ADR 0149), but
  * its request in flight always goes to sessionStorage, and a tab that ran an
  * older build may still hold the rest. It writes these straight to the
  * store, lowercased where noted:

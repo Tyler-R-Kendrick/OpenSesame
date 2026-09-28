@@ -1,5 +1,5 @@
 /**
- * Nothing the browser client keeps rests in the clear (ADR 0148): the PKCE
+ * Nothing the browser client keeps rests in the clear (ADR 0149): the PKCE
  * transaction and the session reach the RP's storage sealed, the return path
  * comes back through the callback, and an origin that can keep no key keeps
  * nothing at all.

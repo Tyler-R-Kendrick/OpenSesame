@@ -13,7 +13,7 @@ import { HISTORY_BACKUP_DATABASE } from "./storage-ownership.js";
 /**
  * Store for provisional Postgres-family history accounts and entries.
  * Uses IndexedDB when available; falls back to memory (tests / private mode).
- * Every row is sealed under the device's at-rest key (ADR 0148): only its
+ * Every row is sealed under the device's at-rest key (ADR 0149): only its
  * random id — and an entry's random account id, which the index needs —
  * stays readable. With no durable key nothing reaches IndexedDB.
  */

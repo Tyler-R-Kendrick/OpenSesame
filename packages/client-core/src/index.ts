@@ -8,7 +8,7 @@ import {
 } from "@opensesame/os-domain";
 
 /**
- * How the sync store's file is sealed at rest (ADR 0148). The embedder hands
+ * How the sync store's file is sealed at rest (ADR 0149). The embedder hands
  * one in — the browser extension passes `@opensesame/browser-at-rest` — so
  * this facade keeps no storage key of its own. Without one, the store is
  * kept in memory: never in the clear.
@@ -199,7 +199,7 @@ function sealedFileName(name: string): string {
 
 /**
  * OPFS / memory persistence of sealed sync JSON (ciphertext only). The file
- * itself is sealed at rest too (ADR 0148), so the device id and epoch beside
+ * itself is sealed at rest too (ADR 0149), so the device id and epoch beside
  * the ciphertext are not in the clear either; with no key to seal under, the
  * store stays in memory.
  */

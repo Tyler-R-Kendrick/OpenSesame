@@ -1,5 +1,5 @@
 /**
- * Nothing the app stores rests in the clear (ADR 0148): the seal, the key's
+ * Nothing the app stores rests in the clear (ADR 0149): the seal, the key's
  * three states, and each store the app writes.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

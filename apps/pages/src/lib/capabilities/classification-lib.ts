@@ -20,7 +20,7 @@ const WALLET = "wallet.spending";
 
 const CORE_INFRA = [
   "kv",
-  "at-rest/", // every stored value's seal and the device key (ADR 0148)
+  "at-rest/", // every stored value's seal and the device key (ADR 0149)
   "vfs",
   "projects",
   "vaults",

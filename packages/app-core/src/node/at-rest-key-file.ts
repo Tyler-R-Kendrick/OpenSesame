@@ -1,5 +1,5 @@
 /**
- * The CLI's at-rest key (ADR 0148): 32 random bytes in a file of their own,
+ * The CLI's at-rest key (ADR 0149): 32 random bytes in a file of their own,
  * readable by its owner only (0600) and kept apart from the storage file
  * it seals, so that file never holds a value in the clear. Linked into place
  * whole, so two processes starting at once agree on one key.

@@ -1,5 +1,5 @@
 /**
- * The device's at-rest data key (ADR 0148): the key every value the app
+ * The device's at-rest data key (ADR 0149): the key every value the app
  * leaves in Web Storage, origin-private files or IndexedDB is sealed under.
  *
  * The host keeps it (`Ports.atRestKeys`): the browser wraps it under a

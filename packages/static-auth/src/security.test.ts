@@ -229,7 +229,7 @@ describe("hosted code flow", () => {
     const [stored] = [...map.values()];
     const authorize = new URL(stub.location.assign.mock.calls[0]?.[0] ?? "");
     const state = authorize.searchParams.get("state") ?? "";
-    // ADR 0148: neither the verifier nor the state rests in the clear.
+    // ADR 0149: neither the verifier nor the state rests in the clear.
     expect(stored).toMatch(/^osc1\./);
     expect(stored).not.toContain(state);
     expect(stored).not.toContain("codeVerifier");

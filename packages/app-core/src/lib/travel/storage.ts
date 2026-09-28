@@ -112,7 +112,7 @@ async function root(): Promise<FileSystemDirectoryHandle> {
 /**
  * The origin's own storage: OPFS, the same files `kv.ts` writes. Files are
  * read opened and written sealed under this device's at-rest key
- * (ADR 0148), so a bundle carries what the vault is, not this browser's
+ * (ADR 0149), so a bundle carries what the vault is, not this browser's
  * seal on it — a vault can come home to a browser that was reset while it
  * travelled.
  */

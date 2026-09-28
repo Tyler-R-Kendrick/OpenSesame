@@ -1,6 +1,6 @@
 # @opensesame/browser-at-rest
 
-At-rest sealing for browser storage outside the Pages app (ADR 0148). One
+At-rest sealing for browser storage outside the Pages app (ADR 0149). One
 non-extractable AES-GCM key per origin, kept in that origin's IndexedDB
 (`opensesame-client-at-rest`): script can use it and never read it. A value is
 `osc1.` + base64 of a 12-byte IV and the ciphertext, with its store and name
@@ -31,4 +31,4 @@ bound as associated data, so a value copied under another name does not open.
 ## What it does not protect
 
 Script running in the same origin can use the key, exactly as the SDK does;
-it protects what rests on disk, not the page. See ADR 0148.
+it protects what rests on disk, not the page. See ADR 0149.

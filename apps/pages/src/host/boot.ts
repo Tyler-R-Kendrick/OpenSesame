@@ -27,7 +27,7 @@ configureHost(
     ...shellBuild,
   }),
 );
-// Start loading the at-rest key (ADR 0148) now: every stored value is sealed
+// Start loading the at-rest key (ADR 0149) now: every stored value is sealed
 // under it, and boot waits for it before reading anything. A write made
 // before it lands waits in memory.
 void atRestReady();

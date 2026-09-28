@@ -332,7 +332,7 @@ describe("PACT — browser extension loopback pin", () => {
       [
         "normalizeLoopbackBaseUrl(raw)",
         "if (!value)",
-        // Only the normalized value is stored, sealed at rest (ADR 0148).
+        // Only the normalized value is stored, sealed at rest (ADR 0149).
         'sealForRest(STORE, "hostApiBase", value)',
         "chrome.storage.local.set({ hostApiBase: sealed })",
       ],

@@ -1,5 +1,5 @@
 /**
- * A sealed view of a synchronous store (ADR 0148): what a relying party's
+ * A sealed view of a synchronous store (ADR 0149): what a relying party's
  * SDK writes to `sessionStorage` reaches it as an at-rest seal bound to the
  * store's scope and the key, and is read back in the clear. The store keeps
  * its synchronous contract; sealing needs the origin's key, so the view is

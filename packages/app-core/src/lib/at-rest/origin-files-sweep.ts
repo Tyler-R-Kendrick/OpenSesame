@@ -1,6 +1,6 @@
 /**
  * The boot-time sweep that seals origin files an older build left in the
- * clear (ADR 0148). Apart from `origin-files.ts` because only a shell with a
+ * clear (ADR 0149). Apart from `origin-files.ts` because only a shell with a
  * directory to list — the Pages boot — runs it.
  */
 

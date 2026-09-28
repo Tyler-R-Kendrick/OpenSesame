@@ -22,7 +22,7 @@ const CLIENT_ID = `origin:${RP_ORIGIN}`;
 const wireFetch = globalThis.fetch;
 
 // Node has no IndexedDB: the RP origin's at-rest key is held in memory, so
-// the SDK's transaction is sealed exactly as in a browser (ADR 0148).
+// the SDK's transaction is sealed exactly as in a browser (ADR 0149).
 const rpKey = crypto.subtle.generateKey(
   { name: "AES-GCM", length: 256 },
   false,

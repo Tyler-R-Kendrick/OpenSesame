@@ -1,5 +1,5 @@
 /**
- * The at-rest seal (ADR 0148): what every value the app leaves in a browser
+ * The at-rest seal (ADR 0149): what every value the app leaves in a browser
  * store looks like on disk.
  *
  * `osr1.` then base64url of a 24-byte random nonce and the XChaCha20-Poly1305

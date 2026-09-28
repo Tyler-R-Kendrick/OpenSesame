@@ -3,7 +3,7 @@
 Scope: everything the client plane writes to a device. That covers the Pages
 app's Web Storage, origin-private files and IndexedDB; MSAL's cache; the
 browser extension's `chrome.storage`; `client-core`'s sync store; and the
-CLI core's `local-storage.json`. Decision: [ADR 0148](../../adr/0148-nothing-stored-in-the-clear.md).
+CLI core's `local-storage.json`. Decision: [ADR 0149](../../adr/0149-nothing-stored-in-the-clear.md).
 
 ## Method
 
@@ -45,7 +45,7 @@ After a Google sign-in, 17 of 17 app-owned values were in the clear.
 
 ## Fix
 
-- Every value is sealed under a device key held by the host (ADR 0148 §1–3).
+- Every value is sealed under a device key held by the host (ADR 0149 §1–3).
   The seal is XChaCha20-Poly1305, bound to its store and name. In a browser
   the key is wrapped by a non-extractable IndexedDB key.
 - Legacy plaintext is sealed in place at the next boot or read (§5).

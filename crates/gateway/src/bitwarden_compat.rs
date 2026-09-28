@@ -2,6 +2,11 @@
 //! the operator turns it on. Off by default: nothing is routed, nothing is
 //! read, and the tables stay empty.
 //!
+//! It is a password-manager bridge (ADR 0148), so it is also off at build
+//! time: only a Host built with the `bitwarden-compat` feature can serve it.
+//! A Host built without it that is asked to serve it refuses to start rather
+//! than come up without the surface the operator configured.
+//!
 //! Configuration is read from the environment, as `callback_ingress` is, so
 //! the Host's argument struct does not grow a field per optional surface:
 //!
@@ -13,16 +18,11 @@
 //! | `OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID` | `true` refuses PBKDF2 for new accounts and KDF changes |
 //! | `OPENSESAME_BITWARDEN_TOKEN_KEY` | 32+ hex-encoded bytes that sign access tokens, shared by every replica; unset = a per-process key |
 
-use anyhow::Context as _;
 use axum::Router;
-use opensesame_bitwarden_server::hashing::HashRegistry;
-use opensesame_bitwarden_server::kdf::KdfPolicy;
-use opensesame_bitwarden_server::{BitwardenServer, ServerConfig, SignupPolicy};
 use opensesame_storage::Db;
-use zeroize::Zeroizing;
 
-/// Where the surface is mounted on the Host.
-pub const MOUNT: &str = "/bitwarden";
+#[cfg(feature = "bitwarden-compat")]
+mod surface;
 
 fn enabled(raw: Option<&str>) -> bool {
     matches!(
@@ -31,121 +31,51 @@ fn enabled(raw: Option<&str>) -> bool {
     )
 }
 
-/// The server configuration the environment describes, or `None` when the
-/// surface is off.
-fn config_from(lookup: impl Fn(&str) -> Option<String>, resource: &str) -> Option<ServerConfig> {
-    if !enabled(lookup("OPENSESAME_BITWARDEN_COMPAT").as_deref()) {
-        return None;
-    }
-    let url = lookup("OPENSESAME_BITWARDEN_URL")
-        .filter(|url| !url.trim().is_empty())
-        .unwrap_or_else(|| format!("{}{MOUNT}", resource.trim_end_matches('/')));
-    let mut config = ServerConfig::new(&url);
-    config.signups =
-        SignupPolicy::parse(&lookup("OPENSESAME_BITWARDEN_SIGNUPS").unwrap_or_default());
-    config.kdf = KdfPolicy {
-        allow_pbkdf2: !enabled(lookup("OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID").as_deref()),
-        ..KdfPolicy::default()
-    };
-    Some(config)
-}
-
-/// The access-token signing key: 32 or more bytes, hex-encoded. Replicas
-/// behind one URL share it, so a token minted on one verifies on another.
-fn token_key(raw: Option<&str>) -> anyhow::Result<Option<Zeroizing<Vec<u8>>>> {
-    let Some(raw) = raw.map(str::trim).filter(|raw| !raw.is_empty()) else {
-        return Ok(None);
-    };
-    let key = Zeroizing::new(
-        hex::decode(raw).context("OPENSESAME_BITWARDEN_TOKEN_KEY must be hex-encoded")?,
-    );
-    anyhow::ensure!(
-        key.len() >= 32,
-        "OPENSESAME_BITWARDEN_TOKEN_KEY must hold at least 32 bytes"
-    );
-    Ok(Some(key))
-}
-
 /// The mounted surface, or an empty router when it is off.
 ///
 /// # Errors
 ///
-/// Fails when the surface is on and its token key is malformed; nothing is
-/// served in that case rather than falling back to a per-process key.
+/// Fails when the surface is on and its token key is malformed, and when it
+/// is on in a Host built without the `bitwarden-compat` feature.
 pub fn from_env(db: Db, resource: &str) -> anyhow::Result<Router> {
-    let Some(config) = config_from(|key| std::env::var(key).ok(), resource) else {
+    if !enabled(std::env::var("OPENSESAME_BITWARDEN_COMPAT").ok().as_deref()) {
         return Ok(Router::new());
-    };
-    let key = token_key(
-        std::env::var("OPENSESAME_BITWARDEN_TOKEN_KEY")
-            .ok()
-            .map(Zeroizing::new)
-            .as_deref()
-            .map(String::as_str),
-    )?;
-    tracing::info!(
-        url = %config.public_url,
-        signups = ?config.signups,
-        allow_pbkdf2 = config.kdf.allow_pbkdf2,
-        shared_token_key = key.is_some(),
-        "bitwarden-compat surface mounted"
-    );
-    let server = BitwardenServer::new(
-        db,
-        config,
-        HashRegistry::default(),
-        key.as_deref().map(Vec::as_slice),
-    );
-    Ok(Router::new().nest(MOUNT, server.router()))
+    }
+    mount(db, resource)
+}
+
+#[cfg(feature = "bitwarden-compat")]
+fn mount(db: Db, resource: &str) -> anyhow::Result<Router> {
+    surface::from_env(db, resource)
+}
+
+#[cfg(not(feature = "bitwarden-compat"))]
+fn mount(_db: Db, _resource: &str) -> anyhow::Result<Router> {
+    anyhow::bail!(
+        "OPENSESAME_BITWARDEN_COMPAT is on, but this Host was built without the \
+         Bitwarden bridge; rebuild with `--features bitwarden-compat` or unset it"
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-
-    fn config(pairs: &[(&str, &str)]) -> Option<ServerConfig> {
-        let env: HashMap<String, String> = pairs
-            .iter()
-            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
-            .collect();
-        config_from(|key| env.get(key).cloned(), "https://host.example/")
-    }
 
     #[test]
-    fn the_surface_is_off_unless_the_operator_turns_it_on() {
-        assert!(config(&[]).is_none());
-        assert!(config(&[("OPENSESAME_BITWARDEN_COMPAT", "off")]).is_none());
-        let on = config(&[("OPENSESAME_BITWARDEN_COMPAT", "on")]).unwrap();
-        assert_eq!(on.public_url, "https://host.example/bitwarden");
-        assert_eq!(on.signups, SignupPolicy::Closed);
-        assert!(on.kdf.allow_pbkdf2);
+    fn only_on_and_its_synonyms_turn_the_surface_on() {
+        for on in ["on", "ON", " true ", "1", "yes"] {
+            assert!(enabled(Some(on)), "{on}");
+        }
+        for off in [None, Some(""), Some("off"), Some("false"), Some("0")] {
+            assert!(!enabled(off), "{off:?}");
+        }
     }
 
-    #[test]
-    fn a_token_key_is_hex_and_long_enough_or_absent() {
-        assert!(token_key(None).unwrap().is_none());
-        assert!(token_key(Some("  ")).unwrap().is_none());
-        assert_eq!(
-            token_key(Some(&"ab".repeat(32))).unwrap().unwrap().len(),
-            32
-        );
-        assert!(token_key(Some(&"ab".repeat(31))).is_err());
-        assert!(token_key(Some("not hex")).is_err());
-    }
-
-    #[test]
-    fn signups_url_and_argon2id_are_configurable() {
-        let custom = config(&[
-            ("OPENSESAME_BITWARDEN_COMPAT", "true"),
-            ("OPENSESAME_BITWARDEN_URL", "https://vault.example"),
-            ("OPENSESAME_BITWARDEN_SIGNUPS", "example.com, @corp.example"),
-            ("OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID", "true"),
-        ])
-        .unwrap();
-        assert_eq!(custom.public_url, "https://vault.example");
-        assert!(custom.signups.allows("a@corp.example"));
-        assert!(!custom.signups.allows("a@elsewhere.example"));
-        assert!(!custom.kdf.allow_pbkdf2);
+    #[cfg(not(feature = "bitwarden-compat"))]
+    #[tokio::test]
+    async fn a_host_without_the_bridge_refuses_to_serve_it() {
+        let db = Db::connect_memory().await.unwrap();
+        let refused = mount(db, "https://host.example").unwrap_err();
+        assert!(refused.to_string().contains("--features bitwarden-compat"));
     }
 }

@@ -41,7 +41,7 @@ function checkedProfile(profile: HostedProfile, origin: string) {
 /**
  * Configuration is pinned by the RP. No discovery or callback metadata can
  * replace it. The transaction between `begin` and `complete` reaches
- * `storage` sealed under the origin's at-rest key (ADR 0148), or stays in
+ * `storage` sealed under the origin's at-rest key (ADR 0149), or stays in
  * memory where the origin can keep no key.
  */
 export function createHostedClient(
@@ -59,7 +59,7 @@ export function createHostedClient(
       JSON.stringify({ ...pkce, createdAt: Date.now(), profile }),
     );
     // The transaction must outlive the redirect and never rests in the
-    // clear (ADR 0148): an origin that can keep no key cannot sign in.
+    // clear (ADR 0149): an origin that can keep no key cannot sign in.
     if (kept !== "stored") {
       sealed.remove(storageKey);
       throw new Error("storage_unavailable");

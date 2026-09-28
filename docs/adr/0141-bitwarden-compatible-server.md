@@ -1,6 +1,7 @@
 # ADR 0141 — A Bitwarden-compatible server, with Argon2id and a replaceable hash
 
-- Status: Accepted
+- Status: Accepted; amended by [ADR 0148](0148-bitwarden-bridge-and-importer.md)
+  (an optional bridge feature, compiled on request)
 - Date: 2026-09-24
 - Builds on: [ADR 0052](0052-password-manager-ecosystem-bridging.md)
   (password-manager ecosystem bridging), [ADR 0097](0097-bounded-kdf-policy.md)

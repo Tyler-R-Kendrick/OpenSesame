@@ -51,7 +51,7 @@ function stubOpfs(files = new Map<string, string>()) {
 
 /**
  * The embedder's seal, as a reversible stand-in bound to the file name; the
- * real one is `@opensesame/browser-at-rest` (ADR 0148).
+ * real one is `@opensesame/browser-at-rest` (ADR 0149).
  */
 const seal: SyncStoreSeal = {
   sealForRest: async (_store, name, text) =>

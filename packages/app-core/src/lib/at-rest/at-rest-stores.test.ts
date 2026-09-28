@@ -1,5 +1,5 @@
 /**
- * The at-rest seal on the stores that are not Web Storage (ADR 0148): the
+ * The at-rest seal on the stores that are not Web Storage (ADR 0149): the
  * browser's key record, IndexedDB rows and origin-private files.
  */
 import { mkdtempSync, readFileSync, statSync } from "node:fs";

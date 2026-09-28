@@ -1,5 +1,5 @@
 /**
- * MSAL writes Web Storage itself, past the at-rest seal (ADR 0148). It keeps
+ * MSAL writes Web Storage itself, past the at-rest seal (ADR 0149). It keeps
  * nothing there only while two things hold: its cache lives in memory, and
  * no interactive flow runs — a redirect keeps its request (state, PKCE
  * verifier) in sessionStorage, and a redirect or popup marks SSO capability

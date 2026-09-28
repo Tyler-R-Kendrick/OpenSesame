@@ -1,4 +1,4 @@
-// Nothing the app stores rests in the clear (ADR 0148), measured in the real
+// Nothing the app stores rests in the clear (ADR 0149), measured in the real
 // browser: every value of the app's Web Storage keys, every one of its
 // origin-private files and every row of its IndexedDB databases (a row's
 // `sealed` field, or the whole row when it has none) is an at-rest seal,

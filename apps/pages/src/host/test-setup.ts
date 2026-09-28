@@ -19,7 +19,7 @@ configureHost(
     env: import.meta.env,
     ...shellBuild,
     recordStorageWrite,
-    // Values are sealed under a key the host has at hand (ADR 0148), so a
+    // Values are sealed under a key the host has at hand (ADR 0149), so a
     // test's storage is the page's real Web Storage, sealed.
     atRestKeys: testAtRestKeys,
   }),

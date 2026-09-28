@@ -133,7 +133,7 @@ describe("kv with OPFS backing", () => {
     expect(kvDurability()).toBe("persistent");
     const file = "opensesame-pages-settings.v1.json";
     const stored = root.files.get(file) ?? "";
-    // Sealed at rest (ADR 0148), bound to its file name.
+    // Sealed at rest (ADR 0149), bound to its file name.
     expect(stored).not.toContain("payload");
     expect(await openOriginFile(file, stored)).toBe("payload");
     expect(await openOriginFile("opensesame-pages-other.json", stored)).toBe(

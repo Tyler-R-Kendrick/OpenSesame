@@ -1,4 +1,4 @@
-# ADR 0148 — Nothing the client stores rests in the clear
+# ADR 0149 — Nothing the client stores rests in the clear
 
 - Status: Accepted
 - Date: 2026-09-28

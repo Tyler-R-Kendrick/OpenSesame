@@ -120,7 +120,7 @@ describe("claim stash, stricter than both app copies", () => {
       claimId: "clm_1",
       principalId: "prn_1",
     });
-    // The bearer never rests in the clear (ADR 0148).
+    // The bearer never rests in the clear (ADR 0149).
     expect(storage.getItem(KEY)).not.toContain("osc_clm_a");
     const stored = JSON.parse(sessionStore().getItem(KEY) ?? "{}");
     expect(Object.keys(stored).sort()).toEqual([

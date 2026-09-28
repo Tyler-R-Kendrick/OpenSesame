@@ -1,5 +1,5 @@
 /**
- * At-rest sealing for the client plane outside the Pages app (ADR 0148): the
+ * At-rest sealing for the client plane outside the Pages app (ADR 0149): the
  * sync store's origin files, the browser extension's settings, and what the
  * relying-party SDKs keep between a sign-in and its callback.
  *
