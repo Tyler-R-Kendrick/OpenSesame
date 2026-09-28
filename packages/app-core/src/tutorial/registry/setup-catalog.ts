@@ -72,7 +72,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "setup.join",
     description:
-      "The front door's Join a session road: join somebody's live session from the link they shared (plus the code, for an invite), browser to browser, or accept a Host invite. A shared link opens it by itself.",
+      "The front door's Join a session road: join somebody's live session from the link they shared (plus the code, for an invite), browser to browser by trading request and reply codes, or accept a Host invite. A shared link opens it by itself.",
     role: "action",
     routes: ["/unlock"],
     capabilityId: "setup.first_run",

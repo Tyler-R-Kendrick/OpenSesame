@@ -22,11 +22,7 @@ import {
   parseLiveLink,
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
-import {
-  NAME_MAX,
-  NOTE_MAX,
-  type RefusalReason,
-} from "@opensesame/app-core/lib/live/messages.js";
+import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
 import { joinLive, leaveLive } from "@opensesame/app-core/lib/live/session.js";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -42,39 +38,34 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { LiveCatalog } from "./LiveCatalog.js";
+import { RequestStep } from "./LiveJoinPairing.js";
 import {
   type Standing,
+  clearJoinDraft,
   formatRemaining,
+  joinDraft,
   liveUiSeams,
+  useDraftField,
   useLiveGuest,
   useRemaining,
 } from "./live-hooks.js";
 import "./live.css";
 
-const REFUSED = {
-  declined: "The owner did not let you in",
-  code: "That code is not this session's",
-  ended: "The session has ended",
-  full: "The session is full",
-} satisfies Record<RefusalReason, string>;
-
 /** The glyph and sentence for where an ask stands. */
 export function standing(status: GuestStatus): Standing {
   switch (status.at) {
-    case "asking":
-      return { tone: "idle", label: "Asking the owner" };
-    case "waiting":
-      return { tone: "idle", label: "Waiting for the owner to let you in" };
+    case "preparing":
+      return { tone: "idle", label: "Making your request code" };
+    case "request":
+      return { tone: "idle", label: "Waiting for the owner's reply code" };
     case "connecting":
       return { tone: "idle", label: "Connecting to the owner's browser" };
     case "joined":
       return { tone: "ok", label: `Joined ${status.catalog.title}` };
-    case "refused":
-      return { tone: "err", label: REFUSED[status.reason] };
-    case "unanswered":
+    case "unreachable":
       return {
-        tone: "warn",
-        label: "Nobody answered — the owner's tab may be closed",
+        tone: "err",
+        label: "No direct route to the owner's browser",
       };
     default:
       return { tone: "idle", label: "The session ended" };
@@ -83,12 +74,12 @@ export function standing(status: GuestStatus): Standing {
 
 /** What the joiner has typed, and the ask it adds up to. */
 function useAsk(held: LiveLink | null) {
-  const [pasted, setPasted] = useState("");
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [note, setNote] = useState("");
+  const [pasted, setPasted] = useDraftField("pasted");
+  const [code, setCode] = useDraftField("code");
+  const [name, setName] = useDraftField("name");
+  const [note, setNote] = useDraftField("note");
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [failed, setFailed] = useDraftField("failed");
   const link = held ?? parseLiveLink(pasted);
   const needsCode = link?.admission === "invite";
   const normalized = needsCode ? normalizeInviteCode(code) : null;
@@ -100,7 +91,7 @@ function useAsk(held: LiveLink | null) {
   async function ask(): Promise<void> {
     if (!link || !ready) return;
     setBusy(true);
-    setFailed(null);
+    setFailed("");
     try {
       await joinLive({
         link,
@@ -111,7 +102,7 @@ function useAsk(held: LiveLink | null) {
       });
     } catch {
       leaveLive();
-      setFailed("The relays could not be reached");
+      setFailed("This browser could not make a request code");
     } finally {
       setBusy(false);
     }
@@ -218,6 +209,9 @@ function Session() {
           <span className="vault-row__meta">{formatRemaining(left)}</span>
         ) : null}
       </div>
+      {status.at === "request" ? (
+        <RequestStep guest={guest} code={status.code} />
+      ) : null}
       {catalog ? (
         <LiveCatalog
           catalog={catalog}
@@ -231,14 +225,13 @@ function Session() {
 export function LiveJoinRoute() {
   const navigate = useNavigate();
   // What the road held across the consent, or what boot took from the address.
-  const [held] = useState<LiveLink | null>(
-    () => takeHeldLiveLink() ?? takeCapturedLiveLink(),
-  );
+  const [held] = useState<LiveLink | null>(() => {
+    joinDraft.link =
+      takeHeldLiveLink() ?? takeCapturedLiveLink() ?? joinDraft.link;
+    return joinDraft.link;
+  });
   const { guest, status } = useLiveGuest();
-  const over =
-    status?.at === "refused" ||
-    status?.at === "ended" ||
-    status?.at === "unanswered";
+  const over = status?.at === "ended" || status?.at === "unreachable";
   const leave = over ? "Close" : guest ? "Leave the session" : "Close";
 
   return (
@@ -263,6 +256,7 @@ export function LiveJoinRoute() {
           title={leave}
           onClick={() => {
             leaveLive();
+            clearJoinDraft();
             navigate("/");
           }}
         >

@@ -13,26 +13,12 @@ import type { VaultItem } from "@opensesame/vault-core";
 import { vaultStore } from "../vault/store.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
-import { type LiveLink, loadLiveRelays } from "./link.js";
+import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
-import type { IceSettings, PeerFactory } from "./peer.js";
-import { DEFAULT_RELAYS, relayTransport } from "./relays.js";
-import type { SignalTransport } from "./signal.js";
+import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
 import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
 
-/** Two public STUN servers: they learn an address, never the session. */
-export const DEFAULT_ICE: IceSettings = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
-  ],
-  relayOnly: false,
-};
-
 export const liveSeams = {
-  transport: (): SignalTransport => relayTransport(),
-  /** The relays Settings names (`liveRelays`); empty means the defaults. */
-  relays: (): readonly string[] => loadLiveRelays(),
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
   onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
 };
@@ -60,19 +46,11 @@ export type HostInput = Readonly<{
   /** Minutes; the host clamps it to eight hours. */
   minutes: number;
   peers: PeerFactory;
-  relays?: readonly string[];
   ice?: IceSettings;
 }>;
 
-/** The session's relays: the caller's, else Settings', else the defaults. */
-function relaysFor(named: readonly string[] | undefined): readonly string[] {
-  if (named?.length) return named;
-  const configured = liveSeams.relays();
-  return configured.length ? configured : DEFAULT_RELAYS;
-}
-
 /** Start hosting; any session this tab was hosting ends first. */
-export function startHosting(input: HostInput): LiveHost {
+export async function startHosting(input: HostInput): Promise<LiveHost> {
   endHosting();
   // The host clamps the lifetime; the catalog states the clamped one.
   const expiresAt = Math.min(
@@ -80,10 +58,9 @@ export function startHosting(input: HostInput): LiveHost {
     Date.now() + MAX_SESSION_MS,
   );
   const items = liveSeams.items;
-  const next: LiveHost = new LiveHost({
+  const next = await LiveHost.start({
     admission: input.admission,
-    relays: relaysFor(input.relays),
-    ice: input.ice ?? DEFAULT_ICE,
+    ice: input.ice ?? DIRECT_ONLY,
     expiresAt,
     catalog: () =>
       vaultCatalog({
@@ -94,12 +71,11 @@ export function startHosting(input: HostInput): LiveHost {
         items,
       }),
     readField: vaultField({ scope: input.scope, items }),
-    transport: liveSeams.transport(),
     peers: input.peers,
   });
+  endHosting();
   host = next;
   stopLockWatch = liveSeams.onLock(() => endHosting());
-  next.start();
   changed();
   return next;
 }
@@ -127,7 +103,10 @@ export type JoinInput = Readonly<{
   ice?: IceSettings;
 }>;
 
-/** Ask to join; any session this tab had joined is left first. */
+/**
+ * Start asking to join: the request code comes back for the person to send
+ * the owner. Any session this tab had joined is left first.
+ */
 export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   leaveLive();
   const next = new LiveGuest({
@@ -135,14 +114,12 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     code: input.code,
     name: input.name,
     note: input.note,
-    relays: input.link.relays.length ? input.link.relays : DEFAULT_RELAYS,
-    ice: input.ice ?? DEFAULT_ICE,
-    transport: liveSeams.transport(),
+    ice: input.ice ?? DIRECT_ONLY,
     peers: input.peers,
   });
   guest = next;
   changed();
-  await next.ask();
+  await next.start();
   return next;
 }
 

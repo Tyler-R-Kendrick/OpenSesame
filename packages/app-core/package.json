@@ -59,7 +59,6 @@
     "ai": "6.0.237",
     "hash-wasm": "4.12.0",
     "kdbxweb": "2.1.1",
-    "nostr-tools": "2.25.2",
     "whatwg-url": "14.2.0",
     "yaml": "2.8.4",
     "zod": "4.4.3"

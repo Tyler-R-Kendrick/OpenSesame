@@ -35,38 +35,27 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "sharing.live",
     "Live sessions",
-    "Share chosen vault items live with people who join from a link — browser to browser, while this tab stays open — and join somebody else's session from the front door. Nothing of a session is stored on either side.",
+    "Share chosen vault items live with people who join from a link — browser to browser, paired by codes the two people pass each other, while this tab stays open — and join somebody else's session from the front door. No server is involved and nothing of a session is stored on either side.",
     {
       operationIds: ["shared_sessions.live_host", "shared_sessions.live_join"],
       egress: [
         {
-          class: "external-service",
-          purpose:
-            "public Nostr relays, which carry the encrypted handshake between two throwaway session keys and nothing else",
-          automatic: false,
-        },
-        {
-          class: "external-service",
-          purpose:
-            "public STUN servers, which tell each browser its own network address once the owner has admitted someone",
-          automatic: false,
-        },
-        {
           class: "peer-or-local-network",
           purpose:
-            "the other person's browser, directly, only after the owner admits them",
+            "the other person's browser, directly over WebRTC, with no relay, STUN or TURN server",
           automatic: false,
         },
         {
           class: "user-mediated-navigation",
-          purpose: "the session link a person copies",
+          purpose:
+            "the session link and pairing codes a person copies and sends themselves",
           automatic: false,
         },
       ],
       browserPermissions: ["clipboard-write"],
       keyAccess: "item-plaintext",
       offlineLimits:
-        "A live session needs both browsers online and a relay reachable; it ends when the owner's tab closes.",
+        "Both browsers must reach each other directly (the same network, or a route between them); a session ends when the owner's tab closes.",
     },
   ),
   optional(

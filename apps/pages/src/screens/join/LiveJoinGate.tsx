@@ -1,11 +1,11 @@
 /**
  * The door's road into somebody else's live session (ADR 0148 §6).
  *
- * Joining connects this browser to public relays and — once the owner lets
- * this person in — to the owner's browser directly. That is the `sharing.live`
+ * Joining connects this browser directly to the owner's, once the two people
+ * have passed each other their pairing codes. That is the `sharing.live`
  * capability, and an optional capability never loads before consent
  * (ADR 0130). So the road opens on the same review Settings shows: what
- * switching Live sessions on adds, the relays and the peer among it. Apply is
+ * switching Live sessions on adds, the peer connection among it. Apply is
  * the consent, committed with its receipt like any other switch, and the
  * join screen — the capability's own route — opens next. Where the
  * capability is already on, the road goes straight there.

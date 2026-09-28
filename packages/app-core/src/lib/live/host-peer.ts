@@ -10,18 +10,12 @@
  * the owner's on-screen log.
  */
 
-import {
-  type Catalog,
-  type ChannelMessage,
-  type Signal,
-  VALUE_MAX,
-} from "./messages.js";
+import { type Catalog, type ChannelMessage, VALUE_MAX } from "./messages.js";
 import {
   type IceSettings,
   type PeerChannel,
   type PeerFactory,
-  makeOffer,
-  takeAnswer,
+  answerOffer,
 } from "./peer.js";
 
 /** One answer to a guest's request, as the owner's log shows it. */
@@ -44,7 +38,6 @@ export type HostPeerOptions = Readonly<{
   readField: ReadField;
   expiresAt: number;
   now: () => number;
-  send: (signal: Signal) => Promise<void>;
   onJoined: () => void;
   onClosed: () => void;
   onLog: (entry: LogEntry) => void;
@@ -55,17 +48,28 @@ type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
 export class HostPeer {
   #pc: RTCPeerConnection | null = null;
   #channel: PeerChannel | null = null;
-  #answered = false;
   #closed = false;
 
   constructor(private readonly options: HostPeerOptions) {}
 
-  /** Make the offer — the admission — and send it. */
-  async open(): Promise<void> {
-    const side = await makeOffer(this.options.peers, this.options.ice);
+  /**
+   * Answer the joiner's offer — the admission — and return the answer for
+   * the reply code. The channel opens once the joiner pastes that reply.
+   */
+  async open(offer: string): Promise<string> {
+    const side = await answerOffer(this.options.peers, this.options.ice, offer);
     this.#pc = side.pc;
-    await this.options.send({ t: "offer", sdp: side.offer });
-    const channel = await side.channel;
+    side.pc.addEventListener("connectionstatechange", () => {
+      if (side.pc.connectionState === "failed") this.#closedByPeer();
+    });
+    side.channel.then(
+      (channel) => this.#connected(channel),
+      () => this.#closedByPeer(),
+    );
+    return side.answer;
+  }
+
+  #connected(channel: PeerChannel): void {
     if (this.#closed) {
       channel.close();
       return;
@@ -75,12 +79,6 @@ export class HostPeer {
     channel.onMessage((message) => void this.#handle(message));
     channel.send({ t: "catalog", catalog: this.options.catalog() });
     this.options.onJoined();
-  }
-
-  async answer(sdp: string): Promise<void> {
-    if (!this.#pc || this.#answered || this.#closed) return;
-    this.#answered = true;
-    await takeAnswer(this.#pc, sdp);
   }
 
   #closedByPeer(): void {

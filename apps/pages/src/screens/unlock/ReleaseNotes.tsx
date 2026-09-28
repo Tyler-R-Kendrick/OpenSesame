@@ -38,7 +38,7 @@ const RELEASES: readonly ReleaseNote[] = [
     ],
     inProgress: [
       "More connectors from the catalog will finish linking the way GitHub does today",
-      "Live sessions: TURN servers and relay-only mode are not settings yet",
+      "Live sessions connect browsers directly; two browsers with no route between them cannot pair yet",
       "Sharing access and approvals with people and agents is still being finished",
       "Clearing leftover setup screens and wording from older builds",
     ],

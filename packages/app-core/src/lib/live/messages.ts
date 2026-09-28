@@ -2,10 +2,11 @@
  * What crosses between two browsers in a live session, read strictly
  * (ADR 0148 §3–§5).
  *
- * Two channels, two vocabularies:
+ * Two vocabularies:
  *
- * - **signal** — NIP-44 encrypted over Nostr relays, before and during the
- *   WebRTC handshake: an ask, the owner's answer, the SDP.
+ * - **pairing** — inside the sealed codes two people pass each other: the
+ *   joiner's request (a name, a note, its WebRTC offer) and the owner's
+ *   reply (the answer to that offer).
  * - **channel** — the WebRTC data channel once connected: the shared items'
  *   catalog and one-field-at-a-time reveals and copies.
  *
@@ -25,7 +26,7 @@ import {
 export const NAME_MAX = 64;
 export const NOTE_MAX = 280;
 const SDP_MAX = 48 * 1024;
-const PROOF = /^[0-9a-f]{64}$/;
+const REQUEST_ID = /^[A-Za-z0-9_-]{22}$/;
 const REQ = /^[A-Za-z0-9_-]{1,32}$/;
 const ID = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -34,29 +35,22 @@ export const MAX_FIELDS = 32;
 const LABEL_MAX = 120;
 export const VALUE_MAX = 16 * 1024;
 
-export type RefusalReason = "declined" | "code" | "ended" | "full";
-const REFUSALS: readonly RefusalReason[] = [
-  "declined",
-  "code",
-  "ended",
-  "full",
-];
+/** A joiner's request, as sealed in its request code. */
+export type JoinRequest = Readonly<{
+  id: string;
+  name: string;
+  note: string;
+  /** The joiner's WebRTC offer. */
+  offer: string;
+}>;
 
-export type Signal =
-  | Readonly<{
-      t: "ask";
-      name: string;
-      note: string;
-      /** Holds the link: keyed by the link secret alone. */
-      held: string;
-      /** Holds the link and, in an invite session, the code. */
-      proof: string;
-    }>
-  | Readonly<{ t: "wait" }>
-  | Readonly<{ t: "refuse"; reason: RefusalReason }>
-  | Readonly<{ t: "offer"; sdp: string }>
-  | Readonly<{ t: "answer"; sdp: string }>
-  | Readonly<{ t: "bye" }>;
+/** The owner's reply, as sealed in its reply code. */
+export type JoinReply = Readonly<{
+  /** The request it answers. */
+  id: string;
+  /** The owner's WebRTC answer. */
+  answer: string;
+}>;
 
 export type SharePolicy = "read" | "use";
 
@@ -114,43 +108,33 @@ function parse(raw: string, limit: number): JsonObject | null {
   }
 }
 
-function readSdp(body: JsonObject): string | null {
-  const { sdp } = body;
+function readSdp(body: JsonObject, key: "offer" | "answer"): string | null {
+  const sdp = body[key];
   return isString(sdp) && sdp.length <= SDP_MAX && sdp.startsWith("v=0")
     ? sdp
     : null;
 }
 
-function readAsk(body: JsonObject): Signal | null {
-  const { name, note, held, proof } = body;
+/** The request inside a request code, or null. */
+export function readJoinRequest(raw: string): JoinRequest | null {
+  const body = parse(raw, SDP_MAX + 2048);
+  if (!body) return null;
+  const { id, name, note } = body;
+  if (!isString(id) || !REQUEST_ID.test(id)) return null;
   if (!bounded(name, NAME_MAX) || !bounded(note, NOTE_MAX)) return null;
-  if (!isString(held) || !PROOF.test(held)) return null;
-  if (!isString(proof) || !PROOF.test(proof)) return null;
-  return { t: "ask", name: name.trim(), note: note.trim(), held, proof };
+  if (name.trim().length === 0) return null;
+  const offer = readSdp(body, "offer");
+  return offer ? { id, name: name.trim(), note: note.trim(), offer } : null;
 }
 
-/** One signalling message, or null. */
-export function readSignal(raw: string): Signal | null {
+/** The reply inside a reply code, or null. */
+export function readJoinReply(raw: string): JoinReply | null {
   const body = parse(raw, SDP_MAX + 1024);
   if (!body) return null;
-  switch (body.t) {
-    case "ask":
-      return readAsk(body);
-    case "wait":
-    case "bye":
-      return { t: body.t };
-    case "refuse": {
-      const reason = REFUSALS.find((entry) => entry === body.reason);
-      return reason ? { t: "refuse", reason } : null;
-    }
-    case "offer":
-    case "answer": {
-      const sdp = readSdp(body);
-      return sdp ? { t: body.t, sdp } : null;
-    }
-    default:
-      return null;
-  }
+  const { id } = body;
+  if (!isString(id) || !REQUEST_ID.test(id)) return null;
+  const answer = readSdp(body, "answer");
+  return answer ? { id, answer } : null;
 }
 
 function readField(value: BoundaryValue): SharedField | null {

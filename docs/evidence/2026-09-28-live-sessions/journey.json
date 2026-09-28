@@ -49,7 +49,7 @@
       "height": 844,
       "steps": [
         {
-          "arrive": "#live=v1.i.9f940153790bf2b0c76d19d247714a921ce9fe3619810a48017ed6e3b1e97af8.JfK6USgvdEFaKMiN0ccMKyevWoggA16M-F9KVoz5EBQ"
+          "arrive": "#live=v1.i.BGLQii0ZK3HynHGY-lvK74whx74CjMH25gOaI7v_cwgHWHxsf-ldOyZ07y8LkKvfqQHO5PGC-zUpzWi90fj5Kec.OlzFWfJ0GC0fzYOTvXs3hKf5mqcjR8PehYvzmBct6xQ"
         },
         {
           "address": null
@@ -87,7 +87,7 @@
       "shot": "390-join",
       "width": 390,
       "title": "Join a session pressed \u2014 390 \u00d7 844",
-      "caption": "The road opens on the Live sessions consent: relays, STUN and the peer connection named before anything loads (ADR 0130).",
+      "caption": "The road opens on the Live sessions consent: its one egress is the other person's browser, directly, with no relay, STUN or TURN server (ADR 0130).",
       "before": "no Join road on this origin",
       "after": "consent review for sharing.live"
     },

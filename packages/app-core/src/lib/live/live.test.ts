@@ -1,22 +1,20 @@
 /**
- * A live session end to end, over a relay that carries the real signed and
- * encrypted events, between fake peers (ADR 0148).
+ * A live session end to end: sealed pairing codes passed by hand, between
+ * fake peers (ADR 0148). No server of any kind is involved.
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { LiveGuest } from "./guest.js";
-import { type Admission, LiveHost, MAX_MISSES } from "./host.js";
+import { type Admission, LiveHost, MAX_GUESTS, MAX_MISSES } from "./host.js";
 import { formatLiveLink, parseLiveLink } from "./link.js";
-import { FakeNet, MemoryRelay } from "./live-fakes.js";
+import { FakeNet } from "./live-fakes.js";
 import type { Catalog, SharePolicy } from "./messages.js";
-import { DEFAULT_RELAYS } from "./relays.js";
-import { endHosting, liveSeams, startHosting } from "./session.js";
-import { Signaller, newSessionKey } from "./signal.js";
+import { makeReplyCode } from "./pairing.js";
+import { DIRECT_ONLY } from "./peer.js";
+import { newOwnerKey } from "./seal.js";
 
-const RELAYS = ["wss://relay.example"];
-const ICE = { iceServers: [], relayOnly: false };
 const SECRET_VALUE = "correct horse battery staple";
 
-function catalog(policy: "read" | "use" = "read"): Catalog {
+function catalog(policy: SharePolicy = "read"): Catalog {
   return {
     title: "Team vault",
     policy,
@@ -40,26 +38,27 @@ function catalog(policy: "read" | "use" = "read"): Catalog {
   };
 }
 
-type Room = { relay: MemoryRelay; net: FakeNet; host: LiveHost };
-
+type Room = { net: FakeNet; host: LiveHost };
 type RoomOptions = { admission?: Admission; policy?: SharePolicy };
 
-function room(options: RoomOptions = {}): Room {
-  const relay = new MemoryRelay();
+const hosts: LiveHost[] = [];
+afterEach(() => {
+  for (const host of hosts.splice(0)) host.end();
+});
+
+async function room(options: RoomOptions = {}): Promise<Room> {
   const net = new FakeNet();
-  const host = new LiveHost({
+  const host = await LiveHost.start({
     admission: options.admission ?? "invite",
-    relays: RELAYS,
-    ice: ICE,
+    ice: DIRECT_ONLY,
     expiresAt: Date.now() + 60_000,
     catalog: () => catalog(options.policy),
     readField: async (item, field) =>
       item === "item-1" && field === "password" ? SECRET_VALUE : null,
-    transport: relay.transport(),
     peers: net.factory(),
   });
-  host.start();
-  return { relay, net, host };
+  hosts.push(host);
+  return { net, host };
 }
 
 function guest(r: Room, code: string | null, name = "Ada"): LiveGuest {
@@ -68,9 +67,7 @@ function guest(r: Room, code: string | null, name = "Ada"): LiveGuest {
     code,
     name,
     note: "from design",
-    relays: RELAYS,
-    ice: ICE,
-    transport: r.relay.transport(),
+    ice: DIRECT_ONLY,
     peers: r.net.factory(),
   });
 }
@@ -80,51 +77,55 @@ async function settle(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const hosts: LiveHost[] = [];
-afterEach(() => {
-  for (const host of hosts.splice(0)) host.end();
-  vi.useRealTimers();
+/** The whole handshake: request code over, reply code back. */
+async function pair(r: Room, g: LiveGuest): Promise<void> {
+  const request = await g.start();
+  const received = await r.host.receive(request);
+  if (received.kind !== "guest") throw new Error(received.kind);
+  await r.host.admit(received.key);
+  const reply = r.host.state.guests.find((x) => x.key === received.key)?.reply;
+  expect(await g.accept(reply ?? "")).toBe(true);
+  await settle();
+}
+
+describe("the link", () => {
+  it("round-trips through the app's own address, and names no server", async () => {
+    const r = await room();
+    const url = formatLiveLink("https://example.test/OpenSesame/", r.host.link);
+    expect(url).toMatch(/^https:\/\/example\.test\/OpenSesame\/#live=v1\.i\./);
+    expect(parseLiveLink(url)).toEqual(r.host.link);
+    expect(url).not.toMatch(/wss?:|stun:|turn:/);
+    expect(parseLiveLink("https://example.test/#live=v2.i.x.y")).toBeNull();
+  });
 });
 
 describe("an invite session", () => {
-  it("holds a proved ask for the owner, and makes no peer before admission", async () => {
-    const r = room();
-    hosts.push(r.host);
+  it("answers an offer only once the owner lets the person in, then hands over one value on request", async () => {
+    const r = await room();
     const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    expect(g.status.at).toBe("waiting");
-    expect(r.host.state.guests.map((x) => [x.name, x.state])).toEqual([
-      ["Ada", "asking"],
-    ]);
-    // Nobody has gathered an address yet.
-    expect(r.net.created).toBe(0);
+    const request = await g.start();
+    expect(g.status).toEqual({ at: "request", code: request });
+    const created = r.net.created;
+    const received = await r.host.receive(request);
+    expect(received).toEqual({ kind: "guest", key: expect.any(String) });
+    const [asking] = r.host.state.guests;
+    expect(asking).toMatchObject({ name: "Ada", note: "from design" });
+    expect(asking?.state).toBe("asking");
+    expect(asking?.reply).toBeNull();
+    // Not let in: the owner has made no peer and written no address.
+    expect(r.net.created).toBe(created);
 
-    await r.host.admit(r.host.state.guests[0]?.key ?? "");
+    await r.host.admit(asking?.key ?? "");
+    const reply = r.host.state.guests[0]?.reply ?? "";
+    expect(reply).toMatch(/^osl-reply\./);
+    expect(await g.accept(reply)).toBe(true);
     await settle();
-    expect(r.net.created).toBe(2);
     expect(g.status.at).toBe("joined");
     expect(r.host.state.guests[0]?.state).toBe("joined");
-  });
-
-  it("shows only what is not concealed until asked, and answers one field at a time", async () => {
-    const r = room();
-    hosts.push(r.host);
-    const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    await r.host.admit(r.host.state.guests[0]?.key ?? "");
-    await settle();
-    const status = g.status;
-    if (status.at !== "joined") throw new Error(status.at);
-    const fields = status.catalog.items[0]?.fields ?? [];
-    expect(fields.map((field) => field.value)).toEqual(["octo", null]);
-    // Nothing concealed crossed with the catalog.
-    expect(JSON.stringify(status.catalog)).not.toContain(SECRET_VALUE);
-
+    expect(JSON.stringify(g.status)).not.toContain(SECRET_VALUE);
     expect(await g.request("reveal", "item-1", "password")).toBe(SECRET_VALUE);
     expect(await g.request("reveal", "item-1", "username")).toBeNull();
-    expect(await g.request("reveal", "item-2", "password")).toBeNull();
+    expect(await g.request("copy", "item-9", "password")).toBeNull();
     expect(r.host.state.log.map((entry) => entry.what)).toEqual([
       "reveal",
       "denied",
@@ -132,217 +133,146 @@ describe("an invite session", () => {
     ]);
   });
 
-  it("under `use`, copies but never reveals", async () => {
-    const r = room({ policy: "use" });
-    hosts.push(r.host);
+  it("seals the codes: no name, note, offer or answer in the clear", async () => {
+    const r = await room();
     const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    await r.host.admit(r.host.state.guests[0]?.key ?? "");
-    await settle();
+    const request = await g.start();
+    for (const plain of ["Ada", "from design", "v=0", "a=fake"])
+      expect(request).not.toContain(plain);
+    const received = await r.host.receive(request);
+    if (received.kind === "guest") await r.host.admit(received.key);
+    const reply = r.host.state.guests[0]?.reply ?? "";
+    expect(reply).not.toContain("v=0");
+    expect(reply).not.toContain("a=fake");
+  });
+
+  it("the link alone is not the code, and the fifth miss ends the session", async () => {
+    const r = await room();
+    for (let miss = 1; miss <= MAX_MISSES; miss += 1) {
+      const code = miss === 1 ? null : "BCDF-GHJK";
+      const request = await guest(r, code, `guess ${miss}`).start();
+      expect(await r.host.receive(request)).toEqual(
+        miss < MAX_MISSES
+          ? { kind: "not-this-session", misses: miss }
+          : { kind: "not-this-session", misses: MAX_MISSES },
+      );
+    }
+    expect(r.host.state.status).toBe("ended");
+    expect(r.host.state.endedBecause).toBe("code");
+    expect(r.host.state.guests).toEqual([]);
+  });
+
+  it("does not count text that is not a request code at all", async () => {
+    const r = await room();
+    for (const text of ["", "hello", "osl-reply.abc", "osl-request.!!!"])
+      expect(await r.host.receive(text)).toEqual({ kind: "not-a-request" });
+    expect(r.host.state.misses).toBe(0);
+  });
+
+  it("forgives what a chat app wraps around a pasted code", async () => {
+    const r = await room();
+    const request = await guest(r, r.host.code).start();
+    const wrapped = `"${request.slice(0, 40)}\n  ${request.slice(40)}"`;
+    expect((await r.host.receive(wrapped)).kind).toBe("guest");
+  });
+
+  it("seats a request once, however often it is pasted", async () => {
+    const r = await room();
+    const request = await guest(r, r.host.code).start();
+    await r.host.receive(request);
+    await r.host.receive(request);
+    expect(r.host.state.guests).toHaveLength(1);
+  });
+
+  it("is full at eight people", async () => {
+    const r = await room();
+    for (let seat = 0; seat < MAX_GUESTS; seat += 1)
+      await r.host.receive(await guest(r, r.host.code, `p${seat}`).start());
+    const late = await guest(r, r.host.code, "late").start();
+    expect(await r.host.receive(late)).toEqual({ kind: "full" });
+  });
+
+  it("takes a reply only for this request, from this owner", async () => {
+    const r = await room();
+    const a = guest(r, r.host.code, "A");
+    const b = guest(r, r.host.code, "B");
+    await b.start();
+    const received = await r.host.receive(await a.start());
+    if (received.kind === "guest") await r.host.admit(received.key);
+    const reply = r.host.state.guests[0]?.reply ?? "";
+    // Somebody else's reply does not connect B.
+    expect(await b.accept(reply)).toBe(false);
+    expect(b.status.at).toBe("request");
+    // A link holder who signs with a key of their own is not the owner.
+    const impostor = await newOwnerKey();
+    const forged = await makeReplyCode(r.host.link, r.host.code, impostor, {
+      id: received.kind === "guest" ? received.key : "",
+      answer: "v=0\r\n",
+    });
+    expect(await a.accept(forged)).toBe(false);
+    expect(a.status.at).toBe("request");
+    expect(await a.accept(reply)).toBe(true);
+  });
+
+  it("a person turned away gets no reply", async () => {
+    const r = await room();
+    const received = await r.host.receive(await guest(r, r.host.code).start());
+    const key = received.kind === "guest" ? received.key : "";
+    r.host.refuse(key);
+    await r.host.admit(key);
+    expect(r.host.state.guests[0]).toMatchObject({
+      state: "refused",
+      reply: null,
+    });
+  });
+});
+
+describe("policies and endings", () => {
+  it("under `use`, copies but never reveals", async () => {
+    const r = await room({ policy: "use" });
+    const g = guest(r, r.host.code);
+    await pair(r, g);
     expect(await g.request("reveal", "item-1", "password")).toBeNull();
     expect(await g.request("copy", "item-1", "password")).toBe(SECRET_VALUE);
   });
 
-  it("refuses a wrong code, and the fifth miss ends the session", async () => {
-    const r = room();
-    hosts.push(r.host);
-    for (let miss = 1; miss <= MAX_MISSES; miss += 1) {
-      const g = guest(r, "BCDF-GHJK", `guess ${miss}`);
-      await g.ask();
-      await settle();
-      expect(g.status).toEqual({ at: "refused", reason: "code" });
-    }
-    expect(r.host.state.status).toBe("ended");
-    expect(r.host.state.endedBecause).toBe("code");
-    expect(r.net.created).toBe(0);
-  });
-
-  it("drops asks that cannot prove the link: an onlooker cannot burn the session", async () => {
-    // Once the owner has answered anyone its key is public on the relays.
-    const r = room();
-    hosts.push(r.host);
-    const onlooker = new Signaller(
-      newSessionKey(),
-      RELAYS,
-      r.relay.transport(),
-    );
-    const heard: string[] = [];
-    onlooker.listen((incoming) => heard.push(incoming.signal.t));
-    const junk = "0".repeat(64);
-    for (let tries = 0; tries < MAX_MISSES + 2; tries += 1)
-      await onlooker.send(r.host.link.owner, {
-        t: "ask",
-        name: "x",
-        note: "",
-        held: junk,
-        proof: junk,
-      });
-    await settle();
-    expect(r.host.state.misses).toBe(0);
-    expect(r.host.state.status).toBe("live");
-    expect(r.host.state.guests).toEqual([]);
-    expect(heard).toEqual([]);
-    // A real joiner still gets in.
-    const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    expect(g.status).toEqual({ at: "waiting" });
-    onlooker.close();
-  });
-
-  it("the link alone is not the code", async () => {
-    const r = room();
-    hosts.push(r.host);
+  it("an open session asks for no code and answers at once", async () => {
+    const r = await room({ admission: "open" });
+    expect(r.host.code).toBeNull();
     const g = guest(r, null);
-    await g.ask();
+    const received = await r.host.receive(await g.start());
+    expect(received.kind).toBe("guest");
+    const reply = r.host.state.guests[0]?.reply ?? "";
+    expect(await g.accept(reply)).toBe(true);
     await settle();
-    expect(g.status).toEqual({ at: "refused", reason: "code" });
+    expect(g.status.at).toBe("joined");
   });
 
-  it("a refused asker never learns an address", async () => {
-    const r = room();
-    hosts.push(r.host);
+  it("ending the session drops everything the joiner held", async () => {
+    const r = await room();
     const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    await r.host.refuse(r.host.state.guests[0]?.key ?? "");
-    await settle();
-    expect(g.status).toEqual({ at: "refused", reason: "declined" });
-    expect(r.net.created).toBe(0);
-  });
-
-  it("ending drops everything the guest held", async () => {
-    const r = room();
-    hosts.push(r.host);
-    const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    await r.host.admit(r.host.state.guests[0]?.key ?? "");
-    await settle();
+    await pair(r, g);
     r.host.end();
     await settle();
     expect(g.status).toEqual({ at: "ended" });
     expect(await g.request("reveal", "item-1", "password")).toBeNull();
+    expect(r.host.state.guests[0]?.state).toBe("gone");
   });
-});
 
-describe("an open session", () => {
-  it("admits whoever holds the link, without a code", async () => {
-    const r = room({ admission: "open" });
-    hosts.push(r.host);
-    expect(r.host.code).toBeNull();
-    const g = guest(r, null);
-    await g.ask();
-    await settle();
-    expect(g.status.at).toBe("joined");
-  });
-});
-
-describe("the relays", () => {
-  it("see only session keys and ciphertext", async () => {
-    const r = room();
-    hosts.push(r.host);
+  it("says so when the two browsers find no direct route", async () => {
+    const r = await room();
+    r.net.unreachable = true;
     const g = guest(r, r.host.code);
-    await g.ask();
-    await settle();
-    await r.host.admit(r.host.state.guests[0]?.key ?? "");
-    await settle();
-    await g.request("reveal", "item-1", "password");
-    const wire = JSON.stringify(r.relay.seen);
-    for (const leaked of [
-      "Ada",
-      "from design",
-      "GitHub",
-      "octo",
-      SECRET_VALUE,
-      r.host.code ?? "",
-      r.host.link.secret,
-    ])
-      expect(wire).not.toContain(leaked);
-    expect(r.relay.seen.every((event) => event.kind === 25548)).toBe(true);
+    await pair(r, g);
+    expect(g.status).toEqual({ at: "unreachable" });
   });
 
-  it("a message not signed by the link's owner key is not the owner's", async () => {
-    const r = room();
-    hosts.push(r.host);
+  it("the owner sees a joiner leave", async () => {
+    const r = await room();
     const g = guest(r, r.host.code);
-    await g.ask();
+    await pair(r, g);
+    g.leave();
     await settle();
-    // Somebody else on the relays — even one who read the link — answers the
-    // asker directly. The guest only hears the owner the link named.
-    const asker =
-      r.relay.seen.find((event) => event.pubkey !== r.host.link.owner)
-        ?.pubkey ?? "";
-    const impostor = new Signaller(
-      newSessionKey(),
-      RELAYS,
-      r.relay.transport(),
-    );
-    await impostor.send(asker, { t: "refuse", reason: "declined" });
-    await settle();
-    expect(g.status.at).toBe("waiting");
-  });
-});
-
-describe("links", () => {
-  it("round-trip through the app's address, relays included", () => {
-    const r = room();
-    hosts.push(r.host);
-    const url = formatLiveLink(
-      "https://example.org/OpenSesame/?x=1#old",
-      r.host.link,
-    );
-    expect(url.startsWith("https://example.org/OpenSesame/#live=v1.i.")).toBe(
-      true,
-    );
-    expect(parseLiveLink(url)).toEqual(r.host.link);
-  });
-
-  it("refuse anything that is not exactly a link", () => {
-    for (const raw of [
-      "",
-      "hello",
-      "https://example.org/#live=v2.i.aa.bb",
-      `https://example.org/#live=v1.i.${"g".repeat(64)}.${"a".repeat(43)}`,
-      `https://example.org/#live=v1.i.${"a".repeat(64)}.${"a".repeat(42)}`,
-      `https://example.org/#live=v1.x.${"a".repeat(64)}.${"a".repeat(43)}`,
-      `https://example.org/#live=v1.${"a".repeat(64)}.${"a".repeat(43)}`,
-      "javascript:alert(1)#live=v1.x.y",
-    ])
-      expect(parseLiveLink(raw)).toBeNull();
-  });
-});
-
-describe("the relays a hosted session meets on", () => {
-  const original = { ...liveSeams };
-  afterEach(() => {
-    endHosting();
-    Object.assign(liveSeams, original);
-  });
-
-  function host(relays?: readonly string[]) {
-    Object.assign(liveSeams, {
-      transport: () => new MemoryRelay().transport(),
-      items: () => [],
-      onLock: () => () => {},
-    });
-    return startHosting({
-      title: "t",
-      scope: { kind: "vault" },
-      policy: "use",
-      admission: "invite",
-      minutes: 5,
-      peers: new FakeNet().factory(),
-      relays,
-    }).link.relays;
-  }
-
-  it("uses the relays Settings names, else the defaults", () => {
-    liveSeams.relays = () => ["wss://mine.example"];
-    expect(host()).toEqual(["wss://mine.example"]);
-    liveSeams.relays = () => [];
-    expect(host()).toEqual(DEFAULT_RELAYS);
-    expect(host(["wss://asked.example"])).toEqual(["wss://asked.example"]);
+    expect(r.host.state.guests[0]?.state).toBe("gone");
   });
 });

@@ -10,10 +10,12 @@
  * the shared item, reveals the password on request, and loses everything
  * when the owner ends the session.
  *
- * Signalling rides a NIP-01 relay in this process, reached through
- * Playwright's routeWebSocket in place of the public relays, which records
- * every frame: the check that no name, code, value or link secret reached a
- * relay reads those frames. Fails on any page error or console error.
+ * There is no server between them. The request and reply codes go the way a
+ * person sends them: copied on one screen (the context's own clipboard) and
+ * pasted on the other. The walk proves nothing else was reached: no
+ * WebSocket opened, no request left the app's origin, and every
+ * RTCPeerConnection either page made had no ICE server (no STUN, no TURN).
+ * Fails on any page error or console error.
  */
 
 import fs from "node:fs";
@@ -21,7 +23,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
-import { createRelay } from "./lib/nostr-relay.mjs";
 import { addCapabilities, openSettingsCategory } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -40,10 +41,24 @@ const harness = createHarness({
   out: OUT,
 });
 const { log, failures, check, setStep } = harness;
-const relay = createRelay();
+
+/** Every RTCPeerConnection's configuration, as the page made it. */
+const WATCH_RTC = () => {
+  const Native = window.RTCPeerConnection;
+  window.__rtcConfigs = [];
+  // A subclass, not a wrapper function: it must stay a constructor.
+  window.RTCPeerConnection = class extends Native {
+    constructor(config) {
+      super(config);
+      window.__rtcConfigs.push(JSON.stringify(config ?? {}));
+    }
+  };
+};
+const sockets = [];
 
 // Host candidates in the clear, so two contexts on one machine can meet
-// without mDNS; STUN may be unreachable here and gathering is capped.
+// without mDNS. No ICE server is configured, so host candidates are all
+// either browser offers.
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
   headless: true,
@@ -55,7 +70,11 @@ const browser = await chromium.launch({
 
 async function device(options = {}) {
   const made = await harness.newPage(browser, options);
-  await relay.attach(made.context);
+  await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: ORIGIN,
+  });
+  await made.context.addInitScript(WATCH_RTC);
+  made.page.on("websocket", (socket) => sockets.push(socket.url()));
   made.page.on("console", (message) => {
     if (message.type() === "error")
       harness.record("CONSOLE-ERROR", message.text().slice(0, 400));
@@ -100,6 +119,10 @@ async function ownerStarts(page) {
   return { panel, code, link };
 }
 
+async function clipboard(page) {
+  return page.evaluate(() => navigator.clipboard.readText());
+}
+
 async function joinerAsks(page, link, code) {
   setStep("joiner-arrives");
   await page.goto(link, { waitUntil: "networkidle" });
@@ -122,13 +145,15 @@ async function joinerAsks(page, link, code) {
   await page.getByLabel("Note").fill("from the design team");
   await shot(page, "4-joiner-ask");
   await page.getByRole("button", { name: "Ask to join" }).click();
+  const copy = page.getByRole("button", { name: "Copy your request code" });
+  await copy.waitFor({ timeout: 20_000 });
+  await copy.click();
+  await shot(page, "5-joiner-request");
+  return clipboard(page);
 }
 
 try {
   const owner = await device();
-  await owner.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
-  });
   const { panel, code, link } = await ownerStarts(owner.page);
   check(
     /^[B-DF-HJ-NP-TV-XZ]{4}-[B-DF-HJ-NP-TV-XZ]{4}$/.test(code),
@@ -138,6 +163,7 @@ try {
     link.startsWith(`${ORIGIN}${BASE}#live=v1.i.`),
     "the link opens the app root, carrying an invite session",
   );
+  check(!/wss?:|stun:|turn:/.test(link), "the link names no server");
 
   const joiner = await device({
     device: {
@@ -146,16 +172,33 @@ try {
       isMobile: true,
     },
   });
-  await joinerAsks(joiner.page, link, code);
-
-  setStep("owner-admits");
-  const admit = panel.getByRole("button", { name: "Let Ada in" });
-  await admit.waitFor({ timeout: 30_000 });
-  await shot(owner.page, "5-owner-asked");
-  await admit.click();
-
-  setStep("joiner-joined");
   const jp = joiner.page;
+  const request = await joinerAsks(jp, link, code);
+  check(/^osl-request\./.test(request), "the joiner copied a request code");
+  check(
+    !request.includes("Ada") && !request.includes("v=0"),
+    "the request code is sealed: no name, no offer in the clear",
+  );
+
+  setStep("owner-reads-request");
+  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByRole("button", { name: "Read the request" }).click();
+  const admit = panel.getByRole("button", { name: "Let Ada in" });
+  await admit.waitFor({ timeout: 20_000 });
+  await shot(owner.page, "6-owner-asked");
+  await admit.click();
+  const copyReply = panel.getByRole("button", {
+    name: "Copy the reply code for Ada",
+  });
+  await copyReply.waitFor({ timeout: 20_000 });
+  await copyReply.click();
+  const reply = await clipboard(owner.page);
+  check(/^osl-reply\./.test(reply), "the owner copied a reply code");
+  await shot(owner.page, "7-owner-reply");
+
+  setStep("joiner-connects");
+  await jp.getByLabel("The owner's reply code", { exact: true }).fill(reply);
+  await jp.getByRole("button", { name: "Connect" }).click();
   await jp
     .getByRole("img", { name: "Joined Team" })
     .waitFor({ timeout: 45_000 });
@@ -166,9 +209,9 @@ try {
   );
   await jp.getByRole("button", { name: "Reveal GitHub Password" }).click();
   await expect(jp.getByText(SECRET)).toBeVisible({ timeout: 15_000 });
-  await shot(jp, "6-joiner-revealed");
+  await shot(jp, "8-joiner-revealed");
   await panel.getByRole("list", { name: "Handed out" }).waitFor();
-  await shot(owner.page, "7-owner-log");
+  await shot(owner.page, "9-owner-log");
 
   setStep("nothing-stored");
   const stored = await jp.evaluate(
@@ -181,22 +224,27 @@ try {
     "the joiner wrote nothing it was shown",
   );
 
-  setStep("relays-blind");
-  const wire = relay.frames.join("\n");
-  const secretPart = new URL(link).hash.split(".")[3] ?? "";
-  for (const [leak, what] of [
-    [SECRET, "the password"],
-    ["octo", "the username"],
-    ["Ada", "the joiner's name"],
-    ["design team", "the joiner's note"],
-    [code, "the code"],
-    [secretPart, "the link secret"],
-  ])
-    check(secretPart !== "" && !wire.includes(leak), `no relay saw ${what}`);
+  setStep("no-third-party");
   check(
-    relay.frames.length > 0,
-    `the relay carried the signalling (${relay.frames.length} frames)`,
+    sockets.length === 0,
+    `no WebSocket was opened (${sockets.join(", ")})`,
   );
+  const external = log.filter((entry) => entry.kind === "external-request");
+  check(
+    external.length === 0,
+    `no request left the origin (${external.map((e) => e.detail).join(", ")})`,
+  );
+  for (const [who, page] of [
+    ["owner", owner.page],
+    ["joiner", jp],
+  ]) {
+    const configs = await page.evaluate(() => window.__rtcConfigs);
+    check(
+      configs.length > 0 &&
+        configs.every((config) => JSON.parse(config).iceServers.length === 0),
+      `the ${who}'s peer connection had no ICE server (${configs.join(" ")})`,
+    );
+  }
 
   setStep("owner-ends");
   await panel
@@ -213,7 +261,7 @@ try {
     (await jp.getByText("octo").count()) === 0,
     "ending dropped the catalog",
   );
-  await shot(jp, "8-joiner-ended");
+  await shot(jp, "10-joiner-ended");
 } catch (error) {
   failures.push(
     `[${log.at(-1)?.step ?? "?"}] ${error instanceof Error ? error.message : error}`,

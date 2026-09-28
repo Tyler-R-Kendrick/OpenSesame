@@ -1,14 +1,14 @@
 /**
  * A live session this tab is hosting (ADR 0148 §2–§5): the link and code to
- * pass along, who is asking and who is in, every value handed out, and the
- * key that ends it for everyone.
+ * pass along, the field joiners' request codes are pasted into, who is asking
+ * and who is in, every value handed out, and the key that ends it for
+ * everyone.
  *
  * The link is shown masked, like any bearer; the code goes another way (a
  * call, a message), so it is drawn in the clear.
  */
 
 import type {
-  Guest,
   HostState,
   LiveHost,
 } from "@opensesame/app-core/lib/live/host.js";
@@ -20,74 +20,11 @@ import {
   FieldRow,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
-import { IconCheck, IconX } from "../../components/Icons.js";
+import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import {
-  type Standing,
-  formatRemaining,
-  liveUiSeams,
-  useRemaining,
-} from "./live-hooks.js";
-
-const GUEST_MARK = {
-  asking: { tone: "warn", label: "Asking to join" },
-  connecting: { tone: "idle", label: "Connecting" },
-  joined: { tone: "ok", label: "In the session" },
-  refused: { tone: "err", label: "Refused" },
-  gone: { tone: "idle", label: "Left" },
-} satisfies Record<Guest["state"], Standing>;
-
-function GuestRow({ host, guest }: { host: LiveHost; guest: Guest }) {
-  const mark = GUEST_MARK[guest.state];
-  const live =
-    guest.state === "asking" ||
-    guest.state === "connecting" ||
-    guest.state === "joined";
-  return (
-    <div className="vault-row">
-      <div className="vault-row__body">
-        <span className="vault-row__text">
-          <span className="vault-row__name">{guest.name}</span>
-          {guest.note ? (
-            <span className="vault-row__meta">{guest.note}</span>
-          ) : null}
-        </span>
-        <StatusMark tone={mark.tone} label={mark.label} />
-      </div>
-      {guest.state === "asking" ? (
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={`Let ${guest.name} in`}
-          title={`Let ${guest.name} in`}
-          onClick={() => void host.admit(guest.key)}
-        >
-          <IconCheck size={16} />
-        </button>
-      ) : null}
-      {live ? (
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={
-            guest.state === "asking"
-              ? `Turn ${guest.name} away`
-              : `Remove ${guest.name}`
-          }
-          title={
-            guest.state === "asking"
-              ? `Turn ${guest.name} away`
-              : `Remove ${guest.name}`
-          }
-          onClick={() => void host.refuse(guest.key)}
-        >
-          <IconX size={16} />
-        </button>
-      ) : null}
-    </div>
-  );
-}
+import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
+import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
 
 function Log({ state }: { state: HostState }) {
   const { items } = useVault();
@@ -163,6 +100,7 @@ export function LiveHostSession({
           <span className="frow__value live-code">{host.code}</span>
         </FieldRow>
       ) : null}
+      <RequestPaste host={host} />
       {state.guests.map((guest) => (
         <GuestRow key={guest.key} host={host} guest={guest} />
       ))}

@@ -1,12 +1,15 @@
 /**
- * The WebRTC half of a live session (ADR 0148 §4–§5).
+ * The WebRTC half of a live session (ADR 0148 §3–§5).
  *
- * Nothing here runs before the owner admits someone: the owner creates the
- * peer connection — and so gathers candidates — only for an admitted joiner,
- * and the joiner only on receiving that owner-signed offer. Candidates are
- * gathered in full before the description is sent (no trickle), so the
- * whole handshake is two signalling messages, and every address in it rides
- * inside the encrypted, signed signal.
+ * The joiner's page makes the offer and the owner's page answers it, each
+ * description carried in a sealed pairing code a person passes on
+ * (`pairing.ts`). Candidates are gathered in full before a description is
+ * sealed (no trickle), so the whole handshake is those two codes.
+ *
+ * No ICE server is configured: no STUN or TURN, nobody else's machine. The
+ * browsers offer only their own host candidates and reach each other
+ * directly — on the same network, or wherever a route between them exists —
+ * or not at all.
  *
  * `RTCPeerConnection` is the shell's to construct (`PeerFactory`): app-core
  * touches no browser global, and tests hand in a fake.
@@ -18,10 +21,18 @@ import { type ChannelMessage, readChannelMessage } from "./messages.js";
 export type PeerFactory = (config: RTCConfiguration) => RTCPeerConnection;
 
 export type IceSettings = Readonly<{
+  /** Empty by default: host candidates only, no third party. */
   iceServers: readonly RTCIceServer[];
-  /** TURN only: no direct address is ever offered, even after admission. */
-  relayOnly: boolean;
 }>;
+
+/** No ICE server: the two browsers meet directly or not at all. */
+export const DIRECT_ONLY: IceSettings = { iceServers: [] };
+
+/**
+ * How long one side waits for the channel after its code is made: long
+ * enough for two people to pass each other the codes.
+ */
+export const PAIRING_MS = 15 * 60_000;
 
 const CHANNEL_LABEL = "osm-live-v1";
 const GATHER_MS = 8000;
@@ -31,7 +42,6 @@ const FRAME_MAX = 1024 * 1024;
 function rtcConfig(ice: IceSettings): RTCConfiguration {
   return {
     iceServers: [...ice.iceServers],
-    iceTransportPolicy: ice.relayOnly ? "relay" : "all",
   };
 }
 
@@ -85,7 +95,7 @@ function opened(channel: RTCDataChannel): Promise<PeerChannel> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("channel_timeout")),
-      30_000,
+      PAIRING_MS,
     );
     const done = () => {
       clearTimeout(timer);
@@ -110,7 +120,7 @@ export type OfferSide = Readonly<{
   channel: Promise<PeerChannel>;
 }>;
 
-/** The owner's side, for one admitted joiner. */
+/** The joiner's side: the offer its request code carries. */
 export async function makeOffer(
   factory: PeerFactory,
   ice: IceSettings,
@@ -121,7 +131,7 @@ export async function makeOffer(
   return { pc, offer: await gathered(pc), channel: opened(channel) };
 }
 
-/** Finish the owner's side with the joiner's answer. */
+/** Finish the joiner's side with the answer the owner's reply carries. */
 export async function takeAnswer(
   pc: RTCPeerConnection,
   answer: string,
@@ -135,7 +145,7 @@ export type AnswerSide = Readonly<{
   channel: Promise<PeerChannel>;
 }>;
 
-/** The joiner's side: answer the owner's offer. */
+/** The owner's side, for one joiner it lets in: answer the offer. */
 export async function answerOffer(
   factory: PeerFactory,
   ice: IceSettings,

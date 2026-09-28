@@ -12,12 +12,11 @@
  * re-planned.
  *
  * Egress this module wraps, none of it at activation and all of it started
- * by the person: WebSocket connections to the session's Nostr relays
- * (`lib/live/relays.ts`; public ones by default, carrying only NIP-44
- * ciphertext between two ephemeral keys); STUN binding requests to two
- * public STUN servers, and a WebRTC peer connection to the other browser,
- * only after the owner admits someone (`lib/live/peer.ts`); the clipboard
- * on a copy. Side effects: none at import.
+ * by the person: a WebRTC peer connection to the other browser, directly,
+ * with no ICE server — no relay, STUN or TURN — once the two people have
+ * passed each other the sealed pairing codes (`lib/live/pairing.ts`,
+ * `lib/live/peer.ts`); the clipboard on a copy. Side effects: none at
+ * import.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";

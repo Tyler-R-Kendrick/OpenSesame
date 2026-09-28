@@ -12,6 +12,7 @@ import type {
   HostState,
   LiveHost,
 } from "@opensesame/app-core/lib/live/host.js";
+import type { LiveLink } from "@opensesame/app-core/lib/live/link.js";
 import {
   currentGuest,
   currentHost,
@@ -34,6 +35,56 @@ export type LiveHostView = Readonly<{
   host: LiveHost | null;
   state: HostState | null;
 }>;
+
+/**
+ * What the joiner has typed, and the link in hand, kept in memory across a
+ * remount: committing the join road's consent re-plans the page, and the
+ * screen can mount again after the person has started typing. Cleared when
+ * they close the screen; never written anywhere.
+ */
+export type JoinDraft = {
+  link: LiveLink | null;
+  pasted: string;
+  code: string;
+  name: string;
+  note: string;
+  /** Why the last ask failed: the form mounts afresh after one. */
+  failed: string;
+};
+
+export const joinDraft: JoinDraft = {
+  link: null,
+  pasted: "",
+  code: "",
+  name: "",
+  note: "",
+  failed: "",
+};
+
+export function clearJoinDraft(): void {
+  Object.assign(joinDraft, {
+    link: null,
+    pasted: "",
+    code: "",
+    name: "",
+    note: "",
+    failed: "",
+  });
+}
+
+/** One field of the draft, as React state that writes through. */
+export function useDraftField(
+  key: "pasted" | "code" | "name" | "note" | "failed",
+): [string, (next: string) => void] {
+  const [value, setValue] = useState(() => joinDraft[key]);
+  return [
+    value,
+    (next) => {
+      joinDraft[key] = next;
+      setValue(next);
+    },
+  ];
+}
 
 /** Seams, so a test can stand a fake network in for the browser's. */
 export const liveUiSeams = {

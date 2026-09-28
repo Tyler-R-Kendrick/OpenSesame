@@ -14,7 +14,6 @@ import {
 import { DEFAULT_KEYBINDINGS } from "../../lib/configuration/keybindings.js";
 import { parseConfigYaml } from "../../lib/configuration/yaml-profile.js";
 import { SETTINGS_CONFIG_FILE } from "../../lib/crumbs.js";
-import { MAX_RELAYS, isRelayUrl } from "../../lib/live/link.js";
 
 export {
   SETTINGS_CONFIG_FILE,
@@ -42,8 +41,6 @@ export type SettingsField = {
    * never quietly ignored.
    */
   readonly?: boolean;
-  /** A rule of this key's own, after its kind: the refusal, or null. */
-  check?: (value: SettingsValue) => string | null;
 };
 
 export type SettingsValue = string | number | boolean | string[];
@@ -87,27 +84,14 @@ const CONNECTIVITY = [
   { key: "daemonApi", kind: "string" },
 ] as const satisfies readonly SettingsField[];
 
-/** Live sessions' relays (ADR 0148 §3): wss:// addresses, at most five. */
-function relayList(value: SettingsValue): string | null {
-  if (!Array.isArray(value)) return "liveRelays must be a list.";
-  if (value.length > MAX_RELAYS)
-    return `liveRelays holds at most ${MAX_RELAYS} relays.`;
-  const wrong = value.find((relay) => !isRelayUrl(relay));
-  return wrong === undefined
-    ? null
-    : `liveRelays: ${wrong} is not a wss:// relay address.`;
-}
-
 /**
  * Settings › Capabilities: the endpoints its providers are configured with
- * (Connections folded in, ADR 0135), the relays live sessions meet on (empty:
- * the built-in public ones), and what the plan approved — adding or
+ * (Connections folded in, ADR 0135), and what the plan approved — adding or
  * retiring one is a reviewed plan with a consent receipt.
  */
 const CAPABILITIES = [
   { key: "approved", kind: "list", readonly: true },
   ...CONNECTIVITY,
-  { key: "liveRelays", kind: "list", check: relayList },
 ] as const satisfies readonly SettingsField[];
 
 const FIELDS = new Map<string, readonly SettingsField[]>([
@@ -280,7 +264,7 @@ function checkValue(
   if (field.kind === "string" && !isString(value)) {
     return `${key} must be text.`;
   }
-  return field.check ? field.check(value) : null;
+  return null;
 }
 
 function docFromObject(value: JsonObject): SettingsDoc {

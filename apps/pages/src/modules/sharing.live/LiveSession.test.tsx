@@ -2,15 +2,14 @@
 /**
  * A live session through the screens people use (ADR 0148): the owner's
  * Settings panel starts it, the joiner's `/live` screen asks, the owner lets
- * them in, and a concealed value crosses only when asked for — over a relay
- * that carries the real signed, encrypted events, between fake peers.
+ * them in, and a concealed value crosses only when asked for. The two sealed
+ * pairing codes are passed by hand, as people pass them; no server of any
+ * kind is involved. The peers are fakes (real WebRTC: verify:live-join).
  */
 import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
+import { FakeNet } from "@opensesame/app-core/lib/live/live-fakes.js";
 import {
-  FakeNet,
-  MemoryRelay,
-} from "@opensesame/app-core/lib/live/live-fakes.js";
-import {
+  currentGuest,
   currentHost,
   endHosting,
   leaveLive,
@@ -30,7 +29,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
-import { liveUiSeams } from "./live-hooks.js";
+import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 
 const SECRET = "correct horse battery staple";
 const github = createItem("login", "GitHub");
@@ -42,11 +41,10 @@ bank.password = "not shared";
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };
 const originalUi = { ...liveUiSeams };
-let relay: MemoryRelay;
+let net: FakeNet;
 
 beforeEach(() => {
-  relay = new MemoryRelay();
-  const net = new FakeNet();
+  net = new FakeNet();
   Object.assign(vaultHooksSeams, {
     useVault: () => ({
       ...vaultStore.getSnapshot(),
@@ -56,16 +54,16 @@ beforeEach(() => {
     useCopySecret: () => async () => "copied" as const,
   });
   Object.assign(liveSeams, {
-    transport: () => relay.transport(),
     items: () => [github, bank],
   });
   Object.assign(liveUiSeams, {
     peers: net.factory(),
-    joinUrl: () => "https://example.test/OpenSesame/live",
+    joinUrl: () => "https://example.test/OpenSesame/",
   });
 });
 
 afterEach(() => {
+  clearJoinDraft();
   leaveLive();
   endHosting();
   cleanup();
@@ -91,7 +89,7 @@ function startHosting(admission: "invite" | "open" = "invite") {
   fireEvent.click(
     panel.getByRole("button", { name: "Start the live session" }),
   );
-  return { owner };
+  return { owner, panel };
 }
 
 function openJoin(): HTMLElement {
@@ -103,12 +101,34 @@ function openJoin(): HTMLElement {
   return container;
 }
 
-describe("a live session, owner to joiner", () => {
-  it("admits a joiner who holds the link and the code, and hands over one value on request", async () => {
-    const { owner } = startHosting();
+/** The joiner asks: the request code the page made for them to send. */
+async function ask(joiner: ReturnType<typeof within>, name: string) {
+  fireEvent.change(joiner.getByLabelText("Your name"), {
+    target: { value: name },
+  });
+  fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
+  await joiner.findByRole("button", { name: "Copy your request code" });
+  const status = currentGuest()?.status;
+  return status?.at === "request" ? status.code : "";
+}
+
+/** A code, pasted into a labelled field and committed with its key. */
+function paste(
+  where: ReturnType<typeof within>,
+  label: string,
+  key: string,
+  text: string,
+) {
+  fireEvent.change(where.getByLabelText(label), { target: { value: text } });
+  fireEvent.click(where.getByRole("button", { name: key }));
+}
+
+describe("a live session, owner to joiner, paired by hand", () => {
+  it("lets in a joiner who holds the link and the code, and hands over one value on request", async () => {
+    const { owner, panel } = startHosting();
+    await panel.findByRole("img", { name: "Live" });
     const host = currentHost();
     expect(host?.code).toMatch(/^[A-Z]{4}-[A-Z]{4}$/);
-    expect(within(owner).getByRole("img", { name: "Live" })).toBeTruthy();
 
     holdLiveLink(host?.link ?? null);
     const joiner = within(openJoin());
@@ -116,20 +136,22 @@ describe("a live session, owner to joiner", () => {
     fireEvent.change(joiner.getByLabelText("Code"), {
       target: { value: (host?.code ?? "").toLowerCase() },
     });
-    fireEvent.change(joiner.getByLabelText("Your name"), {
-      target: { value: "Ada" },
-    });
-    fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
+    const request = await ask(joiner, "Ada");
+    expect(request).toMatch(/^osl-request\./);
+    expect(request).not.toContain("Ada");
 
-    // Asking reveals nothing about the owner: no peer until admitted.
-    const admit = await within(owner).findByRole("button", {
-      name: "Let Ada in",
-    });
+    const created = net.created;
+    paste(panel, "A request code", "Read the request", request);
+    const admit = await panel.findByRole("button", { name: "Let Ada in" });
+    // Asking made the owner no peer: nothing of the owner has left yet.
+    expect(net.created).toBe(created);
     fireEvent.click(admit);
+    await panel.findByRole("button", { name: "Copy the reply code for Ada" });
+    const reply = currentHost()?.state.guests[0]?.reply ?? "";
+    expect(reply).toMatch(/^osl-reply\./);
 
-    await waitFor(() =>
-      expect(joiner.getByRole("img", { name: "Joined Team" })).toBeTruthy(),
-    );
+    paste(joiner, "The owner's reply code", "Connect", reply);
+    await joiner.findByRole("img", { name: "Joined Team" });
     expect(joiner.getByText("octo")).toBeTruthy();
     expect(joiner.queryByText("Bank")).toBeNull();
     expect(joiner.queryByText(SECRET)).toBeNull();
@@ -138,16 +160,7 @@ describe("a live session, owner to joiner", () => {
       joiner.getByRole("button", { name: "Reveal GitHub Password" }),
     );
     await waitFor(() => expect(joiner.getByText(SECRET)).toBeTruthy());
-    // The owner sees what was handed out.
-    await waitFor(() =>
-      expect(
-        within(owner).getByRole("list", { name: "Handed out" }),
-      ).toBeTruthy(),
-    );
-    // Relays carried ciphertext only.
-    const wire = JSON.stringify(relay.seen);
-    for (const leak of [SECRET, "octo", "Ada", host?.code ?? "?"])
-      expect(wire).not.toContain(leak);
+    await panel.findByRole("list", { name: "Handed out" });
 
     // Ending it drops everything the joiner held.
     fireEvent.click(
@@ -155,53 +168,117 @@ describe("a live session, owner to joiner", () => {
         name: "End the session for everyone",
       }),
     );
-    await waitFor(() =>
-      expect(
-        joiner.getByRole("img", { name: "The session ended" }),
-      ).toBeTruthy(),
-    );
+    await joiner.findByRole("img", { name: "The session ended" });
     expect(joiner.queryByText(SECRET)).toBeNull();
     expect(joiner.queryByText("octo")).toBeNull();
   });
 
-  it("refuses a joiner with the wrong code", async () => {
-    startHosting();
+  it("counts a request made with the wrong code, and says so", async () => {
+    const { panel } = startHosting();
+    await panel.findByRole("img", { name: "Live" });
     const host = currentHost();
     holdLiveLink(host?.link ?? null);
     const joiner = within(openJoin());
     fireEvent.change(joiner.getByLabelText("Code"), {
-      target: { value: "BCDF-GHJK" === host?.code ? "BCDF-GHJL" : "BCDF-GHJK" },
+      target: { value: host?.code === "BCDF-GHJK" ? "BCDF-GHJL" : "BCDF-GHJK" },
     });
-    fireEvent.change(joiner.getByLabelText("Your name"), {
-      target: { value: "Mallory" },
-    });
-    fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
-    await waitFor(() =>
-      expect(
-        joiner.getByRole("img", { name: "That code is not this session's" }),
-      ).toBeTruthy(),
-    );
+    const request = await ask(joiner, "Mallory");
+    paste(panel, "A request code", "Read the request", request);
+    await panel.findByRole("img", { name: "Not for this session (1 of 5)" });
+    expect(panel.queryByText("Mallory")).toBeNull();
   });
 
-  it("asks for no code in an open session, and lets the link holder straight in", async () => {
-    const { owner } = startHosting("open");
+  it("refuses a reply that is not for this request", async () => {
+    const { panel } = startHosting();
+    await panel.findByRole("img", { name: "Live" });
+    holdLiveLink(currentHost()?.link ?? null);
+    const joiner = within(openJoin());
+    fireEvent.change(joiner.getByLabelText("Code"), {
+      target: { value: currentHost()?.code ?? "" },
+    });
+    await ask(joiner, "Ada");
+    paste(joiner, "The owner's reply code", "Connect", "osl-reply.nope.nope");
+    await joiner.findByRole("img", {
+      name: "That reply is not for this request",
+    });
+  });
+
+  it("asks for no code in an open session, and replies at once", async () => {
+    const { panel } = startHosting("open");
+    await panel.findByRole("img", { name: "Live" });
     const host = currentHost();
     expect(host?.code).toBeNull();
-    expect(within(owner).queryByText(/^[A-Z]{4}-[A-Z]{4}$/)).toBeNull();
     holdLiveLink(host?.link ?? null);
     const joiner = within(openJoin());
     expect(joiner.queryByLabelText("Code")).toBeNull();
-    fireEvent.change(joiner.getByLabelText("Your name"), {
-      target: { value: "Grace" },
-    });
-    fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
-    await waitFor(() =>
-      expect(joiner.getByRole("img", { name: "Joined Team" })).toBeTruthy(),
+    const request = await ask(joiner, "Grace");
+    paste(panel, "A request code", "Read the request", request);
+    await panel.findByRole("button", { name: "Copy the reply code for Grace" });
+    expect(panel.queryByRole("button", { name: "Let Grace in" })).toBeNull();
+    paste(
+      joiner,
+      "The owner's reply code",
+      "Connect",
+      currentHost()?.state.guests[0]?.reply ?? "",
     );
-    // `read` was chosen, so a reveal key is drawn beside copy.
+    await joiner.findByRole("img", { name: "Joined Team" });
     expect(
       joiner.getByRole("button", { name: "Copy GitHub Password" }),
     ).toBeTruthy();
+  });
+
+  it("keeps what the joiner typed when the screen mounts again", async () => {
+    // Committing the join road's consent re-plans the page, and the screen
+    // can mount a second time after the person has started typing.
+    const { panel } = startHosting();
+    await panel.findByRole("img", { name: "Live" });
+    holdLiveLink(currentHost()?.link ?? null);
+    const first = render(
+      <MemoryRouter>
+        <LiveJoinRoute />
+      </MemoryRouter>,
+    );
+    const typed = within(first.container);
+    fireEvent.change(typed.getByLabelText("Code"), {
+      target: { value: currentHost()?.code ?? "" },
+    });
+    fireEvent.change(typed.getByLabelText("Your name"), {
+      target: { value: "Ada" },
+    });
+    first.unmount();
+    const again = within(openJoin());
+    expect(again.getByRole("img", { name: "Link in hand" })).toBeTruthy();
+    expect(again.getByLabelText<HTMLInputElement>("Your name").value).toBe(
+      "Ada",
+    );
+    expect(
+      again
+        .getByRole("button", { name: "Ask to join" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+  });
+
+  it("says why when this browser cannot make a request, and keeps what was typed", async () => {
+    const { panel } = startHosting();
+    await panel.findByRole("img", { name: "Live" });
+    holdLiveLink(currentHost()?.link ?? null);
+    liveUiSeams.peers = () => {
+      throw new Error("no WebRTC here");
+    };
+    const joiner = within(openJoin());
+    fireEvent.change(joiner.getByLabelText("Code"), {
+      target: { value: currentHost()?.code ?? "" },
+    });
+    fireEvent.change(joiner.getByLabelText("Your name"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
+    await joiner.findByRole("img", {
+      name: "This browser could not make a request code",
+    });
+    expect(joiner.getByLabelText<HTMLInputElement>("Your name").value).toBe(
+      "Ada",
+    );
   });
 
   it("takes a pasted link masked, and says when it is not one", () => {

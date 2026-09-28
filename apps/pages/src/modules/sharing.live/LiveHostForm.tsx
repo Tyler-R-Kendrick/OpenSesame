@@ -1,6 +1,6 @@
 /**
  * Starting a live session (ADR 0148 §2): what it shares, how, for how long,
- * and who gets in. Nothing reaches a relay until the key is pressed.
+ * and who gets in. Nothing leaves this browser until someone is let in.
  */
 
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
@@ -124,7 +124,7 @@ export function LiveHostForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (!ready) return;
-        startHosting({
+        void startHosting({
           title: title.trim(),
           scope:
             scope === "vault"

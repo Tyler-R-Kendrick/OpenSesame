@@ -210,12 +210,14 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, a live session (ADR 0148) in two browser contexts over real
-# WebRTC: the owner (a guest with one login) switches Live sessions on and
-# starts an invite session; a fresh device opens the link, consents, gives
-# the code and a name; the owner admits; the joiner reveals one value on
-# request; ending drops it. A NIP-01 relay in the test process stands in for
-# the public relays and proves no name, note, code, value or link secret
-# reached it. Run before touching lib/live, the join road or sharing.live.
+# WebRTC with no server of any kind: the owner (a guest with one login)
+# switches Live sessions on and starts an invite session; a fresh device
+# opens the link, consents, gives the code and a name, and copies its request
+# code; the owner pastes it, lets them in, and copies back the reply code; the
+# joiner pastes it, connects, and reveals one value on request; ending drops
+# it. Proves no WebSocket opened, no request left the origin and no peer
+# connection had an ICE server. Run before touching lib/live, the join road
+# or sharing.live.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -415,9 +417,11 @@ Do not add new top-level directories or loose root files — find the group.
   own** and **Join a session** — with the guest road as the card's corner
   **Skip**. The door asks no sign-in question: a device with no vault has
   nothing to sign in to. Join is on every deployment, the shared GitHub
-  Pages origin included: it opens a live session browser to browser
-  (`sharing.live`, `lib/live/`, consent first) and a Host invite link still
-  opens the Host ceremony ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
+  Pages origin included: it opens a live session browser to browser over
+  WebRTC, paired by codes the two people pass each other — no server, relay,
+  STUN or TURN of anyone's (`sharing.live`, `lib/live/`, consent first) —
+  and a Host invite link still opens the Host ceremony
+  ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
   a shared link opens join by itself. Once setup is answered or skipped the
   sign-in screen — the compiled-in Google-via-Shoo road, guest, the
   local-only seal — is the first screen, and setup lives behind unlock

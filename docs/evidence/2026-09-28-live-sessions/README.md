@@ -26,28 +26,30 @@ Before: 1 road + sign-in panel, card 480×466 · after: 2 roads + Skip, card
 ![Join pressed](390-join.png)
 
 Before: no Join road on the shared origin, so nothing to press · after: the
-Live sessions consent review — the relays, STUN and the peer connection are
-named before any of it loads.
+Live sessions consent review. Its one egress is the other person's browser,
+directly — no relay, STUN or TURN server — named before anything loads.
 
 ## Opening a shared live link, 390 × 844
 
 ![Live link](390-live-link.png)
 
 Before: the door ignores `#live=…`, and the bearer stays in the address bar
-(`…/OpenSesame/#live=v1.i.9f94…`) · after: the address bar is cleared
+(`…/OpenSesame/#live=v1.i.BGLQ…`) · after: the address bar is cleared
 (`…/OpenSesame/`) and the consent review opens (1 review on screen).
 
-## New screens: a live session end to end
+## New screens: a live session end to end, with no server
 
 These have no "before" — they did not exist. They are the captures
 `pnpm --filter @opensesame/pages verify:live-join` took of this build: two
-browser contexts, real WebRTC, and a relay in the test process that recorded
-every frame (none contained the name, note, code, value or link secret).
+browser contexts over real WebRTC, the request and reply codes passed through
+each context's own clipboard. The run also proved no WebSocket opened, no
+request left the app's origin, and both peer connections had no ICE server.
 
 | Step | Screen |
 |---|---|
 | The joiner, after consent, gives the code and a name | ![Joiner asks](live-4-joiner-ask.png) |
-| The owner's panel: link (masked), code, time left, Ada asking | ![Owner asked](live-5-owner-asked.png) |
-| The owner's panel once live (link copied) | ![Owner live](live-2-owner-live.png) |
-| The joiner revealed one password, on request | ![Joiner revealed](live-6-joiner-revealed.png) |
-| The owner ended it: the joiner holds nothing | ![Joiner ended](live-8-joiner-ended.png) |
+| The joiner copies its request code to send the owner | ![Joiner request](live-5-joiner-request.png) |
+| The owner pasted it: Ada is asking | ![Owner asked](live-6-owner-asked.png) |
+| The owner let Ada in and copies the reply code | ![Owner reply](live-7-owner-reply.png) |
+| The joiner pasted the reply, connected, and revealed one password | ![Joiner revealed](live-8-joiner-revealed.png) |
+| The owner ended it: the joiner holds nothing | ![Joiner ended](live-10-joiner-ended.png) |

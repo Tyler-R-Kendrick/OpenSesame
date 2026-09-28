@@ -194,7 +194,9 @@ mocked Host and Identity APIs Pages no longer calls.
 roads — Set up your own, Join a session — with guest as the corner Skip and
 no sign-in panel; `vault-unlock-desktop.png` only because the release notes
 beside the seal form changed two lines of copy. The seal form itself did not
-move. The other three still match.
+move. The other three still match. Re-seeded the same day for one more
+release-notes line (live sessions pair browsers directly, with no server);
+nothing else moved.
 
 ## What the orchestrator should do next
 

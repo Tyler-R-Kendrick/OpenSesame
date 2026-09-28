@@ -1,12 +1,13 @@
 /**
  * The owner's side of a live session (ADR 0148 §2–§5): the open tab hosts it.
  *
- * It listens on the relays for asks addressed to the session key, drops any
- * that cannot prove the link, counts a wrong code from one that can and ends
- * the session on the fifth miss, and holds every good ask for the owner — or, in
- * an open session, admits it at once. Admitting is the only thing that
- * creates a peer connection (`host-peer.ts`); a pending or refused asker
- * never learns an address.
+ * The owner pastes each request code a joiner sends. One that the link (and,
+ * in an invite session, the code) does not open is a miss, and the fifth
+ * miss ends the session. A request that opens waits for the owner — or, in
+ * an open session, is let in at once. Letting someone in is the only thing
+ * that answers their offer (`host-peer.ts`), and the answer leaves only in
+ * the reply code the owner hands back, so nobody the owner turned away learns
+ * where the owner is.
  *
  * The session keeps nothing in storage. It ends — for everyone, on every
  * channel — when the owner ends it, when its time runs out, or when the tab
@@ -15,16 +16,10 @@
 
 import { HostPeer, type LogEntry, type ReadField } from "./host-peer.js";
 import type { LiveLink } from "./link.js";
-import { type Catalog, NAME_MAX, NOTE_MAX, characters } from "./messages.js";
+import type { Catalog } from "./messages.js";
+import { makeReplyCode, openRequestCode } from "./pairing.js";
 import type { IceSettings, PeerFactory } from "./peer.js";
-import { checkJoinProof, newCode, newLinkSecret } from "./proof.js";
-import {
-  type Incoming,
-  type SessionKey,
-  type SignalTransport,
-  Signaller,
-  newSessionKey,
-} from "./signal.js";
+import { type OwnerKey, newCode, newLinkSecret, newOwnerKey } from "./seal.js";
 
 export const MAX_MISSES = 5;
 export const MAX_GUESTS = 8;
@@ -32,43 +27,49 @@ export const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
 
 export type Admission = "invite" | "open";
 
-export type GuestState =
-  | "asking"
-  | "connecting"
-  | "joined"
-  | "refused"
-  | "gone";
+export type GuestState = "asking" | "replied" | "joined" | "refused" | "gone";
 
 export type Guest = Readonly<{
+  /** The request id. */
   key: string;
   name: string;
   note: string;
   state: GuestState;
   askedAt: number;
+  /** The reply code to hand back, once the owner has let them in. */
+  reply: string | null;
 }>;
 
 export type HostState = Readonly<{
   status: "live" | "ended";
-  endedBecause: "owner" | "expired" | "code" | "closed" | null;
+  endedBecause: "owner" | "expired" | "code" | null;
   guests: readonly Guest[];
   log: readonly LogEntry[];
   misses: number;
 }>;
 
+/** What pasting one request code did. */
+export type Received =
+  | Readonly<{ kind: "not-a-request" }>
+  | Readonly<{ kind: "not-this-session"; misses: number }>
+  | Readonly<{ kind: "full" }>
+  | Readonly<{ kind: "ended" }>
+  | Readonly<{ kind: "guest"; key: string }>;
+
 export type HostOptions = Readonly<{
   admission: Admission;
-  relays: readonly string[];
   ice: IceSettings;
   /** Epoch ms; clamped to eight hours from now. */
   expiresAt: number;
   catalog: () => Catalog;
   readField: ReadField;
-  transport: SignalTransport;
   peers: PeerFactory;
   now?: () => number;
 }>;
 
-type Seat = { guest: Guest; peer: HostPeer | null };
+type Seat = { guest: Guest; offer: string; peer: HostPeer | null };
+
+const OPEN = new Set<GuestState>(["asking", "replied", "joined"]);
 
 /** One live session, hosted by this tab. */
 export class LiveHost {
@@ -76,8 +77,7 @@ export class LiveHost {
   /** The out-of-band code, in an invite session. */
   readonly code: string | null;
   readonly expiresAt: number;
-  readonly #key: SessionKey;
-  readonly #signal: Signaller;
+  readonly #owner: OwnerKey;
   readonly #seats = new Map<string, Seat>();
   readonly #listeners = new Set<(state: HostState) => void>();
   readonly #now: () => number;
@@ -86,32 +86,28 @@ export class LiveHost {
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly options: HostOptions) {
+  private constructor(
+    private readonly options: HostOptions,
+    owner: OwnerKey,
+  ) {
     this.#now = options.now ?? Date.now;
-    this.#key = newSessionKey();
+    this.#owner = owner;
     this.link = {
       admission: options.admission,
-      owner: this.#key.pub,
+      owner: owner.pub,
       secret: newLinkSecret(),
-      relays: options.relays,
     };
     this.code = options.admission === "invite" ? newCode() : null;
     this.expiresAt = Math.min(options.expiresAt, this.#now() + MAX_SESSION_MS);
-    this.#signal = new Signaller(
-      this.#key,
-      options.relays,
-      options.transport,
-      this.#now,
-    );
-  }
-
-  start(): void {
-    this.#signal.listen((incoming) => void this.#hear(incoming));
     this.#timer = setTimeout(
       () => this.end("expired"),
       Math.max(0, this.expiresAt - this.#now()),
     );
-    this.#emit();
+  }
+
+  /** Start a session: a fresh owner key, link secret and code. */
+  static async start(options: HostOptions): Promise<LiveHost> {
+    return new LiveHost(options, await newOwnerKey());
   }
 
   get state(): HostState {
@@ -119,7 +115,7 @@ export class LiveHost {
       status: this.#ended ? "ended" : "live",
       endedBecause: this.#ended,
       guests: [...this.#seats.values()].map((seat) => seat.guest),
-      log: [...this.#log],
+      log: this.#log,
       misses: this.#misses,
     };
   }
@@ -135,71 +131,52 @@ export class LiveHost {
     for (const listener of this.#listeners) listener(state);
   }
 
-  #set(key: string, state: GuestState): void {
+  #set(key: string, patch: Partial<Guest>): void {
     const seat = this.#seats.get(key);
     if (!seat) return;
-    seat.guest = { ...seat.guest, state };
+    seat.guest = { ...seat.guest, ...patch };
     this.#emit();
   }
 
-  async #hear({ from, signal }: Incoming): Promise<void> {
-    if (this.#ended) return;
-    if (signal.t === "ask") await this.#ask(from, signal);
-    else if (signal.t === "answer")
-      await this.#seats.get(from)?.peer?.answer(signal.sdp);
-    else if (signal.t === "bye") this.#drop(from, "gone");
-  }
-
-  async #ask(
-    from: string,
-    ask: Readonly<{ name: string; note: string; held: string; proof: string }>,
-  ): Promise<void> {
-    if (this.#seats.has(from)) return;
-    const input = {
-      secret: this.link.secret,
-      owner: this.link.owner,
-      joiner: from,
-    };
-    // The session key is public once the owner has answered anyone, so an
-    // ask that cannot prove the link is noise: dropped, never counted, or a
-    // relay onlooker could end the session with five of them.
-    if (!(await checkJoinProof({ ...input, code: null }, ask.held))) return;
-    const good = await checkJoinProof({ ...input, code: this.code }, ask.proof);
-    if (!good) {
+  /** A request code the owner pasted. */
+  async receive(text: string): Promise<Received> {
+    if (this.#ended) return { kind: "ended" };
+    const opened = await openRequestCode(this.link, this.code, text);
+    if (opened.kind === "not-a-request") return opened;
+    if (opened.kind === "not-this-session") {
       this.#misses += 1;
-      await this.#signal
-        .send(from, { t: "refuse", reason: "code" })
-        .catch(() => {});
       if (this.#misses >= MAX_MISSES) this.end("code");
       else this.#emit();
-      return;
+      return { kind: "not-this-session", misses: this.#misses };
     }
-    const live = [...this.#seats.values()].filter(
-      (seat) => seat.guest.state !== "gone" && seat.guest.state !== "refused",
+    const { request } = opened;
+    if (this.#seats.has(request.id)) return { kind: "guest", key: request.id };
+    const seated = [...this.#seats.values()].filter((seat) =>
+      OPEN.has(seat.guest.state),
     );
-    if (live.length >= MAX_GUESTS) {
-      await this.#signal
-        .send(from, { t: "refuse", reason: "full" })
-        .catch(() => {});
-      return;
-    }
-    const name = characters(ask.name) <= NAME_MAX ? ask.name : "";
-    const note = characters(ask.note) <= NOTE_MAX ? ask.note : "";
-    this.#seats.set(from, {
-      guest: { key: from, name, note, state: "asking", askedAt: this.#now() },
+    if (seated.length >= MAX_GUESTS) return { kind: "full" };
+    this.#seats.set(request.id, {
+      guest: {
+        key: request.id,
+        name: request.name,
+        note: request.note,
+        state: "asking",
+        askedAt: this.#now(),
+        reply: null,
+      },
+      offer: request.offer,
       peer: null,
     });
     this.#emit();
-    if (this.options.admission === "open") await this.admit(from);
-    else await this.#signal.send(from, { t: "wait" }).catch(() => {});
+    if (this.options.admission === "open") await this.admit(request.id);
+    return { kind: "guest", key: request.id };
   }
 
-  /** Let a waiting asker in: only now is a peer connection made. */
+  /** Let an asker in: only now is their offer answered. */
   async admit(key: string): Promise<void> {
     const seat = this.#seats.get(key);
     if (!seat || seat.guest.state !== "asking" || this.#ended) return;
-    this.#set(key, "connecting");
-    seat.peer = new HostPeer({
+    const peer = new HostPeer({
       guest: key,
       ice: this.options.ice,
       peers: this.options.peers,
@@ -207,33 +184,37 @@ export class LiveHost {
       readField: this.options.readField,
       expiresAt: this.expiresAt,
       now: this.#now,
-      send: (signal) => this.#signal.send(key, signal),
-      onJoined: () => this.#set(key, "joined"),
+      onJoined: () => this.#set(key, { state: "joined", reply: null }),
       onClosed: () => this.#drop(key, "gone"),
       onLog: (entry) => {
         this.#log = [...this.#log.slice(-199), entry];
         this.#emit();
       },
     });
-    await seat.peer.open().catch(() => this.#drop(key, "gone"));
+    seat.peer = peer;
+    try {
+      const answer = await peer.open(seat.offer);
+      const reply = await makeReplyCode(this.link, this.code, this.#owner, {
+        id: key,
+        answer,
+      });
+      if (seat.peer === peer) this.#set(key, { state: "replied", reply });
+    } catch {
+      this.#drop(key, "gone");
+    }
   }
 
-  /** Turn an asker away, or send a joined guest out. */
-  async refuse(key: string): Promise<void> {
-    const seat = this.#seats.get(key);
-    if (!seat) return;
-    await this.#signal
-      .send(key, { t: "refuse", reason: "declined" })
-      .catch(() => {});
+  /** Turn an asker away, or send a guest out. */
+  refuse(key: string): void {
     this.#drop(key, "refused");
   }
 
   #drop(key: string, state: "gone" | "refused"): void {
     const seat = this.#seats.get(key);
-    if (!seat || seat.guest.state === state) return;
+    if (!seat || !OPEN.has(seat.guest.state)) return;
     seat.peer?.close();
     seat.peer = null;
-    this.#set(key, state);
+    this.#set(key, { state, reply: null });
   }
 
   /** End the session for everyone. */
@@ -241,15 +222,12 @@ export class LiveHost {
     if (this.#ended) return;
     this.#ended = because;
     if (this.#timer) clearTimeout(this.#timer);
-    for (const [key, seat] of this.#seats) {
+    for (const seat of this.#seats.values()) {
       seat.peer?.close();
-      if (seat.guest.state !== "gone" && seat.guest.state !== "refused")
-        void this.#signal
-          .send(key, { t: "refuse", reason: "ended" })
-          .catch(() => {});
+      seat.peer = null;
+      if (OPEN.has(seat.guest.state))
+        seat.guest = { ...seat.guest, state: "gone", reply: null };
     }
-    // Let the last notices leave before the sockets close.
-    setTimeout(() => this.#signal.close(), 1000);
     this.#emit();
   }
 }

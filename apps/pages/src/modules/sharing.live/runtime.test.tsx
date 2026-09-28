@@ -31,7 +31,7 @@ describe("sharing.live runtime", () => {
     });
   });
 
-  it("serves the join screen on a locked device, and reaches no relay on activation", async () => {
+  it("serves the join screen on a locked device, and opens no socket on activation", async () => {
     const socket = vi.fn();
     vi.stubGlobal("WebSocket", socket);
     const t = createTestContext();

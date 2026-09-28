@@ -1,11 +1,12 @@
 /**
  * The joiner's side of a live session (ADR 0148 §3–§5).
  *
- * It asks once — with a proof that it holds the link (and the code, in an
- * invite session) — and then hears only from the owner key the link named:
- * a message from any other key is not the owner's and is dropped. It makes
- * a peer connection only on the owner's signed offer, which is the
- * admission, so asking reveals nothing about where it is.
+ * It makes a WebRTC offer and seals it, with the person's name and note,
+ * into a request code for them to send the owner. It then waits for the
+ * owner's reply code: one the owner key signed, that opens with this link
+ * (and code), and that answers this very request — anything else is refused
+ * and the request stays open. With the reply, the two browsers connect
+ * directly.
  *
  * Everything it receives lives in memory. When the channel closes — the
  * owner ended it, the time ran out, the owner's tab went away, or this
@@ -13,31 +14,25 @@
  */
 
 import type { LiveLink } from "./link.js";
-import type { Catalog, ChannelMessage, RefusalReason } from "./messages.js";
+import type { Catalog, ChannelMessage } from "./messages.js";
+import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
   type IceSettings,
+  type OfferSide,
   type PeerChannel,
   type PeerFactory,
-  answerOffer,
+  makeOffer,
+  takeAnswer,
 } from "./peer.js";
-import { joinProof } from "./proof.js";
-import {
-  type Incoming,
-  type SignalTransport,
-  Signaller,
-  newSessionKey,
-} from "./signal.js";
-
-/** How long an ask waits for any answer before saying nobody is there. */
-export const ASK_TIMEOUT_MS = 30_000;
+import { newRequestId } from "./seal.js";
 
 export type GuestStatus =
-  | Readonly<{ at: "asking" }>
-  | Readonly<{ at: "waiting" }>
+  | Readonly<{ at: "preparing" }>
+  | Readonly<{ at: "request"; code: string }>
   | Readonly<{ at: "connecting" }>
   | Readonly<{ at: "joined"; catalog: Catalog }>
-  | Readonly<{ at: "refused"; reason: RefusalReason }>
-  | Readonly<{ at: "unanswered" }>
+  /** The browsers found no direct route to each other. */
+  | Readonly<{ at: "unreachable" }>
   | Readonly<{ at: "ended" }>;
 
 export type GuestOptions = Readonly<{
@@ -46,31 +41,22 @@ export type GuestOptions = Readonly<{
   code: string | null;
   name: string;
   note: string;
-  relays: readonly string[];
   ice: IceSettings;
-  transport: SignalTransport;
   peers: PeerFactory;
 }>;
 
 type Pending = { resolve: (value: string | null) => void };
 
 export class LiveGuest {
-  readonly #signal: Signaller;
   readonly #listeners = new Set<(status: GuestStatus) => void>();
   readonly #pending = new Map<string, Pending>();
-  #status: GuestStatus = { at: "asking" };
-  #pc: RTCPeerConnection | null = null;
+  readonly #id = newRequestId();
+  #status: GuestStatus = { at: "preparing" };
+  #side: OfferSide | null = null;
   #channel: PeerChannel | null = null;
-  #timer: ReturnType<typeof setTimeout> | null = null;
   #next = 0;
 
-  constructor(private readonly options: GuestOptions) {
-    this.#signal = new Signaller(
-      newSessionKey(),
-      options.relays,
-      options.transport,
-    );
-  }
+  constructor(private readonly options: GuestOptions) {}
 
   get status(): GuestStatus {
     return this.#status;
@@ -87,70 +73,61 @@ export class LiveGuest {
     for (const listener of this.#listeners) listener(status);
   }
 
-  #over(): boolean {
-    const { at } = this.#status;
-    return at === "refused" || at === "ended" || at === "unanswered";
-  }
-
-  /** Ask to join. */
-  async ask(): Promise<void> {
-    const { link, code, name, note } = this.options;
-    this.#signal.listen((incoming) => void this.#hear(incoming));
-    const input = {
-      secret: link.secret,
-      owner: link.owner,
-      joiner: this.#signal.pub,
-    };
-    const held = await joinProof({ ...input, code: null });
-    const proof = await joinProof({ ...input, code });
-    this.#timer = setTimeout(() => {
-      if (this.#status.at === "asking") this.#finish({ at: "unanswered" });
-    }, ASK_TIMEOUT_MS);
-    await this.#signal.send(link.owner, {
-      t: "ask",
+  /** Make the offer and the request code that carries it. */
+  async start(): Promise<string> {
+    const { link, code, name, note, peers, ice } = this.options;
+    const side = await makeOffer(peers, ice);
+    this.#side = side;
+    side.channel.then(
+      (channel) => this.#connected(channel),
+      () => this.#finish(),
+    );
+    const request = await makeRequestCode(link, code, {
+      id: this.#id,
       name,
       note,
-      held,
-      proof,
+      offer: side.offer,
     });
+    if (this.#status.at === "preparing")
+      this.#to({ at: "request", code: request });
+    return request;
   }
 
-  async #hear({ from, signal }: Incoming): Promise<void> {
-    // Only the owner the link named speaks for the session.
-    if (from !== this.options.link.owner || this.#over()) return;
-    if (signal.t === "wait" && this.#status.at === "asking")
-      this.#to({ at: "waiting" });
-    else if (signal.t === "refuse")
-      this.#finish({ at: "refused", reason: signal.reason });
-    else if (signal.t === "offer" && !this.#pc) await this.#connect(signal.sdp);
-  }
-
-  async #connect(offer: string): Promise<void> {
+  /** The owner's reply code; false (and nothing changes) if it is not one. */
+  async accept(text: string): Promise<boolean> {
+    if (this.#status.at !== "request" || !this.#side) return false;
+    const { link, code } = this.options;
+    const reply = await openReplyCode(link, code, this.#id, text);
+    if (!reply || this.#status.at !== "request") return false;
     this.#to({ at: "connecting" });
+    const { pc } = this.#side;
+    pc.addEventListener("connectionstatechange", () => {
+      if (pc.connectionState === "failed" && this.#status.at === "connecting")
+        this.#finish({ at: "unreachable" });
+    });
     try {
-      const side = await answerOffer(
-        this.options.peers,
-        this.options.ice,
-        offer,
-      );
-      this.#pc = side.pc;
-      await this.#signal.send(this.options.link.owner, {
-        t: "answer",
-        sdp: side.answer,
-      });
-      const channel = await side.channel;
-      this.#channel = channel;
-      channel.onMessage((message) => this.#onMessage(message));
-      channel.onClose(() => this.#finish({ at: "ended" }));
+      await takeAnswer(pc, reply.answer);
+      return true;
     } catch {
-      this.#finish({ at: "ended" });
+      this.#finish();
+      return false;
     }
+  }
+
+  #connected(channel: PeerChannel): void {
+    if (this.#over()) {
+      channel.close();
+      return;
+    }
+    this.#channel = channel;
+    channel.onMessage((message) => this.#onMessage(message));
+    channel.onClose(() => this.#finish());
   }
 
   #onMessage(message: ChannelMessage): void {
     if (message.t === "catalog")
       this.#to({ at: "joined", catalog: message.catalog });
-    else if (message.t === "end") this.#finish({ at: "ended" });
+    else if (message.t === "end") this.#finish();
     else if (message.t === "value" || message.t === "denied") {
       const pending = this.#pending.get(message.req);
       this.#pending.delete(message.req);
@@ -174,26 +151,24 @@ export class LiveGuest {
     });
   }
 
-  #finish(status: GuestStatus): void {
+  #over(): boolean {
+    return this.#status.at === "ended" || this.#status.at === "unreachable";
+  }
+
+  #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
-    if (this.#timer) clearTimeout(this.#timer);
     for (const pending of this.#pending.values()) pending.resolve(null);
     this.#pending.clear();
     this.#channel?.close();
-    this.#pc?.close();
+    this.#side?.pc.close();
     this.#channel = null;
-    this.#pc = null;
-    this.#signal.close();
+    this.#side = null;
     // The catalog goes with the status it rode on.
-    this.#to(status);
+    this.#to(end);
   }
 
-  /** Leave: tell the owner, and drop everything held. */
+  /** Leave, dropping everything held; the owner sees the channel close. */
   leave(): void {
-    if (this.#over()) return;
-    void this.#signal
-      .send(this.options.link.owner, { t: "bye" })
-      .catch(() => {})
-      .finally(() => this.#finish({ at: "ended" }));
+    this.#finish();
   }
 }
