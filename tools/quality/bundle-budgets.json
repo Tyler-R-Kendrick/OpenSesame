@@ -50,7 +50,15 @@
       "(~5 KiB) out: +2.9 KiB net, measured from source maps of both",
       "builds. Neither lowering experimentalMinChunkSize nor a dedicated",
       "module-support chunk kept `main` smaller; both made it larger.",
-      "total, javascript and gzip budgets are unchanged and still pass."
+      "total, javascript and gzip budgets are unchanged and still pass.",
+      "2026-09-28: largestAsset 748 -> 765 for both, for ADR 0148. The front",
+      "door's Join road is on every deployment now, so what it needs before",
+      "any consent is core and rides `main`: the live-link parser boot uses to",
+      "take a link out of the address bar, the join road's consent gate and",
+      "the commit helper it shares with Settings. Everything that speaks to a",
+      "relay or a peer stays in the optional sharing.live chunk, which neither",
+      "hardened profile builds. Measured 750 KiB after merging main at",
+      "de8bf529; the budget keeps ~2% headroom."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -60,7 +68,7 @@
           "javascript": 4122,
           "javascriptGzip": 1241,
           "css": 171,
-          "largestAsset": 748
+          "largestAsset": 765
         }
       },
       "family-local-hardened": {
@@ -70,7 +78,7 @@
           "javascript": 4122,
           "javascriptGzip": 1241,
           "css": 171,
-          "largestAsset": 748
+          "largestAsset": 765
         }
       }
     }

@@ -18,8 +18,8 @@ import {
 } from "@opensesame/app-core/sections/settings/settings-files.js";
 import {
   type SettingsState,
-  applySuggestion,
   applyLiveRelays,
+  applySuggestion,
   mergePages,
   mergePrefs,
   readDoc,

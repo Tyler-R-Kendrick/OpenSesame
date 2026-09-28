@@ -96,16 +96,23 @@ export class LiveGuest {
   async ask(): Promise<void> {
     const { link, code, name, note } = this.options;
     this.#signal.listen((incoming) => void this.#hear(incoming));
-    const proof = await joinProof({
+    const input = {
       secret: link.secret,
       owner: link.owner,
       joiner: this.#signal.pub,
-      code,
-    });
+    };
+    const held = await joinProof({ ...input, code: null });
+    const proof = await joinProof({ ...input, code });
     this.#timer = setTimeout(() => {
       if (this.#status.at === "asking") this.#finish({ at: "unanswered" });
     }, ASK_TIMEOUT_MS);
-    await this.#signal.send(link.owner, { t: "ask", name, note, proof });
+    await this.#signal.send(link.owner, {
+      t: "ask",
+      name,
+      note,
+      held,
+      proof,
+    });
   }
 
   async #hear({ from, signal }: Incoming): Promise<void> {

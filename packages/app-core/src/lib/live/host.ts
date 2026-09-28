@@ -1,9 +1,9 @@
 /**
  * The owner's side of a live session (ADR 0148 §2–§5): the open tab hosts it.
  *
- * It listens on the relays for asks addressed to the session key, checks each
- * ask's proof (link, and code in an invite session), counts misses and ends
- * the session on the fifth, and holds every good ask for the owner — or, in
+ * It listens on the relays for asks addressed to the session key, drops any
+ * that cannot prove the link, counts a wrong code from one that can and ends
+ * the session on the fifth miss, and holds every good ask for the owner — or, in
  * an open session, admits it at once. Admitting is the only thing that
  * creates a peer connection (`host-peer.ts`); a pending or refused asker
  * never learns an address.
@@ -152,18 +152,19 @@ export class LiveHost {
 
   async #ask(
     from: string,
-    ask: Readonly<{ name: string; note: string; proof: string }>,
+    ask: Readonly<{ name: string; note: string; held: string; proof: string }>,
   ): Promise<void> {
     if (this.#seats.has(from)) return;
-    const good = await checkJoinProof(
-      {
-        secret: this.link.secret,
-        owner: this.link.owner,
-        joiner: from,
-        code: this.code,
-      },
-      ask.proof,
-    );
+    const input = {
+      secret: this.link.secret,
+      owner: this.link.owner,
+      joiner: from,
+    };
+    // The session key is public once the owner has answered anyone, so an
+    // ask that cannot prove the link is noise: dropped, never counted, or a
+    // relay onlooker could end the session with five of them.
+    if (!(await checkJoinProof({ ...input, code: null }, ask.held))) return;
+    const good = await checkJoinProof({ ...input, code: this.code }, ask.proof);
     if (!good) {
       this.#misses += 1;
       await this.#signal

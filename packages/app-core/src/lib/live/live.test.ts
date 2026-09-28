@@ -158,6 +158,39 @@ describe("an invite session", () => {
     expect(r.net.created).toBe(0);
   });
 
+  it("drops asks that cannot prove the link: an onlooker cannot burn the session", async () => {
+    // Once the owner has answered anyone its key is public on the relays.
+    const r = room();
+    hosts.push(r.host);
+    const onlooker = new Signaller(
+      newSessionKey(),
+      RELAYS,
+      r.relay.transport(),
+    );
+    const heard: string[] = [];
+    onlooker.listen((incoming) => heard.push(incoming.signal.t));
+    const junk = "0".repeat(64);
+    for (let tries = 0; tries < MAX_MISSES + 2; tries += 1)
+      await onlooker.send(r.host.link.owner, {
+        t: "ask",
+        name: "x",
+        note: "",
+        held: junk,
+        proof: junk,
+      });
+    await settle();
+    expect(r.host.state.misses).toBe(0);
+    expect(r.host.state.status).toBe("live");
+    expect(r.host.state.guests).toEqual([]);
+    expect(heard).toEqual([]);
+    // A real joiner still gets in.
+    const g = guest(r, r.host.code);
+    await g.ask();
+    await settle();
+    expect(g.status).toEqual({ at: "waiting" });
+    onlooker.close();
+  });
+
   it("the link alone is not the code", async () => {
     const r = room();
     hosts.push(r.host);

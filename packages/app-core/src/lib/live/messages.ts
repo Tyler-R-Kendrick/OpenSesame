@@ -43,7 +43,15 @@ const REFUSALS: readonly RefusalReason[] = [
 ];
 
 export type Signal =
-  | Readonly<{ t: "ask"; name: string; note: string; proof: string }>
+  | Readonly<{
+      t: "ask";
+      name: string;
+      note: string;
+      /** Holds the link: keyed by the link secret alone. */
+      held: string;
+      /** Holds the link and, in an invite session, the code. */
+      proof: string;
+    }>
   | Readonly<{ t: "wait" }>
   | Readonly<{ t: "refuse"; reason: RefusalReason }>
   | Readonly<{ t: "offer"; sdp: string }>
@@ -114,10 +122,11 @@ function readSdp(body: JsonObject): string | null {
 }
 
 function readAsk(body: JsonObject): Signal | null {
-  const { name, note, proof } = body;
+  const { name, note, held, proof } = body;
   if (!bounded(name, NAME_MAX) || !bounded(note, NOTE_MAX)) return null;
+  if (!isString(held) || !PROOF.test(held)) return null;
   if (!isString(proof) || !PROOF.test(proof)) return null;
-  return { t: "ask", name: name.trim(), note: note.trim(), proof };
+  return { t: "ask", name: name.trim(), note: note.trim(), held, proof };
 }
 
 /** One signalling message, or null. */

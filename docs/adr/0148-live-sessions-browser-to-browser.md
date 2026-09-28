@@ -76,10 +76,14 @@ the address bar and history), and a deep path is a 404 on GitHub Pages.
 - Every message is a NIP-44 conversation between two ephemeral keys — the
   owner's and one joiner's — so a relay sees two public keys and ciphertext,
   and one invitee cannot read another's signalling.
-- A joiner's first message proves it holds the link:
-  `HMAC-SHA256(HKDF(link-secret), "osm-live-v1" ‖ owner ‖ joiner)`. In invite
-  mode the key also mixes in the code, so the link alone is not enough.
-  The owner counts misses; the fifth ends the session (the ADR 0044 rule).
+- A joiner's first message carries two proofs:
+  `HMAC-SHA256(HKDF(link-secret, salt), "osm-live-v1" ‖ owner ‖ joiner)`, once
+  with an empty salt (it holds the link) and once salted with the code (it
+  holds the code too; in an open session the two are the same). An ask that
+  cannot prove the link is dropped unanswered and never counted: the owner's
+  session key is public on the relays once it has answered anyone, and an
+  onlooker must not be able to end the session. A wrong code from someone
+  holding the link is a miss; the fifth ends the session (the ADR 0044 rule).
 - Messages the joiner accepts are signed by the owner key the link named, so
   nobody holding the link can impersonate the owner.
 
