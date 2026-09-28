@@ -29,7 +29,7 @@ try {
       await verifyScenario(browser, scenario);
     }
     console.info(
-      `PASS: Chromium hosted authentication, artifact ${fixture.version}; SRI, actual CORS, code/PKCE, nonce, issuer/state, single-use callback and server code replay.`,
+      `PASS: Chromium hosted authentication, artifact ${fixture.version}; SRI, actual CORS, code/PKCE sealed at rest, nonce, issuer/state, single-use callback and server code replay.`,
     );
   }
 } catch {
@@ -115,6 +115,14 @@ async function captureBrowserWire(context, page, scenario) {
   return { pageErrors, calls, transaction: () => ({ pending, callback }) };
 }
 
+/** Sealed at rest (ADR 0149): not the verifier, the nonce or the state. */
+function assertSealed(pending, callback) {
+  assert.ok(pending);
+  assert.match(pending.value, /^osc1\./);
+  const state = new URL(callback).searchParams.get("state");
+  assert.ok(state && !pending.value.includes(state));
+}
+
 async function consentInBrowser(page, scenario) {
   stage = `${scenario}: RP load`;
   await page.goto(fixture.origin);
@@ -174,8 +182,8 @@ async function verifyScenario(browser, scenario) {
     stage = "valid: callback captured";
     const { callback, pending } = transaction();
     assert.ok(callback);
-    stage = "valid: pending transaction captured";
-    assert.ok(pending);
+    stage = "valid: pending transaction captured, sealed";
+    assertSealed(pending, callback);
     stage = "valid: client callback replay";
     await page.goto(callback);
     await page.getByRole("status").filter({ hasText: "Refused" }).waitFor();
