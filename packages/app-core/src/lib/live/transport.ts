@@ -39,11 +39,13 @@ import {
   type IceServerSetting,
   type IceServerSpec,
   type LiveRoutes,
+  LiveRoutesRefused,
   MAX_CARRIERS,
   MAX_SERVERS,
   list,
   readCarrier,
   readIceServer,
+  routesSegment,
 } from "./routes.js";
 
 export {
@@ -99,23 +101,101 @@ export type TransportRead =
 
 const KEYS = new Set(["addresses", "ice", "relay", "carriers"]);
 
-/** The owner's transport profile (`settings/live/transport.json`). */
+/** The first of each kind of entry: a repeat is a no-op, never a second row. */
+function unique<T>(items: readonly T[], key: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const id = key(item);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+/** Two ICE servers are one when they name the same URLs and login. */
+export function iceKey(server: IceServerSpec): string {
+  return `${server.urls.join(" ")}\0${server.username ?? ""}`;
+}
+
+/** Two carriers are one when they are the same kind at the same address. */
+export function carrierKey(carrier: CarrierSpec): string {
+  return `${carrier.kind} ${carrier.url}`;
+}
+
+/** What a link would carry of a profile, with a minted credential's length. */
+function previewRoutes(transport: LiveTransport): LiveRoutes {
+  return {
+    ice: transport.ice.map(({ secret, ...server }) =>
+      secret
+        ? {
+            urls: server.urls,
+            username: "9999999999:osl",
+            credential: "=".repeat(28),
+          }
+        : server,
+    ),
+    relay: transport.relay,
+    carriers: transport.carriers,
+  };
+}
+
+/** Why a link could not carry this profile, or null when it can. */
+export function routesRefusal(transport: LiveTransport): string | null {
+  try {
+    routesSegment(previewRoutes(transport));
+    return null;
+  } catch (error) {
+    if (error instanceof LiveRoutesRefused) return error.message;
+    throw error;
+  }
+}
+
+/**
+ * Whether the link would hand every joiner a credential the profile holds:
+ * a static TURN login or a carrier's password or token, good for the whole
+ * session. (A TURN REST secret never travels; it mints per-session ones.)
+ */
+export function carriesCredentials(transport: LiveTransport): boolean {
+  return (
+    transport.ice.some(
+      (server) => !server.secret && (server.username || server.credential),
+    ) ||
+    transport.carriers.some(
+      (carrier) => carrier.username || carrier.password || carrier.token,
+    )
+  );
+}
+
+/**
+ * The owner's transport profile (`settings/live/transport.json`). A repeat —
+ * the same address, the same servers and login, the same carrier — is
+ * collapsed to its first, silently: it changes nothing a session does, and
+ * the next write is canonical. A profile whose link would be longer than a
+ * joiner can read is refused.
+ */
 export function readTransport(value: BoundaryValue): TransportRead {
   const errors: Errors = [];
   if (!isJsonObject(value))
     return { ok: false, errors: ["The profile must be a JSON object."] };
   for (const key of Object.keys(value))
     if (!KEYS.has(key)) errors.push(`Unknown key "${key}".`);
-  const addresses: string[] = [];
+  const found: string[] = [];
   for (const entry of list(value.addresses, "addresses", MAX_ADDRESSES, errors))
-    if (isString(entry) && isAddress(entry)) addresses.push(entry);
+    if (isString(entry) && isAddress(entry)) found.push(entry);
     else errors.push("addresses has one that is not an IP address.");
-  const ice = list(value.ice, "ice", MAX_SERVERS, errors)
-    .map((entry, at) => readIceServer(entry, `ice[${at}]`, errors, true))
-    .filter((entry) => entry !== null);
-  const carriers = list(value.carriers, "carriers", MAX_CARRIERS, errors)
-    .map((entry, at) => readCarrier(entry, `carriers[${at}]`, errors))
-    .filter((entry) => entry !== null);
+  const addresses = unique(found, (entry) => entry.toLowerCase());
+  const ice = unique(
+    list(value.ice, "ice", MAX_SERVERS, errors)
+      .map((entry, at) => readIceServer(entry, `ice[${at}]`, errors, true))
+      .filter((entry) => entry !== null),
+    iceKey,
+  );
+  const carriers = unique(
+    list(value.carriers, "carriers", MAX_CARRIERS, errors)
+      .map((entry, at) => readCarrier(entry, `carriers[${at}]`, errors))
+      .filter((entry) => entry !== null),
+    carrierKey,
+  );
   const relay = value.relay ?? false;
   if (relay !== true && relay !== false)
     errors.push("relay must be true or false.");
@@ -125,10 +205,10 @@ export function readTransport(value: BoundaryValue): TransportRead {
   if (relay === true && !hasTurn)
     errors.push("relay needs at least one TURN server.");
   if (errors.length > 0) return { ok: false, errors };
-  return {
-    ok: true,
-    transport: { addresses, ice, relay: relay === true, carriers },
-  };
+  const transport = { addresses, ice, relay: relay === true, carriers };
+  const tooLong = routesRefusal(transport);
+  if (tooLong) return { ok: false, errors: [tooLong] };
+  return { ok: true, transport };
 }
 
 /** The profile as its file holds it: empty lists and `false` left out. */
