@@ -54,6 +54,11 @@ export type TravelDeps = Readonly<{
   /** Drop departed vaults from the projects list and the active pointer. */
   forgetVaults: (ids: readonly string[]) => Promise<void>;
   /** Pick up vaults that came home (hydrate headers, rebuild the list). */
+  /**
+   * Run `work` while no other tab moves vaults: departure, return and
+   * clearing leftovers each read the device and then change it.
+   */
+  exclusive: <T>(work: () => Promise<T>) => Promise<T>;
   welcomeVaults: (
     vaults: readonly Pick<TravelVault, "id" | "kind" | "name">[],
   ) => Promise<void>;
@@ -318,14 +323,21 @@ async function removeAll(
  * Remove the departing vaults, once the person has said the bundle and the
  * return code are both somewhere other than this device.
  */
-export async function completeDeparture(
+export function completeDeparture(
   deps: TravelDeps,
   pkg: DeparturePackage,
   ack: { bundleSaved: boolean; codeRecorded: boolean },
 ): Promise<CompleteOutcome> {
   if (!ack.bundleSaved || !ack.codeRecorded) {
-    return { ok: false, code: "not_acknowledged" };
+    return Promise.resolve({ ok: false, code: "not_acknowledged" });
   }
+  return deps.exclusive(() => removeDeparting(deps, pkg));
+}
+
+async function removeDeparting(
+  deps: TravelDeps,
+  pkg: DeparturePackage,
+): Promise<CompleteOutcome> {
   // The device may have changed since packing: a duress incident, a lock.
   const refused = await travelGate(deps);
   if (refused) return { ok: false, code: refused };

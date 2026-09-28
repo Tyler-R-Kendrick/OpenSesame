@@ -33,7 +33,14 @@ import { TravelPanel } from "./TravelPanel.js";
 
 const CONSENTS = kvFileName("site-broker.consents.v1");
 const GRANTED = JSON.stringify({
-  consents: [{ origin: "https://a.example", scopes: ["openid"] }],
+  consents: [
+    {
+      origin: "https://a.example",
+      scopes: ["openid"],
+      approvedAt: "2026-09-01T00:00:00.000Z",
+      lastUsedAt: "2026-09-01T00:00:00.000Z",
+    },
+  ],
 });
 
 const originalDeps = travelSeams.deps;
@@ -138,9 +145,7 @@ describe("Travel › coming home (ADR 0143)", () => {
     const clear = await screen.findByRole("button", {
       name: "Clear leftover files",
     });
-    expect(
-      screen.getByText("1 file · no header, never openable here"),
-    ).toBeTruthy();
+    expect(screen.getByText("Leftovers of a departure")).toBeTruthy();
     fireEvent.click(clear);
     await screen.findByText("Leftovers cleared");
     expect(origin.files.has(body)).toBe(false);

@@ -4,6 +4,7 @@
  * a return code the traveller does not carry, and come back from both.
  */
 
+import { lockManager } from "../../ports.js";
 import { kvHydrate } from "../kv.js";
 import {
   forgetDepartedProjects,
@@ -111,6 +112,11 @@ const defaultDeps: TravelDeps = {
         await renameProject(id, name);
       }
     }
+  },
+  async exclusive(work) {
+    const locks = lockManager();
+    // Without Web Locks there is no second tab to race.
+    return locks ? locks.request("opensesame.travel", work) : work();
   },
   now: () => new Date(),
 };

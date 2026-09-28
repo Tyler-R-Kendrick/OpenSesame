@@ -36,7 +36,8 @@ removed comes home whole.
 If the vaults had given sites permission to sign in without asking, the
 preview names those sites. They get that permission back only if you tick
 **Let these sites in again**. Otherwise each site asks again the next time.
-Tick it only for a bundle you made yourself.
+Tick it only for a bundle you made yourself. Sites you had blocked stay
+blocked either way.
 
 ## What this does not do
 

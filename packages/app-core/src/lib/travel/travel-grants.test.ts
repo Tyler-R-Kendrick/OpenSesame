@@ -14,10 +14,19 @@ import {
 
 const CONSENTS = kvFileName("site-broker.consents.v1");
 const POLICY = kvFileName("site-broker.policy.v1");
+const consent = (origin: string) => ({
+  origin,
+  scopes: ["openid"],
+  approvedAt: "2026-09-01T00:00:00.000Z",
+  lastUsedAt: "2026-09-01T00:00:00.000Z",
+});
 const GRANTED = JSON.stringify({
-  consents: [
-    { origin: "https://a.example", scopes: ["openid"] },
-    { origin: "https://b.example", scopes: ["openid"] },
+  consents: [consent("https://a.example"), consent("https://b.example")],
+});
+const POLICY_BOTH = JSON.stringify({
+  rules: [
+    { domain: "allowed.example", effect: "whitelist" },
+    { domain: "evil.example", effect: "blacklist" },
   ],
 });
 
@@ -37,18 +46,17 @@ async function opened(
 }
 
 describe("site grants on the way home", () => {
-  it("are shown in the preview and left out unless asked for", async () => {
+  it("names what would be let in, and keeps blocks without the tick", async () => {
     const origin = packedDevice();
     origin.files.set(CONSENTS, GRANTED);
-    origin.files.set(POLICY, JSON.stringify({ rules: [{ origin: "x" }] }));
+    origin.files.set(POLICY, POLICY_BOTH);
     const { pkg } = await depart(origin, [PRJ_TRIP]);
     expect(origin.files.has(CONSENTS)).toBe(false);
 
     const back = await opened(origin, pkg);
     const personal = back.preview.vaults.find((v) => v.id === "personal");
     expect(personal?.grants).toEqual({
-      sites: ["https://a.example", "https://b.example"],
-      rules: 1,
+      sites: ["allowed.example", "https://a.example", "https://b.example"],
     });
 
     const done = await completeReturn(origin.deps, back);
@@ -56,13 +64,17 @@ describe("site grants on the way home", () => {
     expect(done.receipt.restored).toContain("personal");
     expect(done.receipt.grantsRestored).toEqual([]);
     expect(origin.files.has(CONSENTS)).toBe(false);
-    expect(origin.files.has(POLICY)).toBe(false);
+    // The block comes home; the allow does not.
+    expect(JSON.parse(origin.files.get(POLICY) ?? "{}")).toEqual({
+      rules: [{ domain: "evil.example", effect: "blacklist" }],
+    });
     expect(origin.files.has(tombFile("personal", "body"))).toBe(true);
   });
 
-  it("come back when the person asks for them", async () => {
+  it("come back whole when the person asks for them", async () => {
     const origin = packedDevice();
     origin.files.set(CONSENTS, GRANTED);
+    origin.files.set(POLICY, POLICY_BOTH);
     const { pkg } = await depart(origin, [PRJ_TRIP]);
     const done = await completeReturn(origin.deps, await opened(origin, pkg), {
       grants: true,
@@ -70,16 +82,27 @@ describe("site grants on the way home", () => {
     if (!done.ok) throw new Error(done.code);
     expect(done.receipt.grantsRestored).toEqual(["personal"]);
     expect(origin.files.get(CONSENTS)).toBe(GRANTED);
+    expect(JSON.parse(origin.files.get(POLICY) ?? "{}").rules).toHaveLength(2);
   });
 
-  it("never clear the grants the device already holds", async () => {
+  it("leave no site let in without asking, keeping every block on the device", async () => {
     const origin = packedDevice();
     const { pkg } = await depart(origin, [PRJ_TRIP]);
-    // Granted on this device while the vault was away.
+    // Left on the device while the vault was away (or by a departure cut
+    // short): a consent and a block.
     origin.files.set(CONSENTS, GRANTED);
+    origin.files.set(
+      POLICY,
+      JSON.stringify({
+        rules: [{ domain: "bad.example", effect: "blacklist" }],
+      }),
+    );
     const done = await completeReturn(origin.deps, await opened(origin, pkg));
     if (!done.ok) throw new Error(done.code);
-    expect(origin.files.get(CONSENTS)).toBe(GRANTED);
+    expect(origin.files.has(CONSENTS)).toBe(false);
+    expect(JSON.parse(origin.files.get(POLICY) ?? "{}")).toEqual({
+      rules: [{ domain: "bad.example", effect: "blacklist" }],
+    });
   });
 });
 
@@ -133,10 +156,36 @@ describe("a departure cut short, without its package", () => {
     expect(await findRemnants(origin.deps)).toEqual([]);
   });
 
-  it("never counts a sealed vault or a session tomb as a remnant", async () => {
+  it("never counts a sealed, legacy, unsealed or session vault as a remnant", async () => {
     const origin = packedDevice();
     origin.tombs.add("guest");
     origin.files.set(tombFile("guest", "body"), "{}");
+    // A project still under the pre-tomb keys: a tomb file, no tomb header.
+    origin.tombs.add("prj_legacy");
+    origin.files.set(tombFile("prj_legacy", "config/prefs"), "{}");
+    origin.files.set(kvFileName("project.prj_legacy.vault.header.v1"), "{}");
+    // A project registered but never sealed, with only a plaintext record.
+    origin.tombs.add("prj_draft");
+    origin.files.set(kvFileName("project.prj_draft.vault.attempts.v1"), "{}");
     expect(await findRemnants(origin.deps)).toEqual([]);
+  });
+
+  it("a return cut short leaves its files where they can be found", async () => {
+    const origin = packedDevice();
+    const { pkg } = await depart(origin, [PRJ_TRIP]);
+    const back = await opened(origin, pkg);
+    // The header write is refused: everything else of Work has landed.
+    const header = tombFile(PRJ_WORK, "header");
+    const write = origin.deps.storage.write;
+    origin.deps.storage.write = async (file, text) => {
+      if (file === header) throw new Error("QuotaExceededError");
+      return write(file, text);
+    };
+    await expect(completeReturn(origin.deps, back)).rejects.toThrow();
+    origin.deps.storage.write = write;
+    // Personal came home first; Work stopped short of its header.
+    expect((await findRemnants(origin.deps)).map((r) => r.id)).toEqual([
+      PRJ_WORK,
+    ]);
   });
 });

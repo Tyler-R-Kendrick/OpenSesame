@@ -23,20 +23,18 @@ const STATUS = {
   occupied: { tone: "warn", label: "Already here, not the same; left alone" },
 } satisfies Record<ReturnStatus, { tone: StatusTone; label: string }>;
 
-/** The sites the returning vaults' grants would let in, and their rules. */
-function grantsComing(preview: ReturnPreview) {
+/** The sites the returning vaults' grants would let in. */
+function sitesComing(preview: ReturnPreview): string[] {
   const coming = preview.vaults.filter((v) => v.status === "comes_home");
-  const sites = [...new Set(coming.flatMap((v) => v.grants.sites))].sort();
-  const rules = coming.reduce((sum, v) => sum + v.grants.rules, 0);
-  return { sites, rules };
+  return [...new Set(coming.flatMap((v) => v.grants.sites))].sort();
 }
 
-function grantMeta(grants: { sites: readonly string[]; rules: number }) {
-  const parts = [
-    grants.sites.length > 0 ? plural(grants.sites.length, "site grant") : "",
-    grants.rules > 0 ? plural(grants.rules, "broker rule") : "",
-  ];
-  return parts.filter(Boolean).join(" · ");
+/** A row's grants, named only where the vault is coming home. */
+function grantMeta(vault: ReturnPreview["vaults"][number]): string {
+  const sites = vault.grants.sites.length;
+  return vault.status === "comes_home" && sites > 0
+    ? plural(sites, "site grant")
+    : "";
 }
 
 export function ReturnPreviewView({
@@ -55,8 +53,7 @@ export function ReturnPreviewView({
   onCancel: () => void;
 }) {
   const coming = preview.vaults.some((vault) => vault.status === "comes_home");
-  const carried = grantsComing(preview);
-  const hasGrants = carried.sites.length > 0 || carried.rules > 0;
+  const sites = sitesComing(preview);
   return (
     <form
       className="travel"
@@ -71,7 +68,7 @@ export function ReturnPreviewView({
           <TravelRow
             key={vault.id}
             name={vaultLabel({ id: vault.id, name: vault.name ?? vault.id })}
-            meta={[plural(vault.files, "file"), grantMeta(vault.grants)]
+            meta={[plural(vault.files, "file"), grantMeta(vault)]
               .filter(Boolean)
               .join(" · ")}
             side={
@@ -83,7 +80,7 @@ export function ReturnPreviewView({
           />
         ))}
       </ul>
-      {hasGrants ? (
+      {sites.length > 0 ? (
         <label className="travel__ack">
           <input
             type="checkbox"
@@ -91,11 +88,7 @@ export function ReturnPreviewView({
             disabled={busy}
             onChange={(event) => onGrants(event.target.checked)}
           />
-          <span>
-            {carried.sites.length > 0
-              ? `Let these sites in again: ${carried.sites.join(", ")}`
-              : `Bring back ${plural(carried.rules, "broker rule")}`}
-          </span>
+          <span>{`Let these sites in again: ${sites.join(", ")}`}</span>
         </label>
       ) : null}
       <FormCommit
@@ -164,7 +157,7 @@ export function RemnantsRow({
     <ul className="travel__list" aria-label="Leftovers">
       <TravelRow
         name="Leftovers of a departure"
-        meta={`${plural(files, "file")} · no header, never openable here`}
+        meta={plural(files, "file")}
         side={
           <button
             type="button"

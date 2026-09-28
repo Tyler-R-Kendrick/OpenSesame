@@ -6,8 +6,8 @@ after: this branch), walked by `journey.json` with
 
 `evidence.travel.json` is a real travel bundle, sealed by app-core's own
 `sealTravelBundle` under the return code in `return-code.txt`. It carries one
-vault (`prj_evidence`, named "Work") with a header, a body and a site-broker
-consent for `https://rp.example`. The vault's files are placeholders: the
+vault (`prj_evidence`, named "Work") with a header, a body, a site-broker
+consent for `https://rp.example` and a policy that blocks `evil.example`. The vault's files are placeholders: the
 capture stops at the preview and never brings it home.
 
 ## The return preview
