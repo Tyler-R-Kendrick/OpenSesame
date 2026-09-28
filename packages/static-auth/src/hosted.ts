@@ -1,5 +1,10 @@
+import {
+  type SealedStorage,
+  type StorageLike,
+  sealedStorage,
+} from "@opensesame/browser-at-rest";
 import { isJsonObject, isString } from "@opensesame/os-domain";
-import { type StorageLike, createPkcePair } from "@opensesame/sdk-browser";
+import { createPkcePair } from "@opensesame/sdk-browser";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { endpoint, exactOrigin, fetchJson } from "./transport.js";
 
@@ -33,7 +38,12 @@ function checkedProfile(profile: HostedProfile, origin: string) {
   return { ...profile };
 }
 
-/** Configuration is pinned by the RP. No discovery or callback metadata can replace it. */
+/**
+ * Configuration is pinned by the RP. No discovery or callback metadata can
+ * replace it. The transaction between `begin` and `complete` reaches
+ * `storage` sealed under the origin's at-rest key (ADR 0148), or stays in
+ * memory where the origin can keep no key.
+ */
 export function createHostedClient(
   config: HostedProfile,
   browser: Window = window,
@@ -41,9 +51,10 @@ export function createHostedClient(
 ) {
   const profile = checkedProfile(config, browser.location.origin);
   const storageKey = `opensesame:static-auth:${profile.clientId}:${profile.redirectUri}`;
+  const sealed = sealedStorage(storage, "static-auth");
   async function begin() {
     const pkce = await createPkcePair();
-    storage.setItem(
+    await sealed.set(
       storageKey,
       JSON.stringify({ ...pkce, createdAt: Date.now(), profile }),
     );
@@ -63,21 +74,21 @@ export function createHostedClient(
 
   return {
     begin,
-    complete: () => completeHosted(profile, browser, storage, storageKey),
+    complete: () => completeHosted(profile, browser, sealed, storageKey),
   };
 }
 
 async function completeHosted(
   profile: HostedProfile,
   browser: Window,
-  storage: StorageLike,
+  sealed: SealedStorage,
   storageKey: string,
 ) {
   const callback = new URL(browser.location.href);
   if (!callback.searchParams.has("code") && !callback.searchParams.has("error"))
     return null;
-  const raw = storage.getItem(storageKey);
-  storage.removeItem(storageKey);
+  const raw = await sealed.get(storageKey);
+  sealed.remove(storageKey);
   // Strip credential-bearing callback material even on a rejected response.
   browser.history.replaceState(null, "", profile.redirectUri);
   if (

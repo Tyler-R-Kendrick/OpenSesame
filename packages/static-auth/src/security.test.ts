@@ -204,6 +204,27 @@ describe("hosted code flow", () => {
       client: createHostedClient(hosted, overlapCast(stub)),
     };
   }
+  it("keeps the transaction sealed at rest, and opens it after the redirect", async () => {
+    const { stub, map } = browser();
+    await createHostedClient(hosted, overlapCast(stub)).begin();
+    const [stored] = [...map.values()];
+    const authorize = new URL(stub.location.assign.mock.calls[0]?.[0] ?? "");
+    const state = authorize.searchParams.get("state") ?? "";
+    // ADR 0148: neither the verifier nor the state rests in the clear.
+    expect(stored).toMatch(/^osc1\./);
+    expect(stored).not.toContain(state);
+    expect(stored).not.toContain("codeVerifier");
+    // A new page after the redirect, over the same storage, opens it: the
+    // callback's state matches, so the code goes on to the token endpoint.
+    const fetcher = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetcher);
+    stub.location.href = `${hosted.redirectUri}?${new URLSearchParams({ code: "c", state, iss: hosted.issuer })}`;
+    await expect(
+      createHostedClient(hosted, overlapCast(stub)).complete(),
+    ).rejects.toThrow();
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe(hosted.tokenEndpoint);
+    expect(map.size).toBe(0);
+  });
   it("uses PKCE S256, validates signature/nonce/RP audience, scrubs and consumes callback", async () => {
     const { stub, client, map } = browser();
     await client.begin();

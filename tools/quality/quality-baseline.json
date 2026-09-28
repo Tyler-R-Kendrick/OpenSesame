@@ -18,7 +18,7 @@
   "totals": {
     "files": 452,
     "violations": 711,
-    "oversizedLines": 232337
+    "oversizedLines": 232260
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1353,7 +1353,7 @@
     },
     "packages/sdk-browser/src/client.ts": {
       "complexity": 1,
-      "max-lines": 620,
+      "max-lines": 543,
       "max-lines-per-function": 1
     },
     "packages/sdk-browser/src/edge-cases.test.ts": {

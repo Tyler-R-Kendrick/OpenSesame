@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenSesame } from "./client.js";
 import { BrowserOriginError } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
+import { opened } from "./test/at-rest-key.js";
 import { createTestSigningKey, mintTestIdToken } from "./test/jwt-fixtures.js";
 import type { Session } from "./types.js";
 
@@ -187,7 +188,7 @@ describe("zero-config origin mode", () => {
     expect(session.sub).toBe("pairwise-origin");
     expect(session.refreshToken).toBe("rt-must-not-persist");
     const stored: Session = overlapCast(
-      JSON.parse(storage.getItem("opensesame:session") ?? "{}"),
+      JSON.parse((await opened(storage, "opensesame:session")) ?? "{}"),
     );
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw?.refresh_token).toBeUndefined();

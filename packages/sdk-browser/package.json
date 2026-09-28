@@ -17,6 +17,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "jose": "6.2.8"
   },

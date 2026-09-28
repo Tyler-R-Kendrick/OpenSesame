@@ -1,0 +1,25 @@
+{
+  "name": "@opensesame/browser-at-rest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "At-rest sealing for browser storage outside the Pages app: a non-extractable AES-GCM key in the origin's IndexedDB, and a sealed view of any Web Storage (ADR 0148)",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11"
+  }
+}

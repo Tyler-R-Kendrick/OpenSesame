@@ -99,7 +99,9 @@ export interface OpenSesameBrowserConfig {
   /**
    * Session/PKCE store. Defaults to `sessionStorage` (not `localStorage`) so
    * tokens do not persist across browser restarts. Inject memory or custom
-   * storage in tests / locked-down embeds.
+   * storage in tests / locked-down embeds. Every value reaches it sealed
+   * under the origin's at-rest key (ADR 0148); where the origin can keep no
+   * key (no IndexedDB), values stay in memory instead.
    */
   storage?: StorageLike;
   fetchImpl?: typeof fetch;
@@ -124,7 +126,11 @@ export interface OpenSesameBrowserClient {
   signIn(options?: { provider?: string; returnTo?: string }): Promise<void>;
   /** Complete PKCE after redirect; call from redirect_uri page. */
   handleRedirectCallback(url?: string): Promise<Session>;
-  /** Same-origin relative path stored at sign-in, if any. */
+  /**
+   * Same-origin relative path stored at sign-in, if any. It is read from
+   * sealed storage asynchronously: call it after `handleRedirectCallback`
+   * resolves, which waits for it.
+   */
   getReturnTo(): string | null;
   continueAnonymously(): Promise<Session>;
   getSession(): Promise<Session | null>;
