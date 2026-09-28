@@ -8,6 +8,8 @@ description = "Bitwarden-compatible server surface: point a Bitwarden client at 
 [dependencies]
 opensesame-storage = { path = "../storage" }
 opensesame-provider-bitwarden = { path = "../provider-bitwarden" }
+opensesame-authenticator-core = { path = "../authenticator-core" }
+data-encoding = "2.9.0"
 anyhow = { workspace = true }
 argon2 = { workspace = true }
 axum = { workspace = true }

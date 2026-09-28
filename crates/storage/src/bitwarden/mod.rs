@@ -7,9 +7,11 @@ mod ciphers;
 mod devices;
 mod folders;
 mod moves;
+mod second_factors;
 
 pub use accounts::{BitwardenCredentials, BitwardenKdf, BitwardenUser};
 pub use ciphers::BitwardenCipher;
 pub use devices::{BitwardenDevice, BitwardenSignIn};
 pub use folders::BitwardenFolder;
-pub use moves::{ArrivalOutcome, BitwardenArrival};
+pub use moves::{ArrivalOutcome, ArrivingSignIn, BitwardenArrival};
+pub use second_factors::{BitwardenRemember, BitwardenTwoFactor};

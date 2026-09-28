@@ -289,7 +289,11 @@ fn pact_migrations_are_append_only_and_end_with_0040() {
             "0040_connection_transport",
             "0041_session_admission",
             "0042_bitwarden_compat",
+            "0043_bitwarden_second_factors",
         ]
     );
-    assert_eq!(versions.last().copied(), Some("0042_bitwarden_compat"));
+    assert_eq!(
+        versions.last().copied(),
+        Some("0043_bitwarden_second_factors")
+    );
 }

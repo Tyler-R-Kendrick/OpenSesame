@@ -44,7 +44,7 @@ fn sign_in<'a>(
         identifier: token_hash,
         name: "raced",
         device_type: 9,
-        refresh_token_hash: token_hash,
+        refresh_token_hash: Some(token_hash),
         security_stamp: stamp,
         refresh_expires_at: expires,
     }

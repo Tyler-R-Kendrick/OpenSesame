@@ -19,6 +19,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 
 mod rows;
+mod sign_in;
 
 use rows::{blob, int, json_column, text, timestamp, Schema};
 
@@ -48,6 +49,8 @@ const USER_COLUMNS: &[&str] = &[
     "client_kdf_parallelism",
     "created_at",
     "updated_at",
+    "api_key",
+    "totp_recover",
 ];
 
 const CIPHER_COLUMNS: &[&str] = &[
@@ -170,9 +173,12 @@ impl Reader {
         Ok(sqlx::query_as(sql).bind(user).fetch_all(&self.pool).await?)
     }
 
-    async fn account(&self, user: BitwardenUser) -> anyhow::Result<Arrival> {
+    async fn account(&self, user: BitwardenUser, user_row: &SqliteRow) -> anyhow::Result<Arrival> {
         let id = user.id.clone();
         let mut left = LeftBehind::new();
+        let (sign_in, other_methods) =
+            sign_in::read(&self.pool, &self.schema, user_row, &id).await?;
+        leave(&mut left, "two-step login methods", other_methods);
         let mut folders = Vec::new();
         let rows = sqlx::query(
             "SELECT uuid, name, created_at, updated_at FROM folders WHERE user_uuid = ?",
@@ -250,6 +256,7 @@ impl Reader {
             user,
             folders,
             ciphers,
+            sign_in,
         };
         keep_known_folders(&mut account);
         Ok(Arrival {
@@ -270,11 +277,6 @@ impl Reader {
                 "sends",
                 "sends",
                 "SELECT COUNT(*) FROM sends WHERE user_uuid = ?",
-            ),
-            (
-                "two-step login methods",
-                "twofactor",
-                "SELECT COUNT(*) FROM twofactor WHERE user_uuid = ? AND enabled = 1",
             ),
             (
                 "emergency contacts",
@@ -320,7 +322,7 @@ pub async fn read(path: &Path) -> anyhow::Result<Source> {
     let mut source = Source::default();
     for row in &rows {
         match user_from(row) {
-            Ok(user) => source.arrivals.push(reader.account(user).await?),
+            Ok(user) => source.arrivals.push(reader.account(user, row).await?),
             Err(skipped) => source.skipped.push(skipped),
         }
     }

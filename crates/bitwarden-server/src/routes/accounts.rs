@@ -15,8 +15,12 @@ use crate::wire::cipher::{is_enc_string, normalize};
 use crate::BitwardenServer;
 use opensesame_storage::bitwarden::{BitwardenCredentials, BitwardenUser};
 
-pub async fn profile(Authed { user, .. }: Authed) -> Json<Value> {
-    Json(profile_json(&user))
+pub async fn profile(
+    State(server): State<BitwardenServer>,
+    Authed { user, .. }: Authed,
+) -> ApiResult<Json<Value>> {
+    let two_factor = super::two_factor::enabled(&server, &user.id).await?;
+    Ok(Json(profile_json(&user, two_factor)))
 }
 
 /// Epoch milliseconds; a client syncs when this moves.

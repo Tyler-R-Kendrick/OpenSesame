@@ -79,6 +79,11 @@ CREATE TABLE twofactor (uuid TEXT PRIMARY KEY, user_uuid TEXT NOT NULL, atype IN
 pub const EMAIL: &str = "vw@example.test";
 pub const USER: &str = "5f0cfb2b-6d56-4c1b-9d4a-0f2d0c8c9a11";
 
+/// The account's sign-in methods as vaultwarden holds them.
+pub const API_KEY: &str = "vwApiKey0123456789abcdefghijkl";
+pub const RECOVERY: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+pub const AUTHENTICATOR_KEY: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
+
 pub const LOGIN: &str = "0c6f1d2a-4b1e-4a5c-9d3f-2e8b7a6c5d41";
 pub const NOTE: &str = "1d7e2f3b-5c2f-4b6d-8e4a-3f9c8b7d6e52";
 const FOLDER: &str = "2e8f3a4c-6d3a-4c7e-9f5b-4a0d9c8e7f63";
@@ -136,13 +141,18 @@ async fn insert_users(pool: &SqlitePool, keys: &Keys) {
     }
     // Every client since 2018 gives an account an RSA pair at registration.
     let (public, private) = key_pair(&keys.user_key);
-    sqlx::query("UPDATE users SET public_key = ?, private_key = ? WHERE uuid = ?")
-        .bind(public)
-        .bind(private)
-        .bind(USER)
-        .execute(pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE users SET public_key = ?, private_key = ?, api_key = ?, totp_recover = ? \
+         WHERE uuid = ?",
+    )
+    .bind(public)
+    .bind(private)
+    .bind(API_KEY)
+    .bind(RECOVERY.to_ascii_lowercase())
+    .bind(USER)
+    .execute(pool)
+    .await
+    .unwrap();
 }
 
 async fn insert_ciphers(pool: &SqlitePool, keys: &Keys) {
@@ -252,4 +262,26 @@ pub async fn fixture(path: &std::path::Path) -> Keys {
     insert_ciphers(&pool, &keys).await;
     pool.close().await;
     keys
+}
+
+/// Turn two-step login on for the fixture account, as vaultwarden stores it:
+/// an authenticator (which moves) and email (counted, not moved).
+pub async fn enable_two_step(path: &std::path::Path) {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(SqliteConnectOptions::new().filename(path))
+        .await
+        .unwrap();
+    let pool = &pool;
+    for (uuid, atype, data) in [("tf-0", 0, AUTHENTICATOR_KEY), ("tf-1", 1, "{}")] {
+        sqlx::query("INSERT INTO twofactor VALUES (?, ?, ?, 1, ?, 0)")
+            .bind(uuid)
+            .bind(USER)
+            .bind(atype)
+            .bind(data)
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+    pool.close().await;
 }

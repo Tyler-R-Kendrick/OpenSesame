@@ -55,7 +55,13 @@ impl Bw {
     }
 
     pub async fn run(&self, args: &[&str]) -> Output {
+        self.run_env(args, &[]).await
+    }
+
+    /// Run with extra environment, e.g. `BW_CLIENTID` for `login --apikey`.
+    pub async fn run_env(&self, args: &[&str], env: &[(&str, &str)]) -> Output {
         let mut command = tokio::process::Command::new(&self.bin);
+        command.envs(env.iter().copied());
         command
             .args(args)
             .env("BITWARDENCLI_APPDATA_DIR", self.home.path())

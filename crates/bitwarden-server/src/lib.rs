@@ -23,10 +23,11 @@
 //!
 //! # Scope
 //!
-//! Personal vaults: accounts, devices, folders and ciphers of every type.
-//! Organizations, collections, Sends, attachments, emergency access and
-//! two-factor providers are not served; the routes that would carry them
-//! answer as a server with the feature off.
+//! Personal vaults: accounts, devices, folders and ciphers of every type;
+//! API-key sign-in and authenticator two-step login ([`second_factor`]).
+//! Organizations, collections, Sends, attachments and emergency access are
+//! not served; the routes that would carry them answer as a server with the
+//! feature off.
 
 pub mod auth;
 pub mod error;
@@ -35,6 +36,7 @@ pub mod import;
 pub mod kdf;
 mod limiter;
 mod routes;
+pub mod second_factor;
 pub mod tokens;
 mod wire;
 
