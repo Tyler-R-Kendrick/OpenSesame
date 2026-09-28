@@ -32,6 +32,16 @@ export function extraSteps({ press }) {
     ...routingSteps(),
     ...orgSignInSteps(),
     ...networkSteps(),
+    /** `fill`, for a field only one of the two builds has. */
+    async fillOptional(page, { label, text }) {
+      const field = page.getByLabel(label, { exact: true }).first();
+      if (!(await field.count())) return;
+      // A label can name a key in the other build; only a real field is filled.
+      if (!(await field.evaluate((node) => node.matches("input, textarea"))))
+        return;
+      await field.fill(text);
+      await page.waitForTimeout(300);
+    },
     /**
      * Pick a labelled radio when this build has it — a connector's
      * connection method. A base build without the choice is a legitimate

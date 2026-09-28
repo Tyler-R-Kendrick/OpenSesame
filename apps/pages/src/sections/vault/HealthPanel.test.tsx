@@ -43,7 +43,6 @@ function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     deletedAt: null,
-    sample: false,
     username: "me@example.com",
     password: "correct horse battery staple 99!",
     totp: "JBSWY3DPEHPK3PXP",

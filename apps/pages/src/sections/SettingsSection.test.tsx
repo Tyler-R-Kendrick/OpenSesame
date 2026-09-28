@@ -14,7 +14,7 @@ import {
   it,
   vi,
 } from "vitest";
-type TestItem = { id: string; deletedAt?: string | null; sample?: boolean };
+type TestItem = { id: string; deletedAt?: string | null };
 const vault: {
   current: {
     prefs: VaultPrefs;

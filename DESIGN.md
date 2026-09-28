@@ -105,7 +105,6 @@ black-and-white foundation, teal as the single accent, and nothing decorative.
 - List-and-detail spine for the vault; flowing chapter documents for the
   plane-backed sections
 - System font stack — no webfont request, no flash, no third-party origin
-- Sample data always badged
 
 ## Mark
 
@@ -790,7 +789,6 @@ the global notifications panel so they remain visible from every section.
 - **Do** conceal secret values by default and allow copying without revealing.
 - **Do** state what a network-backed surface cannot show while offline or
   unauthenticated.
-- **Do** badge sample data on every item and keep removing it to one action.
 - **Do** treat a reload re-locking the vault as correct behavior and say so.
 
 ### Don't:

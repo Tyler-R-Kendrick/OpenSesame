@@ -31,7 +31,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vault.item_types.list": "vault.passwords",
     "vault.item_types.install": "vault.passwords",
     "vault.item_types.marketplace": "vault.passwords",
-    "vault.sample_data": "vault.passwords",
 
     // --- core: unlock and vaults ----------------------------------------
     "vaults.switch": "vault.local-unlock",

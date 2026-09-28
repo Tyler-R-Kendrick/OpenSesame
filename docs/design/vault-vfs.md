@@ -41,11 +41,10 @@ First-party, light-DOM, everything mono:
   substring; `Esc` clears and closes, `Enter` returns focus to the tree.
 - **Expansion.** Folders open by default; collapse persists per tomb at
   `config/tree-collapsed` (JSON array of `Dir/` paths) via `lib/vfs.ts`.
-- **Decorations.** Drop expiry clock (`Expires …` title), favorite star,
-  SYNTHETIC chip. Pointer verbs live in a per-row `⋯` menu (Open,
+- **Decorations.** Drop expiry clock (`Expires …` title), favorite star. Pointer verbs live in a per-row `⋯` menu (Open,
   Favorite/Unfavorite, Share once on secrets, Edit, Trash).
 - **Status line.** Ranger-style `<output>`: focused tomb path left
-  (`personal:/Sample data/GitHub.login`), `visible/total · filter` right —
+  (`personal:/Work/GitHub.login`), `visible/total · filter` right —
   or `matches/total · /query` while searching.
 - Seams: `vaultTreeSeams = { activeTomb, loadCollapsed, saveCollapsed }`;
   tests drive the real DOM, not a model fake.
@@ -81,7 +80,7 @@ The rail renders the same filesystem one level up, mono:
   `identity/ gi`, `settings/ gs` — count on vault, `g`-jump key chip on all.
 - The active section is the open directory. Under `vault/`: `all`,
   `favorites`, kind views (`logins`, `passkeys`, `cards`, `secrets`,
-  `drops`, `notes`, `certs`), `trash`, the real folders (`Sample data/`),
+  `drops`, `notes`, `certs`), `trash`, the real folders (`Work/`),
   and `health`, each with live counts, indent-guided. Under `settings/`:
   the five categories.
 - Active row takes the cursor treatment (accent wash + ring). The mobile

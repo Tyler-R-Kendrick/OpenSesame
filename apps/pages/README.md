@@ -131,8 +131,6 @@ The local `dev` command starts Identity and Host with the PWA. A static deployme
 configures remote Identity and Host addresses in **Settings** because static hosting cannot
 run either plane. Every section degrades to an honest disconnected state rather than pretending.
 
-Sample data is opt-in from Settings, badged in the UI, and removable in one action.
-
 ## Git sealed store
 
 **Settings → Capability connectors** binds encryption (default WebCrypto on this

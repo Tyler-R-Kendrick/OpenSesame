@@ -78,33 +78,6 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.tombstones = merged.tombstones;
 }
 
-/**
- * Take the sample data out (DESIGN.md: badged, removed in one action): every
- * item marked `sample`, live or trashed, and each folder only sample items
- * sat in — tombstoned, so a merge cannot bring them back. A real item is
- * never touched: a folder one also sits in stays, and nothing is moved.
- */
-export function dropSample(body: VaultBody): void {
-  const gone = body.items.filter((item) => item.sample === true);
-  if (gone.length === 0) return;
-  const kept = body.items.filter((item) => item.sample !== true);
-  const folders = new Set(gone.flatMap((item) => item.folderId ?? []));
-  for (const item of kept) if (item.folderId) folders.delete(item.folderId);
-  const at = now();
-  body.items = kept;
-  body.folders = body.folders.filter((folder) => !folders.has(folder.id));
-  const ids = gone.map((item) => item.id);
-  body.tombstones = withTombstone(body.tombstones, "items", ids, at);
-  if (folders.size > 0) {
-    body.tombstones = withTombstone(
-      body.tombstones,
-      "folders",
-      [...folders],
-      at,
-    );
-  }
-}
-
 /** A store-path manifest's merge plan (`planManifestMerge`), in one write. */
 export function applyManifestPlan(
   body: VaultBody,

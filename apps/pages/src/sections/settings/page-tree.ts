@@ -131,7 +131,6 @@ function sectionsFor(
         })),
         panel("vaults", "travel", "Travel"),
         panel("vaults", "item-types", "Item types"),
-        panel("vaults", "sample-data", "Sample data"),
         ...contributed,
       ];
     case "capabilities":
