@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { approveByKeyboard } from "./lib/capability-keyboard-contract.mjs";
 import { contextMenuKeyboardContract } from "./lib/context-menu-keyboard-contract.mjs";
+import { liveKeyboardContract } from "./lib/live-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -287,6 +288,9 @@ try {
     console.log(
       `PASS keyboard-only load, guest, New, Escape, Cancel, lock/reload (${width}px)`,
     );
+    // Live sessions (ADR 0150): every swap between the form, the request code,
+    // the joined view and the ended one leaves the keyboard on a control.
+    await liveKeyboardContract({ harness, origin, base, width, tabTo });
   }
 } finally {
   await browser.close();
