@@ -46,6 +46,8 @@ function outcome(received: Received): Standing | null {
       return { tone: "warn", label: "The session is full" };
     case "ended":
       return { tone: "idle", label: "The session has ended" };
+    case "locked":
+      return { tone: "warn", label: "The session is locked" };
     default:
       return null;
   }

@@ -196,7 +196,8 @@ the vault, ADR 0134). None is ever a default, and none is ours:
 - **ICE servers** — STUN, and TURN over UDP, TCP or TLS on 443 (which passes a
   Pangolin raw TCP resource, a Tailscale Funnel TCP forward, or any TCP
   proxy). A TURN REST secret (coturn's `use-auth-secret`) mints credentials
-  that expire with the session, so the link carries nothing that outlives it.
+  that expire with the session, so a REST secret never travels in the link. (A
+  static TURN credential and a carrier's password do; see §3.)
 - **Relay only** — `iceTransportPolicy: "relay"` on both sides: neither
   browser learns the other's address; everything crosses the owner's TURN
   server.
