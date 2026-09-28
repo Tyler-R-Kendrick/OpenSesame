@@ -7,14 +7,16 @@
  * bundle holds all of them: clearing them loses nothing, and a return
  * restores the vault whole either way.
  *
- * Only files inside the tomb count. A vault still kept under the pre-tomb
- * keys has no tomb header yet and is not a remnant; neither is a project
- * registered but never sealed, which has no tomb files at all.
+ * Only sealed files inside the tomb count. A vault still kept under the
+ * pre-tomb keys has no tomb header yet and is not a remnant; neither is a
+ * project registered but never sealed, which holds at most the plaintext
+ * markers entering it writes (`migrated.v1`, `seal-bound.v1`).
  */
 
 import { kvFileName } from "../kv.js";
 import { LEGACY_VAULT_KEYS } from "../projects-state.js";
 import { scopedKey } from "../projects.js";
+import { MIGRATION_MARKER_PATH, SEAL_BOUND_MARKER_PATH } from "../vfs.js";
 import {
   type TravelDeps,
   type TravelGateRefusal,
@@ -24,6 +26,13 @@ import { dropAllows } from "./grants.js";
 import { SESSION_TOMBS, headerOf, tombOwning, tombStem } from "./storage.js";
 
 const SESSIONS: ReadonlySet<string> = new Set(SESSION_TOMBS);
+
+/** Plaintext markers a tomb can hold before it has a header. */
+function isMarker(id: string, file: string): boolean {
+  return [MIGRATION_MARKER_PATH, SEAL_BOUND_MARKER_PATH].some(
+    (path) => file === `${tombStem(id)}${path}.json`,
+  );
+}
 
 export type TravelRemnant = Readonly<{ id: string; files: readonly string[] }>;
 
@@ -53,7 +62,9 @@ export async function findRemnants(deps: TravelDeps): Promise<TravelRemnant[]> {
         )
         .sort(),
     }))
-    .filter((remnant) => remnant.files.length > 0);
+    .filter((remnant) =>
+      remnant.files.some((file) => !isMarker(remnant.id, file)),
+    );
 }
 
 async function removeEach(
@@ -93,10 +104,14 @@ export function clearRemnants(deps: TravelDeps): Promise<ClearRemnantsOutcome> {
     const cleared = remnants
       .filter((remnant) => remnant.files.every((file) => removed.has(file)))
       .map((remnant) => remnant.id);
+    const rewritten = new Set<string>();
     for (const id of cleared) {
-      await dropAllows(deps.storage, id);
+      for (const file of await dropAllows(deps.storage, id))
+        rewritten.add(file);
       await deps.storage.unregisterTomb(id);
     }
+    // The broker reads grants from memory: what was rewritten must be re-read.
+    deps.storage.forget(rewritten);
     if (cleared.length > 0) await deps.forgetVaults(cleared);
     return { ok: true, cleared, leftovers };
   });

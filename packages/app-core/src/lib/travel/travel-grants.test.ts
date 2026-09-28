@@ -153,6 +153,10 @@ describe("a departure cut short, without its package", () => {
     });
     expect(origin.files.has(body)).toBe(false);
     expect(origin.tombs.has(PRJ_WORK)).toBe(false);
+    // The rewritten grant records are dropped from memory too.
+    expect(origin.forgotten.flat()).toContain(
+      kvFileName(`project.${PRJ_WORK}.site-broker.consents.v1`),
+    );
     expect(await findRemnants(origin.deps)).toEqual([]);
   });
 
@@ -164,9 +168,12 @@ describe("a departure cut short, without its package", () => {
     origin.tombs.add("prj_legacy");
     origin.files.set(tombFile("prj_legacy", "config/prefs"), "{}");
     origin.files.set(kvFileName("project.prj_legacy.vault.header.v1"), "{}");
-    // A project registered but never sealed, with only a plaintext record.
+    // A project registered but never sealed: a plaintext record, and the
+    // markers entering it writes.
     origin.tombs.add("prj_draft");
     origin.files.set(kvFileName("project.prj_draft.vault.attempts.v1"), "{}");
+    origin.files.set(tombFile("prj_draft", "migrated.v1"), "{}");
+    origin.files.set(tombFile("prj_draft", "seal-bound.v1"), "1");
     expect(await findRemnants(origin.deps)).toEqual([]);
   });
 

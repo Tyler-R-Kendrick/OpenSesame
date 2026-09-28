@@ -171,8 +171,9 @@ Departure removes the header first. The header holds every key wrap, and
 nothing writes a tomb's files before its header: creation and forking write
 it first, and a return registers the tomb and writes the header last. So
 files inside a registered tomb with no header can never be opened on this
-device. Only files inside the tomb count: a vault still under the pre-tomb
-keys, or a project registered but never sealed, is never a leftover. A
+device. Only sealed files inside the tomb count: a vault still under the
+pre-tomb keys, or a project registered but never sealed (which holds at most
+the plaintext markers entering it writes), is never a leftover. A
 vault leaves the registry and the list only once nothing of it is left.
 Until then the travel panel lists its leftovers, and one key clears them
 (`clearTravelRemnants`, gated like departure). Clearing drops whatever let
