@@ -107,10 +107,7 @@
           "tab": "activity"
         },
         {
-          "count": [
-            "#activity-tree [role=treeitem]",
-            "main li.identity-row"
-          ]
+          "count": ["#activity-tree [role=treeitem]", "main li.identity-row"]
         },
         {
           "shot": "1280-rail"
@@ -119,10 +116,7 @@
           "railOptional": "Load 4 more"
         },
         {
-          "count": [
-            "#activity-tree [role=treeitem]",
-            "main li.identity-row"
-          ]
+          "count": ["#activity-tree [role=treeitem]", "main li.identity-row"]
         },
         {
           "shot": "1280-more"
@@ -137,10 +131,7 @@
           }
         },
         {
-          "count": [
-            "#activity-tree [role=treeitem]",
-            "main li.identity-row"
-          ]
+          "count": ["#activity-tree [role=treeitem]", "main li.identity-row"]
         },
         {
           "shot": "1280-search"
