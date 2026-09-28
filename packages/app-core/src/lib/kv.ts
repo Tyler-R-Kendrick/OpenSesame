@@ -203,6 +203,7 @@ export async function kvSetDurable(key: string, value: string): Promise<void> {
 
 export function kvDelete(key: string): void {
   memory.delete(key);
+  unreadable.delete(key);
   void track(
     (async () => {
       try {
@@ -223,6 +224,7 @@ export function kvDelete(key: string): void {
  */
 export async function kvDeleteDurable(key: string): Promise<void> {
   memory.delete(key);
+  unreadable.delete(key);
   const root = await opfsRoot();
   if (!root) return;
   try {

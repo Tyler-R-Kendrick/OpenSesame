@@ -8,7 +8,6 @@ import { join } from "node:path";
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
-import { createMemoryStorage } from "../../memory-storage.js";
 import { loadAtRestKeyFile } from "../../node/at-rest-key-file.js";
 import { createTestHost } from "../../test-host.js";
 import {
@@ -169,14 +168,15 @@ describe("origin-private files", () => {
     expect(await sealLegacyOriginFiles()).toBe(0);
   });
 
-  it("stops sweeping once a sweep found everything sealed", async () => {
+  it("seals, at the next boot, a file an older build wrote since", async () => {
     const files: Files = new Map([["opensesame-pages-settings.v1.json", "{}"]]);
-    const local = createMemoryStorage();
-    configureHost(createTestHost({ ...opfs(files), storage: { local } }));
+    configureHost(createTestHost(opfs(files)));
     expect(await sealLegacyOriginFiles()).toBe(1);
     files.set("opensesame-pages-late.json", "written by an old tab");
-    expect(await sealLegacyOriginFiles()).toBe(0);
-    expect(local.length).toBe(1);
+    expect(await sealLegacyOriginFiles()).toBe(1);
+    expect(isSealedAtRest(files.get("opensesame-pages-late.json") ?? "")).toBe(
+      true,
+    );
   });
 
   it("bounds a sealed file by what its plaintext may be", () => {

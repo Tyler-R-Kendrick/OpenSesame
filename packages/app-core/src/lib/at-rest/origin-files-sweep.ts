@@ -4,7 +4,7 @@
  * directory to list — the Pages boot — runs it.
  */
 
-import { lockManager, maybeLocalStore, originFiles } from "../../ports.js";
+import { lockManager, originFiles } from "../../ports.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "../storage-ownership.js";
 import { AT_REST_PREFIX, isSealedAtRest } from "./cipher.js";
@@ -12,11 +12,21 @@ import { type AtRestKey, atRestReady } from "./key.js";
 import { sealOriginFile } from "./origin-files.js";
 
 const SWEEP_LOCK = "opensesame.at-rest.sweep";
-/**
- * Set once a sweep has found every file sealed, so later boots skip it: from
- * then on only this build writes, and it writes nothing in the clear.
- */
-export const SWEPT_KEY = "opensesame.at-rest.swept.v1";
+
+/** Whether a file still starts in the clear: five bytes, not the file. */
+async function isLegacy(
+  root: FileSystemDirectoryHandle,
+  name: string,
+): Promise<boolean> {
+  try {
+    const file = await (await root.getFileHandle(name)).getFile();
+    return (
+      (await file.slice(0, AT_REST_PREFIX.length).text()) !== AT_REST_PREFIX
+    );
+  } catch {
+    return false;
+  }
+}
 
 async function sealIfLegacy(
   root: FileSystemDirectoryHandle,
@@ -24,10 +34,7 @@ async function sealIfLegacy(
   atRest: AtRestKey,
 ): Promise<boolean> {
   const handle = await root.getFileHandle(name);
-  const file = await handle.getFile();
-  const head = await file.slice(0, AT_REST_PREFIX.length).text();
-  if (head === AT_REST_PREFIX) return false;
-  const text = await file.text();
+  const text = await (await handle.getFile()).text();
   if (isSealedAtRest(text) || storageWritesHalted()) return false;
   const writable = await handle.createWritable();
   await writable.write(sealOriginFile(atRest, name, text));
@@ -44,17 +51,17 @@ async function sweep(): Promise<number> {
   for await (const name of root.keys()) {
     if (name.startsWith(ORIGIN_FILE_PREFIX)) names.push(name);
   }
+  // Every boot checks, in parallel, only each file's first five bytes: a tab
+  // of an older build may have written in the clear since the last boot.
+  const legacy = await Promise.all(names.map((name) => isLegacy(root, name)));
   let sealed = 0;
-  let complete = true;
-  for (const name of names) {
+  for (const name of names.filter((_, index) => legacy[index])) {
     try {
       if (await sealIfLegacy(root, name, atRest)) sealed += 1;
     } catch {
       // Gone, or refused: the next boot tries again.
-      complete = false;
     }
   }
-  if (complete) maybeLocalStore()?.setItem(SWEPT_KEY, "1");
   return sealed;
 }
 
@@ -65,7 +72,6 @@ async function sweep(): Promise<number> {
  */
 export async function sealLegacyOriginFiles(): Promise<number> {
   try {
-    if (maybeLocalStore()?.getItem(SWEPT_KEY) === "1") return 0;
     const locks = lockManager();
     if (!locks) return await sweep();
     return await locks.request(SWEEP_LOCK, () => sweep());

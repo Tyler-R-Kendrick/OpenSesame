@@ -10,7 +10,12 @@ import { configureHost } from "../../host.js";
 import { createMemoryStorage } from "../../memory-storage.js";
 import { type WebStorage, localStore } from "../../ports.js";
 import { createTestHost } from "../../test-host.js";
-import { kvForgetAll, kvHydrate, kvSetDurable } from "../kv.js";
+import {
+  kvDeleteDurable,
+  kvForgetAll,
+  kvHydrate,
+  kvSetDurable,
+} from "../kv.js";
 import {
   haltStorageWrites,
   resumeStorageWritesForTest,
@@ -24,6 +29,7 @@ import {
   forgetAtRestKeyForTest,
   onAtRestReady,
 } from "./key.js";
+import { deviceHoldsSeals } from "./sealed-evidence.js";
 import { forgetHeldWebStorageForTest } from "./web-storage.js";
 
 const KEY = new Uint8Array(32).fill(3);
@@ -169,5 +175,64 @@ describe("a file sealed under another key", () => {
       kvSetDurable("tomb/personal/header", '{"new":"vault"}'),
     ).rejects.toThrow(/another key/);
     expect(files.get(name)).toBe(before);
+  });
+});
+
+describe("what counts as a key that existed", () => {
+  it("is not one tab's session storage, nor an origin store that will not list", async () => {
+    const session = createMemoryStorage();
+    session.setItem(
+      "opensesame.claim",
+      sealAtRest(KEY, atRestBinding("web-storage.session", "x"), "x"),
+    );
+    configureHost(
+      createTestHost({
+        storage: { local: createMemoryStorage(), session },
+        originFiles: () => Promise.reject(new Error("private mode")),
+      }),
+    );
+    expect(await deviceHoldsSeals()).toBe(false);
+  });
+});
+
+describe("a deleted unreadable record", () => {
+  it("can be written again", async () => {
+    const files = new Map<string, string>([
+      [
+        "opensesame-pages-gone.json",
+        sealAtRest(
+          new Uint8Array(32).fill(9),
+          atRestBinding("origin-file", "opensesame-pages-gone.json"),
+          "old",
+        ),
+      ],
+    ]);
+    const root = {
+      getFileHandle: async (file: string, opts?: { create?: boolean }) => {
+        if (!files.has(file) && !opts?.create) {
+          throw new DOMException("gone", "NotFoundError");
+        }
+        return {
+          getFile: async () => new Blob([files.get(file) ?? ""]),
+          createWritable: async () => ({
+            write: async (text: string) => {
+              files.set(file, text);
+            },
+            close: async () => {},
+          }),
+        };
+      },
+      removeEntry: async (file: string) => {
+        files.delete(file);
+      },
+    };
+    const handle: FileSystemDirectoryHandle = overlapCast(root);
+    configureHost(
+      createTestHost({ originFiles: () => Promise.resolve(handle) }),
+    );
+    await kvHydrate(["gone"]);
+    await kvDeleteDurable("gone");
+    await kvSetDurable("gone", "new");
+    expect(files.has("opensesame-pages-gone.json")).toBe(true);
   });
 });
