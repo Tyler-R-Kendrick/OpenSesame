@@ -185,9 +185,9 @@ VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:static
 # Drives dist/ under https://tyler-r-kendrick.github.io/OpenSesame/ in
-# headless Chromium: first screen is sign-in + guest (no setup wall), guest
-# walks every section, Google via a mocked shoo.dev lands unlocked, deep
-# links resolve. Fails on any page error, console error, loopback request,
+# headless Chromium: first screen is the front door's two roads + the guest
+# Skip (no setup wall, no sign-in), guest walks every section, Google via a
+# mocked shoo.dev lands unlocked once setup is skipped, deep links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:mobile
@@ -207,6 +207,15 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # PIN → code → open, again after a reload; and a password-sealed vault the
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:live-join
+# Same harness, a live session (ADR 0148) in two browser contexts over real
+# WebRTC: the owner (a guest with one login) switches Live sessions on and
+# starts an invite session; a fresh device opens the link, consents, gives
+# the code and a name; the owner admits; the joiner reveals one value on
+# request; ending drops it. A NIP-01 relay in the test process stands in for
+# the public relays and proves no name, note, code, value or link secret
+# reached it. Run before touching lib/live, the join road or sharing.live.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -393,23 +402,26 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0147).
+  0001–0148).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
-  `apps/pages` is a broker: an empty device opens on the sign-in screen with
-  the compiled-in Google-via-Shoo road and the guest road, and nothing — no
-  operator ceremony, no Identity API, no Host, no daemon, no localhost — may
-  be placed in front of them. On a device with no vault and no setup record
-  that screen is the **front door** (`screens/FrontDoor.tsx`,
-  [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)): the
-  wordmark at hero scale, the `Set up your own` road made large, and the
-  whole sign-in panel beneath it on the same card — offers beside sign-in,
-  never a gate before it. **Join a session** is the door's second road on a
-  deployment that can finish a join (dedicated or loopback origin), and an
-  invite link opens it by itself anywhere
-  ([ADR 0136](docs/adr/0136-join-a-session-restored.md)); once the ceremony
-  is answered, skipped or joined, setup lives behind unlock (Settings), not
-  as quiet foot links. `setupRequired` does not
+  `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
+  API, no Host, no daemon, no localhost — may be placed in front of its first
+  screen. On a device with no vault and no setup record that screen is the
+  **front door** (`screens/FrontDoor.tsx`,
+  [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md),
+  [ADR 0148](docs/adr/0148-live-sessions-browser-to-browser.md) §1): the
+  wordmark at hero scale and exactly two roads made large — **Set up your
+  own** and **Join a session** — with the guest road as the card's corner
+  **Skip**. The door asks no sign-in question: a device with no vault has
+  nothing to sign in to. Join is on every deployment, the shared GitHub
+  Pages origin included: it opens a live session browser to browser
+  (`sharing.live`, `lib/live/`, consent first) and a Host invite link still
+  opens the Host ceremony ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
+  a shared link opens join by itself. Once setup is answered or skipped the
+  sign-in screen — the compiled-in Google-via-Shoo road, guest, the
+  local-only seal — is the first screen, and setup lives behind unlock
+  (Settings), not as quiet foot links. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
@@ -431,13 +443,14 @@ Do not add new top-level directories or loose root files — find the group.
   a guest; ADR 0135). Every placement reads it through
   `apps/pages/src/screens/unlock/GuestRoad.tsx`, `openGuestVault` refuses a
   guest session while it is off, and the last-vault pointer and vault list
-  stop offering the guest tomb. It lives in three places and all three are
-  required: the "Continue as guest" button in
-  `apps/pages/src/screens/unlock/SignInPanel.tsx` on **both** placements
-  (first run *and* the sign-in panel opened from the user menu beside an
-  existing vault), the "Skip" corner link on first run, and the "Continue as
-  guest" link in the unlock form's footer in
-  `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
+  stop offering the guest tomb. It lives in four places and all four are
+  required: the front door's corner "Skip" (`screens/FrontDoor.tsx`, the
+  door's one guest road, where a `/guest` link lands), the "Continue as
+  guest" button in `apps/pages/src/screens/unlock/SignInPanel.tsx` on
+  **both** placements (first-run sign-in once setup is answered *and* the
+  sign-in panel opened from the user menu beside an existing vault), the
+  "Skip" corner link on first-run sign-in, and the "Continue as guest" link
+  in the unlock form's footer in `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
   legitimate. `continueAsGuest` (`packages/app-core/src/lib/guest-auth.ts`) seals a
@@ -452,8 +465,9 @@ Do not add new top-level directories or loose root files — find the group.
   allowlists, or vault status. The only road that is legitimately withheld
   beside an existing vault is "Use without an account" (a local-only seal in
   place). Any change that drops a guest entry is a regression, not a cleanup —
-  the tests in `SignInPanel.test.tsx`, `UnlockScreen.test.tsx`, and
-  `store.test.ts` asserting guest exists and stays isolated are load-bearing
+  the tests in `FrontDoor.test.tsx`, `SignInPanel.test.tsx`,
+  `UnlockScreen.test.tsx`, and `store.test.ts` asserting guest exists and
+  stays isolated are load-bearing
   and must not be deleted or inverted.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)

@@ -5,6 +5,7 @@ import {
   awaitCapabilitySections,
   capabilityOffSwitch,
 } from "./always-on.mjs";
+import { passTheDoor } from "./front-door.mjs";
 export const PASSWORD = "correct horse battery staple 2026";
 
 export async function waitOpen(page) {
@@ -16,6 +17,8 @@ export async function waitOpen(page) {
 }
 
 export async function sealWithPassword(page) {
+  // The local-only seal is a sign-in road, behind the door (ADR 0148 §1).
+  await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.getByRole("tab", { name: "Password" }).click();
   await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);

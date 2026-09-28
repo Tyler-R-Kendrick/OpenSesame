@@ -1,4 +1,4 @@
-// The front door and the ceremony behind it (ADR 0115), on the production
+// The front door and the ceremony behind it (ADR 0115, ADR 0148), on the production
 // origin: what a device nobody has set up shows first, and what "Set up your
 // own" walks through. Split from verify-static-origin.mjs like the other
 // contracts so the walk stays one screen per file.
@@ -7,7 +7,11 @@ async function count(page, role, name, exact = false) {
   return page.getByRole(role, { name, exact }).count();
 }
 
-/** A. The first screen: setup made large, every sign-in road whole. */
+/**
+ * A. The first screen: two roads — set up your own, join a session — and
+ * the guest road as the corner Skip. No sign-in: a device with no vault has
+ * nothing to sign in to (ADR 0148 §1).
+ */
 export async function checkFrontDoor(page, check, text, base) {
   check(
     (await page
@@ -16,22 +20,23 @@ export async function checkFrontDoor(page, check, text, base) {
     "first screen is the front door, titled by the wordmark",
   );
   check(!/This device is empty/.test(text), "no setup wall");
-  check(
-    (await count(page, "button", "Join a session")) === 0,
-    "no join road on a shared-origin demo, which cannot finish a join (ADR 0136)",
-  );
   for (const [name, label] of [
     ["Set up your own", "setup road on the front door"],
-    ["Continue with Google", "Google button present"],
+    [
+      "Join a session",
+      "join road on the front door, even on the shared origin (ADR 0148)",
+    ],
     ["Skip sign-in and continue as guest", "Skip link present"],
-    ["Use without an account", "local-only road present"],
   ]) {
     check((await count(page, "button", name)) === 1, label);
   }
-  check(
-    (await count(page, "button", "Continue as guest", true)) === 1,
-    "guest button present",
-  );
+  for (const [name, label] of [
+    ["Continue with Google", "no Google button on the door"],
+    ["Continue as guest", "no full-size guest button on the door"],
+    ["Use without an account", "no local-only road on the door"],
+  ]) {
+    check((await count(page, "button", name, true)) === 0, label);
+  }
   const icon = await page.evaluate(() =>
     document.querySelector('link[rel="icon"]')?.getAttribute("href"),
   );
@@ -104,9 +109,9 @@ export async function walkSetupCeremony(page, check, snap) {
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
   check(
-    // ADR 0142: the browser-local four are core. Twelve optional
-    // capabilities since notifications.routing (ADR 0140 D9).
-    rows === 12,
+    // ADR 0142: the browser-local four are core. Thirteen optional
+    // capabilities since sharing.live (ADR 0148).
+    rows === 13,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

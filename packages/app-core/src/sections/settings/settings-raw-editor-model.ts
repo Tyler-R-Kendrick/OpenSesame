@@ -5,6 +5,7 @@ import { loadKeybindings } from "../../lib/configuration/nav-persist.js";
  * the pure part of that screen — no React, no DOM — so any shell can drive
  * the same behaviour.
  */
+import { loadLiveRelays, saveLiveRelays } from "../../lib/live/link.js";
 import { type PagesSettings, loadSettings } from "../../lib/settings.js";
 import type { VaultPrefs } from "../../lib/vault/store.js";
 import type { SettingsDoc } from "./settings-files.js";
@@ -56,6 +57,7 @@ export function readDoc(category: string, state: SettingsState): SettingsDoc {
         hostApi: pages.hostApi,
         identityApi: pages.identityApi,
         daemonApi: pages.daemonApi,
+        liveRelays: loadLiveRelays(),
       },
       keybindings: {},
     };
@@ -78,6 +80,12 @@ export function mergePrefs(prefs: VaultPrefs, doc: SettingsDoc): VaultPrefs {
   const clipboard = doc.values.clipboardClearSeconds;
   if (isNumber(clipboard)) next.clipboardClearSeconds = clipboard;
   return next;
+}
+
+/** Capabilities' `liveRelays`, written where live sessions read them. */
+export function applyLiveRelays(doc: SettingsDoc): void {
+  const relays = doc.values.liveRelays;
+  if (Array.isArray(relays)) saveLiveRelays(relays);
 }
 
 export function mergePages(doc: SettingsDoc): PagesSettings {

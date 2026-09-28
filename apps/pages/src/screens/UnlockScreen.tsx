@@ -90,9 +90,11 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * Sign-in is the first screen, and nothing gates it (ADR 0090). The front
- * door offers setup and joining beside it, an invite link opens join itself
- * (ADR 0136), and a managed instance's required roots sit beside sign-in.
+ * A device with no vault opens on the front door's two roads — set up your
+ * own, join a session (ADR 0148 §1); nothing is put in front of them
+ * (ADR 0090). Once a setup record exists, sign-in is the first screen. A
+ * shared link opens join itself (ADR 0136), and a managed instance's
+ * required roots sit beside sign-in.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
@@ -110,14 +112,12 @@ export function UnlockScreen() {
   useEffect(() => {
     void checkForAppUpdate();
   }, []);
-  // The front door (ADR 0115): no vault and no setup record. The local-only
-  // seal, a join, and an answered or skipped ceremony retire it; guest
-  // prepare leaves status empty (no wrap on disk), which is Unlock.
-  const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
+  // The front door (ADR 0115, ADR 0148 §1): no vault and no setup record.
+  // An answered or skipped ceremony retires it; guest prepare leaves status
+  // empty (no wrap on disk), which is Unlock.
   const frontDoor =
     status === "empty" &&
     tomb !== GUEST_TOMB &&
-    !localOnlyPicked &&
     unlockScreenDependencies.loadSetup() === null;
 
   if (join.screen) return join.screen;
@@ -141,20 +141,14 @@ export function UnlockScreen() {
   if (frontDoor) {
     return (
       <FrontDoor
-        providers={providers}
         onOpenSetup={(join) => setCeremony({ step: undefined, join })}
         onOpenJoin={join.open}
-        onUseLocalOnly={() => setLocalOnlyPicked(true)}
       />
     );
   }
   return (
     <UnlockForm
       providers={providers}
-      initialLocalOnly={localOnlyPicked}
-      onSignInInstead={
-        localOnlyPicked ? () => setLocalOnlyPicked(false) : undefined
-      }
       onOpenSetup={(step, join) => setCeremony({ step, join })}
       onOpenVaults={() => setVaultsOpen(true)}
     />
@@ -163,16 +157,10 @@ export function UnlockScreen() {
 
 function UnlockForm({
   providers,
-  initialLocalOnly = false,
-  onSignInInstead,
   onOpenSetup,
   onOpenVaults,
 }: {
   providers: FederatedProviderSummary[];
-  /** Arrive on the local-only seal form — the front door's third road. */
-  initialLocalOnly?: boolean;
-  /** Where "Sign in instead" goes when the front door is what sign-in is. */
-  onSignInInstead?: () => void;
   onOpenSetup: (step?: SetupStep, join?: boolean) => void;
   /** Back to the front door: every vault on this device (ADR 0089). */
   onOpenVaults: () => void;
@@ -208,7 +196,7 @@ function UnlockForm({
       : null;
   const passkeyHost = checkWebauthnHost();
   // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
-  const [localOnly, setLocalOnly] = useState(initialLocalOnly);
+  const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
   // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.
   const [signingIn, setSigningIn] = useState(() =>
@@ -1012,11 +1000,7 @@ function UnlockForm({
             <button
               type="button"
               className="unlock__switch"
-              onClick={() => {
-                // Both: this form may outlive the front door that mounted it.
-                setLocalOnly(false);
-                onSignInInstead?.();
-              }}
+              onClick={() => setLocalOnly(false)}
             >
               Sign in instead
             </button>

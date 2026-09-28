@@ -97,6 +97,8 @@ export const CAPABILITY_TUTORIALS = {
   "setup.first_run": "setup.first-run",
   "delegations.claim": "setup.join-session",
   "shared_sessions.join_request": "setup.join-session",
+  "shared_sessions.live_join": "setup.join-session",
+  "shared_sessions.live_host": "setup.join-session",
   "browser.grant.renew": "setup.join-session",
   "connectors.directory.sync": "connection.create",
   "connectors.bind": "access.connectors",

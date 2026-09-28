@@ -187,3 +187,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0145](0145-nats-feature-usage.md) | Using NATS fully: delivery semantics, services, mixed-mode callout | Accepted |
 | [0146](0146-account-factor-removal-step-up.md) | Removing an account factor takes a step-up | Accepted |
 | [0147](0147-connector-plans-and-user-token-proof.md) | Connector plans, whole-configuration connectors, and the user-token proof | Accepted |
+| [0148](0148-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |

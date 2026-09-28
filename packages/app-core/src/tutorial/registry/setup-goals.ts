@@ -69,8 +69,8 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "setup.join-session"',
-      'say "Join a session with an invite (a link and a code), or ask into an open session at an endpoint. The operator approves this browser, a passkey proves it is you, and only then is the invite looked up."',
-      'focus "setup.join" "An invite link opens this by itself." side=top',
+      'say "Join a live session from the link its owner shared (and, for an invite, the code they gave you another way). The owner lets you in from their open tab, and what they share stays in this tab only until the session ends."',
+      'focus "setup.join" "A shared link opens this by itself." side=top',
       "end",
     ].join("\n"),
   },

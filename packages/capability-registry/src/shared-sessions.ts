@@ -8,6 +8,14 @@ const SESSION_AUTHORITY_CEREMONY: CapabilityExclusion = {
   adr: ADR_SHARED_SESSIONS,
 };
 
+const ADR_LIVE_SESSIONS = "0148-live-sessions-browser-to-browser.md";
+
+const LIVE_SESSION_HUMAN: CapabilityExclusion = {
+  reason:
+    "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+  adr: ADR_LIVE_SESSIONS,
+};
+
 const SESSION_SURFACE_DEFERRED: CapabilityExclusion = {
   reason:
     "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
@@ -158,6 +166,42 @@ export const sharedSessionCapabilities: readonly Capability[] = [
       mcp_host: SESSION_SURFACE_DEFERRED,
       mcp_client: SESSION_SURFACE_DEFERRED,
       webmcp: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.live_host",
+    title: "Host a live session from this browser",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/live/session.ts:startHosting",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: LIVE_SESSION_HUMAN,
+      mcp_client: LIVE_SESSION_HUMAN,
+      webmcp: LIVE_SESSION_HUMAN,
+    },
+  },
+  {
+    id: "shared_sessions.live_join",
+    title: "Join somebody's live session from a link",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/live/session.ts:joinLive",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: LIVE_SESSION_HUMAN,
+      mcp_client: LIVE_SESSION_HUMAN,
+      webmcp: LIVE_SESSION_HUMAN,
     },
   },
   {

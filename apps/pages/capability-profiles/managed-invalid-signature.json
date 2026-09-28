@@ -23,6 +23,7 @@
         "notifications.routing",
         "notifications.web-push",
         "sharing.household",
+        "sharing.live",
         "support.remote-ai",
         "telemetry.external",
         "wallet.spending"

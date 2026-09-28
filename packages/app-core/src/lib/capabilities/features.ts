@@ -117,7 +117,12 @@ export const FEATURES: readonly Feature[] = [
     ["local_storage"],
     ["connectors.external"],
   ),
-  section("sharing", "Sharing", ["sharing.drops", "sharing.household"], []),
+  section(
+    "sharing",
+    "Sharing",
+    ["sharing.drops", "sharing.live", "sharing.household"],
+    [],
+  ),
   section("payments", "Payments", ["wallet.spending"], ["wallet"]),
   {
     ...section(

@@ -65,11 +65,13 @@ describe("/guest lands on the guest road", () => {
     expect(peekGuestArrival()).toBe(false);
   });
 
-  it("takes the keyboard to the front door's guest button", async () => {
+  it("takes the keyboard to the front door's Skip, its one guest road", async () => {
     fresh();
     noteGuestArrival();
     render(<UnlockScreen />);
-    const road = guest();
+    const road = screen.queryByRole("button", {
+      name: "Skip sign-in and continue as guest",
+    });
     expect(road).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(road));
   });

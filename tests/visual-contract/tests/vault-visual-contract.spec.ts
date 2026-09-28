@@ -2,11 +2,13 @@
  * Visual contract for the six .impeccable/screenshots baselines, reproduced
  * against a live apps/pages build/preview (see ../playwright.config.ts).
  *
- * The flow is the one a first visitor walks today (ADR 0090, ADR 0115):
+ * The flow is the one a first visitor walks today (ADR 0090, ADR 0115,
+ * ADR 0148):
  *  - apps/pages/src/app-root.tsx            (the gate before the shell)
- *  - apps/pages/src/screens/FrontDoor.tsx   (.door: Set up your own, then the
- *                                            sign-in panel with guest and
- *                                            "Use without an account")
+ *  - apps/pages/src/screens/FrontDoor.tsx   (.door: Set up your own, Join a
+ *                                            session, and the corner Skip;
+ *                                            sign-in and "Use without an
+ *                                            account" once setup is skipped)
  *  - apps/pages/src/screens/UnlockScreen.tsx (.unlock__card, #master / #confirm)
  *  - apps/pages/src/sections/VaultSection.tsx (.vault after sealing)
  *
@@ -83,10 +85,13 @@ async function openFrontDoor(page: Page): Promise<void> {
 
 /**
  * The local-only road: "Use without an account" seals a vault on this device
- * with no identity at all. It sits on the front door beside the guest road.
+ * with no identity at all. It is a sign-in road, so it sits behind the front
+ * door's setup road (ADR 0148 §1): Set up your own, Skip all, then sign-in.
  */
 async function openLocalOnlySeal(page: Page): Promise<void> {
   await openFrontDoor(page);
+  await page.getByRole("button", { name: "Set up your own" }).click();
+  await page.getByRole("button", { name: "Skip all" }).click();
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.locator("#master").waitFor({ state: "visible" });
 }
@@ -110,16 +115,16 @@ async function completeFirstRunSeal(page: Page): Promise<void> {
 test.describe("Pages visual contract", () => {
   test("pages: front door on a fresh device", async ({ page }, testInfo) => {
     await openFrontDoor(page);
-    // Sign-in stays on the first screen and nothing gates it (ADR 0090); the
-    // guest road is load-bearing (AGENTS.md §5) and must be on it.
+    // Two roads and nothing in front of them (ADR 0090, ADR 0148 §1); the
+    // guest road is load-bearing (AGENTS.md §5) and is the corner Skip.
     await expect(
       page.getByRole("button", { name: /Set up your own/ }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Continue as guest", exact: true }),
+      page.getByRole("button", { name: "Join a session", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Use without an account", exact: true }),
+      page.getByRole("button", { name: "Skip sign-in and continue as guest" }),
     ).toBeVisible();
     await capture(
       page,

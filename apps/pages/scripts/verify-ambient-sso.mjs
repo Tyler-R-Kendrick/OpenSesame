@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { isLinkCall } from "./lib/ambient-link-calls.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
@@ -186,16 +187,13 @@ async function withPage(handler) {
     return "continue";
   });
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "domcontentloaded" });
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .first()
-    .waitFor({ timeout: 20_000 });
+  await doorGuest(page).waitFor({ timeout: 20_000 });
   const text = await page.locator("body").innerText();
-  check(/Continue as guest/i.test(text), "POL-DEFAULT: guest road is present");
   check(
-    /guest/i.test(text) || /Sign in/i.test(text) || /Google/i.test(text),
-    "sign-in UI is present",
+    (await doorGuest(page).count()) === 1,
+    "POL-DEFAULT: guest road is present",
   );
+  check(/Skip/.test(text), "the door's guest road is drawn");
   check(
     forbidden.length === 0,
     `POL-DEFAULT: zero automatic IdP requests (saw ${forbidden.length})`,

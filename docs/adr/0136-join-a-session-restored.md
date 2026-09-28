@@ -2,6 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-09-24
+- Amended by: [ADR 0148](0148-live-sessions-browser-to-browser.md) (the
+  road is on every deployment and opens a live session browser to browser;
+  a Host invite link still opens this ceremony)
 - Amends: [ADR 0128](0128-pages-without-host.md) (Pages no longer speaks
   Host) with a second, bounded exception
 - Restores: [ADR 0115](0115-front-door-and-connector-directory.md) §1's

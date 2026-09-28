@@ -19,6 +19,7 @@ import {
 import {
   type SettingsState,
   applySuggestion,
+  applyLiveRelays,
   mergePages,
   mergePrefs,
   readDoc,
@@ -102,6 +103,7 @@ export function SettingsRawEditor({ category }: { category: string }) {
       category === "vaults"
     ) {
       saveSettings(mergePages(decoded.doc));
+      applyLiveRelays(decoded.doc);
     }
     // Keep the document as written: comments and ordering are the person's.
     saveSettingsSource(path, source);

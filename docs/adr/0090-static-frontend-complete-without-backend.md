@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-01
+Amended by: ADR 0148 §1 ([live sessions](0148-live-sessions-browser-to-browser.md)): on a device with no vault the first screen is the front door's two roads and the guest Skip; sign-in is first once setup is answered or skipped
 Supersedes: ADR 0077 §1 and §4's gate ([first-run setup: the anonymous visitor is the operator](0077-first-run-setup-ceremony.md))
 Supplements: ADR 0033 ([federated identity admission](0033-federated-identity-admission.md)),
 ADR 0034 ([origin-brokered sign-in for static sites](0034-origin-brokered-static-site-signin.md)),

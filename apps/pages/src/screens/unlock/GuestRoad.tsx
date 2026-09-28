@@ -28,15 +28,17 @@ import { landFocus } from "../../lib/focus.js";
  * arrival whether or not the road is drawn: with guests off, the link opens
  * the ordinary sign-in screen and nothing else.
  */
-function useGuestArrivalFocus(): RefObject<HTMLButtonElement | null> {
+function useGuestArrivalFocus(
+  lands = true,
+): RefObject<HTMLButtonElement | null> {
   const ref = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
-    if (!peekGuestArrival()) return;
+    if (!lands || !peekGuestArrival()) return;
     const frame = requestAnimationFrame(() => {
       if (takeGuestArrival()) landFocus(ref.current);
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [lands]);
   return ref;
 }
 
@@ -64,17 +66,26 @@ export function GuestButton({
   );
 }
 
-/** First run only: the "Skip" in the card's corner where a skip lives. */
+/**
+ * First run only: the "Skip" in the card's corner where a skip lives. On the
+ * front door it is the one guest placement (ADR 0148 §1), so a `/guest` link
+ * `lands` on it there; beside the sign-in panel's full-size button it does
+ * not.
+ */
 export function GuestSkip({
   busy,
   onGuest,
+  lands = false,
 }: {
   busy: boolean;
   onGuest: () => void;
+  lands?: boolean;
 }) {
+  const ref = useGuestArrivalFocus(lands);
   if (!useGuestsAllowed()) return null;
   return (
     <button
+      ref={ref}
       type="button"
       className="unlock__switch signin__skip"
       aria-label="Skip sign-in and continue as guest"

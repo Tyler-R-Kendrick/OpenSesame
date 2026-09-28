@@ -163,6 +163,7 @@ describe("switchFeature", () => {
     expect(next.roots).toEqual([
       "wallet.spending",
       "sharing.drops",
+      "sharing.live",
       "sharing.household",
     ]);
   });

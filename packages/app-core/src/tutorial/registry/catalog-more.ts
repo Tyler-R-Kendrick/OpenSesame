@@ -20,6 +20,14 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.drive.sync",
   },
   {
+    id: "settings.live-session",
+    description:
+      "The Live session panel under Vaults, while Live sessions is on: share the whole vault or chosen items with people who open a link (and, for an invite, give its code), for up to eight hours, while this tab stays open. Values go browser to browser, one at a time, on request; the owner lets each person in and can end it for everyone.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "shared_sessions.live_host",
+  },
+  {
     id: "settings.item-types",
     description:
       "Installs or removes a vault item type definition, from a git-repository marketplace or pasted source. Types are JSON manifests, not code paths.",

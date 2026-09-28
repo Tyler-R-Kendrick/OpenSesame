@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { doorGuest } from "./front-door.mjs";
 
 export const SIOP_RP = "https://rp.example.test";
 export const SIOP_CALLBACK = `${SIOP_RP}/callback`;
@@ -39,9 +40,7 @@ export async function installWebAuthn(page) {
 
 export async function continueAsGuest(page, origin, base) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
+  await doorGuest(page).click();
   await expect(
     page.getByRole("link", { name: "New item", exact: true }),
   ).toBeVisible();

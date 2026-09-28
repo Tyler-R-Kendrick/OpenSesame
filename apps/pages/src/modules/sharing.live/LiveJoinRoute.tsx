@@ -1,0 +1,275 @@
+/**
+ * `/live` — joining somebody's live session (ADR 0148 §3–§5).
+ *
+ * The link arrives from the address bar (boot took it out of history), from
+ * the door's road (held in memory across the consent), or pasted here,
+ * masked. An invite session also asks for the code the owner passed along
+ * another way. The person gives a name — and, if they like, a note — and
+ * asks; the owner's tab lets them in or does not. Everything the session
+ * shows lives in this tab's memory and goes when it ends.
+ *
+ * The screen holds no vault key and opens on a locked or empty device
+ * (`gate: "any"`).
+ */
+
+import {
+  normalizeInviteCode,
+  takeCapturedLiveLink,
+} from "@opensesame/app-core/lib/join/invite.js";
+import type { GuestStatus } from "@opensesame/app-core/lib/live/guest.js";
+import {
+  type LiveLink,
+  parseLiveLink,
+  takeHeldLiveLink,
+} from "@opensesame/app-core/lib/live/link.js";
+import {
+  NAME_MAX,
+  NOTE_MAX,
+  type RefusalReason,
+} from "@opensesame/app-core/lib/live/messages.js";
+import { joinLive, leaveLive } from "@opensesame/app-core/lib/live/session.js";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { FieldShell } from "../../components/FieldShell.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import {
+  IconArrowRight,
+  IconChevronLeft,
+  IconSecret,
+  IconShare,
+  IconUser,
+  IconX,
+} from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
+import { LiveCatalog } from "./LiveCatalog.js";
+import {
+  type Standing,
+  formatRemaining,
+  liveUiSeams,
+  useLiveGuest,
+  useRemaining,
+} from "./live-hooks.js";
+import "./live.css";
+
+const REFUSED = {
+  declined: "The owner did not let you in",
+  code: "That code is not this session's",
+  ended: "The session has ended",
+  full: "The session is full",
+} satisfies Record<RefusalReason, string>;
+
+/** The glyph and sentence for where an ask stands. */
+export function standing(status: GuestStatus): Standing {
+  switch (status.at) {
+    case "asking":
+      return { tone: "idle", label: "Asking the owner" };
+    case "waiting":
+      return { tone: "idle", label: "Waiting for the owner to let you in" };
+    case "connecting":
+      return { tone: "idle", label: "Connecting to the owner's browser" };
+    case "joined":
+      return { tone: "ok", label: `Joined ${status.catalog.title}` };
+    case "refused":
+      return { tone: "err", label: REFUSED[status.reason] };
+    case "unanswered":
+      return {
+        tone: "warn",
+        label: "Nobody answered — the owner's tab may be closed",
+      };
+    default:
+      return { tone: "idle", label: "The session ended" };
+  }
+}
+
+/** What the joiner has typed, and the ask it adds up to. */
+function useAsk(held: LiveLink | null) {
+  const [pasted, setPasted] = useState("");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const link = held ?? parseLiveLink(pasted);
+  const needsCode = link?.admission === "invite";
+  const normalized = needsCode ? normalizeInviteCode(code) : null;
+  const ready =
+    link !== null &&
+    name.trim().length > 0 &&
+    (!needsCode || normalized !== null);
+
+  async function ask(): Promise<void> {
+    if (!link || !ready) return;
+    setBusy(true);
+    setFailed(null);
+    try {
+      await joinLive({
+        link,
+        code: normalized,
+        name: name.trim(),
+        note: note.trim(),
+        peers: liveUiSeams.peers,
+      });
+    } catch {
+      leaveLive();
+      setFailed("The relays could not be reached");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return {
+    fields: { pasted, code, name, note },
+    set: { setPasted, setCode, setName, setNote },
+    link,
+    needsCode,
+    ready,
+    busy,
+    failed,
+    ask,
+  };
+}
+
+function AskForm({ held }: { held: LiveLink | null }) {
+  const { fields, set, link, needsCode, ready, busy, failed, ask } =
+    useAsk(held);
+  const { pasted, code, name, note } = fields;
+  const { setPasted, setCode, setName, setNote } = set;
+
+  return (
+    <form
+      className="setup__stack"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void ask();
+      }}
+    >
+      {held ? (
+        <StatusMark tone="ok" label="Link in hand" />
+      ) : (
+        <FieldShell
+          id="live-link"
+          label="Link"
+          type="password"
+          mono
+          autoComplete="off"
+          lead={<IconShare size={17} />}
+          value={pasted}
+          disabled={busy}
+          status={
+            pasted && !link ? (
+              <StatusMark tone="err" label="Not a live-session link" />
+            ) : null
+          }
+          onValueChange={setPasted}
+        />
+      )}
+      {needsCode ? (
+        <FieldShell
+          id="live-code"
+          label="Code"
+          mono
+          autoComplete="off"
+          placeholder="XXXX-XXXX"
+          lead={<IconSecret size={17} />}
+          value={code}
+          disabled={busy}
+          onValueChange={setCode}
+        />
+      ) : null}
+      <FieldShell
+        id="live-name"
+        label="Your name"
+        autoComplete="nickname"
+        lead={<IconUser size={17} />}
+        value={name}
+        disabled={busy}
+        onValueChange={(next) => setName(next.slice(0, NAME_MAX))}
+      />
+      <FieldShell
+        id="live-note"
+        label="Note"
+        placeholder="Optional"
+        value={note}
+        disabled={busy}
+        onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
+      />
+      {failed ? <StatusMark tone="err" label={failed} /> : null}
+      <FormCommit
+        label="Ask to join"
+        disabled={!ready || busy}
+        busy={busy}
+        icon={<IconArrowRight size={18} />}
+      />
+    </form>
+  );
+}
+
+function Session() {
+  const { guest, status } = useLiveGuest();
+  const catalog = status?.at === "joined" ? status.catalog : null;
+  const left = useRemaining(catalog?.expiresAt ?? null);
+  if (!guest || !status) return null;
+  const mark = standing(status);
+  return (
+    <div className="setup__stack">
+      <div className="live-status">
+        <StatusMark tone={mark.tone} label={mark.label} />
+        {catalog ? (
+          <span className="vault-row__meta">{formatRemaining(left)}</span>
+        ) : null}
+      </div>
+      {catalog ? (
+        <LiveCatalog
+          catalog={catalog}
+          request={(what, item, field) => guest.request(what, item, field)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function LiveJoinRoute() {
+  const navigate = useNavigate();
+  // What the road held across the consent, or what boot took from the address.
+  const [held] = useState<LiveLink | null>(
+    () => takeHeldLiveLink() ?? takeCapturedLiveLink(),
+  );
+  const { guest, status } = useLiveGuest();
+  const over =
+    status?.at === "refused" ||
+    status?.at === "ended" ||
+    status?.at === "unanswered";
+  const leave = over ? "Close" : guest ? "Leave the session" : "Close";
+
+  return (
+    <div className="section__inner live-join">
+      <div className="section__head">
+        <h1>Join a session</h1>
+        {over ? (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Start over"
+            title="Start over"
+            onClick={leaveLive}
+          >
+            <IconChevronLeft size={18} />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={leave}
+          title={leave}
+          onClick={() => {
+            leaveLive();
+            navigate("/");
+          }}
+        >
+          <IconX size={18} />
+        </button>
+      </div>
+      {guest ? <Session /> : <AskForm held={held} />}
+    </div>
+  );
+}

@@ -17,6 +17,7 @@
  */
 
 import { maybePage } from "../../ports.js";
+import { type LiveLink, readLiveValue } from "../live/link.js";
 import { dismissNotice, setStatusNotice } from "../notices.js";
 import { normalizeApiBase } from "../urls.js";
 
@@ -46,6 +47,8 @@ export type Invite = Readonly<{
 /** What arrived in the address bar, once it has been taken out of it. */
 export type CapturedInvite =
   | Readonly<{ kind: "invite"; invite: Invite }>
+  /** A live-session link: the owner's open tab is the endpoint (ADR 0148). */
+  | Readonly<{ kind: "live"; link: LiveLink }>
   /** A bearer in the query string: logged, cached and sent as Referer. */
   | Readonly<{ kind: "leaked" }>;
 
@@ -105,11 +108,21 @@ export function normalizeSessionId(raw: string): string | null {
 
 let captured: CapturedInvite | null = null;
 
+/** A Host invite or a live-session link in the fragment, or neither. */
+function fromHash(hash: string): CapturedInvite | null {
+  const live = new URLSearchParams(hash.replace(/^#/, "")).get("live");
+  const link = live ? readLiveValue(live) : null;
+  if (link) return { kind: "live", link };
+  const invite = fromFragment(hash);
+  return invite ? { kind: "invite", invite } : null;
+}
+
 /** `?…` or `#…` with the invite's own parameters taken out, nothing else. */
 function without(raw: string, mark: "?" | "#"): string {
   const params = new URLSearchParams(raw.replace(/^[?#]/, ""));
   params.delete("token");
   params.delete("endpoint");
+  params.delete("live");
   const rest = params.toString();
   return rest ? `${mark}${rest}` : "";
 }
@@ -133,9 +146,9 @@ export function captureInviteFromPage(): CapturedInvite | null {
     page.replaceUrl(`${pathname}${without(search, "?")}${hash}`);
     return captured;
   }
-  const invite = hash ? fromFragment(hash) : null;
-  if (!invite) return captured;
-  captured = { kind: "invite", invite };
+  const arrived = hash ? fromHash(hash) : null;
+  if (!arrived) return captured;
+  captured = arrived;
   page.replaceUrl(`${pathname}${search}${without(hash, "#")}`);
   return captured;
 }
@@ -186,6 +199,18 @@ export function takeCapturedInvite(): CapturedInvite | null {
   captured = null;
   if (taken) dismissNotice(WAITING_NOTICE);
   return taken;
+}
+
+/**
+ * The live link boot captured, taken only when that is what it was: the
+ * live join screen (`/live`) reads it without spending a Host invite.
+ */
+export function takeCapturedLiveLink(): LiveLink | null {
+  if (captured?.kind !== "live") return null;
+  const { link } = captured;
+  captured = null;
+  dismissNotice(WAITING_NOTICE);
+  return link;
 }
 
 export function resetCapturedInviteForTests(): void {

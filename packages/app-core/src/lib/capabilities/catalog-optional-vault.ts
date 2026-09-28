@@ -33,6 +33,43 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
+    "sharing.live",
+    "Live sessions",
+    "Share chosen vault items live with people who join from a link — browser to browser, while this tab stays open — and join somebody else's session from the front door. Nothing of a session is stored on either side.",
+    {
+      operationIds: ["shared_sessions.live_host", "shared_sessions.live_join"],
+      egress: [
+        {
+          class: "external-service",
+          purpose:
+            "public Nostr relays, which carry the encrypted handshake between two throwaway session keys and nothing else",
+          automatic: false,
+        },
+        {
+          class: "external-service",
+          purpose:
+            "public STUN servers, which tell each browser its own network address once the owner has admitted someone",
+          automatic: false,
+        },
+        {
+          class: "peer-or-local-network",
+          purpose:
+            "the other person's browser, directly, only after the owner admits them",
+          automatic: false,
+        },
+        {
+          class: "user-mediated-navigation",
+          purpose: "the session link a person copies",
+          automatic: false,
+        },
+      ],
+      browserPermissions: ["clipboard-write"],
+      keyAccess: "item-plaintext",
+      offlineLimits:
+        "A live session needs both browsers online and a relay reachable; it ends when the owner's tab closes.",
+    },
+  ),
+  optional(
     "sharing.household",
     "Household sharing",
     "Share chosen vault items with the people of one household over an explicitly chosen transport.",

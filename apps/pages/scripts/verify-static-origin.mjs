@@ -32,6 +32,7 @@ import {
   checkFrontDoor,
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
+import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { checkLoginWebsites } from "./lib/login-websites-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
@@ -216,6 +217,8 @@ const browser = await launch();
   const { page, context, shooCalls } = await newPage(browser, { shoo: true });
   setStep("C-google");
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  // Sign-in is behind the door's setup road (ADR 0148 §1).
+  await passTheDoor(page);
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.waitForTimeout(2000);
   const authorize = new URL(page.url());
@@ -320,9 +323,7 @@ const browser = await launch();
     response?.status() === 404,
     "deep link uses the expected SPA fallback document",
   );
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .waitFor();
+  await doorGuest(page).waitFor();
   check(
     (await page
       .getByRole("heading", { level: 1, name: "open-sesame", exact: true })
@@ -330,9 +331,7 @@ const browser = await launch();
     "deep link renders the front door",
   );
   check(
-    (await page
-      .getByRole("button", { name: "Continue as guest", exact: true })
-      .count()) === 1,
+    (await doorGuest(page).count()) === 1,
     "deep link retains guest access",
   );
   await page.waitForTimeout(800);

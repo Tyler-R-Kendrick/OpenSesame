@@ -19,8 +19,8 @@ The six baselines it enforces:
 
 | Baseline | What it captures |
 | --- | --- |
-| `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, then sign-in with the guest road and "Use without an account" |
-| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only seal form behind "Use without an account" (`#master`, `#confirm`, the no-recovery checkbox) |
+| `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, Join a session, and the guest road as the corner Skip (ADR 0148) |
+| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only seal form behind "Use without an account" — Set up your own, Skip all, then sign-in (`#master`, `#confirm`, the no-recovery checkbox) |
 | `vault-list-desktop.png` / `vault-list-mobile.png` | The empty vault, right after sealing |
 
 ## Running it locally
@@ -188,6 +188,13 @@ theme key covered the wordmark's last letter). That was fixed in
 `docs/evidence/2026-09-27-unlock-phone-gutter/`. The spec had also drifted:
 `pages-*` could capture the blank frame of a service-worker reload, and it
 mocked Host and Identity APIs Pages no longer calls.
+
+**2026-09-28.** Three re-seeded after reading each diff (ADR 0148):
+`pages-desktop.png`/`pages-mobile.png` because the front door is now two
+roads — Set up your own, Join a session — with guest as the corner Skip and
+no sign-in panel; `vault-unlock-desktop.png` only because the release notes
+beside the seal form changed two lines of copy. The seal form itself did not
+move. The other three still match.
 
 ## What the orchestrator should do next
 

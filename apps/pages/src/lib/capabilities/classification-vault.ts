@@ -83,6 +83,18 @@ export const VAULT_LIB_RULES = [
     "import pipeline and manager formats",
   ),
   optional(`${V}export/`, "vault.interop-formats", "CXF export"),
+  // A live link leaves the address bar at boot, like an invite; everything
+  // that speaks to relays or peers is the capability's (ADR 0148).
+  core(
+    "src/lib/live/link",
+    "identity.brokered-signin",
+    "boot takes a live-session link out of the address bar (ADR 0148)",
+  ),
+  optional(
+    "src/lib/live/",
+    "sharing.live",
+    "live sessions: relay signalling, WebRTC peers, host and guest (ADR 0148)",
+  ),
 ];
 
 export const TUTORIAL_RULES = [

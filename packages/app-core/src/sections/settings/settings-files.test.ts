@@ -91,6 +91,23 @@ it("writes Capabilities' endpoints beside what the plan approved", () => {
   ).toBe(false);
 });
 
+it("takes live sessions' relays as wss:// addresses only (ADR 0148)", () => {
+  const current = { values: { approved: [] }, keybindings: {} };
+  const relays = (text: string) =>
+    decodeSettings("capabilities", text, current);
+  const good = relays('liveRelays: ["wss://relay.example", "wss://nos.lol"]\n');
+  expect(good.ok && good.doc.values.liveRelays).toEqual([
+    "wss://relay.example",
+    "wss://nos.lol",
+  ]);
+  expect(relays("liveRelays: []\n").ok).toBe(true);
+  expect(relays('liveRelays: ["https://relay.example"]\n').ok).toBe(false);
+  expect(relays('liveRelays: ["ws://relay.example"]\n').ok).toBe(false);
+  expect(relays('liveRelays: "wss://relay.example"\n').ok).toBe(false);
+  const six = Array.from({ length: 6 }, (_, at) => `"wss://r${at}.example"`);
+  expect(relays(`liveRelays: [${six.join(", ")}]\n`).ok).toBe(false);
+});
+
 it("gives a directory with no settings a file that says so", () => {
   const source = encodeSettings("danger", { values: {}, keybindings: {} });
   expect(source).toMatch(/^# /);

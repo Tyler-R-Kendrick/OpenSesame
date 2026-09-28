@@ -130,6 +130,10 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
 
+    // --- optional: live sessions (ADR 0148) -----------------------------
+    "shared_sessions.live_host": "sharing.live",
+    "shared_sessions.live_join": "sharing.live",
+
     // --- optional: browser-local IAM ------------------------------------
     "identity.local.agent.keys.manage": "identity.local-iam",
     "identity.local.application.authorize": "identity.local-iam",

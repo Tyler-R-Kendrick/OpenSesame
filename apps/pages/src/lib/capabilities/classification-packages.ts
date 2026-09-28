@@ -21,6 +21,11 @@ export const PACKAGE_RULES = [
     "reached only through @azure/msal-browser",
   ),
   optional(
+    `${NM}nostr-tools`,
+    "sharing.live",
+    "live-session signalling over Nostr relays (lib/live/signal.ts, relays.ts)",
+  ),
+  optional(
     `${NM}@vercel/connect`,
     "connectors.external",
     "only lib/vercel-connect.ts",
