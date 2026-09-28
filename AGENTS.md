@@ -223,7 +223,9 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # TURN server, relay to relay, over UDP (node-turn), TCP (`turn:…?transport=tcp`)
 # and TLS (`turns:`, a self-signed certificate trusted by its public key alone)
 # on live-turn (pion/turn, scripts/test/live-turn), whose per-transport counters
-# show which one carried the browsers. A missing server fails the run
+# show which one carried the browsers; and through a TURN REST secret typed into
+# `settings/live/transport.json` (the app mints the credential, the link never
+# carries the secret; a wrong server secret must fail). A missing server fails the run
 # (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.

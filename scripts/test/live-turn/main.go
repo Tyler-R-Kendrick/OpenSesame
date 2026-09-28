@@ -4,7 +4,13 @@
 // (RFC 8656 / RFC 5766, RFC 6062 not used) — built on pion/turn.
 //
 //	live-turn serve -user U -credential C [-cert cert.pem -key key.pem]
+//	live-turn serve -rest-secret S        [-cert cert.pem -key key.pem]
 //	live-turn mint <dir>          # writes cert.pem and key.pem, self-signed
+//
+// With -rest-secret the credentials are TURN REST ones (draft-uberti-behave-
+// turn-rest, coturn's use-auth-secret): a username "<unix expiry>:<anything>"
+// and base64(HMAC-SHA1(secret, username)), which is what the app mints for a
+// session from the owner's "secret".
 //
 // serve prints one JSON line when it listens —
 // {"ready":true,"udp":N,"tcp":N,"tls":N,"stats":N} — on ports the kernel chose,
@@ -27,6 +33,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -34,6 +41,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/pion/logging"
 	"github.com/pion/turn/v4"
 )
 
@@ -98,11 +106,13 @@ func serve(args []string) {
 	flags := flag.NewFlagSet("serve", flag.ExitOnError)
 	user := flags.String("user", "", "long-term credential name")
 	credential := flags.String("credential", "", "long-term credential secret")
+	restSecret := flags.String("rest-secret", "", "TURN REST shared secret, instead of -user and -credential")
 	certFile := flags.String("cert", "", "TLS certificate (PEM); with -key, adds the TLS listener")
 	keyFile := flags.String("key", "", "TLS private key (PEM)")
 	check(flags.Parse(args))
-	if *user == "" || *credential == "" {
-		fail("serve needs -user and -credential")
+	static := *user != "" && *credential != ""
+	if static == (*restSecret != "") {
+		fail("serve needs -rest-secret, or -user and -credential")
 	}
 
 	stats := newStats()
@@ -112,13 +122,8 @@ func serve(args []string) {
 	}
 	ready := map[string]any{"ready": true}
 	config := turn.ServerConfig{
-		Realm: realm,
-		AuthHandler: func(name, _ string, _ net.Addr) ([]byte, bool) {
-			if name != *user {
-				return nil, false
-			}
-			return turn.GenerateAuthKey(name, realm, *credential), true
-		},
+		Realm:        realm,
+		AuthHandler:  authHandler(*user, *credential, *restSecret),
 		EventHandler: stats.events(),
 	}
 
@@ -183,4 +188,23 @@ func port(addr net.Addr) int {
 		return a.Port
 	}
 	return 0
+}
+
+// authHandler is static long-term credentials, or TURN REST ones for a secret.
+// The REST handler's own logger would print the username it refuses; this one
+// prints nothing.
+func authHandler(user, credential, restSecret string) turn.AuthHandler {
+	if restSecret != "" {
+		quiet := &logging.DefaultLoggerFactory{
+			Writer:          io.Discard,
+			DefaultLogLevel: logging.LogLevelDisabled,
+		}
+		return turn.LongTermTURNRESTAuthHandler(restSecret, quiet.NewLogger("turn"))
+	}
+	return func(name, _ string, _ net.Addr) ([]byte, bool) {
+		if name != user {
+			return nil, false
+		}
+		return turn.GenerateAuthKey(name, realm, credential), true
+	}
 }

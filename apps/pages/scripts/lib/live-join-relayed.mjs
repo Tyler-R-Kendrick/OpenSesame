@@ -10,15 +10,28 @@
  * - **relayed-tls** — `turns:host:port?transport=tcp`, the road through a
  *   tunnel or port 443. The certificate is self-signed; Chromium is told to
  *   trust its public key and nothing else.
+ * - **relayed-rest** — the owner's file holds the server's REST `secret`
+ *   (coturn's `use-auth-secret`), not a name and credential, and the app mints
+ *   the session's credential itself. A REST-authenticating server says what
+ *   it authenticated; the link carries the minted credential and never the
+ *   secret. **relayed-rest-wrong** is its negative control: the server holds
+ *   a different secret, authentication fails, and the browsers never meet.
  *
- * TCP and TLS are served by `live-turn` (pion/turn), which counts what each
- * transport saw. A relay-to-relay pair says nothing of how the client reached
+ * TCP, TLS and REST are served by `live-turn` (pion/turn), which counts what
+ * each transport saw. A relay-to-relay pair says nothing of how the client reached
  * the server, so every walk also asks the server: the transport it was named
  * for authenticated and allocated for both peers, and no client traffic
  * reached any other transport.
  */
 
+import { createHmac, randomBytes } from "node:crypto";
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
+import {
+  backToForm,
+  linkRoutes,
+  readProfileFile,
+  saveProfileFile,
+} from "./live-join-profile.mjs";
 import {
   endSession,
   joinerAsks,
@@ -37,6 +50,18 @@ let configs;
 let joined;
 let PHONE;
 
+/** How long a walk that must not connect waits before it says so. */
+const NO_ROUTE_MS = 10_000;
+
+/** The owner names the server and the carrier through the Routes Form. */
+function formRoutes(page, route, carrier) {
+  return setRoutes(page, {
+    ice: [route],
+    relay: true,
+    carriers: [{ kind: "nostr", url: carrier }],
+  });
+}
+
 /** As in live-join-scenarios: a space no base64url carries. */
 const JOINER = "Ada Lovelace";
 
@@ -46,7 +71,7 @@ export function bindRelayed(walk) {
 }
 
 /** Both peers were relay-only through `url`, and met relay to relay over `protocol`. */
-async function checkPeers(pages, { url, protocol, label }) {
+export async function checkPeers(pages, { url, protocol, label }) {
   for (const [who, page] of pages) {
     const last = (await configs(page)).at(-1);
     check(
@@ -71,7 +96,7 @@ async function checkPeers(pages, { url, protocol, label }) {
 }
 
 /** The server's own account: only the named transport carried the clients. */
-async function checkServer(turn, transport, label) {
+export async function checkServer(turn, transport, label) {
   const seen = await turn.stats();
   const mine = seen[transport];
   check(
@@ -89,16 +114,18 @@ async function checkServer(turn, transport, label) {
   }
 }
 
-/** The walk itself, for whichever server the owner named. */
-async function through(browser, owner, label, route, afterwards) {
+/**
+ * The walk itself, for whichever server the owner named. `prepare` sets the
+ * owner's routes (the carrier's address in hand); `afterwards` runs once
+ * joined, with both pages and the link the owner copied. A walk that must not
+ * connect says so (`connects: false`) and gets a short wait, not a long one.
+ */
+async function through(browser, owner, label, hooks) {
+  const { prepare, afterwards, connects = true } = hooks;
   setStep(label);
   const relay = await startNostrRelay();
   try {
-    await setRoutes(owner.page, {
-      ice: [route],
-      relay: true,
-      carriers: [{ kind: "nostr", url: relay.url }],
-    });
+    await prepare(relay.url);
     await shot(owner.page, `${label}-1-routes`);
     const { panel, code, link } = await startSession(owner.page);
     const joiner = await device(browser, PHONE);
@@ -106,12 +133,26 @@ async function through(browser, owner, label, route, afterwards) {
     const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
-    await joined(joiner.page).waitFor({ timeout: 45_000 });
-    await shot(joiner.page, `${label}-2-joined`);
-    await afterwards([
-      ["owner", owner.page],
-      ["joiner", joiner.page],
-    ]);
+    if (connects) {
+      await joined(joiner.page).waitFor({ timeout: 45_000 });
+      await shot(joiner.page, `${label}-2-joined`);
+    } else {
+      const reached = await joined(joiner.page)
+        .waitFor({ timeout: NO_ROUTE_MS })
+        .then(
+          () => true,
+          () => false,
+        );
+      check(!reached, `${label}: the browsers never met`);
+      await shot(joiner.page, `${label}-2-not-joined`);
+    }
+    await afterwards(
+      [
+        ["owner", owner.page],
+        ["joiner", joiner.page],
+      ],
+      link,
+    );
     await endSession(panel);
     await joiner.context.close();
     await setRoutes(owner.page, {});
@@ -129,9 +170,11 @@ export async function relayed(browser, owner) {
       username: turn.username,
       credential: turn.credential,
     };
-    await through(browser, owner, "relayed", route, (pages) =>
-      checkPeers(pages, { url: turn.url, protocol: "udp", label: "relayed" }),
-    );
+    await through(browser, owner, "relayed", {
+      prepare: (carrier) => formRoutes(owner.page, route, carrier),
+      afterwards: (pages) =>
+        checkPeers(pages, { url: turn.url, protocol: "udp", label: "relayed" }),
+    });
   } finally {
     await turn.stop();
   }
@@ -156,9 +199,99 @@ export async function relayedOver(browser, owner, transport, { binary, cert }) {
       username: turn.username,
       credential: turn.credential,
     };
-    await through(browser, owner, label, route, async (pages) => {
-      await checkPeers(pages, { url, protocol: transport, label });
-      await checkServer(turn, transport, label);
+    await through(browser, owner, label, {
+      prepare: (carrier) => formRoutes(owner.page, route, carrier),
+      afterwards: async (pages) => {
+        await checkPeers(pages, { url, protocol: transport, label });
+        await checkServer(turn, transport, label);
+      },
+    });
+  } finally {
+    await turn.stop();
+  }
+}
+
+/** Type the profile into its file, save it, then read it back from a fresh open. */
+async function saveProfile(page, profile, label) {
+  await saveProfileFile(page, profile);
+  // Away to the Form and back: the editor mounts again and reads the store.
+  const routes = await backToForm(page);
+  await routes.getByText(profile.ice[0].urls[0], { exact: true }).waitFor();
+  const stored = await readProfileFile(page);
+  const [want] = profile.ice;
+  const [have] = stored.ice ?? [];
+  check(
+    have?.secret === want.secret && stored.relay === true,
+    `${label}: the file saved, and read back holding the server's secret`,
+  );
+}
+
+/** What the link, the peers and the server say of a REST-minted credential. */
+async function checkMinted(pages, link, { secret, url, turn, label }) {
+  const minted = linkRoutes(link)?.ice?.[0];
+  check(
+    /^\d+:osl$/.test(minted?.username ?? ""),
+    `${label}: the link carries a minted credential (${minted?.username})`,
+  );
+  const expected = createHmac("sha1", secret)
+    .update(minted?.username ?? "")
+    .digest("base64");
+  check(
+    minted?.credential === expected,
+    `${label}: its credential is the HMAC-SHA1 of its username under the secret`,
+  );
+  const seen = [link];
+  for (const [, page] of pages) seen.push(JSON.stringify(await configs(page)));
+  check(
+    !("secret" in (minted ?? {})) &&
+      seen.every((text) => !text.includes(secret)),
+    `${label}: neither the link nor a peer connection carries the secret`,
+  );
+  await checkPeers(pages, { url, protocol: "udp", label });
+  await checkServer(turn, "udp", label);
+}
+
+/** Authentication failed and nothing was allocated: what a wrong secret must do. */
+async function checkRefused(turn, label) {
+  const { udp } = await turn.stats();
+  check(
+    udp.authFailed >= 1 && udp.authOk === 0 && udp.allocations === 0,
+    `${label}: the server refused every authentication (${JSON.stringify(udp)})`,
+  );
+}
+
+/**
+ * TURN REST: the secret is written in the profile file, the app mints the
+ * credential. `wrong` gives the server a different secret: the negative control.
+ */
+export async function relayedRest(browser, owner, { binary, wrong = false }) {
+  const label = wrong ? "relayed-rest-wrong" : "relayed-rest";
+  const secret = randomBytes(16).toString("hex");
+  const turn = await startLiveTurn(binary, {
+    restSecret: wrong ? randomBytes(16).toString("hex") : secret,
+  });
+  if (turn.missing) {
+    failures.push(`[${label}] no live-turn binary at ${turn.missing}`);
+    return;
+  }
+  try {
+    const url = turn.urls.udp;
+    await through(browser, owner, label, {
+      connects: !wrong,
+      prepare: (carrier) =>
+        saveProfile(
+          owner.page,
+          {
+            ice: [{ urls: [url], secret }],
+            relay: true,
+            carriers: [{ kind: "nostr", url: carrier }],
+          },
+          label,
+        ),
+      afterwards: (pages, link) =>
+        wrong
+          ? checkRefused(turn, label)
+          : checkMinted(pages, link, { secret, url, turn, label }),
     });
   } finally {
     await turn.stop();

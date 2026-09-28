@@ -29,18 +29,31 @@
  *    also asks the server which transport carried the clients: the one
  *    named authenticated and allocated for both peers, and no client
  *    traffic reached the others.
+ *    **relayed-rest** is the same road with a TURN REST secret: the owner
+ *    types the profile file (`settings/live/transport.json`, the Form has no
+ *    secret field) with a `"secret"` for the server, and the app mints the
+ *    session's credential. The server authenticates both peers, the link
+ *    carries the minted `<expiry>:osl` credential and never the secret.
+ *    **relayed-rest-wrong** is its negative control: the server holds another
+ *    secret, refuses every authentication, and the browsers never meet.
  *
  * `LIVE_NATS_SERVER` / `LIVE_NTFY_SERVER` / `LIVE_TURN_SERVER` name the
  * binaries; a missing one fails the walk unless `LIVE_CARRIERS` (or
  * `LIVE_SCENARIOS`) leaves its kind out. `LIVE_SCENARIOS` narrows the walks:
- * direct, carriers, declined, relayed, relayed-tcp, relayed-tls, tunnel.
+ * direct, carriers, declined, relayed, relayed-tcp, relayed-tls,
+ * relayed-rest, relayed-rest-wrong, tunnel.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
-import { bindRelayed, relayed, relayedOver } from "./lib/live-join-relayed.mjs";
+import {
+  bindRelayed,
+  relayed,
+  relayedOver,
+  relayedRest,
+} from "./lib/live-join-relayed.mjs";
 import {
   bindWalk,
   carried,
@@ -71,7 +84,7 @@ const KINDS = (
 const SCENARIOS = new Set(
   (
     process.env.LIVE_SCENARIOS ??
-    "direct,carriers,declined,relayed,relayed-tcp,relayed-tls,tunnel"
+    "direct,carriers,declined,relayed,relayed-tcp,relayed-tls,relayed-rest,relayed-rest-wrong,tunnel"
   ).split(","),
 );
 const NATS =
@@ -227,6 +240,10 @@ try {
     await relayedOver(browser, owner, "tcp", turnFixture);
   if (SCENARIOS.has("relayed-tls"))
     await relayedOver(browser, owner, "tls", turnFixture);
+  if (SCENARIOS.has("relayed-rest"))
+    await relayedRest(browser, owner, turnFixture);
+  if (SCENARIOS.has("relayed-rest-wrong"))
+    await relayedRest(browser, owner, { ...turnFixture, wrong: true });
 } catch (error) {
   failures.push(
     `[${log.at(-1)?.step ?? "?"}] ${error instanceof Error ? error.message : error}`,

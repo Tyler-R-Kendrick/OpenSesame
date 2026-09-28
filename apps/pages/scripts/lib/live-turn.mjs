@@ -64,13 +64,17 @@ function firstLine(child, ms) {
 
 /**
  * Serve TURN on loopback UDP, TCP and (with `cert`) TLS, on ports the kernel
- * chose. `urls` are the ICE server URLs a person types into Routes.
+ * chose. `urls` are the ICE server URLs a person types into Routes. With
+ * `restSecret` the server takes TURN REST credentials minted from that secret
+ * (coturn's `use-auth-secret`) instead of a static name and credential.
  */
-export async function startLiveTurn(binary, { cert } = {}) {
+export async function startLiveTurn(binary, { cert, restSecret } = {}) {
   if (!binary || !fs.existsSync(binary)) return { missing: binary };
   const username = "live";
   const credential = randomBytes(12).toString("hex");
-  const args = ["serve", "-user", username, "-credential", credential];
+  const args = restSecret
+    ? ["serve", "-rest-secret", restSecret]
+    : ["serve", "-user", username, "-credential", credential];
   if (cert) args.push("-cert", cert.cert, "-key", cert.key);
   const child = spawn(binary, args, { stdio: ["ignore", "pipe", "pipe"] });
   let ready;
@@ -82,8 +86,8 @@ export async function startLiveTurn(binary, { cert } = {}) {
   }
   const url = `http://127.0.0.1:${ready.stats}/stats`;
   return {
-    username,
-    credential,
+    username: restSecret ? undefined : username,
+    credential: restSecret ? undefined : credential,
     urls: {
       udp: `turn:127.0.0.1:${ready.udp}?transport=udp`,
       tcp: `turn:127.0.0.1:${ready.tcp}?transport=tcp`,
