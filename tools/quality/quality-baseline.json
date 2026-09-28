@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 451,
-    "violations": 710,
+    "files": 450,
+    "violations": 709,
     "oversizedLines": 231696
   },
   "files": {
@@ -211,9 +211,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/AgeKeysPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/KeybindingsViewsPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/SettingsRawEditor.tsx": {

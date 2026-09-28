@@ -4,22 +4,18 @@ import {
 } from "@opensesame/app-core/lib/configuration/keybindings-yaml.js";
 import { resetKeybindings } from "@opensesame/app-core/lib/configuration/keybindings.js";
 import {
-  currentKeybindings,
   loadKeybindings,
-  loadViews,
   persistKeybindings,
-  persistView,
 } from "@opensesame/app-core/lib/configuration/nav-persist.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { useState } from "react";
-import { IconCheck, IconRefresh, IconStar } from "../../components/Icons.js";
+import { IconCheck, IconRefresh } from "../../components/Icons.js";
 
-export function KeybindingsViewsPanel() {
+export function KeybindingsPanel() {
   const [bindingsText, setBindingsText] = useState(() =>
     keybindingsToYaml(loadKeybindings()),
   );
   const [notice, setNotice] = useState("");
-  const [viewName, setViewName] = useState("pending approvals");
 
   function saveBindings() {
     const parsed = readKeybindingsYaml(bindingsText);
@@ -46,22 +42,11 @@ export function KeybindingsViewsPanel() {
     );
   }
 
-  function pinView() {
-    const result = persistView({
-      id: "pending-approvals",
-      name: viewName,
-      collection: "approvals",
-      scopeKey: "local",
-      predicates: { status: "pending" },
-    });
-    setNotice(result.ok ? "Pinned pending-approvals view." : result.reason);
-  }
-
   return (
     <section className="panel" id="settings-keybindings">
       <div className="panel__head">
         <div>
-          <h2>Keybindings and views</h2>
+          <h2>Keybindings</h2>
         </div>
       </div>
       <div className="panel__body">
@@ -95,27 +80,6 @@ export function KeybindingsViewsPanel() {
             </button>
           </div>
         </div>
-        <label htmlFor="view-name">Pin approvals view</label>
-        <div className="field-inline">
-          <input
-            id="view-name"
-            value={viewName}
-            onChange={(event) => setViewName(event.target.value)}
-          />
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Pin view"
-            title="Pin view"
-            onClick={pinView}
-          >
-            <IconStar size={16} />
-          </button>
-        </div>
-        <p className="hint">
-          {loadViews().length} saved view(s). Effective{" "}
-          {Object.keys(currentKeybindings()).length} bindings.
-        </p>
         {notice ? <p className="hint">{notice}</p> : null}
       </div>
     </section>
