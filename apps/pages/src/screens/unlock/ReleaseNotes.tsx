@@ -33,12 +33,12 @@ const RELEASES: readonly ReleaseNote[] = [
       "Store logins, cards, notes, and secrets on this device",
       "Create certificates in the vault without leaving the app",
       "Open on the front door: set up your own vault, or join somebody's live session",
+      "Live sessions pair browsers directly, or through a tunnel address, TURN server or code carrier the owner names",
       "Connect services from Connections; GitHub can back up your vault",
       "Generate passwords and authenticator codes inside the app",
     ],
     inProgress: [
       "More connectors from the catalog will finish linking the way GitHub does today",
-      "Live sessions connect browsers directly; two browsers with no route between them cannot pair yet",
       "Sharing access and approvals with people and agents is still being finished",
       "Clearing leftover setup screens and wording from older builds",
     ],

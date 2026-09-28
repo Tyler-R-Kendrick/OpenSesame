@@ -196,7 +196,9 @@ no sign-in panel; `vault-unlock-desktop.png` only because the release notes
 beside the seal form changed two lines of copy. The seal form itself did not
 move. The other three still match. Re-seeded the same day for one more
 release-notes line (live sessions pair browsers directly, with no server);
-nothing else moved.
+nothing else moved. Re-seeded again the same day: the release notes now list
+live sessions under Works (directly, or through a tunnel address, TURN server
+or code carrier the owner names) rather than under In progress.
 
 ## What the orchestrator should do next
 
