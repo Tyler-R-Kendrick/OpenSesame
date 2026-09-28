@@ -106,6 +106,52 @@ it("suggests only writable keys, enum values and bindings", () => {
   expect(suggestSettings("general", keymap, keymap.length)).toContain("j");
 });
 
+describe("suggestSettings never offers back what is already typed", () => {
+  const at = (source: string) =>
+    suggestSettings("general", source, source.length);
+
+  it("offers no boolean once the value is typed, and the rest while it is partial", () => {
+    expect(at("lockOnHide: false")).toEqual([]);
+    expect(at("lockOnHide: true")).toEqual([]);
+    expect(at("lockOnHide: ")).toEqual(["true", "false"]);
+    expect(at("lockOnHide: fa")).toEqual(["false"]);
+    expect(at("lockOnHide: f")).toEqual(["false"]);
+  });
+
+  it("offers no enum option equal to the typed value, quoted or not", () => {
+    expect(at('theme: "system"')).toEqual([]);
+    expect(at("theme: dark")).toEqual([]);
+    expect(at("theme: 'light'")).toEqual([]);
+    expect(at("theme: s")).toEqual(["system"]);
+    expect(at('theme: "s')).toEqual(["system"]);
+    expect(at("theme: ")).toEqual(["system", "light", "dark"]);
+  });
+
+  it("offers a longer key but not the finished one", () => {
+    expect(at("theme")).toEqual([]);
+    expect(at("lockOnHide")).toEqual([]);
+    expect(at("th")).toEqual(["theme"]);
+    expect(at("keybindings")).toEqual([]);
+    expect(at("autoLock")).toEqual(["autoLockMinutes"]);
+  });
+
+  it("offers no binding action or key equal to the typed one", () => {
+    expect(at("keybindings:\n  j: listing.next")).toEqual([]);
+    expect(at("keybindings:\n  j: listing.")).toEqual([
+      "listing.search",
+      "listing.next",
+    ]);
+    expect(at("keybindings:\n  j: listing.n")).toEqual(["listing.next"]);
+    expect(at("keybindings:\n  j: item.e")).toEqual(["item.edit"]);
+    expect(at("keybindings:\n  j: ")).toContain("listing.next");
+    expect(at("keybindings:\n  s")).toEqual([]);
+    expect(at('keybindings:\n  "s"')).toEqual([]);
+    expect(at("keybindings:\n  Control")).toEqual(["Control+l"]);
+    expect(at("keybindings:\n  Control+l")).toEqual([]);
+    expect(at("keybindings:\n  ")).toContain("Control+l");
+  });
+});
+
 describe("reconcileSource", () => {
   it("keeps the saved spelling while it says what the page says", () => {
     const saved = `# mine\n${encodeSettings("general", general)}`;
