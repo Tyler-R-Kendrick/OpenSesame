@@ -1,7 +1,7 @@
 /**
  * `activity.log` — the durable, sealed app event log at `/activity`: its
- * section row, route, command path and `g y` jump, plus the legacy
- * `/wallet/activity` alias that redirects here.
+ * section row and the paged event subtree under it, route, command path and
+ * `g y` jump, plus the legacy `/wallet/activity` alias that redirects here.
  *
  * Egress: none. Events are read from the tomb (`config/activity-log`) and
  * never leave the device. Tutorial descriptors come from
@@ -17,6 +17,7 @@ import { ActivitySection } from "../../sections/ActivitySection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { WalletActivityRedirect } from "./ActivityRedirect.js";
+import { ActivityTree } from "./ActivityTree.js";
 
 export const CAPABILITY = "activity.log";
 
@@ -39,6 +40,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       jump: "y",
       icon: "clock",
       order: 60,
+      Tree: ActivityTree,
     });
     activation.register("route", {
       id: "activity",
