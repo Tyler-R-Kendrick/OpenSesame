@@ -39,6 +39,29 @@ pub struct ArrivingSend {
     pub file: Option<FileSource>,
 }
 
+/// Write arriving attachments, each on its own. Returns how many landed.
+pub(super) async fn write_attachments(
+    db: &Db,
+    arriving: &[ArrivingAttachment],
+    left_behind: &mut LeftBehind,
+) -> anyhow::Result<usize> {
+    let mut written = 0;
+    for file in arriving {
+        let Some(bytes) = file.source.read() else {
+            leave(left_behind, "attachments whose file could not be read", 1);
+            continue;
+        };
+        let mut attachment = file.attachment.clone();
+        attachment.size = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
+        if db.bitwarden_import_attachment(&attachment, &bytes).await? {
+            written += 1;
+        } else {
+            leave(left_behind, "attachments whose id is taken here", 1);
+        }
+    }
+    Ok(written)
+}
+
 /// Write an arrived account's files. Returns how many attachments and Sends
 /// landed; the rest are counted in `left_behind` with the reason.
 pub(super) async fn write(
@@ -46,20 +69,7 @@ pub(super) async fn write(
     arrival: &Arrival,
     left_behind: &mut LeftBehind,
 ) -> anyhow::Result<(usize, usize)> {
-    let mut attachments = 0;
-    for arriving in &arrival.attachments {
-        let Some(bytes) = arriving.source.read() else {
-            leave(left_behind, "attachments whose file could not be read", 1);
-            continue;
-        };
-        let mut attachment = arriving.attachment.clone();
-        attachment.size = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
-        if db.bitwarden_import_attachment(&attachment, &bytes).await? {
-            attachments += 1;
-        } else {
-            leave(left_behind, "attachments whose id is taken here", 1);
-        }
-    }
+    let attachments = write_attachments(db, &arrival.attachments, left_behind).await?;
     let mut sends = 0;
     for arriving in &arrival.sends {
         let bytes = if let Some(source) = &arriving.file {

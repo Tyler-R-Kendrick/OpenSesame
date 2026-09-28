@@ -23,7 +23,15 @@ impl Schema {
                 .into_iter()
                 .collect();
         let mut columns = HashMap::new();
-        for table in ["users", "ciphers"] {
+        for table in [
+            "users",
+            "ciphers",
+            "users_organizations",
+            "users_collections",
+            "emergency_access",
+            "organizations",
+            "collections",
+        ] {
             let names: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info(?)")
                 .bind(table)
                 .fetch_all(pool)

@@ -42,7 +42,7 @@ async fn link_collections(
     Ok(())
 }
 
-async fn put_mark(
+pub(super) async fn put_mark(
     tx: &mut sqlx::SqliteConnection,
     cipher_id: &str,
     user_id: &str,

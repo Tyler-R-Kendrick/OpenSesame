@@ -101,7 +101,7 @@ mod imp {
         self, AccountRequest, Answer, Ask, Challenge,
     };
     use opensesame_bitwarden_server::import::{
-        self, vaultwarden, AccountReport, Source, WriteOptions, Written,
+        self, vaultwarden, AccountReport, SharedReport, Source, WriteOptions, Written,
     };
     use opensesame_storage::Db;
     use zeroize::Zeroizing;
@@ -154,12 +154,12 @@ mod imp {
             Written::EmailTaken => {
                 "not moved: an account with this email is already here (--replace)"
             }
-            Written::IdTaken => "not moved: one of its ids belongs to another account here",
+            Written::IdTaken => "not moved: it or one of its ids is already here (--replace)",
             Written::DryRun => "checked (dry run, nothing written)",
         }
     }
 
-    fn print(source: &Source, reports: &[AccountReport]) {
+    fn print(reports: &[AccountReport]) {
         for report in reports {
             println!(
                 "{}: {} — {} folders, {} items, {} attachments, {} Sends",
@@ -174,6 +174,32 @@ mod imp {
                 println!("  left behind: {count} {kind}");
             }
         }
+    }
+
+    fn print_shared(shared: &SharedReport) {
+        for org in &shared.organizations {
+            println!(
+                "organization {}: {} — {} members, {} collections, {} items, {} attachments",
+                org.name,
+                outcome(org.written),
+                org.members,
+                org.collections,
+                org.ciphers,
+                org.attachments
+            );
+            for (kind, count) in &org.left_behind {
+                println!("  left behind: {count} {kind}");
+            }
+        }
+        if shared.emergency_read > 0 {
+            println!(
+                "emergency contacts: {} of {} moved",
+                shared.emergency_written, shared.emergency_read
+            );
+        }
+    }
+
+    fn print_rest(source: &Source) {
         for skipped in &source.skipped {
             println!("{}: skipped — {}", skipped.email, skipped.reason);
         }
@@ -191,7 +217,10 @@ mod imp {
             dry_run: target.dry_run,
         };
         let reports = import::write(&db, source, options).await?;
-        print(source, &reports);
+        print(&reports);
+        let shared = import::write_shared(&db, source, options).await?;
+        print_shared(&shared);
+        print_rest(source);
         Ok(())
     }
 

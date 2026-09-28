@@ -18,6 +18,7 @@ mod account_files;
 pub mod vaultwarden;
 
 mod files;
+mod shared;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -30,6 +31,7 @@ use opensesame_storage::bitwarden::{
 pub use files::{ArrivingAttachment, ArrivingSend, FileSource};
 use opensesame_storage::Db;
 use serde_json::{Map, Value};
+pub use shared::{write_shared, ArrivingOrganization, OrgReport, SharedReport};
 
 use crate::wire::cipher::parse_cipher;
 
@@ -58,7 +60,11 @@ pub struct Skipped {
 pub struct Source {
     pub arrivals: Vec<Arrival>,
     pub skipped: Vec<Skipped>,
-    /// Server-wide things that stay behind (organizations, for one).
+    /// Organizations, written after every account (see [`write_shared`]).
+    pub organizations: Vec<ArrivingOrganization>,
+    /// Emergency contacts between accounts, likewise.
+    pub emergency: Vec<opensesame_storage::bitwarden::BitwardenEmergencyAccess>,
+    /// Server-wide things that stay behind (groups and policies, for two).
     pub left_behind: LeftBehind,
     /// Where downloaded files wait to be written; gone with the source.
     pub scratch: Option<Arc<tempfile::TempDir>>,
