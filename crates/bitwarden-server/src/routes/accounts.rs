@@ -65,6 +65,7 @@ pub async fn security_stamp(
         .db
         .bitwarden_rotate_security_stamp(&user.id, &new_security_stamp())
         .await?;
+    super::signed_out(&server, &user.id);
     Ok(StatusCode::OK)
 }
 
@@ -155,6 +156,7 @@ async fn replace(
         .db
         .bitwarden_replace_credentials(&user.id, &replacement)
         .await?;
+    super::signed_out(server, &user.id);
     Ok(())
 }
 
