@@ -96,5 +96,22 @@
       ]
     }
   ],
-  "sheets": []
+  "sheets": [
+    {
+      "shot": "1280-oversized-bundle",
+      "width": 1280,
+      "title": "Travel › Coming home, a 65 MiB file — 1280 × 900",
+      "caption": "Settings › Vaults › Travel, coming home, with a 65 MiB file chosen as the bundle (steps: enter a return code, choose the file, press Open). Before, the page read the whole file into memory and took it as the chosen bundle; the only refusal came later, from whatever check ran first — here the code. After, the file's size is checked before a byte of it is read: the chooser is refused at once with its own sentence, no bundle is chosen, and Open stays disabled.",
+      "before": "file row: not-a-bundle.travel.json (read into the page); mark: \"That return code has a typo in it\"",
+      "after": "file row: No bundle chosen (never read); mark: \"That file is larger than any travel bundle\""
+    },
+    {
+      "shot": "390-oversized-bundle",
+      "width": 390,
+      "title": "Travel › Coming home, a 65 MiB file — 390 × 844",
+      "caption": "The same journey at phone width.",
+      "before": "file row: not-a-bundle.travel.json; mark: \"That return code has a typo in it\"",
+      "after": "file row: No bundle chosen; mark: \"That file is larger than any travel bundle\""
+    }
+  ]
 }
