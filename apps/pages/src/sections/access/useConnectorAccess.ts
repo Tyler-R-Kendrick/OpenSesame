@@ -17,6 +17,7 @@ import {
   type Connection,
   listConnections,
 } from "@opensesame/app-core/lib/connections.js";
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import {
   type ConnectorDirectory,
   connectorResourceId,
@@ -50,12 +51,14 @@ export type ConnectorRow = Readonly<{
   name: string;
   /** `integration · connection id`, or the connection's reference. */
   detail: string;
-  /** Where the connector came from: imported from a directory, or
-      configured on the Connections page. */
-  source: "directory" | "connections";
+  /** Where the row came from: imported from a directory, configured on the
+      Connections page, a provider-wide grant with no connection of that
+      provider here, or a grant whose connector is gone. */
+  source: "directory" | "connections" | "provider" | "removed";
   /** The connector's own page on Connections, for a Connections row. */
   href: string | null;
-  healthy: boolean;
+  /** Null where there is no connection whose health could be read. */
+  healthy: boolean | null;
   /** What is wrong, when something is. */
   problem: string | null;
 }>;
@@ -111,6 +114,47 @@ function connectionRows(connections: readonly Connection[]): ConnectorRow[] {
           ? null
           : (connection.statusDetail ?? connection.status),
     }));
+}
+
+/**
+ * A row for every grant no connector row carries, so access that exists is
+ * always listed and can be revoked: a provider-wide grant (a standing grant,
+ * keyed by provider id) with no connection of that provider here, and a grant
+ * on a connector that was removed or never imported on this device.
+ */
+function grantOnlyRows(
+  shares: readonly LocalShare[],
+  rows: readonly ConnectorRow[],
+): ConnectorRow[] {
+  const covered = (share: LocalShare) =>
+    rows.some(
+      (row) =>
+        row.id === share.resourceId || row.providerId === share.resourceId,
+    );
+  const seen = new Map<string, ConnectorRow>();
+  for (const share of shares) {
+    if (covered(share) || seen.has(share.resourceId)) continue;
+    const removed = /[:/#]/.test(share.resourceId);
+    // A standing grant's label was written when it was issued; the catalog
+    // names the provider now.
+    const name = removed
+      ? share.resourceLabel
+      : (catalogProvider(share.resourceId)?.displayName ?? share.resourceLabel);
+    seen.set(share.resourceId, {
+      id: share.resourceId,
+      label: share.resourceLabel,
+      providerId: removed ? "" : share.resourceId,
+      name,
+      detail: removed
+        ? share.resourceId
+        : `${share.resourceId} · every connection`,
+      source: removed ? "removed" : "provider",
+      href: removed ? null : connectorPath(share.resourceId),
+      healthy: removed ? false : null,
+      problem: removed ? "Removed" : null,
+    });
+  }
+  return [...seen.values()];
 }
 
 async function readConnections(): Promise<Connection[]> {
@@ -229,9 +273,22 @@ export function useConnectorAccess(tomb: string) {
         share.resourceId === row.id || share.resourceId === row.providerId,
     );
 
+  const granted = useMemo(
+    () => [
+      ...rows.filter((row) =>
+        shares.some(
+          (share) =>
+            share.resourceId === row.id || share.resourceId === row.providerId,
+        ),
+      ),
+      ...grantOnlyRows(shares, rows),
+    ],
+    [rows, shares],
+  );
+
   return {
     rows,
-    granted: rows.filter((row) => bindingsFor(row).length > 0),
+    granted,
     settings: reads.loaded?.settings ?? {},
     settingsFor: (row: ConnectorRow) =>
       settingFor(reads.loaded?.settings ?? {}, row.id),

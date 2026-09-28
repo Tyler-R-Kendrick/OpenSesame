@@ -68,5 +68,17 @@ export function extraSteps({ press }) {
         await page.waitForTimeout(400);
       }
     },
+    /**
+     * Type into a labelled field when this build has it — an endpoint a base
+     * build asks for somewhere else. A missing field is a legitimate
+     * difference, not a miss.
+     */
+    async fillOptional(page, { label, text }) {
+      const field = page.getByLabel(label, { exact: true }).first();
+      if ((await field.count()) && (await field.isEnabled())) {
+        await field.fill(text);
+        await page.waitForTimeout(300);
+      }
+    },
   };
 }

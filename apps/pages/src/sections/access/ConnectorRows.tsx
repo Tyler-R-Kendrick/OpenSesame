@@ -103,7 +103,7 @@ function RowChips({
       {showSource ? <span className="chip">{row.source}</span> : null}
       {!setting.enabled ? (
         <StatusMark tone="warn" label="Disabled" />
-      ) : (
+      ) : row.healthy === null ? null : (
         <StatusMark
           tone={row.healthy ? "ok" : "warn"}
           label={row.healthy ? "Authorized" : (row.problem ?? "Unavailable")}

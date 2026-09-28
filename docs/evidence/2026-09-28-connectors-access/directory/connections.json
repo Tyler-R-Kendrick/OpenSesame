@@ -1,0 +1,21 @@
+{
+  "connections": [
+    {
+      "id": 101,
+      "connection_id": "octocat",
+      "provider_config_key": "github",
+      "provider": "github",
+      "end_user": { "email": "octo@example.com" },
+      "created": "2026-09-20T10:00:00.000Z",
+      "errors": []
+    },
+    {
+      "id": 102,
+      "connection_id": "acme",
+      "provider_config_key": "slack",
+      "provider": "slack",
+      "created": "2026-09-21T10:00:00.000Z",
+      "errors": []
+    }
+  ]
+}

@@ -164,14 +164,17 @@ const browser = await launch();
           `Access › ${tab} shows no alert`,
         );
       }
-      // Connectors is wholly local: with no directory synced it asks for one
-      // and reports no failure (ADR 0115).
+      // Connectors is wholly local and lists access, never a directory form:
+      // its one key adds access, with no Host and no failure (ADR 0115).
       await page.getByRole("tab", { name: "Connectors" }).click();
       await page.waitForTimeout(700);
       check(
-        (await page.getByLabel("Directory endpoint").count()) === 1 &&
+        (await page.getByLabel("Directory endpoint").count()) === 0 &&
+          (await page
+            .getByRole("button", { name: "Add connector access" })
+            .count()) === 1 &&
           (await page.getByRole("heading", { name: "Connectors" }).count()) > 0,
-        "Access › Connectors asks for a directory without a Host",
+        "Access › Connectors lists access without a Host",
       );
       // Resources is served by the Identity API and this browser, never the
       // Host, so it must render its own panel rather than a Host note.

@@ -1,0 +1,193 @@
+{
+  "out": ".",
+  "remote": {
+    "https://api.nango.dev/integrations": "docs/evidence/2026-09-28-connectors-access/directory/integrations.json",
+    "https://api.nango.dev/connections": "docs/evidence/2026-09-28-connectors-access/directory/connections.json"
+  },
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "report": "#local-connectors"
+        },
+        {
+          "shot": "1280-access-empty"
+        },
+        {
+          "pressOptional": "Add connector access"
+        },
+        {
+          "report": "#local-connectors"
+        },
+        {
+          "shot": "1280-access-add-nothing"
+        },
+        {
+          "visit": "connections"
+        },
+        {
+          "pressOptional": "Import connectors"
+        },
+        {
+          "pressOptional": "Nango"
+        },
+        {
+          "fillOptional": {
+            "label": "Directory endpoint",
+            "text": "https://api.nango.dev"
+          }
+        },
+        {
+          "shot": "1280-connections-import"
+        },
+        {
+          "pressOptional": "Sync connectors"
+        },
+        {
+          "count": [
+            "#connected-imported .conn-service",
+            "#connected .conn-service"
+          ]
+        },
+        {
+          "shot": "1280-connections-imported"
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "pressOptional": "Add connector access"
+        },
+        {
+          "count": ["[aria-label='Choose a connector'] button"]
+        },
+        {
+          "shot": "1280-access-add-choices"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "shot": "390-access-empty"
+        },
+        {
+          "visit": "connections"
+        },
+        {
+          "pressOptional": "Import connectors"
+        },
+        {
+          "pressOptional": "Nango"
+        },
+        {
+          "fillOptional": {
+            "label": "Directory endpoint",
+            "text": "https://api.nango.dev"
+          }
+        },
+        {
+          "pressOptional": "Sync connectors"
+        },
+        {
+          "count": ["#connected-imported .conn-service"]
+        },
+        {
+          "shot": "390-connections-imported"
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "pressOptional": "Add connector access"
+        },
+        {
+          "shot": "390-access-add-choices"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-access-empty",
+      "width": 1280,
+      "title": "Access \u203a Connectors, fresh guest \u2014 1280 \u00d7 900",
+      "caption": "Before, the tab was a Nango directory form: an endpoint, a key and Sync. After, it lists who holds access to which connector: here the vault's standing grants to the support agent (open-sesame), one row per provider, each revocable. Its one key adds access.",
+      "before": "Directory endpoint + Environment key + Sync connectors",
+      "after": "9 rows (standing provider-wide grants, 1 bound each); one Add key"
+    },
+    {
+      "shot": "1280-access-add-nothing",
+      "width": 1280,
+      "title": "Access \u203a Connectors \u203a Add, nothing configured \u2014 1280 \u00d7 900",
+      "caption": "With no connector configured yet, Add says so and offers the one road: New connector, which opens the connector catalog on Connections.",
+      "before": "no Add key (the directory form again)",
+      "after": "No connectors configured; New connector \u2192 /connections#catalog"
+    },
+    {
+      "shot": "1280-connections-import",
+      "width": 1280,
+      "title": "Connections \u203a Import connectors \u2014 1280 \u00d7 900",
+      "caption": "Importing a set of connectors moved to Connections. Its Import key offers two sources: a Nango-compatible directory, and a Vercel Connect team credential.",
+      "before": "no Import key",
+      "after": "Import from: Nango (directory), Vercel Connect (team)"
+    },
+    {
+      "shot": "1280-connections-imported",
+      "width": 1280,
+      "title": "Connections after importing from the directory \u2014 1280 \u00d7 900",
+      "caption": "The directory is a stand-in served from docs/evidence/2026-09-28-connectors-access/directory/ at the api.nango.dev URL. What it lists is sealed in the vault and shown under Connected, with a key that imports it again.",
+      "before": "Nothing connected (0 rows)",
+      "after": "api.nango.dev \u00b7 2 connectors (2 rows)"
+    },
+    {
+      "shot": "1280-access-add-choices",
+      "width": 1280,
+      "title": "Access \u203a Connectors \u203a Add after the import \u2014 1280 \u00d7 900",
+      "caption": "After the import, Add lists the configured connectors as choices beside New connector. The standing GitHub grant now sits on the imported GitHub connector.",
+      "before": "0 choices",
+      "after": "2 choices + New connector"
+    },
+    {
+      "shot": "390-access-empty",
+      "width": 390,
+      "title": "Access \u203a Connectors on a phone \u2014 390 \u00d7 844",
+      "caption": "The same page at phone width.",
+      "before": "the directory form",
+      "after": "standing grants listed; one Add key"
+    },
+    {
+      "shot": "390-connections-imported",
+      "width": 390,
+      "title": "Connections after the import on a phone \u2014 390 \u00d7 844",
+      "caption": "The imported group at phone width.",
+      "before": "Nothing connected",
+      "after": "2 imported rows"
+    },
+    {
+      "shot": "390-access-add-choices",
+      "width": 390,
+      "title": "Access \u203a Connectors \u203a Add on a phone \u2014 390 \u00d7 844",
+      "caption": "The choices stack one per row at phone width.",
+      "before": "0 choices",
+      "after": "2 choices + New connector"
+    }
+  ]
+}

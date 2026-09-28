@@ -133,3 +133,51 @@ it("lists a provider-wide grant on the connection it covers, and revokes it ther
   await screen.findByRole("heading", { name: "No connector access" });
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });
+
+it("lists access whose connector is not configured here, so it can be revoked", async () => {
+  const fixture = await localRequestFixture();
+  // A standing grant, keyed by provider, with no GitHub connection here.
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "github",
+    resourceLabel: "GitHub",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  // A grant on a connector that was removed from Connections.
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "host:scn_gone",
+    resourceLabel: "Linear",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "GitHub" });
+  expect(
+    screen.queryByRole("heading", { name: "No connector access" }),
+  ).toBeNull();
+  const list = within(screen.getByRole("list", { name: "Connector access" }));
+  expect(list.getByText("github · every connection")).toBeTruthy();
+  expect(list.getByRole("heading", { name: "Linear" })).toBeTruthy();
+  expect(list.getByLabelText("Removed")).toBeTruthy();
+  // Slack is configured but nobody holds it: not listed.
+  expect(list.queryByRole("heading", { name: "Slack" })).toBeNull();
+
+  for (const name of ["GitHub", "Linear"]) {
+    const rows = within(screen.getByRole("list", { name: "Connector access" }));
+    const item = rows.getByRole("heading", { name }).closest("li");
+    if (!item) throw new Error(`no row for ${name}`);
+    await userEvent.click(within(item).getByRole("button", { name: "Revoke" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name })).toBeNull(),
+    );
+  }
+  await screen.findByRole("heading", { name: "No connector access" });
+  const left = await listLocalShares(fixture.tomb);
+  expect(left.filter((share) => share.resourceKind === "connection")).toEqual(
+    [],
+  );
+});

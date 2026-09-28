@@ -7,6 +7,7 @@
  * they are never a shared singleton account for connectors.
  */
 
+import { catalogProvider } from "./connector-catalog.js";
 import { getBundledProviders } from "./embedded-catalog.js";
 import { listAccessAuditEvents } from "./local-access-audit.js";
 import { ensureThisDevice } from "./local-devices.js";
@@ -26,6 +27,7 @@ import { GUEST_TOMB } from "./vfs.js";
 function providerLabel(providerId: string): string {
   return (
     getBundledProviders().find((row) => row.id === providerId)?.displayName ??
+    catalogProvider(providerId)?.displayName ??
     providerId
   );
 }
