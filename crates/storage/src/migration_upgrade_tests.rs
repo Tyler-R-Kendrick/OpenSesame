@@ -1,6 +1,9 @@
 //! Append-only upgrades preserve the previous journal and roll back failed DDL.
 use super::*;
 
+#[path = "bitwarden_upgrade_tests.rs"]
+mod bitwarden_upgrade_tests;
+
 async fn previous_schema() -> Db {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)

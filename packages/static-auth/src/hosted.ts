@@ -1,5 +1,10 @@
+import {
+  type SealedStorage,
+  type StorageLike,
+  sealedStorage,
+} from "@opensesame/browser-at-rest";
 import { isJsonObject, isString } from "@opensesame/os-domain";
-import { type StorageLike, createPkcePair } from "@opensesame/sdk-browser";
+import { createPkcePair } from "@opensesame/sdk-browser";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { endpoint, exactOrigin, fetchJson } from "./transport.js";
 
@@ -33,7 +38,12 @@ function checkedProfile(profile: HostedProfile, origin: string) {
   return { ...profile };
 }
 
-/** Configuration is pinned by the RP. No discovery or callback metadata can replace it. */
+/**
+ * Configuration is pinned by the RP. No discovery or callback metadata can
+ * replace it. The transaction between `begin` and `complete` reaches
+ * `storage` sealed under the origin's at-rest key (ADR 0149), or stays in
+ * memory where the origin can keep no key.
+ */
 export function createHostedClient(
   config: HostedProfile,
   browser: Window = window,
@@ -41,12 +51,19 @@ export function createHostedClient(
 ) {
   const profile = checkedProfile(config, browser.location.origin);
   const storageKey = `opensesame:static-auth:${profile.clientId}:${profile.redirectUri}`;
+  const sealed = sealedStorage(storage, "static-auth");
   async function begin() {
     const pkce = await createPkcePair();
-    storage.setItem(
+    const kept = await sealed.set(
       storageKey,
       JSON.stringify({ ...pkce, createdAt: Date.now(), profile }),
     );
+    // The transaction must outlive the redirect and never rests in the
+    // clear (ADR 0149): an origin that can keep no key cannot sign in.
+    if (kept !== "stored") {
+      sealed.remove(storageKey);
+      throw new Error("storage_unavailable");
+    }
     const url = new URL(profile.authorizationEndpoint);
     url.search = new URLSearchParams({
       client_id: profile.clientId,
@@ -63,23 +80,24 @@ export function createHostedClient(
 
   return {
     begin,
-    complete: () => completeHosted(profile, browser, storage, storageKey),
+    complete: () => completeHosted(profile, browser, sealed, storageKey),
   };
 }
 
 async function completeHosted(
   profile: HostedProfile,
   browser: Window,
-  storage: StorageLike,
+  sealed: SealedStorage,
   storageKey: string,
 ) {
   const callback = new URL(browser.location.href);
   if (!callback.searchParams.has("code") && !callback.searchParams.has("error"))
     return null;
-  const raw = storage.getItem(storageKey);
-  storage.removeItem(storageKey);
+  // Taken before anything is awaited: one transaction, one callback.
+  const taken = sealed.take(storageKey);
   // Strip credential-bearing callback material even on a rejected response.
   browser.history.replaceState(null, "", profile.redirectUri);
+  const raw = await taken;
   if (
     !raw ||
     raw.length > 8192 ||

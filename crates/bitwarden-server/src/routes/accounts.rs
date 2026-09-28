@@ -10,7 +10,6 @@ use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
 use crate::kdf::KdfConfig;
 use crate::tokens::new_security_stamp;
-use crate::wire::account::profile as profile_json;
 use crate::wire::cipher::{is_enc_string, normalize};
 use crate::BitwardenServer;
 use opensesame_storage::bitwarden::{BitwardenCredentials, BitwardenUser};
@@ -19,8 +18,9 @@ pub async fn profile(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
 ) -> ApiResult<Json<Value>> {
-    let two_factor = super::two_factor::enabled(&server, &user.id).await?;
-    Ok(Json(profile_json(&user, two_factor)))
+    Ok(Json(
+        super::account_extras::profile_body(&server, &user).await?,
+    ))
 }
 
 /// Epoch milliseconds; a client syncs when this moves.

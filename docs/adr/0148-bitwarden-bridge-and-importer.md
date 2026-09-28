@@ -107,6 +107,127 @@ from vaultwarden's columns, and from a live account through the same
 password-proving calls the web vault makes. The official `bw` answers the
 challenge (`--method 0 --code`) and signs in with an API key under the oracle.
 
+### 4. Attachments and Sends
+
+- **Attachments.** A client announces a file (`/ciphers/{id}/attachment/v2`:
+  its encrypted name and key, and its size), then uploads the ciphertext to
+  the URL it is given; the one-step multipart form older clients use is served
+  too. A download is a link carrying a token that opens that one file for an
+  hour, so a client can hand it to its file fetcher without its bearer token.
+- **Sends**, text and file, with a password, an access limit, an expiry, a
+  deletion date no more than 31 days out, and "hide my email". Current clients
+  prove a Send's password once, at `/identity/connect/token` with
+  `grant_type=send_access`, and spend the five-minute token at
+  `/sends/access`; the older `/sends/access/{accessId}` form with the password
+  in the body is served beside it. The last access is taken by a
+  compare-and-set, so two readers never both get it; a Send's password is
+  stored as a registry hash of the client's own hash of it, and wrong attempts
+  are limited per Send.
+- **Bytes** sit in their own table, apart from the metadata, so a sync never
+  reads them; they go with their owner by trigger. One upload is capped
+  (`OPENSESAME_BITWARDEN_MAX_FILE_MB`, 100 by default) and an account's files
+  together (`OPENSESAME_BITWARDEN_STORAGE_MB`, 1024).
+- **The importer** carries both. From vaultwarden: attachments from
+  `attachments/<cipher>/<id>` and Sends with their files from
+  `sends/<send>/<file>` in its data folder, a Send's password moved as a PBKDF2
+  record like an account's. From a live account: each attachment through a
+  fresh download link, and text Sends without a password. A file Send's bytes
+  can only be fetched by spending one of its accesses, and a Send's password
+  is held by the old server in a form of its own, so those are counted and
+  left behind.
+- **A Send link names the web vault's origin.** The official `bw` trusts a
+  Send link, when it cannot ask, only from the exact origin of the server it is
+  configured for, so on a Host mounted at `/bitwarden` it asks the person
+  first. Operators who share Sends give the server a host name of its own (an
+  ingress that maps it to `/bitwarden`, with `OPENSESAME_BITWARDEN_URL` set to
+  that origin). The oracle drives `send receive` against a server at an
+  origin's root.
+
+### 5. Organizations and collections
+
+An organization is served as Bitwarden's is, and the server holds none of its
+keys: its creator's device makes the organization key and sends it wrapped
+under their own public key (`EncString` type 4, RSA-OAEP), with the
+organization's RSA private key wrapped under the organization key. Collection
+names and every organization cipher are encrypted under that key. The
+organization's name and billing address are the only plaintext, as on
+Bitwarden.
+
+- **Joining takes two people.** This server sends no mail, so an invitation
+  carries no token: an address that already has an account is *accepted* at
+  once, and one that has none waits and is claimed when that address
+  registers (vaultwarden's behaviour with mail off). Either way the member
+  holds nothing — no organization in their profile, no cipher, no keys —
+  until an administrator *confirms* them, wrapping the organization key under
+  the member's public key on the administrator's own device. That is the step
+  where Bitwarden's clients show the member's fingerprint phrase; since
+  registration verifies no address, it is the step that decides who is in.
+- **One rule decides who reaches a cipher** (`routes/vault_view.rs`), and
+  every read and write goes through it: owners, admins, members with access to
+  everything and custom roles allowed to edit any collection reach every
+  cipher of the organization; anyone else reaches a cipher through the
+  collections they are assigned — editing it if one is not read-only, seeing
+  its password if one does not hide it, changing its collections if one says
+  *manage*. A member names only collections they can see, adds a cipher only
+  to collections they can write to, and collections they cannot see stay on a
+  cipher whatever they send. A folder and a favourite on an organization
+  cipher are each member's own.
+- **Roles bound roles.** An owner may grant anything; an admin anything but
+  owner, and cannot act on an owner; a custom role allowed to manage users may
+  add plain users only. The last confirmed owner can neither leave nor be
+  demoted or removed. Deleting an organization, and purging its vault, take its
+  owner's master password; `purge` with an `organizationId` never touches the
+  caller's personal vault.
+- **Served:** creating an organization with a first collection; reading,
+  renaming and deleting it; leaving it; its keys; members (invite, accept,
+  confirm singly and in bulk, public keys for confirmation, change role and
+  collections, revoke, restore, remove); collections (list, details, create,
+  rename, reassign, delete); sharing a personal cipher in, its attachments
+  re-encrypted first; putting a cipher in collections; the administrators'
+  `…-admin` forms; `organization-details`; and importing into an
+  organization. Groups, policies, single sign-on, account recovery and
+  directory sync are not: groups and policies list empty, and clients hide
+  the rest as they do against a server without them.
+- **Files** on an organization's ciphers count against the organization, not
+  against whoever uploaded them, under the same per-account quota.
+
+The official `bw` lists an organization, its collections and members,
+confirms a member itself (fetching their public key and wrapping the key),
+creates a collection, moves a personal item in, and — signed in as the
+member — decrypts it, under the oracle.
+
+### 6. Emergency access, key rotation, and the rest of an account
+
+- **Emergency access** is Bitwarden's: invite → accept → the grantor
+  confirms, wrapping their user key under the contact's public key on their
+  own device → the contact initiates recovery → the grantor approves or
+  rejects, or the wait (one to ninety days) runs out → the contact *views*
+  the grantor's own ciphers and files, or *takes over* by setting a new
+  master password that re-wraps the same user key. With no mail, an
+  invitation to an existing account is accepted at once and one to an
+  unknown address is claimed when it registers; nothing is usable before the
+  grantor confirms. The wait is settled when a record is read, by a
+  compare-and-set — nothing runs on a timer. A takeover drops every session
+  and second step and leaves every organization the grantor does not own,
+  as Bitwarden's does.
+- **Key rotation** (`/accounts/key-management/rotate-user-account-keys`)
+  replaces the user key. The client re-encrypts every personal cipher,
+  folder, Send, emergency contact's key and account-recovery key and sends
+  them with the master password; the server refuses a rotation that leaves
+  any of them behind (what it left would be unreadable), refuses a change of
+  KDF, address or key pair there, and writes it all in one transaction. Every
+  session ends.
+- **The rest of an account:** its name and avatar colour; equivalent domains
+  (the global list Bitwarden ships is not served); its devices, listed and
+  signed out one by one; a change of address, which is a change of KDF salt,
+  so the client sends master-password material derived under the new one;
+  and deleting it, after the master password, unless it is the only owner of
+  an organization.
+- **Plain refusals** for what the server does not do: a password hint or a
+  deletion link (both go by mail), log in with a device, trusted-device
+  encryption, and a breach report on an address (that would disclose it to a
+  third party; the Host checks passwords by k-anonymity instead, ADR 0080 §5).
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve
@@ -116,6 +237,10 @@ challenge (`--method 0 --code`) and signs in with an API key under the oracle.
 - The importer holds the master password of a live account for the length of
   one sign-in, in the person's own terminal, zeroized after use; it is the same
   exposure as signing in with `bw`.
+- A self-hosted team can move onto the Host with its shared vaults, not just
+  its personal ones; the vaultwarden importer still carries personal vaults
+  only, so an organization's ciphers are exported from the old server and
+  imported into the new organization (`bw import --organizationid`).
 - The Bitwarden consume-client (`crates/provider-bitwarden`) now names the
   two-step providers a server offers and a new-device challenge, and signs in
   with an answer; its own vault reads still decline both (ADR 0052).

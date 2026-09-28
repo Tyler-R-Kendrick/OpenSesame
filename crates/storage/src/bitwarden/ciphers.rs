@@ -13,11 +13,15 @@ use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
 use super::folders::{insert_folder, BitwardenFolder};
 use crate::{Db, Row};
 
-/// A personal cipher. `data` is the client's encrypted payload as JSON.
+/// A cipher, owned by one account (`user_id`) or by an organization
+/// (`organization_id`), never both. `data` is the client's encrypted payload
+/// as JSON. An organization cipher's folder and favourite are each member's
+/// own, kept in `bitwarden_cipher_marks`; its columns here stay empty.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BitwardenCipher {
     pub id: String,
-    pub user_id: String,
+    pub user_id: Option<String>,
+    pub organization_id: Option<String>,
     pub folder_id: Option<String>,
     pub cipher_type: i64,
     pub favorite: bool,
@@ -35,10 +39,11 @@ fn optional_timestamp(row: &SqliteRow, column: &str) -> anyhow::Result<Option<Da
         .transpose()
 }
 
-fn cipher_from_row(row: &SqliteRow) -> anyhow::Result<BitwardenCipher> {
+pub(super) fn cipher_from_row(row: &SqliteRow) -> anyhow::Result<BitwardenCipher> {
     Ok(BitwardenCipher {
         id: row.get("id"),
         user_id: row.get("user_id"),
+        organization_id: row.get("organization_id"),
         folder_id: row.get("folder_id"),
         cipher_type: row.get("cipher_type"),
         favorite: row.get::<i64, _>("favorite") != 0,
@@ -50,11 +55,11 @@ fn cipher_from_row(row: &SqliteRow) -> anyhow::Result<BitwardenCipher> {
     })
 }
 
-const CIPHER_COLUMNS: &str = "id, user_id, folder_id, cipher_type, favorite, data, created_at, \
-     revision_at, deleted_at, archived_at";
+pub(super) const CIPHER_COLUMNS: &str = "id, user_id, organization_id, folder_id, cipher_type, \
+     favorite, data, created_at, revision_at, deleted_at, archived_at";
 
 /// `?, ?, …` for an `IN (…)` list of `count` ids.
-fn placeholders(count: usize) -> String {
+pub(super) fn placeholders(count: usize) -> String {
     vec!["?"; count].join(", ")
 }
 
@@ -301,13 +306,14 @@ where
     E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {
     let sql = format!(
-        "INSERT INTO bitwarden_ciphers (id, user_id, folder_id, cipher_type, favorite, data, \
-         created_at, revision_at, deleted_at, archived_at) \
-         VALUES (?, ?, {OWNED_FOLDER}, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO bitwarden_ciphers (id, user_id, organization_id, folder_id, cipher_type, \
+         favorite, data, created_at, revision_at, deleted_at, archived_at) \
+         VALUES (?, ?, ?, {OWNED_FOLDER}, ?, ?, ?, ?, ?, ?, ?)"
     );
     sqlx::query(&sql)
         .bind(&cipher.id)
         .bind(&cipher.user_id)
+        .bind(&cipher.organization_id)
         .bind(&cipher.folder_id)
         .bind(&cipher.user_id)
         .bind(cipher.cipher_type)

@@ -97,6 +97,19 @@ impl ApiError {
         }
     }
 
+    /// A refused Send access grant, in the words clients branch on:
+    /// `error` is `invalid_request` or `invalid_grant`, `kind` the
+    /// `send_access_error_type`.
+    #[must_use]
+    pub fn send_access(error: &'static str, kind: &'static str) -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            message: kind.into(),
+            oauth: Some((error, kind)),
+            extra: Some(json!({ "send_access_error_type": kind })),
+        }
+    }
+
     /// A second-step code that does not match, or was already used.
     #[must_use]
     pub fn invalid_two_factor() -> Self {
@@ -117,6 +130,12 @@ impl ApiError {
     #[must_use]
     pub fn status(&self) -> StatusCode {
         self.status
+    }
+
+    /// What a person reads.
+    #[must_use]
+    pub fn message(&self) -> &str {
+        &self.message
     }
 
     /// Log an internal failure and answer with a message that discloses nothing.

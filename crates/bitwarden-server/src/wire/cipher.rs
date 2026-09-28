@@ -103,13 +103,27 @@ fn optional_string(map: &Map<String, Value>, key: &str) -> ApiResult<Option<Stri
     }
 }
 
-/// Validate a `CipherRequestModel` from `user_id`.
+/// Validate a `CipherRequestModel` from `user_id` for a personal cipher.
 ///
 /// # Errors
 ///
 /// Returns a 400 [`ApiError`] for a missing or malformed member, a cipher
-/// encrypted for somebody else, or an organization cipher.
+/// encrypted for somebody else, or one naming an organization.
 pub fn parse_cipher(body: Value, user_id: &str) -> ApiResult<CipherInput> {
+    parse_cipher_for(body, user_id, None)
+}
+
+/// Validate a `CipherRequestModel` whose `organizationId`, if any, must be
+/// `organization` (the organization the cipher belongs to or is going to).
+///
+/// # Errors
+///
+/// As [`parse_cipher`], and when the named organization is not `organization`.
+pub fn parse_cipher_for(
+    body: Value,
+    user_id: &str,
+    organization: Option<&str>,
+) -> ApiResult<CipherInput> {
     let map = camel_keys(body);
     let cipher_type = map
         .get("type")
@@ -119,13 +133,13 @@ pub fn parse_cipher(body: Value, user_id: &str) -> ApiResult<CipherInput> {
         .iter()
         .find(|(t, _)| *t == cipher_type)
         .ok_or_else(|| ApiError::bad_request("Invalid cipher type."))?;
-    if optional_string(&map, "organizationId")?.is_some() {
+    if optional_string(&map, "organizationId")?.as_deref() != organization {
         return Err(ApiError::bad_request(
-            "Organizations are not supported by this server.",
+            "The cipher's organization does not match.",
         ));
     }
     if let Some(encrypted_for) = optional_string(&map, "encryptedFor")? {
-        if encrypted_for != user_id {
+        if encrypted_for != user_id && Some(encrypted_for.as_str()) != organization {
             return Err(ApiError::bad_request(
                 "The cipher was not encrypted for the current user. Please try again.",
             ));
@@ -160,15 +174,33 @@ pub fn parse_cipher(body: Value, user_id: &str) -> ApiResult<CipherInput> {
     })
 }
 
-/// `CipherDetailsResponseModel` for a personal cipher.
+/// What an account may do with a cipher.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CipherRights {
+    pub edit: bool,
+    pub view_password: bool,
+    pub manage: bool,
+}
+
+/// How one account sees a cipher: its own folder and favourite, and its
+/// rights over it.
+pub struct CipherContext<'a> {
+    pub attachments: Option<&'a [Value]>,
+    pub folder_id: Option<&'a str>,
+    pub favorite: bool,
+    pub collection_ids: &'a [String],
+    pub rights: CipherRights,
+}
+
+/// `CipherDetailsResponseModel`.
 #[must_use]
-pub fn cipher_json(cipher: &BitwardenCipher) -> Value {
+pub fn cipher_json(cipher: &BitwardenCipher, context: &CipherContext<'_>) -> Value {
     let stored: Value = serde_json::from_str(&cipher.data).unwrap_or_else(|_| json!({}));
     let field = |key: &str| stored.get(key).cloned().unwrap_or(Value::Null);
     let mut body = json!({
         "id": cipher.id,
-        "organizationId": null,
-        "folderId": cipher.folder_id,
+        "organizationId": cipher.organization_id,
+        "folderId": context.folder_id,
         "type": cipher.cipher_type,
         "name": field("name"),
         "notes": field("notes"),
@@ -176,13 +208,16 @@ pub fn cipher_json(cipher: &BitwardenCipher) -> Value {
         "reprompt": stored.get("reprompt").cloned().unwrap_or(json!(0)),
         "fields": field("fields"),
         "passwordHistory": field("passwordHistory"),
-        "attachments": null,
-        "favorite": cipher.favorite,
-        "edit": true,
-        "viewPassword": true,
-        "permissions": { "delete": true, "restore": true },
-        "organizationUseTotp": false,
-        "collectionIds": [],
+        "attachments": context.attachments,
+        "favorite": context.favorite,
+        "edit": context.rights.edit,
+        "viewPassword": context.rights.view_password,
+        "permissions": {
+            "delete": context.rights.edit || context.rights.manage,
+            "restore": context.rights.edit || context.rights.manage,
+        },
+        "organizationUseTotp": cipher.organization_id.is_some(),
+        "collectionIds": context.collection_ids,
         "revisionDate": date(cipher.revision_at),
         "creationDate": date(cipher.created_at),
         "deletedDate": cipher.deleted_at.map(date),
@@ -266,6 +301,14 @@ mod tests {
             refuse(json!({"type": 1, "name": NAME, "organizationId": "o"})),
             400
         );
+        // Naming the right organization is fine where one is expected.
+        assert!(parse_cipher_for(
+            json!({"type": 1, "name": NAME, "organizationId": "o"}),
+            "u",
+            Some("o")
+        )
+        .is_ok());
+        assert!(parse_cipher_for(json!({"type": 1, "name": NAME}), "u", Some("o")).is_err());
         let long = format!("2.{}", "A".repeat(NAME_LIMIT));
         assert_eq!(refuse(json!({"type": 1, "name": long})), 400);
     }

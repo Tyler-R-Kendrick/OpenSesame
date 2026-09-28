@@ -140,17 +140,6 @@ async fn kdf_of(api: &Client, email: &str) -> anyhow::Result<(BitwardenKdf, Kdf)
 fn count_left_behind(sync: &Value, left: &mut LeftBehind) {
     let array = |key: &str| member(sync, key).and_then(Value::as_array);
     let ciphers = array("ciphers").map_or(&[][..], Vec::as_slice);
-    leave(
-        left,
-        "attachments",
-        ciphers
-            .iter()
-            .filter(|c| text(c, "organizationId").is_none())
-            .filter_map(|c| member(c, "attachments").and_then(Value::as_array))
-            .map(Vec::len)
-            .sum(),
-    );
-    leave(left, "sends", array("sends").map_or(0, Vec::len));
     let profile = member(sync, "profile");
     leave(
         left,
@@ -345,11 +334,19 @@ pub async fn read(
     let sign_in = sign_in_methods(&api, &token, &login_hash, two_factor_on, &mut left).await;
     let mut account = vault_of(&user, &sync, &mut left);
     account.sign_in = sign_in;
+    let scratch = tempfile::tempdir()?;
+    let attachments =
+        super::account_files::attachments(&api, &token, &sync, &user, scratch.path(), &mut left)
+            .await;
+    let sends = super::account_files::sends(&sync, &user, &mut left);
     Ok(Source {
         arrivals: vec![Arrival {
             account,
             left_behind: left,
+            attachments,
+            sends,
         }],
+        scratch: Some(std::sync::Arc::new(scratch)),
         ..Source::default()
     })
 }

@@ -19,7 +19,17 @@ const loopback: LoopbackProfile = {
   audience: "origin:https://broker.example",
 };
 
-beforeEach(() => vi.resetModules());
+const key = crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+  "encrypt",
+  "decrypt",
+]);
+
+beforeEach(async () => {
+  vi.resetModules();
+  // The fresh module graph `browser.js` loads gets the suite's at-rest key.
+  const { useClientAtRestKeys } = await import("@opensesame/browser-at-rest");
+  useClientAtRestKeys(() => key);
+});
 afterEach(() => vi.unstubAllGlobals());
 
 function browser(origin: string) {

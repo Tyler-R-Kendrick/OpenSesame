@@ -90,6 +90,12 @@ pub(super) fn host_of(url: &Url) -> String {
 
 /// https, or loopback http so offline tests can run against a stub. No
 /// embedded credentials, ever — same rule as `provider-openbao`.
+/// A download link: the same rules as a server URL (https, or loopback
+/// http; no embedded credentials).
+pub(super) fn parse_download(raw: &str) -> Result<Url> {
+    parse_base(raw)
+}
+
 fn parse_base(raw: &str) -> Result<Url> {
     let url = Url::parse(raw.trim()).map_err(|e| Error::InvalidServerUrl(e.to_string()))?;
     if !url.username().is_empty() || url.password().is_some() {

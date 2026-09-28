@@ -17,6 +17,8 @@
 //! | `OPENSESAME_BITWARDEN_SIGNUPS` | `closed` (default), `open`, or a comma-separated domain list |
 //! | `OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID` | `true` refuses PBKDF2 for new accounts and KDF changes |
 //! | `OPENSESAME_BITWARDEN_TOKEN_KEY` | 32+ hex-encoded bytes that sign access tokens, shared by every replica; unset = a per-process key |
+//! | `OPENSESAME_BITWARDEN_MAX_FILE_MB` | the largest attachment or Send file, in MiB; default 100 |
+//! | `OPENSESAME_BITWARDEN_STORAGE_MB` | files one account may keep, in MiB; default 1024 |
 
 use axum::Router;
 use opensesame_storage::Db;
