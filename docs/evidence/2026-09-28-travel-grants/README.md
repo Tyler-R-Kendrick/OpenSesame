@@ -15,7 +15,10 @@ capture stops at the preview and never brings it home.
 Settings › Vaults › Travel › Bring vaults home: the return code is entered,
 the bundle is chosen, and Open the bundle is pressed.
 
-MEASUREMENTS
+| | Before | After |
+|---|---|---|
+| Bundle row | `Work` · `3 files` — the grant counted as a vault file | `Work` · `2 files · 1 site grant` |
+| Opt-in | none: the grant was written back with the vault | one checkbox, unticked: "Let these sites in again: https://rp.example" |
 
 ![1280 × 900](1280-return-grants.png)
 

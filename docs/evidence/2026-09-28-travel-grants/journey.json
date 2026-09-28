@@ -94,5 +94,22 @@
       ]
     }
   ],
-  "sheets": []
+  "sheets": [
+    {
+      "shot": "1280-return-grants",
+      "width": 1280,
+      "title": "Travel › Coming home, a vault with a site grant — 1280 × 900",
+      "caption": "Settings › Vaults › Travel › Bring vaults home, with a real bundle whose one vault carries a site-broker consent for https://rp.example. Before, the grant was just another file of the vault: counted in its files and written back with it, unannounced, so a bundle from someone else could plant a site's permission to sign in without asking. After, the row names what the grants would let in, and they come back only if the box beneath is ticked; unticked, the vault comes home and its sites ask again.",
+      "before": "row: Work · 3 files (grant counted as a vault file); checkboxes: 0",
+      "after": "row: Work · 2 files · 1 site grant; checkboxes: 1 (\"Let these sites in again: https://rp.example\", unticked)"
+    },
+    {
+      "shot": "390-return-grants",
+      "width": 390,
+      "title": "Travel › Coming home, a vault with a site grant — 390 × 844",
+      "caption": "The same journey at phone width.",
+      "before": "row: Work · 3 files; checkboxes: 0",
+      "after": "row: Work · 2 files · 1 site grant; checkboxes: 1, unticked"
+    }
+  ]
 }
