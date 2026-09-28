@@ -1,5 +1,5 @@
 import { mintVaultKey } from "@opensesame/vault-core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACTIVITY_LOG_PATH,
   activitySeams,
@@ -51,11 +51,14 @@ describe("activity log", () => {
       summary: "Settings updated",
       outcome: "succeeded",
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    const listed = await listActivityEvents(PERSONAL_TOMB);
-    expect(listed.map((row) => row.type)).toEqual([
-      "settings.updated",
-      "request.inbound.created",
-    ]);
+    // emitActivity is fire-and-forget: wait for its write to land rather
+    // than for a fixed time, which a loaded machine can outlast.
+    await vi.waitFor(async () => {
+      const listed = await listActivityEvents(PERSONAL_TOMB);
+      expect(listed.map((row) => row.type)).toEqual([
+        "settings.updated",
+        "request.inbound.created",
+      ]);
+    });
   });
 });

@@ -7,6 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore, sessionStore } from "../ports.js";
 import {
   ambientAuthSeams,
   resetAmbientAuthSeams,
@@ -95,13 +96,13 @@ describe("signOut", () => {
 
     expect(clearFederation).toHaveBeenCalledTimes(1);
     expect(endSession).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
     expect(readAuthOutcome()).toEqual({ kind: "signed_out" });
-    expect(localStorage.getItem("opensesame:ambient-auth:suppressed")).toBe(
+    expect(localStore().getItem("opensesame:ambient-auth:suppressed")).toBe(
       "1",
     );
     expect(
-      Number(localStorage.getItem("opensesame:ambient-auth:generation")),
+      Number(localStore().getItem("opensesame:ambient-auth:generation")),
     ).toBeGreaterThan(0);
   });
 

@@ -89,6 +89,7 @@ describe("resetBrowser: only what the app owns", () => {
     ]);
     const databases = databaseFactory([
       "opensesame-history-backups",
+      "opensesame-at-rest",
       "their-db",
     ]);
     const caches = cacheStore([
@@ -137,7 +138,10 @@ describe("resetBrowser: only what the app owns", () => {
       "theirs",
     ]);
     expect([...root.files]).toEqual(["tomb", "their-notes.json"]);
-    expect(databases.deleted).toEqual(["opensesame-history-backups"]);
+    expect(databases.deleted).toEqual([
+      "opensesame-history-backups",
+      "opensesame-at-rest",
+    ]);
     expect([...databases.live]).toEqual(["their-db"]);
     expect([...caches.live]).toEqual([
       "opensesame-pages:/other-site/:r1:core-only",

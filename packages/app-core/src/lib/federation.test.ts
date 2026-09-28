@@ -66,7 +66,7 @@ function seedPending(overrides: JsonObject = {}): void {
 
 /** The pending record, wherever the current build keeps it. */
 function storedPending(): JsonObject {
-  return JSON.parse(localStorage.getItem(PKCE_KEY) ?? "null");
+  return JSON.parse(localStore().getItem(PKCE_KEY) ?? "null");
 }
 
 function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
@@ -82,6 +82,7 @@ function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
   };
 }
 
+import { localStore, sessionStore } from "../ports.js";
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
 const originalNetworkEligibility = localNetworkFetchSeams.eligible;
 
@@ -451,7 +452,7 @@ describe("completeSignIn", () => {
       code: "invalid_request",
     });
     // The stale record is gone either way; a retry starts clean.
-    expect(localStorage.getItem(PKCE_KEY)).toBeNull();
+    expect(localStore().getItem(PKCE_KEY)).toBeNull();
   });
 
   it("refuses a stale pending out loud even beside a live session", async () => {
@@ -491,7 +492,7 @@ describe("completeSignIn", () => {
     });
     const result = await completeSignIn();
     expect(result?.identity.pairwiseSub).toBe("sub-legacy");
-    expect(sessionStorage.getItem(PKCE_KEY)).toBeNull();
+    expect(sessionStore().getItem(PKCE_KEY)).toBeNull();
   });
 
   it("refuses a code when the stored PKCE state is unreadable", async () => {
@@ -654,8 +655,8 @@ describe("completeSignIn", () => {
       expiresAt: 4_000_000_000_000,
     });
     // The pending PKCE state is single-use.
-    expect(localStorage.getItem(PKCE_KEY)).toBeNull();
-    expect(sessionStorage.getItem(PKCE_KEY)).toBeNull();
+    expect(localStore().getItem(PKCE_KEY)).toBeNull();
+    expect(sessionStore().getItem(PKCE_KEY)).toBeNull();
     // The session survives a same-tab reload until it expires.
     expect(loadSession()?.pairwiseSub).toBe("sub-1");
     // The address bar no longer carries a replayable code.
@@ -826,15 +827,15 @@ describe("session storage", () => {
   it("drops an expired session", () => {
     saveSession(identity({ expiresAt: Date.now() - 1000 }));
     expect(loadSession()).toBeNull();
-    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
-    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(localStore().getItem(SESSION_KEY)).toBeNull();
+    expect(sessionStore().getItem(SESSION_KEY)).toBeNull();
   });
 
   it("drops a session whose issuer is no longer trusted", () => {
     saveSession(identity({ issuer: "https://evil.example" }));
     expect(loadSession()).toBeNull();
-    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
-    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(localStore().getItem(SESSION_KEY)).toBeNull();
+    expect(sessionStore().getItem(SESSION_KEY)).toBeNull();
   });
 
   it("ignores a corrupt session payload", () => {
@@ -1229,8 +1230,7 @@ describe("an operator's own identity provider", () => {
     // The app base is the URI the operator registers at their provider.
     expect(pending.redirectUri).toBe(redirectUri());
     // A provider we do not control needs a subject and a name to be worth
-    // signing in with; the origin-profile brokers have only ever needed
-    // `openid`.
+    // signing in with; the origin-profile brokers only ever needed `openid`.
     expect(pending.scope).toBe("openid profile email");
   });
 

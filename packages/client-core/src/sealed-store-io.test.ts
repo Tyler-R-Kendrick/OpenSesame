@@ -1,12 +1,14 @@
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   b64ToBytes,
   bytesToB64,
+  isSealedForRest,
   loadSealedStore,
   parseSealedStore,
   persistSealedStore,
   sealDevOnly,
+  useClientAtRestKeys,
 } from "./index.js";
 
 /**
@@ -47,6 +49,16 @@ function stubOpfs(files = new Map<string, string>()) {
   });
   return { files, requestedNames };
 }
+
+const testKey = crypto.subtle.generateKey(
+  { name: "AES-GCM", length: 256 },
+  false,
+  ["encrypt", "decrypt"],
+);
+
+beforeEach(() => {
+  useClientAtRestKeys(() => testKey);
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -160,13 +172,28 @@ describe("sealed store IO against OPFS", () => {
   it("persists to and loads from OPFS when it is available", async () => {
     const { files, requestedNames } = stubOpfs();
     await persistSealedStore("opfs-device", mine);
-    // One file per device, named after the device and nothing else.
-    expect(files.get("opensesame-sync-opfs-device.json")).toBe(mine);
+    // One file per device, named after the device and nothing else, and
+    // sealed at rest: not even the device id or epoch is in the clear.
+    const stored = files.get("opensesame-sync-opfs-device.json") ?? "";
+    expect(isSealedForRest(stored)).toBe(true);
+    expect(stored).not.toContain("opfs-device");
     expect(await loadSealedStore("opfs-device")).toBe(mine);
     expect(requestedNames).toEqual([
       "opensesame-sync-opfs-device.json",
       "opensesame-sync-opfs-device.json",
     ]);
+  });
+
+  it("keeps the store in memory when no key can be kept, never in the clear", async () => {
+    useClientAtRestKeys(() => Promise.reject(new Error("no IndexedDB")));
+    const { files } = stubOpfs();
+    await persistSealedStore("opfs-device", mine);
+    expect(files.size).toBe(0);
+  });
+
+  it("reads a store an older build left in the clear", async () => {
+    stubOpfs(new Map([["opensesame-sync-opfs-device.json", mine]]));
+    expect(await loadSealedStore("opfs-device")).toBe(mine);
   });
 
   it("sanitizes characters in a device name before it becomes a file name", async () => {

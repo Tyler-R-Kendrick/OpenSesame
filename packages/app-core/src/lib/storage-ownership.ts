@@ -30,8 +30,17 @@ export const ORIGIN_FILE_PREFIX = "opensesame-pages-";
 /** Provisional history accounts and sealed snapshots (`history-backup-idb.ts`). */
 export const HISTORY_BACKUP_DATABASE = "opensesame-history-backups";
 
+/**
+ * The device's at-rest key (`at-rest/idb-key-store.ts`, ADR 0149). Resetting
+ * this browser deletes it with everything sealed under it.
+ */
+export const AT_REST_DATABASE = "opensesame-at-rest";
+
 /** Every IndexedDB database the app opens. */
-export const APP_DATABASES: readonly string[] = [HISTORY_BACKUP_DATABASE];
+export const APP_DATABASES: readonly string[] = [
+  HISTORY_BACKUP_DATABASE,
+  AT_REST_DATABASE,
+];
 
 export type WebStorageArea = "local" | "session";
 

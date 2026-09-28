@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createMemoryStorage } from "../../memory-storage.js";
-import type { WebStorage } from "../../ports.js";
+import { type WebStorage, sessionStore } from "../../ports.js";
 import { createTestHost } from "../../test-host.js";
 import {
   CLAIM_STASH_MAX_AGE_MS,
@@ -120,7 +120,9 @@ describe("claim stash, stricter than both app copies", () => {
       claimId: "clm_1",
       principalId: "prn_1",
     });
-    const stored = JSON.parse(storage.getItem(KEY) ?? "{}");
+    // The bearer never rests in the clear (ADR 0149).
+    expect(storage.getItem(KEY)).not.toContain("osc_clm_a");
+    const stored = JSON.parse(sessionStore().getItem(KEY) ?? "{}");
     expect(Object.keys(stored).sort()).toEqual([
       "claimId",
       "presented",

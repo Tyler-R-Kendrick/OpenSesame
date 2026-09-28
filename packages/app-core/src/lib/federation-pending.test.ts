@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../ports.js";
 import { PKCE_KEY } from "./federation-pending.js";
 import { completeSignIn } from "./federation.js";
 
@@ -56,7 +57,7 @@ describe("legacy pending correlation", () => {
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
     });
-    expect(JSON.parse(localStorage.getItem(PKCE_KEY) ?? "null")?.state).toBe(
+    expect(JSON.parse(localStore().getItem(PKCE_KEY) ?? "null")?.state).toBe(
       "state-1",
     );
   });

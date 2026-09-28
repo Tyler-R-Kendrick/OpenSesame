@@ -8,6 +8,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Host, RuntimeEnv } from "../host.js";
 import { createMemoryStorage } from "../memory-storage.js";
+import { fileAtRestKeys } from "./at-rest-key-file.js";
 import { createFileStorage } from "./file-storage.js";
 
 export type NodeHostOptions = Readonly<{
@@ -31,6 +32,7 @@ export function createNodeHost(options: NodeHostOptions = {}): Host {
       local: createFileStorage(join(stateDir, "local-storage.json")),
       session: createMemoryStorage(),
     },
+    atRestKeys: fileAtRestKeys(join(stateDir, "at-rest.key")),
     environment: {
       online: true,
       onOnlineChange: () => () => {},
