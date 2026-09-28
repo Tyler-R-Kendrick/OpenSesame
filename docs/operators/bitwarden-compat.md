@@ -149,12 +149,42 @@ confirmation is what decides who is in.
 
 Groups, policies, single sign-on and account recovery are not served.
 
+## Emergency access and key rotation
+
+Emergency contacts work as on Bitwarden: the grantor names a contact, the
+contact is accepted at once if they have an account (or when they register),
+and nothing is usable until the grantor confirms them. A contact's recovery
+is approved by the grantor or when the wait the grantor chose runs out.
+Rotating the user key (the web vault's *Rotate account encryption key*) signs
+every device out.
+
+The server sends no mail, so password hints and account-deletion links are
+refused rather than reported as sent.
+
+## Live sync and the web vault
+
+Clients that stay signed in — the desktop app, browser extension and web
+vault — hold `/notifications/hub` open and sync as soon as a change is made
+elsewhere; nothing needs configuring. Put a WebSocket-capable proxy in front
+if there is one (Caddy and nginx pass upgrades with their defaults for this
+path).
+
+To serve the web vault, unpack a build of Bitwarden's web app and name its
+directory:
+
+```bash
+export OPENSESAME_BITWARDEN_WEB_VAULT=/srv/bitwarden-web-vault   # holds index.html
+```
+
+The Host refuses to start if the directory has no `index.html`. Give the
+server a host name of its own for the web vault, as for Sends.
+
 ## What is not served
 
-Emergency access, other two-step providers (email, Duo, `YubiKey`, security
-keys), organization groups and policies, live-sync notifications and key
-rotation. Clients hide or fail those features as they do against a server
-that has them turned off.
+Other two-step providers (email, Duo, `YubiKey`, security keys), organization
+groups and policies, log in with a device, trusted-device encryption, breach
+reports by address, and mobile push notifications through Bitwarden's relay. Clients hide or fail those
+features as they do against a server that has them turned off.
 
 ## Operating notes
 

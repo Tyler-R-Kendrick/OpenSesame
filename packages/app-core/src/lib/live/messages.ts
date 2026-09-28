@@ -22,10 +22,10 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import { SDP_MAX, isDataChannelSdp } from "./sdp.js";
 
 export const NAME_MAX = 64;
 export const NOTE_MAX = 280;
-const SDP_MAX = 48 * 1024;
 const REQUEST_ID = /^[A-Za-z0-9_-]{22}$/;
 const REQ = /^[A-Za-z0-9_-]{1,32}$/;
 const ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -110,21 +110,49 @@ function parse(raw: string, limit: number): JsonObject | null {
 
 function readSdp(body: JsonObject, key: "offer" | "answer"): string | null {
   const sdp = body[key];
-  return isString(sdp) && sdp.length <= SDP_MAX && sdp.startsWith("v=0")
-    ? sdp
-    : null;
+  return isString(sdp) && isDataChannelSdp(sdp) ? sdp : null;
+}
+
+/** Line breaks in a name or note read as the space they stand for. */
+const BREAKS = /[\p{Zl}\p{Zp}\t\n\v\f\r\u0085]/gu;
+/**
+ * What draws nothing, or draws over what is around it: control, format
+ * (zero-width, bidi override and isolate, tags, soft hyphen), private-use and
+ * lone-surrogate characters, and the blank fillers no font draws.
+ */
+const INVISIBLE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}ᅟᅠ⠀ㅤﾠ]/gu;
+
+/**
+ * A joiner's name or note as the owner may be shown it: nothing that hides
+ * or reorders the text around it, runs of space collapsed, none at the ends.
+ * The joiner's page applies the same, so both sides read one string.
+ */
+export function cleanText(text: string): string {
+  return text
+    .replace(BREAKS, " ")
+    .replace(INVISIBLE, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/** Clean text within `max` characters, or null; the raw text is bounded first. */
+function readText(value: BoundaryValue, max: number): string | null {
+  if (!bounded(value, max * 4)) return null;
+  const cleaned = cleanText(value);
+  return characters(cleaned) <= max ? cleaned : null;
 }
 
 /** The request inside a request code, or null. */
 export function readJoinRequest(raw: string): JoinRequest | null {
   const body = parse(raw, SDP_MAX + 2048);
   if (!body) return null;
-  const { id, name, note } = body;
+  const { id } = body;
   if (!isString(id) || !REQUEST_ID.test(id)) return null;
-  if (!bounded(name, NAME_MAX) || !bounded(note, NOTE_MAX)) return null;
-  if (name.trim().length === 0) return null;
+  const name = readText(body.name, NAME_MAX);
+  const note = readText(body.note, NOTE_MAX);
+  if (!name || note === null) return null;
   const offer = readSdp(body, "offer");
-  return offer ? { id, name: name.trim(), note: note.trim(), offer } : null;
+  return offer ? { id, name, note, offer } : null;
 }
 
 /** The reply inside a reply code, or null. */

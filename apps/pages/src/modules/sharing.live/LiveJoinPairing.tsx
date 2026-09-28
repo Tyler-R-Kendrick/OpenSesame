@@ -15,6 +15,7 @@ import {
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconArrowRight, IconShare } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { useLandWhenSettled } from "./live-focus.js";
 
 /** The first few characters, so the person can tell codes apart. */
 function glimpse(code: string): string {
@@ -32,6 +33,8 @@ export function RequestStep({
   const [reply, setReply] = useState("");
   const [wrong, setWrong] = useState(false);
   const [busy, setBusy] = useState(false);
+  // A wrong reply keeps this field; the keyboard comes back to it, error and all.
+  useLandWhenSettled(busy, () => document.getElementById("live-reply"));
 
   async function connect(): Promise<void> {
     setBusy(true);

@@ -138,11 +138,16 @@ async fn create(
             "Email '{email}' is already taken."
         )));
     }
-    // Invitations waiting for this address become the account's, accepted
-    // and awaiting an administrator's confirmation (ADR 0148 §5).
+    // Invitations waiting for this address — to an organization or as an
+    // emergency contact — become the account's, accepted and awaiting
+    // confirmation (ADR 0148 §5, §6).
     server
         .db
         .bitwarden_claim_invitations(&user.id, &user.email)
+        .await?;
+    server
+        .db
+        .bitwarden_claim_emergency_invitations(&user.id, &user.email)
         .await?;
     tracing::info!(kdf = user.kdf.kdf_type, "bitwarden-compat account created");
     Ok(StatusCode::OK)

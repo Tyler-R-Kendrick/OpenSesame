@@ -11,7 +11,7 @@ import type {
   Received,
 } from "@opensesame/app-core/lib/live/host.js";
 import { MAX_MISSES } from "@opensesame/app-core/lib/live/host.js";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CopyButton, useCopyFeedback } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import {
@@ -21,6 +21,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { useLandOnChange, useLandWhenSettled } from "./live-focus.js";
 import type { Standing } from "./live-hooks.js";
 
 const GUEST_MARK = {
@@ -45,6 +46,8 @@ function outcome(received: Received): Standing | null {
       return { tone: "warn", label: "The session is full" };
     case "ended":
       return { tone: "idle", label: "The session has ended" };
+    case "locked":
+      return { tone: "warn", label: "The session is locked" };
     default:
       return null;
   }
@@ -54,6 +57,8 @@ export function RequestPaste({ host }: { host: LiveHost }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<Standing | null>(null);
+  // Whatever the paste said, the field is where the next one goes.
+  useLandWhenSettled(busy, () => document.getElementById("live-request"));
 
   async function receive(): Promise<void> {
     setBusy(true);
@@ -146,12 +151,20 @@ function GuestActions({ host, guest }: { host: LiveHost; guest: Guest }) {
 
 export function GuestRow({ host, guest }: { host: LiveHost; guest: Guest }) {
   const mark = GUEST_MARK[guest.state];
+  const row = useRef<HTMLDivElement>(null);
+  // Let in leaves the reply code to hand back; turning away or removing
+  // leaves the field the next request is pasted into.
+  useLandOnChange(guest.state, () =>
+    guest.state === "replied"
+      ? row.current?.querySelector('[aria-label^="Copy the reply code"]')
+      : document.getElementById("live-request"),
+  );
   const open =
     guest.state === "asking" ||
     guest.state === "replied" ||
     guest.state === "joined";
   return (
-    <div className="vault-row">
+    <div className="vault-row" ref={row}>
       <div className="vault-row__body">
         <span className="vault-row__text">
           <span className="vault-row__name">{guest.name}</span>

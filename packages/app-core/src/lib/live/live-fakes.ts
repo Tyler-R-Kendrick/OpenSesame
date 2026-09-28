@@ -11,6 +11,23 @@ import { overlapCast } from "@opensesame/os-domain";
 import type { PeerFactory } from "./peer.js";
 import type { CarrierFactory } from "./rendezvous.js";
 
+/**
+ * The smallest description a data-channel peer sends (`sdp.ts` reads it):
+ * one section, no candidates, and the fake's id in an attribute of its own.
+ */
+export function fakeSdp(id = "fake-0"): string {
+  return [
+    "v=0",
+    "o=- 1 2 IN IP4 127.0.0.1",
+    "s=-",
+    "t=0 0",
+    "m=application 9 UDP/DTLS/SCTP webrtc-datachannel",
+    "c=IN IP4 0.0.0.0",
+    `a=fake:${id}`,
+    "",
+  ].join("\r\n");
+}
+
 class FakeChannel extends EventTarget {
   readyState: RTCDataChannelState = "connecting";
   other: FakeChannel | null = null;
@@ -46,13 +63,20 @@ export class FakeNet {
   created = 0;
   /** No route between the two browsers: the answer lands, nothing connects. */
   unreachable = false;
+  /** While set, a peer's offer (or answer) is not made until it settles. */
+  holdOffer: Promise<void> | null = null;
+  holdAnswer: Promise<void> | null = null;
+  /** Every peer made, in order, and whether each was closed. */
+  readonly peers: FakePeer[] = [];
   readonly #offers = new Map<string, FakePeer>();
 
   factory(): PeerFactory {
     return () => {
       this.created += 1;
+      const made = new FakePeer(this);
+      this.peers.push(made);
       // Tests exercise only the members FakePeer implements.
-      const peer: RTCPeerConnection = overlapCast(new FakePeer(this));
+      const peer: RTCPeerConnection = overlapCast(made);
       return peer;
     };
   }
@@ -68,11 +92,14 @@ export class FakeNet {
 
 let counter = 0;
 
-class FakePeer extends EventTarget {
+export class FakePeer extends EventTarget {
   iceGatheringState: RTCIceGatheringState = "complete";
   connectionState: RTCPeerConnectionState = "new";
   localDescription: { sdp: string } | null = null;
   channel: FakeChannel | null = null;
+  /** Whether `close()` was called, and whether this peer answered an offer. */
+  closed = false;
+  answering = false;
   #id = "";
 
   constructor(private readonly net: FakeNet) {
@@ -85,14 +112,16 @@ class FakePeer extends EventTarget {
   }
 
   async createOffer() {
+    if (this.net.holdOffer) await this.net.holdOffer;
     counter += 1;
     this.#id = `fake-${counter}`;
     this.net.register(this.#id, this);
-    return { type: "offer" as const, sdp: `v=0\r\na=fake:${this.#id}\r\n` };
+    return { type: "offer" as const, sdp: fakeSdp(this.#id) };
   }
 
   async createAnswer() {
-    return { type: "answer" as const, sdp: `v=0\r\na=fake:${this.#id}\r\n` };
+    if (this.net.holdAnswer) await this.net.holdAnswer;
+    return { type: "answer" as const, sdp: fakeSdp(this.#id) };
   }
 
   async setLocalDescription(description: { sdp?: string }) {
@@ -102,6 +131,7 @@ class FakePeer extends EventTarget {
   async setRemoteDescription(description: { type: string; sdp?: string }) {
     const id = /a=fake:(\S+)/.exec(description.sdp ?? "")?.[1] ?? "";
     if (description.type === "offer") {
+      this.answering = true;
       this.#id = id;
       this.net.register(`${id}:answer`, this);
       return;
@@ -132,6 +162,7 @@ class FakePeer extends EventTarget {
   }
 
   close(): void {
+    this.closed = true;
     this.channel?.close();
   }
 }

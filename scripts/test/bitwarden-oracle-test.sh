@@ -32,4 +32,20 @@ if [[ "${installed}" != "${BW_VERSION}" ]]; then
   exit 1
 fi
 
+# The live-sync hub's oracle: Microsoft's SignalR client at the version
+# bitwarden/clients pins, connecting as Bitwarden's apps do (ADR 0148 §7).
+SIGNALR_VERSION="${OPENSESAME_SIGNALR_VERSION:-10.0.0}"
+if [[ -z "${OPENSESAME_SIGNALR_DIR:-}" ]]; then
+  SIGNALR_DIR="${ROOT}/.cache/bitwarden-oracle/signalr-${SIGNALR_VERSION}"
+  if [[ ! -d "${SIGNALR_DIR}/node_modules/@microsoft/signalr-protocol-msgpack" ]]; then
+    mkdir -p "${SIGNALR_DIR}"
+    printf '{"private":true}\n' >"${SIGNALR_DIR}/package.json"
+    npm install --prefix "${SIGNALR_DIR}" --no-audit --no-fund --ignore-scripts \
+      "@microsoft/signalr@${SIGNALR_VERSION}" \
+      "@microsoft/signalr-protocol-msgpack@${SIGNALR_VERSION}"
+  fi
+  export OPENSESAME_SIGNALR_DIR="${SIGNALR_DIR}"
+fi
+echo "bitwarden oracle: signalr ${SIGNALR_VERSION} (${OPENSESAME_SIGNALR_DIR})"
+
 cargo +1.88.0 test -p opensesame-bitwarden-server --tests -- --include-ignored

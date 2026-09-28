@@ -29,7 +29,7 @@ import {
   joinLive,
   leaveLive,
 } from "@opensesame/app-core/lib/live/session.js";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -42,9 +42,11 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { firstControl } from "../../lib/focus.js";
 import { LiveCatalog } from "./LiveCatalog.js";
 import { RequestStep } from "./LiveJoinPairing.js";
 import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
+import { useLandOnChange, useLandWhenSettled } from "./live-focus.js";
 import {
   type Standing,
   clearJoinDraft,
@@ -142,9 +144,13 @@ function AskForm({ held }: { held: LiveLink | null }) {
     useAsk(held);
   const { pasted, code, name, note, useRoutes } = fields;
   const { setPasted, setCode, setName, setNote, setUseRoutes } = set;
+  const form = useRef<HTMLFormElement>(null);
+  // A failed ask leaves the fields enabled again, and the keyboard nowhere.
+  useLandWhenSettled(busy, () => form.current?.querySelector(".go"));
 
   return (
     <form
+      ref={form}
       className="setup__stack"
       onSubmit={(event) => {
         event.preventDefault();
@@ -229,8 +235,8 @@ function Session() {
   if (!guest || !status) return null;
   const mark = standing(status);
   return (
-    <div className="setup__stack">
-      <div className="live-status">
+    <div className="setup__stack" id="live-view">
+      <div className="live-status" id="live-status" tabIndex={-1}>
         <StatusMark tone={mark.tone} label={mark.label} />
         {catalog ? (
           <span className="vault-row__meta">{formatRemaining(left)}</span>
@@ -252,6 +258,32 @@ function Session() {
   );
 }
 
+/**
+ * The new state's own home for the keyboard: the form again, the request
+ * code's copy key, the status the session now reports, or — once it is over —
+ * the key that starts again.
+ */
+function landingFor(
+  root: HTMLElement | null,
+  at: GuestStatus["at"] | "ask" | undefined,
+): Element | null {
+  switch (at) {
+    case "ask":
+      return firstControl(root?.querySelector("form"));
+    case "preparing":
+    case "request":
+      return firstControl(document.getElementById("live-view"));
+    case "connecting":
+    case "joined":
+      return document.getElementById("live-status");
+    case "ended":
+    case "unreachable":
+      return document.getElementById("live-start-over");
+    default:
+      return null;
+  }
+}
+
 export function LiveJoinRoute() {
   const navigate = useNavigate();
   // What the road held across the consent, or what boot took from the address.
@@ -261,17 +293,24 @@ export function LiveJoinRoute() {
     return joinDraft.link;
   });
   const { guest, status } = useLiveGuest();
-  const over = status?.at === "ended" || status?.at === "unreachable";
+  // `status` lags `guest` by a render: without the guest there is nothing over.
+  const over =
+    guest !== null && (status?.at === "ended" || status?.at === "unreachable");
   const leave = over ? "Close" : guest ? "Leave the session" : "Close";
+  const root = useRef<HTMLDivElement>(null);
+  useLandOnChange(guest ? (status?.at ?? "starting") : "ask", () =>
+    landingFor(root.current, guest ? status?.at : "ask"),
+  );
 
   return (
-    <div className="section__inner live-join">
+    <div className="section__inner live-join" ref={root}>
       <div className="section__head">
         <h1>Join a session</h1>
         {over ? (
           <button
             type="button"
             className="icon-btn"
+            id="live-start-over"
             aria-label="Start over"
             title="Start over"
             onClick={leaveLive}

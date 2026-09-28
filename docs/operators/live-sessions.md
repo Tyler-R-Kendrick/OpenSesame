@@ -219,7 +219,58 @@ browsers over real WebRTC:
   - NATS: a real nats-server, set by `LIVE_NATS_SERVER` or the mTLS fixture pin;
   - ntfy: a real ntfy server, set by `LIVE_NTFY_SERVER`;
   - BroadcastChannel;
-- relay-only through a real TURN server.
+- relay-only through a real TURN server, once for each way to reach one, each
+  with both browsers relay-only and meeting relay to relay:
+  - `turn:host:port?transport=udp` (node-turn);
+  - `turn:host:port?transport=tcp`, the road through a firewall that lets only
+    TCP out;
+  - `turns:host:port?transport=tcp` (TLS), the road through Pangolin, Tailscale
+    Funnel or port 443. The certificate is a throwaway self-signed one, and
+    Chromium is told to trust its public key alone
+    (`--ignore-certificate-errors-spki-list`), not certificate errors in
+    general.
 
-`LIVE_CARRIERS=nostr,mqtt` limits which carriers run. A missing server fails
-the run; it is never skipped silently.
+  TCP and TLS run on `live-turn`, a pion/turn server (`scripts/test/live-turn`)
+  that speaks UDP, TCP and TLS at once and counts what each transport saw. The
+  walk asks it, not the browser: the transport named must have authenticated
+  and allocated for both peers, and no client traffic may have reached the
+  others.
+
+`LIVE_CARRIERS=nostr,mqtt` limits which carriers run, and
+`LIVE_SCENARIOS=relayed,relayed-tcp,relayed-tls` (from `direct`, `carriers`,
+`declined`, `relayed`, `relayed-tcp`, `relayed-tls`, `relayed-rest`,
+`relayed-rest-wrong`, `tunnel`) limits which walks. `LIVE_TURN_SERVER` names the `live-turn` binary; `pnpm
+test:live-fixtures` builds it (Go is needed) to `.cache/live-fixtures/bin`. A
+missing server fails the run; it is never skipped silently.
+
+- relay-only through a TURN server that authenticates with a REST secret
+  (coturn's `use-auth-secret`): the owner types the profile file
+  (`settings/live/transport.json`, opened from the command bar; the Routes
+  Form has no secret field) with the server's `"secret"`, saves it and reads it
+  back, and the app mints each session's credential. `live-turn` runs with
+  `-rest-secret`, and the walk asserts both peers authenticated with zero
+  failures, the link carries a `<expiry>:osl` username and its HMAC-SHA1
+  credential and never the secret, and no peer connection holds the secret.
+  A negative control, `relayed-rest-wrong`, gives the server another secret:
+  every authentication is refused, nothing is allocated, and the browsers
+  never meet (it waits 10 seconds, not the full connection timeout).
+
+`pnpm --filter @opensesame/pages verify:live-netns` checks the address hint on
+a network it builds rather than one it simulates:
+
+- two Linux network namespaces, each with its own Chromium (mDNS candidate
+  hiding on, nothing filtered in the page), joined by a veth pair with
+  multicast off, as a tailnet interface is, and a harness namespace that hosts
+  the carrier and the TURN server and forwards nothing;
+- with no address named the browsers never connect; with the address named
+  they connect over a pair at it, with no ICE server; the same with a
+  `wss://` Nostr relay carrying the codes; and, with the veth taken down,
+  relay-only through TURN, relay to relay.
+
+It needs Linux with unprivileged user namespaces (no root, no sudo), `unshare`,
+`nsenter`, `setpriv`, `openssl` and python3, and fails, never skips, where it cannot
+build the network. Everything runs in a PID namespace, so nothing outlives
+the run. What it proves about a real tailnet: the candidate copy at the named
+address reaches the other browser over real UDP and real routing, and mDNS
+names do not resolve across such a link. What it does not: Tailscale's own
+path selection, NAT traversal, or a physical network's MTU and loss.

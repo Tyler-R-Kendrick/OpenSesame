@@ -61,6 +61,9 @@ export function LiveHostSession({
     <div className="setup__stack">
       <div className="live-status">
         <StatusMark tone="ok" label="Live" />
+        {state.locked ? (
+          <StatusMark tone="warn" label="Locked: too many wrong codes" />
+        ) : null}
         <span className="vault-row__meta">{formatRemaining(left)}</span>
         <button
           type="button"

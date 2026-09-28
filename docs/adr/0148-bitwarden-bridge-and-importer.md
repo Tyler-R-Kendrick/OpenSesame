@@ -196,6 +196,66 @@ confirms a member itself (fetching their public key and wrapping the key),
 creates a collection, moves a personal item in, and — signed in as the
 member — decrypts it, under the oracle.
 
+### 6. Emergency access, key rotation, and the rest of an account
+
+- **Emergency access** is Bitwarden's: invite → accept → the grantor
+  confirms, wrapping their user key under the contact's public key on their
+  own device → the contact initiates recovery → the grantor approves or
+  rejects, or the wait (one to ninety days) runs out → the contact *views*
+  the grantor's own ciphers and files, or *takes over* by setting a new
+  master password that re-wraps the same user key. With no mail, an
+  invitation to an existing account is accepted at once and one to an
+  unknown address is claimed when it registers; nothing is usable before the
+  grantor confirms. The wait is settled when a record is read, by a
+  compare-and-set — nothing runs on a timer. A takeover drops every session
+  and second step and leaves every organization the grantor does not own,
+  as Bitwarden's does.
+- **Key rotation** (`/accounts/key-management/rotate-user-account-keys`)
+  replaces the user key. The client re-encrypts every personal cipher,
+  folder, Send, emergency contact's key and account-recovery key and sends
+  them with the master password; the server refuses a rotation that leaves
+  any of them behind (what it left would be unreadable), refuses a change of
+  KDF, address or key pair there, and writes it all in one transaction. Every
+  session ends.
+- **The rest of an account:** its name and avatar colour; equivalent domains
+  (the global list Bitwarden ships is not served); its devices, listed and
+  signed out one by one; a change of address, which is a change of KDF salt,
+  so the client sends master-password material derived under the new one;
+  and deleting it, after the master password, unless it is the only owner of
+  an organization.
+- **Plain refusals** for what the server does not do: a password hint or a
+  deletion link (both go by mail), log in with a device, trusted-device
+  encryption, and a breach report on an address (that would disclose it to a
+  third party; the Host checks passwords by k-anonymity instead, ADR 0080 §5).
+
+### 7. Live sync and the web vault
+
+- **The notifications hub.** Bitwarden's apps hold `/notifications/hub` open
+  with Microsoft's SignalR client — WebSockets, negotiation skipped, the
+  MessagePack hub protocol — and the server speaks exactly that: the
+  handshake, pings, and `ReceiveMessage` invocations. It says two things:
+  *sync now* (`SyncVault`) whenever an account's revision moves — its own
+  change, an organization it belongs to, an emergency contact's step — and
+  *sign out* (`LogOut`) when its security stamp changes, after which the
+  connection closes. It carries no vault data, only the account id and a
+  time, so a client learns from it what polling its revision date would tell
+  it, sooner. A connection needs a current access token (a stale stamp is
+  refused); an account holds at most 32; a slow one's queue is bounded and a
+  dropped "sync now" is caught by the client's next sync. No
+  mobile push relay is used: nothing leaves the Host.
+- **The web vault.** The Host ships none. An operator who wants the browser
+  app points `OPENSESAME_BITWARDEN_WEB_VAULT` at a build of
+  `bitwarden/clients`' web app (vaultwarden's `bw_web_builds` is one), and
+  it is served beside the API: a path with no file answers with the app's
+  `index.html`, an unknown `/api` or `/identity` path stays a 404, and every
+  page carries a content security policy, `X-Frame-Options`, `nosniff` and a
+  same-origin referrer policy. A configured directory without the app
+  refuses to start rather than serving nothing. Like Sends, the web vault
+  wants the server on an origin of its own.
+
+The pinned SignalR client (10.0.0, as `bitwarden/clients` pins it) hears
+"sync" and "log out" and is refused with a stale token, under the oracle.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve

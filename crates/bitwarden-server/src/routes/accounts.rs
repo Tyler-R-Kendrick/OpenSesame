@@ -10,7 +10,6 @@ use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
 use crate::kdf::KdfConfig;
 use crate::tokens::new_security_stamp;
-use crate::wire::account::profile as profile_json;
 use crate::wire::cipher::{is_enc_string, normalize};
 use crate::BitwardenServer;
 use opensesame_storage::bitwarden::{BitwardenCredentials, BitwardenUser};
@@ -19,9 +18,9 @@ pub async fn profile(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
 ) -> ApiResult<Json<Value>> {
-    let two_factor = super::two_factor::enabled(&server, &user.id).await?;
-    let organizations = super::organizations::for_profile(&server, &user.id).await?;
-    Ok(Json(profile_json(&user, two_factor, &organizations)))
+    Ok(Json(
+        super::account_extras::profile_body(&server, &user).await?,
+    ))
 }
 
 /// Epoch milliseconds; a client syncs when this moves.
@@ -66,6 +65,7 @@ pub async fn security_stamp(
         .db
         .bitwarden_rotate_security_stamp(&user.id, &new_security_stamp())
         .await?;
+    super::signed_out(&server, &user.id);
     Ok(StatusCode::OK)
 }
 
@@ -156,6 +156,7 @@ async fn replace(
         .db
         .bitwarden_replace_credentials(&user.id, &replacement)
         .await?;
+    super::signed_out(server, &user.id);
     Ok(())
 }
 

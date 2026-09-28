@@ -244,6 +244,37 @@ describe("withdrawing Live sessions ends what is running", () => {
   });
 });
 
+describe("a session started after the plan withdrew Live sessions", () => {
+  it("never stands: a host comes back ended and is not the current one", async () => {
+    current = plan(false);
+    const hosted = await host();
+    await settle();
+    expect(hosted.state.status).toBe("ended");
+    expect(currentHost()).toBeNull();
+    expect(opened).toBe(0);
+    expect(listeners.size).toBe(0);
+  });
+
+  it("never stands: a joiner is left before it asks", async () => {
+    const hosted = await host();
+    current = plan(false);
+    const guest = await joinLive({
+      link: hosted.link,
+      code: null,
+      name: "Ada",
+      note: "",
+      peers: net.factory(),
+      useRoutes: true,
+      carriers,
+    });
+    await settle();
+    expect(currentGuest()).toBeNull();
+    expect(currentHost()).toBeNull();
+    expect(guest.status.at).not.toBe("request");
+    expect(listeners.size).toBe(0);
+  });
+});
+
 describe("a re-plan that still approves it drops nobody", () => {
   it("keeps both sessions through a lock, an unlock and a consent commit", async () => {
     const { hosted, guest } = await join();

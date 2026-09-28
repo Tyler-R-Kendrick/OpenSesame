@@ -58,6 +58,13 @@ export class HostPeer {
    */
   async open(offer: string): Promise<string> {
     const side = await answerOffer(this.options.peers, this.options.ice, offer);
+    // Closed while the browser was gathering: `close()` found no connection
+    // to close, so this is the only place that can.
+    if (this.#closed) {
+      side.pc.close();
+      side.channel.catch(() => undefined);
+      throw new Error("closed");
+    }
     this.#pc = side.pc;
     side.pc.addEventListener("connectionstatechange", () => {
       if (side.pc.connectionState === "failed") this.#closedByPeer();

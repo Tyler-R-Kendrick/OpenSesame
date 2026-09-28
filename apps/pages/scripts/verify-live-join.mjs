@@ -18,13 +18,30 @@
  *    asks, the owner lets them in, and nobody pastes anything. Every carrier
  *    that records frames saw no name, value, SDP or link secret. A joiner who
  *    declines the route is never heard of on it.
- * 4. **relayed** — no route between the two at all but a TURN server: the
- *    owner names one (a real TURN server on loopback UDP), relay only, and a
- *    Nostr carrier. Both peer connections are relay-only, the pair they
- *    select is relay to relay, and nobody pastes anything.
+ * 4. **relayed**, **relayed-tcp**, **relayed-tls** — no route between the two
+ *    at all but a TURN server: the owner names one in Routes, relay only, and
+ *    a Nostr carrier. Both peer connections are relay-only, the pair they
+ *    select is relay to relay, and nobody pastes anything. One walk for each
+ *    way to reach the server: `turn:` over UDP (node-turn on loopback),
+ *    `turn:` with `?transport=tcp`, and `turns:` (TLS, a throwaway
+ *    self-signed certificate whose public key alone Chromium is told to
+ *    trust) — the last two on `live-turn`, a real pion/turn server. Each
+ *    also asks the server which transport carried the clients: the one
+ *    named authenticated and allocated for both peers, and no client
+ *    traffic reached the others.
+ *    **relayed-rest** is the same road with a TURN REST secret: the owner
+ *    types the profile file (`settings/live/transport.json`, the Form has no
+ *    secret field) with a `"secret"` for the server, and the app mints the
+ *    session's credential. The server authenticates both peers, the link
+ *    carries the minted `<expiry>:osl` credential and never the secret.
+ *    **relayed-rest-wrong** is its negative control: the server holds another
+ *    secret, refuses every authentication, and the browsers never meet.
  *
- * `LIVE_NATS_SERVER` / `LIVE_NTFY_SERVER` name the binaries; a missing one
- * fails the walk unless `LIVE_CARRIERS` leaves its kind out.
+ * `LIVE_NATS_SERVER` / `LIVE_NTFY_SERVER` / `LIVE_TURN_SERVER` name the
+ * binaries; a missing one fails the walk unless `LIVE_CARRIERS` (or
+ * `LIVE_SCENARIOS`) leaves its kind out. `LIVE_SCENARIOS` narrows the walks:
+ * direct, carriers, declined, relayed, relayed-tcp, relayed-tls,
+ * relayed-rest, relayed-rest-wrong, tunnel.
  */
 
 import fs from "node:fs";
@@ -32,11 +49,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import {
+  bindRelayed,
+  relayed,
+  relayedOver,
+  relayedRest,
+} from "./lib/live-join-relayed.mjs";
+import {
   bindWalk,
   carried,
   declined,
   direct,
-  relayed,
   tunnel,
 } from "./lib/live-join-scenarios.mjs";
 import {
@@ -45,6 +67,7 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { mintTurnCert } from "./lib/live-turn.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -60,7 +83,8 @@ const KINDS = (
 /** Which walks run; all of them unless narrowed while working on one. */
 const SCENARIOS = new Set(
   (
-    process.env.LIVE_SCENARIOS ?? "direct,carriers,declined,relayed,tunnel"
+    process.env.LIVE_SCENARIOS ??
+    "direct,carriers,declined,relayed,relayed-tcp,relayed-tls,relayed-rest,relayed-rest-wrong,tunnel"
   ).split(","),
 );
 const NATS =
@@ -69,6 +93,9 @@ const NATS =
 const NTFY =
   process.env.LIVE_NTFY_SERVER ??
   path.join(ROOT, ".cache/live-fixtures/bin/ntfy");
+const TURN =
+  process.env.LIVE_TURN_SERVER ??
+  path.join(ROOT, ".cache/live-fixtures/bin/live-turn");
 fs.mkdirSync(OUT, { recursive: true });
 
 const harness = createHarness({
@@ -98,13 +125,14 @@ const PHONE = {
  */
 const DISABLED = ["LocalNetworkAccessChecks"];
 
-function launch(features = []) {
+function launch(features = [], args = []) {
   return chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
     headless: true,
     args: [
       "--allow-loopback-in-peer-connection",
       `--disable-features=${[...DISABLED, ...features].join(",")}`,
+      ...args,
     ],
   });
 }
@@ -183,9 +211,20 @@ bindWalk({
   NATS,
   NTFY,
 });
+bindRelayed({ check, setStep, failures, device, shot, configs, joined, PHONE });
+
+// A throwaway certificate for the TLS TURN walk, and the one flag that lets
+// Chromium's WebRTC trust its public key: no blanket certificate override.
+const cert = ["relayed-tcp", "relayed-tls"].some((name) => SCENARIOS.has(name))
+  ? mintTurnCert(TURN)
+  : { missing: TURN };
+const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
 
 // Host candidates in the clear, so two contexts on one machine meet directly.
-const browser = await launch(["WebRtcHideLocalIpsWithMdns"]);
+const browser = await launch(
+  ["WebRtcHideLocalIpsWithMdns"],
+  SCENARIOS.has("relayed-tls") && !cert.missing ? [cert.flag] : [],
+);
 try {
   const owner = await device(browser);
   setStep("owner-enters");
@@ -197,6 +236,14 @@ try {
     for (const kind of KINDS) await carried(browser, owner, kind);
   if (SCENARIOS.has("declined")) await declined(browser, owner);
   if (SCENARIOS.has("relayed")) await relayed(browser, owner);
+  if (SCENARIOS.has("relayed-tcp"))
+    await relayedOver(browser, owner, "tcp", turnFixture);
+  if (SCENARIOS.has("relayed-tls"))
+    await relayedOver(browser, owner, "tls", turnFixture);
+  if (SCENARIOS.has("relayed-rest"))
+    await relayedRest(browser, owner, turnFixture);
+  if (SCENARIOS.has("relayed-rest-wrong"))
+    await relayedRest(browser, owner, { ...turnFixture, wrong: true });
 } catch (error) {
   failures.push(
     `[${log.at(-1)?.step ?? "?"}] ${error instanceof Error ? error.message : error}`,

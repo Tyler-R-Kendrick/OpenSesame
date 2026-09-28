@@ -79,8 +79,9 @@ pnpm test:redteam        # @opensesame/redteam structural pact suite
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
-pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI against the
-                          #   bitwarden-compat surface over HTTPS (ADR 0141); fails, never skips
+pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
+                          #   SignalR client Bitwarden's apps pin, against the bitwarden-compat surface
+                          #   (ADR 0141, ADR 0148); fails, never skips
 pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
@@ -89,7 +90,8 @@ pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright cli
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
-                          #   upstream source, the carriers verify:live-join runs (ADR 0150 §6)
+                          #   upstream source + live-turn (pion/turn, UDP/TCP/TLS), the servers
+                          #   verify:live-join runs (ADR 0150 §6)
 pnpm test:all            # typecheck + test + test:integration
 pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
@@ -219,10 +221,25 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # pin), a real ntfy (LIVE_NTFY_SERVER, default .cache/live-fixtures/bin/ntfy)
 # and BroadcastChannel each pair with nothing pasted and see no plaintext; a
 # joiner who declines is never heard of. Relayed: relay-only through a real
-# TURN server (node-turn), relay to relay. A missing server fails the run
-# (LIVE_CARRIERS narrows it; `pnpm test:live-fixtures` builds them). Run
+# TURN server, relay to relay, over UDP (node-turn), TCP (`turn:…?transport=tcp`)
+# and TLS (`turns:`, a self-signed certificate trusted by its public key alone)
+# on live-turn (pion/turn, scripts/test/live-turn), whose per-transport counters
+# show which one carried the browsers; and through a TURN REST secret typed into
+# `settings/live/transport.json` (the app mints the credential, the link never
+# carries the secret; a wrong server secret must fail). A missing server fails the run
+# (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:live-netns
+# The tunnel walk on a real network path: two Linux network namespaces
+# (unprivileged user namespaces; no root, no sudo, no `ip`), a Chromium in
+# each, a veth with multicast off between them and a harness namespace that
+# forwards nothing. mDNS hiding on, nothing filtered in the page. No address
+# named: never connects. Address named: connects over a pair at it, no ICE
+# server; again through a wss Nostr relay; and, veth down, relay-only TURN.
+# Fails, never skips, without namespace support. Run before touching
+# lib/live/candidates.ts or the address hint.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -283,7 +300,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `crates/credential-helpers` | git/docker/AWS/kubectl helpers — thin mint-path clients of the daemon, run as entry points of `opensesame` (ADR 0049) |
-| `crates/bitwarden-server` | Bitwarden-compatible server mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in, sync and edit a personal vault; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI as the oracle (ADR 0141) |
+| `crates/bitwarden-server` | Bitwarden-compatible server, the `bitwarden-compat` cargo feature of the gateway and `opensesame` (off by default), mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in (password, API key, authenticator), sync and edit personal vaults, attachments and Sends, organizations and collections, emergency access and key rotation, hear live sync on `/notifications/hub`, and optionally load an operator-supplied web vault; `opensesame bridge bitwarden import` moves vaultwarden servers and live accounts over; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI and SignalR client as the oracles (ADR 0141, ADR 0148) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
 | `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
