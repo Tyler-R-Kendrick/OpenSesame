@@ -3,8 +3,9 @@
  *
  * Contributed: the `/live` join screen (`gate: "any"`, framed — it holds no
  * vault key, so it opens on a locked or empty device, and inside the shell
- * in an unlocked tab), and the Live session panel under Settings › Vaults,
- * where the owner hosts one from this tab.
+ * in an unlocked tab), and the Settings › Live sessions tab: the panel where
+ * the owner hosts one from this tab, and its routes, whose file is
+ * `settings/live/transport.json` (sealed in the vault, ADR 0134).
  *
  * The sessions themselves live in `app-core/lib/live/session.ts`, not here:
  * this module is disposed and activated again on every lock, unlock and
@@ -12,17 +13,28 @@
  * re-planned.
  *
  * Egress this module wraps, none of it at activation and all of it started
- * by the person: a WebRTC peer connection to the other browser, directly,
- * with no ICE server — no relay, STUN or TURN — once the two people have
- * passed each other the sealed pairing codes (`lib/live/pairing.ts`,
- * `lib/live/peer.ts`); the clipboard on a copy. Side effects: none at
- * import.
+ * by the person: a WebRTC peer connection to the other browser once the
+ * sealed pairing codes have crossed (`lib/live/pairing.ts`,
+ * `lib/live/peer.ts`) — directly by default, with no ICE server; the
+ * clipboard on a copy. Only what the owner names in Routes adds more, and
+ * only for the owner's sessions and joiners who agree to the hosts the link
+ * lists: the STUN and TURN servers named, and the carriers named
+ * (`carriers/`: a Nostr relay, an MQTT broker or NATS server over wss, an
+ * ntfy server over https, or BroadcastChannel), each client loaded only then.
+ * Side effects: none at import.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
+import {
+  LIVE_ROUTES,
+  LIVE_TARGETS,
+} from "@opensesame/app-core/tutorial/registry/live-catalog.js";
 import { createActivation } from "../activation.js";
-import { LiveHostPanel } from "./LiveHostPanel.js";
+import { registerTutorial } from "../tutorial-contributions.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
+import { LiveSettings } from "./LiveSettings.js";
+import { transportSeams } from "./live-transport-hooks.js";
 
 export const CAPABILITY = "sharing.live";
 
@@ -40,12 +52,21 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 48,
       gate: "any",
     });
-    activation.register("settings-panel", {
-      id: "live-session",
-      label: "Live session",
-      category: "vaults",
-      Panel: LiveHostPanel,
-      order: 20,
+    activation.register("settings-category", {
+      id: "live",
+      label: "Live sessions",
+      guideId: "settings.live",
+      Panel: LiveSettings,
+      panels: [
+        { id: "live-session", label: "Live session" },
+        { id: "live-routes", label: "Routes" },
+      ],
+      order: 320,
+      files: liveTransportFiles(() => transportSeams.tomb()),
+    });
+    registerTutorial(activation, {
+      targets: LIVE_TARGETS,
+      routes: LIVE_ROUTES,
     });
 
     return activation.handle();

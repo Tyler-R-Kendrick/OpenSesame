@@ -15,6 +15,7 @@ import {
   leaveLive,
   liveSeams,
 } from "@opensesame/app-core/lib/live/session.js";
+import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
@@ -30,6 +31,7 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
+import { transportSeams } from "./live-transport-hooks.js";
 
 const SECRET = "correct horse battery staple";
 const github = createItem("login", "GitHub");
@@ -41,9 +43,14 @@ bank.password = "not shared";
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };
 const originalUi = { ...liveUiSeams };
+const originalTransport = { ...transportSeams };
 let net: FakeNet;
 
 beforeEach(() => {
+  Object.assign(transportSeams, {
+    tomb: () => "personal",
+    read: async () => DIRECT_TRANSPORT,
+  });
   net = new FakeNet();
   Object.assign(vaultHooksSeams, {
     useVault: () => ({
@@ -70,12 +77,15 @@ afterEach(() => {
   Object.assign(vaultHooksSeams, originalHooks);
   Object.assign(liveSeams, originalLive);
   Object.assign(liveUiSeams, originalUi);
+  Object.assign(transportSeams, originalTransport);
 });
 
-function startHosting(admission: "invite" | "open" = "invite") {
+async function startHosting(admission: "invite" | "open" = "invite") {
   const { container } = render(<LiveHostPanel />);
   const owner = container;
   const panel = within(owner);
+  // The routes are read from the vault before a session can start.
+  await panel.findByRole("img", { name: "Direct only" });
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });
@@ -125,7 +135,7 @@ function paste(
 
 describe("a live session, owner to joiner, paired by hand", () => {
   it("lets in a joiner who holds the link and the code, and hands over one value on request", async () => {
-    const { owner, panel } = startHosting();
+    const { owner, panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     const host = currentHost();
     expect(host?.code).toMatch(/^[A-Z]{4}-[A-Z]{4}$/);
@@ -174,7 +184,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
   });
 
   it("counts a request made with the wrong code, and says so", async () => {
-    const { panel } = startHosting();
+    const { panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     const host = currentHost();
     holdLiveLink(host?.link ?? null);
@@ -189,7 +199,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
   });
 
   it("refuses a reply that is not for this request", async () => {
-    const { panel } = startHosting();
+    const { panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     holdLiveLink(currentHost()?.link ?? null);
     const joiner = within(openJoin());
@@ -204,7 +214,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
   });
 
   it("asks for no code in an open session, and replies at once", async () => {
-    const { panel } = startHosting("open");
+    const { panel } = await startHosting("open");
     await panel.findByRole("img", { name: "Live" });
     const host = currentHost();
     expect(host?.code).toBeNull();
@@ -230,7 +240,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
   it("keeps what the joiner typed when the screen mounts again", async () => {
     // Committing the join road's consent re-plans the page, and the screen
     // can mount a second time after the person has started typing.
-    const { panel } = startHosting();
+    const { panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     holdLiveLink(currentHost()?.link ?? null);
     const first = render(
@@ -259,7 +269,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
   });
 
   it("says why when this browser cannot make a request, and keeps what was typed", async () => {
-    const { panel } = startHosting();
+    const { panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     holdLiveLink(currentHost()?.link ?? null);
     liveUiSeams.peers = () => {

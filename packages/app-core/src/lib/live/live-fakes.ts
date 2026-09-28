@@ -9,6 +9,7 @@
 
 import { overlapCast } from "@opensesame/os-domain";
 import type { PeerFactory } from "./peer.js";
+import type { CarrierFactory } from "./rendezvous.js";
 
 class FakeChannel extends EventTarget {
   readyState: RTCDataChannelState = "connecting";
@@ -132,5 +133,53 @@ class FakePeer extends EventTarget {
 
   close(): void {
     this.channel?.close();
+  }
+}
+
+/**
+ * A fake carrier service: topics in memory, every post heard by every
+ * listener on the topic (the poster included, as real relays echo). `down`
+ * refuses connections; `seen` keeps every frame for inspection.
+ */
+export class FakeBus {
+  down = false;
+  readonly seen: { topic: string; frame: string }[] = [];
+  readonly #topics = new Map<string, Set<(text: string) => void>>();
+
+  factory(): CarrierFactory {
+    return async (_spec, topic) => {
+      if (this.down) throw new Error("unreachable");
+      const listeners = new Set<(text: string) => void>();
+      return {
+        post: async (frame) => {
+          this.inject(topic, frame);
+        },
+        listen: (onText) => {
+          listeners.add(onText);
+          const all = this.#topic(topic);
+          all.add(onText);
+          return () => all.delete(onText);
+        },
+        close: () => {
+          for (const listener of listeners) this.#topic(topic).delete(listener);
+        },
+      };
+    };
+  }
+
+  /** Put a frame on a topic as anyone on the service could. */
+  inject(topic: string, frame: string): void {
+    this.seen.push({ topic, frame });
+    for (const listener of [...this.#topic(topic)])
+      queueMicrotask(() => listener(frame));
+  }
+
+  #topic(topic: string): Set<(text: string) => void> {
+    let set = this.#topics.get(topic);
+    if (!set) {
+      set = new Set();
+      this.#topics.set(topic, set);
+    }
+    return set;
   }
 }

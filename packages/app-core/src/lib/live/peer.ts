@@ -6,16 +6,18 @@
  * (`pairing.ts`). Candidates are gathered in full before a description is
  * sealed (no trickle), so the whole handshake is those two codes.
  *
- * No ICE server is configured: no STUN or TURN, nobody else's machine. The
- * browsers offer only their own host candidates and reach each other
- * directly — on the same network, or wherever a route between them exists —
- * or not at all.
+ * By default no ICE server is configured: no STUN or TURN, nobody else's
+ * machine. The browsers offer their own host candidates and reach each
+ * other directly — on the same network, or wherever a route between them
+ * exists. The owner may add what bridges the rest (`transport.ts`): address
+ * hints for a tunnel (`candidates.ts`), STUN and TURN servers, relay only.
  *
  * `RTCPeerConnection` is the shell's to construct (`PeerFactory`): app-core
  * touches no browser global, and tests hand in a fake.
  */
 
 import { isString } from "@opensesame/os-domain";
+import { withAddressHints } from "./candidates.js";
 import { type ChannelMessage, readChannelMessage } from "./messages.js";
 
 export type PeerFactory = (config: RTCConfiguration) => RTCPeerConnection;
@@ -23,10 +25,18 @@ export type PeerFactory = (config: RTCConfiguration) => RTCPeerConnection;
 export type IceSettings = Readonly<{
   /** Empty by default: host candidates only, no third party. */
   iceServers: readonly RTCIceServer[];
+  /** Relay only: neither browser learns the other's address. */
+  relay: boolean;
+  /** Where this device is reachable through a tunnel; added as hints. */
+  addresses: readonly string[];
 }>;
 
 /** No ICE server: the two browsers meet directly or not at all. */
-export const DIRECT_ONLY: IceSettings = { iceServers: [] };
+export const DIRECT_ONLY: IceSettings = {
+  iceServers: [],
+  relay: false,
+  addresses: [],
+};
 
 /**
  * How long one side waits for the channel after its code is made: long
@@ -42,11 +52,18 @@ const FRAME_MAX = 1024 * 1024;
 function rtcConfig(ice: IceSettings): RTCConfiguration {
   return {
     iceServers: [...ice.iceServers],
+    iceTransportPolicy: ice.relay ? "relay" : "all",
   };
 }
 
-/** The local description once gathering is done, or after `GATHER_MS`. */
-async function gathered(pc: RTCPeerConnection): Promise<string> {
+/**
+ * The local description once gathering is done, or after `GATHER_MS`, with
+ * this side's address hints.
+ */
+async function gathered(
+  pc: RTCPeerConnection,
+  ice: IceSettings,
+): Promise<string> {
   if (pc.iceGatheringState !== "complete") {
     await new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, GATHER_MS);
@@ -59,12 +76,33 @@ async function gathered(pc: RTCPeerConnection): Promise<string> {
   }
   const sdp = pc.localDescription?.sdp;
   if (!sdp) throw new Error("no_local_description");
-  return sdp;
+  return ice.relay ? sdp : withAddressHints(sdp, ice.addresses);
 }
 
-/** A data channel carrying the protocol's messages, read strictly. */
+/** Frames held before anyone reads the channel; the catalog is one. */
+const BACKLOG_MAX = 64;
+
+/**
+ * A data channel carrying the protocol's messages, read strictly. It
+ * listens from the moment the channel exists and holds what arrives until a
+ * handler is set: the other side sends as soon as its end opens, and a
+ * frame dispatched before this side's open handler ran would otherwise be
+ * lost — the owner would count a joiner in who never saw the catalog.
+ */
 export class PeerChannel {
-  constructor(private readonly channel: RTCDataChannel) {}
+  #handler: ((message: ChannelMessage) => void) | null = null;
+  readonly #backlog: ChannelMessage[] = [];
+
+  constructor(private readonly channel: RTCDataChannel) {
+    channel.addEventListener("message", (event: MessageEvent) => {
+      const { data } = event;
+      if (!isString(data) || data.length > FRAME_MAX) return;
+      const message = readChannelMessage(data);
+      if (!message) return;
+      if (this.#handler) this.#handler(message);
+      else if (this.#backlog.length < BACKLOG_MAX) this.#backlog.push(message);
+    });
+  }
 
   send(message: ChannelMessage): void {
     if (this.channel.readyState !== "open") return;
@@ -73,12 +111,8 @@ export class PeerChannel {
   }
 
   onMessage(handler: (message: ChannelMessage) => void): void {
-    this.channel.addEventListener("message", (event: MessageEvent) => {
-      const { data } = event;
-      if (!isString(data) || data.length > FRAME_MAX) return;
-      const message = readChannelMessage(data);
-      if (message) handler(message);
-    });
+    this.#handler = handler;
+    for (const message of this.#backlog.splice(0)) handler(message);
   }
 
   onClose(handler: () => void): void {
@@ -92,6 +126,8 @@ export class PeerChannel {
 
 /** Resolves with the channel once it is open; rejects if it never opens. */
 function opened(channel: RTCDataChannel): Promise<PeerChannel> {
+  // Listening starts now, not at open (see `PeerChannel`).
+  const peer = new PeerChannel(channel);
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("channel_timeout")),
@@ -99,7 +135,7 @@ function opened(channel: RTCDataChannel): Promise<PeerChannel> {
     );
     const done = () => {
       clearTimeout(timer);
-      resolve(new PeerChannel(channel));
+      resolve(peer);
     };
     if (channel.readyState === "open") done();
     else channel.addEventListener("open", done, { once: true });
@@ -128,7 +164,7 @@ export async function makeOffer(
   const pc = factory(rtcConfig(ice));
   const channel = pc.createDataChannel(CHANNEL_LABEL, { ordered: true });
   await pc.setLocalDescription(await pc.createOffer());
-  return { pc, offer: await gathered(pc), channel: opened(channel) };
+  return { pc, offer: await gathered(pc, ice), channel: opened(channel) };
 }
 
 /** Finish the joiner's side with the answer the owner's reply carries. */
@@ -160,5 +196,5 @@ export async function answerOffer(
   });
   await pc.setRemoteDescription({ type: "offer", sdp: offer });
   await pc.setLocalDescription(await pc.createAnswer());
-  return { pc, answer: await gathered(pc), channel };
+  return { pc, answer: await gathered(pc, ice), channel };
 }

@@ -8,9 +8,15 @@ import { type Admission, LiveHost, MAX_GUESTS, MAX_MISSES } from "./host.js";
 import { formatLiveLink, parseLiveLink } from "./link.js";
 import { FakeNet } from "./live-fakes.js";
 import type { Catalog, SharePolicy } from "./messages.js";
-import { makeReplyCode } from "./pairing.js";
+import {
+  makeReplyCode,
+  makeRequestCode,
+  openReplyCode,
+  openRequestCode,
+} from "./pairing.js";
 import { DIRECT_ONLY } from "./peer.js";
-import { newOwnerKey } from "./seal.js";
+import { newKeypair, newLinkSecret, newRequestId } from "./seal.js";
+import { NO_ROUTES } from "./transport.js";
 
 const SECRET_VALUE = "correct horse battery staple";
 
@@ -203,14 +209,6 @@ describe("an invite session", () => {
     // Somebody else's reply does not connect B.
     expect(await b.accept(reply)).toBe(false);
     expect(b.status.at).toBe("request");
-    // A link holder who signs with a key of their own is not the owner.
-    const impostor = await newOwnerKey();
-    const forged = await makeReplyCode(r.host.link, r.host.code, impostor, {
-      id: received.kind === "guest" ? received.key : "",
-      answer: "v=0\r\n",
-    });
-    expect(await a.accept(forged)).toBe(false);
-    expect(a.status.at).toBe("request");
     expect(await a.accept(reply)).toBe(true);
   });
 
@@ -224,6 +222,67 @@ describe("an invite session", () => {
       state: "refused",
       reply: null,
     });
+  });
+});
+
+describe("the codes' keys", () => {
+  const id = newRequestId();
+  const request = { id, name: "Ada", note: "", offer: "v=0\r\n" };
+
+  async function session() {
+    const owner = await newKeypair();
+    const link = {
+      admission: "invite" as const,
+      owner: owner.pub,
+      secret: newLinkSecret(),
+      routes: NO_ROUTES,
+    };
+    return { owner, link, code: "BCDF-GHJK" };
+  }
+
+  it("only the owner opens a request; another link holder cannot", async () => {
+    const { owner, link, code } = await session();
+    const joiner = await newKeypair();
+    const sealed = await makeRequestCode(link, code, joiner, request);
+    const opened = await openRequestCode(link, code, owner, sealed);
+    expect(opened).toMatchObject({ kind: "request", joiner: joiner.pub });
+    // A co-joiner holds the link and the code, but not the owner's key.
+    const onlooker = await newKeypair();
+    expect((await openRequestCode(link, code, onlooker, sealed)).kind).toBe(
+      "not-this-session",
+    );
+  });
+
+  it("a request sealed for another link is noise, never a miss", async () => {
+    const { owner, link, code } = await session();
+    const other = { ...link, secret: newLinkSecret() };
+    const sealed = await makeRequestCode(
+      other,
+      code,
+      await newKeypair(),
+      request,
+    );
+    expect(await openRequestCode(link, code, owner, sealed)).toEqual({
+      kind: "not-a-request",
+    });
+  });
+
+  it("a reply from anyone but the owner does not open", async () => {
+    const { owner, link, code } = await session();
+    const joiner = await newKeypair();
+    const reply = { id, answer: "v=0\r\n" };
+    const real = await makeReplyCode(link, code, owner, joiner.pub, reply);
+    expect(await openReplyCode(link, code, joiner, id, real)).toEqual(reply);
+    const impostor = await newKeypair();
+    const forged = await makeReplyCode(link, code, impostor, joiner.pub, reply);
+    expect(await openReplyCode(link, code, joiner, id, forged)).toBeNull();
+    // Nor does the owner's reply to one joiner open for another.
+    expect(
+      await openReplyCode(link, code, await newKeypair(), id, real),
+    ).toBeNull();
+    expect(
+      await openReplyCode(link, code, joiner, newRequestId(), real),
+    ).toBeNull();
   });
 });
 

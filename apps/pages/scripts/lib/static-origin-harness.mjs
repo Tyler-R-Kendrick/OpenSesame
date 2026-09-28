@@ -157,6 +157,7 @@ async function newPage(
     expectedFallbackUrl,
     device,
     remote = {},
+    passthrough = [],
   },
 ) {
   // A phone is not a narrow desktop: `(pointer: coarse)` decides whether the
@@ -173,6 +174,12 @@ async function newPage(
     const url = new URL(request.url());
     if (url.origin === origin) {
       return serveFromDist(route, url, { dist, base, record });
+    }
+    // A server the journey itself runs and names (a live session's carrier
+    // on loopback) is reached for real, and recorded as such.
+    if (passthrough.includes(url.origin)) {
+      record("passthrough-request", `${request.method()} ${request.url()}`);
+      return route.continue();
     }
     record("external-request", `${request.method()} ${request.url()}`);
     if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(url.hostname)) {

@@ -117,6 +117,14 @@ const LAZY_LEAVES = [
   ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
+  // Live sessions' carriers (ADR 0148 §6): each client loads only when a
+  // session names its kind, never when the capability activates.
+  ["/src/modules/sharing.live/carriers/mqtt", "sharing.live", "live-mqtt"],
+  ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
+  ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
+  ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
+  ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
+  ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
 ];
 
 function lazyLeafChunk(id, entry) {
@@ -143,14 +151,16 @@ function installManualChunks(build, state) {
     // statically reachable from the first page load.
     output.onlyExplicitManualChunks = true;
     output.manualChunks = (id, api) => {
+      // A lazy leaf first: a carrier inside a module directory would
+      // otherwise join the module's chunk and load with it.
+      if (!id.startsWith("\0")) {
+        const leaf = lazyLeafChunk(id, state.classify(id));
+        if (leaf) return leaf;
+      }
       if (partitionable(id)) {
         const entry = state.classify(id);
         if (entry.classification === "optional" && entry.capability)
           return `cap-${entry.capability}`;
-      }
-      if (!id.startsWith("\0")) {
-        const leaf = lazyLeafChunk(id, state.classify(id));
-        if (leaf) return leaf;
       }
       return previous ? previous(id, api) : undefined;
     };

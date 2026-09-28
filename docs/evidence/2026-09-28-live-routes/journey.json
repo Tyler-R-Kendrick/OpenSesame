@@ -1,0 +1,155 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "count": ["#live-session", "#live-routes"]
+        },
+        {
+          "measure": "#live-session"
+        },
+        {
+          "measure": "#live-routes"
+        },
+        {
+          "shot": "1280-live-settings"
+        },
+        {
+          "scrollToOptional": "^Routes$"
+        },
+        {
+          "shot": "1280-routes"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "count": ["#live-session", "#live-routes"]
+        },
+        {
+          "measure": "#live-session"
+        },
+        {
+          "measure": "#live-routes"
+        },
+        {
+          "shot": "390-live-settings"
+        },
+        {
+          "scrollToOptional": "^Routes$"
+        },
+        {
+          "shot": "390-routes"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "arrive": "#live=v1.i.BAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0A.ZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4CBgoM.eyJpY2UiOlt7InVybHMiOlsidHVybnM6dHVybi5leGFtcGxlLmNvbTo0NDM_dHJhbnNwb3J0PXRjcCJdLCJ1c2VybmFtZSI6IjE3OTAwMDAwMDA6b3NsIiwiY3JlZGVudGlhbCI6ImJXbHVkR1ZrTFdadmNpMTBhR2x6TFhObGMzTnBiMjQ9In1dLCJjYXJyaWVycyI6W3sia2luZCI6Im50ZnkiLCJ1cmwiOiJodHRwczovL250ZnkuZXhhbXBsZS5jb20ifV19"
+        },
+        {
+          "address": null
+        },
+        {
+          "count": [".capreview, [data-testid=capability-review]"]
+        },
+        {
+          "shot": "390-routes-link-review"
+        },
+        {
+          "pressOptional": "^Apply configuration"
+        },
+        {
+          "count": ["input[type=checkbox]"]
+        },
+        {
+          "shot": "390-routes-link-join"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-live-settings",
+      "width": 1280,
+      "title": "Settings, 1280 × 900: where a live session is hosted",
+      "caption": "Where the owner hosts a live session once Live sessions is on.",
+      "before": "Settings › Vaults, the panel below Vaults on this device, Travel, Item types and Sample data: #live-session 960×459 at y=796, no #live-routes",
+      "after": "A Settings › Live sessions tab of its own: #live-session 960×492 at y=146, #live-routes 960×489 below it"
+    },
+    {
+      "shot": "1280-routes",
+      "width": 1280,
+      "title": "Settings, 1280 × 900: Routes",
+      "caption": "The optional routes a session may use to reach people off this network.",
+      "before": "no Routes panel (count #live-routes: 0): direct pairing only",
+      "after": "Routes: a tailnet/VPN/LAN address, STUN or TURN servers with their credentials, relay only, and a code carrier (Nostr, MQTT, NATS, ntfy, this browser's tabs); written to settings/live/transport.json, sealed"
+    },
+    {
+      "shot": "390-live-settings",
+      "width": 390,
+      "title": "Settings, 390 × 844: where a live session is hosted",
+      "caption": "The same, on a phone.",
+      "before": "Settings › Vaults: #live-session 358×520 at y=1062",
+      "after": "Settings › Live sessions: #live-session 358×553 at y=303, #live-routes 358×536"
+    },
+    {
+      "shot": "390-routes",
+      "width": 390,
+      "title": "Settings, 390 × 844: Routes",
+      "caption": "Routes on a phone.",
+      "before": "no Routes panel (count #live-routes: 0)",
+      "after": "Routes, one field or switch per row, commit keys at 44px"
+    },
+    {
+      "shot": "390-routes-link-review",
+      "width": 390,
+      "title": "A link that names routes, 390 × 844: the consent review",
+      "caption": "A fresh phone opens a link whose owner named a TURN server and an ntfy carrier.",
+      "before": "not recognised as a live-session link: no consent review (count 0), and its bearer stays in the address bar (…/#live=v1.i.BAEC…)",
+      "after": "recognised: the address bar is cleared (…/OpenSesame/), and Live sessions' consent review opens (count 1)"
+    },
+    {
+      "shot": "390-routes-link-join",
+      "width": 390,
+      "title": "A link that names routes, 390 × 844: the join form",
+      "caption": "After consent: the join form.",
+      "before": "nothing to join (0 checkboxes)",
+      "after": "the form lists every host the link would contact — Through turn.example.com, ntfy.example.com — checked, before anything is contacted; clearing it pairs by hand"
+    }
+  ]
+}

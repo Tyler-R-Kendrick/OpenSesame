@@ -113,5 +113,7 @@ apps/pages/scripts/duress/.ui-artifacts/
 
 # mTLS fixture downloads (scripts/mtls/mtls-fixtures.sh) and suite artifacts
 .cache/mtls-fixtures/
+# verify:live-join servers built from source (scripts/test/live-fixtures.sh)
+.cache/live-fixtures/
 .cache/bitwarden-oracle/
 artifacts/mtls/

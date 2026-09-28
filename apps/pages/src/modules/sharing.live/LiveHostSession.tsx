@@ -13,7 +13,10 @@ import type {
   LiveHost,
 } from "@opensesame/app-core/lib/live/host.js";
 import { formatLiveLink } from "@opensesame/app-core/lib/live/link.js";
-import { endHosting } from "@opensesame/app-core/lib/live/session.js";
+import {
+  currentHostCarriers,
+  endHosting,
+} from "@opensesame/app-core/lib/live/session.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -24,6 +27,7 @@ import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
+import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
 
 function Log({ state }: { state: HostState }) {
@@ -100,6 +104,7 @@ export function LiveHostSession({
           <span className="frow__value live-code">{host.code}</span>
         </FieldRow>
       ) : null}
+      <CarrierMarks rendezvous={currentHostCarriers()} />
       <RequestPaste host={host} />
       {state.guests.map((guest) => (
         <GuestRow key={guest.key} host={host} guest={guest} />

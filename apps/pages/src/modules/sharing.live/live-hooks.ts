@@ -20,6 +20,7 @@ import {
 } from "@opensesame/app-core/lib/live/session.js";
 import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
+import { carriers as shellCarriers } from "./carriers/index.js";
 
 /** A glyph's tone and the sentence it stands for. */
 export type Standing = Readonly<{ tone: StatusTone; label: string }>;
@@ -50,6 +51,8 @@ export type JoinDraft = {
   note: string;
   /** Why the last ask failed: the form mounts afresh after one. */
   failed: string;
+  /** Whether to use the servers the link names (shown before any contact). */
+  useRoutes: boolean;
 };
 
 export const joinDraft: JoinDraft = {
@@ -59,6 +62,7 @@ export const joinDraft: JoinDraft = {
   name: "",
   note: "",
   failed: "",
+  useRoutes: true,
 };
 
 export function clearJoinDraft(): void {
@@ -69,6 +73,7 @@ export function clearJoinDraft(): void {
     name: "",
     note: "",
     failed: "",
+    useRoutes: true,
   });
 }
 
@@ -90,6 +95,7 @@ export function useDraftField(
 export const liveUiSeams = {
   peers: (config: RTCConfiguration): RTCPeerConnection =>
     new RTCPeerConnection(config),
+  carriers: shellCarriers,
   /**
    * The app's own root: a fresh load there always meets the unlock screen,
    * whose join road takes the link (and asks for consent where Live

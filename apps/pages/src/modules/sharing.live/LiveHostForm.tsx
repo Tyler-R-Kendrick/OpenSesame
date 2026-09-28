@@ -6,6 +6,7 @@
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
 import { startHosting } from "@opensesame/app-core/lib/live/session.js";
+import type { LiveTransport } from "@opensesame/app-core/lib/live/transport.js";
 import { activeItems } from "@opensesame/vault-core";
 import { useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
@@ -14,6 +15,7 @@ import { IconPlay } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { liveUiSeams } from "./live-hooks.js";
+import { useLiveTransport } from "./live-transport-hooks.js";
 
 type Choice<T extends string | number> = Readonly<{ value: T; label: string }>;
 
@@ -108,6 +110,25 @@ function ItemChoice({
   );
 }
 
+/** What the session will use beyond a direct route, in a few words. */
+export function routesSummary(transport: LiveTransport): string {
+  const parts: string[] = [];
+  const count = (n: number, one: string, many: string) =>
+    n === 0 ? null : `${n} ${n === 1 ? one : many}`;
+  const turn = transport.ice.filter((server) =>
+    server.urls.some((url) => url.startsWith("turn")),
+  ).length;
+  for (const part of [
+    count(transport.addresses.length, "address", "addresses"),
+    count(transport.ice.length - turn, "STUN server", "STUN servers"),
+    count(turn, "TURN server", "TURN servers"),
+    count(transport.carriers.length, "carrier", "carriers"),
+  ])
+    if (part) parts.push(part);
+  if (parts.length === 0) return "Direct only";
+  return `${transport.relay ? "Relay only" : "Direct"}, with ${parts.join(", ")}`;
+}
+
 export function LiveHostForm() {
   const [title, setTitle] = useState("");
   const [scope, setScope] = useState<"vault" | "items">("items");
@@ -115,8 +136,9 @@ export function LiveHostForm() {
   const [policy, setPolicy] = useState<SharePolicy>("use");
   const [admission, setAdmission] = useState<Admission>("invite");
   const [minutes, setMinutes] = useState(60);
+  const { transport, loaded } = useLiveTransport();
   const ready =
-    title.trim().length > 0 && (scope === "vault" || chosen.size > 0);
+    loaded && title.trim().length > 0 && (scope === "vault" || chosen.size > 0);
 
   return (
     <form
@@ -134,6 +156,8 @@ export function LiveHostForm() {
           admission,
           minutes,
           peers: liveUiSeams.peers,
+          transport,
+          carriers: liveUiSeams.carriers,
         });
       }}
     >
@@ -174,6 +198,7 @@ export function LiveHostForm() {
         options={DURATIONS}
         onChange={setMinutes}
       />
+      <StatusMark tone="idle" label={routesSummary(transport)} />
       <FormCommit
         label="Start the live session"
         disabled={!ready}

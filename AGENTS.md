@@ -88,6 +88,8 @@ pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright cli
                           #   ingress reference, plus the static app with no certificate
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
+pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
+                          #   upstream source, the carriers verify:live-join runs (ADR 0148 §6)
 pnpm test:all            # typecheck + test + test:integration
 pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
@@ -209,15 +211,18 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # screen.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
-# Same harness, a live session (ADR 0148) in two browser contexts over real
-# WebRTC with no server of any kind: the owner (a guest with one login)
-# switches Live sessions on and starts an invite session; a fresh device
-# opens the link, consents, gives the code and a name, and copies its request
-# code; the owner pastes it, lets them in, and copies back the reply code; the
-# joiner pastes it, connects, and reveals one value on request; ending drops
-# it. Proves no WebSocket opened, no request left the origin and no peer
-# connection had an ICE server. Run before touching lib/live, the join road
-# or sharing.live.
+# Same harness, live sessions (ADR 0148) in real browser contexts over real
+# WebRTC. Direct: codes passed by hand, no WebSocket, no request off the
+# origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
+# never meets without Routes' address, meets at it with one. Carriers: an
+# in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
+# pin), a real ntfy (LIVE_NTFY_SERVER, default .cache/live-fixtures/bin/ntfy)
+# and BroadcastChannel each pair with nothing pasted and see no plaintext; a
+# joiner who declines is never heard of. Relayed: relay-only through a real
+# TURN server (node-turn), relay to relay. A missing server fails the run
+# (LIVE_CARRIERS narrows it; `pnpm test:live-fixtures` builds them). Run
+# before touching lib/live, the join road, Routes or sharing.live. Operator
+# guide: docs/operators/live-sessions.md.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -419,7 +424,10 @@ Do not add new top-level directories or loose root files — find the group.
   nothing to sign in to. Join is on every deployment, the shared GitHub
   Pages origin included: it opens a live session browser to browser over
   WebRTC, paired by codes the two people pass each other — no server, relay,
-  STUN or TURN of anyone's (`sharing.live`, `lib/live/`, consent first) —
+  STUN or TURN by default (`sharing.live`, `lib/live/`, consent first); an
+  owner may name their own in Settings › Live sessions › Routes (a tunnel
+  address, STUN/TURN, relay only, a Nostr/MQTT/NATS/ntfy carrier), never a
+  default, and the joiner sees every host before any is contacted —
   and a Host invite link still opens the Host ceremony
   ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
   a shared link opens join by itself. Once setup is answered or skipped the

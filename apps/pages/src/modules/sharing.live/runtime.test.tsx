@@ -23,12 +23,25 @@ describe("sharing.live runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("sharing.live");
   });
 
-  it("registers the join route and the host panel", async () => {
+  it("registers the join route, the Live sessions tab and its guide targets", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.live",
-      kinds: ["route", "settings-panel"],
-      count: 2,
+      kinds: [
+        "route",
+        "settings-category",
+        "tutorial-target",
+        "tutorial-route",
+      ],
+      count: 4,
     });
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const [category] = t.entries("settings-category");
+    expect(category?.id).toBe("live");
+    expect(category?.files?.list().map((file) => file.path)).toEqual([
+      "settings/live/transport.json",
+    ]);
+    await handle.dispose();
   });
 
   it("serves the join screen on a locked device, and opens no socket on activation", async () => {

@@ -19,7 +19,8 @@ import type { LiveLink } from "./link.js";
 import type { Catalog } from "./messages.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
 import type { IceSettings, PeerFactory } from "./peer.js";
-import { type OwnerKey, newCode, newLinkSecret, newOwnerKey } from "./seal.js";
+import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
+import { type LiveRoutes, NO_ROUTES } from "./transport.js";
 
 export const MAX_MISSES = 5;
 export const MAX_GUESTS = 8;
@@ -64,10 +65,20 @@ export type HostOptions = Readonly<{
   catalog: () => Catalog;
   readField: ReadField;
   peers: PeerFactory;
+  /** What the link carries for joiners: ICE servers, relay only, carriers. */
+  routes?: LiveRoutes;
+  /** Where a reply code goes besides the owner's screen (a carrier). */
+  post?: (code: string) => void;
   now?: () => number;
 }>;
 
-type Seat = { guest: Guest; offer: string; peer: HostPeer | null };
+type Seat = {
+  guest: Guest;
+  offer: string;
+  /** The joiner's public key: its reply is sealed to it. */
+  joiner: string;
+  peer: HostPeer | null;
+};
 
 const OPEN = new Set<GuestState>(["asking", "replied", "joined"]);
 
@@ -77,7 +88,7 @@ export class LiveHost {
   /** The out-of-band code, in an invite session. */
   readonly code: string | null;
   readonly expiresAt: number;
-  readonly #owner: OwnerKey;
+  readonly #owner: Keypair;
   readonly #seats = new Map<string, Seat>();
   readonly #listeners = new Set<(state: HostState) => void>();
   readonly #now: () => number;
@@ -88,7 +99,7 @@ export class LiveHost {
 
   private constructor(
     private readonly options: HostOptions,
-    owner: OwnerKey,
+    owner: Keypair,
   ) {
     this.#now = options.now ?? Date.now;
     this.#owner = owner;
@@ -96,6 +107,7 @@ export class LiveHost {
       admission: options.admission,
       owner: owner.pub,
       secret: newLinkSecret(),
+      routes: options.routes ?? NO_ROUTES,
     };
     this.code = options.admission === "invite" ? newCode() : null;
     this.expiresAt = Math.min(options.expiresAt, this.#now() + MAX_SESSION_MS);
@@ -107,7 +119,7 @@ export class LiveHost {
 
   /** Start a session: a fresh owner key, link secret and code. */
   static async start(options: HostOptions): Promise<LiveHost> {
-    return new LiveHost(options, await newOwnerKey());
+    return new LiveHost(options, await newKeypair());
   }
 
   get state(): HostState {
@@ -138,10 +150,15 @@ export class LiveHost {
     this.#emit();
   }
 
-  /** A request code the owner pasted. */
+  /** A request code the owner pasted, or a carrier passed on. */
   async receive(text: string): Promise<Received> {
     if (this.#ended) return { kind: "ended" };
-    const opened = await openRequestCode(this.link, this.code, text);
+    const opened = await openRequestCode(
+      this.link,
+      this.code,
+      this.#owner,
+      text,
+    );
     if (opened.kind === "not-a-request") return opened;
     if (opened.kind === "not-this-session") {
       this.#misses += 1;
@@ -149,8 +166,14 @@ export class LiveHost {
       else this.#emit();
       return { kind: "not-this-session", misses: this.#misses };
     }
-    const { request } = opened;
-    if (this.#seats.has(request.id)) return { kind: "guest", key: request.id };
+    const { request, joiner } = opened;
+    const known = this.#seats.get(request.id);
+    if (known) {
+      // Asked again (a carrier dropped the reply): hand the same reply back.
+      if (known.guest.reply && known.joiner === joiner)
+        this.options.post?.(known.guest.reply);
+      return { kind: "guest", key: request.id };
+    }
     const seated = [...this.#seats.values()].filter((seat) =>
       OPEN.has(seat.guest.state),
     );
@@ -165,6 +188,7 @@ export class LiveHost {
         reply: null,
       },
       offer: request.offer,
+      joiner,
       peer: null,
     });
     this.#emit();
@@ -194,11 +218,16 @@ export class LiveHost {
     seat.peer = peer;
     try {
       const answer = await peer.open(seat.offer);
-      const reply = await makeReplyCode(this.link, this.code, this.#owner, {
-        id: key,
-        answer,
-      });
-      if (seat.peer === peer) this.#set(key, { state: "replied", reply });
+      const reply = await makeReplyCode(
+        this.link,
+        this.code,
+        this.#owner,
+        seat.joiner,
+        { id: key, answer },
+      );
+      if (seat.peer !== peer) return;
+      this.#set(key, { state: "replied", reply });
+      this.options.post?.(reply);
     } catch {
       this.#drop(key, "gone");
     }

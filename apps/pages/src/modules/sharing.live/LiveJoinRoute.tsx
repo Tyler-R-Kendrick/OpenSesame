@@ -23,7 +23,11 @@ import {
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
-import { joinLive, leaveLive } from "@opensesame/app-core/lib/live/session.js";
+import {
+  currentGuestCarriers,
+  joinLive,
+  leaveLive,
+} from "@opensesame/app-core/lib/live/session.js";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { FieldShell } from "../../components/FieldShell.js";
@@ -39,6 +43,7 @@ import {
 import { StatusMark } from "../../components/StatusMark.js";
 import { LiveCatalog } from "./LiveCatalog.js";
 import { RequestStep } from "./LiveJoinPairing.js";
+import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
 import {
   type Standing,
   clearJoinDraft,
@@ -65,7 +70,7 @@ export function standing(status: GuestStatus): Standing {
     case "unreachable":
       return {
         tone: "err",
-        label: "No direct route to the owner's browser",
+        label: "No route to the owner's browser",
       };
     default:
       return { tone: "idle", label: "The session ended" };
@@ -80,6 +85,11 @@ function useAsk(held: LiveLink | null) {
   const [note, setNote] = useDraftField("note");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useDraftField("failed");
+  const [useRoutes, setRoutesState] = useState(joinDraft.useRoutes);
+  const setUseRoutes = (next: boolean) => {
+    joinDraft.useRoutes = next;
+    setRoutesState(next);
+  };
   const link = held ?? parseLiveLink(pasted);
   const needsCode = link?.admission === "invite";
   const normalized = needsCode ? normalizeInviteCode(code) : null;
@@ -99,6 +109,8 @@ function useAsk(held: LiveLink | null) {
         name: name.trim(),
         note: note.trim(),
         peers: liveUiSeams.peers,
+        useRoutes,
+        carriers: liveUiSeams.carriers,
       });
     } catch {
       leaveLive();
@@ -109,8 +121,8 @@ function useAsk(held: LiveLink | null) {
   }
 
   return {
-    fields: { pasted, code, name, note },
-    set: { setPasted, setCode, setName, setNote },
+    fields: { pasted, code, name, note, useRoutes },
+    set: { setPasted, setCode, setName, setNote, setUseRoutes },
     link,
     needsCode,
     ready,
@@ -123,8 +135,8 @@ function useAsk(held: LiveLink | null) {
 function AskForm({ held }: { held: LiveLink | null }) {
   const { fields, set, link, needsCode, ready, busy, failed, ask } =
     useAsk(held);
-  const { pasted, code, name, note } = fields;
-  const { setPasted, setCode, setName, setNote } = set;
+  const { pasted, code, name, note, useRoutes } = fields;
+  const { setPasted, setCode, setName, setNote, setUseRoutes } = set;
 
   return (
     <form
@@ -184,6 +196,14 @@ function AskForm({ held }: { held: LiveLink | null }) {
         disabled={busy}
         onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
       />
+      {link ? (
+        <RoutesChoice
+          routes={link.routes}
+          checked={useRoutes}
+          disabled={busy}
+          onChange={setUseRoutes}
+        />
+      ) : null}
       {failed ? <StatusMark tone="err" label={failed} /> : null}
       <FormCommit
         label="Ask to join"
@@ -210,7 +230,10 @@ function Session() {
         ) : null}
       </div>
       {status.at === "request" ? (
-        <RequestStep guest={guest} code={status.code} />
+        <>
+          <CarrierMarks rendezvous={currentGuestCarriers()} />
+          <RequestStep guest={guest} code={status.code} />
+        </>
       ) : null}
       {catalog ? (
         <LiveCatalog

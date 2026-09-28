@@ -1,53 +1,35 @@
 /**
  * The keys behind a live session's pairing codes (ADR 0148 §3).
  *
- * Two people pair their browsers by passing each other two codes, by
- * whatever channel they already share. Neither code travels through any
- * server of ours or anyone's, so what protects them is here:
+ * Two people pair their browsers with two codes. They pass them by hand, or
+ * an optional carrier the owner named passes them on a topic only link
+ * holders can name (`rendezvous.ts`). Either way, what protects them is here:
  *
- * - The **link secret** (32 random bytes) and, in an invite session, the
- *   out-of-band **code** key both codes: AES-256-GCM under
- *   HKDF-SHA256(secret, salt = code, info = purpose). Whoever holds only the
- *   link cannot read or write an invite session's codes.
- * - The **owner key** — an ECDSA P-256 key minted per session, its public
- *   half in the link — signs every reply code, so a person holding the link
- *   cannot pose as the owner to another joiner.
+ * - The **link secret** (32 random bytes) keys an outer seal on every
+ *   request: whoever cannot open it does not hold the link, so what a
+ *   stranger posts on a carrier is dropped and never counted as a guess.
+ * - The **owner key** — an ECDH P-256 key minted per session, its public
+ *   half in the link — and a fresh **joiner key** per request share a
+ *   secret nobody else can derive. With the link secret and, in an invite
+ *   session, the out-of-band **code**, it keys the request (only the owner
+ *   reads it) and the reply (only that joiner reads it, and only the owner
+ *   could have made it): AES-256-GCM under
+ *   HKDF-SHA256(shared ‖ secret, salt = code, info = purpose).
  *
- * Every seal binds its context as additional data (the purpose, the owner
- * key, and for a reply the request it answers), so a code cannot be replayed
- * in another place.
+ * Every seal binds its context as additional data (the purpose, both keys,
+ * and for a reply the request it answers), so a code cannot be replayed in
+ * another place.
  */
 
 const LABEL = "osm-live-v1";
 /** The code alphabet ADR 0044 codes use: no vowels, no look-alikes. */
 const CODE_LETTERS = "BCDFGHJKLMNPQRSTVWXZ";
 const IV_BYTES = 12;
-const ECDSA = { name: "ECDSA", namedCurve: "P-256" } as const;
-const SIGNING = { name: "ECDSA", hash: "SHA-256" } as const;
+const ECDH = { name: "ECDH", namedCurve: "P-256" } as const;
 const encoder = new TextEncoder();
 
-export function toB64url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-export function fromB64url(raw: string): Uint8Array<ArrayBuffer> | null {
-  if (!/^[A-Za-z0-9_-]*$/.test(raw)) return null;
-  try {
-    const padded = raw.replace(/-/g, "+").replace(/_/g, "/");
-    const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
-    const bytes = new Uint8Array(binary.length);
-    for (let at = 0; at < binary.length; at += 1)
-      bytes[at] = binary.charCodeAt(at);
-    return bytes;
-  } catch {
-    return null;
-  }
-}
+export { fromB64url, toB64url } from "./b64.js";
+import { fromB64url, toB64url } from "./b64.js";
 
 /** A fresh link secret: 32 random bytes, base64url. */
 export function newLinkSecret(): string {
@@ -73,7 +55,12 @@ export function newCode(): string {
   return `${letters.slice(0, 4).join("")}-${letters.slice(4).join("")}`;
 }
 
-export type Purpose = "request" | "reply";
+/**
+ * `request-outer` is keyed by the link secret alone: whoever cannot open it
+ * does not hold the link. `request` and `reply` add the code and the secret
+ * the owner and one joiner share.
+ */
+export type Purpose = "request-outer" | "request" | "reply";
 
 export type SealContext = Readonly<{
   /** The link secret, base64url. */
@@ -81,14 +68,23 @@ export type SealContext = Readonly<{
   /** The normalized code in an invite session; null in an open one. */
   code: string | null;
   purpose: Purpose;
-  /** What the seal is bound to: the owner key, and a reply's request id. */
+  /** What the seal is bound to: the owner key, the joiner's, a request id. */
   bound: readonly string[];
+  /** The ECDH secret the owner and one joiner share, where there is one. */
+  shared?: Uint8Array<ArrayBuffer> | null;
 }>;
 
 async function sealKey(context: SealContext): Promise<CryptoKey | null> {
   const secret = fromB64url(context.secret);
   if (!secret || secret.length !== 32) return null;
-  const base = await crypto.subtle.importKey("raw", secret, "HKDF", false, [
+  const { shared } = context;
+  let material = secret;
+  if (shared) {
+    material = new Uint8Array(shared.length + secret.length);
+    material.set(shared);
+    material.set(secret, shared.length);
+  }
+  const base = await crypto.subtle.importKey("raw", material, "HKDF", false, [
     "deriveKey",
   ]);
   return crypto.subtle.deriveKey(
@@ -152,51 +148,46 @@ export async function unseal(
   }
 }
 
-export type OwnerKey = Readonly<{
+/**
+ * An ECDH P-256 key pair whose private half never leaves WebCrypto: the
+ * owner's for the session (its public half in the link), and a joiner's for
+ * one request.
+ */
+export type Keypair = Readonly<{
   /** The public key, raw uncompressed P-256 point, base64url (87 chars). */
   pub: string;
-  sign: (data: string) => Promise<string>;
+  /** The 32-byte secret shared with the holder of `peer`, or null. */
+  shared: (peer: string) => Promise<Uint8Array<ArrayBuffer> | null>;
 }>;
 
-/** A fresh signing key for one session; its private half never leaves. */
-export async function newOwnerKey(): Promise<OwnerKey> {
-  const pair = await crypto.subtle.generateKey(ECDSA, false, [
-    "sign",
-    "verify",
-  ]);
+/** A fresh key pair; its private half is not extractable. */
+export async function newKeypair(): Promise<Keypair> {
+  const pair = await crypto.subtle.generateKey(ECDH, false, ["deriveBits"]);
   const raw = new Uint8Array(
     await crypto.subtle.exportKey("raw", pair.publicKey),
   );
   return {
     pub: toB64url(raw),
-    sign: async (data) =>
-      toB64url(
-        new Uint8Array(
-          await crypto.subtle.sign(
-            SIGNING,
-            pair.privateKey,
-            encoder.encode(data),
-          ),
-        ),
-      ),
+    async shared(peer) {
+      const point = fromB64url(peer);
+      if (!point || point.length !== 65) return null;
+      try {
+        const key = await crypto.subtle.importKey(
+          "raw",
+          point,
+          ECDH,
+          false,
+          [],
+        );
+        const bits = await crypto.subtle.deriveBits(
+          { name: "ECDH", public: key },
+          pair.privateKey,
+          256,
+        );
+        return new Uint8Array(bits);
+      } catch {
+        return null;
+      }
+    },
   };
-}
-
-/** Whether `signature` is the owner's over `data`. */
-export async function verifyOwner(
-  pub: string,
-  data: string,
-  signature: string,
-): Promise<boolean> {
-  const raw = fromB64url(pub);
-  const sig = fromB64url(signature);
-  if (!raw || raw.length !== 65 || !sig || sig.length !== 64) return false;
-  try {
-    const key = await crypto.subtle.importKey("raw", raw, ECDSA, false, [
-      "verify",
-    ]);
-    return await crypto.subtle.verify(SIGNING, key, sig, encoder.encode(data));
-  } catch {
-    return false;
-  }
 }

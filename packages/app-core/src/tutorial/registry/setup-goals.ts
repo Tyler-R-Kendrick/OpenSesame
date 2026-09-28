@@ -69,7 +69,7 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "setup.join-session"',
-      'say "Join a live session from the link its owner shared (and, for an invite, the code they gave you another way). Send the owner the request code this page makes, paste back their reply code, and the two browsers connect directly. What they share stays in this tab only until the session ends."',
+      'say "Join a live session from the link its owner shared (and, for an invite, the code they gave you another way). Send the owner the request code this page makes and paste back their reply code, or let the carrier the link names pass them, and the two browsers connect. What they share stays in this tab only until the session ends."',
       'focus "setup.join" "A shared link opens this by itself." side=top',
       "end",
     ].join("\n"),
