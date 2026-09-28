@@ -99,7 +99,8 @@ already a dependency, not SubtleCrypto.
   stays held in memory.
 - **lost** — the key record is gone while seals remain (IndexedDB cleared
   alone, a partial reset). The browser does not mint a new key over them
-  (`sealed-evidence.ts`): the document runs ephemeral, and `kv.ts` refuses
+  (`sealed-evidence.ts`, which counts local storage and origin files, never
+  one tab's session storage): the document runs ephemeral, and `kv.ts` refuses
   to write over any file that does not open under the key it has, so a first
   run can never put a new vault where an old one still lies. A tab whose
   browser is being reset never reopens the key's database.
@@ -111,9 +112,10 @@ lies. Boot sweeps the rest before hydrating: every app-owned Web Storage key
 (never another project site's key on the shared origin, never MSAL's), every
 `opensesame-pages-*` file (under a Web Lock, checking a five-byte prefix, so a
 sealed file is never rewritten), and every history row on first use — a row
-the app cannot parse is sealed whole, not dropped. Once a sweep finds every
-file sealed it records `opensesame.at-rest.swept.v1` and later boots skip it.
-The extension seals `hostApiBase` on its next read.
+the app cannot parse is sealed whole, not dropped. The file sweep runs on
+every boot — a tab of an older build may have written in the clear since —
+checking only each file's first five bytes, in parallel. The extension seals
+`hostApiBase` on its next read.
 
 ## What this protects, and what it does not
 
