@@ -21,6 +21,18 @@ async function centre(locator, verb) {
 
 export function markSteps({ press }) {
   return {
+    /**
+     * Print each matching mark's sentence. A mark says it in `aria-label`,
+     * not in text, so `report` would print nothing for it.
+     */
+    async labels(page, selector) {
+      const said = await page
+        .locator(selector)
+        .evaluateAll((nodes) =>
+          nodes.map((node) => node.getAttribute("aria-label")),
+        );
+      console.log(`  labels ${selector}: ${said.join(" | ") || "none"}`);
+    },
     /** A plain tap (a click, on a desktop capture) on the first mark. */
     async tapMark(page) {
       const mark = firstMark(page);

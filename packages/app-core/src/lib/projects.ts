@@ -1,8 +1,4 @@
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 /**
  * Local project registry — the top level of the client hierarchy.
  *
@@ -24,13 +20,24 @@ import {
  * are private to this device until they are linked to a server project.
  */
 
-import { kvDeleteDurable, kvGet, kvHydrate, kvSetDurable } from "./kv.js";
 import {
+  kvDeleteDurable,
+  kvGet,
+  kvHydrate,
+  kvRefresh,
+  kvSetDurable,
+} from "./kv.js";
+import {
+  type BootRecord,
+  LEGACY_VAULT_KEYS,
   PERSONAL_PROJECT_ID,
+  PROJECTS_KEY,
+  PROJECT_SCOPED_KEYS,
   type PagesProject,
   type ProjectsState,
   onDeviceView,
   personalProject,
+  readBootActiveId,
   sanitize,
   withKnownNames,
 } from "./projects-state.js";
@@ -40,6 +47,7 @@ import {
   HEADER_PATH,
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
+  TOMBS_REGISTRY_KEY,
   VfsError,
   deleteFile,
   deletePlaintextFile,
@@ -51,54 +59,16 @@ import {
   writeFile,
 } from "./vfs.js";
 
-/**
- * Boot record key — plaintext `{ v: 1, activeId }`. The active tomb pointer
- * is a tomb name, and tomb names are not secrets (ADR 0063).
- */
-export const PROJECTS_KEY = "projects.v1";
 /** Sealed VFS path (within a tomb) holding this tomb's projects view. */
 export const PROJECTS_CONFIG_PATH = "config/projects";
 export {
   PERSONAL_PROJECT_ID,
+  PROJECTS_KEY,
+  PROJECT_SCOPED_KEYS,
   type PagesProject,
   type PagesProjectKind,
   type ProjectsState,
 } from "./projects-state.js";
-
-type BootRecord = { v: 1; activeId: string };
-
-/**
- * Base KV keys that are stored once per project rather than per device.
- * The vault header/body/prefs left this list for tomb paths (ADR 0063);
- * lockout counters stay plaintext at their scoped key by design.
- */
-export const PROJECT_SCOPED_KEYS = [
-  "vault.attempts.v1",
-  "site-broker.consents.v1",
-  "site-broker.policy.v1",
-] as const;
-
-/** Legacy flat vault keys — hydrated only so the tomb migration can move them. */
-const LEGACY_VAULT_KEYS = [
-  "vault.header.v1",
-  "vault.body.v1",
-  "vault.prefs.v1", // gitleaks:allow -- storage key, not a credential
-] as const;
-
-/** The plaintext boot pointer — just the active tomb name. */
-function readBootActiveId(): string {
-  const raw = kvGet(PROJECTS_KEY);
-  if (!raw) return PERSONAL_PROJECT_ID;
-  try {
-    const parsed: BoundaryValue = JSON.parse(raw);
-    if (isJsonObject(parsed) && isString(parsed.activeId)) {
-      return parsed.activeId;
-    }
-  } catch {
-    /* fall through to personal */
-  }
-  return PERSONAL_PROJECT_ID;
-}
 
 /**
  * The pre-unlock view: tomb names from the plaintext registry (display names
@@ -129,15 +99,15 @@ function bootView(extra: readonly string[] = []): ProjectsState {
 }
 
 /**
- * Projects a sealed view lists whose vault still sits under the legacy
- * scoped keys — on this device, but not a registered tomb until phase B
- * moves it on first activation.
+ * Which of `ids` still keep their vault under the legacy scoped keys — on
+ * this device, but not a registered tomb until phase B moves it on first
+ * activation. Travel (ADR 0143) refuses these until opened once.
  */
-async function legacyVaults(view: ProjectsState): Promise<string[]> {
+export async function legacyVaultsAmong(
+  ids: readonly string[],
+): Promise<string[]> {
   const tombs = new Set(listTombs());
-  const candidates = view.projects
-    .map((project) => project.id)
-    .filter((id) => !tombs.has(id));
+  const candidates = ids.filter((id) => !tombs.has(id));
   const keys = candidates.map((id) => scopedKey(LEGACY_VAULT_KEYS[0], id));
   await kvHydrate(keys);
   return candidates.filter((_, i) => kvGet(keys[i] ?? "") !== null);
@@ -188,30 +158,37 @@ export async function refreshProjectsView(): Promise<void> {
  */
 export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
   activeTomb = tomb;
+  let sealed: ProjectsState;
   try {
     const bytes = await readFile(tomb, PROJECTS_CONFIG_PATH);
-    const sealed = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
-    // The vaults on this device, in the sealed view's order; a sibling that
-    // left while this was locked (deleted, travel ADR 0143) is scrubbed.
-    cached = onDeviceView(bootView(await legacyVaults(sealed)), sealed);
-    const present = new Set(cached.projects.map((project) => project.id));
-    if (sealed.projects.some((project) => !present.has(project.id))) {
-      await writeFile(
-        tomb,
-        PROJECTS_CONFIG_PATH,
-        new TextEncoder().encode(JSON.stringify(cached)),
-      );
-    }
+    sealed = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") throw error;
     // No sealed copy yet — a tomb sealed moments ago from the vault switcher.
     // The boot view carries any name typed in this tab (`unsealedNames`);
     // seal it here now rather than leaving it to the next mutation.
     cached = bootView();
-    if (unsealedNames.has(tomb) && tombUnlocked(tomb)) {
-      await writeState(cached);
-      return;
-    }
+    if (unsealedNames.has(tomb) && tombUnlocked(tomb))
+      return writeState(cached);
+    return emit();
+  }
+  // A sibling that left while this was locked (deleted, travel ADR 0143) is
+  // scrubbed — against the registry as stored now, since another tab may
+  // have registered a vault this one has not seen. A registry that cannot
+  // be read leaves the sealed view standing: no name is dropped on a guess.
+  const ids = sealed.projects.map((project) => project.id);
+  const legacy = await kvRefresh(TOMBS_REGISTRY_KEY, 1 << 20).then(
+    () => legacyVaultsAmong(ids),
+    () => null,
+  );
+  cached = legacy ? onDeviceView(bootView(legacy), sealed) : sealed;
+  const present = new Set(cached.projects.map((project) => project.id));
+  if (ids.some((id) => !present.has(id))) {
+    const bytes = new TextEncoder().encode(JSON.stringify(cached));
+    // A failed rewrite leaves the scrub to the next write; the view is right.
+    await writeFile(tomb, PROJECTS_CONFIG_PATH, bytes).catch((error) => {
+      if (error instanceof VfsError && error.code === "locked") throw error;
+    });
   }
   emit();
 }

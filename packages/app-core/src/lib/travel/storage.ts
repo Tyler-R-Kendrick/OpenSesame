@@ -43,6 +43,11 @@ export function tombStem(id: string): string {
   return kvFileName(`tomb/${id}/`).replace(/\.json$/, "");
 }
 
+/** A vault's plaintext header: the file that says a vault is here at all. */
+export function headerOf(id: string): string {
+  return `${tombStem(id)}header.json`;
+}
+
 /** The plaintext records named for a vault, as origin file names. */
 export function scopedFiles(id: string): Set<string> {
   const keys = [...projectScopedKeys(id), `${OFFLINE_CACHE_PREFIX}${id}`];

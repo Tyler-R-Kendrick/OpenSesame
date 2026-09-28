@@ -50,6 +50,7 @@ const REFUSAL_TEXT = new Map<string, string>([
   ["code_mismatch", "That return code does not open this bundle"],
   ["foreign_file", "This bundle carries files that are not a vault's; refused"],
   ["unsupported_version", "This bundle was written by a newer version"],
+  ["bundle_too_large", "That file is larger than any travel bundle"],
 ]);
 
 export function travelRefusalText(code: string): string {

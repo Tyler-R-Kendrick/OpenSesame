@@ -51,7 +51,6 @@ function SafeList({
                 className="toggle"
                 role="switch"
                 aria-checked={on}
-                aria-pressed={on}
                 aria-label={label}
                 title={label}
                 disabled={busy || open}

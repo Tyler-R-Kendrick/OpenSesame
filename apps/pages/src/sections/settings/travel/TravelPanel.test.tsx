@@ -13,6 +13,7 @@ import {
   type FakeOrigin,
   fakeOrigin,
   putVault,
+  tombFile,
   vault,
 } from "@opensesame/app-core/lib/travel/travel.test-support.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
@@ -117,5 +118,58 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     expect(screen.getByText("4 files removed")).toBeTruthy();
     await waitFor(() => expect(origin.tombs.has(WORK)).toBe(false));
     expect(origin.tombs.has("personal")).toBe(true);
+  });
+
+  it("keeps the package after a removal cut short, and finishes it with the same press", async () => {
+    render(<TravelPanel />);
+    origin.stuck.add(tombFile(WORK, "body"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    await screen.findByText(/^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/);
+    for (const name of [
+      "The bundle is saved somewhere other than this device",
+      "The return code is written down, and it stays home",
+    ]) {
+      fireEvent.click(screen.getByRole("checkbox", { name }));
+    }
+    const depart = screen.getByRole("button", {
+      name: "Take them off this device",
+    });
+    fireEvent.click(depart);
+    await screen.findByText("3 files removed · 1 could not be");
+    // Still packed: the code and the button are where they were.
+    expect(
+      screen.getByRole("button", { name: "Take them off this device" }),
+    ).toBeTruthy();
+
+    origin.stuck.clear();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Take them off this device" }),
+    );
+    await screen.findByText("1 file removed");
+    expect(origin.files.has(tombFile(WORK, "body"))).toBe(false);
+  });
+
+  it("refuses a file too large to be a bundle without reading it", async () => {
+    render(<TravelPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Bring vaults home" }));
+    let read = false;
+    const huge = new File(["{}"], "huge.json", { type: "application/json" });
+    Object.defineProperty(huge, "size", { value: 65 * 1024 * 1024 });
+    huge.text = async () => {
+      read = true;
+      return "";
+    };
+    fireEvent.change(screen.getByLabelText("Choose the travel bundle"), {
+      target: { files: [huge] },
+    });
+    expect(
+      await screen.findByRole("img", {
+        name: "That file is larger than any travel bundle",
+      }),
+    ).toBeTruthy();
+    expect(read).toBe(false);
+    expect(screen.getByText("No bundle chosen")).toBeTruthy();
   });
 });
