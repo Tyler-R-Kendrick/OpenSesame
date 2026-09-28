@@ -1,12 +1,12 @@
 {
   "version": "1.0.3",
   "packageVersion": "1.0.3",
-  "sourceCommit": "09c0b812ea3d0e64011c2946e319dfd7afacce80",
-  "sri": "sha384-VaaFZL4N3h/U9uztoVYRQHTQ5BAJtxUfNZLSGdMc1JDZspwImVU8scbse4M/SlcH",
+  "sourceCommit": "ad50da65e00109e1f70e420d4a639424ed4b1c03",
+  "sri": "sha384-brpOzpc8HT9FshCSnm6s/Ty1TFI3Owc+MV9DyT5Hur811huta/+BAhAxuExPxBhc",
   "artifacts": [
     {
       "path": "apps/pages/public/static-auth/1.0.3/opensesame-auth.min.js",
-      "sri": "sha384-VaaFZL4N3h/U9uztoVYRQHTQ5BAJtxUfNZLSGdMc1JDZspwImVU8scbse4M/SlcH"
+      "sri": "sha384-brpOzpc8HT9FshCSnm6s/Ty1TFI3Owc+MV9DyT5Hur811huta/+BAhAxuExPxBhc"
     },
     {
       "path": "apps/pages/public/auth.js",
