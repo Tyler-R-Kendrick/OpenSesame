@@ -1,3 +1,4 @@
+import { scrubText } from "@opensesame/log-scrub";
 import type { SupportRequest } from "./contract.js";
 import { SupportEgressRefused } from "./egress.js";
 
@@ -8,7 +9,9 @@ export const REMOTE_PAYLOAD_BYTES = 8192;
 export function redactSupportQuestion(question: string): string {
   if (question.length > REMOTE_QUESTION_LIMIT)
     throw new SupportEgressRefused("question", "exceeds remote limit");
-  return question
+  // The shared scrubber first (ADR 0150): JWTs, `osc_` tokens, secret URL
+  // parameters. The coarser prose rules below then catch what it cannot name.
+  return scrubText(question)
     .replace(
       /-----BEGIN [^-]+-----[\s\S]*?(?:-----END [^-]+-----|$)/g,
       "[redacted key]",

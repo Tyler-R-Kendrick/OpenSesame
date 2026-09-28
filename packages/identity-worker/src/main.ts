@@ -3,6 +3,7 @@ import {
   createPostgresOidcStore,
   createRepositories,
 } from "@opensesame/database";
+import { describeError } from "@opensesame/log-scrub";
 import { createLogger } from "@opensesame/observability";
 import { startCleanupLoop } from "./cleanup.js";
 import {
@@ -112,7 +113,7 @@ export async function main(): Promise<void> {
 
 if (process.env.VITEST === undefined) {
   main().catch((err) => {
-    console.error(err);
+    console.error(describeError(err));
     process.exit(1);
   });
 }

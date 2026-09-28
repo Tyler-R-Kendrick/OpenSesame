@@ -23,9 +23,9 @@ secrets from a payload and refuses one that still looks like a credential.
 
 | Export | What it does |
 |---|---|
-| `createLogger({ name?, level?, redactPaths?, destination? })` | A pino `Logger`; level from the option, then `OPENSESAME_LOG_LEVEL`, then `LOG_LEVEL`, then `info` |
-| `redactDeep(value)` | Censors keys matching `SENSITIVE_KEY_PATTERN` at any depth; cycle-safe, depth-capped at 12 |
-| `LOG_REDACT_PATHS`, `SENSITIVE_KEY_PATTERN` | The pino redact paths and the key pattern (tokens, codes, secrets, passwords, private keys, DPoP, ciphertext …) |
+| `createLogger({ name?, level?, redactPaths?, destination? })` | A pino `Logger`; level from the option, then `OPENSESAME_LOG_LEVEL`, then `LOG_LEVEL`, then `info`. Every argument to a log call is scrubbed by key *and* by shape ([ADR 0150](../../docs/adr/0150-logs-and-events-carry-no-secrets.md)): the message string, interpolation values and `err.message`/`stack` included |
+| `redactDeep(value)`, `scrubValue`, `scrubText`, `isSensitiveKey`, `REDACTED` | The shared scrubber from [`@opensesame/log-scrub`](../log-scrub): sensitive keys censored at any depth, every string scrubbed by shape; cycle-safe, depth-capped at 12 |
+| `LOG_REDACT_PATHS` | The pino redact paths (the fast path; the deep scrub is what holds) |
 | `forAgent(text, env?)` | `scrubLocalSecrets`, then throws `AgentPayloadRefused` if `looksLikeCredential` still matches |
 | `scrubLocalSecrets(text, env?)` | Replaces registered secrets and the values of `OPENSESAME_OPERATOR_TOKEN`, `OPENSESAME_ACCESS_TOKEN`, `OPENSESAME_IDENTITY_TOKEN`, `OPENSESAME_CLAIM_PEPPER` and `OPENSESAME_AGENT_LAUNCH_HANDLE` with `[REDACTED]` |
 | `registerAgentSecret(value, expiresAt)` | Adds a short-lived secret to the scrub list |

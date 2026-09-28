@@ -21,6 +21,7 @@
     "start": "node --import tsx src/bin.ts"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
     "@opensesame/mcp-client": "workspace:*",

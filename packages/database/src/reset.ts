@@ -1,3 +1,4 @@
+import { describeError } from "@opensesame/log-scrub";
 import postgres from "postgres";
 import { runMigrations } from "./migrate.js";
 
@@ -32,7 +33,7 @@ const isCli =
 
 if (isCli) {
   main().catch((err) => {
-    console.error(err);
+    console.error(describeError(err));
     process.exit(1);
   });
 }

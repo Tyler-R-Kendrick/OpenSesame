@@ -40,6 +40,7 @@
     "vitest": "4.1.11"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*"
   }
 }

@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import spec from "../../../spec/log-scrub/log-scrub.json" with {
-  type: "json",
-};
-import { REDACTED, isSensitiveKey, scrubText, scrubValue } from "./index.js";
+import spec from "../../../spec/log-scrub/log-scrub.json" with { type: "json" };
+import {
+  REDACTED,
+  describeError,
+  isSensitiveKey,
+  scrubStrings,
+  scrubText,
+  scrubValue,
+} from "./index.js";
 
 describe("the shared vectors", () => {
   for (const vector of spec.vectors) {
@@ -67,14 +72,18 @@ describe("scrubValue", () => {
   });
 
   it("replaces binary, cuts cycles and bounds depth", () => {
-    const loop: Record<string, object> = {};
+    interface Chain {
+      self?: Chain;
+      next?: Chain;
+    }
+    const loop: Chain = {};
     loop.self = loop;
-    let deep: Record<string, object> = {};
-    const top = deep;
+    const top: Chain = {};
+    let tail = top;
     for (let i = 0; i < 30; i += 1) {
-      const next: Record<string, object> = {};
-      deep.next = next;
-      deep = next;
+      const link: Chain = {};
+      tail.next = link;
+      tail = link;
     }
     expect(scrubValue({ bytes: new Uint8Array([1, 2]) }).bytes).toBe(REDACTED);
     expect(scrubValue(loop)).toEqual({ self: "[Circular]" });
@@ -98,5 +107,35 @@ describe("scrubValue", () => {
     const start = Date.now();
     scrubText(text);
     expect(Date.now() - start).toBeLessThan(1000);
+  });
+});
+
+describe("describeError", () => {
+  it("prints an error's stack scrubbed", () => {
+    const text = describeError(
+      new Error("connect postgres://u:pw@db/x failed"),
+    );
+    expect(text).not.toContain("pw@");
+    expect(text).toContain("failed");
+  });
+
+  it("prints a thrown string or object scrubbed", () => {
+    expect(describeError("token=abc123")).toBe("token=[REDACTED]");
+    expect(describeError({ password: "p", ok: 1 })).toContain(REDACTED);
+  });
+});
+
+describe("scrubStrings", () => {
+  it("scrubs strings and leaves every key's policy to the caller", () => {
+    const out = scrubStrings({
+      user_code: "ABCD-EFGH",
+      note: "sent to https://x.example/cb?code=abc&page=2",
+      list: ["token=abc123"],
+    });
+    expect(out).toEqual({
+      user_code: "ABCD-EFGH",
+      note: `sent to https://x.example/cb?code=${REDACTED}&page=2`,
+      list: [`token=${REDACTED}`],
+    });
   });
 });

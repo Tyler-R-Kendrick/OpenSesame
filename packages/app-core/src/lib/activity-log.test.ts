@@ -26,6 +26,21 @@ describe("activity log", () => {
     activitySeams.activeTomb = () => null;
   });
 
+  it("scrubs a secret a caller left in the summary or the target", async () => {
+    const { vaultKey } = await mintVaultKey();
+    unlockTomb(PERSONAL_TOMB, vaultKey);
+    const rows = await recordActivityEvent(PERSONAL_TOMB, {
+      category: "request",
+      type: "request.failed",
+      summary:
+        "claim failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart",
+      targetType: "claim",
+      targetId: "https://x.example/cb?code=abc123",
+    });
+    expect(JSON.stringify(rows)).not.toMatch(/osc_clm_|s3cr3tpart|abc123/);
+    expect(rows[0]?.summary).toContain("claim failed");
+  });
+
   it("seals events under the vault and ignores emit without a tomb", async () => {
     emitActivity({
       category: "settings",

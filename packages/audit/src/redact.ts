@@ -1,3 +1,4 @@
+import { scrubText } from "@opensesame/log-scrub";
 import {
   type JsonObject,
   isBoolean,
@@ -151,10 +152,17 @@ export function isDeniedAuditMetadataKey(key: string): boolean {
   return DENY_KEY.test(key);
 }
 
+/**
+ * Scrubbed before it is cut (ADR 0150): an allowlisted key such as `note`,
+ * `reason`, `path` or `issuer` holds free text, and the key being safe says
+ * nothing about what a caller put in the value. Cutting first could leave the
+ * front of a token that no pattern recognises any more.
+ */
 function truncateString(value: string): string {
-  return value.length > AUDIT_VALUE_MAX_LENGTH
-    ? `${value.slice(0, AUDIT_VALUE_MAX_LENGTH)}…`
-    : value;
+  const clean = scrubText(value);
+  return clean.length > AUDIT_VALUE_MAX_LENGTH
+    ? `${clean.slice(0, AUDIT_VALUE_MAX_LENGTH)}…`
+    : clean;
 }
 
 /**

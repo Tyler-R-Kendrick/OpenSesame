@@ -1,5 +1,8 @@
 /** Shared last-mile guard for text crossing into model-visible tool output. */
-export const REDACTED = "[REDACTED]";
+
+import { REDACTED, scrubText } from "@opensesame/log-scrub";
+
+export { REDACTED };
 
 const transientSecrets = new Map<string, number>();
 
@@ -89,7 +92,10 @@ export function forAgent(
   text: string,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
+  // Registered secrets by value, then the refusal contract for credential
+  // markers (loud, never quietly scrubbed), then anything else shaped like a
+  // secret (ADR 0150): a bearer, a JWT or a `#token=` URL has no registry entry.
   const scrubbed = scrubLocalSecrets(text, env);
   if (looksLikeCredential(scrubbed)) throw new AgentPayloadRefused();
-  return scrubbed;
+  return scrubText(scrubbed);
 }

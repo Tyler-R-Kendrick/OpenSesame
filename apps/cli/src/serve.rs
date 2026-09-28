@@ -40,17 +40,18 @@ pub async fn worker(cmd: WorkerCmd) -> anyhow::Result<()> {
 /// logs a secret by mistake, a library error that echoes a URL with a token in
 /// it and a panic message all reach the collector or the file already scrubbed.
 pub fn init_tracing(command: &Commands) {
-    let stdout_text = || ScrubMakeWriter::new(std::io::stdout, Format::Text);
     match command {
         Commands::Host { .. } => tracing_subscriber::fmt()
             .with_env_filter("info,tower_http=info")
             .json()
             .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Json))
             .init(),
-        Commands::Worker { .. } => tracing_subscriber::fmt().with_writer(stdout_text()).init(),
-        Commands::Daemon(args) if args.is_run() => {
-            tracing_subscriber::fmt().with_writer(stdout_text()).init()
-        }
+        Commands::Worker { .. } => tracing_subscriber::fmt()
+            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
+            .init(),
+        Commands::Daemon(args) if args.is_run() => tracing_subscriber::fmt()
+            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
+            .init(),
         _ => tracing_subscriber::fmt()
             .with_env_filter("warn")
             .with_writer(ScrubMakeWriter::new(std::io::stderr, Format::Text))

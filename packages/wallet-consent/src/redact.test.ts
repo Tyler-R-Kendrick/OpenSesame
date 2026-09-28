@@ -19,3 +19,15 @@ describe("redactWalletExport (WAL-B17)", () => {
     expect(exported).toContain("[redacted-hex]");
   });
 });
+
+describe("a wallet export carries no credential by shape (ADR 0150)", () => {
+  it("scrubs a bearer, a JWT and a secret URL parameter", () => {
+    const exported = redactWalletExport({
+      note: "sent Authorization: Bearer abc.def.ghi",
+      link: "https://pay.example/cb?code=abc123&page=2",
+      jwt: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl",
+    });
+    expect(exported).not.toMatch(/abc\.def\.ghi|abc123|eyJhbGci/);
+    expect(exported).toContain("page=2");
+  });
+});

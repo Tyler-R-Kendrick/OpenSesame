@@ -62,6 +62,8 @@ pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disabl
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
+pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
+                          #   tools/quality/log-hygiene-baseline.json (ADR 0150)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
@@ -279,6 +281,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
+| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0150): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
@@ -396,7 +399,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0149).
+  0001–0150).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -438,6 +441,18 @@ Do not add new top-level directories or loose root files — find the group.
   relying party's origin — values seal through `@opensesame/browser-at-rest`.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
+- **Logs and events carry no secrets, by key or by shape**
+  ([ADR 0150](docs/adr/0150-logs-and-events-carry-no-secrets.md)). Redaction
+  by key name alone misses a bearer in an error message, a `#token=` in a URL,
+  a JWT in a stack trace and a DSN with a password in it, so every log line,
+  event, audit row, activity entry and persisted failure passes the shared
+  scrubber (`spec/log-scrub/log-scrub.json`, run by `@opensesame/log-scrub` and
+  `crates/redaction` against the same vectors). Add a shape by adding a rule
+  and a vector to the spec, never to one target. Log through `createLogger`
+  (TypeScript) or a subscriber whose writer is `ScrubMakeWriter` (Rust); never
+  `console.*`, a hand-built `pino(...)` or a bare `tracing_subscriber::fmt()`.
+  `pnpm quality:log-hygiene` counts those and the ledger only falls. A struct
+  holding a secret never derives `Debug`. Log an id, never the secret.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

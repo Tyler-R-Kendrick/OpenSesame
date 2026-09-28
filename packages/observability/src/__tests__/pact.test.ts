@@ -29,7 +29,7 @@ describe("PACT — observability redaction", () => {
       access_token: "LEAK",
     });
     expect(out.token_type).toBe("Bearer");
-    expect(out.access_token).toBe("[Redacted]");
+    expect(out.access_token).toBe("[REDACTED]");
   });
 
   it("adversarial: nested pin and access_token never survive", () => {
@@ -41,17 +41,18 @@ describe("PACT — observability redaction", () => {
   });
 
   it("source: deep walk has a depth ceiling before recurse", () => {
-    assertSourceOrder(readFileSync(join(here, "../logger.ts"), "utf8"), [
-      "const MAX_REDACT_DEPTH = 12",
-      "if (depth >= MAX_REDACT_DEPTH) return CENSOR",
-    ]);
+    // The walk moved to the shared scrubber (ADR 0150); the logger runs it.
+    assertSourceOrder(
+      readFileSync(join(here, "../../../log-scrub/src/scrub.ts"), "utf8"),
+      ["const MAX_DEPTH = 12", "if (depth >= MAX_DEPTH) return REDACTED"],
+    );
   });
 
   it("chaos: nested tokens are gone after redactDeep; cycles terminate", () => {
     const out = redactDeep({
       ctx: { session: { access_token: "LEAK", nested: { pin: "9999" } } },
     });
-    expect(out.ctx.session.access_token).toBe("[Redacted]");
+    expect(out.ctx.session.access_token).toBe("[REDACTED]");
     expect(JSON.stringify(out)).not.toContain("LEAK");
     expect(JSON.stringify(out)).not.toContain("9999");
 
@@ -62,12 +63,12 @@ describe("PACT — observability redaction", () => {
     expect(cyclic.self).toBe("[Circular]");
   });
 
-  it("contract: [Redacted] not plaintext; token_type remains", () => {
+  it("contract: [REDACTED] not plaintext; token_type remains", () => {
     const out = redactDeep({
       access_token: "s",
       token_type: "Bearer",
     });
-    expect(out.access_token).toBe("[Redacted]");
+    expect(out.access_token).toBe("[REDACTED]");
     expect(out.token_type).toBe("Bearer");
     expect(JSON.stringify(out)).not.toContain('"s"');
   });

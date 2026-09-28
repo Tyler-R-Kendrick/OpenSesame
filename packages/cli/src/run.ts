@@ -24,7 +24,7 @@ import {
   redactSecrets,
 } from "@opensesame/sdk-cli";
 import { runHostCommand } from "./host-commands.js";
-import { emit } from "./output.js";
+import { emit, errorLine } from "./output.js";
 import {
   type ParsedCommand,
   type SessionFile,
@@ -97,9 +97,7 @@ async function loadSession(): Promise<SessionFile | null> {
     await assertPrivateFile(path);
   } catch (err) {
     // Loud, not silent: a session the CLI will not touch is worth saying out loud.
-    process.stderr.write(
-      `${err instanceof Error ? err.message : String(err)}\n`,
-    );
+    process.stderr.write(errorLine(overlapCast(err)));
     return null;
   }
   try {
@@ -215,9 +213,7 @@ export async function runCli(
   try {
     command = parseArgs(argv);
   } catch (err) {
-    process.stderr.write(
-      `${err instanceof Error ? err.message : String(err)}\n`,
-    );
+    process.stderr.write(errorLine(overlapCast(err)));
     return 1;
   }
 
@@ -236,9 +232,7 @@ export async function runCli(
     return await dispatch(command, { issuer, api, clientId, fetchImpl, deps });
   } catch (err) {
     // A refused endpoint or a failed exchange is a message, not a stack trace.
-    process.stderr.write(
-      `${err instanceof Error ? err.message : String(err)}\n`,
-    );
+    process.stderr.write(errorLine(overlapCast(err)));
     return 1;
   }
 }

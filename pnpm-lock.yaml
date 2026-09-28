@@ -576,6 +576,9 @@ importers:
       '@opensesame/guide-lang':
         specifier: workspace:*
         version: link:../guide-lang
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -664,6 +667,9 @@ importers:
 
   packages/audit:
     dependencies:
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -805,6 +811,9 @@ importers:
       '@opensesame/app-core':
         specifier: workspace:*
         version: link:../app-core
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/mcp-client':
         specifier: workspace:*
         version: link:../mcp-client
@@ -925,6 +934,9 @@ importers:
       '@opensesame/ingress-evidence':
         specifier: workspace:*
         version: link:../ingress-evidence
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/notification-adapters':
         specifier: workspace:*
         version: link:../notification-adapters
@@ -1019,6 +1031,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -1118,6 +1133,9 @@ importers:
       '@opensesame/database':
         specifier: workspace:*
         version: link:../database
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/observability':
         specifier: workspace:*
         version: link:../observability
@@ -1311,6 +1329,9 @@ importers:
 
   packages/observability:
     dependencies:
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -1455,6 +1476,9 @@ importers:
 
   packages/sdk-cli:
     dependencies:
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -1552,6 +1576,9 @@ importers:
       '@opensesame/guide-lang':
         specifier: workspace:*
         version: link:../guide-lang
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -1571,6 +1598,9 @@ importers:
 
   packages/telemetry:
     dependencies:
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/observability':
         specifier: workspace:*
         version: link:../observability
@@ -1694,6 +1724,9 @@ importers:
 
   packages/wallet-consent:
     dependencies:
+      '@opensesame/log-scrub':
+        specifier: workspace:*
+        version: link:../log-scrub
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain

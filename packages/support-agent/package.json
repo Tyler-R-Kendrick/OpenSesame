@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/guide-lang": "workspace:*",
     "@opensesame/os-domain": "workspace:*"
   },

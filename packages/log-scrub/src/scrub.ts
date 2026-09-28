@@ -96,38 +96,55 @@ function scrubError(
   return out;
 }
 
+/** Values that are never descended into: primitives, binary, dates. */
+function atomic(value: BoundaryValue): BoundaryValue | undefined {
+  if (isString(value)) return scrubText(value);
+  if (value === null || !isTypeofObject(value)) return value;
+  if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
+    return REDACTED;
+  }
+  return value instanceof Date ? value : undefined;
+}
+
+function walkObject(
+  value: BoundaryObject,
+  depth: number,
+  seen: WeakSet<Container>,
+  keys: boolean,
+): BoundaryValue {
+  // Class instances other than errors pass through: log a plain object.
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
+  const out: MutableBoundaryObject = {};
+  for (const [key, item] of Object.entries(overlapCast(value))) {
+    const inner: BoundaryValue = overlapCast(item);
+    const censor = keys && isSensitiveKey(key);
+    out[key] =
+      censor && inner !== null && !isBoolean(inner)
+        ? REDACTED
+        : walk(inner, depth + 1, seen, keys);
+  }
+  return out;
+}
+
 function walk(
   value: BoundaryValue,
   depth: number,
   seen: WeakSet<Container>,
+  keys = true,
 ): BoundaryValue {
-  if (isString(value)) return scrubText(value);
-  if (value === null || !isTypeofObject(value)) return value;
+  const leaf = atomic(value);
+  if (leaf !== undefined || value === undefined) return leaf ?? value;
   if (depth >= MAX_DEPTH) return REDACTED;
-  if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
-    return REDACTED;
-  }
-  if (value instanceof Date) return value;
-  if (seen.has(overlapCast(value))) return "[Circular]";
-  seen.add(overlapCast(value));
+  const container: Container = overlapCast(value);
+  if (seen.has(container)) return "[Circular]";
+  seen.add(container);
 
   if (value instanceof Error) return scrubError(value, depth, seen);
   if (Array.isArray(value)) {
-    return value.map((item) => walk(overlapCast(item), depth + 1, seen));
+    return value.map((item) => walk(overlapCast(item), depth + 1, seen, keys));
   }
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
-
-  const out: MutableBoundaryObject = {};
-  for (const [key, item] of Object.entries(overlapCast(value))) {
-    const inner: BoundaryValue = overlapCast(item);
-    if (isSensitiveKey(key) && inner !== null && !isBoolean(inner)) {
-      out[key] = REDACTED;
-    } else {
-      out[key] = walk(inner, depth + 1, seen);
-    }
-  }
-  return out;
+  return walkObject(overlapCast(value), depth, seen, keys);
 }
 
 /**
@@ -139,4 +156,25 @@ function walk(
 export function scrubValue<T>(value: T): T {
   const input: BoundaryValue = overlapCast(value);
   return overlapCast(walk(input, 0, new WeakSet<Container>()));
+}
+
+/**
+ * An error, or whatever was thrown, as one scrubbed line of text: its stack
+ * when it has one, its message otherwise. For the last-resort `console.error`
+ * of an entry point, where a driver error can echo a DSN with a password.
+ */
+export function describeError(error: BoundaryValue): string {
+  if (error instanceof Error) return scrubText(error.stack ?? error.message);
+  return scrubText(isString(error) ? error : JSON.stringify(scrubValue(error)));
+}
+
+/**
+ * Only the value layer: every string scrubbed, no key censored. For an output
+ * whose own key policy is deliberate, such as the device-flow CLI that must
+ * print a `user_code` for a person to type, but which must still never print a
+ * bearer that arrived inside some other string.
+ */
+export function scrubStrings<T>(value: T): T {
+  const input: BoundaryValue = overlapCast(value);
+  return overlapCast(walk(input, 0, new WeakSet<Container>(), false));
 }

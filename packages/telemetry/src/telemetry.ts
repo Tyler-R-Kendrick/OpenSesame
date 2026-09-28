@@ -1,4 +1,5 @@
-import { SENSITIVE_KEY_PATTERN } from "@opensesame/observability";
+import { scrubText } from "@opensesame/log-scrub";
+import { isSensitiveKey } from "@opensesame/observability";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -51,7 +52,7 @@ const MAX_STRING_LENGTH = 64;
  * Extra forbidden terms, checked as case-insensitive substrings against both
  * an allowed key's *name* and its (stringified) *value*.
  *
- * `SENSITIVE_KEY_PATTERN` from `@opensesame/observability` is reused below as
+ * `isSensitiveKey` from `@opensesame/observability` is reused below as
  * the primary defense-in-depth check, but it is anchored end-to-end
  * (`^token$`, `^client[_-]?secret$`, …) — it is built to recognize a sensitive
  * *key name*, not to find a sensitive term hiding inside an arbitrary
@@ -113,7 +114,7 @@ function containsForbidden(text: string): boolean {
  * if that allowlist ever grows a key that shouldn't have been added.
  */
 function isForbiddenKeyName(key: string): boolean {
-  return SENSITIVE_KEY_PATTERN.test(key) || containsForbidden(key);
+  return isSensitiveKey(key) || containsForbidden(key);
 }
 
 /**
@@ -149,6 +150,9 @@ function sanitizeProps(props: JsonObject | undefined): JsonObject {
     // Checked pre-truncation: a forbidden term sitting just past the 64-char
     // cutoff must still be caught, not sliced away and waved through.
     if (containsForbidden(String(rawValue))) continue;
+    // A value shaped like a credential (a JWT, a bearer, a `#token=` URL) is
+    // dropped whole rather than scrubbed: telemetry has no use for it (ADR 0150).
+    if (scrubText(String(rawValue)) !== String(rawValue)) continue;
 
     out[key] = coercePrimitive(rawValue);
   }

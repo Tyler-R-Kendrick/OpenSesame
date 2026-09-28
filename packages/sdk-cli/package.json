@@ -17,6 +17,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^"
   },

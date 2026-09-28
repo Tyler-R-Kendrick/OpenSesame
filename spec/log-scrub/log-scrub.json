@@ -5,13 +5,7 @@
   "keys": {
     "$comment": "A key is normalised (lower-cased, `_ - . space` removed) and is sensitive when it equals an `exact` entry or ends with a `suffixes` entry. So `accessToken`, `x-api-key`, `db_password` and `csrfToken` are sensitive while `tokenType`, `tokenCount` and `pinned` are not. The value of a sensitive key is replaced unless it is a boolean or null, which carry no secret and keep `hasPassword: true` legible.",
     "strip": "[_.\\- ]",
-    "exact": [
-      "pin",
-      "ciphertext",
-      "verificationuricomplete",
-      "otp",
-      "totp"
-    ],
+    "exact": ["pin", "ciphertext", "verificationuricomplete", "otp", "totp"],
     "suffixes": [
       "token",
       "secret",
@@ -35,10 +29,7 @@
       "credential",
       "credentials"
     ],
-    "keep": [
-      "boolean",
-      "null"
-    ]
+    "keep": ["boolean", "null"]
   },
   "rules": [
     {

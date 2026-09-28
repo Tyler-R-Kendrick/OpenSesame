@@ -1,3 +1,4 @@
+import { scrubStrings } from "@opensesame/log-scrub";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -356,9 +357,16 @@ export class DeviceFlowClient {
 export function redactSecrets(
   value: JsonValue | undefined,
 ): JsonValue | undefined {
+  // Keys are this CLI's own policy (below): a `user_code` is printed on
+  // purpose, for a person to type. The shared scrubber then rewrites any
+  // string that carries a bearer with no key to name it (ADR 0150).
+  return scrubStrings(redactKeys(value));
+}
+
+function redactKeys(value: JsonValue | undefined): JsonValue | undefined {
   if (value === null || !isTypeofObject(value)) return value;
   if (Array.isArray(value)) {
-    return value.map((item) => redactSecrets(item) ?? null);
+    return value.map((item) => redactKeys(item) ?? null);
   }
   const out: JsonObject = {};
   for (const [k, v] of Object.entries(value)) {
@@ -369,7 +377,7 @@ export function redactSecrets(
     ) {
       out[k] = "[redacted]";
     } else {
-      out[k] = redactSecrets(v);
+      out[k] = redactKeys(v);
     }
   }
   return out;
