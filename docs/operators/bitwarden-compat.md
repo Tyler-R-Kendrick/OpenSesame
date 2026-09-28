@@ -43,6 +43,42 @@ In the apps, choose **Self-hosted** and enter the same URL. Accounts are created
 from the web vault or any client that offers registration while signups are
 open; close them again afterwards.
 
+## Move people over from vaultwarden or Bitwarden
+
+The importer moves accounts with their master passwords, keys and vaults
+unchanged ([ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)). The Host
+never sees a password or a decrypted value on the way. Each device signs in
+once more afterwards; nobody picks a new password.
+
+**A whole vaultwarden server.** Stop vaultwarden (so the file is consistent),
+then point the importer at its SQLite database:
+
+```bash
+opensesame bridge bitwarden import vaultwarden --from /srv/vaultwarden/data/db.sqlite3 --dry-run
+opensesame bridge bitwarden import vaultwarden --from /srv/vaultwarden/data/db.sqlite3
+```
+
+Every registered account moves with its folders, favourites, trash and items.
+Its vaultwarden password hash moves too and is replaced with Argon2id at the
+person's first sign-in. Invited accounts that never registered, and disabled
+ones, are listed and skipped.
+
+**One account from a live server** (bitwarden.com, bitwarden.eu, self-hosted
+Bitwarden, or a vaultwarden whose database you cannot reach). The person runs
+it and types their master password, and a two-step or new-device code if the
+old server asks:
+
+```bash
+opensesame bridge bitwarden import account --from https://vault.bitwarden.com --email you@example.com
+```
+
+Both write to the Host database (`--db`, default `$OPENSESAME_DB`). An email
+that already has an account on the Host is left alone unless you pass
+`--replace`, which deletes that account and everything it holds first. Each run
+prints, per account, what moved and what stayed behind (attachments, Sends,
+organization items, two-step methods, emergency contacts), so nothing is lost
+quietly.
+
 ## What people get
 
 - Argon2id by default. An account can move from PBKDF2 to Argon2id from its
@@ -71,10 +107,8 @@ that has them turned off.
   account's security stamp: every token it held stops working at once.
 - Sign-in hashing is bounded to four concurrent Argon2id computations (about
   76 MiB). An unknown email costs the same work as a known one.
-- Server hashes in PBKDF2-SHA256 PHC form are accepted and replaced with
-  Argon2id at the account's next sign-in. Bitwarden's server and vaultwarden
-  store theirs in other forms and there is no importer yet: move an existing
-  vault by exporting it from the old server and importing it with `bw import`.
+- Server hashes in PBKDF2-SHA256 form, which the vaultwarden importer writes,
+  are accepted and replaced with Argon2id at the account's next sign-in.
 - A refresh token lapses after 30 days unused, and dies at once on a password
   change, a KDF change or "log out all sessions".
 - An address that fails to sign in ten times in fifteen minutes is refused

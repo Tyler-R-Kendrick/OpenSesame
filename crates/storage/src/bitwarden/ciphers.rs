@@ -293,7 +293,10 @@ impl Db {
     }
 }
 
-async fn insert_cipher<'e, E>(executor: E, cipher: &BitwardenCipher) -> anyhow::Result<()>
+pub(super) async fn insert_cipher<'e, E>(
+    executor: E,
+    cipher: &BitwardenCipher,
+) -> anyhow::Result<()>
 where
     E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {

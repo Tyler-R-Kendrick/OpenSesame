@@ -3572,6 +3572,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sqlx",
+ "subtle",
  "tempfile",
  "thiserror 2.0.19",
  "tokio",
@@ -3653,6 +3655,7 @@ dependencies = [
  "insta",
  "jsonwebtoken",
  "opensesame-authn",
+ "opensesame-bitwarden-server",
  "opensesame-ceremony",
  "opensesame-connector-host",
  "opensesame-credential-helpers",
@@ -3676,11 +3679,13 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "sqlx",
  "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
