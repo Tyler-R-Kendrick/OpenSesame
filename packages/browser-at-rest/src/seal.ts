@@ -1,6 +1,7 @@
 /**
  * At-rest sealing for the client plane outside the Pages app (ADR 0149): the
- * sync store's origin files and the browser extension's settings.
+ * sync store's origin files, the browser extension's settings, and what the
+ * relying-party SDKs keep between a sign-in and its callback.
  *
  * One non-extractable AES-GCM key per origin, kept in IndexedDB — script can
  * use it and never read it. A value is `osc1.` then base64 of a 12-byte IV
@@ -16,8 +17,6 @@ export const CLIENT_AT_REST_DATABASE = "opensesame-client-at-rest";
 
 const STORE = "keys";
 const RECORD = "device";
-const encoder = new TextEncoder();
-const decoder = new TextDecoder("utf-8", { fatal: true });
 
 export type ClientAtRestKeys = () => Promise<CryptoKey>;
 
@@ -95,7 +94,7 @@ function key(): Promise<CryptoKey | null> {
 }
 
 function binding(store: string, name: string): Uint8Array {
-  return encoder.encode(
+  return new TextEncoder().encode(
     `opensesame.client-at-rest.v1\u0000${store}\u0000${name}`,
   );
 }
@@ -132,7 +131,7 @@ export async function sealForRest(
     await crypto.subtle.encrypt(
       { name: "AES-GCM", iv, additionalData: binding(store, name) },
       current,
-      encoder.encode(text),
+      new TextEncoder().encode(text),
     ),
   );
   const out = new Uint8Array(iv.length + sealed.length);
@@ -164,7 +163,7 @@ export async function openFromRest(
       current,
       bytes.subarray(12),
     );
-    return decoder.decode(plain);
+    return new TextDecoder("utf-8", { fatal: true }).decode(plain);
   } catch {
     return null;
   }

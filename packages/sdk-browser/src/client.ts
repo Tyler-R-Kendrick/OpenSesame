@@ -13,6 +13,7 @@ import {
   safeStoredReturnTo,
 } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
+import { SESSION_KEY, createSessionStore } from "./session-store.js";
 import type {
   ClaimDecision,
   ClaimPresentation,
@@ -21,58 +22,8 @@ import type {
   OpenSesameBrowserConfig,
   ProvisionalSessionResponse,
   Session,
-  StorageLike,
   TokenResponse,
 } from "./types.js";
-
-const PKCE_KEY = "opensesame:pkce";
-const SESSION_KEY = "opensesame:session";
-const RETURN_TO_KEY = "opensesame:returnTo";
-
-class MemoryStorage implements StorageLike {
-  readonly #map = new Map<string, string>();
-  getItem(key: string): string | null {
-    return this.#map.get(key) ?? null;
-  }
-  setItem(key: string, value: string): void {
-    this.#map.set(key, value);
-  }
-  removeItem(key: string): void {
-    this.#map.delete(key);
-  }
-}
-
-/**
- * Default away from localStorage: tokens/PKCE must not survive as durable
- * XSS-exfiltrable material across browser restarts. sessionStorage still
- * survives the OAuth redirect in the same tab; memory is last resort.
- */
-function resolveStorage(storage?: StorageLike): StorageLike {
-  if (storage) return storage;
-  if (globalThis !== undefined && "sessionStorage" in globalThis) {
-    try {
-      const ss = globalThis.sessionStorage;
-      // Touch to ensure the Storage is usable (private mode quirks).
-      ss.getItem("opensesame:probe");
-      return ss;
-    } catch {
-      /* fall through */
-    }
-  }
-  return new MemoryStorage();
-}
-
-/** Persist session without refresh tokens (keep those in-process only). */
-function sessionForStorage(session: Session): Session {
-  const { refreshToken: _drop, ...rest } = session;
-  if (rest.raw) {
-    const stored: TokenResponse = overlapCast(rest.raw);
-    const { refresh_token: _omit, ...raw } = stored;
-    const nextRaw: TokenResponse = overlapCast(raw);
-    return { ...rest, raw: nextRaw };
-  }
-  return rest;
-}
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
@@ -237,7 +188,7 @@ export function createOpenSesame(
       : `${pageOrigin}/callback`);
   const defaultScopes = originProfile ? ["openid"] : ["openid", "profile"];
   const scopes = (config.scopes ?? defaultScopes).join(" ");
-  const storage = resolveStorage(config.storage);
+  const store = createSessionStore(config.storage);
   const fetchImpl = config.fetchImpl ?? fetch;
   const apiBase = assertSecureUrl(
     trimSlash(config.apiBase ?? issuer),
@@ -277,31 +228,6 @@ export function createOpenSesame(
     }
     discoveryCache = meta;
     return discoveryCache;
-  }
-
-  /** In-tab refresh token; never written to StorageLike. */
-  let refreshTokenMemory: string | undefined;
-
-  function saveSession(session: Session): void {
-    if (session.refreshToken) {
-      refreshTokenMemory = session.refreshToken;
-    }
-    storage.setItem(SESSION_KEY, JSON.stringify(sessionForStorage(session)));
-  }
-
-  function readSession(): Session | null {
-    const raw = storage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    try {
-      const session: Session = overlapCast(JSON.parse(raw));
-      if (!session.refreshToken && refreshTokenMemory) {
-        session.refreshToken = refreshTokenMemory;
-      }
-      return session;
-    } catch {
-      storage.removeItem(SESSION_KEY);
-      return null;
-    }
   }
 
   async function validateIdToken(
@@ -350,7 +276,7 @@ export function createOpenSesame(
     if (!nonce) throw new Error("PKCE state is missing nonce");
     const sub = await validateIdToken(tokens.id_token, nonce, meta.jwks_uri);
     const session = toSession(tokens, false, sub);
-    saveSession(session);
+    await store.saveSession(session);
     return session;
   }
 
@@ -358,15 +284,13 @@ export function createOpenSesame(
     async signIn(options) {
       const meta = await discovery();
       const pkce = await createPkcePair();
-      storage.setItem(
-        PKCE_KEY,
+      await store.savePkce(
         JSON.stringify({ ...pkce, issuer, redirectUri, createdAt: Date.now() }),
       );
-      if (options?.returnTo) {
-        storage.setItem(RETURN_TO_KEY, assertSafeReturnTo(options.returnTo));
-      } else {
-        storage.removeItem(RETURN_TO_KEY);
-      }
+
+      await store.setReturnTo(
+        options?.returnTo ? assertSafeReturnTo(options.returnTo) : null,
+      );
       const url = new URL(meta.authorization_endpoint);
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", clientId);
@@ -400,14 +324,16 @@ export function createOpenSesame(
           : "");
       const url = new URL(href);
       const error = url.searchParams.get("error");
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      // One verifier, one callback: taken before anything is awaited.
+      const taken = error || (code && state) ? store.takePkce() : null;
+      await store.returnToReady;
       if (error) {
-        storage.removeItem(PKCE_KEY);
         scrubCallbackUrl(href);
         throw new Error(`Authorization error: ${error}`);
       }
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      const rawPkce = storage.getItem(PKCE_KEY);
+      const rawPkce = await taken;
       if (!code || !state || !rawPkce) {
         throw new Error("Missing authorization code or PKCE state");
       }
@@ -422,12 +348,8 @@ export function createOpenSesame(
       try {
         pkce = overlapCast(JSON.parse(rawPkce));
       } catch {
-        storage.removeItem(PKCE_KEY);
         throw new Error("Stored PKCE state is unreadable");
       }
-      // One verifier, one callback. A verifier left in storage after a failed or
-      // refused callback is one a second attempt can still spend.
-      storage.removeItem(PKCE_KEY);
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
@@ -437,7 +359,10 @@ export function createOpenSesame(
       return session;
     },
 
-    getReturnTo: () => safeStoredReturnTo(storage.getItem(RETURN_TO_KEY)),
+    getReturnTo: () => safeStoredReturnTo(store.returnTo()),
+
+    resolveReturnTo: () =>
+      store.returnToReady.then(() => safeStoredReturnTo(store.returnTo())),
 
     async continueAnonymously() {
       const res = await fetchImpl(`${apiBase}/v1/principals/provisional`, {
@@ -480,22 +405,22 @@ export function createOpenSesame(
       if (isString(body.principalId)) {
         session.sub = body.principalId;
       }
-      saveSession(session);
+      await store.saveSession(session);
       return session;
     },
 
     async getSession() {
-      const session = readSession();
+      const session = await store.readSession();
       if (!session) return null;
       if (session.expiresAt && session.expiresAt <= Date.now()) {
-        storage.removeItem(SESSION_KEY);
+        store.sealed.remove(SESSION_KEY);
         return null;
       }
       return session;
     },
 
     async presentClaim(token) {
-      const session = readSession();
+      const session = await store.readSession();
       const headers = {
         "content-type": "application/json",
         accept: "application/json",
@@ -533,7 +458,7 @@ export function createOpenSesame(
     },
 
     async completeClaim(claimId, decision: ClaimDecision) {
-      const session = readSession();
+      const session = await store.readSession();
       if (!session) {
         throw new Error("Authentication required to complete claim");
       }
@@ -584,10 +509,8 @@ export function createOpenSesame(
     },
 
     async signOut() {
-      const session = readSession();
-      refreshTokenMemory = undefined;
-      storage.removeItem(SESSION_KEY);
-      storage.removeItem(PKCE_KEY);
+      const session = await store.readSession();
+      store.forgetSession();
       // A provisional session authenticates by its token alone, so clearing
       // client storage is not enough — end it server-side too.
       if (session?.anonymous && session.accessToken) {

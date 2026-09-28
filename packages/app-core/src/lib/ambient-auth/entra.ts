@@ -47,14 +47,6 @@ export type EntraSdk = {
     redirectUri?: string;
     authority?: string;
   }): Promise<EntraIdTokenResult>;
-  loginRedirect(request: {
-    scopes: string[];
-    prompt?: string;
-    loginHint?: string;
-    nonce?: string;
-    redirectUri?: string;
-    authority?: string;
-  }): Promise<void>;
   clearCache(): Promise<void>;
 };
 
@@ -80,7 +72,9 @@ async function loadMsalSdk(input: {
     // cache straight to Web Storage, past the at-rest seal, and a cached
     // account is only a routing hint here — every sign-in verifies a fresh
     // ID token. MSAL still keeps the request in flight (state, PKCE
-    // verifier) in sessionStorage until the redirect completes.
+    // verifier) in sessionStorage for a redirect or popup sign-in, and marks
+    // SSO capability in localStorage after one; this adapter offers neither,
+    // only silent SSO, so MSAL writes nothing to Web Storage at all.
     cache: {
       cacheLocation: "memoryStorage",
     },
@@ -105,16 +99,6 @@ async function loadMsalSdk(input: {
       });
       if (!result.idToken) throw new Error("msal_missing_id_token");
       return { idToken: result.idToken, tenantId: result.tenantId };
-    },
-    loginRedirect: async (request) => {
-      await pca.loginRedirect({
-        scopes: [...request.scopes],
-        prompt: request.prompt,
-        loginHint: request.loginHint,
-        nonce: request.nonce,
-        redirectUri: request.redirectUri,
-        authority: request.authority,
-      });
     },
     clearCache: async () => {
       await pca.clearCache();

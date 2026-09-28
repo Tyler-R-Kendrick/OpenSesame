@@ -74,10 +74,32 @@ already a dependency, not SubtleCrypto.
   row id and the random account id the index needs are all that stays
   readable.
 - **MSAL**: `cacheLocation: "memoryStorage"`. A cached account was only ever
-  a routing hint; every sign-in verifies a fresh ID token.
-- **Extension and `client-core`**: `sealForRest` / `openFromRest`
-  (`packages/client-core/src/at-rest.ts`), `osc1.` + AES-GCM under a
-  non-extractable key in the extension origin's own IndexedDB.
+  a routing hint; every sign-in verifies a fresh ID token. MSAL writes Web
+  Storage only for a redirect (its request in flight, in `sessionStorage`)
+  or after a redirect or popup (an SSO-capability mark in `localStorage`).
+  The adapter offers neither — silent SSO only — and
+  `ambient-auth/entra-storage.test.ts` pins that, so MSAL writes nothing.
+- **Outside Pages**: `@opensesame/browser-at-rest` — `osc1.` + AES-GCM under
+  a non-extractable key in the origin's own IndexedDB, and `sealedStorage`,
+  an asynchronous sealed view of any synchronous `StorageLike`:
+  - the browser extension's `hostApiBase`, and `client-core`'s sync-store
+    file, whose seal the extension hands `persistSealedStore` (so
+    `client-core` takes no storage dependency of its own);
+  - `@opensesame/sdk-browser` on a relying party's origin: the PKCE
+    transaction, the return path and the session (`session-store.ts`). The
+    storage contract stays synchronous; the client seals and opens around
+    it. `getReturnTo()` reads what `handleRedirectCallback` loaded, and
+    `resolveReturnTo()` waits for it;
+  - `@opensesame/static-auth`'s hosted client: the transaction between
+    `begin` and `complete`, released as hosted SDK 1.0.3 (1.0.2 and the
+    loopback compatibility bytes stay frozen).
+  With no key these keep values in memory, and nothing is written in the
+  clear. A transaction that must outlive the redirect cannot live in memory,
+  so an origin that can keep no key refuses to sign in up front
+  (`storage_unavailable`) rather than fail on the callback page. The
+  transaction is taken — read and removed — before anything is awaited, so
+  two racing callbacks cannot both spend one verifier, and writes land in
+  the order they were asked for.
 
 ### 4. The key's states, and what a store does in each
 
@@ -134,18 +156,9 @@ the only protection for vault contents, as before. Nor does it hide
 **metadata**: key names, file names (tomb ids, never names, ADR 0089), sizes
 and timestamps.
 
-Three things remain outside the seal, by decision:
-
-- MSAL's **request in flight** (state, PKCE verifier) in `sessionStorage`
-  during an Entra redirect. MSAL writes it itself, reads it back raw, and
-  removes it when the redirect completes.
-- The **service worker's Cache API**: the public app shell, byte for byte
-  what every visitor downloads. It holds nothing of the person's.
-- **`@opensesame/sdk-browser` and `@opensesame/static-auth`** on a relying
-  party's own origin. Their storage contract is synchronous and public;
-  sealing it is a separate SDK change with its own ADR.
-
-The app sets no cookies. The Identity API's session cookie is `HttpOnly` and
+The service worker's Cache API is not sealed and holds nothing to seal: it is
+the public app shell, byte for byte what every visitor downloads, and holds
+nothing of the person's. The app sets no cookies. The Identity API's session cookie is `HttpOnly` and
 opaque, and is set by the server.
 
 ## Verification
@@ -158,6 +171,11 @@ opaque, and is set by the server.
   (`scripts/lib/at-rest-contract.mjs`). Every app-owned value, file and row
   must be `osr1.`. The guest's name, the pairwise subject and the person's
   name must appear nowhere. The key must be non-extractable.
+- `packages/browser-at-rest`, `sdk-browser/src/at-rest.test.ts` and
+  `static-auth`'s hosted tests read the relying party's storage raw;
+  `packages/control-plane/scripts/verify-static-auth.mjs` runs hosted
+  sign-in in real Chromium against SDK 1.0.3 and asserts the pending
+  transaction reaches `sessionStorage` sealed and opens after the redirect.
 - Upgrade, checked by hand for this change: a Google sign-in on the base
   build left 17 of 17 values in the clear. Reloading the same profile on this
   build sealed all 17 and landed on the same screen.
