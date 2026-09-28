@@ -120,7 +120,7 @@ describe("settingsPageTree", () => {
         ?.children.map((node) => node.label);
     // A rail entry for a panel that returned null opened General at its
     // top with nothing to show for it.
-    const always = ["Appearance", "Locking", "Keybindings and views"];
+    const always = ["Appearance", "Locking", "Keybindings"];
     expect(general(false)).toEqual(always);
     expect(general(true)).toEqual(["Install", ...always]);
   });
