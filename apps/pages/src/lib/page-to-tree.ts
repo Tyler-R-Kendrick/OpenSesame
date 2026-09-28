@@ -130,7 +130,11 @@ export function pageTreeItemTotal(nodes: readonly PageTreeNode[]): number {
   return total;
 }
 
-/** Keep the first `limit` leaves in page order, dropping empty subheaders. */
+/**
+ * Keep the first `limit` leaves in the order `pageToTree` lists them — a
+ * region's `first` items, then its nested subheaders, then its other items —
+ * dropping empty subheaders. Items keep their relative order.
+ */
 export function limitPageTree(
   sections: readonly PageTreeSource[],
   limit: number,
@@ -139,17 +143,23 @@ export function limitPageTree(
   const limited: PageTreeSource[] = [];
   for (const section of sections) {
     if (remaining <= 0) break;
+    const items = section.items ?? [];
+    const first = items.filter((item) => item.first).slice(0, remaining);
+    remaining -= first.length;
     const nested = limitPageTree(section.sections ?? [], remaining);
     remaining -= pageTreeLeaves(pageToTree(nested)).length;
-    const items =
-      remaining > 0 ? (section.items ?? []).slice(0, remaining) : [];
-    remaining -= items.length;
-    if (nested.length === 0 && items.length === 0 && !section.keepEmpty)
+    const rest = items
+      .filter((item) => !item.first)
+      .slice(0, Math.max(remaining, 0));
+    remaining -= rest.length;
+    const kept = new Set<PageTreeLeaf>([...first, ...rest]);
+    const keptItems = items.filter((item) => kept.has(item));
+    if (nested.length === 0 && keptItems.length === 0 && !section.keepEmpty)
       continue;
     limited.push({
       ...section,
       sections: nested.length ? nested : undefined,
-      items: items.length ? items : undefined,
+      items: keptItems.length ? keptItems : undefined,
     });
   }
   return limited;

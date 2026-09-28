@@ -127,15 +127,15 @@ describe("suggestSettings never offers back what is already typed", () => {
     expect(at("theme: ")).toEqual(["system", "light", "dark"]);
   });
 
-  it("offers a longer key but not the finished one", () => {
-    expect(at("theme")).toEqual([]);
-    expect(at("lockOnHide")).toEqual([]);
+  it("still offers a key that is finished, so Tab can write its colon", () => {
+    expect(at("theme")).toEqual(["theme"]);
+    expect(at("lockOnHide")).toEqual(["lockOnHide"]);
     expect(at("th")).toEqual(["theme"]);
-    expect(at("keybindings")).toEqual([]);
+    expect(at("keybindings")).toEqual(["keybindings"]);
     expect(at("autoLock")).toEqual(["autoLockMinutes"]);
   });
 
-  it("offers no binding action or key equal to the typed one", () => {
+  it("offers no binding action equal to the typed one", () => {
     expect(at("keybindings:\n  j: listing.next")).toEqual([]);
     expect(at("keybindings:\n  j: listing.")).toEqual([
       "listing.search",
@@ -144,11 +144,19 @@ describe("suggestSettings never offers back what is already typed", () => {
     expect(at("keybindings:\n  j: listing.n")).toEqual(["listing.next"]);
     expect(at("keybindings:\n  j: item.e")).toEqual(["item.edit"]);
     expect(at("keybindings:\n  j: ")).toContain("listing.next");
-    expect(at("keybindings:\n  s")).toEqual([]);
-    expect(at('keybindings:\n  "s"')).toEqual([]);
+  });
+
+  it("still offers a binding key that is finished, filtered by what is typed", () => {
+    expect(at("keybindings:\n  s")).toEqual(["s"]);
+    expect(at('keybindings:\n  "s"')).toEqual(["s"]);
     expect(at("keybindings:\n  Control")).toEqual(["Control+l"]);
-    expect(at("keybindings:\n  Control+l")).toEqual([]);
+    expect(at("keybindings:\n  Control+l")).toEqual(["Control+l"]);
     expect(at("keybindings:\n  ")).toContain("Control+l");
+  });
+
+  it("offers nothing on a finished quoted binding line", () => {
+    expect(at('keybindings:\n  "s": item.share')).toEqual([]);
+    expect(at('keybindings:\n  "Control+l": command.palette')).toEqual([]);
   });
 });
 

@@ -189,20 +189,30 @@ export function suggestSettings(
     return [];
   }
   if (line.startsWith(" ") && source.slice(0, caret).includes("keybindings:")) {
+    // A key name is offered while it is still being typed, finished or not:
+    // Tab on a finished key is how the `: ` after it gets written.
     return typedKey
       ? continuations(BINDING_ACTIONS, typedValue)
-      : continuations(BINDING_KEYS, trimmed.replace(/^["']|["']$/g, ""));
+      : startingWith(BINDING_KEYS, trimmed.replace(/^["']|["']$/g, ""));
   }
-  return continuations(
+  return startingWith(
     fields.map((field) => field.key),
     trimmed,
   );
 }
 
+/** Key positions: every option the typed text is a prefix of, itself included. */
+function startingWith(
+  options: readonly string[],
+  typed: string,
+): readonly string[] {
+  return options.filter((option) => option.startsWith(typed));
+}
+
 /**
- * The options that still have something to add to what is typed: a longer
- * option that starts with it, never the text itself — a finished word is not
- * offered back to the person who just wrote it.
+ * Value positions: the options that still have something to add to what is
+ * typed — a longer option that starts with it, never the text itself. A
+ * finished value is not offered back to the person who just wrote it.
  */
 function continuations(
   options: readonly string[],

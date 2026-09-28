@@ -156,6 +156,93 @@ describe("limitPageTree", () => {
     ]);
     expect(limited.map((node) => node.id)).toEqual(["cloud"]);
   });
+
+  describe("with a first item", () => {
+    const leaf = (id: string, first?: boolean) => ({
+      id,
+      label: id,
+      href: `/page/${id}`,
+      ...(first ? { first: true } : {}),
+    });
+    const region = {
+      id: "dir",
+      label: "Dir",
+      href: "/page#dir",
+      // The plain item is listed before the first one on purpose: `first`
+      // moves it ahead of the nested sections, not the array order.
+      items: [leaf("plain"), leaf("config", true)],
+      sections: [
+        {
+          id: "sub",
+          label: "Sub",
+          href: "/page#sub",
+          items: [leaf("nested-a"), leaf("nested-b")],
+        },
+      ],
+    };
+    const order = ["config", "nested-a", "nested-b", "plain"];
+
+    it("lists first, nested sections, then the rest", () => {
+      expect(
+        pageTreeLeaves(pageToTree([region])).map((node) => node.id),
+      ).toEqual(order);
+    });
+
+    it.each([1, 2, 3, 4, 5])(
+      "keeps exactly the leaves pageToTree lists first at limit %i",
+      (limit) => {
+        const kept = pageTreeLeaves(
+          pageToTree(limitPageTree([region], limit)),
+        ).map((node) => node.id);
+        expect(kept).toEqual(order.slice(0, limit));
+      },
+    );
+
+    it("keeps items in their relative order in the returned source", () => {
+      const [limited] = limitPageTree([region], 4);
+      expect(limited?.items?.map((item) => item.id)).toEqual([
+        "plain",
+        "config",
+      ]);
+      expect(limited?.sections?.[0]?.items?.map((item) => item.id)).toEqual([
+        "nested-a",
+        "nested-b",
+      ]);
+    });
+
+    it("drops the plain item and the subheader when the limit is one", () => {
+      const [limited] = limitPageTree([region], 1);
+      expect(limited?.items?.map((item) => item.id)).toEqual(["config"]);
+      expect(limited?.sections).toBeUndefined();
+    });
+  });
+
+  it("counts nested sections before items when nothing is first", () => {
+    const region = {
+      id: "dir",
+      label: "Dir",
+      href: "/page#dir",
+      items: [{ id: "plain", label: "plain", href: "/page/plain" }],
+      sections: [
+        {
+          id: "sub",
+          label: "Sub",
+          href: "/page#sub",
+          items: [
+            { id: "nested-a", label: "nested-a", href: "/page/nested-a" },
+            { id: "nested-b", label: "nested-b", href: "/page/nested-b" },
+          ],
+        },
+      ],
+    };
+    const ids = (limit: number) =>
+      pageTreeLeaves(pageToTree(limitPageTree([region], limit))).map(
+        (node) => node.id,
+      );
+    expect(ids(1)).toEqual(["nested-a"]);
+    expect(ids(2)).toEqual(["nested-a", "nested-b"]);
+    expect(ids(3)).toEqual(["nested-a", "nested-b", "plain"]);
+  });
 });
 
 describe("pageTreeContains", () => {

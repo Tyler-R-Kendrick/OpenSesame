@@ -105,6 +105,19 @@ describe("a settings directory's config.yaml", () => {
     );
   });
 
+  it("completes a finished key with its colon on Tab", () => {
+    render(<SettingsRawEditor category="general" />);
+    const text = "theme";
+    fireEvent.change(file(), {
+      target: { value: text, selectionStart: text.length },
+    });
+    expect(screen.getByRole("list", { name: "Completions" }).textContent).toBe(
+      "theme",
+    );
+    fireEvent.keyDown(file(), { key: "Tab" });
+    expect(file().value).toBe("theme: ");
+  });
+
   it("refuses a file that rewrites what a ceremony owns", () => {
     render(<SettingsRawEditor category="security" />);
     const field = screen.getByLabelText("settings/security/config.yaml");
