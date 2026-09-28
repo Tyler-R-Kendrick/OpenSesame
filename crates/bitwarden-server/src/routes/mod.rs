@@ -4,12 +4,16 @@
 //! so the same table serves whether the Host mounts it at `/bitwarden` or a
 //! dedicated origin mounts it at the root.
 
+mod account_extras;
 mod accounts;
 mod attachments;
 mod cipher_bulk;
 mod ciphers;
 mod collections;
 mod credentials;
+mod emergency;
+mod emergency_steps;
+mod emergency_use;
 pub(crate) mod file_links;
 mod folders;
 mod identity;
@@ -21,6 +25,7 @@ mod org_member_status;
 mod org_members;
 mod organizations;
 mod register;
+mod rotation;
 mod second_step;
 mod send_access;
 mod sends;
@@ -62,6 +67,12 @@ pub fn router(server: BitwardenServer) -> Router {
         .merge(org_members::routes())
         .merge(collections::routes())
         .merge(org_ciphers::routes())
+        .merge(emergency::routes())
+        .merge(account_extras::routes())
+        .route(
+            "/accounts/key-management/rotate-user-account-keys",
+            post(rotation::rotate).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .route(
             "/ciphers/import",
