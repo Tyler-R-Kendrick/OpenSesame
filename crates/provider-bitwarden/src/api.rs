@@ -17,10 +17,21 @@
 
 use std::time::Duration;
 
-use serde::Deserialize;
 use url::Url;
 
 use crate::error::{Error, Result};
+
+mod classify;
+mod endpoints;
+mod wire;
+
+use classify::classify_error;
+use endpoints::host_of;
+pub use endpoints::Endpoints;
+pub use wire::{
+    CipherResponse, ConfigResponse, FieldResponse, FolderResponse, LoginResponse, PreloginResponse,
+    ProfileResponse, SyncResponse, TokenResponse, UriResponse,
+};
 
 /// Body cap. A personal vault sync is orders of magnitude smaller.
 const MAX_BODY: usize = 16 * 1024 * 1024;
@@ -67,254 +78,6 @@ const fn default_device_type() -> u16 {
     } else {
         8
     }
-}
-
-/// The two service bases, already validated and pinned.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Endpoints {
-    api: Url,
-    identity: Url,
-}
-
-impl Endpoints {
-    /// Derive both bases from one configured server URL.
-    ///
-    /// `https://vault.bitwarden.com` (or `.eu`, or a bare `bitwarden.com`)
-    /// expands to the cloud's split hosts; everything else is treated as a
-    /// self-hosted/vaultwarden origin with `/api` and `/identity` mounted
-    /// under it, which is exactly what vaultwarden serves.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidServerUrl`] when the URL is malformed, lacks a
-    /// usable host, or uses a forbidden scheme.
-    pub fn from_server_url(raw: &str) -> Result<Self> {
-        let base = parse_base(raw)?;
-        if let Some(suffix) = cloud_suffix(&base) {
-            return Self::split(
-                &format!("https://api.{suffix}"),
-                &format!("https://identity.{suffix}"),
-            );
-        }
-        let trimmed = base.as_str().trim_end_matches('/').to_owned();
-        Self::split(&format!("{trimmed}/api"), &format!("{trimmed}/identity"))
-    }
-
-    /// Explicit split bases, for a deployment that mounts them elsewhere.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidServerUrl`] when either URL is malformed,
-    /// lacks a usable host, or uses a forbidden scheme.
-    pub fn split(api: &str, identity: &str) -> Result<Self> {
-        Ok(Self {
-            api: parse_base(api)?,
-            identity: parse_base(identity)?,
-        })
-    }
-
-    #[must_use]
-    pub fn api_base(&self) -> &Url {
-        &self.api
-    }
-
-    #[must_use]
-    pub fn identity_base(&self) -> &Url {
-        &self.identity
-    }
-
-    /// The hosts this client is pinned to. Any other host is out of bounds.
-    #[must_use]
-    pub fn pinned_hosts(&self) -> Vec<String> {
-        let mut hosts = vec![host_of(&self.api), host_of(&self.identity)];
-        hosts.dedup();
-        hosts
-    }
-
-    fn api_url(&self, path: &str) -> Result<Url> {
-        join(&self.api, path)
-    }
-
-    fn identity_url(&self, path: &str) -> Result<Url> {
-        join(&self.identity, path)
-    }
-}
-
-fn cloud_suffix(base: &Url) -> Option<&'static str> {
-    let host = base.host_str()?.to_ascii_lowercase();
-    match host.as_str() {
-        "bitwarden.com" | "vault.bitwarden.com" => Some("bitwarden.com"),
-        "bitwarden.eu" | "vault.bitwarden.eu" => Some("bitwarden.eu"),
-        _ => None,
-    }
-}
-
-fn host_of(url: &Url) -> String {
-    url.host_str().unwrap_or_default().to_ascii_lowercase()
-}
-
-/// https, or loopback http so offline tests can run against a stub. No
-/// embedded credentials, ever — same rule as `provider-openbao`.
-fn parse_base(raw: &str) -> Result<Url> {
-    let url = Url::parse(raw.trim()).map_err(|e| Error::InvalidServerUrl(e.to_string()))?;
-    if !url.username().is_empty() || url.password().is_some() {
-        return Err(Error::InvalidServerUrl(
-            "server URL must not embed credentials".into(),
-        ));
-    }
-    if url.host_str().is_none() {
-        return Err(Error::InvalidServerUrl("server URL has no host".into()));
-    }
-    let loopback = match url.host() {
-        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
-        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
-        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
-        None => false,
-    };
-    match url.scheme() {
-        "https" => Ok(url),
-        "http" if loopback => Ok(url),
-        _ => Err(Error::InvalidServerUrl(
-            "server URL must be https (loopback http is allowed for tests)".into(),
-        )),
-    }
-}
-
-fn join(base: &Url, path: &str) -> Result<Url> {
-    let joined = format!("{}{}", base.as_str().trim_end_matches('/'), path);
-    Url::parse(&joined).map_err(|e| Error::InvalidServerUrl(e.to_string()))
-}
-
-/// `POST /identity/accounts/prelogin` — the KDF parameters for an account.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreloginResponse {
-    #[serde(alias = "Kdf")]
-    pub kdf: u32,
-    #[serde(alias = "KdfIterations")]
-    pub kdf_iterations: u32,
-    #[serde(default, alias = "KdfMemory")]
-    pub kdf_memory: Option<u32>,
-    #[serde(default, alias = "KdfParallelism")]
-    pub kdf_parallelism: Option<u32>,
-}
-
-/// `POST /identity/connect/token` — OAuth fields are `snake_case`, Bitwarden's
-/// own additions are `PascalCase`. Both shapes are accepted.
-#[derive(Clone, Debug, Deserialize)]
-pub struct TokenResponse {
-    pub access_token: String,
-    #[serde(default)]
-    pub expires_in: Option<u64>,
-    #[serde(default)]
-    pub refresh_token: Option<String>,
-    #[serde(default, alias = "Key")]
-    pub key: Option<String>,
-    #[serde(default, alias = "PrivateKey")]
-    pub private_key: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SyncResponse {
-    #[serde(default, alias = "Profile")]
-    pub profile: Option<ProfileResponse>,
-    #[serde(default, alias = "Folders")]
-    pub folders: Vec<FolderResponse>,
-    #[serde(default, alias = "Ciphers")]
-    pub ciphers: Vec<CipherResponse>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProfileResponse {
-    #[serde(default, alias = "Id")]
-    pub id: Option<String>,
-    #[serde(default, alias = "Email")]
-    pub email: Option<String>,
-    #[serde(default, alias = "Key")]
-    pub key: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FolderResponse {
-    #[serde(default, alias = "Id")]
-    pub id: Option<String>,
-    #[serde(default, alias = "Name")]
-    pub name: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CipherResponse {
-    #[serde(default, alias = "Id")]
-    pub id: Option<String>,
-    #[serde(default, alias = "OrganizationId")]
-    pub organization_id: Option<String>,
-    #[serde(default, alias = "FolderId")]
-    pub folder_id: Option<String>,
-    #[serde(default, rename = "type", alias = "Type")]
-    pub cipher_type: Option<u8>,
-    #[serde(default, alias = "Name")]
-    pub name: Option<String>,
-    #[serde(default, alias = "Notes")]
-    pub notes: Option<String>,
-    #[serde(default, alias = "Favorite")]
-    pub favorite: Option<bool>,
-    #[serde(default, alias = "DeletedDate")]
-    pub deleted_date: Option<String>,
-    #[serde(default, alias = "Login")]
-    pub login: Option<LoginResponse>,
-    #[serde(default, alias = "Fields")]
-    pub fields: Option<Vec<FieldResponse>>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LoginResponse {
-    #[serde(default, alias = "Username")]
-    pub username: Option<String>,
-    #[serde(default, alias = "Password")]
-    pub password: Option<String>,
-    #[serde(default, alias = "Totp")]
-    pub totp: Option<String>,
-    #[serde(default, alias = "Uris")]
-    pub uris: Option<Vec<UriResponse>>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UriResponse {
-    #[serde(default, alias = "Uri")]
-    pub uri: Option<String>,
-    // The wire field is `match` (camelCase servers) or `Match` (PascalCase
-    // servers) — never `uriMatch`, which is what `rename_all` would have
-    // produced from the Rust field name.
-    #[serde(default, rename = "match", alias = "Match")]
-    pub uri_match: Option<u8>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FieldResponse {
-    #[serde(default, alias = "Name")]
-    pub name: Option<String>,
-    #[serde(default, alias = "Value")]
-    pub value: Option<String>,
-    #[serde(default, rename = "type", alias = "Type")]
-    pub field_type: Option<u8>,
-}
-
-/// `GET /api/config` — server version and feature flags. Read to record what
-/// the peer is; never to gate on a value the server chose.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfigResponse {
-    #[serde(default, alias = "Version")]
-    pub version: Option<String>,
-    #[serde(default, alias = "GitHash")]
-    pub git_hash: Option<String>,
 }
 
 /// The HTTP client. Holds no key material — the session does.
@@ -384,9 +147,27 @@ impl Client {
         email: &str,
         password_hash_b64: &str,
     ) -> Result<TokenResponse> {
+        self.login_password_answering(email, password_hash_b64, &[])
+            .await
+    }
+
+    /// Password grant with the answer to a challenge the first attempt
+    /// raised: `twoFactorToken` and `twoFactorProvider` after
+    /// [`Error::TwoFactorRequired`], `newdeviceotp` after
+    /// [`Error::NewDeviceVerification`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Client::login_password`].
+    pub async fn login_password_answering(
+        &self,
+        email: &str,
+        password_hash_b64: &str,
+        answer: &[(&str, &str)],
+    ) -> Result<TokenResponse> {
         let email = crate::crypto::normalize_email(email);
         let device_type = self.device.device_type.to_string();
-        let form = [
+        let mut form = vec![
             ("grant_type", "password"),
             ("username", email.as_str()),
             ("password", password_hash_b64),
@@ -396,6 +177,7 @@ impl Client {
             ("deviceIdentifier", self.device.identifier.as_str()),
             ("deviceName", self.device.name.as_str()),
         ];
+        form.extend_from_slice(answer);
         self.token_request(&form).await
     }
 
@@ -441,6 +223,50 @@ impl Client {
             .get(url.clone())
             .bearer_auth(access_token)
             .header("accept", "application/json")
+            .send()
+            .await
+            .map_err(|e| transport(&url, &e))?;
+        self.decode(&url, response).await
+    }
+
+    /// `GET {api}{path}` as raw JSON, for a caller that keeps what the server
+    /// sent rather than reading it (the importer copies ciphertext verbatim).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, API, URL, or response-validation error.
+    pub async fn get_json(&self, path: &str, access_token: &str) -> Result<serde_json::Value> {
+        let url = self.endpoints.api_url(path)?;
+        let response = self
+            .http
+            .get(url.clone())
+            .bearer_auth(access_token)
+            .header("accept", "application/json")
+            .send()
+            .await
+            .map_err(|e| transport(&url, &e))?;
+        self.decode(&url, response).await
+    }
+
+    /// `POST {api}{path}` with a JSON body, answered as raw JSON. The importer
+    /// uses it for the account's own sign-in settings (ADR 0148).
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, API, URL, or response-validation error.
+    pub async fn post_json(
+        &self,
+        path: &str,
+        access_token: &str,
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = self.endpoints.api_url(path)?;
+        let response = self
+            .http
+            .post(url.clone())
+            .bearer_auth(access_token)
+            .header("accept", "application/json")
+            .json(body)
             .send()
             .await
             .map_err(|e| transport(&url, &e))?;
@@ -502,63 +328,5 @@ fn transport(url: &Url, error: &reqwest::Error) -> Error {
     Error::Transport {
         host: host_of(url),
         message: error.to_string(),
-    }
-}
-
-/// Turn a non-2xx body into a *named* error. Bitwarden signals a wrong master
-/// password as `invalid_grant`, and a 2FA challenge as a 400 carrying
-/// `TwoFactorProviders`; both deserve their own variant, not "HTTP 400".
-fn classify_error(path: &str, status: u16, body: &[u8]) -> Error {
-    let parsed: Option<serde_json::Value> = serde_json::from_slice(body).ok();
-    let field = |value: &serde_json::Value, key: &str| -> Option<String> {
-        let upper = uppercase_first(key);
-        value
-            .get(key)
-            .or_else(|| value.get(&upper))
-            .and_then(|v| v.as_str())
-            .map(str::to_owned)
-    };
-    if let Some(value) = parsed.as_ref() {
-        let two_factor =
-            value.get("TwoFactorProviders").is_some() || value.get("twoFactorProviders").is_some();
-        if two_factor {
-            return Error::TwoFactorRequired;
-        }
-        let code = field(value, "error");
-        let description = field(value, "error_description")
-            .or_else(|| field(value, "message"))
-            .or_else(|| {
-                value
-                    .get("ErrorModel")
-                    .or_else(|| value.get("errorModel"))
-                    .and_then(|m| m.get("Message").or_else(|| m.get("message")))
-                    .and_then(|v| v.as_str())
-                    .map(str::to_owned)
-            });
-        if code.as_deref() == Some("invalid_grant") || status == 401 {
-            return Error::Authentication(
-                description.unwrap_or_else(|| "invalid username or master password".into()),
-            );
-        }
-        if let Some(message) = description.or(code) {
-            return Error::Api {
-                path: path.to_owned(),
-                status,
-                message,
-            };
-        }
-    }
-    Error::Api {
-        path: path.to_owned(),
-        status,
-        message: "no error detail in response".into(),
-    }
-}
-
-fn uppercase_first(key: &str) -> String {
-    let mut chars = key.chars();
-    match chars.next() {
-        Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
-        None => String::new(),
     }
 }

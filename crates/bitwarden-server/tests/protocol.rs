@@ -93,7 +93,7 @@ async fn a_wrong_password_and_an_unknown_email_get_the_same_answer() {
     );
     let (status, body) = token_form(
         &harness,
-        &[("grant_type", "client_credentials"), ("client_id", "x")],
+        &[("grant_type", "authorization_code"), ("client_id", "x")],
     )
     .await;
     assert_eq!(
@@ -323,4 +323,28 @@ async fn an_oversized_import_is_refused_whole() {
     assert!(first_error(&response).contains("7000"), "{response}");
     let (_, sync) = get(format!("{base}/api/sync"), &token).await;
     assert!(sync["ciphers"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_signed_in_account_reads_another_accounts_public_key() {
+    let harness = Harness::start().await;
+    let alice = Account::register(&harness.http_url, "pk-a@example.test", PASSWORD, LIGHT).await;
+    let bob = Account::register(&harness.http_url, "pk-b@example.test", PASSWORD, LIGHT).await;
+    let bob_id = harness
+        .db
+        .bitwarden_user_by_email(&bob.email)
+        .await
+        .unwrap()
+        .unwrap()
+        .id;
+    let token = alice.access_token(&harness.http_url).await;
+    let url = |id: &str| format!("{}/api/users/{id}/public-key", harness.http_url);
+    let (status, body) = get(url(&bob_id), &token).await;
+    assert_eq!(status, 200);
+    assert_eq!(body["userId"], bob_id.as_str());
+    assert!(body["publicKey"]
+        .as_str()
+        .is_some_and(|k| k.starts_with("MII")));
+    assert_eq!(get(url("no-such-user"), &token).await.0, 404);
+    assert_eq!(get(url(&bob_id), "not-a-token").await.0, 401);
 }

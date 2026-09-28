@@ -234,8 +234,8 @@ async fn a_two_factor_challenge_is_named_not_reported_as_http_400() {
     )
     .await
     .expect_err("2FA");
-    assert_eq!(error.code(), "two_factor_required");
     assert!(error.to_string().contains("bw"), "{error}");
+    assert!(matches!(&error, Error::TwoFactorRequired { providers } if providers == &[0]));
 }
 
 #[tokio::test]

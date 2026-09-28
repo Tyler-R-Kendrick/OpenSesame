@@ -134,6 +134,19 @@ export const BITWARDEN_CLIENT_ONLY: CapabilityExclusion = {
   adr: ADR_BITWARDEN_COMPAT,
 };
 
+export const ADR_BITWARDEN_BRIDGE = "0148-bitwarden-bridge-and-importer.md";
+
+/**
+ * Moving an account onto the Host takes the person's master password (a live
+ * account) or the old server's whole database (vaultwarden): an operator's or
+ * the person's own act at a terminal, never an agent's.
+ */
+export const BITWARDEN_IMPORT_IS_HUMAN: CapabilityExclusion = {
+  reason:
+    "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+  adr: ADR_BITWARDEN_BRIDGE,
+};
+
 export const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   reason:
     "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",

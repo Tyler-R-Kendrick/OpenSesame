@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 pub use argon2::password_hash::PasswordHash;
 pub use argon2id::Argon2idScheme;
-pub use pbkdf2_legacy::Pbkdf2Sha256Legacy;
+pub use pbkdf2_legacy::{pbkdf2_sha256_record, Pbkdf2Sha256Legacy};
 
 /// Why a hash could not be produced. Verification never errors: a stored hash
 /// that cannot be read simply does not match.
@@ -50,6 +50,14 @@ pub trait PasswordHashScheme: Send + Sync {
     /// Whether `stored` was written with exactly this scheme's parameters. A
     /// hash that verifies but is not current is re-hashed.
     fn is_current(&self, stored: &PasswordHash<'_>) -> bool;
+
+    /// Check `secret` against a stored hash of this scheme's algorithm that
+    /// the generic PHC parser refuses. Only a scheme whose records can exceed
+    /// that parser's limits answers anything but `false`; such a record is
+    /// never current, so a match is always re-hashed.
+    fn verify_unparsed(&self, _stored: &str, _secret: &[u8]) -> bool {
+        false
+    }
 
     /// Whether this scheme may write new hashes. A verify-only legacy scheme
     /// answers `false` and can never be made current.
@@ -121,7 +129,7 @@ impl HashRegistry {
     #[must_use]
     pub fn verify(&self, stored: &str, secret: &[u8]) -> Verdict {
         let Ok(parsed) = PasswordHash::new(stored) else {
-            return Verdict::Mismatch;
+            return self.verify_unparsed(stored, secret);
         };
         let algorithm = parsed.algorithm.as_str();
         let current_matches = self.current.id() == algorithm;
@@ -143,6 +151,26 @@ impl HashRegistry {
         // stays, and the next sign-in tries again.
         Verdict::Match {
             rehash: self.current.hash(secret).ok(),
+        }
+    }
+}
+
+impl HashRegistry {
+    fn verify_unparsed(&self, stored: &str, secret: &[u8]) -> Verdict {
+        let Some(algorithm) = stored
+            .strip_prefix('$')
+            .and_then(|rest| rest.split('$').next())
+        else {
+            return Verdict::Mismatch;
+        };
+        let scheme = std::iter::once(&self.current)
+            .chain(&self.accepted)
+            .find(|s| s.id() == algorithm);
+        match scheme {
+            Some(scheme) if scheme.verify_unparsed(stored, secret) => Verdict::Match {
+                rehash: self.current.hash(secret).ok(),
+            },
+            _ => Verdict::Mismatch,
         }
     }
 }

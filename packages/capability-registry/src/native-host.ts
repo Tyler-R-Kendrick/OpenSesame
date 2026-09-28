@@ -1,5 +1,6 @@
 import {
   BITWARDEN_CLIENT_ONLY,
+  BITWARDEN_IMPORT_IS_HUMAN,
   HUMAN_CEREMONY,
   NEVER_AGENT_SECRET,
   OPS_PLANE,
@@ -242,6 +243,25 @@ export const nativeHostCapabilities: readonly Capability[] = [
       mcp_host: BITWARDEN_CLIENT_ONLY,
       mcp_client: BITWARDEN_CLIENT_ONLY,
       webmcp: BITWARDEN_CLIENT_ONLY,
+    },
+  },
+  {
+    id: "host.bitwarden_import",
+    title: "Move vaultwarden and Bitwarden accounts onto the Host",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame bridge bitwarden import",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      pwa: PAGES_HAS_NO_HOST,
+      mcp_host: BITWARDEN_IMPORT_IS_HUMAN,
+      mcp_client: BITWARDEN_IMPORT_IS_HUMAN,
+      webmcp: BITWARDEN_IMPORT_IS_HUMAN,
     },
   },
   {

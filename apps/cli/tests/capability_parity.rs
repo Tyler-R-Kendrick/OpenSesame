@@ -20,6 +20,7 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/store.rs"),
     include_str!("../src/attach.rs"),
     include_str!("../src/bridge.rs"),
+    include_str!("../src/bridge/bitwarden.rs"),
     include_str!("../src/lifecycle.rs"),
     include_str!("../src/sync_commands.rs"),
     include_str!("../src/local_authority.rs"),

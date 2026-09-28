@@ -104,13 +104,22 @@ pub enum Error {
     #[error("authentication failed: {0}")]
     Authentication(String),
 
-    /// The account has 2FA enabled; this client does not implement the
-    /// second-factor exchange.
+    /// The account has 2FA enabled. The consume-client reads vaults without
+    /// it; a caller that can ask a person (the importer, ADR 0148) answers
+    /// with one of `providers` and signs in again.
     #[error(
         "this account requires two-factor authentication, which the OpenSesame consume-client \
-         does not implement yet — use the `bw` CLI fallback for it (see ADR 0052)"
+         does not answer — use the `bw` CLI fallback for it (see ADR 0052)"
     )]
-    TwoFactorRequired,
+    TwoFactorRequired {
+        /// Bitwarden's provider numbers: 0 authenticator, 1 email, 3 `YubiKey`, …
+        providers: Vec<u32>,
+    },
+
+    /// The server wants a one-time code it has mailed to the account before
+    /// it trusts this device (Bitwarden's new-device verification).
+    #[error("the server sent a verification code to the account's email for this new device")]
+    NewDeviceVerification,
 
     /// Response body was not the JSON shape this client expects.
     #[error("{path} returned an unexpected response shape: {message}")]
@@ -156,7 +165,8 @@ impl Error {
             Error::Transport { .. } => "transport",
             Error::Api { .. } => "api",
             Error::Authentication(_) => "authentication",
-            Error::TwoFactorRequired => "two_factor_required",
+            Error::TwoFactorRequired { .. } => "two_factor_required",
+            Error::NewDeviceVerification => "new_device_verification",
             Error::MalformedResponse { .. } => "malformed_response",
             Error::SessionExpired => "session_expired",
             Error::ItemNotFound(_) => "item_not_found",
