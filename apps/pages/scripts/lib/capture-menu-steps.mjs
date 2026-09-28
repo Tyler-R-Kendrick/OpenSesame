@@ -148,6 +148,10 @@ async function facts(page, name) {
       fileList: [...document.querySelectorAll(".vfiles__file")].map((row) =>
         row.textContent?.trim(),
       ),
+      // What the page says about a save: each status mark's label.
+      marks: [...document.querySelectorAll(".section__inner .status-mark")].map(
+        (mark) => mark.getAttribute("aria-label") ?? mark.getAttribute("title"),
+      ),
       completions: [...document.querySelectorAll(".set-raw__option")].map(
         (option) => option.textContent?.trim(),
       ),

@@ -56,6 +56,15 @@
         },
         {
           "shot": "1280-file"
+        },
+        {
+          "pressOptional": "^Save "
+        },
+        {
+          "facts": "1280-saved"
+        },
+        {
+          "shot": "1280-saved"
         }
       ]
     },
@@ -89,6 +98,15 @@
         },
         {
           "shot": "390-file"
+        },
+        {
+          "pressOptional": "^Save "
+        },
+        {
+          "facts": "390-saved"
+        },
+        {
+          "shot": "390-saved"
         }
       ]
     }
@@ -133,6 +151,22 @@
       "caption": "The file list sits above the open file; config.yaml is first.",
       "before": "1 document behind a toggle, no file list",
       "after": "3 files listed, config.yaml first"
+    },
+    {
+      "shot": "1280-saved",
+      "width": 1280,
+      "title": "Saving the installation selection \u2014 1280 \u00d7 800",
+      "caption": "Base: the note under the editor spells the outcome as a sentence. Branch: the outcome is one status mark; its label carries the same message, and a session-only save would show a warn mark.",
+      "before": "outcome as a text note",
+      "after": "outcome as one status mark"
+    },
+    {
+      "shot": "390-saved",
+      "width": 390,
+      "title": "Saving the installation selection on a phone \u2014 390 \u00d7 844",
+      "caption": "Same on a phone.",
+      "before": "outcome as a text note",
+      "after": "outcome as one status mark"
     }
   ]
 }
