@@ -304,7 +304,8 @@ it("a disabled connector stays listed after its last grant, so it can be enabled
   );
   // Nobody holds it, and its row is still where it is switched back on.
   const still = accessRow("GitHub · octo@example.com");
-  expect(still.getByText("0 bound")).toBeTruthy();
+  // Storage settles before the row re-renders: wait for the row itself.
+  await still.findByText("0 bound");
   await userEvent.click(still.getByRole("button", { name: "Configure" }));
   await userEvent.click(
     within(
