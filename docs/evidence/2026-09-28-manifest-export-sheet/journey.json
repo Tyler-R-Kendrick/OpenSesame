@@ -1,0 +1,221 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-28-manifest-export-sheet/app.env"
+          }
+        },
+        {
+          "pressOptional": "^Import 2 items$"
+        },
+        {
+          "pressOptional": "^Done$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "scrollTo": "Sealed store"
+        },
+        {
+          "press": "Save store path manifest"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "390-sealed"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-28-manifest-export-sheet/app.env"
+          }
+        },
+        {
+          "pressOptional": "^Import 2 items$"
+        },
+        {
+          "pressOptional": "^Done$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "scrollTo": "Sealed store"
+        },
+        {
+          "press": "Save store path manifest"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "390-guest"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-28-manifest-export-sheet/app.env"
+          }
+        },
+        {
+          "pressOptional": "^Import 2 items$"
+        },
+        {
+          "pressOptional": "^Done$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "scrollTo": "Sealed store"
+        },
+        {
+          "press": "Save store path manifest"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "1280-sealed"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "pickFileOptional": {
+            "key": "Import items",
+            "file": "docs/evidence/2026-09-28-manifest-export-sheet/app.env"
+          }
+        },
+        {
+          "pressOptional": "^Import 2 items$"
+        },
+        {
+          "pressOptional": "^Done$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "scrollTo": "Sealed store"
+        },
+        {
+          "press": "Save store path manifest"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "report": "[role=dialog] dl"
+        },
+        {
+          "sheetMarks": null
+        },
+        {
+          "marks": null
+        },
+        {
+          "shot": "1280-guest"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-sealed",
+      "width": 1280,
+      "title": "Settings \u203a Vaults \u203a Sealed store, sealed vault \u2014 1280 \u00d7 900",
+      "caption": "The key used to write every value to Downloads in plain text on one press. It now opens a sheet that says what the file holds; the file is saved from there.",
+      "before": "one press \u2192 Saved opensesame-store-manifest-2026-09-28.json, no sheet",
+      "after": "side sheet 424\u00d7900 @856,0: Entries 2 \u00b7 Holds every value in plain text, private keys included; nothing saved yet"
+    },
+    {
+      "shot": "1280-guest",
+      "width": 1280,
+      "title": "Same panel as a guest \u2014 1280 \u00d7 900",
+      "caption": "A guest's vault was written out in plain text too; the encrypted Export already refused it.",
+      "before": "one press \u2192 Saved opensesame-store-manifest-2026-09-28.json",
+      "after": "side sheet 424\u00d7900, mark: A guest vault is not exported; no save key"
+    },
+    {
+      "shot": "390-sealed",
+      "width": 390,
+      "title": "Sealed vault \u2014 390 \u00d7 844",
+      "caption": "On a phone the sheet rises from the bottom.",
+      "before": "one press \u2192 Saved \u2026, no sheet",
+      "after": "sheet 390\u00d7344, nothing saved yet"
+    },
+    {
+      "shot": "390-guest",
+      "width": 390,
+      "title": "Guest \u2014 390 \u00d7 844",
+      "caption": "The guest refusal on a phone.",
+      "before": "one press \u2192 Saved \u2026",
+      "after": "sheet 390\u00d7317, mark: A guest vault is not exported"
+    }
+  ]
+}
