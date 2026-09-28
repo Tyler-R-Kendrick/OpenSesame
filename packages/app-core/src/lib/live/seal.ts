@@ -1,5 +1,5 @@
 /**
- * The keys behind a live session's pairing codes (ADR 0148 §3).
+ * The keys behind a live session's pairing codes (ADR 0150 §3).
  *
  * Two people pair their browsers with two codes. They pass them by hand, or
  * an optional carrier the owner named passes them on a topic only link

@@ -1,4 +1,4 @@
-# Live sessions across networks: optional routes (ADR 0148 §6)
+# Live sessions across networks: optional routes (ADR 0150 §6)
 
 Before/after from two real builds: this branch's base at `43ad2a91` and this
 branch. Both were served as the production origin

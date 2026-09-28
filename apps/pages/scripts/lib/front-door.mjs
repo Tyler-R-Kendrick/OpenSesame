@@ -1,4 +1,4 @@
-// The front door's roads, for the browser walks (ADR 0148 §1): a device with
+// The front door's roads, for the browser walks (ADR 0150 §1): a device with
 // no vault offers "Set up your own" and "Join a session", with the guest road
 // as the card's corner Skip. Sign-in — and its "Use without an account" —
 // comes once setup has been answered or skipped.

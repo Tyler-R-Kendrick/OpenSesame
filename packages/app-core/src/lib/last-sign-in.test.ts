@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../ports.js";
 import {
   LAST_SIGN_IN_KEY,
   canonicalSignInMethod,
@@ -53,7 +54,7 @@ describe("canonicalSignInMethod", () => {
 describe("rememberLastSignIn", () => {
   it("persists the canonical id and survives a later read", () => {
     rememberLastSignIn("broker:github");
-    expect(localStorage.getItem(LAST_SIGN_IN_KEY)).toBe("github");
+    expect(localStore().getItem(LAST_SIGN_IN_KEY)).toBe("github");
     expect(readLastSignIn()).toBe("github");
   });
 

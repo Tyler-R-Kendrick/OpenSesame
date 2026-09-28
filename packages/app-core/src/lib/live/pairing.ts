@@ -1,5 +1,5 @@
 /**
- * The two pairing codes of a live session (ADR 0148 §3): how two browsers
+ * The two pairing codes of a live session (ADR 0150 §3): how two browsers
  * meet with no server between them.
  *
  * 1. The joiner's page makes its WebRTC offer and seals it, with the

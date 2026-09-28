@@ -1,5 +1,5 @@
 /**
- * `/live` — joining somebody's live session (ADR 0148 §3–§5).
+ * `/live` — joining somebody's live session (ADR 0150 §3–§5).
  *
  * The link arrives from the address bar (boot took it out of history), from
  * the door's road (held in memory across the consent), or pasted here,

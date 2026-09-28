@@ -6,6 +6,26 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
+
+/**
+ * How the sync store's file is sealed at rest (ADR 0149). The embedder hands
+ * one in — the browser extension passes `@opensesame/browser-at-rest` — so
+ * this facade keeps no storage key of its own. Without one, the store is
+ * kept in memory: never in the clear.
+ */
+export type SyncStoreSeal = {
+  sealForRest(
+    store: string,
+    name: string,
+    text: string,
+  ): Promise<string | null>;
+  openFromRest(
+    store: string,
+    name: string,
+    value: string,
+  ): Promise<string | null>;
+};
+
 /**
  * TypeScript façade mirroring `crates/client-core` sync shapes.
  * Full AEAD: prefer Rust wasm (`wasm-bindgen` feature) when loaded; OPFS stores ciphertext only.
@@ -177,10 +197,16 @@ function sealedFileName(name: string): string {
   return `opensesame-sync-${name.replace(/[^A-Za-z0-9._-]/g, "_")}.json`;
 }
 
-/** OPFS / memory persistence of sealed sync JSON (ciphertext only). */
+/**
+ * OPFS / memory persistence of sealed sync JSON (ciphertext only). The file
+ * itself is sealed at rest too (ADR 0149), so the device id and epoch beside
+ * the ciphertext are not in the clear either; with no key to seal under, the
+ * store stays in memory.
+ */
 export async function persistSealedStore(
   name: string,
   sealedJson: string,
+  seal?: SyncStoreSeal,
 ): Promise<void> {
   const parsed = parseSealedStore(sealedJson);
   if (parsed === null) {
@@ -194,12 +220,15 @@ export async function persistSealedStore(
   }
   try {
     const root = await navigator.storage?.getDirectory?.();
-    if (root) {
-      const handle = await root.getFileHandle(sealedFileName(name), {
+    const file = sealedFileName(name);
+    const atRest =
+      root && seal ? await seal.sealForRest("opfs", file, sealedJson) : null;
+    if (root && atRest !== null) {
+      const handle = await root.getFileHandle(file, {
         create: true,
       });
       const writable = await handle.createWritable();
-      await writable.write(sealedJson);
+      await writable.write(atRest);
       await writable.close();
       return;
     }
@@ -216,7 +245,10 @@ export async function persistSealedStore(
  * device id and epoch out of this and adopt them, so an unusable file is treated
  * as absent and replaced rather than trusted.
  */
-export async function loadSealedStore(name: string): Promise<string | null> {
+export async function loadSealedStore(
+  name: string,
+  seal?: SyncStoreSeal,
+): Promise<string | null> {
   // Bound to the device asking, not merely well formed: a store naming another
   // device is somebody else's, however intact it looks.
   const forThisDevice = (text: string): string | null => {
@@ -227,9 +259,16 @@ export async function loadSealedStore(name: string): Promise<string | null> {
   try {
     const root = await navigator.storage?.getDirectory?.();
     if (root) {
-      const handle = await root.getFileHandle(sealedFileName(name));
+      const fileName = sealedFileName(name);
+      const handle = await root.getFileHandle(fileName);
       const file = await handle.getFile();
-      return forThisDevice(await file.text());
+      const stored = await file.text();
+      const text = seal
+        ? await seal.openFromRest("opfs", fileName, stored)
+        : stored.startsWith("osc1.")
+          ? null
+          : stored;
+      return text === null ? null : forThisDevice(text);
     }
   } catch {
     /* fall through */

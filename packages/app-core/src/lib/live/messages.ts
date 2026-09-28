@@ -1,6 +1,6 @@
 /**
  * What crosses between two browsers in a live session, read strictly
- * (ADR 0148 §3–§5).
+ * (ADR 0150 §3–§5).
  *
  * Two vocabularies:
  *

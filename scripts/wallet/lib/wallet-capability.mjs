@@ -53,7 +53,7 @@ export async function openWallet(page, check) {
 /** Load the static origin and take the guest road to an unlocked vault. */
 export async function enterAsGuest(page, url) {
   await page.goto(url, { waitUntil: "networkidle" });
-  // The front door's guest road is its corner Skip (ADR 0148 §1).
+  // The front door's guest road is its corner Skip (ADR 0150 §1).
   const guest = page.getByRole("button", {
     name: "Skip sign-in and continue as guest",
   });

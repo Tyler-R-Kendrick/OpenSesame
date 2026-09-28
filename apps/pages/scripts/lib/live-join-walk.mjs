@@ -1,5 +1,5 @@
 /**
- * The steps verify:live-join walks (ADR 0148), as a person takes them: the
+ * The steps verify:live-join walks (ADR 0150), as a person takes them: the
  * owner enters, keeps a login, switches Live sessions on, names routes in
  * Settings › Live sessions › Routes and starts a session; a joiner opens the
  * link, keeps or declines the routes it names, and asks.

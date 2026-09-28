@@ -1,5 +1,5 @@
 /**
- * A live-session link, as a person holds it (ADR 0148).
+ * A live-session link, as a person holds it (ADR 0150).
  *
  * `#live=v1.<i|o>.<owner>.<secret>[.<routes>]` — in the fragment, which a
  * browser never sends to the server hosting the app:

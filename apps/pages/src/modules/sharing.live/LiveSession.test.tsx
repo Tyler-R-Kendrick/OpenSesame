@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * A live session through the screens people use (ADR 0148): the owner's
+ * A live session through the screens people use (ADR 0150): the owner's
  * Settings panel starts it, the joiner's `/live` screen asks, the owner lets
  * them in, and a concealed value crosses only when asked for. The two sealed
  * pairing codes are passed by hand, as people pass them; no server of any

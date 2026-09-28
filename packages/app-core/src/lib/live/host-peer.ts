@@ -1,5 +1,5 @@
 /**
- * One admitted guest, from the owner's side (ADR 0148 §5).
+ * One admitted guest, from the owner's side (ADR 0150 §5).
  *
  * The owner's vault key never crosses. What does: the catalog — shared
  * items' names and types, and their fields, with a concealed field's value

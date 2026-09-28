@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The servers verify:live-join runs that npm does not carry (ADR 0148 §6).
+# The servers verify:live-join runs that npm does not carry (ADR 0150 §6).
 #
 #   nats-server — the mTLS fixture pin (scripts/mtls/mtls-fixtures.sh,
 #                 sha256-checked GitHub release).

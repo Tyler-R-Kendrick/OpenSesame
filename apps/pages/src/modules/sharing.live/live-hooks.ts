@@ -1,7 +1,7 @@
 /**
  * The live session this tab hosts or has joined, as React state, and the
  * two browser pieces app-core does not touch: `RTCPeerConnection` and this
- * app's own address (ADR 0148).
+ * app's own address (ADR 0150).
  */
 
 import type {

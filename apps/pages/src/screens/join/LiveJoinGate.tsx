@@ -1,5 +1,5 @@
 /**
- * The door's road into somebody else's live session (ADR 0148 §6).
+ * The door's road into somebody else's live session (ADR 0150 §6).
  *
  * Joining connects this browser directly to the owner's, once the two people
  * have passed each other their pairing codes. That is the `sharing.live`

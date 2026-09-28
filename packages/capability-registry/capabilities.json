@@ -882,7 +882,7 @@
   },
   {
     "id": "host.bitwarden_compat",
-    "title": "Serve Bitwarden clients from the Host (bitwarden-compat)",
+    "title": "Serve Bitwarden clients from the Host (bitwarden-compat bridge)",
     "plane": "host",
     "kind": "admin",
     "surfaces": {
@@ -908,6 +908,37 @@
       "webmcp": {
         "reason": "a Bitwarden client unlocks with a person's master password; the surface is for that client alone, and an agent reaches credentials through ConnectionRefs, never a vault session",
         "adr": "0141-bitwarden-compatible-server.md"
+      }
+    }
+  },
+  {
+    "id": "host.bitwarden_import",
+    "title": "Move vaultwarden and Bitwarden accounts onto the Host",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame bridge bitwarden import",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+        "adr": "0148-bitwarden-bridge-and-importer.md"
+      },
+      "mcp_client": {
+        "reason": "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+        "adr": "0148-bitwarden-bridge-and-importer.md"
+      },
+      "webmcp": {
+        "reason": "an import reads a master password or a whole server's database; it is the person's or the operator's own act at a terminal, never an agent's",
+        "adr": "0148-bitwarden-bridge-and-importer.md"
       }
     }
   },
@@ -1276,15 +1307,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
-        "adr": "0148-live-sessions-browser-to-browser.md"
+        "adr": "0150-live-sessions-browser-to-browser.md"
       },
       "mcp_client": {
         "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
-        "adr": "0148-live-sessions-browser-to-browser.md"
+        "adr": "0150-live-sessions-browser-to-browser.md"
       },
       "webmcp": {
         "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
-        "adr": "0148-live-sessions-browser-to-browser.md"
+        "adr": "0150-live-sessions-browser-to-browser.md"
       }
     }
   },
@@ -1303,15 +1334,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
-        "adr": "0148-live-sessions-browser-to-browser.md"
+        "adr": "0150-live-sessions-browser-to-browser.md"
       },
       "mcp_client": {
         "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
-        "adr": "0148-live-sessions-browser-to-browser.md"
+        "adr": "0150-live-sessions-browser-to-browser.md"
       },
       "webmcp": {
         "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
-        "adr": "0148-live-sessions-browser-to-browser.md"
+        "adr": "0150-live-sessions-browser-to-browser.md"
       }
     }
   },

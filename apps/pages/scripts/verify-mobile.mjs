@@ -143,7 +143,7 @@ async function openOverflowRow(page, pattern, label) {
   await page.waitForTimeout(350);
 }
 
-/** The front door: its two roads, and the guest road in the corner (ADR 0148 §1). */
+/** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
   await audit(page, stop("front-door"));
   for (const name of [

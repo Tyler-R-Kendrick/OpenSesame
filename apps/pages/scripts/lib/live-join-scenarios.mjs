@@ -1,5 +1,5 @@
 /**
- * The walks verify:live-join takes (ADR 0148): direct, a simulated tunnel,
+ * The walks verify:live-join takes (ADR 0150): direct, a simulated tunnel,
  * each carrier, a declined route, and relay only through TURN. The runner
  * (`verify-live-join.mjs`) binds the harness and launches the browsers.
  */

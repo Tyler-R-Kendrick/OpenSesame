@@ -1,5 +1,5 @@
 /**
- * Settings › Live sessions › Routes (ADR 0148 §6): how this vault's live
+ * Settings › Live sessions › Routes (ADR 0150 §6): how this vault's live
  * sessions reach people who are not on the same network — the Form view of
  * `settings/live/transport.json`. Every route is optional; with none, a
  * session is direct only and contacts nothing.

@@ -302,7 +302,7 @@ const browser = await chromium.launch(launch);
   const { page, context } = await newPage(browser);
   step = "2-password";
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  // The local-only seal is a sign-in road, behind the door (ADR 0148 §1).
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
   await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.waitForTimeout(500);

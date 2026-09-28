@@ -55,7 +55,6 @@ describe("entra adapter", () => {
         { homeAccountId: "c.d", username: "b@contoso.test" },
       ],
       ssoSilent,
-      loginRedirect: async () => undefined,
       clearCache: async () => undefined,
     });
     const result = await acquireEntraSilent(
@@ -75,7 +74,6 @@ describe("entra adapter", () => {
     entraSeams.loadSdk = async () => ({
       getAllAccounts: () => [],
       ssoSilent: async () => ({ idToken: "not-a-verified-token" }),
-      loginRedirect: async () => undefined,
       clearCache: async () => undefined,
     });
     const result = await acquireEntraSilent(

@@ -1,5 +1,5 @@
 /**
- * `sharing.live` — live sessions, browser to browser (ADR 0148).
+ * `sharing.live` — live sessions, browser to browser (ADR 0150).
  *
  * Contributed: the `/live` join screen (`gate: "any"`, framed — it holds no
  * vault key, so it opens on a locked or empty device, and inside the shell

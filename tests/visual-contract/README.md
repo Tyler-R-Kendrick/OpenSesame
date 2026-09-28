@@ -19,7 +19,7 @@ The six baselines it enforces:
 
 | Baseline | What it captures |
 | --- | --- |
-| `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, Join a session, and the guest road as the corner Skip (ADR 0148) |
+| `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, Join a session, and the guest road as the corner Skip (ADR 0150) |
 | `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only seal form behind "Use without an account" — Set up your own, Skip all, then sign-in (`#master`, `#confirm`, the no-recovery checkbox) |
 | `vault-list-desktop.png` / `vault-list-mobile.png` | The empty vault, right after sealing |
 
@@ -189,7 +189,7 @@ theme key covered the wordmark's last letter). That was fixed in
 `pages-*` could capture the blank frame of a service-worker reload, and it
 mocked Host and Identity APIs Pages no longer calls.
 
-**2026-09-28.** Three re-seeded after reading each diff (ADR 0148):
+**2026-09-28.** Three re-seeded after reading each diff (ADR 0150):
 `pages-desktop.png`/`pages-mobile.png` because the front door is now two
 roads — Set up your own, Join a session — with guest as the corner Skip and
 no sign-in panel; `vault-unlock-desktop.png` only because the release notes

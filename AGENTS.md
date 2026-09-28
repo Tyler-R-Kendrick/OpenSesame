@@ -89,7 +89,7 @@ pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright cli
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
-                          #   upstream source, the carriers verify:live-join runs (ADR 0148 §6)
+                          #   upstream source, the carriers verify:live-join runs (ADR 0150 §6)
 pnpm test:all            # typecheck + test + test:integration
 pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
@@ -211,7 +211,7 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # screen.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
-# Same harness, live sessions (ADR 0148) in real browser contexts over real
+# Same harness, live sessions (ADR 0150) in real browser contexts over real
 # WebRTC. Direct: codes passed by hand, no WebSocket, no request off the
 # origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
 # never meets without Routes' address, meets at it with one. Carriers: an
@@ -292,6 +292,8 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
+| `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
+| `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
@@ -409,7 +411,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0148).
+  0001–0150).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -417,7 +419,7 @@ Do not add new top-level directories or loose root files — find the group.
   screen. On a device with no vault and no setup record that screen is the
   **front door** (`screens/FrontDoor.tsx`,
   [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md),
-  [ADR 0148](docs/adr/0148-live-sessions-browser-to-browser.md) §1): the
+  [ADR 0150](docs/adr/0150-live-sessions-browser-to-browser.md) §1): the
   wordmark at hero scale and exactly two roads made large — **Set up your
   own** and **Join a session** — with the guest road as the card's corner
   **Skip**. The door asks no sign-in question: a device with no vault has
@@ -444,6 +446,21 @@ Do not add new top-level directories or loose root files — find the group.
   Access › Resources is Identity-plane and local-only, Sessions' receipts are
   Identity-plane, and gating those on a Host hid features that need none. A
   deployment that asks nothing may never report that something failed.
+- **Nothing the client stores rests in the clear**
+  ([ADR 0149](docs/adr/0149-nothing-stored-in-the-clear.md)). Every value
+  written through the ports' `local`/`session` stores, `kv.ts` (OPFS),
+  travel storage or `history-backup-idb.ts` is sealed under the host's
+  at-rest key (`packages/app-core/src/lib/at-rest/`; a non-extractable
+  IndexedDB key in a browser, a 0600 `at-rest.key` for the CLI) and bound
+  to its store and name. Never write a browser global (`localStorage`,
+  `indexedDB`, `navigator.storage`, `document.cookie`) directly, and never
+  hand a third-party library a persistent browser store: MSAL runs on
+  `memoryStorage` and runs no redirect or popup flow. With no durable key
+  nothing reaches disk; do not add a plaintext fallback. Outside Pages — the
+  extension, `client-core`'s sync store, `sdk-browser` and `static-auth` on a
+  relying party's origin — values seal through `@opensesame/browser-at-rest`.
+  `verify:static` reads the origin raw and fails on any app-owned value that
+  is not `osr1.`.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

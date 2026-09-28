@@ -117,7 +117,7 @@ const LAZY_LEAVES = [
   ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
-  // Live sessions' carriers (ADR 0148 §6): each client loads only when a
+  // Live sessions' carriers (ADR 0150 §6): each client loads only when a
   // session names its kind, never when the capability activates.
   ["/src/modules/sharing.live/carriers/mqtt", "sharing.live", "live-mqtt"],
   ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],

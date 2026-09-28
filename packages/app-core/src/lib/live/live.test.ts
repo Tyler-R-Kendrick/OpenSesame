@@ -1,6 +1,6 @@
 /**
  * A live session end to end: sealed pairing codes passed by hand, between
- * fake peers (ADR 0148). No server of any kind is involved.
+ * fake peers (ADR 0150). No server of any kind is involved.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { LiveGuest } from "./guest.js";

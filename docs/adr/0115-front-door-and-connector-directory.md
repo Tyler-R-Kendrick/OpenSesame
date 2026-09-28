@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-12
-- Amended by: [ADR 0148](0148-live-sessions-browser-to-browser.md) §1 (the
+- Amended by: [ADR 0150](0150-live-sessions-browser-to-browser.md) §1 (the
   door is two roads, Set up your own and Join a session, with guest as the
   corner Skip; the sign-in panel leaves the door)
 - Supplements: [ADR 0090](0090-static-frontend-complete-without-backend.md)

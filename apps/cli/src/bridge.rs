@@ -4,20 +4,20 @@
 //! # The seam
 //!
 //! [`BridgeCmd`] is deliberately **open for extension**: each new serving
-//! surface in `crates/pm-bridges` adds one variant here (and, if it needs more
-//! than install/uninstall, its own nested subcommand enum, as `keepassxc`
-//! does). Handlers live in this file and nowhere else, so the top-level
-//! command enum in `main.rs` only ever grows the single `Bridge` arm.
-//!
-//! Two rules keep that seam honest:
+//! surface adds one variant here, with its own nested subcommand enum when it
+//! needs more than install/uninstall (`keepassxc`; `bitwarden`, whose verbs
+//! live in `bridge/bitwarden.rs`). The top-level command enum in `main.rs`
+//! only ever grows the single `Bridge` arm. Two rules keep that seam honest:
 //!
 //! 1. **No secret ever passes through this file.** The CLI writes manifests,
-//!    opens pairing windows, and spawns bridge binaries. Store passphrases,
+//!    opens pairing windows, and spawns bridge binaries; store passphrases,
 //!    entry contents, and session keys belong to the bridge processes.
 //! 2. **Every verb here is an explicit human act.** `install` writing a
 //!    native-messaging manifest *is* the approval that lets a browser launch
 //!    a bridge; `keepassxc pair` *is* the approval that lets one extension
 //!    talk to the store (constitution C2(b)). Nothing enables itself.
+
+mod bitwarden;
 
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
@@ -31,10 +31,9 @@ use opensesame_pm_bridges::pairing::{
     load_pairings, save_pairings, PairingWindow, WindowState, DEFAULT_WINDOW_SECS,
 };
 
-/// Pairing file / window basename for the keepassxc bridge. Mirrors
-/// `opensesame_pm_bridges::keepassxc::pairing::BRIDGE_NAME`, which lives
-/// behind that crate's `keepassxc` feature; the CLI depends on pm-bridges
-/// with default (all-off) features so it never links the bridge cores.
+/// Pairing basename for the keepassxc bridge; mirrors the feature-gated
+/// `opensesame_pm_bridges::keepassxc::pairing::BRIDGE_NAME`, as the CLI
+/// depends on pm-bridges with default (all-off) features.
 const KEEPASSXC_BRIDGE: &str = "keepassxc";
 
 /// Which stdio bridge to install a manifest for.
@@ -106,6 +105,11 @@ pub enum BridgeCmd {
         #[command(subcommand)]
         cmd: KeepassxcCmd,
     },
+    /// Bitwarden-compatible server: move accounts onto the Host (ADR 0148).
+    Bitwarden {
+        #[command(subcommand)]
+        cmd: bitwarden::BitwardenCmd,
+    },
 }
 
 /// Verbs specific to the keepassxc bridge.
@@ -149,7 +153,7 @@ pub enum KeepassxcCmd {
 }
 
 /// Entry point called from `main.rs`'s `Commands::Bridge` arm.
-pub fn run(cmd: BridgeCmd) -> anyhow::Result<()> {
+pub async fn run(cmd: BridgeCmd) -> anyhow::Result<()> {
     match cmd {
         BridgeCmd::Install {
             bridge,
@@ -165,6 +169,7 @@ pub fn run(cmd: BridgeCmd) -> anyhow::Result<()> {
         }
         BridgeCmd::Status => status(),
         BridgeCmd::Keepassxc { cmd } => keepassxc(cmd),
+        BridgeCmd::Bitwarden { cmd } => bitwarden::run(cmd).await,
     }
 }
 
@@ -208,13 +213,9 @@ fn install(
     println!("  binary: {}", installed.binary.display());
     println!(
         "  the {} extension may now launch it; restart the browser to pick it up",
-        browser_label(browser)
+        browser.as_str()
     );
     Ok(())
-}
-
-fn browser_label(browser: Browser) -> &'static str {
-    browser.as_str()
 }
 
 fn status() -> anyhow::Result<()> {
@@ -385,8 +386,7 @@ fn associations() -> anyhow::Result<()> {
         return Ok(());
     }
     for association in &file.associations {
-        // Fingerprint, never the raw key material — even though the stored
-        // key is public, a short fingerprint is what a human can check.
+        // A fingerprint, never the (public) key: what a human can check.
         println!(
             "{:<24} {:<20} paired {}",
             association.id,

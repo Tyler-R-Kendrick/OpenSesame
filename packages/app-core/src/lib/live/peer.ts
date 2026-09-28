@@ -1,5 +1,5 @@
 /**
- * The WebRTC half of a live session (ADR 0148 §3–§5).
+ * The WebRTC half of a live session (ADR 0150 §3–§5).
  *
  * The joiner's page makes the offer and the owner's page answers it, each
  * description carried in a sealed pairing code a person passes on

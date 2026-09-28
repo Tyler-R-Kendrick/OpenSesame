@@ -1,5 +1,5 @@
 /**
- * Carriers passing the pairing codes (ADR 0148 §6): the frames, and a whole
+ * Carriers passing the pairing codes (ADR 0150 §6): the frames, and a whole
  * session paired with nobody pasting anything — over a fake carrier service
  * that anyone may post junk to.
  */

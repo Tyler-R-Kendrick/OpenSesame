@@ -1,5 +1,5 @@
 /**
- * The people of a hosted live session, from the owner's side (ADR 0148 §3):
+ * The people of a hosted live session, from the owner's side (ADR 0150 §3):
  * the field a joiner's request code is pasted into, each asker with Let in
  * and Turn away, and — once let in — the reply code to hand back, until the
  * two browsers connect.

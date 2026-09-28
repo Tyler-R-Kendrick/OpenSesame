@@ -3,6 +3,7 @@ import {
   refreshGithubAppInstallations,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { localStore } from "@opensesame/app-core/ports.js";
 
 if (import.meta.env.DEV) {
   let refreshing = false;
@@ -16,7 +17,8 @@ if (import.meta.env.DEV) {
       );
       const store: Record<string, string | null> = {};
       for (const k of githubKeys) {
-        const v = localStorage.getItem(k);
+        // Values rest sealed (ADR 0149); the ports open them.
+        const v = localStore().getItem(k);
         store[k] =
           k.includes("pem") && v
             ? `[pem ${v.length} chars, hasKey=${v.includes("PRIVATE KEY")}]`

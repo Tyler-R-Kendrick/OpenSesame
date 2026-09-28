@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * Routes (ADR 0148 §6) through the screens people use: the owner names an
+ * Routes (ADR 0150 §6) through the screens people use: the owner names an
  * address, a TURN server and a carrier in Settings › Live sessions › Routes;
  * a joiner is shown every host the link names before anything is contacted,
  * and — keeping them — pairs with no code pasted either way. The peers and

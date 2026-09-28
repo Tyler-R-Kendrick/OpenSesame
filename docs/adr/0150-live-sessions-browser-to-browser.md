@@ -1,4 +1,4 @@
-# ADR 0148 — Live sessions: joining someone's vault browser to browser
+# ADR 0150 — Live sessions: joining someone's vault browser to browser
 
 - Status: Accepted
 - Date: 2026-09-28

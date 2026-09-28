@@ -47,7 +47,7 @@ export type Invite = Readonly<{
 /** What arrived in the address bar, once it has been taken out of it. */
 export type CapturedInvite =
   | Readonly<{ kind: "invite"; invite: Invite }>
-  /** A live-session link: the owner's open tab is the endpoint (ADR 0148). */
+  /** A live-session link: the owner's open tab is the endpoint (ADR 0150). */
   | Readonly<{ kind: "live"; link: LiveLink }>
   /** A bearer in the query string: logged, cached and sent as Referer. */
   | Readonly<{ kind: "leaked" }>;

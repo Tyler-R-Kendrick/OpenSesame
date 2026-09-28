@@ -1,6 +1,6 @@
 # Live sessions across networks
 
-A live session ([ADR 0148](../adr/0148-live-sessions-browser-to-browser.md))
+A live session ([ADR 0150](../adr/0150-live-sessions-browser-to-browser.md))
 connects the owner's open tab to each joiner's browser over WebRTC. With
 nothing configured, the two browsers pair by two codes the people pass each
 other and connect directly, with no server of anyone's. That works when both

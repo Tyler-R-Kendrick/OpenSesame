@@ -1,5 +1,5 @@
 /**
- * What an owner's open vault shows a live session (ADR 0148 §5).
+ * What an owner's open vault shows a live session (ADR 0150 §5).
  *
  * The catalog is built from the vault as it stands at each call, so an item
  * edited, deleted or taken out of the scope mid-session is reflected on the

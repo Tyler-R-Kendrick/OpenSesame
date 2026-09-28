@@ -5,6 +5,7 @@
  * a test that stubs `localStorage` or `navigator.credentials` still reaches
  * the stub.
  */
+import { indexedDbAtRestKeys } from "../lib/at-rest/idb-key-store.js";
 import type {
   AuthenticatorPort,
   BroadcastLike,
@@ -132,6 +133,12 @@ const environment: EnvironmentPort = {
 export function browserPorts(): Ports {
   return {
     storage,
+    /** The at-rest key lives in IndexedDB; without it nothing is kept past the tab. */
+    get atRestKeys() {
+      return globalThis.indexedDB === undefined
+        ? undefined
+        : indexedDbAtRestKeys;
+    },
     /** A page wherever there is a window or an address: a tab, or a test's stub. */
     get page() {
       return globalThis.window === undefined &&

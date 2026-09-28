@@ -1,5 +1,5 @@
 /**
- * A live session this tab is hosting (ADR 0148 §2–§5): the link and code to
+ * A live session this tab is hosting (ADR 0150 §2–§5): the link and code to
  * pass along, the field joiners' request codes are pasted into, who is asking
  * and who is in, every value handed out, and the key that ends it for
  * everyone.

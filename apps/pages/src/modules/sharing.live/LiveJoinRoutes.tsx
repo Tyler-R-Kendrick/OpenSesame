@@ -1,6 +1,6 @@
 /**
  * What the joiner's browser would contact for a link that names routes
- * (ADR 0148 §6), shown before anything is contacted: the owner's STUN or
+ * (ADR 0150 §6), shown before anything is contacted: the owner's STUN or
  * TURN servers and the carriers that pass the codes. The person keeps them
  * or pairs directly by hand; and, once asked, where each carrier stands.
  */

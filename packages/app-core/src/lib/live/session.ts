@@ -1,6 +1,6 @@
 /**
  * The one live session this tab hosts, and the one it has joined
- * (ADR 0148 §2).
+ * (ADR 0150 §2).
  *
  * They live here rather than in the capability module's activation: a
  * module is disposed and activated again on every lock, unlock and consent

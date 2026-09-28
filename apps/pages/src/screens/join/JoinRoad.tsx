@@ -4,7 +4,7 @@
  * request (ADR 0090 §2). Boot has already taken the link's bearer out of the
  * address bar; this only asks for it once, as the unlock screen mounts.
  *
- * The road is on every deployment (ADR 0148): a live session needs no Host,
+ * The road is on every deployment (ADR 0150): a live session needs no Host,
  * only the owner's open tab. A Host invite link still opens the Host
  * ceremony (ADR 0136), which says so where it cannot finish.
  */
@@ -63,7 +63,7 @@ export function useJoinRoad(): JoinRoadState {
 /**
  * A Host invite (or a leaked one) opens the Host ceremony (ADR 0136); a live
  * link, or the road pressed with nothing in hand, opens the live join
- * (ADR 0148).
+ * (ADR 0150).
  */
 function joinScreenFor(joining: NonNullable<Joining>, onDone: () => void) {
   const { captured } = joining;

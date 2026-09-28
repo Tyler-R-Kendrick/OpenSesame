@@ -1,6 +1,6 @@
 /**
  * The owner's live-session transport profile, sealed in the tomb
- * (ADR 0148 §6; ADR 0134). It can hold TURN credentials, a TURN REST secret
+ * (ADR 0150 §6; ADR 0134). It can hold TURN credentials, a TURN REST secret
  * and carrier passwords, so it is never written in the clear; and it names
  * this person's tailnet addresses, which are nobody else's business either.
  *

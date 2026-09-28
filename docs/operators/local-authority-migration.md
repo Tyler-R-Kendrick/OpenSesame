@@ -106,7 +106,7 @@ Host project roles through the explicit native policy procedure in
 Retain original encrypted data and database backups during migration. Downgrading
 to a binary that lacks these checks is not a safe live rollback.
 
-Static-auth artifact version 1.0.2 in the integration tree is a release candidate;
+Static-auth artifact version 1.0.3 in the integration tree is a release candidate;
 its presence does not establish that it has been published or independently
 verified. Use the actual release manifest and immutable bytes when distributing
 an SDK, and record final gate results separately.

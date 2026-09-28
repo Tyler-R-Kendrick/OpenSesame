@@ -68,7 +68,7 @@ export function GuestButton({
 
 /**
  * First run only: the "Skip" in the card's corner where a skip lives. On the
- * front door it is the one guest placement (ADR 0148 §1), so a `/guest` link
+ * front door it is the one guest placement (ADR 0150 §1), so a `/guest` link
  * `lands` on it there; beside the sign-in panel's full-size button it does
  * not.
  */

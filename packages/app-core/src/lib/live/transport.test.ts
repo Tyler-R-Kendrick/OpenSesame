@@ -1,6 +1,6 @@
 /**
  * The optional transport profile, the routes a link carries, and the
- * address hints a tunnel needs (ADR 0148 §6).
+ * address hints a tunnel needs (ADR 0150 §6).
  */
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";

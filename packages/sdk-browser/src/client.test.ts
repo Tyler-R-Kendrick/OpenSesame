@@ -98,7 +98,7 @@ describe("createOpenSesame", () => {
     const authUrl = new URL(overlapCast(assigned[0]));
     expect(authUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(authUrl.searchParams.get("client_id")).toBe("rp-alpha");
-    expect(storage.getItem("opensesame:pkce")).toBeTruthy();
+    expect(storage.getItem("opensesame:pkce")).toMatch(/^osc1\./);
   });
 
   // The control plane mounts /v1/principals/provisional and answers in the
@@ -356,7 +356,7 @@ describe("createOpenSesame", () => {
     await sesame.continueAnonymously();
     expect(local.getItem("opensesame:session")).toBeNull();
     const stored = sessionStore.getItem("opensesame:session");
-    expect(stored).toBeTruthy();
+    expect(stored).toMatch(/^osc1\./);
   });
 
   it("refuses an id_token that answers a different ceremony", async () => {

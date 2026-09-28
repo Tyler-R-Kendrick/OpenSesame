@@ -1,5 +1,5 @@
 /**
- * The data channel is read from the moment it exists (ADR 0148 §5): the
+ * The data channel is read from the moment it exists (ADR 0150 §5): the
  * other side sends the catalog as soon as its end opens, and a frame that
  * reaches this side before its own `open` handler ran must not be lost —
  * the owner would count in a joiner who never saw what is shared.

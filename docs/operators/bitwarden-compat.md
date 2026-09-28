@@ -8,7 +8,13 @@ and edit a personal vault against it, and never learn the difference beyond a
 
 ## Turn it on
 
+The server is a password-manager bridge, so a default build leaves it out
+([ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)). Build the Host with
+it, then switch it on:
+
 ```bash
+cargo build --release -p opensesame-cli --features bitwarden-compat
+# or the image: docker build --build-arg OPENSESAME_FEATURES=bitwarden-compat …
 export OPENSESAME_BITWARDEN_COMPAT=on
 export OPENSESAME_BITWARDEN_SIGNUPS=open          # closed (default) | open | example.com,corp.example
 # A domain list limits which addresses can be claimed; no mail is sent, so it
@@ -18,6 +24,9 @@ export OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID=true  # optional: refuse PBKDF2 for
 export OPENSESAME_BITWARDEN_URL=https://vault.example.com/bitwarden
 opensesame host run
 ```
+
+A Host built without the feature refuses to start while
+`OPENSESAME_BITWARDEN_COMPAT` is on, rather than come up without the surface.
 
 Bitwarden clients refuse plain HTTP, so the URL they are given must be HTTPS:
 the Host's own TLS listener ([mTLS guide](mtls.md)) or a TLS-terminating
@@ -34,6 +43,42 @@ In the apps, choose **Self-hosted** and enter the same URL. Accounts are created
 from the web vault or any client that offers registration while signups are
 open; close them again afterwards.
 
+## Move people over from vaultwarden or Bitwarden
+
+The importer moves accounts with their master passwords, keys and vaults
+unchanged ([ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)). The Host
+never sees a password or a decrypted value on the way. Each device signs in
+once more afterwards; nobody picks a new password.
+
+**A whole vaultwarden server.** Stop vaultwarden (so the file is consistent),
+then point the importer at its SQLite database:
+
+```bash
+opensesame bridge bitwarden import vaultwarden --from /srv/vaultwarden/data/db.sqlite3 --dry-run
+opensesame bridge bitwarden import vaultwarden --from /srv/vaultwarden/data/db.sqlite3
+```
+
+Every registered account moves with its folders, favourites, trash and items.
+Its vaultwarden password hash moves too and is replaced with Argon2id at the
+person's first sign-in. Invited accounts that never registered, and disabled
+ones, are listed and skipped.
+
+**One account from a live server** (bitwarden.com, bitwarden.eu, self-hosted
+Bitwarden, or a vaultwarden whose database you cannot reach). The person runs
+it and types their master password, and a two-step or new-device code if the
+old server asks:
+
+```bash
+opensesame bridge bitwarden import account --from https://vault.bitwarden.com --email you@example.com
+```
+
+Both write to the Host database (`--db`, default `$OPENSESAME_DB`). An email
+that already has an account on the Host is left alone unless you pass
+`--replace`, which deletes that account and everything it holds first. Each run
+prints, per account, what moved and what stayed behind (attachments, Sends,
+organization items, two-step methods, emergency contacts), so nothing is lost
+quietly.
+
 ## What people get
 
 - Argon2id by default. An account can move from PBKDF2 to Argon2id from its
@@ -46,12 +91,34 @@ open; close them again afterwards.
   import. SSH-key items are stored and returned as sent, but the oracle does
   not cover them yet.
 
+## Two-step login and API keys
+
+People manage both from the security settings of Bitwarden's web vault, and the importer
+carries them over from vaultwarden or a live account.
+
+- **Authenticator app.** Turning it on takes the master password and a code
+  from the app, so nobody enables a step they cannot pass. Each code works
+  once; codes from one step either side of the server's clock are accepted.
+  "Remember this device" skips the step on that device for 30 days, or until
+  the account's security stamp changes.
+- **Recovery code.** Shown on request; typing it at sign-in, or on the
+  signed-out recovery page with the master password, turns two-step login off
+  and issues a new one. Wrong attempts count against the address like wrong
+  passwords.
+- **Personal API key** (`bw login --apikey`). Signs in without the second step
+  and without a refresh token, as on Bitwarden; `bw unlock` still needs the
+  master password. Rotating it retires the old key at once.
+
+Like Bitwarden's own server, the Host keeps the authenticator key, recovery
+code and API key where it can check or show them again. None of them opens a
+vault.
+
 ## What is not served
 
-Organizations and collections, Sends, attachments, emergency access, two-factor
-providers, live-sync notifications, API-key sign-in (`bw login --apikey`) and
-key rotation. Clients hide or fail those features as they do against a server
-that has them turned off.
+Organizations and collections, Sends, attachments, emergency access, other
+two-step providers (email, Duo, `YubiKey`, security keys), live-sync
+notifications and key rotation. Clients hide or fail those features as they do
+against a server that has them turned off.
 
 ## Operating notes
 
@@ -62,10 +129,8 @@ that has them turned off.
   account's security stamp: every token it held stops working at once.
 - Sign-in hashing is bounded to four concurrent Argon2id computations (about
   76 MiB). An unknown email costs the same work as a known one.
-- Server hashes in PBKDF2-SHA256 PHC form are accepted and replaced with
-  Argon2id at the account's next sign-in. Bitwarden's server and vaultwarden
-  store theirs in other forms and there is no importer yet: move an existing
-  vault by exporting it from the old server and importing it with `bw import`.
+- Server hashes in PBKDF2-SHA256 form, which the vaultwarden importer writes,
+  are accepted and replaced with Argon2id at the account's next sign-in.
 - A refresh token lapses after 30 days unused, and dies at once on a password
   change, a KDF change or "log out all sessions".
 - An address that fails to sign in ten times in fifteen minutes is refused

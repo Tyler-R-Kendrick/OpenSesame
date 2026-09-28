@@ -1,4 +1,4 @@
-// The front door and the ceremony behind it (ADR 0115, ADR 0148), on the production
+// The front door and the ceremony behind it (ADR 0115, ADR 0150), on the production
 // origin: what a device nobody has set up shows first, and what "Set up your
 // own" walks through. Split from verify-static-origin.mjs like the other
 // contracts so the walk stays one screen per file.
@@ -10,7 +10,7 @@ async function count(page, role, name, exact = false) {
 /**
  * A. The first screen: two roads — set up your own, join a session — and
  * the guest road as the corner Skip. No sign-in: a device with no vault has
- * nothing to sign in to (ADR 0148 §1).
+ * nothing to sign in to (ADR 0150 §1).
  */
 export async function checkFrontDoor(page, check, text, base) {
   check(
@@ -24,7 +24,7 @@ export async function checkFrontDoor(page, check, text, base) {
     ["Set up your own", "setup road on the front door"],
     [
       "Join a session",
-      "join road on the front door, even on the shared origin (ADR 0148)",
+      "join road on the front door, even on the shared origin (ADR 0150)",
     ],
     ["Skip sign-in and continue as guest", "Skip link present"],
   ]) {
@@ -110,7 +110,7 @@ export async function walkSetupCeremony(page, check, snap) {
   const rows = await page.locator(".capcards > li").count();
   check(
     // ADR 0142: the browser-local four are core. Thirteen optional
-    // capabilities since sharing.live (ADR 0148).
+    // capabilities since sharing.live (ADR 0150).
     rows === 13,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );

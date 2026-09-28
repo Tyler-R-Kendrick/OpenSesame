@@ -1,5 +1,5 @@
 /**
- * The carriers a live session may name (ADR 0148 §6), as app-core's
+ * The carriers a live session may name (ADR 0150 §6), as app-core's
  * `CarrierFactory`. Each client loads only when a session names its kind:
  * a profile with no carriers fetches none of them, and nothing here runs at
  * import.

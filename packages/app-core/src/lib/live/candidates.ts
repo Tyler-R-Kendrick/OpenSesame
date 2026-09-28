@@ -1,5 +1,5 @@
 /**
- * Address hints for a session description (ADR 0148 §6).
+ * Address hints for a session description (ADR 0150 §6).
  *
  * A browser hides its own addresses behind mDNS names (`<uuid>.local`),
  * which only resolve on the same link. Across a tunnel — a tailnet, a

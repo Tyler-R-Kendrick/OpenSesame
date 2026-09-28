@@ -8,7 +8,7 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use serde_json::json;
+use serde_json::{json, Value};
 
 /// A failed API call.
 #[derive(Debug)]
@@ -17,6 +17,8 @@ pub struct ApiError {
     message: String,
     /// `Some` for an OAuth-shaped identity error: (`error`, `error_description`).
     oauth: Option<(&'static str, &'static str)>,
+    /// Members an identity error carries beside the OAuth ones.
+    extra: Option<Value>,
 }
 
 impl ApiError {
@@ -26,6 +28,7 @@ impl ApiError {
             status,
             message: message.into(),
             oauth: None,
+            extra: None,
         }
     }
 
@@ -60,6 +63,7 @@ impl ApiError {
             status: StatusCode::BAD_REQUEST,
             message: "Username or password is incorrect. Try again.".into(),
             oauth: Some(("invalid_grant", "invalid_username_or_password")),
+            extra: None,
         }
     }
 
@@ -70,6 +74,37 @@ impl ApiError {
             status: StatusCode::BAD_REQUEST,
             message: message.into(),
             oauth: Some((error, error)),
+            extra: None,
+        }
+    }
+
+    /// The password was right; now a second step is needed, from one of
+    /// `providers` (Bitwarden's provider numbers).
+    #[must_use]
+    pub fn two_factor_required(providers: &[i64]) -> Self {
+        let listed: Vec<String> = providers.iter().map(ToString::to_string).collect();
+        let details: serde_json::Map<String, Value> =
+            listed.iter().map(|p| (p.clone(), Value::Null)).collect();
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            message: "Two factor required.".into(),
+            oauth: Some(("invalid_grant", "Two factor required.")),
+            extra: Some(json!({
+                "TwoFactorProviders": listed,
+                "TwoFactorProviders2": details,
+                "MasterPasswordPolicy": { "Object": "masterPasswordPolicy" },
+            })),
+        }
+    }
+
+    /// A second-step code that does not match, or was already used.
+    #[must_use]
+    pub fn invalid_two_factor() -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            message: "Two-step token is invalid. Try again.".into(),
+            oauth: Some(("invalid_grant", "invalid_username_or_password")),
+            extra: None,
         }
     }
 
@@ -101,11 +136,19 @@ impl From<anyhow::Error> for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let body = match self.oauth {
-            Some((error, description)) => json!({
-                "error": error,
-                "error_description": description,
-                "ErrorModel": { "Message": self.message, "Object": "error" },
-            }),
+            Some((error, description)) => {
+                let mut body = json!({
+                    "error": error,
+                    "error_description": description,
+                    "ErrorModel": { "Message": self.message, "Object": "error" },
+                });
+                if let (Some(target), Some(Value::Object(extra))) =
+                    (body.as_object_mut(), self.extra)
+                {
+                    target.extend(extra);
+                }
+                body
+            }
             // A 400 is a model-state failure in ASP.NET's words; clients
             // show the first validation error, which carries the real text.
             None if self.status == StatusCode::BAD_REQUEST => json!({

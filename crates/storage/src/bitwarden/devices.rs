@@ -14,7 +14,8 @@ pub struct BitwardenSignIn<'a> {
     pub identifier: &'a str,
     pub name: &'a str,
     pub device_type: i64,
-    pub refresh_token_hash: &'a str,
+    /// `None` for a sign-in that gets no refresh token (an API key's).
+    pub refresh_token_hash: Option<&'a str>,
     /// The account's security stamp when the token was issued.
     pub security_stamp: &'a str,
     pub refresh_expires_at: DateTime<Utc>,

@@ -1,5 +1,5 @@
 /**
- * Code carriers for verify:live-join (ADR 0148 §6), each a real server on
+ * Code carriers for verify:live-join (ADR 0150 §6), each a real server on
  * this machine's loopback, the way an owner runs one on their own device or
  * tailnet: a NIP-01 Nostr relay and an MQTT broker (aedes) over WebSocket in
  * this process, and — when their pinned binaries are present — a real

@@ -1,5 +1,5 @@
 /**
- * The joiner's half of pairing (ADR 0148 §3): the request code to send the
+ * The joiner's half of pairing (ADR 0150 §3): the request code to send the
  * owner, and the field the owner's reply code is pasted into. Both codes go
  * person to person — a message, a call, a note — never through a server.
  */

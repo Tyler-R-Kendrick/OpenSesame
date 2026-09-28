@@ -47,14 +47,6 @@ export type EntraSdk = {
     redirectUri?: string;
     authority?: string;
   }): Promise<EntraIdTokenResult>;
-  loginRedirect(request: {
-    scopes: string[];
-    prompt?: string;
-    loginHint?: string;
-    nonce?: string;
-    redirectUri?: string;
-    authority?: string;
-  }): Promise<void>;
   clearCache(): Promise<void>;
 };
 
@@ -76,8 +68,15 @@ async function loadMsalSdk(input: {
       authority: input.authority,
       redirectUri: input.redirectUri,
     },
+    // Tokens and account records stay in memory (ADR 0149): MSAL writes its
+    // cache straight to Web Storage, past the at-rest seal, and a cached
+    // account is only a routing hint here — every sign-in verifies a fresh
+    // ID token. MSAL still keeps the request in flight (state, PKCE
+    // verifier) in sessionStorage for a redirect or popup sign-in, and marks
+    // SSO capability in localStorage after one; this adapter offers neither,
+    // only silent SSO, so MSAL writes nothing to Web Storage at all.
     cache: {
-      cacheLocation: "sessionStorage",
+      cacheLocation: "memoryStorage",
     },
     system: {
       allowRedirectInIframe: false,
@@ -100,16 +99,6 @@ async function loadMsalSdk(input: {
       });
       if (!result.idToken) throw new Error("msal_missing_id_token");
       return { idToken: result.idToken, tenantId: result.tenantId };
-    },
-    loginRedirect: async (request) => {
-      await pca.loginRedirect({
-        scopes: [...request.scopes],
-        prompt: request.prompt,
-        loginHint: request.loginHint,
-        nonce: request.nonce,
-        redirectUri: request.redirectUri,
-        authority: request.authority,
-      });
     },
     clearCache: async () => {
       await pca.clearCache();
@@ -179,6 +168,10 @@ export async function acquireEntraSilent(
     authority: entraAuthority(request.connection),
     redirectUri: request.redirectUri,
   });
+  // MSAL's cache lives in memory (ADR 0149), so this sees only the accounts
+  // this document signed in; across loads, Entra itself answers a hintless
+  // silent request over several sessions with interaction_required, which
+  // maps to the same outcome below.
   const accounts = sdk.getAllAccounts();
   if (accounts.length > 1 && !request.loginHint) {
     return { kind: "interaction-required", reason: "interaction_required" };

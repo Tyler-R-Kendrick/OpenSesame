@@ -1,5 +1,5 @@
 /**
- * The routes a live-session link may carry (ADR 0148 §6): the owner's ICE
+ * The routes a live-session link may carry (ADR 0150 §6): the owner's ICE
  * servers, whether to relay only, and the carriers that pass the pairing
  * codes — each read strictly, so a link naming anything else is refused
  * whole. Core: the door reads a link before the capability loads; the

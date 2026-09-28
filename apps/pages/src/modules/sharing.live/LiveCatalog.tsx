@@ -1,5 +1,5 @@
 /**
- * What a joined live session shows (ADR 0148 §5): the shared items, their
+ * What a joined live session shows (ADR 0150 §5): the shared items, their
  * open fields as the owner sent them, and each concealed field as a key that
  * asks the owner for it. A value the owner answers is held in this
  * component's state only — never written anywhere — and goes when the

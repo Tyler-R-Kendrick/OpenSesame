@@ -91,7 +91,7 @@ export const unlockScreenDependencies = {
 
 /**
  * A device with no vault opens on the front door's two roads — set up your
- * own, join a session (ADR 0148 §1); nothing is put in front of them
+ * own, join a session (ADR 0150 §1); nothing is put in front of them
  * (ADR 0090). Once a setup record exists, sign-in is the first screen. A
  * shared link opens join itself (ADR 0136), and a managed instance's
  * required roots sit beside sign-in.
@@ -112,7 +112,7 @@ export function UnlockScreen() {
   useEffect(() => {
     void checkForAppUpdate();
   }, []);
-  // The front door (ADR 0115, ADR 0148 §1): no vault and no setup record.
+  // The front door (ADR 0115, ADR 0150 §1): no vault and no setup record.
   // An answered or skipped ceremony retires it; guest prepare leaves status
   // empty (no wrap on disk), which is Unlock.
   const frontDoor =

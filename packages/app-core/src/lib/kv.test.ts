@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { openOriginFile } from "./at-rest/origin-files.js";
 import {
   kvDelete,
   kvDeleteDurable,
@@ -130,13 +131,19 @@ describe("kv with OPFS backing", () => {
     await flush();
 
     expect(kvDurability()).toBe("persistent");
-    expect(root.files.get("opensesame-pages-settings.v1.json")).toBe("payload");
+    const file = "opensesame-pages-settings.v1.json";
+    const stored = root.files.get(file) ?? "";
+    // Sealed at rest (ADR 0149), bound to its file name.
+    expect(stored).not.toContain("payload");
+    expect(await openOriginFile(file, stored)).toBe("payload");
+    expect(await openOriginFile("opensesame-pages-other.json", stored)).toBe(
+      null,
+    );
 
     kvSet("odd key/with:chars", "x");
     await flush();
-    expect(root.files.get("opensesame-pages-odd_key_with_chars.json")).toBe(
-      "x",
-    );
+    const odd = "opensesame-pages-odd_key_with_chars.json";
+    expect(await openOriginFile(odd, root.files.get(odd) ?? "")).toBe("x");
   });
 
   it("hydrates memory from OPFS and reports durability", async () => {

@@ -1,5 +1,5 @@
 /**
- * The joiner's side of a live session (ADR 0148 §3–§5).
+ * The joiner's side of a live session (ADR 0150 §3–§5).
  *
  * It makes a WebRTC offer and seals it, with the person's name and note,
  * into a request code only the owner can open, for the person to send the

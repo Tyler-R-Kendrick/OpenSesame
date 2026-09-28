@@ -1,6 +1,6 @@
 /**
  * The target and route the `sharing.live` capability contributes
- * (ADR 0148): the Settings › Live sessions tab, live only while the
+ * (ADR 0150): the Settings › Live sessions tab, live only while the
  * capability is in the plan. Its two panels' targets are core-declared
  * (`catalog-more.ts`), as every panel a capability draws is.
  */

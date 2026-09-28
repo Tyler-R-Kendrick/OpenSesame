@@ -1,5 +1,5 @@
 /**
- * The owner's side of a live session (ADR 0148 §2–§5): the open tab hosts it.
+ * The owner's side of a live session (ADR 0150 §2–§5): the open tab hosts it.
  *
  * The owner pastes each request code a joiner sends. One that the link (and,
  * in an invite session, the code) does not open is a miss, and the fifth

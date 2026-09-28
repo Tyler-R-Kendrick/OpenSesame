@@ -30,7 +30,7 @@ async function tabTo(page, target, key = "Tab") {
 
 /**
  * The local-only seal is a sign-in road, and sign-in comes after the door's
- * setup road (ADR 0148 §1): Enter on Set up, Skip all, then the seal.
+ * setup road (ADR 0150 §1): Enter on Set up, Skip all, then the seal.
  */
 async function toLocalSeal(page) {
   await expect(
@@ -104,7 +104,7 @@ try {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The front door lands on Set up; Tab reaches Join a session, and the
-    // corner Skip — the door's guest road — sits before both (ADR 0148 §1).
+    // corner Skip — the door's guest road — sits before both (ADR 0150 §1).
     await expect(
       page.getByRole("button", { name: "Set up your own" }),
     ).toBeFocused();

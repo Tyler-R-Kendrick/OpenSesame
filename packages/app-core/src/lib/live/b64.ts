@@ -1,6 +1,6 @@
 /**
  * base64url without padding (RFC 4648 §5), for live-session links and codes
- * (ADR 0148). Core: the door reads a link before the capability loads.
+ * (ADR 0150). Core: the door reads a link before the capability loads.
  */
 
 export function toB64url(bytes: Uint8Array): string {

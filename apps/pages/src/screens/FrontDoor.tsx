@@ -1,6 +1,6 @@
 /**
  * The front door — the first screen of a device with no vault (ADR 0115,
- * ADR 0148 §1).
+ * ADR 0150 §1).
  *
  * A first visitor arrives to do one of two things, and the door offers
  * exactly those, large: **set up your own** vault, or **join a session**
@@ -44,7 +44,7 @@ export function FrontDoor({
   /** The operator ceremony — every tab of it optional (ADR 0114). `join`
    *  lands on a managed instance's required roots to accept. */
   onOpenSetup: (join?: boolean) => void;
-  /** Join a session: a live one browser to browser (ADR 0148), or a Host's. */
+  /** Join a session: a live one browser to browser (ADR 0150), or a Host's. */
   onOpenJoin: () => void;
 }) {
   useSupportRoute("/unlock");

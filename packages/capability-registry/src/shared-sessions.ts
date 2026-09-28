@@ -8,7 +8,7 @@ const SESSION_AUTHORITY_CEREMONY: CapabilityExclusion = {
   adr: ADR_SHARED_SESSIONS,
 };
 
-const ADR_LIVE_SESSIONS = "0148-live-sessions-browser-to-browser.md";
+const ADR_LIVE_SESSIONS = "0150-live-sessions-browser-to-browser.md";
 
 const LIVE_SESSION_HUMAN: CapabilityExclusion = {
   reason:

@@ -10,6 +10,7 @@
  */
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
 import { shellBuild } from "./shell-build.js";
 
 configureHost(
@@ -26,3 +27,7 @@ configureHost(
     ...shellBuild,
   }),
 );
+// Start loading the at-rest key (ADR 0149) now: every stored value is sealed
+// under it, and boot waits for it before reading anything. A write made
+// before it lands waits in memory.
+void atRestReady();

@@ -17,7 +17,7 @@ export async function waitOpen(page) {
 }
 
 export async function sealWithPassword(page) {
-  // The local-only seal is a sign-in road, behind the door (ADR 0148 §1).
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
   await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.getByRole("tab", { name: "Password" }).click();

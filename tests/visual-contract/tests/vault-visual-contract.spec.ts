@@ -3,7 +3,7 @@
  * against a live apps/pages build/preview (see ../playwright.config.ts).
  *
  * The flow is the one a first visitor walks today (ADR 0090, ADR 0115,
- * ADR 0148):
+ * ADR 0150):
  *  - apps/pages/src/app-root.tsx            (the gate before the shell)
  *  - apps/pages/src/screens/FrontDoor.tsx   (.door: Set up your own, Join a
  *                                            session, and the corner Skip;
@@ -86,7 +86,7 @@ async function openFrontDoor(page: Page): Promise<void> {
 /**
  * The local-only road: "Use without an account" seals a vault on this device
  * with no identity at all. It is a sign-in road, so it sits behind the front
- * door's setup road (ADR 0148 §1): Set up your own, Skip all, then sign-in.
+ * door's setup road (ADR 0150 §1): Set up your own, Skip all, then sign-in.
  */
 async function openLocalOnlySeal(page: Page): Promise<void> {
   await openFrontDoor(page);
@@ -115,7 +115,7 @@ async function completeFirstRunSeal(page: Page): Promise<void> {
 test.describe("Pages visual contract", () => {
   test("pages: front door on a fresh device", async ({ page }, testInfo) => {
     await openFrontDoor(page);
-    // Two roads and nothing in front of them (ADR 0090, ADR 0148 §1); the
+    // Two roads and nothing in front of them (ADR 0090, ADR 0150 §1); the
     // guest road is load-bearing (AGENTS.md §5) and is the corner Skip.
     await expect(
       page.getByRole("button", { name: /Set up your own/ }),

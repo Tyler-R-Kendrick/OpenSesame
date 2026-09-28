@@ -18,6 +18,7 @@ opensesame-env-spec = { path = "../../crates/env-spec" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
+opensesame-bitwarden-server = { path = "../../crates/bitwarden-server", optional = true }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-human-vault = { path = "../../crates/human-vault" }
 opensesame-vault-item-types = { path = "../../crates/vault-item-types" }
@@ -41,6 +42,7 @@ chrono = { workspace = true }
 crossterm = { workspace = true }
 ratatui = { workspace = true }
 uuid = { workspace = true }
+zeroize = { workspace = true }
 directories = "6.0.0"
 qr2term = "0.3.3"
 regex = "1.11.1"
@@ -51,6 +53,7 @@ insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+sqlx = { workspace = true }
 
 [features]
 default = []
@@ -58,5 +61,7 @@ default = []
 browserpass = ["opensesame-pm-bridges/browserpass"]
 gopass = ["opensesame-pm-bridges/gopass"]
 keepassxc = ["opensesame-pm-bridges/keepassxc"]
+# The Bitwarden-compatible server, a password-manager bridge (ADR 0148).
+bitwarden-compat = ["opensesame-gateway/bitwarden-compat", "dep:opensesame-bitwarden-server"]
 tailscale = ["opensesame-daemon/tailscale"]
 wasm-connectors = ["opensesame-gateway/wasm-connectors"]

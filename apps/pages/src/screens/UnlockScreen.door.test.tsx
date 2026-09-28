@@ -45,7 +45,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
   }
 
   it("opens on the front door on a fresh device: two roads, guest in the corner, no sign-in", () => {
-    // A device with no vault has nothing to sign in to (ADR 0148 §1): the
+    // A device with no vault has nothing to sign in to (ADR 0150 §1): the
     // door offers setting one up or joining somebody's, and the guest road
     // stays one press away as Skip (AGENTS.md §5).
     fresh();

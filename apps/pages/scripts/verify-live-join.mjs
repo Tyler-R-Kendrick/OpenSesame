@@ -1,5 +1,5 @@
 /**
- * verify:live-join — joining somebody's vault browser to browser (ADR 0148),
+ * verify:live-join — joining somebody's vault browser to browser (ADR 0150),
  * on the production origin served from dist/, in real browser contexts over
  * real WebRTC. Each scenario is a person's walk, fails on any page or
  * console error, and says what else was reached.

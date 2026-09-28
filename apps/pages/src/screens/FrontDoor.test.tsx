@@ -21,7 +21,7 @@ import {
 import { isFunction } from "@opensesame/os-domain";
 
 /**
- * The front door (ADR 0115, ADR 0148 §1): two roads made large — set up your
+ * The front door (ADR 0115, ADR 0150 §1): two roads made large — set up your
  * own, join a session — and the guest road as the corner Skip. No sign-in:
  * a device with no vault has nothing to sign in to. Its contract is the
  * arrival — what is on the screen, in which order, and where the keyboard
@@ -141,7 +141,7 @@ describe("the front door", () => {
         .getByRole("button", { name: "Set up your own" })
         .getAttribute("aria-describedby"),
     ).toBe("door-setup-kind");
-    // Sign-in is for a device that holds a vault (ADR 0148 §1).
+    // Sign-in is for a device that holds a vault (ADR 0150 §1).
     expect(
       screen.queryByRole("button", { name: "Continue with Google" }),
     ).toBeNull();

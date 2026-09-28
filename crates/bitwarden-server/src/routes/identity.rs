@@ -9,8 +9,10 @@ use opensesame_storage::bitwarden::BitwardenSignIn;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use super::second_step;
 use crate::error::{ApiError, ApiResult};
 use crate::kdf::KdfConfig;
+use crate::second_factor::api_key_matches;
 use crate::tokens::{new_refresh_token, refresh_token_hash};
 use crate::wire::account::token_body;
 use crate::BitwardenServer;
@@ -69,9 +71,10 @@ pub async fn token(
     match form.get("grant_type").map(String::as_str) {
         Some("password") => password_grant(&server, &form).await,
         Some("refresh_token") => refresh_grant(&server, &form).await,
+        Some("client_credentials") => api_key_grant(&server, &form).await,
         _ => Err(ApiError::oauth(
             "unsupported_grant_type",
-            "This server supports the password and refresh_token grants.",
+            "This server supports the password, refresh_token and client_credentials grants.",
         )),
     }
 }
@@ -106,6 +109,18 @@ async fn password_grant(
         server.sign_in_failures.record_failure(&email);
         return Err(ApiError::invalid_grant());
     }
+    let passed = match second_step::check(server, &user, identifier, form).await {
+        Ok(passed) => passed,
+        Err(refused) => {
+            // A wrong code counts against the address like a wrong password.
+            if refused.status() == axum::http::StatusCode::BAD_REQUEST
+                && form.contains_key("twoFactorToken")
+            {
+                server.sign_in_failures.record_failure(&email);
+            }
+            return Err(refused);
+        }
+    };
     server.sign_in_failures.clear(&email);
     let refresh = new_refresh_token();
     let device_id = server
@@ -115,7 +130,7 @@ async fn password_grant(
             identifier,
             name: device_name,
             device_type,
-            refresh_token_hash: &refresh_token_hash(&refresh),
+            refresh_token_hash: Some(&refresh_token_hash(&refresh)),
             // The stamp this sign-in verified under. A password change that
             // lands before this write leaves the token already dead.
             security_stamp: &user.security_stamp,
@@ -123,11 +138,71 @@ async fn password_grant(
         })
         .await?;
     let access = server.tokens.mint_access(&user, &device_id, client_id)?;
+    let mut body = token_body(
+        &user,
+        &access,
+        server.tokens.access_ttl_seconds(),
+        Some(&refresh),
+    );
+    if passed.remember {
+        body["TwoFactorToken"] =
+            json!(second_step::remember_device(server, &user, identifier).await?);
+    }
+    Ok(Json(body))
+}
+
+/// `client_credentials` with a personal API key: `client_id` is
+/// `user.<account id>`, `client_secret` the key. It signs in without a second
+/// step, as on Bitwarden, and gets no refresh token; the client keeps the key.
+async fn api_key_grant(
+    server: &BitwardenServer,
+    form: &HashMap<String, String>,
+) -> ApiResult<Json<Value>> {
+    let client_id = required(form, "client_id")?;
+    let secret = required(form, "client_secret")?;
+    let identifier = required(form, "deviceIdentifier")?;
+    let refused = || ApiError::oauth("invalid_client", "invalid_client");
+    if server.sign_in_failures.blocked(client_id) {
+        return Err(ApiError::too_many_requests());
+    }
+    let user = match client_id.strip_prefix("user.") {
+        Some(id) => server.db.bitwarden_user_by_id(id).await?,
+        None => None,
+    };
+    let key = match &user {
+        Some(user) => server.db.bitwarden_api_key(&user.id).await?,
+        None => None,
+    };
+    let (Some(user), true) = (
+        user,
+        key.as_deref()
+            .is_some_and(|key| api_key_matches(key, secret)),
+    ) else {
+        server.sign_in_failures.record_failure(client_id);
+        return Err(refused());
+    };
+    server.sign_in_failures.clear(client_id);
+    let device_id = server
+        .db
+        .bitwarden_upsert_device(&BitwardenSignIn {
+            user_id: &user.id,
+            identifier,
+            name: form.get("deviceName").map_or("unknown", String::as_str),
+            device_type: form
+                .get("deviceType")
+                .and_then(|raw| raw.parse::<i64>().ok())
+                .unwrap_or(14),
+            refresh_token_hash: None,
+            security_stamp: &user.security_stamp,
+            refresh_expires_at: Utc::now(),
+        })
+        .await?;
+    let access = server.tokens.mint_access(&user, &device_id, client_id)?;
     Ok(Json(token_body(
         &user,
         &access,
         server.tokens.access_ttl_seconds(),
-        &refresh,
+        None,
     )))
 }
 

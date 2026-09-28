@@ -1,5 +1,5 @@
 /**
- * Settings › Live sessions as a file (ADR 0134; ADR 0148 §6):
+ * Settings › Live sessions as a file (ADR 0134; ADR 0150 §6):
  * `settings/live/transport.json`, the owner's transport profile — address
  * hints, ICE servers, relay only, carriers. Sealed in the tomb
  * (`lib/live/transport-store.ts`); the Form and this file write it through

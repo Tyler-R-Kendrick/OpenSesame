@@ -41,7 +41,7 @@ beforeEach(resetUnlockHarness);
 describe("UnlockScreen — first run", () => {
   beforeEach(() => {
     // Sign-in is the first screen once setup is answered or skipped; before
-    // that the door offers only its two roads (ADR 0148 §1,
+    // that the door offers only its two roads (ADR 0150 §1,
     // UnlockScreen.door.test.tsx).
     setupHolder.current = ANSWERED;
     v.state = {

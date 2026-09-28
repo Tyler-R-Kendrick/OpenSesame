@@ -21,6 +21,15 @@ const TYPES: &[(i64, &str)] = &[
     (5, "sshKey"),
 ];
 
+/// The member that carries a cipher type's own payload, e.g. `login` for 1.
+#[must_use]
+pub fn type_member(cipher_type: i64) -> Option<&'static str> {
+    TYPES
+        .iter()
+        .find(|(t, _)| *t == cipher_type)
+        .map(|(_, member)| *member)
+}
+
 /// Encrypted members kept verbatim beside the type's own payload.
 const PAYLOAD: &[&str] = &[
     "name",

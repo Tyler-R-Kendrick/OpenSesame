@@ -90,13 +90,20 @@ describe("resetBrowser: refusals", () => {
 describe("clearDatabases", () => {
   it("deletes the app's databases by name where databases() is missing (Firefox before 126)", async () => {
     // The factory has deleteDatabase and nothing to list with.
-    const databases = databaseFactory(["opensesame-history-backups", "x"]);
+    const databases = databaseFactory([
+      "opensesame-history-backups",
+      "opensesame-at-rest",
+      "x",
+    ]);
     expect("databases" in databases).toBe(false);
     host({ indexedDB: overlapCast(databases) });
 
     await clearDatabases();
 
-    expect(databases.deleted).toEqual(["opensesame-history-backups"]);
+    expect(databases.deleted).toEqual([
+      "opensesame-history-backups",
+      "opensesame-at-rest",
+    ]);
     expect([...databases.live]).toEqual(["x"]);
   });
 

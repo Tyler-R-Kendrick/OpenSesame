@@ -1,6 +1,6 @@
 /**
  * Carriers: optional relays that pass a live session's pairing codes so the
- * two people do not have to (ADR 0148 §6).
+ * two people do not have to (ADR 0150 §6).
  *
  * A carrier is any publish/subscribe service both browsers can reach —
  * Nostr, MQTT or NATS over WebSocket, ntfy, or this browser's own tabs. The

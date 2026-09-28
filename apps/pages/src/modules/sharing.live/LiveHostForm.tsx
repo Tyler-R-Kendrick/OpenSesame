@@ -1,5 +1,5 @@
 /**
- * Starting a live session (ADR 0148 §2): what it shares, how, for how long,
+ * Starting a live session (ADR 0150 §2): what it shares, how, for how long,
  * and who gets in. Nothing leaves this browser until someone is let in.
  */
 

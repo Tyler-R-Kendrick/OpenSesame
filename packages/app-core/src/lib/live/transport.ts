@@ -1,6 +1,6 @@
 /**
  * How a live session's two browsers find each other when they are not on
- * one network (ADR 0148 §6). Every part is optional. With none of it,
+ * one network (ADR 0150 §6). Every part is optional. With none of it,
  * pairing is by hand-passed codes and a direct route, and nothing else is
  * contacted.
  *

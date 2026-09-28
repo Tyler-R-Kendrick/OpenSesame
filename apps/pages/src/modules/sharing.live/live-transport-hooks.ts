@@ -1,5 +1,5 @@
 /**
- * The owner's transport profile as React state (ADR 0148 §6): read from the
+ * The owner's transport profile as React state (ADR 0150 §6): read from the
  * open vault's sealed file, and read again whenever the Form or the file
  * viewer writes it.
  */

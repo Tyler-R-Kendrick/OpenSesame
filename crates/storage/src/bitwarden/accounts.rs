@@ -86,6 +86,42 @@ fn user_from_row(row: &SqliteRow) -> anyhow::Result<BitwardenUser> {
     })
 }
 
+/// Insert an account unless its email is taken; `true` when it was written.
+pub(super) async fn insert_user<'e, E>(executor: E, user: &BitwardenUser) -> anyhow::Result<bool>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    let created = bitwarden_timestamp(user.created_at);
+    let done = sqlx::query(
+        "INSERT INTO bitwarden_users (id, email, name, master_password_hash, \
+         master_password_hint, kdf_type, kdf_iterations, kdf_memory, kdf_parallelism, \
+         user_key, user_key_id, public_key, private_key, security_stamp, culture, created_at, \
+         revision_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) \
+         ON CONFLICT(email) DO NOTHING",
+    )
+    .bind(&user.id)
+    .bind(&user.email)
+    .bind(&user.name)
+    .bind(&user.master_password_hash)
+    .bind(&user.master_password_hint)
+    .bind(user.kdf.kdf_type)
+    .bind(user.kdf.iterations)
+    .bind(user.kdf.memory)
+    .bind(user.kdf.parallelism)
+    .bind(&user.user_key)
+    .bind(&user.user_key_id)
+    .bind(&user.public_key)
+    .bind(&user.private_key)
+    .bind(&user.security_stamp)
+    .bind(&user.culture)
+    .bind(&created)
+    .bind(bitwarden_timestamp(user.revision_at))
+    .bind(&created)
+    .execute(executor)
+    .await?;
+    Ok(done.rows_affected() == 1)
+}
+
 impl Db {
     /// Create an account. Returns `false`, and writes nothing, when the email
     /// is already registered.
@@ -94,35 +130,7 @@ impl Db {
     ///
     /// Returns an error when the write fails for any other reason.
     pub async fn bitwarden_create_user(&self, user: &BitwardenUser) -> anyhow::Result<bool> {
-        let created = bitwarden_timestamp(user.created_at);
-        let done = sqlx::query(
-            "INSERT INTO bitwarden_users (id, email, name, master_password_hash, \
-             master_password_hint, kdf_type, kdf_iterations, kdf_memory, kdf_parallelism, \
-             user_key, user_key_id, public_key, private_key, security_stamp, culture, created_at, \
-             revision_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) \
-             ON CONFLICT(email) DO NOTHING",
-        )
-        .bind(&user.id)
-        .bind(&user.email)
-        .bind(&user.name)
-        .bind(&user.master_password_hash)
-        .bind(&user.master_password_hint)
-        .bind(user.kdf.kdf_type)
-        .bind(user.kdf.iterations)
-        .bind(user.kdf.memory)
-        .bind(user.kdf.parallelism)
-        .bind(&user.user_key)
-        .bind(&user.user_key_id)
-        .bind(&user.public_key)
-        .bind(&user.private_key)
-        .bind(&user.security_stamp)
-        .bind(&user.culture)
-        .bind(&created)
-        .bind(bitwarden_timestamp(user.revision_at))
-        .bind(&created)
-        .execute(&self.pool)
-        .await?;
-        Ok(done.rows_affected() == 1)
+        insert_user(&self.pool, user).await
     }
 
     /// Look an account up by its normalized email.
