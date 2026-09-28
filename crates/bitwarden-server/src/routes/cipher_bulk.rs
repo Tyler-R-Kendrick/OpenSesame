@@ -8,12 +8,13 @@ use opensesame_storage::bitwarden::BitwardenFolder;
 use serde_json::{Map, Value};
 
 use super::accounts::prove_password;
+use super::attachments::CipherViews;
 use super::ciphers::new_cipher;
 use super::folders::list_json;
 use super::touch;
 use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
-use crate::wire::cipher::{cipher_json, folder_name, normalize, parse_cipher};
+use crate::wire::cipher::{folder_name, normalize, parse_cipher};
 use crate::BitwardenServer;
 
 /// Bitwarden caps a bulk request at 500 ids.
@@ -81,12 +82,13 @@ pub async fn restore_many(
         .bitwarden_trash_ciphers(&user.id, &ids, None, Utc::now())
         .await?;
     touch(&server, &user.id).await?;
+    let views = CipherViews::load(&server, &user.id).await?;
     let restored: Vec<Value> = server
         .db
         .bitwarden_ciphers_by_ids(&user.id, &ids)
         .await?
         .iter()
-        .map(cipher_json)
+        .map(|c| views.render(c))
         .collect();
     Ok(Json(list_json(&restored)))
 }

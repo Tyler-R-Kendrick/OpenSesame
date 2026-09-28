@@ -9,11 +9,12 @@ use chrono::Utc;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use super::attachments::CipherViews;
 use crate::auth::Authed;
 use crate::error::ApiResult;
 use crate::routes::identity::normalize_email;
 use crate::wire::account::{date, profile, sync_decryption};
-use crate::wire::cipher::{cipher_json, folder_json};
+use crate::wire::cipher::folder_json;
 use crate::BitwardenServer;
 
 /// The Bitwarden server release whose client protocol this surface speaks,
@@ -92,6 +93,8 @@ pub async fn sync(
     let folders = server.db.bitwarden_folders(&user.id).await?;
     let ciphers = server.db.bitwarden_ciphers(&user.id).await?;
     let two_factor = super::two_factor::enabled(&server, &user.id).await?;
+    let views = CipherViews::load(&server, &user.id).await?;
+    let sends = super::sends::for_sync(&server, &user.id).await?;
     let domains = if query.exclude_domains.unwrap_or(false) {
         Value::Null
     } else {
@@ -106,9 +109,9 @@ pub async fn sync(
         "folders": folders.iter().map(folder_json).collect::<Vec<_>>(),
         "collections": [],
         "policies": [],
-        "ciphers": ciphers.iter().map(cipher_json).collect::<Vec<_>>(),
+        "ciphers": ciphers.iter().map(|c| views.render(c)).collect::<Vec<_>>(),
         "domains": domains,
-        "sends": [],
+        "sends": sends,
         "userDecryption": sync_decryption(&user),
         "object": "sync",
     })))
