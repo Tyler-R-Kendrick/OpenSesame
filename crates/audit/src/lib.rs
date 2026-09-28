@@ -170,6 +170,14 @@ impl ReceiptSigner {
                 "receipt summary contains secret material".into(),
             ));
         }
+        // Key names are refused above; a secret riding in a *value* (an upstream
+        // error, a URL, a bearer in a message) is scrubbed here, before the
+        // digest is taken, so the signature covers exactly what is stored
+        // (ADR 0150). Every receipt is signed through this one method.
+        receipt.safe_result_summary = receipt
+            .safe_result_summary
+            .as_ref()
+            .map(opensesame_redaction::redact_json);
         receipt.authority_key_id.clone_from(&self.key_id);
         receipt.signature = String::new();
         let digest = digest_json(
@@ -221,6 +229,23 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use opensesame_domain::*;
+
+    #[test]
+    fn a_secret_in_a_summary_value_is_scrubbed_before_the_receipt_is_signed() {
+        let signer = ReceiptSigner::generate();
+        let mut receipt = sample_receipt();
+        receipt.safe_result_summary = Some(serde_json::json!({
+            "status": "failed",
+            "detail": "GET https://api.example/x?api_key=k_live_123 rejected; Authorization: Bearer abc.def.ghi",
+        }));
+        let signed = signer.sign_receipt(receipt).unwrap();
+        let stored = signed.safe_result_summary.as_ref().unwrap().to_string();
+        assert!(!stored.contains("k_live_123") && !stored.contains("abc.def.ghi"));
+        assert!(stored.contains("failed"));
+        signer
+            .verify_receipt(&signed)
+            .expect("the signature covers the scrubbed summary");
+    }
 
     #[test]
     fn sign_and_verify() {

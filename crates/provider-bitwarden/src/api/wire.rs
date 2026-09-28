@@ -19,7 +19,7 @@ pub struct PreloginResponse {
 
 /// `POST /identity/connect/token` — OAuth fields are `snake_case`, Bitwarden's
 /// own additions are `PascalCase`. Both shapes are accepted.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
     #[serde(default)]
@@ -32,6 +32,15 @@ pub struct TokenResponse {
     pub private_key: Option<String>,
 }
 
+impl std::fmt::Debug for TokenResponse {
+    /// Every field here is a credential or key material; only the lifetime prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponse")
+            .field("access_token", &"[REDACTED]")
+            .field("expires_in", &self.expires_in)
+            .finish_non_exhaustive()
+    }
+}
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncResponse {
@@ -133,4 +142,22 @@ pub struct ConfigResponse {
     pub version: Option<String>,
     #[serde(default, alias = "GitHash")]
     pub git_hash: Option<String>,
+}
+
+#[cfg(test)]
+mod debug_redaction {
+    use super::*;
+
+    #[test]
+    fn a_token_response_prints_no_credential() {
+        let response: TokenResponse = serde_json::from_str(
+            r#"{"access_token":"at-12345","refresh_token":"rt-12345","Key":"2.key","PrivateKey":"2.pk","expires_in":3600}"#,
+        )
+        .unwrap();
+        let shown = format!("{response:?}");
+        for leaked in ["at-12345", "rt-12345", "2.key", "2.pk"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
+        assert!(shown.contains("3600"));
+    }
 }

@@ -12,12 +12,18 @@ use opensesame_nats_callout::config::BridgeConfig;
 use opensesame_nats_callout::host_client::HttpHost;
 use opensesame_nats_callout::response::ResponseSigner;
 use opensesame_nats_callout::xkey::CalloutXKey;
+use opensesame_redaction::{Format, ScrubMakeWriter};
 use secrecy::ExposeSecret as _;
 
 fn init_tracing() {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    // Every line is scrubbed at the sink, whatever level an operator raises
+    // `RUST_LOG` to (ADR 0150).
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
+        .init();
 }
 
 #[tokio::main]

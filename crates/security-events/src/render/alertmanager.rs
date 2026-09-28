@@ -58,7 +58,7 @@ fn labels(notice: &SecurityNotice) -> Value {
         "event_family": notice.family(),
         "event_type": notice.event_type,
         "subject_kind": notice.subject_kind,
-        "subject_id": notice.subject_id,
+        "subject_id": notice.subject_id_text(),
         "organization": notice.organization_id,
         "alert_key": notice.alert_key(),
     })

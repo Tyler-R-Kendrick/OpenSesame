@@ -13,6 +13,7 @@
 //! that the family exists.
 
 use chrono::{DateTime, Utc};
+use opensesame_redaction::{redact_json, redact_text};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -200,34 +201,43 @@ impl SecurityNotice {
         format!("{head}~{digest}")
     }
 
-    /// The summary, bounded to what every sink will show.
+    /// The summary, scrubbed and bounded to what every sink will show.
+    ///
+    /// Scrubbed *before* it is cut: truncating first could leave the front of
+    /// a token that no pattern recognises any more.
     #[must_use]
     pub fn summary_text(&self) -> String {
-        truncate(&self.summary, MAX_SUMMARY_CHARS)
+        truncate(&redact_text(&self.summary), MAX_SUMMARY_CHARS)
     }
 
-    /// The label, bounded.
+    /// The label, scrubbed and bounded.
     #[must_use]
     pub fn label_text(&self) -> Option<String> {
         self.label
             .as_ref()
-            .map(|label| truncate(label, MAX_LABEL_CHARS))
+            .map(|label| truncate(&redact_text(label), MAX_LABEL_CHARS))
     }
 
-    /// The detail hint, bounded.
+    /// The detail hint, scrubbed and bounded.
     #[must_use]
     pub fn detail_text(&self) -> Option<String> {
         self.detail
             .as_ref()
-            .map(|detail| truncate(detail, MAX_DETAIL_CHARS))
+            .map(|detail| truncate(&redact_text(detail), MAX_DETAIL_CHARS))
     }
 
-    /// The source payload with any secret-shaped key removed.
+    /// The subject id, scrubbed. A store path or a domain is metadata, but it
+    /// is operator- or provider-supplied text, and it goes to third parties.
+    #[must_use]
+    pub fn subject_id_text(&self) -> String {
+        redact_text(&self.subject_id)
+    }
+
+    /// The source payload with every secret-shaped key removed at any depth
+    /// and every string scrubbed (ADR 0150).
     ///
-    /// Shallow by design: every event family builds a flat payload, and a
-    /// recursive walk would invite someone to nest one and assume this will
-    /// catch it. If a family ever needs nesting, this fence has to be widened
-    /// deliberately rather than trusted silently.
+    /// Families build flat payloads today, but a nested one must not be the way
+    /// around this fence, so the walk is recursive rather than trusted.
     #[must_use]
     pub fn safe_payload(&self) -> Value {
         let Some(object) = self.payload.as_object() else {
@@ -235,12 +245,39 @@ impl SecurityNotice {
             // to be value-blind. Drop it rather than forward it.
             return Value::Object(Map::new());
         };
-        let kept = object
-            .iter()
-            .filter(|(key, _)| !is_secret_shaped(key))
-            .map(|(key, value)| (key.clone(), value.clone()))
-            .collect();
-        Value::Object(kept)
+        redact_json(&Value::Object(strip_secret_keys(object)))
+    }
+
+    /// A copy with every free-text field scrubbed. `dispatch` publishes this,
+    /// so the bus, the delivery ledger and every sink see the same
+    /// already-clean notice, whatever detector built the original.
+    #[must_use]
+    pub fn scrubbed(&self) -> Self {
+        Self {
+            label: self.label.as_deref().map(redact_text),
+            summary: redact_text(&self.summary),
+            detail: self.detail.as_deref().map(redact_text),
+            subject_id: redact_text(&self.subject_id),
+            payload: self.safe_payload(),
+            ..self.clone()
+        }
+    }
+}
+
+/// The map without any secret-shaped key, at any depth.
+fn strip_secret_keys(object: &Map<String, Value>) -> Map<String, Value> {
+    object
+        .iter()
+        .filter(|(key, _)| !is_secret_shaped(key))
+        .map(|(key, value)| (key.clone(), strip_value(value)))
+        .collect()
+}
+
+fn strip_value(value: &Value) -> Value {
+    match value {
+        Value::Object(object) => Value::Object(strip_secret_keys(object)),
+        Value::Array(items) => Value::Array(items.iter().map(strip_value).collect()),
+        other => other.clone(),
     }
 }
 
@@ -375,6 +412,54 @@ mod tests {
             object.contains_key("secrets_returned"),
             "the non-disclosure marker is the one 'secret'-shaped key that stays",
         );
+    }
+
+    #[test]
+    fn nested_secret_keys_and_secret_values_do_not_survive_the_payload() {
+        let mut nested = notice();
+        nested.payload = json!({
+            "remaining_seconds": 10,
+            "provider": {"name": "acme", "api_key": "sk-live", "note": "retry https://h.example/x#token=abc123"},
+            "steps": [{"password": "p", "ok": true}],
+        });
+        let safe = nested.safe_payload().to_string();
+        for leaked in ["sk-live", "abc123", "\"p\""] {
+            assert!(!safe.contains(leaked), "{leaked} survived: {safe}");
+        }
+        assert!(safe.contains("acme") && safe.contains("remaining_seconds"));
+    }
+
+    #[test]
+    fn free_text_is_scrubbed_before_it_is_bounded_and_sent() {
+        let mut leaky = notice();
+        leaky.summary =
+            "delivery failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart".into();
+        leaky.label = Some("hook postgres://app:pw0rd@db/x".into());
+        leaky.detail = Some("Authorization: Bearer abc.def.ghi".into());
+        leaky.subject_id = "https://feed.example/x?api_key=k123".into();
+        for text in [
+            leaky.summary_text(),
+            leaky.label_text().unwrap(),
+            leaky.detail_text().unwrap(),
+            leaky.subject_id_text(),
+        ] {
+            for leaked in ["osc_clm_", "s3cr3tpart", "pw0rd", "abc.def.ghi", "k123"] {
+                assert!(!text.contains(leaked), "{leaked} survived: {text}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_scrubbed_notice_is_clean_idempotent_and_keeps_its_identity_fields() {
+        let mut leaky = notice();
+        leaky.summary = "failed: password=hunter2".into();
+        leaky.payload = json!({"detail": "token=abc123", "remaining_seconds": 3});
+        let once = leaky.scrubbed();
+        assert_eq!(once.scrubbed(), once);
+        assert!(!serde_json::to_string(&once).unwrap().contains("hunter2"));
+        assert_eq!(once.event_type, leaky.event_type);
+        assert_eq!(once.organization_id, leaky.organization_id);
+        assert_eq!(once.alert_key(), leaky.alert_key());
     }
 
     #[test]

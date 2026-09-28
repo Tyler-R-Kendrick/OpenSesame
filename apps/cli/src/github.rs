@@ -60,12 +60,20 @@ impl GitHubAppConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct InstallationToken {
     pub token: String,
     pub expires_at: String,
 }
 
+impl std::fmt::Debug for InstallationToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstallationToken")
+            .field("token", &"[REDACTED]")
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
+}
 #[derive(Serialize)]
 struct AppJwtClaims {
     iat: i64,
@@ -188,6 +196,16 @@ fn non_empty_env(name: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_installation_token_never_prints() {
+        let token: InstallationToken = serde_json::from_str(
+            r#"{"token":"ghs_16C7e42F292c6912E7710c838347Ae178B4a","expires_at":"2030-01-01T00:00:00Z"}"#,
+        )
+        .unwrap();
+        let shown = format!("{token:?}");
+        assert!(!shown.contains("ghs_") && shown.contains("2030"), "{shown}");
+    }
 
     /// Fresh throwaway key per run — a committed PEM would trip the gitleaks
     /// gate and repo policy (keys live outside git).

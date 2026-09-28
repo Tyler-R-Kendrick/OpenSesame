@@ -32,12 +32,20 @@ impl std::fmt::Debug for GithubAppSigningMaterial {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct InstallationToken {
     pub token: String,
     pub expires_at: DateTime<Utc>,
 }
 
+impl std::fmt::Debug for InstallationToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstallationToken")
+            .field("token", &"[REDACTED]")
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
+}
 impl InstallationToken {
     #[must_use]
     pub fn usable(&self) -> bool {
@@ -271,6 +279,16 @@ async fn installation_repo_names(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_installation_token_never_prints() {
+        let token: InstallationToken = serde_json::from_str(
+            r#"{"token":"ghs_16C7e42F292c6912E7710c838347Ae178B4a","expires_at":"2030-01-01T00:00:00Z"}"#,
+        )
+        .unwrap();
+        let shown = format!("{token:?}");
+        assert!(!shown.contains("ghs_") && shown.contains("2030"), "{shown}");
+    }
     use base64::Engine as _;
 
     fn throwaway_rsa_pem() -> Option<String> {

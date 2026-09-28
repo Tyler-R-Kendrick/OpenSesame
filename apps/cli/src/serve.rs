@@ -4,6 +4,7 @@
 //! role is the subcommand, not a separate executable (ADR 0138).
 use crate::Commands;
 use clap::Subcommand;
+use opensesame_redaction::{Format, ScrubMakeWriter};
 
 /// `opensesame host`.
 #[derive(Subcommand, Debug)]
@@ -34,17 +35,25 @@ pub async fn worker(cmd: WorkerCmd) -> anyhow::Result<()> {
 /// A server logs to stdout at `info` (the Host API as JSON lines, as its
 /// collectors expect); every other command logs warnings to stderr so its
 /// stdout stays the command's output.
+///
+/// Every sink is wrapped in a scrubbing writer (ADR 0150): a call site that
+/// logs a secret by mistake, a library error that echoes a URL with a token in
+/// it and a panic message all reach the collector or the file already scrubbed.
 pub fn init_tracing(command: &Commands) {
+    let stdout_text = || ScrubMakeWriter::new(std::io::stdout, Format::Text);
     match command {
         Commands::Host { .. } => tracing_subscriber::fmt()
             .with_env_filter("info,tower_http=info")
             .json()
+            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Json))
             .init(),
-        Commands::Worker { .. } => tracing_subscriber::fmt().init(),
-        Commands::Daemon(args) if args.is_run() => tracing_subscriber::fmt().init(),
+        Commands::Worker { .. } => tracing_subscriber::fmt().with_writer(stdout_text()).init(),
+        Commands::Daemon(args) if args.is_run() => {
+            tracing_subscriber::fmt().with_writer(stdout_text()).init()
+        }
         _ => tracing_subscriber::fmt()
             .with_env_filter("warn")
-            .with_writer(std::io::stderr)
+            .with_writer(ScrubMakeWriter::new(std::io::stderr, Format::Text))
             .init(),
     }
 }

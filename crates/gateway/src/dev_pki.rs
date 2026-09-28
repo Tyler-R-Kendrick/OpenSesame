@@ -43,7 +43,7 @@ pub struct IssueRequest {
     pub ttl: StdDuration,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct IssuedCert {
     pub certificate: String,
     pub private_key: String,
@@ -55,6 +55,17 @@ pub struct IssuedCert {
     pub not_after: String,
 }
 
+impl std::fmt::Debug for IssuedCert {
+    /// The private key never prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IssuedCert")
+            .field("common_name", &self.common_name)
+            .field("serial", &self.serial)
+            .field("not_after", &self.not_after)
+            .field("private_key", &"[REDACTED]")
+            .finish_non_exhaustive()
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IssuedRecord {
     pub serial: String,
@@ -279,5 +290,29 @@ mod tests {
             }
         )
         .is_err());
+    }
+}
+
+#[cfg(test)]
+mod debug_redaction {
+    use super::*;
+
+    #[test]
+    fn an_issued_certificate_never_prints_its_private_key() {
+        let cert = IssuedCert {
+            certificate: "-----BEGIN CERTIFICATE-----".into(),
+            private_key: "-----BEGIN PRIVATE KEY-----MIIEv".into(),
+            ca_certificate: String::new(),
+            serial: "01".into(),
+            common_name: "localhost".into(),
+            dns_names: vec![],
+            not_before: String::new(),
+            not_after: "2027-01-01".into(),
+        };
+        let shown = format!("{cert:?}");
+        assert!(
+            !shown.contains("MIIEv") && shown.contains("localhost"),
+            "{shown}"
+        );
     }
 }

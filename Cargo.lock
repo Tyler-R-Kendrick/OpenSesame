@@ -3701,6 +3701,7 @@ dependencies = [
  "opensesame-kdbx-bridge",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
+ "opensesame-redaction",
  "opensesame-sealed-store",
  "opensesame-storage",
  "opensesame-vault-item-types",
@@ -4201,6 +4202,7 @@ dependencies = [
  "nkeys",
  "opensesame-authz",
  "opensesame-domain",
+ "opensesame-redaction",
  "opensesame-transport-security",
  "reqwest",
  "rustls",
@@ -4382,6 +4384,8 @@ version = "0.1.0"
 dependencies = [
  "regex",
  "serde_json",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4454,6 +4458,7 @@ name = "opensesame-security-events"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "opensesame-redaction",
  "serde",
  "serde_json",
  "sha2 0.10.9",

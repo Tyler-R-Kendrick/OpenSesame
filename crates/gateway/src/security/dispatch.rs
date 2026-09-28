@@ -27,6 +27,10 @@ const BUS_SOURCE: &str = "opensesame://gateway/security";
 /// Every step is best-effort and logged rather than fatal: a scan pass must
 /// keep going when one subscriber's row is unwritable.
 pub async fn publish(state: &AppState, notice: &SecurityNotice, now: DateTime<Utc>) {
+    // The one place every detector's notice passes on its way to the bus, the
+    // delivery ledger and every sink: a free-text field a detector filled from
+    // an error, a path or a provider reply is scrubbed here (ADR 0150).
+    let notice = &notice.scrubbed();
     publish_to_bus(state, notice).await;
     let subscriptions = subscriptions(state, &notice.organization_id).await;
     enqueue_for_subscribers(state, notice, &subscriptions, now).await;

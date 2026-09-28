@@ -204,7 +204,13 @@ async fn settle(state: &AppState, delivery: &StoredSecurityDelivery, now: DateTi
             true
         }
         Err(failure) => {
-            let detail: String = failure.detail().chars().take(MAX_ERROR_CHARS).collect();
+            // A transport error names the endpoint, and an endpoint may carry a
+            // token in its query; this text is persisted on the delivery and the
+            // hook and logged, so it is scrubbed before it is cut (ADR 0150).
+            let detail: String = opensesame_redaction::redact_text(failure.detail())
+                .chars()
+                .take(MAX_ERROR_CHARS)
+                .collect();
             record_attempt(state, &hook, now, Some(&detail)).await;
             let exhausted = delivery.attempts + 1 >= MAX_ATTEMPTS;
             if matches!(failure, Failure::Permanent(_)) || exhausted {
@@ -254,11 +260,10 @@ async fn send(
         request = request.header(name, value);
     }
 
-    let response = request
-        .body(rendered.body)
-        .send()
-        .await
-        .map_err(|error| Failure::Retryable(format!("request failed: {error}")))?;
+    let response = request.body(rendered.body).send().await.map_err(|error| {
+        // `without_url`: the endpoint is the hook's secret-bearing address.
+        Failure::Retryable(format!("request failed: {}", error.without_url()))
+    })?;
 
     classify(response.status())
 }
