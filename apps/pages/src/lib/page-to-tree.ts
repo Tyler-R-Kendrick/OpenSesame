@@ -12,6 +12,12 @@ export type PageTreeLeaf = {
    * the rail shows hidden items, and dimmed when it is.
    */
   hidden?: boolean;
+  /**
+   * Listed before the region's own sections, not after them: a directory's
+   * `config.yaml` is the first thing in it, the way `ls` puts a dotfile
+   * ahead of the rest.
+   */
+  first?: boolean;
   /** What the rail's context menu treats this row as, beyond its href. */
   kind?: "file" | "trash" | "folder" | "filter";
   /** A directory's own `config.yaml`, which its context menu can open. */
@@ -58,13 +64,15 @@ export function pageToTree(
 ): PageTreeNode[] {
   const tree: PageTreeNode[] = [];
   for (const section of sections) {
+    const leaves = (section.items ?? []).map((item) => ({
+      ...item,
+      children: [],
+      branch: false,
+    }));
     const children = [
+      ...leaves.filter((leaf) => leaf.first),
       ...pageToTree(section.sections ?? []),
-      ...(section.items ?? []).map((item) => ({
-        ...item,
-        children: [],
-        branch: false,
-      })),
+      ...leaves.filter((leaf) => !leaf.first),
     ];
     if (children.length === 0 && !section.keepEmpty) continue;
     tree.push({

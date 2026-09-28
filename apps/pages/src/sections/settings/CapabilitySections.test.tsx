@@ -65,11 +65,12 @@ describe("sections — one list, one style, a switch only where something is opt
     ).toBeNull();
   });
 
-  it("draws one Page toggle: the instance policy has no second one", () => {
+  it("draws no view toggle: the documents are files, not a second view of the page", () => {
     renderPanel();
-    expect(
-      screen.getAllByRole("radiogroup", { name: "Capability view" }),
-    ).toHaveLength(1);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    for (const name of ["Visual", "Source", "Effective"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
   });
 
   it("switching a section on reviews, then commits every capability behind it", async () => {

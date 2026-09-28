@@ -1,7 +1,7 @@
 /**
  * YAML ↔ capability documents (S04).
  *
- * The Source view of `capabilities/*.yaml`. The guard here is stricter than
+ * The file form of `capabilities/*.yaml`. The guard here is stricter than
  * the general profile: the documents are short lists, so anything that makes
  * YAML clever — aliases, anchors, tags, duplicate keys, depth — is refused
  * before the package parsers see a value, and unknown fields are refused by

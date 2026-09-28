@@ -164,6 +164,16 @@ directory new files may be created in. `itemTypeFiles`
   by `?file=<path>` on its directory's route — from the rail, the command
   bar, or a Form row's open key — rather than by switching representation.
   The file viewer, the providers and the contract above are unchanged.
+- **2026-09-28 note — Capabilities was the last toggle.** Settings ›
+  Capabilities still drew a Visual / Source / Effective toggle over its
+  documents. It is gone: the installation selection, the operator's
+  instance policy and the effective plan are provider files
+  (`capability-files.ts`) beside the directory's `config.yaml` —
+  `settings/capabilities/installation-selection.yaml`, `instance-policy.yaml`
+  (the operator's; read-only when a deployment set it) and `effective-plan.yaml`
+  (read-only) — written through the same S04 adapter as the switches. A
+  directory's `config.yaml` is the first entry under it in the rail (and the
+  first file in the viewer), ahead of its panels.
 
 ### 5. Consent and egress
 

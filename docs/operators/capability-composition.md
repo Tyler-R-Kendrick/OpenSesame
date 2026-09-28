@@ -395,9 +395,9 @@ Five different facts, five different places. None of them implies another.
 |---|---|
 | What does this release **contain**? | `dist/capability-distribution.json` |
 | Which file carries which capability? | `dist/capability-graph.json` (source module → chunk, static and dynamic edges, CSS/asset edges, workers, public files, classification with rationale) |
-| What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the Effective view — `capabilities/effective-plan.yaml`. Its Source view carries `capabilities/instance-policy.yaml` for the operator |
-| What did this device **select and accept**? | Settings › Capabilities, Source view of `capabilities/installation-selection.yaml` |
-| What did the resolver **decide**? | Settings › Capabilities, Effective view — `capabilities/effective-plan.yaml`, read-only |
+| What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the file `settings/capabilities/effective-plan.yaml`. The operator's policy is `settings/capabilities/instance-policy.yaml` |
+| What did this device **select and accept**? | Settings › Capabilities, the file `settings/capabilities/installation-selection.yaml` |
+| What did the resolver **decide**? | Settings › Capabilities, the file `settings/capabilities/effective-plan.yaml`, read-only |
 | What is **cached** and what is the worker doing? | the offline status in Settings (`online-only`, `saving`, `saved`, `partial`, `storage-unavailable`), and `saved offline` on an approved capability not running here whose page modules the worker saved |
 | What is **loaded and running** right now? | the switch says on or off; beside it a status glyph says what a switch cannot — `starting`, `consent required`, `restart required`, `reload to start`, `saved offline`, `conflict`, `acceptance required`, `selected · not yet applied`, `needed by …` |
 

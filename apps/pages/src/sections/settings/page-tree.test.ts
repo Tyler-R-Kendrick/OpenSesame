@@ -33,6 +33,22 @@ const childIds = (
   tabs.find((node) => node.id === id)?.children.map((node) => node.id) ?? [];
 
 describe("settingsPageTree", () => {
+  it("lists a directory's config.yaml first, ahead of its panels, once it is shown", () => {
+    for (const tab of ["general", "security", "vaults", "capabilities"]) {
+      const shown = settingsPageTree({ showHidden: true }).find(
+        (node) => node.id === tab,
+      );
+      expect(shown?.children[0]?.id, tab).toBe(`${tab}-config`);
+      expect(shown?.children.length, tab).toBeGreaterThan(1);
+      // Hidden, it is not listed at all — the panels alone remain.
+      const hidden = settingsPageTree().find((node) => node.id === tab);
+      expect(
+        hidden?.children.some((node) => node.id === `${tab}-config`),
+        tab,
+      ).toBe(false);
+    }
+  });
+
   it("lists each settings tab as a first-level child, never nested under another tab", () => {
     const tabs = settingsPageTree();
     // Connections is gone as a tab: every provider is configured on

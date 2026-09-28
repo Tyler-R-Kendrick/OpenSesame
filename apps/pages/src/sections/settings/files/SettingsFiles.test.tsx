@@ -232,3 +232,30 @@ describe("Settings' file viewer", () => {
     }
   });
 });
+
+describe("Capabilities as files", () => {
+  it("lists config.yaml first, then the capability documents in the same directory", () => {
+    render(<Viewer category="capabilities" />);
+    const names = [...document.querySelectorAll(".vfiles__file")].map(
+      (row) => row.textContent,
+    );
+    expect(names[0]).toBe("config.yaml");
+    expect(names).toContain("installation-selection.yaml");
+    expect(names).toContain("effective-plan.yaml");
+    expect(screen.getAllByText("capabilities/")).toHaveLength(1);
+  });
+
+  it("opens a document as a file, with no Visual / Source / Effective toggle", async () => {
+    render(
+      <Viewer
+        category="capabilities"
+        initial="settings/capabilities/effective-plan.yaml"
+      />,
+    );
+    // The effective plan is read-only: a lock on its row and on its head.
+    expect(
+      (await screen.findAllByRole("img", { name: /read-only/ })).length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+});

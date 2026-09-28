@@ -182,6 +182,7 @@ export function settingsPageSources(
               label: SETTINGS_CONFIG_FILE,
               href: settingsConfigRoute(tab.id),
               hidden: true,
+              first: true,
               kind: "file",
             },
           ]
