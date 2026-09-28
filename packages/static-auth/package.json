@@ -1,6 +1,6 @@
 {
   "name": "@opensesame/static-auth",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "description": "Sign-in for static sites with no backend: hosted-identity, loopback and browser-local profiles",
