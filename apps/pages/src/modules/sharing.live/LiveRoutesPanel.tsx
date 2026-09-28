@@ -9,52 +9,29 @@
  * a carrier's are written in the file.
  */
 
-import type {
-  CarrierKind,
-  LiveTransport,
-} from "@opensesame/app-core/lib/live/transport.js";
 import {
-  CARRIER_KINDS,
+  type LiveTransport,
+  carriesCredentials,
   isAddress,
-  isCarrierUrl,
   isIceUrl,
 } from "@opensesame/app-core/lib/live/transport.js";
 import { useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconPlus, IconTrash } from "../../components/Icons.js";
+import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
+import { Carriers } from "./LiveCarriers.js";
+import { type Change, RemoveKey } from "./live-route-parts.js";
+import {
+  withAddress,
+  withServer,
+  withoutAddress,
+  withoutServer,
+} from "./live-transport-edits.js";
 import { useLiveTransport } from "./live-transport-hooks.js";
 import "./live.css";
-
-const KIND_LABELS = {
-  nostr: "Nostr relay",
-  mqtt: "MQTT broker",
-  nats: "NATS server",
-  ntfy: "ntfy server",
-  broadcast: "This browser's tabs",
-} satisfies Record<CarrierKind, string>;
-
-function RemoveKey({
-  label,
-  onRemove,
-}: { label: string; onRemove: () => void }) {
-  return (
-    <button
-      type="button"
-      className="icon-btn"
-      aria-label={label}
-      title={label}
-      onClick={onRemove}
-    >
-      <IconTrash size={16} />
-    </button>
-  );
-}
-
-type Change = (next: LiveTransport) => Promise<string | null>;
 
 function Addresses({
   transport,
@@ -64,20 +41,15 @@ function Addresses({
   const value = draft.trim();
   return (
     <>
-      {transport.addresses.map((address) => (
+      {transport.addresses.map((address, at) => (
         <FieldRow
-          key={address}
+          key={`${at}:${address}`}
           label="Reachable at"
           actions={
             <RemoveKey
               label={`Remove ${address}`}
               onRemove={() =>
-                void change({
-                  ...transport,
-                  addresses: transport.addresses.filter(
-                    (entry) => entry !== address,
-                  ),
-                })
+                void change((now) => withoutAddress(now, address))
               }
             />
           }
@@ -89,10 +61,9 @@ function Addresses({
         onSubmit={(event) => {
           event.preventDefault();
           if (!isAddress(value)) return;
-          void change({
-            ...transport,
-            addresses: [...transport.addresses, value],
-          }).then((refused) => refused === null && setDraft(""));
+          void change((now) => withAddress(now, value)).then(
+            (refused) => refused === null && setDraft(""),
+          );
         }}
       >
         <FieldShell
@@ -139,7 +110,7 @@ function IceServers({
     <>
       {transport.ice.map((server, at) => (
         <FieldRow
-          key={server.urls.join(" ")}
+          key={`${at}:${server.urls.join(" ")}`}
           label={
             server.urls.some((entry) => entry.startsWith("turn"))
               ? "TURN"
@@ -148,13 +119,7 @@ function IceServers({
           actions={
             <RemoveKey
               label={`Remove ${server.urls[0] ?? "the server"}`}
-              onRemove={() =>
-                void change({
-                  ...transport,
-                  ice: transport.ice.filter((_, index) => index !== at),
-                  relay: transport.relay && transport.ice.length > 1,
-                })
-              }
+              onRemove={() => void change((now) => withoutServer(now, server))}
             />
           }
         >
@@ -171,14 +136,12 @@ function IceServers({
           const server = turn
             ? { urls: [value], username, credential }
             : { urls: [value] };
-          void change({ ...transport, ice: [...transport.ice, server] }).then(
-            (refused) => {
-              if (refused !== null) return;
-              setUrl("");
-              setUsername("");
-              setCredential("");
-            },
-          );
+          void change((now) => withServer(now, server)).then((refused) => {
+            if (refused !== null) return;
+            setUrl("");
+            setUsername("");
+            setCredential("");
+          });
         }}
       >
         <FieldShell
@@ -237,7 +200,7 @@ function RelayOnly({
         checked={transport.relay}
         disabled={!hasTurn}
         onChange={(event) =>
-          void change({ ...transport, relay: event.target.checked })
+          void change((now) => ({ ...now, relay: event.target.checked }))
         }
       />
       <span>Relay only, through TURN</span>
@@ -245,117 +208,12 @@ function RelayOnly({
   );
 }
 
-function Carriers({
-  transport,
-  change,
-}: { transport: LiveTransport; change: Change }) {
-  return (
-    <>
-      {transport.carriers.map((carrier, at) => (
-        <FieldRow
-          key={`${carrier.kind} ${carrier.url}`}
-          label={KIND_LABELS[carrier.kind]}
-          actions={
-            <RemoveKey
-              label={`Remove ${carrier.url || KIND_LABELS[carrier.kind]}`}
-              onRemove={() =>
-                void change({
-                  ...transport,
-                  carriers: transport.carriers.filter(
-                    (_, index) => index !== at,
-                  ),
-                })
-              }
-            />
-          }
-        >
-          <span className="frow__value frow__value--mono">
-            {carrier.url || "—"}
-          </span>
-        </FieldRow>
-      ))}
-      <CarrierAdd transport={transport} change={change} />
-    </>
-  );
-}
-
-function CarrierAdd({
-  transport,
-  change,
-}: { transport: LiveTransport; change: Change }) {
-  const [kind, setKind] = useState<CarrierKind>("ntfy");
-  const [url, setUrl] = useState("");
-  const value = kind === "broadcast" ? "" : url.trim();
-  const ready = isCarrierUrl(kind, value);
-  return (
-    <form
-      className="setup__stack"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!ready) return;
-        void change({
-          ...transport,
-          carriers: [...transport.carriers, { kind, url: value }],
-        }).then((refused) => refused === null && setUrl(""));
-      }}
-    >
-      <div className="sw">
-        <label className="sw__name" htmlFor="live-carrier-kind">
-          Code carrier
-        </label>
-        <select
-          id="live-carrier-kind"
-          className="sw__select"
-          value={kind}
-          onChange={(event) => {
-            const picked = CARRIER_KINDS.find(
-              (entry) => entry === event.target.value,
-            );
-            if (picked) setKind(picked);
-          }}
-        >
-          {CARRIER_KINDS.map((entry) => (
-            <option key={entry} value={entry}>
-              {KIND_LABELS[entry]}
-            </option>
-          ))}
-        </select>
-      </div>
-      {kind === "broadcast" ? null : (
-        <FieldShell
-          id="live-carrier-url"
-          label={kind === "ntfy" ? "Server (https://)" : "Server (wss://)"}
-          mono
-          type="url"
-          placeholder={
-            kind === "ntfy"
-              ? "https://ntfy.example.com"
-              : "wss://relay.example.com"
-          }
-          value={url}
-          onValueChange={setUrl}
-          status={
-            value && !ready ? (
-              <StatusMark tone="err" label="Needs a secure address" />
-            ) : null
-          }
-        />
-      )}
-      <FormCommit
-        label="Add the carrier"
-        disabled={!ready}
-        icon={<IconPlus size={18} />}
-      />
-    </form>
-  );
-}
-
 export function LiveRoutesPanel() {
-  const { transport, loaded, change } = useLiveTransport();
-  const [refused, setRefused] = useState("");
-  const apply: Change = async (next) => {
-    const outcome = await change(next);
-    setRefused(outcome ?? "");
+  const { transport, loaded, refused, change } = useLiveTransport();
+  const [edited, setEdited] = useState("");
+  const apply: Change = async (edit) => {
+    const outcome = await change(edit);
+    setEdited(outcome ?? "");
     return outcome;
   };
   return (
@@ -367,16 +225,24 @@ export function LiveRoutesPanel() {
           </div>
         </div>
         <div className="panel__body setup__stack">
-          {loaded ? (
+          {!loaded ? (
+            <StatusMark tone="idle" label="Reading this vault's routes" />
+          ) : refused ? (
+            <StatusMark tone="err" label={refused} />
+          ) : (
             <>
               <Addresses transport={transport} change={apply} />
               <IceServers transport={transport} change={apply} />
               <RelayOnly transport={transport} change={apply} />
               <Carriers transport={transport} change={apply} />
-              {refused ? <StatusMark tone="err" label={refused} /> : null}
+              {carriesCredentials(transport) ? (
+                <StatusMark
+                  tone="warn"
+                  label="Credentials in this profile travel in the link"
+                />
+              ) : null}
+              {edited ? <StatusMark tone="err" label={edited} /> : null}
             </>
-          ) : (
-            <StatusMark tone="idle" label="Reading this vault's routes" />
           )}
         </div>
       </section>

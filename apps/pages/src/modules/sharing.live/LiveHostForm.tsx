@@ -7,7 +7,6 @@
 
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
-import { startHosting } from "@opensesame/app-core/lib/live/session.js";
 import type { LiveTransport } from "@opensesame/app-core/lib/live/transport.js";
 import { activeItems } from "@opensesame/vault-core";
 import { useState } from "react";
@@ -17,6 +16,7 @@ import { IconPlay } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { liveUiSeams } from "./live-hooks.js";
+import { useStartSession } from "./live-start.js";
 import { useLiveTransport } from "./live-transport-hooks.js";
 
 type Choice<T extends string | number> = Readonly<{ value: T; label: string }>;
@@ -138,9 +138,16 @@ export function LiveHostForm() {
   const [policy, setPolicy] = useState<SharePolicy>("use");
   const [admission, setAdmission] = useState<Admission>("invite");
   const [minutes, setMinutes] = useState(60);
-  const { transport, loaded } = useLiveTransport();
+  const { starting, failed, start } = useStartSession();
+  const { transport, loaded, refused } = useLiveTransport();
+  // A profile that is there and cannot be read is not "direct only": no
+  // session starts until it is fixed, or the owner's routes would be dropped.
   const ready =
-    loaded && title.trim().length > 0 && (scope === "vault" || chosen.size > 0);
+    loaded &&
+    refused === null &&
+    !starting &&
+    title.trim().length > 0 &&
+    (scope === "vault" || chosen.size > 0);
 
   return (
     <form
@@ -148,7 +155,7 @@ export function LiveHostForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (!ready) return;
-        void startHosting({
+        start({
           title: title.trim(),
           scope:
             scope === "vault"
@@ -200,7 +207,12 @@ export function LiveHostForm() {
         options={DURATIONS}
         onChange={setMinutes}
       />
-      <StatusMark tone="idle" label={routesSummary(transport)} />
+      {refused ? (
+        <StatusMark tone="err" label={refused} />
+      ) : (
+        <StatusMark tone="idle" label={routesSummary(transport)} />
+      )}
+      {failed ? <StatusMark tone="err" label={failed} /> : null}
       <FormCommit
         label="Start the live session"
         disabled={!ready}

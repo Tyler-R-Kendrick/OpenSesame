@@ -74,11 +74,22 @@ export const MAX_CARRIERS = 6;
 const TEXT_MAX = 512;
 
 const ICE_URL =
-  /^(stuns?|turns?):(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9.-]+)(:\d{1,5})?(\?transport=(udp|tcp))?$/;
+  /^(stuns?|turns?):(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9.-]+)(?::(\d{1,5}))?(\?transport=(?:udp|tcp))?$/;
 const HOST_LABEL = /^[A-Za-z0-9.-]+$|^\[[0-9A-Fa-f:.]+\]$/;
 
+/**
+ * A URL `RTCPeerConnection` accepts: the port is 1 to 65535, and only a TURN
+ * URL takes `?transport=` (Chromium throws a SyntaxError for the rest, which
+ * would fail the session at its first connection, not at the Form).
+ */
 export function isIceUrl(value: string): boolean {
-  return value.length <= TEXT_MAX && ICE_URL.test(value);
+  if (value.length > TEXT_MAX) return false;
+  const match = ICE_URL.exec(value);
+  if (!match) return false;
+  const [, scheme = "", port, query] = match;
+  if (port !== undefined && (Number(port) < 1 || Number(port) > 65535))
+    return false;
+  return query === undefined || scheme.startsWith("turn");
 }
 
 function loopback(host: string): boolean {
@@ -126,6 +137,18 @@ function optionalText(
   return value;
 }
 
+/** A nested object names only what it may: anything else is refused. */
+function refuseUnknown(
+  value: Readonly<Record<string, BoundaryValue>>,
+  allowed: readonly string[],
+  at: string,
+  errors: Errors,
+): void {
+  for (const key of Object.keys(value))
+    if (!allowed.includes(key))
+      errors.push(`${at} has an unknown key "${key}".`);
+}
+
 export function readIceServer(
   value: BoundaryValue,
   at: string,
@@ -136,6 +159,14 @@ export function readIceServer(
     errors.push(`${at} must be an object.`);
     return null;
   }
+  refuseUnknown(
+    value,
+    secrets
+      ? ["urls", "username", "credential", "secret"]
+      : ["urls", "username", "credential"],
+    at,
+    errors,
+  );
   const urls = readIceUrls(value.urls, at, errors);
   if (!urls) return null;
   const username = optionalText(value.username, `${at}.username`, errors);
@@ -192,6 +223,12 @@ export function readCarrier(
     errors.push(`${at} must be an object.`);
     return null;
   }
+  refuseUnknown(
+    value,
+    ["kind", "url", "username", "password", "token"],
+    at,
+    errors,
+  );
   const kind = CARRIER_KINDS.find((entry) => entry === value.kind);
   if (!kind) {
     errors.push(`${at}.kind must be one of ${CARRIER_KINDS.join(", ")}.`);
@@ -267,7 +304,22 @@ export function linkRoutes(link: LiveLink): LiveRoutes | null {
   }
 }
 
-/** The routes segment for a link, or null when there is nothing to carry. */
+/** `link.ts` reads a segment of at most this many characters. */
+export const MAX_ROUTES_SEGMENT = 6000;
+
+/** Routes a link cannot carry: the joiner's parser would refuse the link. */
+export class LiveRoutesRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LiveRoutesRefused";
+  }
+}
+
+/**
+ * The routes segment for a link, or null when there is nothing to carry.
+ * Throws `LiveRoutesRefused` when it is longer than the joiner's parser
+ * reads: no session starts on a link nobody can open.
+ */
 export function routesSegment(routes: LiveRoutes): string | null {
   if (!hasRoutes(routes)) return null;
   const value: Record<string, BoundaryValue> = {};
@@ -279,5 +331,10 @@ export function routesSegment(routes: LiveRoutes): string | null {
   if (routes.relay) value.relay = true;
   if (routes.carriers.length > 0)
     value.carriers = routes.carriers.map((carrier) => ({ ...carrier }));
-  return toB64url(new TextEncoder().encode(JSON.stringify(value)));
+  const segment = toB64url(new TextEncoder().encode(JSON.stringify(value)));
+  if (segment.length > MAX_ROUTES_SEGMENT)
+    throw new LiveRoutesRefused(
+      `These routes are too long for a link (${segment.length} of ${MAX_ROUTES_SEGMENT}): drop a server or a credential.`,
+    );
+  return segment;
 }
