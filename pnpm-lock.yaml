@@ -986,6 +986,9 @@ importers:
       '@electric-sql/pglite':
         specifier: 0.2.17
         version: 0.2.17
+      '@opensesame/browser-at-rest':
+        specifier: workspace:*
+        version: link:../browser-at-rest
       '@opensesame/mock-upstream-idp':
         specifier: workspace:*
         version: link:../../tools/mock-upstream-idp
