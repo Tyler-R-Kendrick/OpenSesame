@@ -1,67 +1,12 @@
-import {
-  armVercelConnectAuth,
-  forgetVercelConnectAuth,
-} from "@opensesame/app-core/lib/vercel-connect-session.js";
-import { vercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
+import { forgetVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
 import {
   type Flash,
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useState } from "react";
-import { FieldShell } from "../../../components/FieldShell.js";
-import { FormCommit } from "../../../components/FormCommit.js";
-import { IconLock, IconTrash } from "../../../components/Icons.js";
+import { useState } from "react";
+import { IconTrash } from "../../../components/Icons.js";
 import { useVault } from "../../../lib/vault/hooks.js";
-import { OutLink } from "./fields.js";
-
-/** No relay here: a Vercel token and team, used straight from this page. */
-function DirectFields({
-  token,
-  teamId,
-  projectId,
-  onToken,
-  onTeamId,
-  onProjectId,
-}: {
-  token: string;
-  teamId: string;
-  projectId: string;
-  onToken: (value: string) => void;
-  onTeamId: (value: string) => void;
-  onProjectId: (value: string) => void;
-}) {
-  return (
-    <>
-      <FieldShell
-        label="Vercel access token"
-        type="password"
-        value={token}
-        autoComplete="off"
-        mono
-        onValueChange={onToken}
-      />
-      <div className="cx-grid">
-        <FieldShell
-          label="Team ID"
-          value={teamId}
-          mono
-          onValueChange={onTeamId}
-        />
-        <FieldShell
-          label="Project ID"
-          value={projectId}
-          mono
-          onValueChange={onProjectId}
-        />
-      </div>
-      <div className="cx-links">
-        <OutLink href="https://vercel.com/account/settings/tokens">
-          Vercel tokens
-        </OutLink>
-      </div>
-    </>
-  );
-}
+import { ConnectTransportForm } from "./ConnectTransportForm.js";
 
 /** The one key that forgets the held Connect credential, memory and vault. */
 function ForgetConnectKey({
@@ -104,12 +49,10 @@ function ForgetConnectKey({
 }
 
 /**
- * Where connectors live. With this deployment's relay: its management key.
- * Without one: a Vercel access token and team, used straight from this
- * page. Either is sealed in the vault (ADR 0127), never stored in the clear.
- * Once one is held, the head carries the one key that forgets it: out of
- * memory and out of the vault. With the form satisfied the panel is only
- * that key.
+ * Where connectors live: the Vercel Connect credential (see
+ * `ConnectTransportForm`). Once one is held, the head carries the one key
+ * that forgets it: out of memory and out of the vault. With the form
+ * satisfied the panel is only that key.
  */
 export function ConnectTransportPanel({
   relay,
@@ -125,39 +68,8 @@ export function ConnectTransportPanel({
   onFlash: (flash: Flash) => void;
 }) {
   const { tomb } = useVault();
-  const current = vercelConnectAuth();
-  const [manageKey, setManageKey] = useState("");
-  const [token, setToken] = useState("");
-  const [teamId, setTeamId] = useState(current?.teamId ?? "");
-  const [projectId, setProjectId] = useState(current?.projectId ?? "");
-  const [busy, setBusy] = useState(false);
-  const ready = relay ? manageKey.trim().length >= 32 : token.trim().length > 0;
-
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      await armVercelConnectAuth(
-        relay
-          ? { ...(current ?? { token: "" }), manageKey: manageKey.trim() }
-          : {
-              token: token.trim(),
-              teamId,
-              projectId,
-              manageKey: current?.manageKey,
-            },
-        tomb,
-      );
-      setManageKey("");
-      setToken("");
-      onFlash({ tone: "ok", text: "Vercel Connect is ready on this device." });
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  // A forget re-mounts the form, so it asks for team and project afresh.
+  const [generation, setGeneration] = useState(0);
   return (
     <section
       className="panel"
@@ -170,41 +82,16 @@ export function ConnectTransportPanel({
           <ForgetConnectKey
             tomb={tomb}
             onFlash={onFlash}
-            onForgotten={() => {
-              setTeamId("");
-              setProjectId("");
-            }}
+            onForgotten={() => setGeneration((value) => value + 1)}
           />
         ) : null}
       </div>
       {showForm ? (
-        <form className="cx-form panel__body" onSubmit={save}>
-          {relay ? (
-            <FieldShell
-              label="Relay management key"
-              type="password"
-              value={manageKey}
-              autoComplete="off"
-              mono
-              onValueChange={setManageKey}
-            />
-          ) : (
-            <DirectFields
-              token={token}
-              teamId={teamId}
-              projectId={projectId}
-              onToken={setToken}
-              onTeamId={setTeamId}
-              onProjectId={setProjectId}
-            />
-          )}
-          <FormCommit
-            label={busy ? "Sealing" : "Seal in vault"}
-            icon={<IconLock size={18} />}
-            busy={busy}
-            disabled={busy || !ready}
-          />
-        </form>
+        <ConnectTransportForm
+          key={generation}
+          relay={relay}
+          onFlash={onFlash}
+        />
       ) : null}
     </section>
   );
