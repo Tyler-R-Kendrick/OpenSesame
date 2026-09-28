@@ -126,9 +126,11 @@ reached the joiner); an owner may name a carrier that passes them instead
    while the browser is still answering does nothing, and a seat turned away
    or ended in that window leaves no connection open.
 4. Letting someone in answers their offer, and the answer is sealed into a
-   **reply code** (`osl-reply.…`) under the secret the owner shares with that
-   request's key, bound to its id. Only that joiner can read it, and only the
-   owner could have made it.
+   **reply code** (`osl-reply.…`) under the same key material as the request
+   (ECDH of the two session keys and the link secret, salt = the code) with
+   the purpose `reply`, and the joiner's key and the request's id as
+   additional data. Only that joiner can read it, and only the owner could
+   have made it.
 5. The joiner's page accepts only a reply that opens under its own request's
    key and answers its own request; the browsers then connect.
 
@@ -212,7 +214,7 @@ the vault, ADR 0134). None is ever a default, and none is ours:
   Pasting by hand works beside any carrier, always.
 
 A Cloudflare Tunnel publishes HTTP(S) and WebSocket, not UDP: it carries a
-carrier (every kind above is WebSocket or HTTPS), not the peer connection.
+carrier (every network kind above is WebSocket or HTTPS), not the peer connection.
 The peer connection itself crosses a tunnel that routes IP (Tailscale, WARP,
 WireGuard, Pangolin's clients) through an address hint, or anything at all
 through TURN.

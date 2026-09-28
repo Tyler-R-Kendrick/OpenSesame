@@ -7,7 +7,7 @@ other and connect directly, with no server of anyone's. That works when both
 are on the same network.
 
 Everything on this page is optional, and everything is yours: the product
-ships no relay, carrier, STUN or TURN server, and uses none unless you name
+ships no relay, carrier, STUN or TURN server, and uses none unless the owner names
 it. You name routes in **Settings › Live sessions › Routes**. The same
 profile is the file `settings/live/transport.json`, sealed in the vault, so
 it can hold credentials:
@@ -46,7 +46,7 @@ joiner's address from them.
 | Tunnel | Address to add |
 |---|---|
 | Tailscale | `tailscale ip -4` (a `100.x.y.z`), or `-6` |
-| WireGuard | the interface address in `[Interface] Address` |
+| WireGuard | the interface address in `[Interface] Address`, without the `/prefix` |
 | Pangolin (Newt / Olm clients) | the device's address on the Pangolin network |
 | Cloudflare WARP (Zero Trust private network) | the device's WARP virtual IP |
 | NetBird, ZeroTier | the device's overlay address |
@@ -57,7 +57,7 @@ Addresses stay with the owner and are never in the link.
 
 On managed Chrome you can instead stop the browser from hiding addresses on
 your deployment's origin with the enterprise policy
-[`WebRtcLocalIpsAllowedUrls`](https://chromeenterprise.google/policies/#WebRtcLocalIpsAllowedUrls).
+[`WebRtcLocalIpsAllowedUrls`](https://chromeenterprise.google/policies/web-rtc-local-ips-allowed-urls/).
 The browser then offers its tunnel address itself.
 
 ## TURN: when nothing routes between the two
@@ -89,11 +89,16 @@ Where the TURN server can live:
   address. Pair it with the owner's address above if joiners can route to the
   owner directly.
 - **Behind Pangolin.** Publish it as a raw TCP (and UDP) resource through
-  Newt; name the Pangolin host in the `turns:` URL.
+  Newt, on a port opened on the Pangolin server (raw resources do not share
+  443); name the Pangolin host and that port in the `turns:` URL.
 - **Behind Tailscale Funnel.** `tailscale funnel --tcp 443 tcp://localhost:443`
-  exposes `turns:` to joiners outside the tailnet.
+  exposes `turns:` to joiners outside the tailnet. Funnel carries TLS over TCP
+  only, no UDP, and it is reached at the node's
+  `<machine>.<tailnet>.ts.net` name, so the TURN certificate must be valid for
+  that name and the `turns:` URL must use it.
 - **Not behind a Cloudflare Tunnel's public hostname.** A public hostname
-  proxies HTTP(S) and WebSocket, not raw TCP or UDP, so TURN does not pass.
+  proxies HTTP(S) and WebSocket, not raw TCP or UDP, and a browser reaches a
+  tunnel only through such a public hostname, so TURN does not pass.
   Use Cloudflare Tunnel for the carriers below; for TURN, use WARP-connected
   devices (addresses above), another route, or Cloudflare's own TURN service.
   Cloudflare's TURN is a third party; its credentials are minted by an API
@@ -122,9 +127,9 @@ all give it one.
 
 | Kind | Server | Minimal setup |
 |---|---|---|
-| `ntfy` | [ntfy](https://ntfy.sh) | `ntfy serve` with a `cache-duration` (so a code posted during a reconnect is kept); topics are created on first use. A token or user/password goes in the file. |
+| `ntfy` | [ntfy](https://ntfy.sh) | `ntfy serve`; keep its message cache on (the default is 12 hours; do not set `cache-duration: 0`), so a code posted during a reconnect is kept; topics are created on first use. A token or user/password goes in the file. |
 | `nostr` | any NIP-01 relay ([strfry](https://github.com/hoytech/strfry), [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay)) | Must pass ephemeral kind 25050 events and index the `t` tag. |
-| `mqtt` | Mosquitto, EMQX, NanoMQ, HiveMQ | Mosquitto: `listener 9001` + `protocol websockets`. Topic `opensesame/live/<topic>`, QoS 1. |
+| `mqtt` | Mosquitto, EMQX, NanoMQ, HiveMQ | Mosquitto: `listener 9001` + `protocol websockets`, and a `password_file` or `allow_anonymous true`, since Mosquitto 2 refuses anonymous clients by default. Topic `opensesame/live/<topic>`, QoS 1. |
 | `nats` | [nats-server](https://nats.io) | `websocket { port: 8443, tls { … } }`. Subject `opensesame.live.<topic>`; grant `opensesame.live.>` to the user or token you name. |
 | `broadcast` | this browser | Owner and joiner in two tabs of one browser profile. Nothing leaves the device. |
 
@@ -147,11 +152,15 @@ tailscale serve --bg --https=443 http://localhost:8080
 ```
 
 A carrier's credentials travel in the link to every joiner, so give it a user
-that may only publish and subscribe under the live-session topic prefix.
+with nothing else to lose. MQTT and NATS can restrict a user to the
+live-session prefix (`opensesame/live/#`, `opensesame.live.>`); ntfy and Nostr
+topics have no prefix to restrict to, so give them a token or account used for
+nothing else.
 
 Browsers may ask the person before a public page reaches a carrier on a
 tailnet or LAN address. Chrome calls this Local Network Access, and the
-prompt reads "Allow access to devices on your local network". Allowing it is
+prompt reads "Look for and connect to any device on your local network". Chrome
+gates `fetch` from version 142 and WebSocket from 147. Allowing it is
 the browser's consent, on top of the join screen's.
 
 ## What the joiner sees
