@@ -13,22 +13,25 @@ export function CeremonyRow({
   mark,
   sub,
   action,
+  alert = false,
 }: {
   icon: ReactNode;
   label: string;
   mark?: { tone: "ok" | "warn" | "err" | "idle"; label: string } | null;
   sub: string;
   action: ReactNode;
+  /** The row reports a refusal: announced when it appears. */
+  alert?: boolean;
 }) {
   return (
-    <div className="sw sw--method">
+    <div className="sw sw--method" role={alert ? "alert" : undefined}>
       <div>
         <div className="sw__name">
           {icon}
           {label}
           {mark ? <StatusMark tone={mark.tone} label={mark.label} /> : null}
         </div>
-        <p className="sw__sub">{sub}</p>
+        {sub ? <p className="sw__sub">{sub}</p> : null}
       </div>
       {action}
     </div>

@@ -28,6 +28,14 @@ import "../travel.css";
 
 type Sheet = "leave" | "return" | null;
 
+/** What the receipt row's glyph says; the row's own name is the sentence. */
+const RECEIPT_MARK = {
+  ok: "Done",
+  idle: "Done",
+  warn: "Finished with something left",
+  err: "Refused",
+} as const;
+
 /** A row whose one key opens one of the two ceremonies. */
 function ModeRow({
   icon,
@@ -110,6 +118,9 @@ export function TravelPanel() {
     setSheet(next);
   };
   const close = () => {
+    // A departure or a return in flight is not cancelled by a key press: its
+    // result would land on a panel with no sheet to show it.
+    if (busy) return;
     flow.reset();
     setSheet(null);
   };
@@ -130,8 +141,9 @@ export function TravelPanel() {
           <CeremonyRow
             icon={<IconVault size={16} />}
             label={notice.text}
-            mark={{ tone: notice.tone, label: notice.text }}
+            mark={{ tone: notice.tone, label: RECEIPT_MARK[notice.tone] }}
             sub={notice.meta ?? ""}
+            alert={notice.tone === "err"}
             action={null}
           />
         ) : null}

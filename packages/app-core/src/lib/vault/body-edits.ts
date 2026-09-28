@@ -78,6 +78,48 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.tombstones = merged.tombstones;
 }
 
+/** An item the retired sample-data feature wrote: its flag is no longer typed. */
+function isLegacySample(item: VaultItem): boolean {
+  return (item as { sample?: unknown }).sample === true;
+}
+
+/** Whether the body still holds items the retired sample-data feature wrote. */
+export function hasLegacySample(body: VaultBody): boolean {
+  return body.items.some(isLegacySample);
+}
+
+/**
+ * Take out what the retired sample-data feature left in a vault: every item
+ * it flagged, live or trashed, and each folder only those items sat in —
+ * tombstoned, so a merge from a device that still holds them cannot bring
+ * them back. A real item is never touched: a folder one also sits in stays,
+ * and nothing is moved.
+ */
+export function retireLegacySample(body: VaultBody): void {
+  const gone = body.items.filter(isLegacySample);
+  if (gone.length === 0) return;
+  const kept = body.items.filter((item) => !isLegacySample(item));
+  const folders = new Set(gone.flatMap((item) => item.folderId ?? []));
+  for (const item of kept) if (item.folderId) folders.delete(item.folderId);
+  const at = now();
+  body.items = kept;
+  body.folders = body.folders.filter((folder) => !folders.has(folder.id));
+  body.tombstones = withTombstone(
+    body.tombstones,
+    "items",
+    gone.map((item) => item.id),
+    at,
+  );
+  if (folders.size > 0) {
+    body.tombstones = withTombstone(
+      body.tombstones,
+      "folders",
+      [...folders],
+      at,
+    );
+  }
+}
+
 /** A store-path manifest's merge plan (`planManifestMerge`), in one write. */
 export function applyManifestPlan(
   body: VaultBody,

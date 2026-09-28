@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { handlePaneEscape } from "./pane-escape.js";
 
 const FOCUSABLE =
@@ -12,6 +12,11 @@ export function useModalFocus(
   initial: RefObject<HTMLElement | null>,
   close: () => void,
 ): void {
+  // The latest `close`, read when a key arrives. A caller passes a new
+  // function on every render; keying the effect on it would re-run it — and
+  // pull focus back to `initial` — each time the sheet's state changed.
+  const latestClose = useRef(close);
+  latestClose.current = close;
   useEffect(() => {
     if (!open) return;
     const trigger = document.activeElement;
@@ -31,7 +36,7 @@ export function useModalFocus(
         if (event.defaultPrevented) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        close();
+        latestClose.current();
         return;
       }
       if (event.key === "Tab") trapTab(event, container.current);
@@ -42,7 +47,7 @@ export function useModalFocus(
       window.removeEventListener("keydown", onKey);
       if (trigger instanceof HTMLElement) trigger.focus();
     };
-  }, [close, container, initial, open]);
+  }, [container, initial, open]);
 }
 
 function trapTab(event: KeyboardEvent, pane: HTMLElement | null): void {

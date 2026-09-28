@@ -94,7 +94,8 @@ export function TailnetPairSheet({
             autoComplete="off"
             placeholder="opensesame-drive:v1:…"
             value={code}
-            disabled={busy || !canPair}
+            disabled={!canPair}
+            readOnly={busy}
             onValueChange={(next) => {
               setCode(next);
               setError(null);

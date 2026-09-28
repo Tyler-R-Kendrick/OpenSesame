@@ -3573,6 +3573,25 @@ button.vault-row__body:hover:not(:disabled) {
   font-size: 0.8125rem;
 }
 
+.vaults {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.vaults__new {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.vaults__new label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
 .project-switcher__head {
   display: flex;
   align-items: baseline;

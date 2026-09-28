@@ -98,7 +98,6 @@ function PackedCard({
             .map((vault) => `${vault.label} · ${plural(vault.files, "file")}`)
             .join(", "),
         },
-        { key: "Return code", value: pkg.returnCode },
       ]}
       primary={{
         label: "Take them off this device",
@@ -123,6 +122,12 @@ function PackedCard({
           }
         />
       </ul>
+      <div>
+        <strong id="travel-code-label">Return code</strong>
+        <p className="travel__code" aria-labelledby="travel-code-label">
+          {pkg.returnCode}
+        </p>
+      </div>
       <label className="travel__ack">
         <input
           type="checkbox"

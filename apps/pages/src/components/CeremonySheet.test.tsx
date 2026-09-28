@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CeremonySheet } from "./CeremonySheet.js";
 
@@ -47,5 +48,28 @@ describe("CeremonySheet", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps focus in the field being typed in when its parent re-renders", () => {
+    // The parent hands a new onClose on every render, as a panel's does.
+    function Harness() {
+      const [text, setText] = useState("");
+      return (
+        <CeremonySheet title="Sheet" mark={null} onClose={() => setText("")}>
+          <input
+            aria-label="Return code"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+        </CeremonySheet>
+      );
+    }
+    render(<Harness />);
+    const field = screen.getByLabelText("Return code");
+    field.focus();
+    fireEvent.change(field, { target: { value: "A" } });
+    fireEvent.change(field, { target: { value: "AB" } });
+    expect(document.activeElement).toBe(field);
+    expect((field as HTMLInputElement).value).toBe("AB");
   });
 });

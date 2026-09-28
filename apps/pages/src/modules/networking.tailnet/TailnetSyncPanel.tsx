@@ -209,6 +209,14 @@ export function TailnetSyncPanel() {
             onPair={async (code) => {
               await tailnetPanelSeams.pair(code);
               setPairing(null);
+              // The row that opened the sheet is now the drive's row.
+              requestAnimationFrame(() =>
+                document
+                  .querySelector<HTMLElement>(
+                    '#tailnet-sync [aria-label="Sync now"]',
+                  )
+                  ?.focus(),
+              );
             }}
             onClose={() => setPairing(null)}
           />

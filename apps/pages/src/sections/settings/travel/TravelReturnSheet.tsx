@@ -73,7 +73,7 @@ function BundleCard({ flow }: { flow: Flow }) {
           autoComplete="off"
           placeholder="ABCD-EFGH-…"
           value={code}
-          disabled={busy}
+          readOnly={busy}
           onValueChange={flow.typeCode}
         />
         <TravelNoticeMark notice={notice} />

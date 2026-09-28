@@ -200,4 +200,70 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     expect(read).toBe(false);
     expect(screen.getByText("No bundle chosen")).toBeTruthy();
   });
+
+  it("closes the ceremony from Escape, the scrim and its own keep key, and writes nothing", () => {
+    render(<TravelPanel />);
+    const on = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Turn on travel mode" }),
+      );
+    on();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    on();
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Close" })[0] as HTMLElement,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(origin.tombs.has(WORK)).toBe(true);
+  });
+
+  it("keeps the typed return code while the sheet re-renders", () => {
+    render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn off travel mode" }),
+    );
+    const field = screen.getByLabelText("Return code");
+    field.focus();
+    fireEvent.change(field, { target: { value: "A" } });
+    fireEvent.change(field, { target: { value: "AB" } });
+    expect(document.activeElement).toBe(field);
+    expect(
+      screen.getByRole("dialog", { name: "Turn off travel mode" }),
+    ).toBeTruthy();
+  });
+
+  it("goes back to the plan from 'Keep them here' without removing anything", async () => {
+    render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    await screen.findByText(/^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/);
+    fireEvent.click(screen.getByRole("button", { name: "Keep them here" }));
+    expect(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    ).toBeTruthy();
+    expect(origin.tombs.has(WORK)).toBe(true);
+  });
+
+  it("does not close a ceremony while its step is in flight", async () => {
+    render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    // Still open: the pack was running when the key was pressed.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Turn on travel mode" }),
+      ).toBeTruthy(),
+    );
+  });
 });
