@@ -227,7 +227,7 @@ export const nativeHostCapabilities: readonly Capability[] = [
   },
   {
     id: "host.bitwarden_compat",
-    title: "Serve Bitwarden clients from the Host (bitwarden-compat)",
+    title: "Serve Bitwarden clients from the Host (bitwarden-compat bridge)",
     plane: "host",
     kind: "admin",
     surfaces: {

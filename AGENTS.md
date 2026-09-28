@@ -267,7 +267,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `crates/credential-helpers` | git/docker/AWS/kubectl helpers — thin mint-path clients of the daemon, run as entry points of `opensesame` (ADR 0049) |
-| `crates/bitwarden-server` | Bitwarden-compatible server mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in, sync and edit a personal vault; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI as the oracle (ADR 0141) |
+| `crates/bitwarden-server` | Bitwarden-compatible server, a bridge compiled in only with `--features bitwarden-compat` (ADR 0148) and mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in, sync and edit a personal vault; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI as the oracle (ADR 0141) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
 | `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
@@ -393,7 +393,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0147).
+  0001–0148).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
