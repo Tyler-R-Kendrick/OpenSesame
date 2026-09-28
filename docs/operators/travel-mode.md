@@ -19,7 +19,10 @@ to carry. The other vaults leave the device whole and come back afterwards.
    trust. Do not photograph it with this device.
 6. Tick both boxes and press **Take them off this device**. The receipt says
    how many vaults and files left. If a file could not be removed, the
-   receipt says so.
+   receipt says so and the packed bundle stays on screen: press the same key
+   again to finish. If the page is closed first, the Travel panel lists the
+   **leftovers** (files with no header, which can never be opened here) and
+   **Clear leftover files** removes them. Your bundle holds all of them.
 
 ## Coming home
 
@@ -27,7 +30,13 @@ Open one of your vaults, then press **Bring vaults home** in the Travel
 panel. Choose the bundle and type the return code. Letter case, dashes, and
 the characters 0/O and 1/I don't matter. Check the preview, then press
 **Bring them home**. If you sealed a new vault on the trip under the same id,
-it is left alone and reported as occupied.
+it is left alone and reported as occupied. A vault a departure left half
+removed comes home whole.
+
+If the vaults had given sites permission to sign in without asking, the
+preview names those sites. They get that permission back only if you tick
+**Let these sites in again**. Otherwise each site asks again the next time.
+Tick it only for a bundle you made yourself.
 
 ## What this does not do
 

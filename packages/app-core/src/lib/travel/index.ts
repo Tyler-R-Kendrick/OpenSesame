@@ -26,9 +26,16 @@ import {
   packDeparture,
 } from "./depart.js";
 import {
+  type ClearRemnantsOutcome,
+  type TravelRemnant,
+  clearRemnants,
+  findRemnants,
+} from "./remnants.js";
+import {
   type CompleteReturnOutcome,
   type OpenReturnOutcome,
   type OpenedReturn,
+  type ReturnOptions,
   completeReturn,
   openReturn,
 } from "./return.js";
@@ -45,13 +52,16 @@ export type {
   TravelDeps,
   TravelVaultInfo,
 } from "./depart.js";
+export type { TravelGrants } from "./grants.js";
 export type { TravelPlan, TravelPlanRefusal } from "./plan.js";
+export type { ClearRemnantsOutcome, TravelRemnant } from "./remnants.js";
 export type {
   CompleteReturnOutcome,
   OpenReturnOutcome,
   OpenedReturn,
   ReturnPreview,
   ReturnReceipt,
+  ReturnOptions,
   ReturnRefusal,
   ReturnStatus,
   ReturningVault,
@@ -130,9 +140,20 @@ export function openTravelReturn(input: {
   return openReturn(travelSeams.deps, input);
 }
 
-/** Bring the vaults home. */
+/** Bring the vaults home; their site grants only when asked for. */
 export function returnFromTravel(
   opened: OpenedReturn,
+  options: ReturnOptions = { grants: false },
 ): Promise<CompleteReturnOutcome> {
-  return completeReturn(travelSeams.deps, opened);
+  return completeReturn(travelSeams.deps, opened, options);
+}
+
+/** Files a departure or return cut short left without a header. */
+export function travelRemnants(): Promise<TravelRemnant[]> {
+  return findRemnants(travelSeams.deps);
+}
+
+/** Clear those files; they can never be opened here. */
+export function clearTravelRemnants(): Promise<ClearRemnantsOutcome> {
+  return clearRemnants(travelSeams.deps);
 }

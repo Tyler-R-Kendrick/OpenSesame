@@ -9,7 +9,11 @@
  * Then nothing is written: the same files are reported already home, and
  * anything else (a personal vault sealed on the road, or one changed since
  * it came back) is left alone. Returning the same bundle twice never undoes
- * what happened after the first return.
+ * what happened after the first return. A vault this device still holds
+ * part of, unchanged — a departure or return cut short — is finished.
+ *
+ * Site grants (`grants.ts`) are not the vault: they are left out of every
+ * comparison and written back only when the person asks for them.
  */
 
 import {
@@ -24,8 +28,9 @@ import {
   type TravelGateRefusal,
   travelGate,
 } from "./depart.js";
+import { type TravelGrants, grantFilesOf, grantsIn } from "./grants.js";
 import { ReturnCodeError, parseReturnCode } from "./return-code.js";
-import { filesOfVault, headerOf, vaultNamespace } from "./storage.js";
+import { bodyOf, filesOfVault, headerOf, vaultNamespace } from "./storage.js";
 
 export type ReturnStatus =
   /** Nothing of it is on this device: it will be restored. */
@@ -41,6 +46,8 @@ export type ReturningVault = Readonly<{
   name: string | null;
   files: number;
   status: ReturnStatus;
+  /** What its site grants would let in, were they brought back. */
+  grants: TravelGrants;
 }>;
 
 export type ReturnPreview = Readonly<{
@@ -65,10 +72,20 @@ export type OpenReturnOutcome =
 
 export type ReturnReceipt = Readonly<{
   restored: readonly string[];
+  /** Restored vaults whose site grants came back too. */
+  grantsRestored: readonly string[];
   alreadyHome: readonly string[];
   occupied: readonly string[];
   writtenFiles: number;
 }>;
+
+/** How a return treats what the bundle carries beyond the vault itself. */
+export type ReturnOptions = Readonly<{
+  /** Write the vault's site grants back, at the person's word. */
+  grants: boolean;
+}>;
+
+const NO_GRANTS: ReturnOptions = { grants: false };
 
 export type CompleteReturnOutcome =
   | { ok: true; receipt: ReturnReceipt }
@@ -80,11 +97,18 @@ const GATE_MESSAGE = {
   storage_not_durable: "This browser is not keeping files for this site.",
 } satisfies Record<TravelGateRefusal, string>;
 
+/** The vault's own files: everything it carries but its site grants. */
+function vaultFiles(vault: TravelPayload["vaults"][number]) {
+  const grants = grantFilesOf(vault.id);
+  return vault.files.filter((entry) => !grants.has(entry.file));
+}
+
 /**
  * What returning `vault` would do, read from the device now. Any vault
  * already here under that id is never written over: the same files are
  * already home, anything else (sealed on the road, or changed since it came
- * back) is left alone.
+ * back) is left alone. One whose body is gone while every file still here
+ * matches the bundle is a removal cut short, and comes home.
  */
 async function statusOf(
   deps: TravelDeps,
@@ -94,17 +118,24 @@ async function statusOf(
   if ((await deps.storage.read(headerOf(vault.id))) === null) {
     return "comes_home";
   }
+  const files = vaultFiles(vault);
   const here = await Promise.all(
-    vault.files.map((entry) => deps.storage.read(entry.file)),
+    files.map((entry) => deps.storage.read(entry.file)),
   );
-  if (vault.files.some((entry, i) => here[i] !== entry.text)) {
-    return "occupied";
-  }
+  const grants = grantFilesOf(vault.id);
   const tombs = [...deps.storage.tombs(), vault.id];
   const extra = filesOfVault(vault.id, present, tombs).filter(
-    (file) => !vault.files.some((entry) => entry.file === file),
+    (file) => !grants.has(file) && !files.some((entry) => entry.file === file),
   );
-  return extra.length === 0 ? "already_home" : "occupied";
+  const differs = files.some(
+    (entry, i) => here[i] !== null && here[i] !== entry.text,
+  );
+  if (differs || extra.length > 0) return "occupied";
+  if (here.every((text) => text !== null)) return "already_home";
+  const bodyGone = files.some(
+    (entry, i) => entry.file === bodyOf(vault.id) && here[i] === null,
+  );
+  return bodyGone ? "comes_home" : "occupied";
 }
 
 async function statusesOf(
@@ -167,8 +198,9 @@ export async function openReturn(
     id: vault.id,
     kind: vault.kind,
     name: vault.name,
-    files: vault.files.length,
+    files: vaultFiles(vault).length,
     status: statuses.get(vault.id) ?? "occupied",
+    grants: grantsIn(vault.id, vault.files),
   }));
   return {
     ok: true,
@@ -191,20 +223,26 @@ export async function openReturn(
 export async function completeReturn(
   deps: TravelDeps,
   opened: OpenedReturn,
+  options: ReturnOptions = NO_GRANTS,
 ): Promise<CompleteReturnOutcome> {
   const refused = await travelGate(deps);
   if (refused) return { ok: false, code: refused };
   const present = await deps.storage.listFiles();
   const status = await statusesOf(deps, opened.payload, present);
   const restored: string[] = [];
+  const grantsRestored: string[] = [];
   let writtenFiles = 0;
   const touched = new Set<string>();
   for (const vault of opened.payload.vaults) {
     if (status.get(vault.id) !== "comes_home") continue;
     const tombs = [...deps.storage.tombs(), vault.id];
-    const keep = new Set(vault.files.map((entry) => entry.file));
+    const grants = grantFilesOf(vault.id);
+    // Without the person's word, grant records are neither written nor
+    // cleared: the device keeps whatever grants it already had.
+    const files = options.grants ? vault.files : vaultFiles(vault);
+    const keep = new Set(files.map((entry) => entry.file));
     for (const stray of filesOfVault(vault.id, present, tombs)) {
-      if (keep.has(stray)) continue;
+      if (keep.has(stray) || (!options.grants && grants.has(stray))) continue;
       await deps.storage.remove(stray);
       touched.add(stray);
     }
@@ -212,8 +250,8 @@ export async function completeReturn(
     // next attempt still sees the vault as coming home and finishes it.
     const header = headerOf(vault.id);
     const ordered = [
-      ...vault.files.filter((entry) => entry.file !== header),
-      ...vault.files.filter((entry) => entry.file === header),
+      ...files.filter((entry) => entry.file !== header),
+      ...files.filter((entry) => entry.file === header),
     ];
     for (const entry of ordered) {
       await deps.storage.write(entry.file, entry.text);
@@ -222,6 +260,9 @@ export async function completeReturn(
     }
     await deps.storage.registerTomb(vault.id);
     restored.push(vault.id);
+    if (files.some((entry) => grants.has(entry.file))) {
+      grantsRestored.push(vault.id);
+    }
   }
   // Memory may hold what this device had under these names before; the
   // files are the truth now, and the welcome re-reads them.
@@ -239,6 +280,7 @@ export async function completeReturn(
     ok: true,
     receipt: {
       restored,
+      grantsRestored,
       alreadyHome: pick("already_home"),
       occupied: pick("occupied"),
       writtenFiles,

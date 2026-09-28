@@ -8,11 +8,7 @@
 import type {
   DeparturePackage,
   DepartureReceipt,
-  ReturnPreview,
-  ReturnReceipt,
-  ReturnStatus,
 } from "@opensesame/app-core/lib/travel/index.js";
-import { vaultLabel } from "@opensesame/app-core/lib/vaults.js";
 import type { ReactNode } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
@@ -85,7 +81,7 @@ export function TravelReceipt({ notice }: { notice: TravelNotice }) {
   );
 }
 
-function plural(count: number, one: string): string {
+export function plural(count: number, one: string): string {
   return `${count} ${one}${count === 1 ? "" : "s"}`;
 }
 
@@ -305,83 +301,4 @@ export function ReturnForm({
       </FormCommit>
     </form>
   );
-}
-
-const STATUS = {
-  comes_home: { tone: "ok", label: "Comes home" },
-  already_home: { tone: "idle", label: "Already home" },
-  occupied: { tone: "warn", label: "Already here, not the same; left alone" },
-} satisfies Record<ReturnStatus, { tone: StatusTone; label: string }>;
-
-export function ReturnPreviewView({
-  preview,
-  busy,
-  onReturn,
-  onCancel,
-}: {
-  preview: ReturnPreview;
-  busy: boolean;
-  onReturn: () => void;
-  onCancel: () => void;
-}) {
-  const coming = preview.vaults.some((vault) => vault.status === "comes_home");
-  return (
-    <form
-      className="travel"
-      aria-label="Coming home"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onReturn();
-      }}
-    >
-      <ul className="travel__list" aria-label="Vaults in the bundle">
-        {preview.vaults.map((vault) => (
-          <TravelRow
-            key={vault.id}
-            name={vaultLabel({ id: vault.id, name: vault.name ?? vault.id })}
-            meta={plural(vault.files, "file")}
-            side={
-              <StatusMark
-                tone={STATUS[vault.status].tone}
-                label={STATUS[vault.status].label}
-              />
-            }
-          />
-        ))}
-      </ul>
-      <FormCommit
-        label="Bring them home"
-        icon={<IconDownload size={18} />}
-        disabled={busy || !coming}
-        busy={busy}
-      >
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          title="Close"
-          onClick={onCancel}
-        >
-          <IconX size={16} />
-        </button>
-      </FormCommit>
-    </form>
-  );
-}
-
-export function returnedNotice(receipt: ReturnReceipt): TravelNotice {
-  const text = `${plural(receipt.restored.length, "vault")} came home`;
-  const aside = [
-    receipt.alreadyHome.length > 0
-      ? `${plural(receipt.alreadyHome.length, "vault")} already here`
-      : "",
-    receipt.occupied.length > 0
-      ? `${plural(receipt.occupied.length, "vault")} left alone`
-      : "",
-  ].filter(Boolean);
-  return {
-    tone: receipt.occupied.length > 0 ? "warn" : "ok",
-    text,
-    meta: aside.join(" · ") || undefined,
-  };
 }

@@ -1,0 +1,98 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Travel"
+        },
+        {
+          "press": "Bring vaults home"
+        },
+        {
+          "fill": {
+            "label": "Return code",
+            "text": "CM4I-DLP6-ZDYK-ONWD-7V2D-QGIY-F43I-TTGF"
+          }
+        },
+        {
+          "setFile": {
+            "label": "Choose the travel bundle",
+            "file": "docs/evidence/2026-09-28-travel-grants/evidence.travel.json"
+          }
+        },
+        {
+          "press": "Open the bundle"
+        },
+        {
+          "report": "#travel .travel__list li"
+        },
+        {
+          "count": ["#travel input[type=checkbox]"]
+        },
+        {
+          "shot": "1280-return-grants"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Travel"
+        },
+        {
+          "press": "Bring vaults home"
+        },
+        {
+          "fill": {
+            "label": "Return code",
+            "text": "CM4I-DLP6-ZDYK-ONWD-7V2D-QGIY-F43I-TTGF"
+          }
+        },
+        {
+          "setFile": {
+            "label": "Choose the travel bundle",
+            "file": "docs/evidence/2026-09-28-travel-grants/evidence.travel.json"
+          }
+        },
+        {
+          "press": "Open the bundle"
+        },
+        {
+          "report": "#travel .travel__list li"
+        },
+        {
+          "count": ["#travel input[type=checkbox]"]
+        },
+        {
+          "shot": "390-return-grants"
+        }
+      ]
+    }
+  ],
+  "sheets": []
+}

@@ -120,12 +120,24 @@ registers its tomb when it is created, not when its first header lands, so a
 project nobody has sealed yet is listed as "not sealed yet" rather than
 dropped.
 
+A project created by older code, which registered a tomb only once it held
+material, and never sealed, looks on the device exactly like a vault that
+departed: a name in some sibling's view and nothing else. The scrub drops
+it. This is deliberate. Telling the two apart would need a record on the
+device that some vault left, and that record is what travel must not leave.
+Such a project holds no data, only its name. The scrub reads the tomb
+registry afresh before it drops anything, and keeps the sealed view as it
+is when the registry cannot be read, so a vault another tab registered is
+never dropped.
+
 ### 6. Return puts back exactly what left, and nothing else
 
 `openReturn` opens the bundle and previews each vault. A vault comes home
-(`comes_home`) only when the device has no header under its id. If the
-device already has a vault there, nothing is written: it is `already_home`
-when every file matches the bundle, and `occupied` otherwise. That covers a
+(`comes_home`) when the device has no header under its id. It also comes
+home when a departure was cut short at the header: the body is gone and
+every file still present matches the bundle byte for byte. If the device
+already has a vault there, nothing is written: it is `already_home` when
+every file matches the bundle, and `occupied` otherwise. That covers a
 personal vault sealed on the trip, and a vault that came home and has been
 used since, so an old bundle opened a second time can never put stale data
 back. A bundle vault with no header is refused as `bundle_malformed`.
@@ -139,6 +151,27 @@ A bundle is **hostile input**. Every file it carries must sit in the
 namespace of the vault it claims (`foreign_file` otherwise). A bundle can put
 a vault back but can never write the tomb registry, the guest switch, the
 duress fence, settings, or another vault's files.
+
+**Site grants come back only when asked for.** A vault's site-broker
+consents and policy (`site-broker.consents.v1`, `site-broker.policy.v1`)
+are plaintext grants that let a site in without asking. They are scoped to
+the vault's name, not its key, so they would outlive the vault they came
+with. A bundle is trusted only as far as its return code. So the preview
+lists the sites a vault's grants would let in, and `completeReturn` writes
+them only when the person ticks for them (`{ grants: true }`). Otherwise
+grant records are neither written nor cleared, and the returning vault's
+sites ask again. Grant files are left out of every status comparison.
+
+### 6a. What a cut-short departure leaves
+
+Departure removes the header first. The header holds every key wrap, and
+nothing writes a tomb's files before its header, so files under a
+registered tomb with no header can never be opened on this device. A vault
+leaves the registry and the list only once nothing of it is left. Until
+then the travel panel lists its leftovers, and one key clears them
+(`clearTravelRemnants`, gated like departure). The bundle holds every one
+of those files, so clearing them loses nothing, and the same package, or
+the bundle's return, finishes the job either way.
 
 ### 7. Composition
 

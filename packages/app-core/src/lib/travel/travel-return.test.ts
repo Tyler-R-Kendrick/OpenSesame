@@ -34,6 +34,7 @@ describe("return", () => {
         name: null,
         files: 5,
         status: "comes_home",
+        grants: { sites: [], rules: 0 },
       },
       {
         id: PRJ_WORK,
@@ -41,12 +42,14 @@ describe("return", () => {
         name: "Work",
         files: 5,
         status: "comes_home",
+        grants: { sites: [], rules: 0 },
       },
     ]);
     expect(await completeReturn(origin.deps, opened.opened)).toEqual({
       ok: true,
       receipt: {
         restored: ["personal", PRJ_WORK],
+        grantsRestored: [],
         alreadyHome: [],
         occupied: [],
         writtenFiles: 10,
