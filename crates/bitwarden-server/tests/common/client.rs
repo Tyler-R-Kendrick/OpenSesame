@@ -51,7 +51,7 @@ pub fn kdf_json(kdf: &Kdf) -> Value {
 
 /// Master key → (hash the server checks, user key wrapped under the stretched
 /// master key).
-fn wrap(password: &str, email: &str, kdf: &Kdf, user_key: &[u8]) -> (String, String) {
+pub fn wrap(password: &str, email: &str, kdf: &Kdf, user_key: &[u8]) -> (String, String) {
     let master = MasterKey::derive(password.as_bytes(), email, kdf).unwrap();
     let hash = master.password_hash_b64(password.as_bytes());
     let wrapped = encrypt(&master.stretch(), user_key);
@@ -67,6 +67,17 @@ pub fn encrypt(key: &SymmetricKey, plaintext: &[u8]) -> String {
 impl Account {
     pub fn user_key(&self) -> SymmetricKey {
         SymmetricKey::from_bytes(&self.user_key).unwrap()
+    }
+
+    pub fn user_key_bytes(&self) -> &[u8] {
+        &self.user_key
+    }
+
+    /// After a rotation or a takeover, the key and password the account has.
+    pub fn now_has(&mut self, email: &str, password: &str, user_key: Vec<u8>) {
+        email.clone_into(&mut self.email);
+        password.clone_into(&mut self.password);
+        self.user_key = Zeroizing::new(user_key);
     }
 
     pub fn password_hash(&self) -> String {
