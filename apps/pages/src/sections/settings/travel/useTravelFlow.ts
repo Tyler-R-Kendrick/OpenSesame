@@ -4,6 +4,7 @@
  * and the bundle and code on the way home.
  */
 
+import { MAX_TRAVEL_BUNDLE_BYTES } from "@opensesame/app-core/lib/travel/bundle-format.js";
 import {
   type DeparturePackage,
   type OpenedReturn,
@@ -107,6 +108,10 @@ function departureSteps(state: TravelState, openId: string | undefined) {
       const outcome = await departForTravel(pkg, state.ack);
       if (!outcome.ok) return state.refuse(outcome.code);
       const { receipt } = outcome;
+      // A removal cut short keeps the package: the same press finishes it.
+      if (receipt.completion === "incomplete") {
+        return state.setNotice(departedNotice(receipt));
+      }
       state.setSafe(new Set());
       state.reset(departedNotice(receipt));
     });
@@ -145,6 +150,11 @@ function returnSteps(state: TravelState) {
 
   const chooseBundle = (file: File) =>
     state.run(async () => {
+      // Refused by size before a byte of it is read into the page.
+      if (file.size > MAX_TRAVEL_BUNDLE_BYTES) {
+        state.setBundle(null);
+        return state.refuse("bundle_too_large");
+      }
       state.setBundle({ name: file.name, json: await file.text() });
     });
 

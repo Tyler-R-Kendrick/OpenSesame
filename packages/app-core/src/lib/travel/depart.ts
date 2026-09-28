@@ -7,8 +7,10 @@
  * code, and proves the bundle opens with that code and holds exactly what
  * was read. Only after the person says both the bundle and the code are
  * somewhere else does `completeDeparture` remove anything — and it re-reads
- * the files first, so a vault that changed in between is never removed
- * against a bundle that does not hold its latest state.
+ * the files and the plan first, so a vault that changed in between, or that
+ * became the open vault, is never removed against a bundle that does not
+ * hold its latest state. A removal cut short can be finished with the same
+ * package: every file still here must be one the bundle holds.
  */
 
 import {
@@ -51,7 +53,9 @@ export type TravelDeps = Readonly<{
   /** Drop departed vaults from the projects list and the active pointer. */
   forgetVaults: (ids: readonly string[]) => Promise<void>;
   /** Pick up vaults that came home (hydrate headers, rebuild the list). */
-  welcomeVaults: (ids: readonly string[]) => Promise<void>;
+  welcomeVaults: (
+    vaults: readonly Pick<TravelVault, "id" | "kind" | "name">[],
+  ) => Promise<void>;
   now: () => Date;
 }>;
 
@@ -87,6 +91,8 @@ export type DeparturePackage = Readonly<{
   departing: readonly DepartingVault[];
   /** Digest of every departing file, re-checked before removal. */
   fingerprint: string;
+  /** Per vault, each packed file's SHA-256: what a removal may take. */
+  packed: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }>;
 
 export type PackOutcome =
@@ -107,8 +113,22 @@ export type CompleteOutcome =
   | { ok: true; receipt: DepartureReceipt }
   | {
       ok: false;
-      code: TravelGateRefusal | "not_acknowledged" | "changed_since_packed";
+      code:
+        | TravelGateRefusal
+        | "not_acknowledged"
+        | "changed_since_packed"
+        | "open_vault_departs";
     };
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export async function fingerprintFiles(
   vaults: readonly Pick<TravelVault, "id" | "files">[],
@@ -120,13 +140,23 @@ export async function fingerprintFiles(
       parts.push(`${vault.id}\u0000${entry.file}\u0000${entry.text}`);
     }
   }
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(parts.join("\u0001")),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return sha256Hex(parts.join("\u0001"));
+}
+
+async function digestsOf(
+  vaults: readonly Pick<TravelVault, "id" | "files">[],
+): Promise<DeparturePackage["packed"]> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const vault of vaults) {
+    const entries = await Promise.all(
+      vault.files.map(async (entry) => [
+        entry.file,
+        await sha256Hex(entry.text),
+      ]),
+    );
+    out[vault.id] = Object.fromEntries(entries);
+  }
+  return out;
 }
 
 async function readVaultFiles(
@@ -137,12 +167,16 @@ async function readVaultFiles(
   const tombs = storage.tombs();
   const out = new Map<string, TravelFile[]>();
   for (const id of ids) {
-    const files: TravelFile[] = [];
-    for (const file of filesOfVault(id, all, tombs)) {
-      const text = await storage.read(file);
-      if (text !== null) files.push({ file, text });
-    }
-    out.set(id, files);
+    const read = await Promise.all(
+      filesOfVault(id, all, tombs).map(async (file) => ({
+        file,
+        text: await storage.read(file),
+      })),
+    );
+    out.set(
+      id,
+      read.filter((entry): entry is TravelFile => entry.text !== null),
+    );
   }
   return out;
 }
@@ -232,8 +266,81 @@ export async function packDeparture(
         bytes: vault.files.reduce((sum, entry) => sum + entry.text.length, 0),
       })),
       fingerprint,
+      packed: await digestsOf(carried),
     },
   };
+}
+
+/**
+ * Why the package can no longer be trusted to remove what it packed: a
+ * departing vault is open now, or a vault neither staying nor departing was
+ * sealed since, or a departing file differs from the packed one. A vault
+ * whose header is already gone is a removal cut short: every file left must
+ * still be one the bundle holds, and the rest of it goes.
+ */
+async function staleSincePacked(
+  deps: TravelDeps,
+  pkg: DeparturePackage,
+  current: ReadonlyMap<string, readonly TravelFile[]>,
+): Promise<"changed_since_packed" | "open_vault_departs" | null> {
+  const departing = new Set(pkg.plan.departing);
+  const staying = new Set(pkg.plan.staying);
+  for (const vault of deps.vaults()) {
+    if (vault.kind === "guest" || vault.state === "empty") continue;
+    if (departing.has(vault.id) && vault.state === "open") {
+      return "open_vault_departs";
+    }
+    if (!departing.has(vault.id) && !staying.has(vault.id)) {
+      return "changed_since_packed";
+    }
+  }
+  for (const id of pkg.plan.departing) {
+    const packed = pkg.packed[id] ?? {};
+    const files = current.get(id) ?? [];
+    const started = !files.some((entry) => entry.file === headerOf(id));
+    if (!started && files.length !== Object.keys(packed).length) {
+      return "changed_since_packed";
+    }
+    for (const entry of files) {
+      if (packed[entry.file] !== (await sha256Hex(entry.text))) {
+        return "changed_since_packed";
+      }
+    }
+  }
+  return null;
+}
+
+function headerOf(id: string): string {
+  return `${tombStem(id)}header.json`;
+}
+
+/**
+ * Remove every file, header first: a departure cut short leaves a vault with
+ * no header, which the bundle's return restores whole rather than refusing,
+ * and which this package can finish. A file that will not go is reported,
+ * not thrown past the files after it.
+ */
+async function removeAll(
+  storage: TravelStorage,
+  current: ReadonlyMap<string, readonly TravelFile[]>,
+): Promise<Set<string>> {
+  const removed = new Set<string>();
+  for (const [id, files] of current) {
+    const header = headerOf(id);
+    const ordered = [
+      ...files.filter((entry) => entry.file === header),
+      ...files.filter((entry) => entry.file !== header),
+    ];
+    for (const entry of ordered) {
+      try {
+        await storage.remove(entry.file);
+        removed.add(entry.file);
+      } catch {
+        // Counted as a leftover when the device is read back below.
+      }
+    }
+  }
+  return removed;
 }
 
 /**
@@ -253,26 +360,9 @@ export async function completeDeparture(
   if (refused) return { ok: false, code: refused };
   const ids = pkg.plan.departing;
   const current = await readVaultFiles(deps.storage, ids);
-  const now = await fingerprintFiles(
-    ids.map((id) => ({ id, files: current.get(id) ?? [] })),
-  );
-  if (now !== pkg.fingerprint) {
-    return { ok: false, code: "changed_since_packed" };
-  }
-  const removed = new Set<string>();
-  for (const [id, files] of current) {
-    // The header goes first: a departure cut short leaves a vault with no
-    // header, which the bundle's return restores whole rather than refusing.
-    const header = `${tombStem(id)}header.json`;
-    const ordered = [
-      ...files.filter((entry) => entry.file === header),
-      ...files.filter((entry) => entry.file !== header),
-    ];
-    for (const entry of ordered) {
-      await deps.storage.remove(entry.file);
-      removed.add(entry.file);
-    }
-  }
+  const stale = await staleSincePacked(deps, pkg, current);
+  if (stale) return { ok: false, code: stale };
+  const removed = await removeAll(deps.storage, current);
   deps.storage.forget(removed);
   for (const id of ids) await deps.storage.unregisterTomb(id);
   await deps.forgetVaults(ids);

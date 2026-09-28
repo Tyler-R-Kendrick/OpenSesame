@@ -91,10 +91,26 @@ export function filesOfVault(
   return files.filter((file) => owns(id, file)).sort();
 }
 
-async function root(): Promise<FileSystemDirectoryHandle> {
+/** The origin root, opened once per opener rather than once per file. */
+let opened: {
+  open: () => Promise<FileSystemDirectoryHandle>;
+  root: Promise<FileSystemDirectoryHandle>;
+} | null = null;
+
+function root(): Promise<FileSystemDirectoryHandle> {
   const open = originFiles();
-  if (!open) throw new Error("This browser keeps no files for this site.");
-  return open();
+  if (!open) {
+    return Promise.reject(
+      new Error("This browser keeps no files for this site."),
+    );
+  }
+  if (opened?.open !== open) opened = { open, root: open() };
+  const current = opened;
+  // A root that failed to open is not remembered.
+  current.root.catch(() => {
+    if (opened === current) opened = null;
+  });
+  return current.root;
 }
 
 /** The origin's own storage: OPFS, the same files `kv.ts` writes. */

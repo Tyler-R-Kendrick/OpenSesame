@@ -118,3 +118,21 @@ export function onDeviceView(
   );
   return { ...boot, projects: [...kept, ...rest.projects] };
 }
+
+/**
+ * Base KV keys that are stored once per project rather than per device.
+ * The vault header/body/prefs left this list for tomb paths (ADR 0063);
+ * lockout counters stay plaintext at their scoped key by design.
+ */
+export const PROJECT_SCOPED_KEYS = [
+  "vault.attempts.v1",
+  "site-broker.consents.v1",
+  "site-broker.policy.v1",
+] as const;
+
+/** Legacy flat vault keys — hydrated only so the tomb migration can move them. */
+export const LEGACY_VAULT_KEYS = [
+  "vault.header.v1",
+  "vault.body.v1",
+  "vault.prefs.v1", // gitleaks:allow -- storage key, not a credential
+] as const;

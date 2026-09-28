@@ -4,18 +4,19 @@
  * a return code the traveller does not carry, and come back from both.
  */
 
-import { kvGet, kvHydrate } from "../kv.js";
+import { kvHydrate } from "../kv.js";
 import {
   forgetDepartedProjects,
+  legacyVaultsAmong,
   listProjects,
   projectScopedKeys,
   refreshProjectsView,
-  scopedKey,
+  renameProject,
 } from "../projects.js";
 import { vaultStore } from "../vault/store.js";
-import { LEGACY_HEADER_KEY, tombStorageKeys } from "../vault/tomb-migration.js";
+import { tombStorageKeys } from "../vault/tomb-migration.js";
 import { listDeviceVaults } from "../vaults.js";
-import { listTombs, lockTomb } from "../vfs.js";
+import { lockTomb } from "../vfs.js";
 import {
   type CompleteOutcome,
   type DeparturePackage,
@@ -77,26 +78,29 @@ const defaultDeps: TravelDeps = {
     const snapshot = vaultStore.getSnapshot();
     return snapshot.status === "unlocked" && !snapshot.guest;
   },
-  async legacyVaults() {
-    const tombs = new Set(listTombs());
-    const candidates = listProjects()
-      .map((project) => project.id)
-      .filter((id) => !tombs.has(id));
-    const keys = candidates.map((id) => scopedKey(LEGACY_HEADER_KEY, id));
-    await kvHydrate(keys);
-    return candidates.filter((_, i) => kvGet(keys[i] ?? "") !== null);
-  },
+  legacyVaults: () =>
+    legacyVaultsAmong(listProjects().map((project) => project.id)),
   async forgetVaults(ids) {
     // A sibling opened with the shared key earlier in the session keeps its
     // key in memory; a vault that left the device must not.
     for (const id of ids) lockTomb(id);
     await forgetDepartedProjects(ids);
   },
-  async welcomeVaults(ids) {
+  async welcomeVaults(vaults) {
     await kvHydrate(
-      ids.flatMap((id) => [...tombStorageKeys(id), ...projectScopedKeys(id)]),
+      vaults.flatMap(({ id }) => [
+        ...tombStorageKeys(id),
+        ...projectScopedKeys(id),
+      ]),
     );
     await refreshProjectsView();
+    // A project listed by id alone gets back the name it left with.
+    const listed = new Map(listProjects().map((p) => [p.id, p.name]));
+    for (const { id, kind, name } of vaults) {
+      if (kind === "project" && name && listed.get(id) === id) {
+        await renameProject(id, name);
+      }
+    }
   },
   now: () => new Date(),
 };
