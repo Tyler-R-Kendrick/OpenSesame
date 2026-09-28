@@ -11,6 +11,9 @@ export function menuSteps({ press }) {
     openSettingsFile: (page, category) =>
       openSettingsFile(page, category, press),
     measure,
+    // `measure` is shadowed by capture-evidence's selector-box step of the
+    // same name, so the facts below are reached by this one.
+    facts: measure,
   };
 }
 
@@ -102,15 +105,18 @@ async function measure(page, name) {
       capabilityViewKeys: document.querySelectorAll(
         '[aria-label="Capability view"] button',
       ).length,
-      // The three rail rows after Capabilities: where config.yaml sits.
-      belowCapabilities: rows
-        .slice(
-          rows.findIndex((row) =>
-            row.textContent?.trim().startsWith("Capabilities"),
-          ) + 1,
-        )
-        .slice(0, 3)
-        .map((row) => row.textContent?.trim()),
+      // How many rail rows sit between Capabilities and its config.yaml:
+      // 0 is first under it.
+      rowsBeforeCapabilitiesConfig: (() => {
+        const at = rows.findIndex((row) =>
+          row.textContent?.trim().startsWith("Capabilities"),
+        );
+        const config = rows.findIndex(
+          (row, index) =>
+            index > at && row.textContent?.includes("config.yaml"),
+        );
+        return at < 0 || config < 0 ? null : config - at - 1;
+      })(),
       fileList: [...document.querySelectorAll(".vfiles__file")].map((row) =>
         row.textContent?.trim(),
       ),
