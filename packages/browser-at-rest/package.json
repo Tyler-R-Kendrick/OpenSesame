@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "description": "At-rest sealing for browser storage outside the Pages app: a non-extractable AES-GCM key in the origin's IndexedDB, and a sealed view of any Web Storage (ADR 0148)",
   "exports": {
     ".": {
