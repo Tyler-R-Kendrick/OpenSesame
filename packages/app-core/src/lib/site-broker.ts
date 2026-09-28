@@ -1,9 +1,3 @@
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
 import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { env, staticAuthRelease } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
@@ -19,25 +13,30 @@ import type { UpstreamIdentity } from "./federation.js";
 import { originClientId } from "./federation.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
 import { scopedKey } from "./projects.js";
+import {
+  type BrokerPolicy,
+  CONSENTS_KEY,
+  type DomainEffect,
+  type DomainRule,
+  POLICY_KEY,
+  type SiteConsent,
+  normalizeDomainEntry,
+  parseBrokerPolicy,
+  parseConsents,
+  sortRules,
+} from "./site-broker-records.js";
 
-/**
- * Base key names — read and written through the active project's scope, so
- * each project keeps its own approved-site list and domain policy.
- */
-export const CONSENTS_KEY = "site-broker.consents.v1";
-export const POLICY_KEY = "site-broker.policy.v1";
-
-/** Per-domain rule: whitelist allows, blacklist refuses. */
-export type DomainEffect = "whitelist" | "blacklist";
-
-export type DomainRule = {
-  domain: string;
-  effect: DomainEffect;
-};
-
-export type BrokerPolicy = {
-  rules: DomainRule[];
-};
+export {
+  type BrokerPolicy,
+  CONSENTS_KEY,
+  type DomainEffect,
+  type DomainRule,
+  POLICY_KEY,
+  type SiteConsent,
+  normalizeDomainEntry,
+  parseBrokerPolicy,
+  parseConsents,
+} from "./site-broker-records.js";
 
 export type BrokerRequest = {
   clientId: string;
@@ -52,24 +51,6 @@ export type BrokerAuthorizeParams = {
   state: string;
   scope?: string;
 };
-
-export type SiteConsent = {
-  origin: string;
-  scopes: string[];
-  approvedAt: string;
-  lastUsedAt: string;
-};
-
-function isSiteConsent(value: BoundaryValue): value is SiteConsent {
-  return (
-    isJsonObject(value) &&
-    isString(value.origin) &&
-    Array.isArray(value.scopes) &&
-    value.scopes.every(isString) &&
-    isString(value.approvedAt) &&
-    isString(value.lastUsedAt)
-  );
-}
 
 export type SignInSuccess = {
   type: "opensesame:signin";
@@ -224,15 +205,7 @@ export function scopeList(scope: string): string[] {
 }
 
 export function loadConsents(): SiteConsent[] {
-  const raw = kvGet(scopedKey(CONSENTS_KEY));
-  if (!raw) return [];
-  try {
-    const parsed: BoundaryValue = JSON.parse(raw);
-    if (!isJsonObject(parsed) || !Array.isArray(parsed.consents)) return [];
-    return parsed.consents.filter(isSiteConsent);
-  } catch {
-    return [];
-  }
+  return parseConsents(kvGet(scopedKey(CONSENTS_KEY)));
 }
 
 function saveConsents(consents: SiteConsent[]): void {
@@ -291,50 +264,7 @@ export function revokeConsent(origin: string): void {
 }
 
 export function loadBrokerPolicy(): BrokerPolicy {
-  const raw = kvGet(scopedKey(POLICY_KEY));
-  if (!raw) return { rules: [] };
-  try {
-    const parsed = overlapCast(JSON.parse(raw));
-
-    if (Array.isArray(parsed.rules)) {
-      const rules = parsed.rules
-        .map((row) => normalizeRule(row))
-        .filter((row): row is DomainRule => row !== null);
-      return { rules: sortRules(rules) };
-    }
-
-    // Migrate global listMode + domains[] → per-row whitelist/blacklist.
-    if (Array.isArray(parsed.domains)) {
-      const effect: DomainEffect =
-        parsed.listMode === "allowlist" ? "whitelist" : "blacklist";
-      const rules = parsed.domains
-        .filter((d): d is string => isString(d))
-        .map((d) => normalizeDomainEntry(d))
-        .filter((d): d is string => d !== null)
-        .map((domain) => ({ domain, effect }));
-      return { rules: sortRules(rules) };
-    }
-
-    return { rules: [] };
-  } catch {
-    return { rules: [] };
-  }
-}
-
-function normalizeRule(row: BoundaryValue): DomainRule | null {
-  if (!isJsonObject(row)) return null;
-  const domainRaw = row.domain;
-  const effectRaw = row.effect;
-  if (!isString(domainRaw)) return null;
-  const domain = normalizeDomainEntry(domainRaw);
-  if (!domain) return null;
-  const effect: DomainEffect =
-    effectRaw === "blacklist" ? "blacklist" : "whitelist";
-  return { domain, effect };
-}
-
-function sortRules(rules: DomainRule[]): DomainRule[] {
-  return [...rules].sort((a, b) => a.domain.localeCompare(b.domain));
+  return parseBrokerPolicy(kvGet(scopedKey(POLICY_KEY)));
 }
 
 function saveBrokerPolicy(policy: BrokerPolicy): void {
@@ -342,32 +272,6 @@ function saveBrokerPolicy(policy: BrokerPolicy): void {
     scopedKey(POLICY_KEY),
     JSON.stringify({ rules: sortRules(policy.rules) }),
   );
-}
-
-/**
- * Normalise a domain list entry. Accepts origin URLs, host:port, or bare host.
- * Returns null when the input cannot be a useful match key.
- */
-export function normalizeDomainEntry(raw: string): string | null {
-  const trimmed = raw.trim().toLowerCase();
-  if (!trimmed) return null;
-
-  if (trimmed.includes("://")) {
-    try {
-      const url = new URL(trimmed);
-      if (url.pathname !== "/" && url.pathname !== "") return null;
-      if (url.search || url.hash) return null;
-      return url.origin.toLowerCase();
-    } catch {
-      return null;
-    }
-  }
-
-  if (trimmed.includes("/") || trimmed.includes("?") || trimmed.includes("#")) {
-    return null;
-  }
-  if (trimmed.startsWith(".") || trimmed.endsWith(".")) return null;
-  return trimmed;
 }
 
 /** Whether an RP origin matches a single domain list entry. */

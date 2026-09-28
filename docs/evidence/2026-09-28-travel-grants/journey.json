@@ -1,0 +1,115 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Travel"
+        },
+        {
+          "press": "Bring vaults home"
+        },
+        {
+          "fill": {
+            "label": "Return code",
+            "text": "VH5B-UQ2T-CVNS-GCTI-RTK4-OARA-EC4O-FTS7"
+          }
+        },
+        {
+          "setFile": {
+            "label": "Choose the travel bundle",
+            "file": "docs/evidence/2026-09-28-travel-grants/evidence.travel.json"
+          }
+        },
+        {
+          "press": "Open the bundle"
+        },
+        {
+          "report": "#travel .travel__list li"
+        },
+        {
+          "count": ["#travel input[type=checkbox]"]
+        },
+        {
+          "shot": "1280-return-grants"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollTo": "Travel"
+        },
+        {
+          "press": "Bring vaults home"
+        },
+        {
+          "fill": {
+            "label": "Return code",
+            "text": "VH5B-UQ2T-CVNS-GCTI-RTK4-OARA-EC4O-FTS7"
+          }
+        },
+        {
+          "setFile": {
+            "label": "Choose the travel bundle",
+            "file": "docs/evidence/2026-09-28-travel-grants/evidence.travel.json"
+          }
+        },
+        {
+          "press": "Open the bundle"
+        },
+        {
+          "report": "#travel .travel__list li"
+        },
+        {
+          "count": ["#travel input[type=checkbox]"]
+        },
+        {
+          "shot": "390-return-grants"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-return-grants",
+      "width": 1280,
+      "title": "Travel › Coming home, a vault with a site grant — 1280 × 900",
+      "caption": "Settings › Vaults › Travel › Bring vaults home, with a real bundle whose one vault carries a site-broker consent for https://rp.example and a policy blocking evil.example. Before, both grant records were just files of the vault: counted with it and written back with it, unannounced, so a bundle from someone else could plant a site's permission to sign in without asking. After, the row names the site its grants would let in, and that comes back only if the box beneath is ticked; the block comes back either way.",
+      "before": "row: Work · 4 files (consent and policy counted as vault files); checkboxes: 0",
+      "after": "row: Work · 2 files · 1 site grant; checkboxes: 1 (\"Let these sites in again: https://rp.example\", unticked)"
+    },
+    {
+      "shot": "390-return-grants",
+      "width": 390,
+      "title": "Travel › Coming home, a vault with a site grant — 390 × 844",
+      "caption": "The same journey at phone width.",
+      "before": "row: Work · 4 files; checkboxes: 0",
+      "after": "row: Work · 2 files · 1 site grant; checkboxes: 1, unticked"
+    }
+  ]
+}
