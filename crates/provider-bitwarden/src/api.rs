@@ -273,6 +273,47 @@ impl Client {
         self.decode(&url, response).await
     }
 
+    /// Fetch a file's ciphertext from a download link the server issued
+    /// (an attachment's URL, which may sit on a storage host of its own). No
+    /// credential goes with it: the link carries its own authorization.
+    /// https only (loopback http for tests); redirects refused; at most
+    /// `limit` bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns a URL, transport, redirect, API, or size error.
+    pub async fn download(&self, url: &str, limit: usize) -> Result<Vec<u8>> {
+        let url = endpoints::parse_download(url)?;
+        let response = self
+            .http
+            .get(url.clone())
+            .send()
+            .await
+            .map_err(|e| transport(&url, &e))?;
+        let status = response.status();
+        if status.is_redirection() {
+            return Err(Error::RedirectRefused {
+                status: status.as_u16(),
+                path: url.path().to_owned(),
+            });
+        }
+        if !status.is_success() {
+            return Err(Error::Api {
+                path: url.path().to_owned(),
+                status: status.as_u16(),
+                message: "download refused".into(),
+            });
+        }
+        let bytes = response.bytes().await.map_err(|e| transport(&url, &e))?;
+        if bytes.len() > limit {
+            return Err(Error::MalformedResponse {
+                path: url.path().to_owned(),
+                message: format!("download exceeded {limit} bytes"),
+            });
+        }
+        Ok(bytes.to_vec())
+    }
+
     /// Fetch nonsecret server version and feature information.
     ///
     /// # Errors

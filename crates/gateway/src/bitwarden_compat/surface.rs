@@ -30,6 +30,17 @@ fn config_from(lookup: impl Fn(&str) -> Option<String>, resource: &str) -> Optio
         allow_pbkdf2: !enabled(lookup("OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID").as_deref()),
         ..KdfPolicy::default()
     };
+    let mebibytes = |key: &str| {
+        lookup(key)
+            .and_then(|raw| raw.trim().parse::<u64>().ok())
+            .map(|mib| mib.saturating_mul(1024 * 1024))
+    };
+    if let Some(bytes) = mebibytes("OPENSESAME_BITWARDEN_MAX_FILE_MB") {
+        config.max_file_bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+    }
+    if let Some(bytes) = mebibytes("OPENSESAME_BITWARDEN_STORAGE_MB") {
+        config.storage_quota_bytes = i64::try_from(bytes).unwrap_or(i64::MAX);
+    }
     Some(config)
 }
 
@@ -130,5 +141,19 @@ mod tests {
         assert!(custom.signups.allows("a@corp.example"));
         assert!(!custom.signups.allows("a@elsewhere.example"));
         assert!(!custom.kdf.allow_pbkdf2);
+    }
+
+    #[test]
+    fn file_limits_are_set_in_mebibytes() {
+        let custom = config(&[
+            ("OPENSESAME_BITWARDEN_COMPAT", "on"),
+            ("OPENSESAME_BITWARDEN_MAX_FILE_MB", "25"),
+            ("OPENSESAME_BITWARDEN_STORAGE_MB", "2048"),
+        ])
+        .unwrap();
+        assert_eq!(custom.max_file_bytes, 25 * 1024 * 1024);
+        assert_eq!(custom.storage_quota_bytes, 2048 * 1024 * 1024);
+        let defaults = config(&[("OPENSESAME_BITWARDEN_COMPAT", "on")]).unwrap();
+        assert_eq!(defaults.max_file_bytes, 100 * 1024 * 1024);
     }
 }

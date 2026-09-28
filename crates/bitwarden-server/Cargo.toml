@@ -12,7 +12,7 @@ opensesame-authenticator-core = { path = "../authenticator-core" }
 data-encoding = "2.9.0"
 anyhow = { workspace = true }
 argon2 = { workspace = true }
-axum = { workspace = true }
+axum = { workspace = true, features = ["multipart"] }
 base64 = { workspace = true }
 chrono = { workspace = true }
 hex = { workspace = true }
@@ -30,12 +30,13 @@ uuid = { workspace = true }
 sqlx = { workspace = true }
 zeroize = { workspace = true }
 
+tempfile = { workspace = true }
+
 [dev-dependencies]
 aws-lc-rs = "1.18.0"
 hyper-util = { workspace = true, features = ["server", "server-auto", "http1", "tokio"] }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["multipart"] }
 rcgen = { version = "0.14.9", default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
 rustls = { version = "0.23.43", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 secrecy = { workspace = true }
-tempfile = { workspace = true }
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }

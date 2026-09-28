@@ -160,6 +160,17 @@ impl TokenKeys {
             .map_err(|e| ApiError::internal(&e.into()))
     }
 
+    /// What a live token for `audience` says, if it is one.
+    #[must_use]
+    pub fn purpose_subject(&self, token: &str, audience: &str) -> Option<String> {
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.set_issuer(&[&self.issuer]);
+        validation.set_audience(&[audience]);
+        jsonwebtoken::decode::<RegistrationClaims>(token, &self.decoding, &validation)
+            .ok()
+            .map(|data| data.claims.sub)
+    }
+
     /// Whether `token` is live, for `audience`, and says exactly `subject`.
     #[must_use]
     pub fn verify_purpose(&self, token: &str, audience: &str, subject: &str) -> bool {

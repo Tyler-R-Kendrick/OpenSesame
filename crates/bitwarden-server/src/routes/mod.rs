@@ -5,14 +5,18 @@
 //! dedicated origin mounts it at the root.
 
 mod accounts;
+mod attachments;
 mod cipher_bulk;
 mod ciphers;
 mod credentials;
+pub(crate) mod file_links;
 mod folders;
 mod identity;
 mod meta;
 mod register;
 mod second_step;
+mod send_access;
+mod sends;
 mod two_factor;
 
 use axum::extract::DefaultBodyLimit;
@@ -27,8 +31,11 @@ use crate::BitwardenServer;
 const BODY_LIMIT: usize = 1024 * 1024;
 /// `bw import` sends a whole vault at once.
 const IMPORT_LIMIT: usize = 32 * 1024 * 1024;
+/// Multipart framing around an uploaded file.
+const UPLOAD_OVERHEAD: usize = 64 * 1024;
 
 pub fn router(server: BitwardenServer) -> Router {
+    let max_file_bytes = server.config.max_file_bytes;
     let identity = Router::new()
         .route("/accounts/prelogin", post(identity::prelogin))
         .route("/accounts/prelogin/password", post(identity::prelogin))
@@ -42,14 +49,17 @@ pub fn router(server: BitwardenServer) -> Router {
 
     let api = account_routes()
         .merge(vault_routes())
+        .merge(send_routes())
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .route(
             "/ciphers/import",
             post(cipher_bulk::import).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
-        );
+        )
+        .merge(upload_routes(max_file_bytes));
 
     Router::new()
         .route("/alive", get(meta::alive))
+        .route("/files/{owner}/{id}", get(file_links::download))
         .nest(
             "/identity",
             identity.layer(DefaultBodyLimit::max(BODY_LIMIT)),
@@ -151,6 +161,56 @@ fn vault_routes() -> Router<BitwardenServer> {
             put(cipher_bulk::move_many).post(cipher_bulk::move_many),
         )
         .route("/ciphers/purge", post(cipher_bulk::purge))
+        .route("/ciphers/{id}/attachment/v2", post(attachments::announce))
+        .route(
+            "/ciphers/{id}/attachment/{attachment}/renew",
+            get(attachments::renew),
+        )
+        .route(
+            "/ciphers/{id}/attachment/{attachment}",
+            get(attachments::describe).delete(attachments::remove),
+        )
+        .route(
+            "/ciphers/{id}/attachment/{attachment}/delete",
+            post(attachments::remove),
+        )
+}
+
+/// Sends: the owner's routes and the signed-out access routes.
+fn send_routes() -> Router<BitwardenServer> {
+    Router::new()
+        .route("/sends", get(sends::list).post(sends::create))
+        .route("/sends/file/v2", post(sends::announce_file))
+        .route(
+            "/sends/{id}",
+            get(sends::get_one).put(sends::update).delete(sends::remove),
+        )
+        .route("/sends/{id}/remove-password", put(sends::remove_password))
+        .route("/sends/{id}/file/{file}", get(sends::renew_file))
+        .route("/sends/access", post(send_access::access_with_token))
+        .route("/sends/access/{access}", post(send_access::access))
+        .route(
+            "/sends/access/file/{file}",
+            post(send_access::access_file_with_token),
+        )
+        .route(
+            "/sends/{id}/access/file/{file}",
+            post(send_access::access_file),
+        )
+}
+
+/// Uploads, which carry a whole file.
+fn upload_routes(max_file_bytes: usize) -> Router<BitwardenServer> {
+    Router::new()
+        .route("/ciphers/{id}/attachment", post(attachments::upload_legacy))
+        .route(
+            "/ciphers/{id}/attachment/{attachment}",
+            post(attachments::upload),
+        )
+        .route("/sends/{id}/file/{file}", post(sends::upload_file))
+        .layer(DefaultBodyLimit::max(
+            max_file_bytes.saturating_add(UPLOAD_OVERHEAD),
+        ))
 }
 
 /// Advance the account's revision date, returning the instant used.

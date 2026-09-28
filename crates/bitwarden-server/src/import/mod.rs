@@ -14,14 +14,20 @@
 //! counted, never dropped silently.
 
 pub mod account;
+mod account_files;
 pub mod vaultwarden;
 
+mod files;
+
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use opensesame_storage::bitwarden::{
     ArrivalOutcome, BitwardenArrival, BitwardenCipher, BitwardenFolder,
 };
+
+pub use files::{ArrivingAttachment, ArrivingSend, FileSource};
 use opensesame_storage::Db;
 use serde_json::{Map, Value};
 
@@ -35,6 +41,9 @@ pub type LeftBehind = BTreeMap<&'static str, usize>;
 pub struct Arrival {
     pub account: BitwardenArrival,
     pub left_behind: LeftBehind,
+    /// Files on its ciphers, written after the account itself.
+    pub attachments: Vec<ArrivingAttachment>,
+    pub sends: Vec<ArrivingSend>,
 }
 
 /// An account a source holds but cannot move, and why.
@@ -51,6 +60,8 @@ pub struct Source {
     pub skipped: Vec<Skipped>,
     /// Server-wide things that stay behind (organizations, for one).
     pub left_behind: LeftBehind,
+    /// Where downloaded files wait to be written; gone with the source.
+    pub scratch: Option<Arc<tempfile::TempDir>>,
 }
 
 /// How an account was written.
@@ -73,6 +84,8 @@ pub struct AccountReport {
     pub written: Written,
     pub folders: usize,
     pub ciphers: usize,
+    pub attachments: usize,
+    pub sends: usize,
     pub left_behind: LeftBehind,
 }
 
@@ -110,12 +123,20 @@ pub async fn write(
                 ArrivalOutcome::IdTaken => Written::IdTaken,
             }
         };
+        let mut left_behind = arrival.left_behind.clone();
+        let moved = if matches!(written, Written::Created | Written::Replaced) {
+            files::write(db, arrival, &mut left_behind).await?
+        } else {
+            (arrival.attachments.len(), arrival.sends.len())
+        };
         reports.push(AccountReport {
             email: arrival.account.user.email.clone(),
             written,
             folders: arrival.account.folders.len(),
             ciphers: arrival.account.ciphers.len(),
-            left_behind: arrival.left_behind.clone(),
+            attachments: moved.0,
+            sends: moved.1,
+            left_behind,
         });
     }
     Ok(reports)

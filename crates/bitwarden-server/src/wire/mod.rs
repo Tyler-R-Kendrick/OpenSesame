@@ -2,3 +2,5 @@
 
 pub mod account;
 pub mod cipher;
+pub mod files;
+pub mod send;

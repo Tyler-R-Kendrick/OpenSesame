@@ -72,6 +72,7 @@ pub async fn token(
         Some("password") => password_grant(&server, &form).await,
         Some("refresh_token") => refresh_grant(&server, &form).await,
         Some("client_credentials") => api_key_grant(&server, &form).await,
+        Some("send_access") => super::send_access::access_grant(&server, &form).await,
         _ => Err(ApiError::oauth(
             "unsupported_grant_type",
             "This server supports the password, refresh_token and client_credentials grants.",

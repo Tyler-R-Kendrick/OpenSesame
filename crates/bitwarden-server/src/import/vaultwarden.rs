@@ -10,7 +10,7 @@
 //! trash, and every personal cipher. What stays behind is counted.
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
 use chrono::Utc;
@@ -18,6 +18,7 @@ use opensesame_storage::bitwarden::{BitwardenArrival, BitwardenKdf, BitwardenUse
 use serde_json::{json, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 
+mod files;
 mod rows;
 mod sign_in;
 
@@ -158,6 +159,8 @@ fn cipher_request(row: &SqliteRow, folder_id: Option<&String>, favorite: bool) -
 struct Reader {
     pool: SqlitePool,
     schema: Schema,
+    /// vaultwarden's data folder, which holds `attachments/` and `sends/`.
+    data: PathBuf,
 }
 
 impl Reader {
@@ -252,6 +255,11 @@ impl Reader {
             }
         }
         self.count_left_behind(&id, &mut left).await;
+        let known: HashSet<String> = ciphers.iter().map(|c| c.id.clone()).collect();
+        let attachments =
+            files::attachments(&self.pool, &self.schema, &self.data, &id, &known, &mut left)
+                .await?;
+        let sends = files::sends(&self.pool, &self.schema, &self.data, &id, &mut left).await?;
         let mut account = BitwardenArrival {
             user,
             folders,
@@ -262,22 +270,13 @@ impl Reader {
         Ok(Arrival {
             account,
             left_behind: left,
+            attachments,
+            sends,
         })
     }
 
     async fn count_left_behind(&self, id: &str, left: &mut LeftBehind) {
         let counts = [
-            (
-                "attachments",
-                "attachments",
-                "SELECT COUNT(*) FROM attachments a JOIN ciphers c ON c.uuid = a.cipher_uuid \
-                 WHERE c.user_uuid = ?",
-            ),
-            (
-                "sends",
-                "sends",
-                "SELECT COUNT(*) FROM sends WHERE user_uuid = ?",
-            ),
             (
                 "emergency contacts",
                 "emergency_access",
@@ -303,6 +302,20 @@ impl Reader {
 /// Returns an error when the file cannot be opened read-only or is not a
 /// vaultwarden database.
 pub async fn read(path: &Path) -> anyhow::Result<Source> {
+    read_with(path, None).await
+}
+
+/// As [`read`], with vaultwarden's data folder named when it is not the
+/// database's own folder (`DATA_FOLDER` differs from where `db.sqlite3` is).
+///
+/// # Errors
+///
+/// As [`read`].
+pub async fn read_with(path: &Path, data: Option<&Path>) -> anyhow::Result<Source> {
+    let data = data
+        .map(Path::to_path_buf)
+        .or_else(|| path.parent().map(Path::to_path_buf))
+        .unwrap_or_default();
     let options = SqliteConnectOptions::new()
         .filename(path)
         .read_only(true)
@@ -318,7 +331,7 @@ pub async fn read(path: &Path) -> anyhow::Result<Source> {
         schema.select("users", USER_COLUMNS)
     );
     let rows = sqlx::query(&sql).fetch_all(&pool).await?;
-    let reader = Reader { pool, schema };
+    let reader = Reader { pool, schema, data };
     let mut source = Source::default();
     for row in &rows {
         match user_from(row) {
