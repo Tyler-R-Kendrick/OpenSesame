@@ -9,11 +9,12 @@
  * - **pending** — the host keeps a key and it has not loaded yet. Nothing is
  *   written to disk; a write waits in memory until the key arrives.
  * - **durable** — loaded. Writes are sealed and persist.
- * - **ephemeral** — the host keeps no key, or could not produce one. A fresh
- *   key lives in memory for this document only, and the stores stop writing
- *   to disk at all: a browser that refuses IndexedDB keeps nothing past the
- *   tab rather than keep it in the clear, and nothing already on disk is
- *   overwritten with a seal the next document could not open.
+ * - **ephemeral** — the host keeps no key, could not produce one in time,
+ *   or lost the one its seals were made under (`sealed-evidence.ts`). A
+ *   fresh key lives in memory for this document only, and the stores stop
+ *   writing to disk at all: a browser that refuses IndexedDB keeps nothing
+ *   past the tab rather than keep it in the clear, and nothing already on
+ *   disk is overwritten with a seal the next document could not open.
  */
 
 import { host } from "../../host.js";
@@ -48,13 +49,48 @@ function settle(next: AtRestKey): AtRestKey {
   current = next;
   const listeners = [...readyListeners];
   readyListeners.clear();
-  for (const listener of listeners) listener(next);
+  // One listener's failure (a full quota on flush) must neither reject the
+  // load nor cost the others their turn.
+  for (const listener of listeners) {
+    try {
+      listener(next);
+    } catch {
+      /* the listener keeps what it could not write */
+    }
+  }
   return next;
+}
+
+/**
+ * How long boot waits for the browser to produce the key. An IndexedDB open
+ * that never answers (a stuck version change, a WebKit fault) must not leave
+ * the front end blank (ADR 0090): past this, the document runs ephemeral —
+ * nothing written, nothing on disk overwritten — and the next load retries.
+ */
+export const AT_REST_LOAD_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(work: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("at-rest key load timed out")),
+      AT_REST_LOAD_TIMEOUT_MS,
+    );
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function startLoading(load: () => Promise<Uint8Array>): Promise<AtRestKey> {
   if (!loading) {
-    loading = load()
+    loading = withTimeout(load())
       .then(checked)
       .then(
         (key) => settle({ key, durable: true }),

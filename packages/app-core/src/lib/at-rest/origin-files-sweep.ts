@@ -4,7 +4,7 @@
  * directory to list — the Pages boot — runs it.
  */
 
-import { lockManager, originFiles } from "../../ports.js";
+import { lockManager, maybeLocalStore, originFiles } from "../../ports.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "../storage-ownership.js";
 import { AT_REST_PREFIX, isSealedAtRest } from "./cipher.js";
@@ -12,6 +12,11 @@ import { type AtRestKey, atRestReady } from "./key.js";
 import { sealOriginFile } from "./origin-files.js";
 
 const SWEEP_LOCK = "opensesame.at-rest.sweep";
+/**
+ * Set once a sweep has found every file sealed, so later boots skip it: from
+ * then on only this build writes, and it writes nothing in the clear.
+ */
+export const SWEPT_KEY = "opensesame.at-rest.swept.v1";
 
 async function sealIfLegacy(
   root: FileSystemDirectoryHandle,
@@ -40,13 +45,16 @@ async function sweep(): Promise<number> {
     if (name.startsWith(ORIGIN_FILE_PREFIX)) names.push(name);
   }
   let sealed = 0;
+  let complete = true;
   for (const name of names) {
     try {
       if (await sealIfLegacy(root, name, atRest)) sealed += 1;
     } catch {
       // Gone, or refused: the next boot tries again.
+      complete = false;
     }
   }
+  if (complete) maybeLocalStore()?.setItem(SWEPT_KEY, "1");
   return sealed;
 }
 
@@ -57,6 +65,7 @@ async function sweep(): Promise<number> {
  */
 export async function sealLegacyOriginFiles(): Promise<number> {
   try {
+    if (maybeLocalStore()?.getItem(SWEPT_KEY) === "1") return 0;
     const locks = lockManager();
     if (!locks) return await sweep();
     return await locks.request(SWEEP_LOCK, () => sweep());

@@ -168,6 +168,10 @@ export async function acquireEntraSilent(
     authority: entraAuthority(request.connection),
     redirectUri: request.redirectUri,
   });
+  // MSAL's cache lives in memory (ADR 0148), so this sees only the accounts
+  // this document signed in; across loads, Entra itself answers a hintless
+  // silent request over several sessions with interaction_required, which
+  // maps to the same outcome below.
   const accounts = sdk.getAllAccounts();
   if (accounts.length > 1 && !request.loginHint) {
     return { kind: "interaction-required", reason: "interaction_required" };

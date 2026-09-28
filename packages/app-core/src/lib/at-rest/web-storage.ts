@@ -65,10 +65,14 @@ function flushHeld(
 ): void {
   if (!atRest.durable) return;
   const pending = held[area];
-  for (const [key, value] of pending) {
-    writeSealed(store, area, atRest, key, value);
+  for (const [key, value] of [...pending]) {
+    try {
+      writeSealed(store, area, atRest, key, value);
+      pending.delete(key);
+    } catch {
+      // Refused (a full quota): it stays in memory rather than be lost.
+    }
   }
-  pending.clear();
 }
 
 function read(
@@ -108,6 +112,7 @@ function write(
     return;
   }
   writeSealed(store, area, atRest, key, value);
+  held[area].delete(key);
 }
 
 /** `store`, with every value sealed on the way in and opened on the way out. */

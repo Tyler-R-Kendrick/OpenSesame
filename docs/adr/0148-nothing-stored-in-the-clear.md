@@ -94,7 +94,7 @@ already a dependency, not SubtleCrypto.
     loopback compatibility bytes stay frozen).
   With no key, these keep values in memory; nothing is written in the clear.
 
-### 4. The key's three states, and what a store does in each
+### 4. The key's states, and what a store does in each
 
 - **pending** — a browser key is still loading. A write waits in memory and
   is sealed to disk when the key lands; a read of a sealed value throws
@@ -107,6 +107,17 @@ already a dependency, not SubtleCrypto.
   keep this document's writes in memory, and `kvDurability()` reports
   `memory`, which the vault already states on screen. A browser that will
   not keep a key keeps nothing past the tab rather than keep it in the clear.
+  Boot waits at most `AT_REST_LOAD_TIMEOUT_MS` (5 s) for the key; an
+  IndexedDB open that never answers leaves the document ephemeral, not blank
+  (ADR 0090), and the next load tries again. A ready listener that throws
+  (a flush the quota refuses) neither fails the load nor loses the value: it
+  stays held in memory.
+- **lost** — the key record is gone while seals remain (IndexedDB cleared
+  alone, a partial reset). The browser does not mint a new key over them
+  (`sealed-evidence.ts`): the document runs ephemeral, and `kv.ts` refuses
+  to write over any file that does not open under the key it has, so a first
+  run can never put a new vault where an old one still lies. A tab whose
+  browser is being reset never reopens the key's database.
 
 ### 5. Migration
 
@@ -114,8 +125,10 @@ A value an older build left in the clear is read as it is and sealed where it
 lies. Boot sweeps the rest before hydrating: every app-owned Web Storage key
 (never another project site's key on the shared origin, never MSAL's), every
 `opensesame-pages-*` file (under a Web Lock, checking a five-byte prefix, so a
-sealed file is never rewritten), and every history row on first use. The
-extension seals `hostApiBase` on its next read.
+sealed file is never rewritten), and every history row on first use — a row
+the app cannot parse is sealed whole, not dropped. Once a sweep finds every
+file sealed it records `opensesame.at-rest.swept.v1` and later boots skip it.
+The extension seals `hostApiBase` on its next read.
 
 ## What this protects, and what it does not
 
@@ -142,7 +155,7 @@ opaque, and is set by the server.
 ## Verification
 
 - `lib/at-rest/at-rest.test.ts`, `at-rest-stores.test.ts`: the seal, the
-  three key states, each store raw, the two-tab key race, legacy migration,
+  key states, each store raw, the two-tab key race, legacy migration,
   the CLI key file.
 - `pnpm --filter @opensesame/pages verify:static` reads the origin's storage
   raw after the guest road and again after Google sign-in
@@ -161,9 +174,16 @@ opaque, and is set by the server.
 ## Consequences
 
 - Losing the device key (clearing IndexedDB alone) makes everything sealed
-  under it unreadable. It is deleted only with everything else, by "Reset
+  under it unreadable until it comes back; the app never overwrites those
+  seals (§4, *lost*). The key is deleted only with everything else, by "Reset
   this browser" (`APP_DATABASES`) or by clearing site data. Travel bundles
-  carry opened content and are unaffected.
+  carry opened content and are unaffected — a travelling vault is the way to
+  move a vault off a device whose key is at risk.
+- **Roll forward only.** A build from before this ADR reads a seal as
+  corrupt data and may write defaults over it. Do not roll Pages back past
+  it, and do not run an older build beside this one on the same origin. A
+  tab still showing the previous deploy reloads when the new service worker
+  takes over (`main.tsx`).
 - A new store must go through the ports, `kv.ts` or `history-backup-idb.ts`
   pattern; writing a browser global directly bypasses the seal, and the
   static-origin check will find the plaintext.

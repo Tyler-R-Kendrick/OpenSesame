@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
+import { createMemoryStorage } from "../../memory-storage.js";
 import { loadAtRestKeyFile } from "../../node/at-rest-key-file.js";
 import { createTestHost } from "../../test-host.js";
 import {
@@ -105,11 +106,18 @@ describe("IndexedDB history rows", () => {
         claimState: "claimed",
         createdAt: "2026-01-01T00:00:00Z",
       });
+    databases
+      .get(HISTORY_BACKUP_DATABASE)
+      ?.get("accounts")
+      ?.rows.set("hacc_odd", { id: "hacc_odd", note: "unparseable-secret" });
     resetHistoryBackupMemory();
     const accounts = await listHistoryAccounts();
     expect(accounts.map((a) => a.anonToken)).toContain("old-handle");
     const raw = rawRows(databases, HISTORY_BACKUP_DATABASE, "accounts");
     expect(JSON.stringify(raw)).not.toContain("old-handle");
+    // A row the app cannot parse is sealed whole, not dropped.
+    expect(raw.map((row) => row.id)).toContain("hacc_odd");
+    expect(JSON.stringify(raw)).not.toContain("unparseable-secret");
   });
 });
 
@@ -159,6 +167,16 @@ describe("origin-private files", () => {
       ),
     ).toBe('{"kdf":"argon2id"}');
     expect(await sealLegacyOriginFiles()).toBe(0);
+  });
+
+  it("stops sweeping once a sweep found everything sealed", async () => {
+    const files: Files = new Map([["opensesame-pages-settings.v1.json", "{}"]]);
+    const local = createMemoryStorage();
+    configureHost(createTestHost({ ...opfs(files), storage: { local } }));
+    expect(await sealLegacyOriginFiles()).toBe(1);
+    files.set("opensesame-pages-late.json", "written by an old tab");
+    expect(await sealLegacyOriginFiles()).toBe(0);
+    expect(local.length).toBe(1);
   });
 
   it("bounds a sealed file by what its plaintext may be", () => {
