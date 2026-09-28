@@ -17,6 +17,7 @@
     "verify:static": "node scripts/verify-static-origin.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
     "verify:live-join": "node scripts/verify-live-join.mjs",
+    "verify:live-netns": "node scripts/verify-live-netns.mjs",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",

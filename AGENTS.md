@@ -229,6 +229,16 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:live-netns
+# The tunnel walk on a real network path: two Linux network namespaces
+# (unprivileged user namespaces; no root, no sudo, no `ip`), a Chromium in
+# each, a veth with multicast off between them and a harness namespace that
+# forwards nothing. mDNS hiding on, nothing filtered in the page. No address
+# named: never connects. Address named: connects over a pair at it, no ICE
+# server; again through a wss Nostr relay; and, veth down, relay-only TURN.
+# Fails, never skips, without namespace support. Run before touching
+# lib/live/candidates.ts or the address hint.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
