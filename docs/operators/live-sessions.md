@@ -184,3 +184,23 @@ browsers over real WebRTC:
 
 `LIVE_CARRIERS=nostr,mqtt` limits which carriers run. A missing server fails
 the run; it is never skipped silently.
+
+`pnpm --filter @opensesame/pages verify:live-netns` checks the address hint on
+a network it builds rather than one it simulates:
+
+- two Linux network namespaces, each with its own Chromium (mDNS candidate
+  hiding on, nothing filtered in the page), joined by a veth pair with
+  multicast off, as a tailnet interface is, and a harness namespace that hosts
+  the carrier and the TURN server and forwards nothing;
+- with no address named the browsers never connect; with the address named
+  they connect over a pair at it, with no ICE server; the same with a
+  `wss://` Nostr relay carrying the codes; and, with the veth taken down,
+  relay-only through TURN, relay to relay.
+
+It needs Linux with unprivileged user namespaces (no root, no sudo), `unshare`,
+`nsenter`, `setpriv`, `openssl` and python3, and fails, never skips, where it cannot
+build the network. Everything runs in a PID namespace, so nothing outlives
+the run. What it proves about a real tailnet: the candidate copy at the named
+address reaches the other browser over real UDP and real routing, and mDNS
+names do not resolve across such a link. What it does not: Tailscale's own
+path selection, NAT traversal, or a physical network's MTU and loss.

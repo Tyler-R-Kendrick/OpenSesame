@@ -12,17 +12,18 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import https from "node:https";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { Aedes } from "aedes";
 import { WebSocketServer, createWebSocketStream } from "ws";
 
-function freePort() {
+function freePort(host = "127.0.0.1") {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(0, host, () => {
       const { port } = server.address();
       server.close(() => resolve(port));
     });
@@ -42,10 +43,20 @@ function matches(filter, event) {
   return true;
 }
 
-/** A NIP-01 relay on a real WebSocket: ephemeral kinds are passed, not kept. */
-export async function startNostrRelay() {
-  const port = await freePort();
-  const wss = new WebSocketServer({ host: "127.0.0.1", port });
+/**
+ * A NIP-01 relay on a real WebSocket: ephemeral kinds are passed, not kept.
+ * On loopback unless `host` names another local address; a page served over
+ * https may only reach one of those over `wss://`, so `tls` ({ key, cert })
+ * makes it one.
+ */
+export async function startNostrRelay({ host = "127.0.0.1", tls } = {}) {
+  const port = await freePort(host);
+  const secure = tls ? https.createServer(tls) : null;
+  const wss = secure
+    ? new WebSocketServer({ server: secure })
+    : new WebSocketServer({ host, port });
+  if (secure)
+    await new Promise((resolve) => secure.listen(port, host, resolve));
   const frames = [];
   const sockets = new Set();
   wss.on("connection", (ws) => {
@@ -80,9 +91,13 @@ export async function startNostrRelay() {
   });
   return {
     kind: "nostr",
-    url: `ws://127.0.0.1:${port}`,
+    url: `${secure ? "wss" : "ws"}://${host}:${port}`,
     frames,
-    stop: () => new Promise((resolve) => wss.close(() => resolve())),
+    stop: async () => {
+      for (const { ws } of sockets) ws.terminate();
+      await new Promise((resolve) => wss.close(() => resolve()));
+      if (secure) await new Promise((resolve) => secure.close(() => resolve()));
+    },
   };
 }
 
@@ -211,21 +226,24 @@ export async function startNtfyServer(binary) {
   };
 }
 
-/** A TURN server (RFC 5766, long-term credentials) on loopback UDP. */
-export async function startTurnServer() {
+/**
+ * A TURN server (RFC 5766, long-term credentials) on UDP: loopback unless
+ * `host` names another local address, which it then listens and relays on.
+ */
+export async function startTurnServer({ host = "127.0.0.1" } = {}) {
   const { default: Turn } = await import("node-turn");
-  const port = await freePort();
+  const port = await freePort(host);
   const server = new Turn({
     authMech: "long-term",
     credentials: { live: "turn-credential-2026" },
-    listeningIps: ["127.0.0.1"],
-    relayIps: ["127.0.0.1"],
+    listeningIps: [host],
+    relayIps: [host],
     listeningPort: port,
     debugLevel: "OFF",
   });
   server.start();
   return {
-    url: `turn:127.0.0.1:${port}?transport=udp`,
+    url: `turn:${host}:${port}?transport=udp`,
     username: "live",
     credential: "turn-credential-2026",
     stop: async () => server.stop(),
