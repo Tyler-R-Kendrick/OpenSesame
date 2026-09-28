@@ -24,8 +24,12 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
-/** Where a `set` left its value. */
-export type SealedPlacement = "stored" | "memory";
+/**
+ * Where a `set` left its value: sealed in the store, held in memory (the
+ * origin keeps no key), or nowhere — a later `set`, `remove` or `take`
+ * superseded it before its seal landed.
+ */
+export type SealedPlacement = "stored" | "memory" | "superseded";
 
 export interface SealedStorage {
   get(key: string): Promise<string | null>;
@@ -55,7 +59,7 @@ export function sealedStorage(
   async function write(key: string, value: string): Promise<SealedPlacement> {
     const mine = bump(key);
     const sealed = await sealForRest(scope, key, value);
-    if (version.get(key) !== mine) return sealed === null ? "memory" : "stored";
+    if (version.get(key) !== mine) return "superseded";
     if (sealed === null) {
       held.set(key, value);
       storage.removeItem(key);
@@ -64,6 +68,18 @@ export function sealedStorage(
     held.delete(key);
     storage.setItem(key, sealed);
     return "stored";
+  }
+
+  /**
+   * Seal a value an older release left in the clear, where it lies — only if
+   * nothing was written to the key meanwhile, and without superseding a
+   * write already in flight.
+   */
+  async function reseal(key: string, raw: string): Promise<void> {
+    const seen = version.get(key) ?? 0;
+    const sealed = await sealForRest(scope, key, raw);
+    if (sealed === null || (version.get(key) ?? 0) !== seen) return;
+    if (storage.getItem(key) === raw) storage.setItem(key, sealed);
   }
 
   function open(key: string, raw: string | null): Promise<string | null> {
@@ -78,7 +94,7 @@ export function sealedStorage(
       if (kept !== undefined) return kept;
       const raw = storage.getItem(key);
       if (raw !== null && !isSealedForRest(raw)) {
-        await write(key, raw);
+        await reseal(key, raw);
         return raw;
       }
       return open(key, raw);

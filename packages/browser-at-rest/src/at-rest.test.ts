@@ -113,6 +113,30 @@ describe("sealed storage, in order", () => {
     expect([first, second]).toEqual(["verifier", null]);
   });
 
+  it("reports a write superseded before its seal landed", async () => {
+    const one = key();
+    useClientAtRestKeys(() => one);
+    const view = sealedStorage(memory(), "sdk");
+    const first = view.set("opensesame:pkce", "one");
+    const second = view.set("opensesame:pkce", "two");
+    expect(await first).toBe("superseded");
+    expect(await second).toBe("stored");
+    expect(await view.get("opensesame:pkce")).toBe("two");
+  });
+
+  it("never lets a legacy re-seal on read undo a newer write", async () => {
+    const one = key();
+    useClientAtRestKeys(() => one);
+    const store = memory();
+    store.setItem("opensesame:session", "old");
+    const view = sealedStorage(store, "sdk");
+    const reading = view.get("opensesame:session");
+    const writing = view.set("opensesame:session", "new");
+    expect(await reading).toBe("old");
+    expect(await writing).toBe("stored");
+    expect(await view.get("opensesame:session")).toBe("new");
+  });
+
   it("says when a value stayed in memory", async () => {
     useClientAtRestKeys(() => Promise.reject(new Error("no IndexedDB")));
     expect(await sealedStorage(memory(), "sdk").set("k", "v")).toBe("memory");
