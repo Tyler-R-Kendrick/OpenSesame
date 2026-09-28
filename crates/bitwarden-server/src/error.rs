@@ -132,6 +132,12 @@ impl ApiError {
         self.status
     }
 
+    /// What a person reads.
+    #[must_use]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
     /// Log an internal failure and answer with a message that discloses nothing.
     #[must_use]
     pub fn internal(error: &anyhow::Error) -> Self {

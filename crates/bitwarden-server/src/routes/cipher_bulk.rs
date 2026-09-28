@@ -1,17 +1,20 @@
 //! Bulk cipher operations, purge, and import.
 
-use axum::extract::State;
+use std::collections::HashSet;
+
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::Utc;
 use opensesame_storage::bitwarden::BitwardenFolder;
+use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use super::accounts::prove_password;
-use super::attachments::CipherViews;
 use super::ciphers::new_cipher;
 use super::folders::list_json;
-use super::touch;
+use super::vault_view::VaultView;
+use super::{touch, touch_org};
 use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
 use crate::wire::cipher::{folder_name, normalize, parse_cipher};
@@ -20,8 +23,8 @@ use crate::BitwardenServer;
 /// Bitwarden caps a bulk request at 500 ids.
 const BULK_LIMIT: usize = 500;
 /// The most ciphers, folders and relationships one import may carry.
-const IMPORT_CIPHERS: usize = 7_000;
-const IMPORT_FOLDERS: usize = 2_000;
+pub(crate) const IMPORT_CIPHERS: usize = 7_000;
+pub(crate) const IMPORT_FOLDERS: usize = 2_000;
 
 fn ids(body: &Map<String, Value>) -> ApiResult<Vec<String>> {
     let ids: Vec<String> = body
@@ -42,19 +45,62 @@ fn ids(body: &Map<String, Value>) -> ApiResult<Vec<String>> {
     Ok(ids)
 }
 
+/// The ids the account may change, split into its own and organization
+/// ciphers; anything else is silently left alone, as Bitwarden does.
+fn split(view: &VaultView, ids: &[String]) -> (Vec<String>, Vec<String>, HashSet<String>) {
+    let (mut own, mut org, mut orgs) = (Vec::new(), Vec::new(), HashSet::new());
+    for id in ids {
+        let Ok(cipher) = view.reach_to_edit(id) else {
+            continue;
+        };
+        match &cipher.organization_id {
+            Some(org_id) => {
+                org.push(id.clone());
+                orgs.insert(org_id.clone());
+            }
+            None => own.push(id.clone()),
+        }
+    }
+    (own, org, orgs)
+}
+
+async fn touch_all(
+    server: &BitwardenServer,
+    user_id: &str,
+    orgs: &HashSet<String>,
+) -> ApiResult<()> {
+    touch(server, user_id).await?;
+    for org in orgs {
+        touch_org(server, org).await?;
+    }
+    Ok(())
+}
+
+async fn set_trashed(
+    server: &BitwardenServer,
+    user_id: &str,
+    ids: &[String],
+    at: Option<chrono::DateTime<Utc>>,
+) -> ApiResult<()> {
+    let view = VaultView::load(server, user_id).await?;
+    let (own, org, orgs) = split(&view, ids);
+    let now = Utc::now();
+    server
+        .db
+        .bitwarden_trash_ciphers(user_id, &own, at, now)
+        .await?;
+    server.db.bitwarden_trash_org_ciphers(&org, at, now).await?;
+    touch_all(server, user_id, &orgs).await
+}
+
 /// `PUT /api/ciphers/delete`: to the trash.
 pub async fn trash_many(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
     Json(body): Json<Value>,
 ) -> ApiResult<StatusCode> {
-    let now = Utc::now();
     let ids = ids(&normalize(body))?;
-    server
-        .db
-        .bitwarden_trash_ciphers(&user.id, &ids, Some(now), now)
-        .await?;
-    touch(&server, &user.id).await?;
+    set_trashed(&server, &user.id, &ids, Some(Utc::now())).await?;
     Ok(StatusCode::OK)
 }
 
@@ -65,8 +111,11 @@ pub async fn delete_many(
     Json(body): Json<Value>,
 ) -> ApiResult<StatusCode> {
     let ids = ids(&normalize(body))?;
-    server.db.bitwarden_delete_ciphers(&user.id, &ids).await?;
-    touch(&server, &user.id).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let (own, org, orgs) = split(&view, &ids);
+    server.db.bitwarden_delete_ciphers(&user.id, &own).await?;
+    server.db.bitwarden_delete_org_ciphers(&org).await?;
+    touch_all(&server, &user.id, &orgs).await?;
     Ok(StatusCode::OK)
 }
 
@@ -77,23 +126,18 @@ pub async fn restore_many(
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
     let ids = ids(&normalize(body))?;
-    server
-        .db
-        .bitwarden_trash_ciphers(&user.id, &ids, None, Utc::now())
-        .await?;
-    touch(&server, &user.id).await?;
-    let views = CipherViews::load(&server, &user.id).await?;
-    let restored: Vec<Value> = server
-        .db
-        .bitwarden_ciphers_by_ids(&user.id, &ids)
-        .await?
+    set_trashed(&server, &user.id, &ids, None).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let restored: Vec<Value> = ids
         .iter()
-        .map(|c| views.render(c))
+        .filter_map(|id| view.find(id))
+        .map(|c| view.render(c))
         .collect();
     Ok(Json(list_json(&restored)))
 }
 
-/// `PUT /api/ciphers/move`: `{ids, folderId}`.
+/// `PUT /api/ciphers/move`: `{ids, folderId}`. An organization cipher's
+/// folder is the account's own, so it moves for this account only.
 pub async fn move_many(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
@@ -107,21 +151,52 @@ pub async fn move_many(
         .filter(|id| !id.is_empty())
         .map(str::to_owned);
     let folder = super::ciphers::owned_folder(&server, &user.id, folder).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let mut own = Vec::new();
+    for id in &ids {
+        let Some(cipher) = view.find(id) else {
+            continue;
+        };
+        if cipher.organization_id.is_some() {
+            let mut mark = view.mark(id);
+            mark.folder_id.clone_from(&folder);
+            server.db.bitwarden_set_mark(id, &user.id, &mark).await?;
+        } else {
+            own.push(id.clone());
+        }
+    }
     server
         .db
-        .bitwarden_move_ciphers(&user.id, &ids, folder.as_deref(), Utc::now())
+        .bitwarden_move_ciphers(&user.id, &own, folder.as_deref(), Utc::now())
         .await?;
     touch(&server, &user.id).await?;
     Ok(StatusCode::OK)
 }
 
-/// `POST /api/ciphers/purge`: every cipher and folder, after the password.
+#[derive(Deserialize)]
+pub struct PurgeQuery {
+    #[serde(default, rename = "organizationId")]
+    organization_id: Option<String>,
+}
+
+/// `POST /api/ciphers/purge`: every cipher and folder, after the password;
+/// with `?organizationId=`, every cipher of that organization, by its owner.
 pub async fn purge(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
+    Query(query): Query<PurgeQuery>,
     Json(body): Json<Value>,
 ) -> ApiResult<StatusCode> {
     prove_password(&server, &user, &normalize(body)).await?;
+    if let Some(org) = query.organization_id.filter(|id| !id.is_empty()) {
+        let view = super::vault_view::membership(&server, &user.id, &org).await?;
+        if !view.is_owner() {
+            return Err(ApiError::not_found());
+        }
+        server.db.bitwarden_purge_org(&org).await?;
+        touch_org(&server, &org).await?;
+        return Ok(StatusCode::OK);
+    }
     server.db.bitwarden_purge(&user.id).await?;
     touch(&server, &user.id).await?;
     Ok(StatusCode::OK)

@@ -1,18 +1,19 @@
-//! `/api/ciphers/{id}` and single-cipher writes.
+//! `/api/ciphers/{id}` and single-cipher writes, for the account's own
+//! ciphers and the organization ciphers it reaches (`vault_view`).
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::{DateTime, Utc};
-use opensesame_storage::bitwarden::{BitwardenCipher, BitwardenUser};
+use opensesame_storage::bitwarden::{BitwardenCipher, BitwardenMark, BitwardenUser};
 use serde_json::Value;
 
-use super::attachments::{render, CipherViews};
 use super::folders::list_json;
-use super::touch;
+use super::vault_view::{render_one, VaultView};
+use super::{touch, touch_cipher};
 use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
-use crate::wire::cipher::{normalize, parse_cipher, CipherInput};
+use crate::wire::cipher::{normalize, parse_cipher, parse_cipher_for, CipherInput};
 use crate::BitwardenServer;
 
 /// A folder named by a write must be the caller's own.
@@ -39,7 +40,8 @@ pub(crate) fn new_cipher(
 ) -> BitwardenCipher {
     BitwardenCipher {
         id: uuid::Uuid::new_v4().to_string(),
-        user_id: user.id.clone(),
+        user_id: Some(user.id.clone()),
+        organization_id: None,
         folder_id: input.folder_id,
         cipher_type: input.cipher_type,
         favorite: input.favorite,
@@ -51,23 +53,12 @@ pub(crate) fn new_cipher(
     }
 }
 
-async fn owned(server: &BitwardenServer, user_id: &str, id: &str) -> ApiResult<BitwardenCipher> {
-    server
-        .db
-        .bitwarden_cipher(user_id, id)
-        .await?
-        .ok_or_else(ApiError::not_found)
-}
-
 pub async fn list(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
 ) -> ApiResult<Json<Value>> {
-    let ciphers = server.db.bitwarden_ciphers(&user.id).await?;
-    let views = CipherViews::load(&server, &user.id).await?;
-    Ok(Json(list_json(
-        &ciphers.iter().map(|c| views.render(c)).collect::<Vec<_>>(),
-    )))
+    let view = VaultView::load(&server, &user.id).await?;
+    Ok(Json(list_json(&view.rendered())))
 }
 
 pub async fn get_one(
@@ -75,9 +66,7 @@ pub async fn get_one(
     Authed { user, .. }: Authed,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    Ok(Json(
-        render(&server, &owned(&server, &user.id, &id).await?).await?,
-    ))
+    Ok(Json(render_one(&server, &user.id, &id).await?))
 }
 
 async fn insert(
@@ -90,16 +79,14 @@ async fn insert(
     let cipher = new_cipher(user, input, Utc::now());
     server.db.bitwarden_insert_cipher(&cipher).await?;
     touch(server, &user.id).await?;
-    Ok(Json(
-        render(server, &owned(server, &user.id, &cipher.id).await?).await?,
-    ))
+    Ok(Json(render_one(server, &user.id, &cipher.id).await?))
 }
 
-const OUT_OF_DATE: &str =
+pub(crate) const OUT_OF_DATE: &str =
     "The cipher you are updating is out of date. Please save your work, sync your vault, and try again.";
 
-/// Write `cipher` only if it is still at the revision it was read at, then
-/// answer with what was stored.
+/// Write a personal `cipher` only if it is still at the revision it was read
+/// at, then answer with what was stored.
 async fn replace(
     server: &BitwardenServer,
     user_id: &str,
@@ -111,12 +98,10 @@ async fn replace(
         return Err(ApiError::bad_request(OUT_OF_DATE));
     }
     touch(server, user_id).await?;
-    Ok(Json(
-        render(server, &owned(server, user_id, &cipher.id).await?).await?,
-    ))
+    Ok(Json(render_one(server, user_id, &cipher.id).await?))
 }
 
-/// `POST /api/ciphers`.
+/// `POST /api/ciphers`: a personal cipher.
 pub async fn create(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
@@ -125,25 +110,63 @@ pub async fn create(
     insert(&server, &user, body).await
 }
 
-/// `POST /api/ciphers/create`: `{cipher, collectionIds}`. Only a personal
-/// cipher — no collections — can be created here.
+/// `POST /api/ciphers/create`: `{cipher, collectionIds}`. A cipher naming an
+/// organization is created in it, in collections the account may write to.
 pub async fn create_with_collections(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
     let body = normalize(body);
-    let has_collections = body
-        .get("collectionIds")
-        .and_then(Value::as_array)
-        .is_some_and(|ids| !ids.is_empty());
-    if has_collections {
-        return Err(ApiError::bad_request(
-            "Organizations are not supported by this server.",
-        ));
-    }
     let cipher = body.get("cipher").cloned().unwrap_or(Value::Null);
-    insert(&server, &user, cipher).await
+    let org = normalize(cipher.clone())
+        .get("organizationId")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned);
+    let Some(org) = org else {
+        return insert(&server, &user, cipher).await;
+    };
+    let collections = super::org_ciphers::collection_ids(&body);
+    super::org_ciphers::create(&server, &user, &org, cipher, &collections).await
+}
+
+/// Update an organization cipher the account may edit; its folder and
+/// favourite are the account's own.
+async fn update_org(
+    server: &BitwardenServer,
+    user: &BitwardenUser,
+    mut cipher: BitwardenCipher,
+    body: Value,
+) -> ApiResult<Json<Value>> {
+    let org = cipher.organization_id.clone().unwrap_or_default();
+    let input = parse_cipher_for(body, &user.id, Some(&org))?;
+    if let Some(known) = input.last_known_revision {
+        if (cipher.revision_at - known).num_milliseconds().abs() > 1_000 {
+            return Err(ApiError::bad_request(OUT_OF_DATE));
+        }
+    }
+    let read_at = cipher.revision_at;
+    cipher.cipher_type = input.cipher_type;
+    cipher.data = input.data.to_string();
+    cipher.revision_at = Utc::now();
+    if !server
+        .db
+        .bitwarden_update_org_cipher(&cipher, read_at)
+        .await?
+    {
+        return Err(ApiError::bad_request(OUT_OF_DATE));
+    }
+    let mark = BitwardenMark {
+        folder_id: owned_folder(server, &user.id, input.folder_id).await?,
+        favorite: input.favorite,
+    };
+    server
+        .db
+        .bitwarden_set_mark(&cipher.id, &user.id, &mark)
+        .await?;
+    touch_cipher(server, &cipher).await?;
+    Ok(Json(render_one(server, &user.id, &cipher.id).await?))
 }
 
 /// `PUT /api/ciphers/{id}`. A client that edited a stale copy is refused,
@@ -154,7 +177,11 @@ pub async fn update(
     Path(id): Path<String>,
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
-    let mut cipher = owned(&server, &user.id, &id).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let mut cipher = view.reach_to_edit(&id)?.clone();
+    if cipher.organization_id.is_some() {
+        return update_org(&server, &user, cipher, body).await;
+    }
     let mut input = parse_cipher(body, &user.id)?;
     if let Some(known) = input.last_known_revision {
         if (cipher.revision_at - known).num_milliseconds().abs() > 1_000 {
@@ -168,7 +195,8 @@ pub async fn update(
     replace(&server, &user.id, cipher).await
 }
 
-/// `PUT /api/ciphers/{id}/partial`: folder and favorite only.
+/// `PUT /api/ciphers/{id}/partial`: folder and favorite only — the account's
+/// own, even on an organization cipher it may not edit.
 pub async fn partial(
     State(server): State<BitwardenServer>,
     Authed { user, .. }: Authed,
@@ -176,18 +204,60 @@ pub async fn partial(
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
     let body = normalize(body);
-    let mut cipher = owned(&server, &user.id, &id).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let (cipher, _) = view.reach(&id)?;
     let folder_id = body
         .get("folderId")
         .and_then(Value::as_str)
         .filter(|id| !id.is_empty())
         .map(str::to_owned);
-    cipher.folder_id = owned_folder(&server, &user.id, folder_id).await?;
-    cipher.favorite = body
+    let folder_id = owned_folder(&server, &user.id, folder_id).await?;
+    let favorite = body
         .get("favorite")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    if cipher.organization_id.is_some() {
+        let mark = BitwardenMark {
+            folder_id,
+            favorite,
+        };
+        server
+            .db
+            .bitwarden_set_mark(&cipher.id, &user.id, &mark)
+            .await?;
+        touch(&server, &user.id).await?;
+        return Ok(Json(render_one(&server, &user.id, &id).await?));
+    }
+    let mut cipher = cipher.clone();
+    cipher.folder_id = folder_id;
+    cipher.favorite = favorite;
     replace(&server, &user.id, cipher).await
+}
+
+/// Trash (`Some`) or restore (`None`) one cipher the account may change.
+async fn set_trashed(
+    server: &BitwardenServer,
+    user: &BitwardenUser,
+    id: &str,
+    at: Option<DateTime<Utc>>,
+) -> ApiResult<BitwardenCipher> {
+    let view = VaultView::load(server, &user.id).await?;
+    let cipher = view.reach_to_edit(id)?.clone();
+    let now = Utc::now();
+    let ids = [id.to_owned()];
+    let changed = if cipher.organization_id.is_some() {
+        server.db.bitwarden_trash_org_ciphers(&ids, at, now).await?
+    } else {
+        server
+            .db
+            .bitwarden_trash_ciphers(&user.id, &ids, at, now)
+            .await?
+    };
+    if changed == 0 {
+        return Err(ApiError::not_found());
+    }
+    touch_cipher(server, &cipher).await?;
+    Ok(cipher)
 }
 
 /// `DELETE /api/ciphers/{id}`: permanent.
@@ -196,10 +266,15 @@ pub async fn delete_one(
     Authed { user, .. }: Authed,
     Path(id): Path<String>,
 ) -> ApiResult<StatusCode> {
-    if server.db.bitwarden_delete_ciphers(&user.id, &[id]).await? == 0 {
-        return Err(ApiError::not_found());
+    let view = VaultView::load(&server, &user.id).await?;
+    let cipher = view.reach_to_edit(&id)?.clone();
+    let ids = [id];
+    if cipher.organization_id.is_some() {
+        server.db.bitwarden_delete_org_ciphers(&ids).await?;
+    } else {
+        server.db.bitwarden_delete_ciphers(&user.id, &ids).await?;
     }
-    touch(&server, &user.id).await?;
+    touch_cipher(&server, &cipher).await?;
     Ok(StatusCode::OK)
 }
 
@@ -209,16 +284,7 @@ pub async fn trash_one(
     Authed { user, .. }: Authed,
     Path(id): Path<String>,
 ) -> ApiResult<StatusCode> {
-    let now = Utc::now();
-    if server
-        .db
-        .bitwarden_trash_ciphers(&user.id, &[id], Some(now), now)
-        .await?
-        == 0
-    {
-        return Err(ApiError::not_found());
-    }
-    touch(&server, &user.id).await?;
+    set_trashed(&server, &user, &id, Some(Utc::now())).await?;
     Ok(StatusCode::OK)
 }
 
@@ -228,18 +294,6 @@ pub async fn restore_one(
     Authed { user, .. }: Authed,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    let now = Utc::now();
-    let ids = [id];
-    if server
-        .db
-        .bitwarden_trash_ciphers(&user.id, &ids, None, now)
-        .await?
-        == 0
-    {
-        return Err(ApiError::not_found());
-    }
-    touch(&server, &user.id).await?;
-    Ok(Json(
-        render(&server, &owned(&server, &user.id, &ids[0]).await?).await?,
-    ))
+    set_trashed(&server, &user, &id, None).await?;
+    Ok(Json(render_one(&server, &user.id, &id).await?))
 }

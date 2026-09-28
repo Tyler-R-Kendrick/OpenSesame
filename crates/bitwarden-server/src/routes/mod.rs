@@ -8,16 +8,24 @@ mod accounts;
 mod attachments;
 mod cipher_bulk;
 mod ciphers;
+mod collections;
 mod credentials;
 pub(crate) mod file_links;
 mod folders;
 mod identity;
 mod meta;
+mod org_ciphers;
+mod org_import;
+mod org_joining;
+mod org_member_status;
+mod org_members;
+mod organizations;
 mod register;
 mod second_step;
 mod send_access;
 mod sends;
 mod two_factor;
+mod vault_view;
 
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
@@ -50,10 +58,18 @@ pub fn router(server: BitwardenServer) -> Router {
     let api = account_routes()
         .merge(vault_routes())
         .merge(send_routes())
+        .merge(organizations::routes())
+        .merge(org_members::routes())
+        .merge(collections::routes())
+        .merge(org_ciphers::routes())
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .route(
             "/ciphers/import",
             post(cipher_bulk::import).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
+        )
+        .route(
+            "/ciphers/import-organization",
+            post(org_import::import).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
         )
         .merge(upload_routes(max_file_bytes));
 
@@ -207,6 +223,10 @@ fn upload_routes(max_file_bytes: usize) -> Router<BitwardenServer> {
             "/ciphers/{id}/attachment/{attachment}",
             post(attachments::upload),
         )
+        .route(
+            "/ciphers/{id}/attachment/{attachment}/share",
+            post(org_ciphers::share_attachment),
+        )
         .route("/sends/{id}/file/{file}", post(sends::upload_file))
         .layer(DefaultBodyLimit::max(
             max_file_bytes.saturating_add(UPLOAD_OVERHEAD),
@@ -218,4 +238,28 @@ pub(crate) async fn touch(server: &BitwardenServer, user_id: &str) -> ApiResult<
     let now = Utc::now();
     server.db.bitwarden_touch_revision(user_id, now).await?;
     Ok(now)
+}
+
+/// Advance the revision date of every member of an organization, so each of
+/// their clients syncs the change.
+pub(crate) async fn touch_org(server: &BitwardenServer, org_id: &str) -> ApiResult<DateTime<Utc>> {
+    let now = Utc::now();
+    for member in server.db.bitwarden_org_members(org_id).await? {
+        if let Some(user_id) = &member.user_id {
+            server.db.bitwarden_touch_revision(user_id, now).await?;
+        }
+    }
+    Ok(now)
+}
+
+/// Advance the revision date of whoever sees a cipher.
+pub(crate) async fn touch_cipher(
+    server: &BitwardenServer,
+    cipher: &opensesame_storage::bitwarden::BitwardenCipher,
+) -> ApiResult<DateTime<Utc>> {
+    match (&cipher.user_id, &cipher.organization_id) {
+        (Some(user_id), _) => touch(server, user_id).await,
+        (None, Some(org_id)) => touch_org(server, org_id).await,
+        (None, None) => Ok(Utc::now()),
+    }
 }
