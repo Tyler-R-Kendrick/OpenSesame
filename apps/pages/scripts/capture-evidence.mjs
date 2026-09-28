@@ -346,6 +346,10 @@ async function capture(browser, into) {
       remote,
     });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
+    // A fixed start time: both builds' timestamps read the same, and
+    // `elapse` can move the clock between steps.
+    if (journey.clock)
+      await page.clock.install({ time: new Date(journey.clock) });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.

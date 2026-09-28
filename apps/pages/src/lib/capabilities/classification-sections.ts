@@ -148,6 +148,11 @@ export const SECTION_RULES = [
     "activity.log",
     "activity section root",
   ),
+  optional(
+    "src/sections/activity/",
+    "activity.log",
+    "the paged, searchable listing the page and its rail subtree share",
+  ),
 
   // --- settings --------------------------------------------------------------
   core(

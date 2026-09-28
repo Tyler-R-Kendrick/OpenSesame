@@ -1,14 +1,9 @@
-/**
- * Shared page size for the Connections nav catalog and the Connected listing.
- * The page starts at this cap; "load n more" advances by the same step.
- */
-export const CONNECTIONS_PAGE_SIZE = 12;
+import { LISTING_PAGE_SIZE } from "../../lib/listing-page.js";
 
-/** How many additional rows the next "load n more" should reveal. */
-export function nextPageCount(
-  total: number,
-  shown: number,
-  pageSize = CONNECTIONS_PAGE_SIZE,
-): number {
-  return Math.min(pageSize, Math.max(0, total - shown));
-}
+/**
+ * Shared page size for the Connections nav catalog and the Connected listing:
+ * the one every paged listing uses (`lib/listing-page.ts`).
+ */
+export const CONNECTIONS_PAGE_SIZE = LISTING_PAGE_SIZE;
+
+export { nextPageCount } from "../../lib/listing-page.js";
