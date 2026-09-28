@@ -210,7 +210,13 @@ joiner.
   nats-server and a real ntfy server, and BroadcastChannel — pairing with
   nothing pasted, and none of them seeing a name, value, SDP or the link
   secret; a joiner who declines the routes, unheard of on them; and relay
-  only through a real TURN server, relay to relay.
+  only through a real TURN server, relay to relay, once for each way to reach
+  one: `turn:` over UDP (node-turn), `turn:…?transport=tcp` and `turns:` (TLS)
+  on a real pion/turn server (`scripts/test/live-turn`), which reports the
+  transport each allocation arrived on — so the walk asserts the browsers used
+  TCP and TLS, and that no client traffic reached the other listeners. The
+  self-signed certificate is trusted by public key alone
+  (`--ignore-certificate-errors-spki-list`), never by a blanket override.
 - The Host-based ceremony of ADR 0136 remains for sessions a Host runs; the
   door's road opens the live join, and a Host invite link still opens the
   Host ceremony.

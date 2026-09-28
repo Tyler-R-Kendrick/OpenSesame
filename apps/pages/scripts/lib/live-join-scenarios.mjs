@@ -1,6 +1,7 @@
 /**
  * The walks verify:live-join takes (ADR 0150): direct, a simulated tunnel,
- * each carrier, a declined route, and relay only through TURN. The runner
+ * each carrier and a declined route (relay only through TURN is
+ * `live-join-relayed.mjs`). The runner
  * (`verify-live-join.mjs`) binds the harness and launches the browsers.
  */
 
@@ -10,7 +11,6 @@ import {
   startNatsServer,
   startNostrRelay,
   startNtfyServer,
-  startTurnServer,
 } from "./live-carriers.mjs";
 import {
   TUNNEL_ONLY,
@@ -301,55 +301,6 @@ export async function carried(browser, owner, kind) {
   } finally {
     PASSTHROUGH.splice(0);
     await server.stop();
-  }
-}
-
-export async function relayed(browser, owner) {
-  setStep("relayed");
-  const turn = await startTurnServer();
-  const relay = await startNostrRelay();
-  try {
-    await setRoutes(owner.page, {
-      ice: [
-        { url: turn.url, username: turn.username, credential: turn.credential },
-      ],
-      relay: true,
-      carriers: [{ kind: "nostr", url: relay.url }],
-    });
-    await shot(owner.page, "relayed-1-routes");
-    const { panel, code, link } = await startSession(owner.page);
-    const joiner = await device(browser, PHONE);
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
-    await joined(joiner.page).waitFor({ timeout: 45_000 });
-    await shot(joiner.page, "relayed-2-joined");
-    for (const [who, page] of [
-      ["owner", owner.page],
-      ["joiner", joiner.page],
-    ]) {
-      const last = (await configs(page)).at(-1);
-      check(
-        last?.iceTransportPolicy === "relay" &&
-          last.iceServers[0]?.urls[0] === turn.url,
-        `relayed: the ${who}'s peer connection was relay-only through the TURN server`,
-      );
-      const pairs = await selectedPairs(page);
-      check(
-        pairs.length > 0 &&
-          pairs.every(
-            (pair) => pair.local === "relay" && pair.remote === "relay",
-          ),
-        `relayed: the ${who} connected relay to relay (${JSON.stringify(pairs)})`,
-      );
-    }
-    await endSession(panel);
-    await joiner.context.close();
-    await setRoutes(owner.page, {});
-  } finally {
-    await relay.stop();
-    await turn.stop();
   }
 }
 

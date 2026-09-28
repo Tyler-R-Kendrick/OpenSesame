@@ -29,6 +29,16 @@ function freePort() {
   });
 }
 
+/**
+ * Stop a WebSocket server. `close()` alone waits for every client to leave,
+ * and a page still open when a walk fails never does: the failure would be
+ * hidden by a hang. So the clients are cut first.
+ */
+function closeSockets(wss) {
+  for (const client of wss.clients) client.terminate();
+  return new Promise((resolve) => wss.close(() => resolve()));
+}
+
 function matches(filter, event) {
   if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
   if (filter.since && event.created_at < filter.since) return false;
@@ -82,7 +92,7 @@ export async function startNostrRelay() {
     kind: "nostr",
     url: `ws://127.0.0.1:${port}`,
     frames,
-    stop: () => new Promise((resolve) => wss.close(() => resolve())),
+    stop: () => closeSockets(wss),
   };
 }
 
@@ -101,7 +111,7 @@ export async function startMqttBroker() {
     url: `ws://127.0.0.1:${port}`,
     frames,
     stop: async () => {
-      await new Promise((resolve) => wss.close(() => resolve()));
+      await closeSockets(wss);
       await new Promise((resolve) => broker.close(() => resolve()));
     },
   };

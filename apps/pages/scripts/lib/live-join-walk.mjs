@@ -62,7 +62,11 @@ export async function peerStates(page) {
   }));
 }
 
-/** What each peer connection selected, once connected: local and remote type. */
+/**
+ * What each peer connection selected, once connected: local and remote type,
+ * and — for a relayed local candidate — the protocol the browser spoke to its
+ * TURN server (`udp`, `tcp` or `tls`).
+ */
 export async function selectedPairs(page) {
   return page.evaluate(async () => {
     const out = [];
@@ -77,6 +81,7 @@ export async function selectedPairs(page) {
         out.push({
           local: local?.candidateType,
           remote: remote?.candidateType,
+          relayProtocol: local?.relayProtocol,
           address: remote?.address ?? remote?.ip,
         });
       }
