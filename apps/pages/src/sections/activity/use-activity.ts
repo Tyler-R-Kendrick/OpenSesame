@@ -9,7 +9,13 @@ import {
   listActivityEvents,
   subscribeActivity,
 } from "@opensesame/app-core/lib/activity-log.js";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   type ActivityListing,
@@ -20,31 +26,42 @@ import {
 export type ActivityEvents = Readonly<{
   /** The unlocked tomb, or null while locked. */
   tomb: string | null;
-  /** Null until the first read lands. */
+  /** Null until the first read for this tomb lands. */
   events: ActivityEvent[] | null;
   busy: boolean;
   refresh: () => Promise<void>;
 }>;
 
+/** A read's result, kept with the tomb it was read from. */
+type Read = Readonly<{ tomb: string | null; events: ActivityEvent[] }>;
+
 export function useActivityEvents(): ActivityEvents {
   const { status, tomb } = useVault();
   const open = status === "unlocked" && tomb ? tomb : null;
-  const [events, setEvents] = useState<ActivityEvent[] | null>(null);
+  const [read, setRead] = useState<Read | null>(null);
   const [busy, setBusy] = useState(false);
+  // Only the newest read may land: one still in flight when the vault
+  // switched (or when a later append re-read) is dropped, so another
+  // vault's events never overwrite this one's.
+  const latest = useRef(0);
 
   const refresh = useCallback(async () => {
+    const mine = ++latest.current;
     if (!open) {
-      setEvents([]);
+      setRead({ tomb: null, events: [] });
+      setBusy(false);
       return;
     }
     setBusy(true);
+    let events: ActivityEvent[] = [];
     try {
-      setEvents(await listActivityEvents(open));
+      events = await listActivityEvents(open);
     } catch {
-      setEvents([]);
-    } finally {
-      setBusy(false);
+      events = [];
     }
+    if (mine !== latest.current) return;
+    setRead({ tomb: open, events });
+    setBusy(false);
   }, [open]);
 
   useEffect(() => {
@@ -54,6 +71,8 @@ export function useActivityEvents(): ActivityEvents {
     });
   }, [refresh]);
 
+  // A read from the vault before this one is not this vault's log.
+  const events = read && read.tomb === open ? read.events : null;
   return { tomb: open, events, busy, refresh };
 }
 

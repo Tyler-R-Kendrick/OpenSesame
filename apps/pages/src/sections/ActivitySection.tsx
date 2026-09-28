@@ -7,7 +7,7 @@
  */
 
 import type { ActivityEvent } from "@opensesame/app-core/lib/activity-log.js";
-import { useEffect, useMemo, useRef, useTransition } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router";
 import { IconKey } from "../components/IconKey.js";
 import { IconPlus, IconRefresh, IconX } from "../components/Icons.js";
@@ -103,20 +103,15 @@ function useActivitySearch(
 }
 
 function LoadMore({ tomb, more }: { tomb: string | null; more: number }) {
-  const [pending, startTransition] = useTransition();
   if (more <= 0) return null;
-  const label = pending ? "Loading activity" : `Load ${more} more`;
+  const label = `Load ${more} more`;
   return (
     <button
       type="button"
       className="icon-btn icon-btn--sm"
-      disabled={pending}
       aria-label={label}
       title={label}
-      onClick={() => {
-        if (pending) return;
-        startTransition(() => showMoreActivity(tomb));
-      }}
+      onClick={() => showMoreActivity(tomb)}
     >
       <IconPlus size={16} />
     </button>
