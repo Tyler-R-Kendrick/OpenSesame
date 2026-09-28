@@ -90,11 +90,7 @@
           "scrollToOptional": "Sealed store"
         },
         {
-          "count": [
-            ".found",
-            "#sealed-store .sw",
-            "#sample-data"
-          ]
+          "count": [".found", "#sealed-store .sw", "#sample-data"]
         },
         {
           "shot": "D-sealed-store"
@@ -119,11 +115,7 @@
           "scrollToOptional": "Travel"
         },
         {
-          "count": [
-            ".travel__row",
-            "#travel .sw",
-            "#travel button[disabled]"
-          ]
+          "count": [".travel__row", "#travel .sw", "#travel button[disabled]"]
         },
         {
           "shot": "G-travel"
