@@ -107,6 +107,42 @@ from vaultwarden's columns, and from a live account through the same
 password-proving calls the web vault makes. The official `bw` answers the
 challenge (`--method 0 --code`) and signs in with an API key under the oracle.
 
+### 4. Attachments and Sends
+
+- **Attachments.** A client announces a file (`/ciphers/{id}/attachment/v2`:
+  its encrypted name and key, and its size), then uploads the ciphertext to
+  the URL it is given; the one-step multipart form older clients use is served
+  too. A download is a link carrying a token that opens that one file for an
+  hour, so a client can hand it to its file fetcher without its bearer token.
+- **Sends**, text and file, with a password, an access limit, an expiry, a
+  deletion date no more than 31 days out, and "hide my email". Current clients
+  prove a Send's password once, at `/identity/connect/token` with
+  `grant_type=send_access`, and spend the five-minute token at
+  `/sends/access`; the older `/sends/access/{accessId}` form with the password
+  in the body is served beside it. The last access is taken by a
+  compare-and-set, so two readers never both get it; a Send's password is
+  stored as a registry hash of the client's own hash of it, and wrong attempts
+  are limited per Send.
+- **Bytes** sit in their own table, apart from the metadata, so a sync never
+  reads them; they go with their owner by trigger. One upload is capped
+  (`OPENSESAME_BITWARDEN_MAX_FILE_MB`, 100 by default) and an account's files
+  together (`OPENSESAME_BITWARDEN_STORAGE_MB`, 1024).
+- **The importer** carries both. From vaultwarden: attachments from
+  `attachments/<cipher>/<id>` and Sends with their files from
+  `sends/<send>/<file>` in its data folder, a Send's password moved as a PBKDF2
+  record like an account's. From a live account: each attachment through a
+  fresh download link, and text Sends without a password. A file Send's bytes
+  can only be fetched by spending one of its accesses, and a Send's password
+  is held by the old server in a form of its own, so those are counted and
+  left behind.
+- **A Send link names the web vault's origin.** The official `bw` trusts a
+  Send link, when it cannot ask, only from the exact origin of the server it is
+  configured for, so on a Host mounted at `/bitwarden` it asks the person
+  first. Operators who share Sends give the server a host name of its own (an
+  ingress that maps it to `/bitwarden`, with `OPENSESAME_BITWARDEN_URL` set to
+  that origin). The oracle drives `send receive` against a server at an
+  origin's root.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve

@@ -7,11 +7,12 @@ use chrono::{DateTime, Utc};
 use opensesame_storage::bitwarden::{BitwardenCipher, BitwardenUser};
 use serde_json::Value;
 
+use super::attachments::{render, CipherViews};
 use super::folders::list_json;
 use super::touch;
 use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
-use crate::wire::cipher::{cipher_json, normalize, parse_cipher, CipherInput};
+use crate::wire::cipher::{normalize, parse_cipher, CipherInput};
 use crate::BitwardenServer;
 
 /// A folder named by a write must be the caller's own.
@@ -63,8 +64,9 @@ pub async fn list(
     Authed { user, .. }: Authed,
 ) -> ApiResult<Json<Value>> {
     let ciphers = server.db.bitwarden_ciphers(&user.id).await?;
+    let views = CipherViews::load(&server, &user.id).await?;
     Ok(Json(list_json(
-        &ciphers.iter().map(cipher_json).collect::<Vec<_>>(),
+        &ciphers.iter().map(|c| views.render(c)).collect::<Vec<_>>(),
     )))
 }
 
@@ -73,7 +75,9 @@ pub async fn get_one(
     Authed { user, .. }: Authed,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
-    Ok(Json(cipher_json(&owned(&server, &user.id, &id).await?)))
+    Ok(Json(
+        render(&server, &owned(&server, &user.id, &id).await?).await?,
+    ))
 }
 
 async fn insert(
@@ -86,9 +90,9 @@ async fn insert(
     let cipher = new_cipher(user, input, Utc::now());
     server.db.bitwarden_insert_cipher(&cipher).await?;
     touch(server, &user.id).await?;
-    Ok(Json(cipher_json(
-        &owned(server, &user.id, &cipher.id).await?,
-    )))
+    Ok(Json(
+        render(server, &owned(server, &user.id, &cipher.id).await?).await?,
+    ))
 }
 
 const OUT_OF_DATE: &str =
@@ -107,9 +111,9 @@ async fn replace(
         return Err(ApiError::bad_request(OUT_OF_DATE));
     }
     touch(server, user_id).await?;
-    Ok(Json(cipher_json(
-        &owned(server, user_id, &cipher.id).await?,
-    )))
+    Ok(Json(
+        render(server, &owned(server, user_id, &cipher.id).await?).await?,
+    ))
 }
 
 /// `POST /api/ciphers`.
@@ -235,5 +239,7 @@ pub async fn restore_one(
         return Err(ApiError::not_found());
     }
     touch(&server, &user.id).await?;
-    Ok(Json(cipher_json(&owned(&server, &user.id, &ids[0]).await?)))
+    Ok(Json(
+        render(&server, &owned(&server, &user.id, &ids[0]).await?).await?,
+    ))
 }

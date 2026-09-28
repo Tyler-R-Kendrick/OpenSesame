@@ -75,9 +75,11 @@ opensesame bridge bitwarden import account --from https://vault.bitwarden.com --
 Both write to the Host database (`--db`, default `$OPENSESAME_DB`). An email
 that already has an account on the Host is left alone unless you pass
 `--replace`, which deletes that account and everything it holds first. Each run
-prints, per account, what moved and what stayed behind (attachments, Sends,
-organization items, two-step methods, emergency contacts), so nothing is lost
-quietly.
+prints, per account, what moved (folders, items, attachments, Sends) and what
+stayed behind (organization items, other two-step methods, emergency contacts,
+a live account's file Sends and password-protected Sends), so nothing is lost
+quietly. vaultwarden's attachments and Send files are read from its data
+folder, next to `db.sqlite3` unless you name it with `--data`.
 
 ## What people get
 
@@ -88,13 +90,13 @@ quietly.
   master password never reach it in the clear. The stored credential is an
   Argon2id hash of the client's own hash.
 - Folders, logins, secure notes, cards and identities; trash and restore;
-  import. SSH-key items are stored and returned as sent, but the oracle does
-  not cover them yet.
+  import; attachments and Sends. SSH-key items are stored and returned as
+  sent, but the oracle does not cover them yet.
 
 ## Two-step login and API keys
 
-People manage both from the security settings of Bitwarden's web vault, and the importer
-carries them over from vaultwarden or a live account.
+People manage both from the security settings of Bitwarden's web vault, and
+the importer carries them over from vaultwarden or a live account.
 
 - **Authenticator app.** Turning it on takes the master password and a code
   from the app, so nobody enables a step they cannot pass. Each code works
@@ -113,9 +115,29 @@ Like Bitwarden's own server, the Host keeps the authenticator key, recovery
 code and API key where it can check or show them again. None of them opens a
 vault.
 
+## Attachments and Sends
+
+Files on items and Sends (text or a file, shared by link) are served. Both are
+ciphertext the client encrypted; the Host cannot open them.
+
+```bash
+export OPENSESAME_BITWARDEN_MAX_FILE_MB=100    # largest single file (default 100)
+export OPENSESAME_BITWARDEN_STORAGE_MB=1024    # all of one account's files (default 1024)
+```
+
+Files are kept in the Host database. A Send can have a password, an access
+limit and an expiry; it is deleted at its deletion date, at most 31 days out.
+
+**Give the server a host name of its own if people share Sends.** A Send link
+names the web vault's origin, and Bitwarden's clients trust one from the exact
+origin they are configured for. Under `/bitwarden` on a shared host, `bw send
+receive` asks before it opens a link (and refuses when it cannot ask). Point a
+dedicated name at the Host with an ingress that maps it to `/bitwarden`, and
+set `OPENSESAME_BITWARDEN_URL` to that name.
+
 ## What is not served
 
-Organizations and collections, Sends, attachments, emergency access, other
+Organizations and collections, emergency access, other
 two-step providers (email, Duo, `YubiKey`, security keys), live-sync
 notifications and key rotation. Clients hide or fail those features as they do
 against a server that has them turned off.
