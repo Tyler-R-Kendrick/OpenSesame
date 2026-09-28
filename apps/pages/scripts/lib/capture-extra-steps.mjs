@@ -9,6 +9,7 @@ import { factorSteps } from "./capture-factor-steps.mjs";
 import { fileSteps } from "./capture-file-steps.mjs";
 import { invokeSteps } from "./capture-invoke-steps.mjs";
 import { markSteps } from "./capture-mark-steps.mjs";
+import { memberSteps } from "./capture-member-steps.mjs";
 import { menuSteps } from "./capture-menu-steps.mjs";
 import { networkSteps } from "./capture-network-steps.mjs";
 import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
@@ -25,6 +26,7 @@ export function extraSteps({ press }) {
     ...fileSteps({ press }),
     ...invokeSteps(),
     ...markSteps({ press }),
+    ...memberSteps({ press }),
     ...placeSteps(),
     ...railSteps(),
     ...routingSteps(),

@@ -26,6 +26,7 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { LocalAgentAuthentication } from "./LocalAgentAuthentication.js";
 import { LocalAgentEnrollment } from "./LocalAgentEnrollment.js";
 import { useLocalSessionPresentation } from "./LocalIdentitySession.js";
+import { LocalMemberOrganizations } from "./LocalMemberOrganizations.js";
 
 type Props = {
   tomb: string;
@@ -151,6 +152,9 @@ function AgentKeyCommands(props: Props) {
             : null
         }
       />
+      {session.session ? (
+        <LocalMemberOrganizations tomb={props.tomb} session={session.session} />
+      ) : null}
       {adding ? (
         <LocalAgentEnrollment
           disabled={disabled}

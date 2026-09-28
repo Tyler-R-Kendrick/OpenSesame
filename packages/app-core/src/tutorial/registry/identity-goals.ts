@@ -97,6 +97,19 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "identity.local.organizations.member",
+    title: "See and manage your organizations as a signed-in person",
+    routes: ["/identity"],
+    guide: [
+      "guide/1",
+      'goal "identity.local.organizations.member"',
+      'navigate "/identity"',
+      'wait route "/identity" timeout=15000',
+      'focus "identity.people" "Open your Passkeys disclosure in People and sign in locally. Organizations lists the ones you belong to; open one to see its members. Owners change roles and remove members, admins remove ordinary members. Every change ends local sessions, so sign in again." side=bottom',
+      'wait target "identity.people" event=activate timeout=60000',
+    ].join("\n"),
+  },
+  {
     id: "identity.account.add",
     title: "Add an account to this deployment",
     routes: [],

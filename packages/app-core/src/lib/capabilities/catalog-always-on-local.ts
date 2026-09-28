@@ -25,6 +25,8 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.local.agent.keys.manage",
         "identity.local.application.authorize",
         "identity.local.directory.manage",
+        "identity.local.organizations.membership.manage",
+        "identity.local.organizations.read",
         "identity.local.passkeys.manage",
       ],
       egress: [

@@ -2,6 +2,7 @@ import { expect } from "@playwright/test";
 import { localAgentContract } from "./local-agent-contract.mjs";
 import { localApplicationContract } from "./local-application-contract.mjs";
 import { localDeviceContract } from "./local-device-contract.mjs";
+import { localMemberOrganizationsContract } from "./local-member-organizations-contract.mjs";
 import {
   localMembershipContract,
   localMembershipSetup,
@@ -18,6 +19,7 @@ export async function localDirectoryContract(page, tabTo) {
   await localMembershipSetup(page, tabTo);
   await localApplicationContract(page, tabTo);
   await localMembershipContract(page, tabTo);
+  await localMemberOrganizationsContract(page, tabTo);
 }
 
 async function createDirectoryRecord(page, panel, tabTo, kind) {

@@ -120,6 +120,13 @@ describe("browser-local organization authorization", () => {
       ]);
       const result = await readLocalOrganization(tomb, session, org);
       expect(result.members).toHaveLength(3);
+      // Names come from the same fenced read, so a member view never needs
+      // the custodian's directory; unrelated people stay out of it.
+      expect(result.members.map((row) => [row.name, row.kind])).toEqual([
+        ["Owner", "person"],
+        ["Admin", "person"],
+        ["Member", "person"],
+      ]);
       await expect(
         readLocalOrganization(tomb, session, otherOrg),
       ).rejects.toThrow("organization is unavailable");
