@@ -1,0 +1,327 @@
+{
+  "$comment": "The one definition of what may never reach a log line, an event, an audit row, a telemetry property or an error string (ADR 0150). Read by packages/log-scrub (TypeScript) and crates/redaction (Rust); each runs every vector below. Patterns use the syntax both engines share: no lookaround, no backreferences, no named groups. `flags` is `i` for case-insensitive. `replace` is a template: `$1`..`$9` are capture groups, everything else is literal.",
+  "version": 1,
+  "marker": "[REDACTED]",
+  "keys": {
+    "$comment": "A key is normalised (lower-cased, `_ - . space` removed) and is sensitive when it equals an `exact` entry or ends with a `suffixes` entry. So `accessToken`, `x-api-key`, `db_password` and `csrfToken` are sensitive while `tokenType`, `tokenCount` and `pinned` are not. The value of a sensitive key is replaced unless it is a boolean or null, which carry no secret and keep `hasPassword: true` legible.",
+    "strip": "[_.\\- ]",
+    "exact": [
+      "pin",
+      "ciphertext",
+      "verificationuricomplete",
+      "otp",
+      "totp"
+    ],
+    "suffixes": [
+      "token",
+      "secret",
+      "password",
+      "passwd",
+      "passphrase",
+      "apikey",
+      "privatekey",
+      "secretkey",
+      "accesskey",
+      "authorization",
+      "cookie",
+      "assertion",
+      "dpop",
+      "jwt",
+      "usercode",
+      "devicecode",
+      "codeverifier",
+      "authorizationcode",
+      "bearer",
+      "credential",
+      "credentials"
+    ],
+    "keep": [
+      "boolean",
+      "null"
+    ]
+  },
+  "rules": [
+    {
+      "id": "pem",
+      "description": "A PEM block, including one cut off mid-stream.",
+      "pattern": "-----BEGIN [A-Z0-9 ]+-----[\\s\\S]*?(?:-----END [A-Z0-9 ]+-----|$)",
+      "flags": "",
+      "replace": "[REDACTED]"
+    },
+    {
+      "id": "url-userinfo",
+      "description": "`scheme://user:pass@host`: DSNs in connection errors are the usual carrier.",
+      "pattern": "([a-z][a-z0-9+.-]{0,31}://)[^/\\s@]*@",
+      "flags": "i",
+      "replace": "$1[REDACTED]@"
+    },
+    {
+      "id": "url-secret-param",
+      "description": "A query or fragment parameter whose name says it holds a secret (`#token=osc_clm_…&key=…`, `?code=…`, `?sig=…`).",
+      "pattern": "([?&#;])([a-z0-9_.-]{0,64}(?:token|secret|password|passwd|passphrase|api[_-]?key|apikey|signature|code|state|key|assertion|jwt|credential|sig)[a-z0-9_.-]{0,64})=([^&#\\s\"'<>]*)",
+      "flags": "i",
+      "replace": "$1$2=[REDACTED]"
+    },
+    {
+      "id": "cookie-line",
+      "description": "A Cookie or Set-Cookie header runs to the end of the line: `a=1; b=2` is several secrets, not one.",
+      "pattern": "\\b((?:set-)?cookie\\s*:\\s*)[^\\r\\n]*",
+      "flags": "i",
+      "replace": "$1[REDACTED]"
+    },
+    {
+      "id": "labelled-value",
+      "description": "`label: value` or `label=value` (JSON, headers, query text) where the label ends in a secret word. The value may be quoted and may carry an auth scheme (`Authorization: Basic …`). The match starts at the secret word, so `x-api-key` and `myAccessToken` keep their prefix untouched and no scan runs backwards.",
+      "pattern": "((?:authorization|cookie|password|passwd|passphrase|secret|secret[_-]?key|access[_-]?key|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?token|bearer[_-]?token|csrf[_-]?token|xsrf[_-]?token|device[_-]?code|user[_-]?code|claim[_-]?token|code[_-]?verifier|private[_-]?key|authorization[_-]?code|assertion|token|client[_-]?secret|dpop|jwt|credentials?))([\"']?\\s*[=:]\\s*)(?:(?:bearer|basic|digest|dpop|negotiate|token)\\s+)?(?:\\[REDACTED\\]|\"[^\"]*\"|'[^']*'|[^&\\s,;)\\]}\"']+)",
+      "flags": "i",
+      "replace": "$1$2[REDACTED]"
+    },
+    {
+      "id": "auth-scheme",
+      "description": "A bearer or DPoP credential that lost its header label on the way into a message.",
+      "pattern": "\\b(bearer|dpop)(\\s+)[A-Za-z0-9._~+/=-]{20,}",
+      "flags": "i",
+      "replace": "$1$2[REDACTED]"
+    },
+    {
+      "id": "jwt",
+      "description": "A compact JWS or JWE: base64url of `{\"` is `eyJ`.",
+      "pattern": "\\beyJ[A-Za-z0-9_-]{8,}(?:\\.[A-Za-z0-9_-]*){1,4}",
+      "flags": "",
+      "replace": "[REDACTED]"
+    },
+    {
+      "id": "opensesame-token",
+      "description": "Our own bearer shapes: claim and delegation tokens (`osc_clm_`, `osc_dlg_`, `osc_at_`), SCIM tokens, webhook signing secrets.",
+      "pattern": "\\b(?:osc_[a-z]{2,6}_[A-Za-z0-9_.~-]{6,}|sct_[A-Za-z0-9_-]{8,}|whsec_[A-Za-z0-9+/=_-]{8,})",
+      "flags": "",
+      "replace": "[REDACTED]"
+    },
+    {
+      "id": "provider-token",
+      "description": "Vendor credential shapes that identify themselves: GitHub, Anthropic/OpenAI style keys, Slack, AWS, Google, Stripe, GitLab, npm, SendGrid.",
+      "pattern": "\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|xox[abprs]-[A-Za-z0-9-]{10,}|(?:AKIA|ASIA)[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|[psr]k_(?:live|test)_[A-Za-z0-9]{10,}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{30,}|SG\\.[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,})",
+      "flags": "",
+      "replace": "[REDACTED]"
+    }
+  ],
+  "vectors": [
+    {
+      "rule": "pem",
+      "input": "key: -----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END PRIVATE KEY----- done",
+      "expect": "key: [REDACTED] done"
+    },
+    {
+      "rule": "pem",
+      "input": "cut -----BEGIN RSA PRIVATE KEY-----\nMIIEow",
+      "expect": "cut [REDACTED]"
+    },
+    {
+      "rule": "url-userinfo",
+      "input": "connect postgres://app:hunter2@db.internal:5432/x failed",
+      "expect": "connect postgres://[REDACTED]@db.internal:5432/x failed"
+    },
+    {
+      "rule": "url-userinfo",
+      "input": "GET https://example.com/a?b=c",
+      "expect": "GET https://example.com/a?b=c"
+    },
+    {
+      "rule": "url-secret-param",
+      "input": "open https://app.example/claim#token=osc_clm_abc123.secretpart&key=k3y",
+      "expect": "open https://app.example/claim#token=[REDACTED]&key=[REDACTED]"
+    },
+    {
+      "rule": "url-secret-param",
+      "input": "https://idp.example/cb?code=4/0AX4&state=xyz&session=ok",
+      "expect": "https://idp.example/cb?code=[REDACTED]&state=[REDACTED]&session=ok"
+    },
+    {
+      "rule": "url-secret-param",
+      "input": "https://h.example/x?X-Amz-Signature=deadbeef&page=2",
+      "expect": "https://h.example/x?X-Amz-Signature=[REDACTED]&page=2"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "Authorization: Bearer abc.def.ghi",
+      "expect": "Authorization: [REDACTED]"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "Authorization: Basic dXNlcjpwYXNzd29yZA==",
+      "expect": "Authorization: [REDACTED]"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "{\"password\":\"hunter two\",\"user\":\"ada\"}",
+      "expect": "{\"password\":[REDACTED],\"user\":\"ada\"}"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "client_secret=s3cr3t&grant_type=code",
+      "expect": "client_secret=[REDACTED]&grant_type=code"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "x-api-key: k_12345 host: a",
+      "expect": "x-api-key: [REDACTED] host: a"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "db_password=p@ss sessionToken=abc myAccessToken: def",
+      "expect": "db_password=[REDACTED] sessionToken=[REDACTED] myAccessToken: [REDACTED]"
+    },
+    {
+      "rule": "cookie-line",
+      "input": "Cookie: sid=abc123; theme=dark",
+      "expect": "Cookie: [REDACTED]"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "api_key='quoted value' next",
+      "expect": "api_key=[REDACTED] next"
+    },
+    {
+      "rule": "auth-scheme",
+      "input": "sent bearer abcdefghijklmnopqrstuvwx upstream",
+      "expect": "sent bearer [REDACTED] upstream"
+    },
+    {
+      "rule": "jwt",
+      "input": "id eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2lnbmF0dXJl end",
+      "expect": "id [REDACTED] end"
+    },
+    {
+      "rule": "jwt",
+      "input": "jwe eyJhbGciOiJSU0EtT0FFUCJ9.encryptedkey.iv12345678.cipher.tag end",
+      "expect": "jwe [REDACTED] end"
+    },
+    {
+      "rule": "opensesame-token",
+      "input": "claim osc_clm_AbC123.d3adb33fd3adb33f used",
+      "expect": "claim [REDACTED] used"
+    },
+    {
+      "rule": "opensesame-token",
+      "input": "hook whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw ok",
+      "expect": "hook [REDACTED] ok"
+    },
+    {
+      "rule": "provider-token",
+      "input": "pat ghp_abcdefghijklmnopqrstuvwxyz0123456789 ok",
+      "expect": "pat [REDACTED] ok"
+    },
+    {
+      "rule": "provider-token",
+      "input": "aws AKIAIOSFODNN7EXAMPLE ok",
+      "expect": "aws [REDACTED] ok"
+    },
+    {
+      "rule": "provider-token",
+      "input": "key sk-proj-abcdefghijklmnop12345 ok",
+      "expect": "key [REDACTED] ok"
+    },
+    {
+      "rule": "provider-token",
+      "input": "slack xoxb-1234567890-abcdefghij ok",
+      "expect": "slack [REDACTED] ok"
+    }
+  ],
+  "unchanged": [
+    "GET /v1/health/live 200 in 4ms",
+    "token_type=Bearer expires_in=3600",
+    "basic setup complete",
+    "user signed in from a new device",
+    "requestDigest sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "tokenizer=fast monkeypatch=on",
+    "the bearer of bad news",
+    "policy digest matched; approval settled",
+    "{\"eventType\":\"vault.unlocked\",\"outcome\":\"success\"}"
+  ],
+  "keyVectors": [
+    {
+      "key": "password",
+      "sensitive": true
+    },
+    {
+      "key": "accessToken",
+      "sensitive": true
+    },
+    {
+      "key": "access_token",
+      "sensitive": true
+    },
+    {
+      "key": "x-api-key",
+      "sensitive": true
+    },
+    {
+      "key": "Authorization",
+      "sensitive": true
+    },
+    {
+      "key": "set-cookie",
+      "sensitive": true
+    },
+    {
+      "key": "db_password",
+      "sensitive": true
+    },
+    {
+      "key": "csrfToken",
+      "sensitive": true
+    },
+    {
+      "key": "client_secret",
+      "sensitive": true
+    },
+    {
+      "key": "verification_uri_complete",
+      "sensitive": true
+    },
+    {
+      "key": "PIN",
+      "sensitive": true
+    },
+    {
+      "key": "code_verifier",
+      "sensitive": true
+    },
+    {
+      "key": "privateKey",
+      "sensitive": true
+    },
+    {
+      "key": "token_type",
+      "sensitive": false
+    },
+    {
+      "key": "tokenCount",
+      "sensitive": false
+    },
+    {
+      "key": "pinned",
+      "sensitive": false
+    },
+    {
+      "key": "spin",
+      "sensitive": false
+    },
+    {
+      "key": "code",
+      "sensitive": false
+    },
+    {
+      "key": "state",
+      "sensitive": false
+    },
+    {
+      "key": "email",
+      "sensitive": false
+    },
+    {
+      "key": "credentialRef",
+      "sensitive": false
+    }
+  ]
+}
