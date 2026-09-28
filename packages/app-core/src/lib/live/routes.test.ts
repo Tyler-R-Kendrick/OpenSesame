@@ -86,7 +86,7 @@ describe("a link names only what it may", () => {
 
 describe("the routes segment", () => {
   const owner = "A".repeat(87);
-  const secret = "B".repeat(43);
+  const secret = "A".repeat(43);
   const link = (routes: string) =>
     liveValue({ admission: "open", owner, secret, routes });
 
