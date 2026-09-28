@@ -30,7 +30,6 @@ An Infisical-class authority console that also keeps a human store on the device
 - Two stores, one console. Host holds connectors; this device holds human items.
 - Master password unwraps the device vault key. It is not stored. A reload asks for it again.
 - Agents get ConnectionRefs and grants, never plaintext. There is no `getSecret()` affordance anywhere in the UI.
-- Demonstration data is labeled SYNTHETIC and deletable, never seeded silently.
 - The statusline tells the truth about Host and Identity. "Online" is not a Host status.
 - Guests and anonymous use are first-class everywhere; sign-in is never required to be useful.
 - The UI is terse: table headers, actions, one-line empty states — no descriptive prose. Controls use iconography where idiom allows.
@@ -66,7 +65,6 @@ An Infisical-class authority console that also keeps a human store on the device
 - Never expose private proof keys. Secrets are revealed only to the human who unlocked the vault, never to an agent.
 - No localStorage or sessionStorage for vault material (XSS-exfiltrable; enforced by ast-grep).
 - Vault key and master key live in memory only; never persisted.
-- Demo/synthetic data must be labeled.
 - ADR 0017 dual-plane separation preserved.
 - Deploys publish from `main` via GitHub Pages' own Actions deployment (`.github/workflows/deploy-pages.yml`, GitHub-hosted runners only — no custom/self-hosted runners); `scripts/release/deploy-pages.sh` remains the manual fallback.
 
