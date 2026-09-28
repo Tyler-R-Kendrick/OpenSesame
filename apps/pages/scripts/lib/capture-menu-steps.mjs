@@ -10,10 +10,9 @@ export function menuSteps({ press }) {
     menuOptional,
     openSettingsFile: (page, category) =>
       openSettingsFile(page, category, press),
-    measure,
-    // `measure` is shadowed by capture-evidence's selector-box step of the
-    // same name, so the facts below are reached by this one.
-    facts: measure,
+    // Named `facts`: capture-evidence's own `measure` (selector boxes) would
+    // shadow a step of that name, which left this one unreachable.
+    facts,
   };
 }
 
@@ -89,8 +88,8 @@ async function openSettingsFile(page, category, press) {
 }
 
 /** Log what the browser measures, so each caption quotes a number. */
-async function measure(page, name) {
-  const facts = await page.evaluate(() => {
+async function facts(page, name) {
+  const found = await page.evaluate(() => {
     const rows = [...document.querySelectorAll(".railtree__row")];
     const items = [...document.querySelectorAll(".ctxmenu__item")];
     return {
@@ -145,5 +144,5 @@ async function measure(page, name) {
       file: document.querySelector(".set-raw__path")?.textContent ?? null,
     };
   });
-  console.log(`  measure ${name}: ${JSON.stringify(facts)}`);
+  console.log(`  facts ${name}: ${JSON.stringify(found)}`);
 }
