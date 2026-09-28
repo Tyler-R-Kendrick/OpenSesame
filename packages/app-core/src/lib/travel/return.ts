@@ -25,7 +25,7 @@ import {
   travelGate,
 } from "./depart.js";
 import { ReturnCodeError, parseReturnCode } from "./return-code.js";
-import { filesOfVault, tombStem, vaultNamespace } from "./storage.js";
+import { filesOfVault, headerOf, vaultNamespace } from "./storage.js";
 
 export type ReturnStatus =
   /** Nothing of it is on this device: it will be restored. */
@@ -79,10 +79,6 @@ const GATE_MESSAGE = {
   duress_active: "Not while a duress response holds this device.",
   storage_not_durable: "This browser is not keeping files for this site.",
 } satisfies Record<TravelGateRefusal, string>;
-
-function headerOf(id: string): string {
-  return `${tombStem(id)}header.json`;
-}
 
 /**
  * What returning `vault` would do, read from the device now. Any vault

@@ -10,9 +10,10 @@
  * the files and the plan first, so a vault that changed in between, or that
  * became the open vault, is never removed against a bundle that does not
  * hold its latest state. A removal cut short can be finished with the same
- * package: every file still here must be one the bundle holds.
+ * package: every file still here must be one the bundle holds, byte for byte.
  */
 
+import { sha256Hex } from "../capabilities/trust/digest.js";
 import {
   type TravelFile,
   type TravelVault,
@@ -30,7 +31,7 @@ import {
 import {
   type TravelStorage,
   filesOfVault,
-  tombStem,
+  headerOf,
   vaultNamespace,
 } from "./storage.js";
 
@@ -89,8 +90,6 @@ export type DeparturePackage = Readonly<{
   returnCode: string;
   plan: TravelPlan;
   departing: readonly DepartingVault[];
-  /** Digest of every departing file, re-checked before removal. */
-  fingerprint: string;
   /** Per vault, each packed file's SHA-256: what a removal may take. */
   packed: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }>;
@@ -120,27 +119,8 @@ export type CompleteOutcome =
         | "open_vault_departs";
     };
 
-async function sha256Hex(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(text),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-export async function fingerprintFiles(
-  vaults: readonly Pick<TravelVault, "id" | "files">[],
-): Promise<string> {
-  const parts: string[] = [];
-  for (const vault of [...vaults].sort((a, b) => a.id.localeCompare(b.id))) {
-    const files = [...vault.files].sort((a, b) => a.file.localeCompare(b.file));
-    for (const entry of files) {
-      parts.push(`${vault.id}\u0000${entry.file}\u0000${entry.text}`);
-    }
-  }
-  return sha256Hex(parts.join("\u0001"));
+function digestOf(text: string): Promise<string> {
+  return sha256Hex(new TextEncoder().encode(text));
 }
 
 async function digestsOf(
@@ -151,7 +131,7 @@ async function digestsOf(
     const entries = await Promise.all(
       vault.files.map(async (entry) => [
         entry.file,
-        await sha256Hex(entry.text),
+        await digestOf(entry.text),
       ]),
     );
     out[vault.id] = Object.fromEntries(entries);
@@ -236,7 +216,7 @@ export async function packDeparture(
     },
     secret,
   );
-  const fingerprint = await fingerprintFiles(carried);
+  const packed = await digestsOf(carried);
   // Prove the round trip before anyone is told the bundle is safe to rely
   // on: the code as displayed opens it, and it holds what was read.
   try {
@@ -245,7 +225,8 @@ export async function packDeparture(
       await parseReturnCode(returnCode),
       vaultNamespace(deps.storage.tombs()),
     );
-    if ((await fingerprintFiles(reopened.vaults)) !== fingerprint) {
+    const reread = await digestsOf(reopened.vaults);
+    if (JSON.stringify(reread) !== JSON.stringify(packed)) {
       return { ok: false, code: "self_check_failed", ids: [] };
     }
   } catch {
@@ -265,8 +246,7 @@ export async function packDeparture(
         files: vault.files.length,
         bytes: vault.files.reduce((sum, entry) => sum + entry.text.length, 0),
       })),
-      fingerprint,
-      packed: await digestsOf(carried),
+      packed,
     },
   };
 }
@@ -274,9 +254,9 @@ export async function packDeparture(
 /**
  * Why the package can no longer be trusted to remove what it packed: a
  * departing vault is open now, or a vault neither staying nor departing was
- * sealed since, or a departing file differs from the packed one. A vault
- * whose header is already gone is a removal cut short: every file left must
- * still be one the bundle holds, and the rest of it goes.
+ * sealed since, or a departing file is one the bundle does not hold as it
+ * is. A file the bundle holds may be missing — a removal cut short, at the
+ * header or anywhere after it — and the rest of it still goes.
  */
 async function staleSincePacked(
   deps: TravelDeps,
@@ -294,24 +274,15 @@ async function staleSincePacked(
       return "changed_since_packed";
     }
   }
-  for (const id of pkg.plan.departing) {
-    const packed = pkg.packed[id] ?? {};
-    const files = current.get(id) ?? [];
-    const started = !files.some((entry) => entry.file === headerOf(id));
-    if (!started && files.length !== Object.keys(packed).length) {
-      return "changed_since_packed";
-    }
-    for (const entry of files) {
-      if (packed[entry.file] !== (await sha256Hex(entry.text))) {
-        return "changed_since_packed";
-      }
-    }
-  }
-  return null;
-}
-
-function headerOf(id: string): string {
-  return `${tombStem(id)}header.json`;
+  const checks = pkg.plan.departing.flatMap((id) =>
+    (current.get(id) ?? []).map(
+      async (entry) =>
+        pkg.packed[id]?.[entry.file] === (await digestOf(entry.text)),
+    ),
+  );
+  return (await Promise.all(checks)).every(Boolean)
+    ? null
+    : "changed_since_packed";
 }
 
 /**
@@ -364,13 +335,17 @@ export async function completeDeparture(
   if (stale) return { ok: false, code: stale };
   const removed = await removeAll(deps.storage, current);
   deps.storage.forget(removed);
-  for (const id of ids) await deps.storage.unregisterTomb(id);
-  await deps.forgetVaults(ids);
-  // Read the device back: the receipt reports what is actually gone.
+  // Read the device back: the receipt reports what is actually gone, and
+  // only a vault with nothing left leaves the registry and the list. One
+  // cut short stays where the person can see it until this package, or the
+  // bundle's return, finishes it.
   const after = await deps.storage.listFiles();
-  const leftovers = ids.flatMap((id) =>
-    filesOfVault(id, after, [...deps.storage.tombs(), ...ids]),
-  );
+  const tombs = [...deps.storage.tombs(), ...ids];
+  const left = new Map(ids.map((id) => [id, filesOfVault(id, after, tombs)]));
+  const gone = ids.filter((id) => left.get(id)?.length === 0);
+  for (const id of gone) await deps.storage.unregisterTomb(id);
+  if (gone.length > 0) await deps.forgetVaults(gone);
+  const leftovers = ids.flatMap((id) => left.get(id) ?? []);
   return {
     ok: true,
     receipt: {

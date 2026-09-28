@@ -1,8 +1,4 @@
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 /**
  * Local project registry — the top level of the client hierarchy.
  *
@@ -24,15 +20,24 @@ import {
  * are private to this device until they are linked to a server project.
  */
 
-import { kvDeleteDurable, kvGet, kvHydrate, kvSetDurable } from "./kv.js";
 import {
+  kvDeleteDurable,
+  kvGet,
+  kvHydrate,
+  kvRefresh,
+  kvSetDurable,
+} from "./kv.js";
+import {
+  type BootRecord,
   LEGACY_VAULT_KEYS,
   PERSONAL_PROJECT_ID,
+  PROJECTS_KEY,
   PROJECT_SCOPED_KEYS,
   type PagesProject,
   type ProjectsState,
   onDeviceView,
   personalProject,
+  readBootActiveId,
   sanitize,
   withKnownNames,
 } from "./projects-state.js";
@@ -54,37 +59,16 @@ import {
   writeFile,
 } from "./vfs.js";
 
-/**
- * Boot record key — plaintext `{ v: 1, activeId }`. The active tomb pointer
- * is a tomb name, and tomb names are not secrets (ADR 0063).
- */
-export const PROJECTS_KEY = "projects.v1";
 /** Sealed VFS path (within a tomb) holding this tomb's projects view. */
 export const PROJECTS_CONFIG_PATH = "config/projects";
 export {
   PERSONAL_PROJECT_ID,
+  PROJECTS_KEY,
   PROJECT_SCOPED_KEYS,
   type PagesProject,
   type PagesProjectKind,
   type ProjectsState,
 } from "./projects-state.js";
-
-type BootRecord = { v: 1; activeId: string };
-
-/** The plaintext boot pointer — just the active tomb name. */
-function readBootActiveId(): string {
-  const raw = kvGet(PROJECTS_KEY);
-  if (!raw) return PERSONAL_PROJECT_ID;
-  try {
-    const parsed: BoundaryValue = JSON.parse(raw);
-    if (isJsonObject(parsed) && isString(parsed.activeId)) {
-      return parsed.activeId;
-    }
-  } catch {
-    /* fall through to personal */
-  }
-  return PERSONAL_PROJECT_ID;
-}
 
 /**
  * The pre-unlock view: tomb names from the plaintext registry (display names
@@ -190,11 +174,13 @@ export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
   }
   // A sibling that left while this was locked (deleted, travel ADR 0143) is
   // scrubbed — against the registry as stored now, since another tab may
-  // have registered a vault this one has not seen. Unable to tell, the
-  // sealed view stands: a name is never dropped on a failed read.
-  await kvHydrate([TOMBS_REGISTRY_KEY]).catch(() => undefined);
+  // have registered a vault this one has not seen. A registry that cannot
+  // be read leaves the sealed view standing: no name is dropped on a guess.
   const ids = sealed.projects.map((project) => project.id);
-  const legacy = await legacyVaultsAmong(ids).catch(() => null);
+  const legacy = await kvRefresh(TOMBS_REGISTRY_KEY, 1 << 20).then(
+    () => legacyVaultsAmong(ids),
+    () => null,
+  );
   cached = legacy ? onDeviceView(bootView(legacy), sealed) : sealed;
   const present = new Set(cached.projects.map((project) => project.id));
   if (ids.some((id) => !present.has(id))) {

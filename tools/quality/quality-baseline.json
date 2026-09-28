@@ -18,7 +18,7 @@
   "totals": {
     "files": 452,
     "violations": 711,
-    "oversizedLines": 232840
+    "oversizedLines": 232826
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -702,7 +702,7 @@
       "complexity": 1
     },
     "packages/app-core/src/lib/projects.ts": {
-      "max-lines": 480
+      "max-lines": 466
     },
     "packages/app-core/src/lib/settings.ts": {
       "max-lines": 481

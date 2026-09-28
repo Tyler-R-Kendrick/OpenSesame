@@ -66,6 +66,10 @@ describe("a removal cut short", () => {
     // Every other file went, the header first among them.
     expect(origin.files.has(tombFile(PRJ_WORK, "header"))).toBe(false);
     expect(origin.files.has(tombFile("personal", "body"))).toBe(false);
+    // Only the vault with nothing left has left the registry and the list.
+    expect(origin.tombs.has("personal")).toBe(false);
+    expect(origin.tombs.has(PRJ_WORK)).toBe(true);
+    expect(origin.vaults.some((entry) => entry.id === PRJ_WORK)).toBe(true);
 
     origin.stuck.clear();
     const second = await completeDeparture(origin.deps, pkg, ACK);
@@ -76,6 +80,23 @@ describe("a removal cut short", () => {
       removedFiles: 1,
     });
     expect(origin.files.has(stuck)).toBe(false);
+    expect(origin.tombs.has(PRJ_WORK)).toBe(false);
+  });
+
+  it("finishes a removal cut short at the header", async () => {
+    const origin = packedDevice();
+    const pkg = await pack(origin);
+    const header = tombFile(PRJ_WORK, "header");
+    origin.stuck.add(header);
+    const first = await completeDeparture(origin.deps, pkg, ACK);
+    if (!first.ok) throw new Error(first.code);
+    expect(first.receipt.leftovers).toEqual([header]);
+
+    origin.stuck.clear();
+    const second = await completeDeparture(origin.deps, pkg, ACK);
+    if (!second.ok) throw new Error(second.code);
+    expect(second.receipt.completion).toBe("applied_local");
+    expect(origin.files.has(header)).toBe(false);
   });
 
   it("will not finish over a leftover that changed since packing", async () => {

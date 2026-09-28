@@ -43,6 +43,11 @@ export function tombStem(id: string): string {
   return kvFileName(`tomb/${id}/`).replace(/\.json$/, "");
 }
 
+/** A vault's plaintext header: the file that says a vault is here at all. */
+export function headerOf(id: string): string {
+  return `${tombStem(id)}header.json`;
+}
+
 /** The plaintext records named for a vault, as origin file names. */
 export function scopedFiles(id: string): Set<string> {
   const keys = [...projectScopedKeys(id), `${OFFLINE_CACHE_PREFIX}${id}`];
@@ -91,26 +96,10 @@ export function filesOfVault(
   return files.filter((file) => owns(id, file)).sort();
 }
 
-/** The origin root, opened once per opener rather than once per file. */
-let opened: {
-  open: () => Promise<FileSystemDirectoryHandle>;
-  root: Promise<FileSystemDirectoryHandle>;
-} | null = null;
-
-function root(): Promise<FileSystemDirectoryHandle> {
+async function root(): Promise<FileSystemDirectoryHandle> {
   const open = originFiles();
-  if (!open) {
-    return Promise.reject(
-      new Error("This browser keeps no files for this site."),
-    );
-  }
-  if (opened?.open !== open) opened = { open, root: open() };
-  const current = opened;
-  // A root that failed to open is not remembered.
-  current.root.catch(() => {
-    if (opened === current) opened = null;
-  });
-  return current.root;
+  if (!open) throw new Error("This browser keeps no files for this site.");
+  return open();
 }
 
 /** The origin's own storage: OPFS, the same files `kv.ts` writes. */

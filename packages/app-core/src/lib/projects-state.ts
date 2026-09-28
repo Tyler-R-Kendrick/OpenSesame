@@ -9,6 +9,7 @@ import {
  * `projects.ts` for the module budget (ADR 0093).
  */
 
+import { kvGet } from "./kv.js";
 import { GUEST_TOMB } from "./vfs.js";
 
 export const PERSONAL_PROJECT_ID = "personal";
@@ -136,3 +137,26 @@ export const LEGACY_VAULT_KEYS = [
   "vault.body.v1",
   "vault.prefs.v1", // gitleaks:allow -- storage key, not a credential
 ] as const;
+
+/**
+ * Boot record key — plaintext `{ v: 1, activeId }`. The active tomb pointer
+ * is a tomb name, and tomb names are not secrets (ADR 0063).
+ */
+export const PROJECTS_KEY = "projects.v1";
+
+export type BootRecord = { v: 1; activeId: string };
+
+/** The plaintext boot pointer — just the active tomb name. */
+export function readBootActiveId(): string {
+  const raw = kvGet(PROJECTS_KEY);
+  if (!raw) return PERSONAL_PROJECT_ID;
+  try {
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (isJsonObject(parsed) && isString(parsed.activeId)) {
+      return parsed.activeId;
+    }
+  } catch {
+    /* fall through to personal */
+  }
+  return PERSONAL_PROJECT_ID;
+}
