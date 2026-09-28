@@ -1,0 +1,49 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "scrollTo": "Keybindings" },
+        { "measure": "#settings-keybindings" },
+        { "count": ["#view-name", "[aria-label='Pin view']"] },
+        { "report": "#settings-keybindings h2" },
+        { "shot": "1280-keybindings" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "scrollTo": "Keybindings" },
+        { "measure": "#settings-keybindings" },
+        { "count": ["#view-name", "[aria-label='Pin view']"] },
+        { "shot": "390-keybindings" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-keybindings",
+      "width": 1280,
+      "title": "Settings › General, Keybindings — 1280 × 900",
+      "caption": "General carried a \"Pin approvals view\" field that saved a view of pending approvals. Approvals are answered in Access › Requests, so the field and its saved-view count are gone and the panel is named for what it holds.",
+      "before": "heading Keybindings and views, panel 960×390, Pin view field 1",
+      "after": "heading Keybindings, panel 960×275, Pin view field 0"
+    },
+    {
+      "shot": "390-keybindings",
+      "width": 390,
+      "title": "Settings › General, Keybindings — 390 × 844",
+      "caption": "The same panel on a phone: the approvals field is gone.",
+      "before": "panel 358×447, Pin view field 1",
+      "after": "panel 358×320, Pin view field 0"
+    }
+  ]
+}
