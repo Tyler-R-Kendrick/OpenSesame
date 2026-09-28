@@ -35,6 +35,7 @@ const CORE_INFRA = [
   "pane-escape",
   "tree-motion",
   "page-to-tree",
+  "listing-page",
   "notices",
   "use-online",
   "use-configured",
