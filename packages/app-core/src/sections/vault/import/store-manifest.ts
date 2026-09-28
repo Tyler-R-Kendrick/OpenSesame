@@ -134,6 +134,24 @@ export function manifestCommitLabel(plan: ManifestMergePlan): string {
     : `Merge ${writes} ${writes === 1 ? "entry" : "entries"}`;
 }
 
+/** What the manifest export reads of the vault's state. */
+export type ManifestSource = Readonly<{ status: string; guest: boolean }>;
+
+/**
+ * Why no manifest is offered now, or null when one is. The manifest is the
+ * vault in plain text, private keys included, so it answers to the same
+ * rules as the encrypted Export: an unlocked vault, never a guest's.
+ */
+export function manifestRefusal(
+  vault: ManifestSource,
+  count: number,
+): string | null {
+  if (vault.status !== "unlocked") return "Unlock to export";
+  if (vault.guest) return "A guest vault is not exported";
+  if (count === 0) return "Nothing to export";
+  return null;
+}
+
 /**
  * The manifest file for the unlocked vault: every live item that is not
  * sample data, as `pass seal` reads it. Sample items stay out — a sealed
