@@ -53,6 +53,7 @@ pub fn router(server: BitwardenServer) -> Router {
             get(accounts::keys).post(accounts::set_keys),
         )
         .route("/accounts/kdf", post(accounts::change_kdf))
+        .route("/users/{id}/public-key", get(accounts::public_key))
         .route(
             "/accounts/key-management/user-key-id",
             post(accounts::set_user_key_id).put(accounts::set_user_key_id),

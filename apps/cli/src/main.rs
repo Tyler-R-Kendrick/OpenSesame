@@ -1067,7 +1067,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Init { schema } => init_schema(&schema)?,
         Commands::Config { cmd } => configs::run(&cli.server, &cli.output, cmd).await?,
-        Commands::Bridge { cmd } => bridge::run(cmd)?,
+        Commands::Bridge { cmd } => bridge::run(cmd).await?,
         Commands::Pass { cmd } => match cmd {
             PassCmd::Init {
                 path,

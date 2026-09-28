@@ -163,3 +163,71 @@ fn unreadable_or_unknown_hashes_never_match() {
 fn a_verify_only_scheme_cannot_be_current() {
     let _ = HashRegistry::new(Arc::new(Pbkdf2Sha256Legacy));
 }
+
+/// What vaultwarden stores: PBKDF2-SHA256 over the client's hash string, under
+/// a 64-byte salt, in raw columns the importer turns into one record.
+fn vaultwarden_columns(secret: &[u8], iterations: u32) -> (Vec<u8>, Vec<u8>) {
+    let salt: Vec<u8> = (0..64_u8).map(|b| b.wrapping_mul(37)).collect();
+    let mut hash = vec![0_u8; 32];
+    pbkdf2::pbkdf2_hmac::<Sha256>(secret, &salt, iterations, &mut hash);
+    (salt, hash)
+}
+
+#[test]
+fn a_vaultwarden_hash_with_its_long_salt_verifies_once_and_is_replaced() {
+    let (salt, hash) = vaultwarden_columns(b"client-hash", 1_000);
+    let record = pbkdf2_sha256_record(1_000, &salt, &hash);
+    // Longer than a generic PHC parser takes: the scheme reads it itself.
+    assert!(PasswordHash::new(&record).is_err(), "{record}");
+
+    let registry = HashRegistry::new(cheap(64)).accept(Arc::new(Pbkdf2Sha256Legacy));
+    assert_eq!(registry.verify(&record, b"client-hasH"), Verdict::Mismatch);
+    let Verdict::Match {
+        rehash: Some(upgraded),
+    } = registry.verify(&record, b"client-hash")
+    else {
+        panic!("an imported vaultwarden hash must verify and be upgraded");
+    };
+    assert!(upgraded.starts_with("$argon2id$"), "{upgraded}");
+    // Not accepted, not matched.
+    assert_eq!(
+        HashRegistry::new(cheap(64)).verify(&record, b"client-hash"),
+        Verdict::Mismatch
+    );
+}
+
+#[test]
+fn a_short_salted_record_goes_through_the_phc_parser_and_still_verifies() {
+    let salt = [7_u8; 16];
+    let mut hash = [0_u8; 32];
+    pbkdf2::pbkdf2_hmac::<Sha256>(b"secret", &salt, 1_000, &mut hash);
+    let record = pbkdf2_sha256_record(1_000, &salt, &hash);
+    assert!(PasswordHash::new(&record).is_ok(), "{record}");
+    assert!(matches!(
+        HashRegistry::default().verify(&record, b"secret"),
+        Verdict::Match { rehash: Some(_) }
+    ));
+}
+
+#[test]
+fn a_malformed_long_record_never_matches() {
+    let (salt, hash) = vaultwarden_columns(b"x", 1_000);
+    let good = pbkdf2_sha256_record(1_000, &salt, &hash);
+    let registry = HashRegistry::default();
+    let broken = [
+        good.replace("i=1000", "i=0"),
+        good.replace("i=1000", "i=99999999999"),
+        good.replace(",l=32", ",l=31"),
+        good.replace("i=1000", "i=1000,x=1"),
+        format!("{good}$extra"),
+        good.replacen("pbkdf2-sha256", "pbkdf2-sha512", 1),
+        good.replace('$', "!"),
+    ];
+    for record in broken {
+        assert_eq!(
+            registry.verify(&record, b"x"),
+            Verdict::Mismatch,
+            "{record}"
+        );
+    }
+}

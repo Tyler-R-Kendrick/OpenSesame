@@ -36,7 +36,58 @@ comes up quietly without a surface its operator configured. The container
 image takes the list as a build argument (`OPENSESAME_FEATURES`), and CI
 builds and tests the feature beside the default build.
 
+### 2. An importer that keeps zero knowledge
+
+`opensesame bridge bitwarden import` moves people onto the Host with their
+master passwords, keys and vaults unchanged. The Host never sees a password
+or a decrypted value on the way, exactly as it never does in service.
+
+- **A vaultwarden server** (`import vaultwarden --from <db.sqlite3>`): the
+  operator points it at vaultwarden's SQLite file, opened read-only. Every
+  registered account moves: its KDF choice, wrapped user key, key pair,
+  folders, favourites, trash and ciphers, byte for byte. Its server hash
+  moves too. vaultwarden keeps PBKDF2-SHA256 over the client's hash in raw
+  columns; the importer writes them as a `$pbkdf2-sha256$i=…,l=32$salt$hash`
+  string, which the registry verifies once and replaces with Argon2id at the
+  person's next sign-in (ADR 0141 §4). vaultwarden's salts are 64 bytes,
+  longer than generic PHC parsers accept, so the verify-only scheme reads that
+  form itself. Nobody resets a password; each device signs in once more.
+- **A live account** (`import account --from <server> --email <address>`),
+  for bitwarden.com, bitwarden.eu, a self-hosted Bitwarden server or a
+  vaultwarden whose database is out of reach: the person runs the CLI and
+  types their master password. It derives the login hash locally with the
+  account's own KDF, signs in to the old server as any Bitwarden client would
+  (answering a two-factor challenge if one comes), reads the encrypted vault
+  and writes it to the Host unchanged. The Host stores an Argon2id hash of the
+  same login hash, so the same master password opens the same vault.
+- **Nothing merges.** A vault is encrypted under its account's key, so an
+  import never adds ciphers to an account that already exists on the Host;
+  it skips that address and says so, or replaces the account when told to
+  (`--replace`).
+- **Every cipher is checked as a client's own write.** An item passes the
+  same parser a client's `POST /api/ciphers` does (ciphertext where ciphertext
+  belongs); vaultwarden's older `PascalCase` payloads are re-spelled in the
+  lower camel case clients write today, never re-encrypted.
+- **Nothing is dropped silently.** What the Host does not yet serve, and any
+  item or folder the parser refuses, is counted and reported per account;
+  invited-but-unregistered and disabled vaultwarden accounts are listed with
+  the reason; `--dry-run` reports it all without writing.
+- **Proven by the oracle.** `pnpm test:bitwarden-oracle` has the official `bw`
+  write a vault on one server, moves it with the importer, and has a fresh
+  `bw` read every item back from the Host with the same password; and it signs
+  `bw` in to an account moved from a vaultwarden database with its old
+  password. The oracle also found that clients look up another account's
+  public key (`GET /api/users/{id}/public-key`), which the server now answers.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve
   Bitwarden clients build with the feature, as they do for any bridge.
+- A vaultwarden operator can move a whole server in one command, and its
+  people keep their apps, their master passwords and their vaults.
+- The importer holds the master password of a live account for the length of
+  one sign-in, in the person's own terminal, zeroized after use; it is the same
+  exposure as signing in with `bw`.
+- The Bitwarden consume-client (`crates/provider-bitwarden`) now names the
+  two-step providers a server offers and a new-device challenge, and signs in
+  with an answer; its own vault reads still decline both (ADR 0052).

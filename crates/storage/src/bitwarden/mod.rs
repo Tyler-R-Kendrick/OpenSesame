@@ -6,8 +6,10 @@ mod accounts;
 mod ciphers;
 mod devices;
 mod folders;
+mod moves;
 
 pub use accounts::{BitwardenCredentials, BitwardenKdf, BitwardenUser};
 pub use ciphers::BitwardenCipher;
 pub use devices::{BitwardenDevice, BitwardenSignIn};
 pub use folders::BitwardenFolder;
+pub use moves::{ArrivalOutcome, BitwardenArrival};

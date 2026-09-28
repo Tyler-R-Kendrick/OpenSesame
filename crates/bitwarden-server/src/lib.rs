@@ -31,6 +31,7 @@
 pub mod auth;
 pub mod error;
 pub mod hashing;
+pub mod import;
 pub mod kdf;
 mod limiter;
 mod routes;
