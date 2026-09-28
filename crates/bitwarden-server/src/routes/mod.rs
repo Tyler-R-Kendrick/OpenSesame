@@ -4,12 +4,16 @@
 //! so the same table serves whether the Host mounts it at `/bitwarden` or a
 //! dedicated origin mounts it at the root.
 
+mod account_extras;
 mod accounts;
 mod attachments;
 mod cipher_bulk;
 mod ciphers;
 mod collections;
 mod credentials;
+mod emergency;
+mod emergency_steps;
+mod emergency_use;
 pub(crate) mod file_links;
 mod folders;
 mod identity;
@@ -21,11 +25,13 @@ mod org_member_status;
 mod org_members;
 mod organizations;
 mod register;
+mod rotation;
 mod second_step;
 mod send_access;
 mod sends;
 mod two_factor;
 mod vault_view;
+mod web_vault;
 
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
@@ -62,6 +68,12 @@ pub fn router(server: BitwardenServer) -> Router {
         .merge(org_members::routes())
         .merge(collections::routes())
         .merge(org_ciphers::routes())
+        .merge(emergency::routes())
+        .merge(account_extras::routes())
+        .route(
+            "/accounts/key-management/rotate-user-account-keys",
+            post(rotation::rotate).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .route(
             "/ciphers/import",
@@ -73,15 +85,24 @@ pub fn router(server: BitwardenServer) -> Router {
         )
         .merge(upload_routes(max_file_bytes));
 
-    Router::new()
+    let web_vault = server.config.web_vault.clone();
+    let router = Router::new()
         .route("/alive", get(meta::alive))
+        .route("/notifications/hub", get(crate::notifications::hub))
         .route("/files/{owner}/{id}", get(file_links::download))
         .nest(
             "/identity",
-            identity.layer(DefaultBodyLimit::max(BODY_LIMIT)),
+            identity
+                .layer(DefaultBodyLimit::max(BODY_LIMIT))
+                .fallback(unrouted),
         )
-        .nest("/api", api)
-        .with_state(server)
+        .nest("/api", api.fallback(unrouted));
+    web_vault::with_web_vault(router, web_vault).with_state(server)
+}
+
+/// An API path nothing serves: 404, never the web vault's page.
+async fn unrouted() -> crate::error::ApiError {
+    crate::error::ApiError::not_found()
 }
 
 /// The account, its keys and its sign-in methods.
@@ -237,7 +258,13 @@ fn upload_routes(max_file_bytes: usize) -> Router<BitwardenServer> {
 pub(crate) async fn touch(server: &BitwardenServer, user_id: &str) -> ApiResult<DateTime<Utc>> {
     let now = Utc::now();
     server.db.bitwarden_touch_revision(user_id, now).await?;
+    server.hub.vault_changed(user_id);
     Ok(now)
+}
+
+/// The account's security stamp changed: its clients sign out.
+pub(crate) fn signed_out(server: &BitwardenServer, user_id: &str) {
+    server.hub.signed_out(user_id);
 }
 
 /// Advance the revision date of every member of an organization, so each of
@@ -247,6 +274,7 @@ pub(crate) async fn touch_org(server: &BitwardenServer, org_id: &str) -> ApiResu
     for member in server.db.bitwarden_org_members(org_id).await? {
         if let Some(user_id) = &member.user_id {
             server.db.bitwarden_touch_revision(user_id, now).await?;
+            server.hub.vault_changed(user_id);
         }
     }
     Ok(now)

@@ -19,6 +19,7 @@
 //! | `OPENSESAME_BITWARDEN_TOKEN_KEY` | 32+ hex-encoded bytes that sign access tokens, shared by every replica; unset = a per-process key |
 //! | `OPENSESAME_BITWARDEN_MAX_FILE_MB` | the largest attachment or Send file, in MiB; default 100 |
 //! | `OPENSESAME_BITWARDEN_STORAGE_MB` | files one account may keep, in MiB; default 1024 |
+//! | `OPENSESAME_BITWARDEN_WEB_VAULT` | a directory holding a build of Bitwarden's web vault to serve; unset serves none |
 
 use axum::Router;
 use opensesame_storage::Db;

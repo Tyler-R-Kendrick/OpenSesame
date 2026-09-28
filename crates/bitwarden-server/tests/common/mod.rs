@@ -62,12 +62,9 @@ async fn record(
 }
 
 fn app(server: BitwardenServer, trace: Trace, mount: &str) -> Router {
-    let routes = if mount.is_empty() {
-        server.router()
-    } else {
-        Router::new().nest(mount, server.router())
-    };
-    routes.layer(middleware::from_fn_with_state(trace, record))
+    server
+        .mounted(mount)
+        .layer(middleware::from_fn_with_state(trace, record))
 }
 
 fn tls_config() -> (Arc<rustls::ServerConfig>, String) {
