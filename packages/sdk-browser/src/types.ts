@@ -129,9 +129,11 @@ export interface OpenSesameBrowserClient {
   /**
    * Same-origin relative path stored at sign-in, if any. It is read from
    * sealed storage asynchronously: call it after `handleRedirectCallback`
-   * resolves, which waits for it.
+   * resolves, which waits for it, or use `resolveReturnTo`.
    */
   getReturnTo(): string | null;
+  /** The return path, once it has been read from sealed storage. */
+  resolveReturnTo(): Promise<string | null>;
   continueAnonymously(): Promise<Session>;
   getSession(): Promise<Session | null>;
   presentClaim(token: string): Promise<ClaimPresentation>;

@@ -87,3 +87,34 @@ describe("sealed storage", () => {
     expect(await view.get("opensesame:session")).toBe('{"accessToken":"at"}');
   });
 });
+
+describe("sealed storage, in order", () => {
+  it("never brings back a value removed while its seal was in flight", async () => {
+    const one = key();
+    useClientAtRestKeys(() => one);
+    const store = memory();
+    const view = sealedStorage(store, "sdk");
+    const writing = view.set("opensesame:returnTo", "/stale");
+    view.remove("opensesame:returnTo");
+    await writing;
+    expect(store.map.size).toBe(0);
+  });
+
+  it("takes a value once: the second taker finds nothing", async () => {
+    const one = key();
+    useClientAtRestKeys(() => one);
+    const store = memory();
+    const view = sealedStorage(store, "sdk");
+    await view.set("opensesame:pkce", "verifier");
+    const [first, second] = await Promise.all([
+      view.take("opensesame:pkce"),
+      view.take("opensesame:pkce"),
+    ]);
+    expect([first, second]).toEqual(["verifier", null]);
+  });
+
+  it("says when a value stayed in memory", async () => {
+    useClientAtRestKeys(() => Promise.reject(new Error("no IndexedDB")));
+    expect(await sealedStorage(memory(), "sdk").set("k", "v")).toBe("memory");
+  });
+});

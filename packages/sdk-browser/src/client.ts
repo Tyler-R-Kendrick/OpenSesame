@@ -13,7 +13,7 @@ import {
   safeStoredReturnTo,
 } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
-import { PKCE_KEY, SESSION_KEY, createSessionStore } from "./session-store.js";
+import { SESSION_KEY, createSessionStore } from "./session-store.js";
 import type {
   ClaimDecision,
   ClaimPresentation,
@@ -284,10 +284,10 @@ export function createOpenSesame(
     async signIn(options) {
       const meta = await discovery();
       const pkce = await createPkcePair();
-      await store.sealed.set(
-        PKCE_KEY,
+      await store.savePkce(
         JSON.stringify({ ...pkce, issuer, redirectUri, createdAt: Date.now() }),
       );
+
       await store.setReturnTo(
         options?.returnTo ? assertSafeReturnTo(options.returnTo) : null,
       );
@@ -324,15 +324,16 @@ export function createOpenSesame(
           : "");
       const url = new URL(href);
       const error = url.searchParams.get("error");
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      // One verifier, one callback: taken before anything is awaited.
+      const taken = error || (code && state) ? store.takePkce() : null;
       await store.returnToReady;
       if (error) {
-        store.sealed.remove(PKCE_KEY);
         scrubCallbackUrl(href);
         throw new Error(`Authorization error: ${error}`);
       }
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      const rawPkce = await store.sealed.get(PKCE_KEY);
+      const rawPkce = await taken;
       if (!code || !state || !rawPkce) {
         throw new Error("Missing authorization code or PKCE state");
       }
@@ -347,12 +348,8 @@ export function createOpenSesame(
       try {
         pkce = overlapCast(JSON.parse(rawPkce));
       } catch {
-        store.sealed.remove(PKCE_KEY);
         throw new Error("Stored PKCE state is unreadable");
       }
-      // One verifier, one callback. A verifier left in storage after a failed or
-      // refused callback is one a second attempt can still spend.
-      store.sealed.remove(PKCE_KEY);
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
@@ -363,6 +360,9 @@ export function createOpenSesame(
     },
 
     getReturnTo: () => safeStoredReturnTo(store.returnTo()),
+
+    resolveReturnTo: () =>
+      store.returnToReady.then(() => safeStoredReturnTo(store.returnTo())),
 
     async continueAnonymously() {
       const res = await fetchImpl(`${apiBase}/v1/principals/provisional`, {

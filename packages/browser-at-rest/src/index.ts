@@ -8,6 +8,7 @@ export {
   useClientAtRestKeys,
 } from "./seal.js";
 export {
+  type SealedPlacement,
   type SealedStorage,
   type StorageLike,
   sealedStorage,

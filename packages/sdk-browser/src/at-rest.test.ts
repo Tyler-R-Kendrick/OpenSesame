@@ -72,12 +72,39 @@ describe("the browser client at rest", () => {
     expect(next.getReturnTo()).toBe("/after");
   });
 
-  it("keeps nothing in the RP's storage when the origin can keep no key", async () => {
+  it("refuses to sign in when the origin can keep no key, storing nothing", async () => {
     useClientAtRestKeys(() => Promise.reject(new Error("no IndexedDB")));
     const storage = memory();
-    const { sesame } = client(storage);
-    await sesame.signIn({ returnTo: "/after" });
+    const { sesame, assign } = client(storage);
+    await expect(sesame.signIn({ returnTo: "/after" })).rejects.toThrow(
+      /no storage key/,
+    );
+    expect(assign).not.toHaveBeenCalled();
     expect(storage.map.size).toBe(0);
-    expect(sesame.getReturnTo()).toBe("/after");
+  });
+
+  it("lets only one of two racing callbacks spend the verifier", async () => {
+    const storage = memory();
+    const { sesame, assign } = client(storage);
+    await sesame.signIn();
+    const state = new URL(assign.mock.calls[0]?.[0]).searchParams.get("state");
+    const callback = `https://rp.example/callback?code=c&state=${state}`;
+    const next = client(storage).sesame;
+    const [one, two] = await Promise.allSettled([
+      next.handleRedirectCallback(callback),
+      next.handleRedirectCallback(callback),
+    ]);
+    const missing = [one, two].filter(
+      (r) =>
+        r.status === "rejected" &&
+        /Missing authorization/.test(String(r.reason)),
+    );
+    expect(missing).toHaveLength(1);
+  });
+
+  it("resolves the return path without a callback", async () => {
+    const storage = memory();
+    await client(storage).sesame.signIn({ returnTo: "/after" });
+    expect(await client(storage).sesame.resolveReturnTo()).toBe("/after");
   });
 });

@@ -74,6 +74,13 @@ export type SessionStore = {
   returnTo(): string | null;
   returnToReady: Promise<void>;
   setReturnTo(value: string | null): Promise<void>;
+  /**
+   * Keep the PKCE transaction for the page after the redirect. It must reach
+   * storage sealed (ADR 0148): an origin that can keep no key cannot sign in.
+   */
+  savePkce(value: string): Promise<void>;
+  /** Take the PKCE transaction: gone from storage before this returns. */
+  takePkce(): Promise<string | null>;
 };
 
 export function createSessionStore(storage?: StorageLike): SessionStore {
@@ -115,6 +122,14 @@ export function createSessionStore(storage?: StorageLike): SessionStore {
     },
     returnTo: () => returnTo,
     returnToReady,
+    async savePkce(value) {
+      if ((await sealed.set(PKCE_KEY, value)) === "stored") return;
+      sealed.remove(PKCE_KEY);
+      throw new Error(
+        "This browser keeps no storage key; sign-in cannot resume",
+      );
+    },
+    takePkce: () => sealed.take(PKCE_KEY),
     async setReturnTo(value) {
       returnToSet = true;
       returnTo = value;

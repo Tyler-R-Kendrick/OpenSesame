@@ -6,8 +6,13 @@
  * asynchronous.
  *
  * Where no key can be kept, values are held in memory for the life of the
- * document: nothing is written in the clear. A value an older release left
- * in the clear is read as it is and sealed where it lies.
+ * document: nothing is written in the clear. `set` says which happened, so a
+ * value that must survive a navigation can be refused rather than lost. A
+ * value an older release left in the clear is read as it is and sealed where
+ * it lies.
+ *
+ * Writes land in the order they were asked for: a `remove` or a later `set`
+ * cancels a seal still in flight, so a removed value never comes back.
  */
 
 import { isSealedForRest, openFromRest, sealForRest } from "./seal.js";
@@ -19,10 +24,19 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
+/** Where a `set` left its value. */
+export type SealedPlacement = "stored" | "memory";
+
 export interface SealedStorage {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string): Promise<void>;
+  set(key: string, value: string): Promise<SealedPlacement>;
   remove(key: string): void;
+  /**
+   * Read and remove in one step: the value leaves the store before this
+   * returns, so two callers racing for a one-time value (a PKCE verifier)
+   * cannot both have it.
+   */
+  take(key: string): Promise<string | null>;
 }
 
 export function sealedStorage(
@@ -30,32 +44,58 @@ export function sealedStorage(
   scope: string,
 ): SealedStorage {
   const held = new Map<string, string>();
-  async function write(key: string, value: string): Promise<void> {
+  /** Bumped by every write; a seal lands only if no newer write came since. */
+  const version = new Map<string, number>();
+  const bump = (key: string) => {
+    const next = (version.get(key) ?? 0) + 1;
+    version.set(key, next);
+    return next;
+  };
+
+  async function write(key: string, value: string): Promise<SealedPlacement> {
+    const mine = bump(key);
     const sealed = await sealForRest(scope, key, value);
+    if (version.get(key) !== mine) return sealed === null ? "memory" : "stored";
     if (sealed === null) {
       held.set(key, value);
       storage.removeItem(key);
-      return;
+      return "memory";
     }
     held.delete(key);
     storage.setItem(key, sealed);
+    return "stored";
   }
+
+  function open(key: string, raw: string | null): Promise<string | null> {
+    if (raw === null) return Promise.resolve(null);
+    if (!isSealedForRest(raw)) return Promise.resolve(raw);
+    return openFromRest(scope, key, raw);
+  }
+
   return {
     async get(key) {
       const kept = held.get(key);
       if (kept !== undefined) return kept;
       const raw = storage.getItem(key);
-      if (raw === null) return null;
-      if (!isSealedForRest(raw)) {
+      if (raw !== null && !isSealedForRest(raw)) {
         await write(key, raw);
         return raw;
       }
-      return openFromRest(scope, key, raw);
+      return open(key, raw);
     },
     set: write,
     remove(key) {
+      bump(key);
       held.delete(key);
       storage.removeItem(key);
+    },
+    take(key) {
+      bump(key);
+      const kept = held.get(key);
+      const raw = storage.getItem(key);
+      held.delete(key);
+      storage.removeItem(key);
+      return kept !== undefined ? Promise.resolve(kept) : open(key, raw);
     },
   };
 }

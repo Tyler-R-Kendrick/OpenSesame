@@ -54,10 +54,16 @@ export function createHostedClient(
   const sealed = sealedStorage(storage, "static-auth");
   async function begin() {
     const pkce = await createPkcePair();
-    await sealed.set(
+    const kept = await sealed.set(
       storageKey,
       JSON.stringify({ ...pkce, createdAt: Date.now(), profile }),
     );
+    // The transaction must outlive the redirect and never rests in the
+    // clear (ADR 0148): an origin that can keep no key cannot sign in.
+    if (kept !== "stored") {
+      sealed.remove(storageKey);
+      throw new Error("storage_unavailable");
+    }
     const url = new URL(profile.authorizationEndpoint);
     url.search = new URLSearchParams({
       client_id: profile.clientId,
@@ -87,10 +93,11 @@ async function completeHosted(
   const callback = new URL(browser.location.href);
   if (!callback.searchParams.has("code") && !callback.searchParams.has("error"))
     return null;
-  const raw = await sealed.get(storageKey);
-  sealed.remove(storageKey);
+  // Taken before anything is awaited: one transaction, one callback.
+  const taken = sealed.take(storageKey);
   // Strip credential-bearing callback material even on a rejected response.
   browser.history.replaceState(null, "", profile.redirectUri);
+  const raw = await taken;
   if (
     !raw ||
     raw.length > 8192 ||

@@ -1,3 +1,4 @@
+import { useClientAtRestKeys } from "@opensesame/browser-at-rest";
 import { overlapCast } from "@opensesame/os-domain";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,11 @@ import {
 } from "./passthrough.js";
 import { fetchJson, isLoopbackOrigin } from "./transport.js";
 
+const suiteKey = crypto.subtle.generateKey(
+  { name: "AES-GCM", length: 256 },
+  false,
+  ["encrypt", "decrypt"],
+);
 const loopback: LoopbackProfile = {
   profile: "pages_passthrough_loopback",
   brokerBase: "https://broker.example/",
@@ -204,6 +210,19 @@ describe("hosted code flow", () => {
       client: createHostedClient(hosted, overlapCast(stub)),
     };
   }
+  it("refuses to begin when the origin can keep no key, storing nothing", async () => {
+    const { stub, map } = browser();
+    useClientAtRestKeys(() => Promise.reject(new Error("no IndexedDB")));
+    try {
+      await expect(
+        createHostedClient(hosted, overlapCast(stub)).begin(),
+      ).rejects.toThrow("storage_unavailable");
+      expect(stub.location.assign).not.toHaveBeenCalled();
+      expect(map.size).toBe(0);
+    } finally {
+      useClientAtRestKeys(() => suiteKey);
+    }
+  });
   it("keeps the transaction sealed at rest, and opens it after the redirect", async () => {
     const { stub, map } = browser();
     await createHostedClient(hosted, overlapCast(stub)).begin();
