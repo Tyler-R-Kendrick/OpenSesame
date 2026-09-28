@@ -28,14 +28,21 @@ import { noteGuideConnectionsPresent } from "@opensesame/app-core/tutorial/regis
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
+import { ConnectorImport, ImportKey } from "./connections/ConnectorImport.js";
+import {
+  ImportedGroup,
+  useImportedDirectory,
+} from "./connections/ImportedConnectors.js";
 import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
+import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
 import "./connections.css";
 
 import { useIdentitySession } from "../bindings/identity.js";
 import { useVercelConnectConfigured } from "../bindings/vercel-connect.js";
 import { useHashTarget } from "../lib/hash-target.js";
+import { useVault } from "../lib/vault/hooks.js";
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash, search } = useLocation();
@@ -44,6 +51,10 @@ export function ConnectionsSection() {
   // embedded and stays browsable with no backend at all (ADR 0090).
   const connectConfigured = useVercelConnectConfigured();
   const session = useIdentitySession();
+  const { tomb } = useVault();
+  const imported = useImportedDirectory(tomb);
+  const transport = useConnectTransport();
+  const [importing, setImporting] = useState(false);
 
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
@@ -136,9 +147,11 @@ export function ConnectionsSection() {
     void loadCatalog();
   }, [loadCatalog, session, providerId]);
 
+  // A Vercel Connect credential sealed (or forgotten) changes what is listed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: held is the retry trigger.
   useEffect(() => {
     void loadConnections();
-  }, [loadConnections]);
+  }, [loadConnections, transport.held]);
 
   if (providerId) {
     const provider = providers?.find((item) => item.id === providerId) ?? null;
@@ -253,6 +266,37 @@ export function ConnectionsSection() {
         providers={providers ?? []}
         loading={loading}
         setupRequired={loadError?.setupRequired === true}
+        tools={
+          <ImportKey
+            open={importing}
+            onToggle={() => setImporting((value) => !value)}
+          />
+        }
+        sheet={
+          importing ? (
+            <ConnectorImport
+              tomb={tomb}
+              onFlash={setFlash}
+              onImported={() => {
+                void imported.reload();
+                void loadConnections();
+              }}
+              onClose={() => {
+                setImporting(false);
+                document.getElementById("connectors-import")?.focus();
+              }}
+            />
+          ) : null
+        }
+        imported={
+          imported.record ? (
+            <ImportedGroup
+              record={imported.record}
+              busy={imported.busy}
+              onResync={() => void imported.resync(setFlash)}
+            />
+          ) : null
+        }
       />
 
       <CatalogPanel providers={providers} connections={connections ?? []} />

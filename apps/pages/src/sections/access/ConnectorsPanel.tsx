@@ -1,140 +1,153 @@
 /**
- * Access › Connectors — the connectors this device knows, and who is bound
- * to each (ADR 0115).
+ * Access › Connectors — who may use which connector (ADR 0115).
  *
- * The rows are the connectors configured on the Connections page and, when
- * one is synced, a Nango-compatible directory's; a directory line names where
- * that list came from and when. Every connector is a terse row with its
- * bindings listed under it (see `ConnectorRows.tsx`). Bind opens one form
- * under one row; Configure opens that connector's sealed settings; Revoke
- * asks nothing twice — a binding is time-boxed already, and the ledger
- * records the revocation. No Host is needed for any of it: the directory is
- * sealed in this vault, and the bindings are local share grants.
+ * The panel lists access, not connectors: each connector someone holds a
+ * grant on, with those grants beneath it. Add opens the connectors this
+ * device knows — configured on the Connections page, or imported there from a
+ * directory — to choose the one a new grant is made on; a connector nobody has
+ * configured yet is made on Connections, where the last choice leads. Revoke
+ * asks nothing twice — a grant is time-boxed already, and the ledger records
+ * the revocation. No Host is needed for any of it: the grants are local share
+ * grants of kind `connection`.
  */
 
-import {
-  type ConnectorDirectory,
-  directoryOriginLabel,
-} from "@opensesame/app-core/lib/connector-directory.js";
 import { useState } from "react";
-import { ConnectorDirectoryForm } from "../../components/ConnectorDirectoryForm.js";
-import {
-  IconConnection,
-  IconDownload,
-  IconEdit,
-  IconRefresh,
-} from "../../components/Icons.js";
+import { IconPlus, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
+import { ConnectorPicker } from "./ConnectorPicker.js";
 import { ConnectorRows, bindButtonId } from "./ConnectorRows.js";
-import { formatTime } from "./format.js";
-import { useConnectorDirectory } from "./useConnectorDirectory.js";
+import {
+  type BindInput,
+  type ConnectorRow,
+  useConnectorAccess,
+} from "./useConnectorAccess.js";
 
-function ConnectorCommands({
+/** The one key in the head: Add, or Close while the choices are open. */
+function AddKey({
+  adding,
   busy,
-  canSync,
-  editing,
-  onSync,
-  onEdit,
-  onReload,
+  onToggle,
 }: {
+  adding: boolean;
   busy: boolean;
-  canSync: boolean;
-  editing: boolean;
-  onSync: () => void;
-  onEdit: () => void;
-  onReload: () => void;
+  onToggle: () => void;
 }) {
+  const label = adding ? "Close" : "Add connector access";
   return (
-    <fieldset className="vtree__keys" aria-label="Connector commands">
-      <button
-        type="button"
-        className="icon-btn icon-btn--sm"
-        aria-label="Sync the directory"
-        title="Sync the directory"
-        disabled={busy || !canSync}
-        onClick={onSync}
-      >
-        <IconDownload size={15} />
-      </button>
-      <button
-        type="button"
-        className={`icon-btn icon-btn--sm${editing ? " is-on" : ""}`}
-        aria-label="Edit the directory"
-        title="Edit the directory"
-        aria-pressed={editing}
-        disabled={busy}
-        onClick={onEdit}
-      >
-        <IconEdit size={15} />
-      </button>
-      <button
-        type="button"
-        className="icon-btn icon-btn--sm"
-        aria-label="Reload connectors"
-        title="Reload connectors"
-        disabled={busy}
-        onClick={onReload}
-      >
-        <IconRefresh size={15} />
-      </button>
-    </fieldset>
+    <button
+      id="connector-access-add"
+      type="button"
+      className="icon-btn icon-btn--sm"
+      aria-label={label}
+      title={label}
+      aria-expanded={adding}
+      disabled={busy}
+      onClick={onToggle}
+    >
+      {adding ? <IconX size={16} /> : <IconPlus size={16} />}
+    </button>
   );
 }
 
-/** Where the list came from and when — one mono line above the rows. */
-function DirectoryLine({ directory }: { directory: ConnectorDirectory }) {
-  const count = directory.connections.length;
-  return (
-    <p className="access-directory">
-      <IconConnection size={15} />
-      <span>
-        {directoryOriginLabel(directory.endpoint)} · {count}{" "}
-        {count === 1 ? "connector" : "connectors"} · synced{" "}
-        {formatTime(directory.syncedAt)}
-      </span>
-    </p>
-  );
-}
+type Access = ReturnType<typeof useConnectorAccess>;
 
-/** What the panel draws, from what it has read. */
-function panelView(
-  state: ReturnType<typeof useConnectorDirectory>,
-  editing: boolean,
-) {
-  const hasRows = state.rows.length > 0;
+/** Which form is open — the choices, a row's Bind, or a row's Configure —
+    and where the keyboard goes when one closes. */
+function useAccessForms(state: Access) {
+  const [adding, setAdding] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [bindingRow, setBindingRow] = useState<string | null>(null);
+  const [settingsRow, setSettingsRow] = useState<string | null>(null);
+  const focusAfter = useFocusAfter(state.busy);
+
+  function closePicker() {
+    setAdding(false);
+    setChosen(null);
+    focusAfter(byId("connector-access-add"));
+  }
+
   return {
-    // Sync, edit and reload act on the rows. Before there are any the form
-    // below is the only thing to do, and three dead keys above it read as a
-    // second, broken way to do it.
-    showCommands: Boolean(state.directory) || hasRows,
-    // The directory form is the first thing only when there is nothing to
-    // bind: connectors from Connections need no directory to be bound.
-    showForm: editing || (state.loaded && !state.directory && !hasRows),
-    directoryEmpty: state.loaded && Boolean(state.directory) && !hasRows,
-    mixedSources:
-      state.rows.some((row) => row.source === "connections") &&
-      state.rows.some((row) => row.source === "directory"),
+    adding,
+    chosen,
+    bindingRow,
+    settingsRow,
+    setChosen,
+    closePicker,
+    togglePicker() {
+      if (adding) return closePicker();
+      setBindingRow(null);
+      setSettingsRow(null);
+      setAdding(true);
+    },
+    grantFromPicker(row: ConnectorRow, input: BindInput) {
+      void state.bind(row, input).then((done) => {
+        if (!done) return;
+        setAdding(false);
+        setChosen(null);
+        // The connector is in the access list now; the keyboard follows it.
+        focusAfter(byId(bindButtonId(row.id)));
+      });
+    },
+    openBind(row: ConnectorRow) {
+      setSettingsRow(null);
+      setBindingRow(row.id);
+    },
+    closeBind() {
+      const rowId = bindingRow;
+      setBindingRow(null);
+      // The row's Bind steps aside while the form is open, so the button that
+      // opened it is gone by now; its replacement is where the keyboard lands.
+      if (rowId) focusAfter(byId(bindButtonId(rowId)));
+    },
+    openSettings(row: ConnectorRow) {
+      setBindingRow(null);
+      setSettingsRow(row.id);
+    },
+    closeSettings: () => setSettingsRow(null),
   };
 }
 
+/** The connectors someone holds access to, each with its grants. */
+function GrantedRows({
+  state,
+  forms,
+}: {
+  state: Access;
+  forms: ReturnType<typeof useAccessForms>;
+}) {
+  const mixedSources =
+    state.granted.some((row) => row.source === "connections") &&
+    state.granted.some((row) => row.source === "directory");
+  return (
+    <ConnectorRows
+      state={state}
+      rows={state.granted}
+      mixedSources={mixedSources}
+      bindingRow={forms.bindingRow}
+      settingsRow={forms.settingsRow}
+      onOpenBind={forms.openBind}
+      onCloseBind={forms.closeBind}
+      onBind={(row, input) =>
+        void state.bind(row, input).then((done) => {
+          if (done) forms.closeBind();
+        })
+      }
+      onOpenSettings={forms.openSettings}
+      onCloseSettings={forms.closeSettings}
+      onSaveSetting={(row, setting) =>
+        void state.saveSetting(row, setting).then((done) => {
+          if (done) forms.closeSettings();
+        })
+      }
+      onRevoke={(share) => void state.revoke(share)}
+    />
+  );
+}
+
 export function ConnectorsPanel({ tomb }: { tomb: string }) {
-  const state = useConnectorDirectory(tomb);
-  const [editing, setEditing] = useState(false);
-  const [bindingRow, setBindingRow] = useState<string | null>(null);
-  const [settingsRow, setSettingsRow] = useState<string | null>(null);
-  const view = panelView(state, editing);
-
-  const focusAfter = useFocusAfter(state.busy);
-
-  function closeBind() {
-    const rowId = bindingRow;
-    setBindingRow(null);
-    // The row's Bind steps aside while the form is open, so the button that
-    // opened it is gone by now; its replacement is where the keyboard lands.
-    if (rowId) focusAfter(byId(bindButtonId(rowId)));
-  }
-
+  const state = useConnectorAccess(tomb);
+  const forms = useAccessForms(state);
   return (
     <section
       className="panel"
@@ -144,16 +157,13 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
     >
       <div className="panel__head">
         <h2>Connectors</h2>
-        {view.showCommands ? (
-          <ConnectorCommands
+        <fieldset className="vtree__keys" aria-label="Connector commands">
+          <AddKey
+            adding={forms.adding}
             busy={state.busy}
-            canSync={Boolean(state.directory)}
-            editing={editing}
-            onSync={() => void state.sync()}
-            onEdit={() => setEditing((value) => !value)}
-            onReload={() => void state.reload()}
+            onToggle={forms.togglePicker}
           />
-        ) : null}
+        </fieldset>
       </div>
       <div className="panel__body">
         {state.error ? (
@@ -161,51 +171,27 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
             {state.error}
           </p>
         ) : null}
-        {state.directory ? <DirectoryLine directory={state.directory} /> : null}
         <StatusNote
           message={state.message ? { tone: "ok", text: state.message } : null}
         />
-        {view.showForm ? (
-          <ConnectorDirectoryForm
-            tomb={tomb}
-            terse
-            initialKey={state.directory?.key ?? ""}
-            onSynced={() => {
-              setEditing(false);
-              void state.reload();
-            }}
+        {forms.adding ? (
+          <ConnectorPicker
+            rows={state.rows}
+            settingsFor={state.settingsFor}
+            identities={state.identities}
+            busy={state.busy}
+            chosen={forms.chosen}
+            onChoose={(row) => forms.setChosen(row?.id ?? null)}
+            onBind={forms.grantFromPicker}
+            onClose={forms.closePicker}
           />
         ) : null}
-        {view.directoryEmpty ? (
-          <p>No connectors yet — the directory holds none.</p>
+        {!forms.adding && state.loaded && state.granted.length === 0 ? (
+          <div className="empty">
+            <h3>No connector access</h3>
+          </div>
         ) : null}
-        <ConnectorRows
-          state={state}
-          mixedSources={view.mixedSources}
-          bindingRow={bindingRow}
-          settingsRow={settingsRow}
-          onOpenBind={(row) => {
-            setSettingsRow(null);
-            setBindingRow(row.id);
-          }}
-          onCloseBind={closeBind}
-          onBind={(row, input) =>
-            void state.bind(row, input).then((done) => {
-              if (done) closeBind();
-            })
-          }
-          onOpenSettings={(row) => {
-            setBindingRow(null);
-            setSettingsRow(row.id);
-          }}
-          onCloseSettings={() => setSettingsRow(null)}
-          onSaveSetting={(row, setting) =>
-            void state.saveSetting(row, setting).then((done) => {
-              if (done) setSettingsRow(null);
-            })
-          }
-          onRevoke={(share) => void state.revoke(share)}
-        />
+        <GrantedRows state={state} forms={forms} />
       </div>
     </section>
   );

@@ -72,13 +72,20 @@ function mount(tomb: string) {
   );
 }
 
-it("lists the connectors the Connections page configured, with no directory and no Host", async () => {
+it("lists a Connections-page connector someone holds, and links back to it", async () => {
   const fixture = await localRequestFixture();
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "host:scn_slack",
+    resourceLabel: "Slack",
+    policy: "use",
+    durationSeconds: 3600,
+  });
   mount(fixture.tomb);
   await screen.findByRole("heading", { name: "Slack" });
-  // Connections-page connectors need no directory, so its form stays shut.
   expect(screen.queryByLabelText("Directory endpoint")).toBeNull();
-  const scoped = within(screen.getByRole("listitem"));
+  const scoped = within(screen.getByRole("list", { name: "Connector access" }));
   expect(scoped.getByRole("button", { name: "Configure" })).toBeTruthy();
   expect(
     scoped
@@ -87,15 +94,16 @@ it("lists the connectors the Connections page configured, with no directory and 
   ).toBe("/connections/slack/scn_slack");
 });
 
-it("binds a Connections-page connector on the one share ledger", async () => {
+it("grants a Connections-page connector from Add, on the one share ledger", async () => {
   const fixture = await localRequestFixture();
   mount(fixture.tomb);
-  await screen.findByRole("heading", { name: "Slack" });
-  const row = within(screen.getByRole("listitem"));
-  await userEvent.click(row.getByRole("button", { name: "Bind" }));
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: /Slack/ }));
   const form = screen.getByRole("group", { name: /^Bind Slack/ });
   await userEvent.click(within(form).getByRole("button", { name: "Bind" }));
-  await waitFor(() => expect(row.getByText("1 bound")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("1 bound")).toBeTruthy());
   const shares = await listLocalShares(fixture.tomb);
   expect(shares).toHaveLength(1);
   expect(shares[0]?.resourceKind).toBe("connection");
@@ -122,6 +130,6 @@ it("lists a provider-wide grant on the connection it covers, and revokes it ther
   expect(bound.getByText("all Slack")).toBeTruthy();
   expect(screen.getByText("1 bound")).toBeTruthy();
   await userEvent.click(bound.getByRole("button", { name: "Revoke" }));
-  await waitFor(() => expect(screen.getByText("0 bound")).toBeTruthy());
+  await screen.findByRole("heading", { name: "No connector access" });
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });

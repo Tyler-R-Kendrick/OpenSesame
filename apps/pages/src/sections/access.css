@@ -267,30 +267,6 @@
 /* --- connectors (ADR 0115) ------------------------------------------------- */
 
 /* Where the list came from and when: one mono line above the rows. */
-.access-directory {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-}
-
-.access-directory svg {
-  flex: none;
-  color: var(--ink-3);
-}
-
-.access-directory span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .access-connector__chips {
   display: inline-flex;
   flex-wrap: wrap;
@@ -321,12 +297,6 @@
     grid-row: 1;
     grid-column: 3;
     margin-left: 0;
-  }
-
-  /* Wrap rather than lose the time behind an ellipsis. */
-  .access-directory span {
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 }
 
@@ -398,4 +368,32 @@
 
 .access-policy > :is(h3, p) {
   margin: 0;
+}
+
+/* Add connector access: the connectors a grant can be made on, as tiles. */
+.access-pick {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 0.75rem;
+  border: 0;
+}
+
+.access-pick .conn-grid {
+  margin: 0;
+}
+
+.access-pick__choice[aria-pressed="true"] {
+  border-color: var(--ink);
+}
+
+.access-pick__plus {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px dashed var(--line);
+  color: var(--ink-2);
 }

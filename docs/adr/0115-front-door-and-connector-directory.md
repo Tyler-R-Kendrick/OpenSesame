@@ -141,3 +141,35 @@ the words; the gate targets moved to `setup-catalog.ts` and their goals to
   are tightened.
 - The Nango stance in `docs/research/competitors/nango.md` is unchanged: adjacent,
   studied, and now read from — never depended on.
+
+## Amendment 2026-09-28 — Access lists access; Connections imports
+
+§3 put two jobs on one page: pulling connectors in from a directory, and
+deciding who may use them. Access › Connectors opened on the directory's
+endpoint and key whenever nothing was bound yet, so the PAM page read as an
+import form, and the Connections page — where connectors are configured —
+had no way to bring in a set of them. The jobs are now on the pages they
+belong to:
+
+- **Connections imports.** The Connected panel's head carries one key,
+  *Import connectors*, that opens the sources: a **Nango-compatible
+  directory** (the same `ConnectorDirectoryForm`, endpoint and environment
+  key, the same three homes) and **Vercel Connect** (the team's credential,
+  sealed as a connector's own page seals it — `ConnectTransportForm`).
+  Directory connectors are listed under Connected as their own group, which
+  names where they came from and when, with one key that imports again with
+  the sealed key. Vercel Connect connectors join the Connected list itself.
+- **Access › Connectors lists access, not connectors.** Each row is a
+  connector someone holds a grant on, with those grants beneath it (Bind one
+  more, Configure, Revoke; provider-wide grants as before). *Add connector
+  access* opens the connectors this device knows — configured or imported on
+  Connections — as tiles; choosing one opens the bind form under them. A
+  connector nobody has configured yet is not made here: the last tile, *New
+  connector*, leads into the Connections catalog, whose ceremony configures
+  one. The page never asks for an endpoint, a key or a sync.
+
+Unchanged: a grant is a local share of kind `connection`; the directory is
+read by its two listing routes and nothing else; the setup ceremony's
+connectors tab still offers the directory before any vault exists; the
+capability registry entries (`connectors.directory.sync`, `connectors.bind`)
+name library operations, not pages, and stand.

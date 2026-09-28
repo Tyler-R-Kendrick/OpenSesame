@@ -1,14 +1,16 @@
 /**
  * Everything Access › Connectors reads and changes (ADR 0115).
  *
- * The rows are two lists made one: the connections a Nango-compatible
- * directory holds (sealed in this tomb) and the connectors configured on the
- * Connections page — the same `listConnections()` that page reads, whether
- * they live on Vercel Connect, a Host, or this device. Connectors are
- * configured there; who may use them is decided here. A binding is a local share grant of kind
- * `connection` — the same ledger Identity shares use — so the PAM question
- * "who may use which connector, under which policy, until when" has one
- * answer wherever it is asked.
+ * Access › Connectors answers one question: who may use which connector,
+ * under which policy, until when. The connectors themselves are configured —
+ * or imported from a Nango-compatible directory or Vercel Connect — on the
+ * Connections page; here they are only what a grant is made on. A grant is a
+ * local share of kind `connection`, the same ledger Identity shares use, so
+ * the PAM question has one answer wherever it is asked.
+ *
+ * `rows` is every connector a grant can be made on: the Connections page's
+ * `listConnections()` and the directory list it imported. `granted` is the
+ * subset someone holds access to — what the panel lists.
  */
 
 import {
@@ -20,8 +22,6 @@ import {
   connectorResourceId,
   connectorResourceLabel,
   readConnectorDirectory,
-  readDirectoryEndpoint,
-  syncConnectorDirectory,
 } from "@opensesame/app-core/lib/connector-directory.js";
 import {
   type ConnectorSetting,
@@ -50,8 +50,8 @@ export type ConnectorRow = Readonly<{
   name: string;
   /** `integration · connection id`, or the connection's reference. */
   detail: string;
-  /** Where the connector is configured: the synced directory, or the
-      Connections page. */
+  /** Where the connector came from: imported from a directory, or
+      configured on the Connections page. */
   source: "directory" | "connections";
   /** The connector's own page on Connections, for a Connections row. */
   href: string | null;
@@ -188,7 +188,7 @@ function useConnectorReads(tomb: string) {
   return { loaded, error, setError, reload, alive };
 }
 
-export function useConnectorDirectory(tomb: string) {
+export function useConnectorAccess(tomb: string) {
   const reads = useConnectorReads(tomb);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -221,11 +221,17 @@ export function useConnectorDirectory(tomb: string) {
     () => [...directoryRows(directory), ...connectionRows(connections)],
     [directory, connections],
   );
+  // This connection's own bindings, then the provider-wide grants that
+  // cover it (the standing grants, keyed by provider id).
+  const bindingsFor = (row: ConnectorRow) =>
+    shares.filter(
+      (share) =>
+        share.resourceId === row.id || share.resourceId === row.providerId,
+    );
 
   return {
-    directory,
-    endpoint: directory?.endpoint ?? readDirectoryEndpoint(),
     rows,
+    granted: rows.filter((row) => bindingsFor(row).length > 0),
     settings: reads.loaded?.settings ?? {},
     settingsFor: (row: ConnectorRow) =>
       settingFor(reads.loaded?.settings ?? {}, row.id),
@@ -235,13 +241,7 @@ export function useConnectorDirectory(tomb: string) {
     error: reads.error,
     message,
     reload: reads.reload,
-    // This connection's own bindings, then the provider-wide grants that
-    // cover it (the standing grants, keyed by provider id).
-    bindingsFor: (row: ConnectorRow) =>
-      shares.filter(
-        (share) =>
-          share.resourceId === row.id || share.resourceId === row.providerId,
-      ),
+    bindingsFor,
     bind: (row: ConnectorRow, input: BindInput) =>
       run(async () => {
         await createLocalShare(tomb, {
@@ -263,16 +263,6 @@ export function useConnectorDirectory(tomb: string) {
       run(async () => {
         await writeConnectorSetting(tomb, row.id, setting);
         return `${row.name} configured.`;
-      }),
-    sync: (key?: string) =>
-      run(async () => {
-        const record = await syncConnectorDirectory({
-          endpoint: directory?.endpoint ?? readDirectoryEndpoint(),
-          key: key ?? directory?.key ?? "",
-          tomb,
-        });
-        const count = record.connections.length;
-        return `${count} ${count === 1 ? "connector" : "connectors"} synced.`;
       }),
   };
 }
