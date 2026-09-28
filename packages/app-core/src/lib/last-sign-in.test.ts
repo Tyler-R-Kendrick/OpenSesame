@@ -8,6 +8,7 @@ import {
   readLastSignIn,
   rememberLastSignIn,
 } from "./last-sign-in.js";
+import { localStore } from "../ports.js";
 
 /** Node 22 shadows Storage with an unavailable experimental global. */
 function ensureLocalStorage(): void {
@@ -53,7 +54,7 @@ describe("canonicalSignInMethod", () => {
 describe("rememberLastSignIn", () => {
   it("persists the canonical id and survives a later read", () => {
     rememberLastSignIn("broker:github");
-    expect(localStorage.getItem(LAST_SIGN_IN_KEY)).toBe("github");
+    expect(localStore().getItem(LAST_SIGN_IN_KEY)).toBe("github");
     expect(readLastSignIn()).toBe("github");
   });
 

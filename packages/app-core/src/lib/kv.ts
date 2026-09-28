@@ -1,9 +1,18 @@
 import { originFiles } from "../ports.js";
+import {
+  openOriginFile,
+  sealOriginFile,
+  sealedFileBound,
+} from "./at-rest/origin-files.js";
+import { atRestReady, atRestSettled } from "./at-rest/key.js";
 import { haltedWriteError, storageWritesHalted } from "./storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
 /**
  * Same-origin KV with OPFS primary + in-memory fallback.
  * Never uses localStorage/sessionStorage (XSS-exfiltrable; banned by ast-grep).
+ * Every file's content is sealed under the device's at-rest key, bound to
+ * its file name (`at-rest/origin-files.ts`, ADR 0148); with no durable key
+ * nothing is written to a file at all.
  *
  * This is the flat transport layer. The encrypted VFS (`lib/vfs.ts`,
  * ADR 0063) builds the tomb namespace on top: every vault is a tomb
@@ -28,6 +37,8 @@ let durability: KvDurability = "unknown";
  * than let a successful write imply it was saved.
  */
 export function kvDurability(): KvDurability {
+  // A key that dies with this document makes every file write pointless.
+  if (atRestSettled()?.durable === false) return "memory";
   return durability;
 }
 
@@ -102,20 +113,26 @@ async function opfsRead(key: string): Promise<string | null> {
   try {
     const root = await opfsRoot();
     if (!root) return null;
-    const handle = await root.getFileHandle(fileName(key));
+    const name = fileName(key);
+    const handle = await root.getFileHandle(name);
     const file = await handle.getFile();
-    return await file.text();
+    return await openOriginFile(name, await file.text());
   } catch {
     return null;
   }
 }
 
 async function opfsWriteNow(key: string, value: string): Promise<void> {
+  const atRest = await atRestReady();
+  // No durable key: memory is all there is, and nothing reaches a file.
+  if (!atRest.durable) return;
   const root = await opfsRoot(true);
   if (!root) return;
-  const handle = await root.getFileHandle(fileName(key), { create: true });
+  const name = fileName(key);
+  const sealed = sealOriginFile(atRest, name, value);
+  const handle = await root.getFileHandle(name, { create: true });
   const writable = await handle.createWritable();
-  await writable.write(value);
+  await writable.write(sealed);
   await writable.close();
 }
 
@@ -250,9 +267,13 @@ export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
       throw error;
     }
     const file = await handle.getFile();
-    if (file.size > maxBytes)
+    if (file.size > sealedFileBound(maxBytes))
       throw new Error("Storage record exceeds read limit");
-    memory.set(key, await file.text());
+    const value = await openOriginFile(fileName(key), await file.text());
+    if (value === null) throw new Error("Storage record does not open");
+    if (new TextEncoder().encode(value).length > maxBytes)
+      throw new Error("Storage record exceeds read limit");
+    memory.set(key, value);
   } catch (error) {
     // No later sync reader may consume an authority snapshot we failed to refresh.
     memory.delete(key);

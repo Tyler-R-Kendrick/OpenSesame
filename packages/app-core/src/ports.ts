@@ -15,6 +15,7 @@
  * erased at build time and load nothing on a host without a DOM.
  */
 import { host } from "./host.js";
+import { sealedWebStorage } from "./lib/at-rest/web-storage.js";
 import { storageWritesHalted } from "./lib/storage-halt.js";
 import { type WebStorageArea, ownsDatabase } from "./lib/storage-ownership.js";
 
@@ -105,6 +106,18 @@ export type BroadcastLike = Pick<
 > & { onmessage: BroadcastChannel["onmessage"] };
 
 /**
+ * Where the host keeps the device's at-rest data key (ADR 0148): 32 bytes
+ * every stored value is sealed under. A host without one stores nothing past
+ * the process rather than store it in the clear (`lib/at-rest/key.ts`).
+ */
+export type AtRestKeyPort = {
+  /** The key, when the host can produce it without waiting (a file, a test). */
+  loadSync?(): Uint8Array;
+  /** The key, created on first use. Rejects when the host cannot keep one. */
+  load(): Promise<Uint8Array>;
+};
+
+/**
  * The dedicated-worker constructor. Callers keep the literal
  * `new Worker(new URL("./x.worker.ts", import.meta.url), …)` with `Worker`
  * bound to this, so the bundler still finds and emits the worker entry in
@@ -117,6 +130,7 @@ export type WorkerConstructor = new (
 
 export type Ports = {
   readonly storage?: StoragePorts;
+  readonly atRestKeys?: AtRestKeyPort;
   readonly page?: PagePort;
   readonly authenticator?: AuthenticatorPort;
   readonly environment?: EnvironmentPort;
@@ -142,8 +156,9 @@ function missing(port: string): Error {
 }
 
 /**
- * A store as the core writes it. Every write is reported to the host's
- * recorder, where it has one — the test hosts fail a test that writes a key
+ * A store as the core writes it. Every value is sealed under the device's
+ * at-rest key (`lib/at-rest/web-storage.ts`, ADR 0148). Every write is
+ * reported to the host's recorder, where it has one — the test hosts fail a test that writes a key
  * the app does not own (`lib/storage-ownership.ts`), so no key can silently
  * outlive "Reset this browser" — and once this browser is being reset
  * (`lib/storage-halt.ts`) a write does nothing.
@@ -153,18 +168,19 @@ function owned(
   area: WebStorageArea,
 ): WebStorage | undefined {
   if (!store) return undefined;
+  const sealed = sealedWebStorage(store, area);
   return {
     get length() {
-      return store.length;
+      return sealed.length;
     },
-    key: (index) => store.key(index),
-    getItem: (key) => store.getItem(key),
+    key: (index) => sealed.key(index),
+    getItem: (key) => sealed.getItem(key),
     setItem(key, value) {
       host().recordStorageWrite?.(area, key);
       if (storageWritesHalted()) return;
-      store.setItem(key, value);
+      sealed.setItem(key, value);
     },
-    removeItem: (key) => store.removeItem(key),
+    removeItem: (key) => sealed.removeItem(key),
   };
 }
 

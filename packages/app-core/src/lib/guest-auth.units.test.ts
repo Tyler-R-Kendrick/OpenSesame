@@ -20,6 +20,7 @@ import {
 import { IdentityError, type IdentitySession } from "./identity.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
 import { type VaultStatus, vaultStore } from "./vault/store.js";
+import { sessionStore } from "../ports.js";
 
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 
@@ -154,7 +155,7 @@ describe("adoptFederatedIdentity", () => {
       "/v1/principals/link-identities",
       expect.objectContaining({ method: "POST" }),
     );
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
     expect(outcome).toEqual({ kind: "linked" });
   });
 
@@ -181,7 +182,7 @@ describe("adoptFederatedIdentity", () => {
       kind: "link_failed",
       reason: "identity down",
     });
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBe("1");
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBe("1");
     const notice = listNotices().find((n) => n.kind === "guest_claim");
     expect(notice?.body).toContain("identity down");
   });
@@ -229,7 +230,7 @@ describe("adoptFederatedIdentity", () => {
     expect(outcome).toEqual({ kind: "pending_link" });
     expect(connectProvisional).not.toHaveBeenCalled();
     expect(identityJson).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBe("1");
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBe("1");
     expect(listNotices().find((n) => n.kind === "federated_link")).toBeTruthy();
   });
 
@@ -276,7 +277,7 @@ describe("adoptFederatedIdentity", () => {
 
     await guestAuthSeams.adoptFederatedIdentity("id-token");
 
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 });
 
@@ -334,7 +335,7 @@ describe("recoverPendingFederatedLink", () => {
 
     guestAuthSeams.recoverPendingFederatedLink();
 
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
     expect(listNotices()).toHaveLength(0);
   });
 
@@ -469,7 +470,7 @@ describe("branches the journey tests do not separate", () => {
 
     await guestAuthSeams.adoptFederatedIdentity("id-token");
 
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 
   it("links rather than defers when the vault is open but no session is held", async () => {

@@ -1,4 +1,5 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+import { openFromRest, sealForRest } from "@opensesame/client-core";
 import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
 
 type HealthResponse = {
@@ -16,10 +17,11 @@ async function loadHostInput() {
   if (!input) return;
   try {
     const stored = await chrome.storage.local.get("hostApiBase");
-    input.value =
-      isString(stored.hostApiBase) && stored.hostApiBase.trim()
-        ? stored.hostApiBase
-        : DEFAULT_HOST;
+    // Sealed at rest (ADR 0148); a value from an older build reads as it is.
+    const value = isString(stored.hostApiBase)
+      ? await openFromRest("chrome.storage.local", "hostApiBase", stored.hostApiBase)
+      : null;
+    input.value = value?.trim() ? value : DEFAULT_HOST;
   } catch {
     input.value = DEFAULT_HOST;
   }
@@ -39,7 +41,16 @@ async function saveHost() {
     return;
   }
   input.value = value;
-  await chrome.storage.local.set({ hostApiBase: value });
+  const sealed = await sealForRest("chrome.storage.local", "hostApiBase", value);
+  if (sealed === null) {
+    // Nothing is stored in the clear: with no key to seal under, not at all.
+    if (hint) {
+      hint.hidden = false;
+      hint.textContent = "This browser cannot keep the Host API setting.";
+    }
+    return;
+  }
+  await chrome.storage.local.set({ hostApiBase: sealed });
   if (hint) {
     hint.hidden = false;
     hint.textContent = "Host API saved.";

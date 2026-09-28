@@ -24,6 +24,7 @@ import {
   resetSpendingLedgerCache,
 } from "./spending-ledger.js";
 import { setWalletStorageTomb } from "./wallet-storage-scope.js";
+import { localStore } from "../ports.js";
 
 function ensureLocalStorage(): void {
   const map = new Map<string, string>();
@@ -334,7 +335,7 @@ describe("spending-leases", () => {
     });
     expect(replay).toEqual({ ok: false, reason: "assertion_replay" });
     expect(
-      localStorage.getItem("opensesame.wallet.spent-assertions.v1"),
+      localStore().getItem("opensesame.wallet.spent-assertions.v1"),
     ).toBeNull();
 
     const other = windowedIntent({ amount: "12" });
@@ -351,14 +352,16 @@ describe("spending-leases", () => {
     });
     expect(issued.ok).toBe(true);
     if (!issued.ok) return;
-    const scoped = localStorage.getItem("opensesame.wallet.leases.v1.personal");
+    // A seal is bound to its key, so the legacy record is seeded as an older
+    // build left it: in the clear, under the unsuffixed key.
+    const scoped = localStore().getItem("opensesame.wallet.leases.v1.personal");
     expect(scoped).toBeTruthy();
     localStorage.setItem("opensesame.wallet.leases.v1", scoped ?? "[]");
     localStorage.removeItem("opensesame.wallet.leases.v1.personal");
     setWalletStorageTomb("guest");
     setWalletStorageTomb("personal");
     expect(listSpendingLeases()).toHaveLength(1);
-    expect(localStorage.getItem("opensesame.wallet.leases.v1")).toBeNull();
+    expect(localStore().getItem("opensesame.wallet.leases.v1")).toBeNull();
     const reserved = issued.lease.reserveAttemptId;
     removeSpendingLease(issued.lease.id);
     expect(listSpendingLeases()).toHaveLength(0);

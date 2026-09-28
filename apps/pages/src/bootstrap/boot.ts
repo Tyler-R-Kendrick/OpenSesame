@@ -8,6 +8,9 @@
  */
 
 import { captureApprovalArrivalFromPage } from "@opensesame/app-core/lib/approvals-link.js";
+import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
+import { sealLegacyOriginFiles } from "@opensesame/app-core/lib/at-rest/origin-files.js";
+import { sealLegacyWebStorage } from "@opensesame/app-core/lib/at-rest/web-storage.js";
 import { collectRuntimeFacts } from "@opensesame/app-core/lib/capabilities/facts.js";
 import { ensureInstallationId } from "@opensesame/app-core/lib/capabilities/installation.js";
 import {
@@ -87,6 +90,13 @@ export async function bootCore(): Promise<CoreBoot> {
   // leaves the query here and is held in memory for the hand-off, never
   // fetched (ADR 0140 plan step 10).
   captureInvocationArrivalFromPage();
+  // Every stored value is sealed under the device's at-rest key (ADR 0148):
+  // wait for it, then seal whatever an older build left in the clear, before
+  // anything is read or hydrated.
+  await atRestReady();
+  sealLegacyWebStorage("local");
+  sealLegacyWebStorage("session");
+  await sealLegacyOriginFiles();
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked

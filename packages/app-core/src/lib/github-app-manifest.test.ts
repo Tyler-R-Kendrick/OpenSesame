@@ -15,6 +15,7 @@ import {
   stashPendingGithubAppSecret,
 } from "./github-app-secret.js";
 import { type VaultState, vaultStore } from "./vault/store.js";
+import { localStore, sessionStore } from "../ports.js";
 
 describe("github app redirect url", () => {
   it("uses the Vite origin on loopback so listing does not need Connect", () => {
@@ -65,7 +66,7 @@ describe("github app redirect url", () => {
     expect(registration.manifest.setup_url).toBe(
       `${returnTo}?github_app=installed`,
     );
-    expect(sessionStorage.getItem("opensesame.github-app.state")).toBe(
+    expect(sessionStore().getItem("opensesame.github-app.state")).toBe(
       registration.state,
     );
   });
@@ -249,7 +250,9 @@ describe("github app secret never rests in web storage", () => {
     expect(sealed?.kind === "secret" ? sealed.value : "").toContain(PEM);
     expect(hasPendingGithubAppSecret("4997182")).toBe(false);
     expect(
-      JSON.parse(local.getItem("opensesame.github-app.secret-item") ?? "{}"),
+      JSON.parse(
+        localStore().getItem("opensesame.github-app.secret-item") ?? "{}",
+      ),
     ).toEqual({ appId: "4997182", itemId: sealed?.id });
     expect(storedValues(local, session).join("\n")).not.toContain(
       "PRIVATE KEY",

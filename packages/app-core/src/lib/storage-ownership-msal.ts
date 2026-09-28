@@ -2,9 +2,11 @@
  * Which MSAL cache keys belong to one Entra client id — the app's claim on
  * sessionStorage entries it never writes itself.
  *
- * `@azure/msal-browser` 5.22 with `cacheLocation: "sessionStorage"`
- * (`ambient-auth/entra.ts`) writes these straight to the store, lowercased
- * where noted:
+ * `@azure/msal-browser` 5.22 keeps its token cache in memory
+ * (`cacheLocation: "memoryStorage"`, `ambient-auth/entra.ts`, ADR 0148), but
+ * its request in flight always goes to sessionStorage, and a tab that ran an
+ * older build may still hold the rest. It writes these straight to the
+ * store, lowercased where noted:
  *
  * - `msal.<clientId>.<name>` — the request in flight (`request.params`,
  *   `code.verifier`, `interaction.status`, …);

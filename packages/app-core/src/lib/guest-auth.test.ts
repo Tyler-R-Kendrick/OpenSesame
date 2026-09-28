@@ -9,6 +9,7 @@ import {
 } from "./guest-auth.js";
 import { IdentityError } from "./identity.js";
 import { clearNotices, listNotices } from "./notices.js";
+import { sessionStore } from "../ports.js";
 const connectProvisional = vi.fn();
 const identityJson = vi.fn();
 const currentSession = vi.fn();
@@ -76,7 +77,7 @@ describe("continueAsGuest", () => {
       body: "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.",
     });
     // Each Continue-as-guest mints guest-N; never a bearer.
-    const raw = sessionStorage.getItem("opensesame.guest.session-person");
+    const raw = sessionStore().getItem("opensesame.guest.session-person");
     expect(raw).toBeTruthy();
     expect(JSON.parse(raw ?? "{}").name).toMatch(/^guest-[1-9]\d*$/);
     for (let i = 0; i < sessionStorage.length; i++) {
@@ -129,7 +130,7 @@ describe("with no identity service configured (ADR 0090)", () => {
     expect(connectProvisional).not.toHaveBeenCalled();
     expect(identityJson).not.toHaveBeenCalled();
     expect(listNotices()).toHaveLength(0);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 
   it("leaves a locked vault locked and defers nothing", async () => {
@@ -140,7 +141,7 @@ describe("with no identity service configured (ADR 0090)", () => {
     });
     expect(createGuest).not.toHaveBeenCalled();
     expect(listNotices()).toHaveLength(0);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 });
 
@@ -152,7 +153,7 @@ describe("linkGuestAccount", () => {
     expect(connectProvisional).not.toHaveBeenCalled();
     // Guest principal stays; bearer still must not.
     expect(
-      sessionStorage.getItem("opensesame.guest.session-person"),
+      sessionStore().getItem("opensesame.guest.session-person"),
     ).toBeTruthy();
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
@@ -197,7 +198,7 @@ describe("adoptFederatedIdentity", () => {
       }),
     );
     expect(listNotices()).toHaveLength(0);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 
   it("attaches to the open vault without creating a second one", async () => {
@@ -224,10 +225,10 @@ describe("adoptFederatedIdentity", () => {
       title: "Finish attaching your sign-in",
     });
     // The verified assertion must survive so the link can be finished later.
-    expect(sessionStorage.getItem(FEDERATION_SESSION_KEY)).toBe(
+    expect(sessionStore().getItem(FEDERATION_SESSION_KEY)).toBe(
       '{"idToken":"kept"}',
     );
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).not.toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).not.toBeNull();
   });
 
   it("still lands the user in the app when the first-run link fails", async () => {
@@ -243,7 +244,7 @@ describe("adoptFederatedIdentity", () => {
     expect(notices).toHaveLength(1);
     expect(notices[0]).toMatchObject({ kind: "guest_claim" });
     expect(notices[0]?.body).toMatch(/Identity unreachable/);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).not.toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).not.toBeNull();
   });
 
   it("says plainly when the account belongs to another identity", async () => {
@@ -310,7 +311,7 @@ describe("recoverPendingFederatedLink", () => {
     recoverPendingFederatedLink();
 
     expect(listNotices()).toHaveLength(0);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 
   it("does not stack a second prompt on top of the one already showing", async () => {

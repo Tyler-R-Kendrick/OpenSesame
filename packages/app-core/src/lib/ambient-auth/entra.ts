@@ -76,8 +76,13 @@ async function loadMsalSdk(input: {
       authority: input.authority,
       redirectUri: input.redirectUri,
     },
+    // Tokens and account records stay in memory (ADR 0148): MSAL writes its
+    // cache straight to Web Storage, past the at-rest seal, and a cached
+    // account is only a routing hint here — every sign-in verifies a fresh
+    // ID token. MSAL still keeps the request in flight (state, PKCE
+    // verifier) in sessionStorage until the redirect completes.
     cache: {
-      cacheLocation: "sessionStorage",
+      cacheLocation: "memoryStorage",
     },
     system: {
       allowRedirectInIframe: false,

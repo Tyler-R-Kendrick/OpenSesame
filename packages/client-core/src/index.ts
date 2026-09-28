@@ -6,6 +6,16 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
+import { openFromRest, sealForRest } from "./at-rest.js";
+
+export {
+  CLIENT_AT_REST_DATABASE,
+  type ClientAtRestKeys,
+  isSealedForRest,
+  openFromRest,
+  sealForRest,
+  useClientAtRestKeys,
+} from "./at-rest.js";
 /**
  * TypeScript façade mirroring `crates/client-core` sync shapes.
  * Full AEAD: prefer Rust wasm (`wasm-bindgen` feature) when loaded; OPFS stores ciphertext only.
@@ -177,7 +187,12 @@ function sealedFileName(name: string): string {
   return `opensesame-sync-${name.replace(/[^A-Za-z0-9._-]/g, "_")}.json`;
 }
 
-/** OPFS / memory persistence of sealed sync JSON (ciphertext only). */
+/**
+ * OPFS / memory persistence of sealed sync JSON (ciphertext only). The file
+ * itself is sealed at rest too (ADR 0148), so the device id and epoch beside
+ * the ciphertext are not in the clear either; with no key to seal under, the
+ * store stays in memory.
+ */
 export async function persistSealedStore(
   name: string,
   sealedJson: string,
@@ -194,12 +209,14 @@ export async function persistSealedStore(
   }
   try {
     const root = await navigator.storage?.getDirectory?.();
-    if (root) {
-      const handle = await root.getFileHandle(sealedFileName(name), {
+    const file = sealedFileName(name);
+    const atRest = root ? await sealForRest("opfs", file, sealedJson) : null;
+    if (root && atRest !== null) {
+      const handle = await root.getFileHandle(file, {
         create: true,
       });
       const writable = await handle.createWritable();
-      await writable.write(sealedJson);
+      await writable.write(atRest);
       await writable.close();
       return;
     }
@@ -227,9 +244,11 @@ export async function loadSealedStore(name: string): Promise<string | null> {
   try {
     const root = await navigator.storage?.getDirectory?.();
     if (root) {
-      const handle = await root.getFileHandle(sealedFileName(name));
+      const fileName = sealedFileName(name);
+      const handle = await root.getFileHandle(fileName);
       const file = await handle.getFile();
-      return forThisDevice(await file.text());
+      const text = await openFromRest("opfs", fileName, await file.text());
+      return text === null ? null : forThisDevice(text);
     }
   } catch {
     /* fall through */

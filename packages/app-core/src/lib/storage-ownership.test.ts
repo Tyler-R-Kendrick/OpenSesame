@@ -26,6 +26,7 @@ import {
   resumeStorageWritesForTest,
 } from "./storage-halt.js";
 import {
+  AT_REST_DATABASE,
   HISTORY_BACKUP_DATABASE,
   ownsDatabase,
   ownsOriginFile,
@@ -67,6 +68,7 @@ describe("ownership", () => {
     );
     expect(ownsOriginFile("tomb")).toBe(false);
     expect(ownsDatabase(HISTORY_BACKUP_DATABASE)).toBe(true);
+    expect(ownsDatabase(AT_REST_DATABASE)).toBe(true);
     expect(ownsDatabase("opensesame-history-backups-2")).toBe(false);
     expect(
       ownsServiceWorkerScope("https://a.test/x/", "https://a.test/x/"),
@@ -87,8 +89,9 @@ describe("the ports hold every write to the rule", () => {
     sessionStore().setItem("opensesame:session", "{}");
     maybeLocalStore()?.setItem("opensesame.theme", "dark");
 
-    // The write goes through (a shell has no recorder); the test fails.
-    expect(local.map.get("theme")).toBe("dark");
+    // The write goes through (a shell has no recorder), sealed; the test fails.
+    expect(maybeLocalStore()?.getItem("theme")).toBe("dark");
+    expect(local.map.get("theme")).not.toBe("dark");
     expect(() => assertOwnedStorageWrites()).toThrow(
       /local:theme, session:opensesame:session/,
     );

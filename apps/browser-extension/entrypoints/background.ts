@@ -6,7 +6,13 @@ import {
   createApiClient,
   normalizeLoopbackBaseUrl,
 } from "@opensesame/api-client";
-import { createCursor, persistSealedStore } from "@opensesame/client-core";
+import {
+  createCursor,
+  isSealedForRest,
+  openFromRest,
+  persistSealedStore,
+  sealForRest,
+} from "@opensesame/client-core";
 import { ENDPOINTS, isString } from "@opensesame/os-domain";
 
 const DEFAULT_HOST = ENDPOINTS.host.default;
@@ -18,8 +24,23 @@ const DEFAULT_HOST = ENDPOINTS.host.default;
 async function resolveHostBase(): Promise<string> {
   try {
     const stored = await chrome.storage.local.get("hostApiBase");
-    const value = stored.hostApiBase;
-    if (isString(value) && value.trim()) {
+    const raw = stored.hostApiBase;
+    // Sealed at rest (ADR 0148); a value from an older build reads as it is.
+    const value = isString(raw)
+      ? await openFromRest("chrome.storage.local", "hostApiBase", raw)
+      : null;
+    if (isString(raw) && value && !isSealedForRest(raw)) {
+      // Written in the clear by an older build: seal it where it lies.
+      const sealed = await sealForRest(
+        "chrome.storage.local",
+        "hostApiBase",
+        value,
+      );
+      if (sealed !== null) {
+        await chrome.storage.local.set({ hostApiBase: sealed });
+      }
+    }
+    if (value?.trim()) {
       const normalized = normalizeLoopbackBaseUrl(value);
       if (normalized) return normalized;
     }

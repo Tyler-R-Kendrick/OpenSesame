@@ -26,6 +26,7 @@ import { federationSeams } from "./federation.js";
 import { identitySeams } from "./identity.js";
 import { attachAccount, signOut, switchAccount } from "./session-exit.js";
 import { vaultStore } from "./vault/store.js";
+import { localStore, sessionStore } from "../ports.js";
 
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 
@@ -95,13 +96,13 @@ describe("signOut", () => {
 
     expect(clearFederation).toHaveBeenCalledTimes(1);
     expect(endSession).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
     expect(readAuthOutcome()).toEqual({ kind: "signed_out" });
-    expect(localStorage.getItem("opensesame:ambient-auth:suppressed")).toBe(
+    expect(localStore().getItem("opensesame:ambient-auth:suppressed")).toBe(
       "1",
     );
     expect(
-      Number(localStorage.getItem("opensesame:ambient-auth:generation")),
+      Number(localStore().getItem("opensesame:ambient-auth:generation")),
     ).toBeGreaterThan(0);
   });
 
