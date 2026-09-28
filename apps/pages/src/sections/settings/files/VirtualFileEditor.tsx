@@ -18,7 +18,7 @@ import {
 } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 
-type Outcome = { tone: "ok" | "err"; text: string } | null;
+type Outcome = { tone: "ok" | "warn" | "err"; text: string } | null;
 
 function RemoveKeys({
   path,
@@ -169,7 +169,11 @@ export function VirtualFileEditor({
       setOutcome({ tone: "err", text: written.message });
       return;
     }
-    setOutcome({ tone: "ok", text: `Saved ${written.path}.` });
+    setOutcome({
+      tone: written.tone ?? "ok",
+      text: written.message ?? `Saved ${written.path}.`,
+    });
+    if (written.text !== undefined) setText(written.text);
     if (written.path !== file.path) onMoved(written.path);
   };
 

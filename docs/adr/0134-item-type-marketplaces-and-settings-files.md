@@ -170,8 +170,13 @@ directory new files may be created in. `itemTypeFiles`
   instance policy and the effective plan are provider files
   (`capability-files.ts`) beside the directory's `config.yaml` —
   `settings/capabilities/installation-selection.yaml`, `instance-policy.yaml`
-  (the operator's; read-only when a deployment set it) and `effective-plan.yaml`
-  (read-only) — written through the same S04 adapter as the switches. A
+  (the operator's alone: listed, read and written only for the device's
+  operator, and refused while a deployment owns the policy) and
+  `effective-plan.yaml` (read-only) — written through the same S04 adapter as
+  the switches. A write reports what it did (`FileOutcome`'s optional
+  `message`, `tone` and `text`): a save kept for this session only shows a warn
+  mark, and an edit of the installation selection that keeps the revision it was
+  read at is given its own so the store does not read it as a conflict. A
   directory's `config.yaml` is the first entry under it in the rail (and the
   first file in the viewer), ahead of its panels.
 

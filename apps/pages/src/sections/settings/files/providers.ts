@@ -73,7 +73,6 @@ export function useItemTypeFiles(): VirtualFileProvider {
 export function useCapabilityFiles(): VirtualFileProvider {
   const { tomb } = useVault();
   const operator = useDeviceOperator();
-  useSettingsFilesRevision();
   return useMemo(
     () =>
       capabilityFiles({

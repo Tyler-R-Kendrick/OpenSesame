@@ -158,11 +158,11 @@ describe("limitPageTree", () => {
   });
 
   describe("with a first item", () => {
-    const leaf = (id: string, first?: boolean) => ({
+    const leaf = (id: string, first = false) => ({
       id,
       label: id,
       href: `/page/${id}`,
-      ...(first ? { first: true } : {}),
+      first,
     });
     const region = {
       id: "dir",

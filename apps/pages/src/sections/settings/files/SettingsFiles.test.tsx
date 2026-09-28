@@ -233,6 +233,57 @@ describe("Settings' file viewer", () => {
   });
 });
 
+describe("a write's outcome, as the provider states it", () => {
+  it("shows a session-only save as a warn mark with its message, and refreshes the text as stored", async () => {
+    const files: VirtualFileProvider = {
+      list: () => [
+        {
+          path: "settings/notes/order.json",
+          language: "json",
+          readOnly: false,
+          removable: false,
+        },
+      ],
+      read: async () => "{}\n",
+      check: () => ({ ok: true }),
+      write: async (path) => ({
+        ok: true,
+        path,
+        tone: "warn",
+        message: "Saved. Kept for this session only.",
+        text: '{"revision":"new"}\n',
+      }),
+      remove: async () => ({ ok: false, message: "no" }),
+    };
+    const revoke = registerContributionForTest("settings-category", {
+      id: "notes",
+      label: "Notes",
+      guideId: "settings.capabilities",
+      Panel: () => null,
+      order: 300,
+      files,
+    });
+    try {
+      render(<Viewer category="notes" initial="config.yaml" />);
+      await waitFor(() =>
+        expect(editor("settings/notes/order.json").value).toBe("{}\n"),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save settings/notes/order.json" }),
+      );
+      const mark = await screen.findByRole("img", {
+        name: "Saved. Kept for this session only.",
+      });
+      expect(mark.className).toContain("warn");
+      expect(editor("settings/notes/order.json").value).toBe(
+        '{"revision":"new"}\n',
+      );
+    } finally {
+      revoke();
+    }
+  });
+});
+
 describe("Capabilities as files", () => {
   it("lists config.yaml first, then the capability documents in the same directory", () => {
     render(<Viewer category="capabilities" />);

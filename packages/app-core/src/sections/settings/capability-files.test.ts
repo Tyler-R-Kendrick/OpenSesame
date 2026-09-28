@@ -4,7 +4,10 @@
  * viewer meets the refusals the switches do.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { SELECTION_SOURCE_KV_KEY } from "../../lib/configuration/capabilities-keys.js";
+import {
+  LOCAL_POLICY_SOURCE_KV_KEY,
+  SELECTION_SOURCE_KV_KEY,
+} from "../../lib/configuration/capabilities-keys.js";
 import type { CapabilityConfigPorts } from "../../lib/configuration/capabilities-resources.js";
 import {
   FIXTURE_CATALOG,
@@ -89,16 +92,65 @@ describe("capabilities as files", () => {
     ).toEqual([SELECTION_FILE, EFFECTIVE_FILE]);
   });
 
-  it("lists a deployment's policy read-only, with the reason", () => {
-    resetDouble({
-      policy: FIXTURE_MANAGED_POLICY,
-      provenance: "same-origin-deployment",
-    });
+  it("lists the operator's policy writable, with no read-only reason", () => {
     const policy = files()
       .list()
       .find((file) => file.path === POLICY_FILE);
-    expect(policy).toMatchObject({ readOnly: true });
-    expect(policy?.readOnlyLabel).toBeTruthy();
+    expect(policy).toMatchObject({ readOnly: false });
+    expect(policy?.readOnlyLabel).toBeUndefined();
+  });
+
+  describe("the instance policy is the operator's alone (SURFACE-06)", () => {
+    const POLICY_TEXT = "kind: InstanceCapabilityPolicy\n";
+
+    it("read returns nothing, check and write refuse, when not the operator", async () => {
+      const provider = files();
+      const operatorText = await provider.read(POLICY_FILE);
+      expect(operatorText).toContain("kind:");
+      operator = false;
+      expect(await provider.read(POLICY_FILE)).toBe("");
+      expect(provider.check(POLICY_FILE, operatorText)).toEqual({
+        ok: false,
+        message: "This file is read-only.",
+      });
+      expect(await provider.write(POLICY_FILE, operatorText)).toEqual({
+        ok: false,
+        message: "This file is read-only.",
+      });
+      expect(store.has(LOCAL_POLICY_SOURCE_KV_KEY)).toBe(false);
+    });
+
+    it("a deployment's policy is neither listed nor writable to a non-operator", async () => {
+      resetDouble({
+        policy: FIXTURE_MANAGED_POLICY,
+        provenance: "same-origin-deployment",
+      });
+      operator = false;
+      const provider = files();
+      expect(provider.list().map((file) => file.path)).toEqual([
+        SELECTION_FILE,
+        EFFECTIVE_FILE,
+      ]);
+      expect(await provider.read(POLICY_FILE)).toBe("");
+      expect(await provider.write(POLICY_FILE, POLICY_TEXT)).toMatchObject({
+        ok: false,
+      });
+    });
+
+    it("refuses a write while a deployment owns the policy, even for the operator flag", async () => {
+      resetDouble({
+        policy: FIXTURE_MANAGED_POLICY,
+        provenance: "same-origin-deployment",
+      });
+      const provider = files();
+      expect(provider.check(POLICY_FILE, POLICY_TEXT)).toMatchObject({
+        ok: false,
+      });
+      expect(
+        await provider.write(POLICY_FILE, await provider.read(POLICY_FILE)),
+      ).toEqual({ ok: false, message: "This file is read-only." });
+      expect(store.has(LOCAL_POLICY_SOURCE_KV_KEY)).toBe(false);
+    });
   });
 
   it("reads each document as YAML", async () => {
@@ -132,9 +184,24 @@ describe("capabilities as files", () => {
     expect(await provider.write(SELECTION_FILE, text)).toEqual({
       ok: true,
       path: SELECTION_FILE,
+      message: "Saved source comments. Nothing else changed.",
+      tone: "ok",
+      text,
     });
     expect(double.commits).toHaveLength(0);
     expect(store.get(SELECTION_SOURCE_KV_KEY)).toBe(text);
+  });
+
+  it("says a session-only write is kept for this session only, in a warn tone", async () => {
+    resetDouble({ selection: SELECTION, durability: "session-only" });
+    const provider = files();
+    const text = `# mine\n${await provider.read(SELECTION_FILE)}`;
+    expect(await provider.write(SELECTION_FILE, text)).toMatchObject({
+      ok: true,
+      tone: "warn",
+      message:
+        "Saved source comments. Nothing else changed. Kept for this session only.",
+    });
   });
 
   it("a semantic write goes through the store's commit", async () => {
@@ -145,6 +212,8 @@ describe("capabilities as files", () => {
       .replace('revision: "1"', 'revision: "2"');
     expect(await provider.write(SELECTION_FILE, text)).toMatchObject({
       ok: true,
+      tone: "ok",
+      message: "Installation selection saved.",
     });
     expect(double.commits).toHaveLength(1);
   });
@@ -173,7 +242,7 @@ describe("capabilities as files", () => {
     it("commits the starter once through the store and then reads it back", async () => {
       const provider = files();
       const text = await provider.read(SELECTION_FILE);
-      expect(await provider.write(SELECTION_FILE, text)).toEqual({
+      expect(await provider.write(SELECTION_FILE, text)).toMatchObject({
         ok: true,
         path: SELECTION_FILE,
       });

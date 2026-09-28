@@ -6,14 +6,16 @@
  * | File | Stored as | Written by |
  * |---|---|---|
  * | `installation-selection.yaml` | the installation's selection | the switches (a reviewed plan), or the file viewer |
- * | `instance-policy.yaml` | the policy authored on this device — the operator's only | the purpose presets, or the file viewer |
+ * | `instance-policy.yaml` | the policy authored on this device — listed to the operator only | the purpose presets, or the file viewer |
  * | `effective-plan.yaml` | what the two above resolve to | nothing — read-only |
  *
  * There is no Visual / Source / Effective toggle: the switches and the file
  * viewer write through the same S04 adapter, so a stale base revision is a
- * conflict, a comments-only edit touches nothing semantic, and a policy that
- * arrived from a deployment is read-only here (editing it would be forging
- * it). A file's base revision is the one its text was last read at.
+ * conflict, a comments-only edit touches nothing semantic, and the instance
+ * policy is the operator's alone: it is neither listed, read nor written for
+ * anyone else, nor when a deployment owns it (editing that would be forging
+ * it). A file's base revision is the one its text was last read at. The vault
+ * restriction is an adapter resource too, but it is not a file here.
  */
 
 import type { InstallationCapabilitySelection } from "@opensesame/capability-composition";
@@ -35,6 +37,10 @@ import {
   revisionToken,
 } from "../../lib/configuration/capabilities-resources.js";
 import type { CommitResult } from "../../lib/configuration/types.js";
+import {
+  isPresentationOnlyChange,
+  patchYamlTopLevel,
+} from "../../lib/configuration/yaml-patch.js";
 import type {
   FileCheck,
   FileOutcome,
@@ -66,6 +72,52 @@ export type CapabilityFilesSession = {
   /** Whether the instance policy is this person's to see (the operator). */
   operator: () => boolean;
 };
+
+/** Durable, or kept for this session only (the store could not write). */
+function outcomeOf(
+  result: CommitResult,
+  path: string,
+  text: string,
+): FileOutcome {
+  if (result.status !== "applied_ephemeral") {
+    return { ok: true, path, message: result.message, tone: "ok", text };
+  }
+  return {
+    ok: true,
+    path,
+    message: `${result.message} Kept for this session only.`,
+    tone: "warn",
+    text,
+  };
+}
+
+/**
+ * The starter's revision is fixed, and once it is committed every read
+ * returns the committed one; the store reads a draft that reuses the
+ * committed revision as a conflict. So a semantic edit that kept the
+ * revision it was read at is given its own, as a switch's draft would
+ * (`baseFromSnapshot`) — a comments-only edit keeps its bytes and its
+ * revision, because it commits nothing.
+ */
+function withFreshRevision(ports: CapabilityConfigPorts, text: string): string {
+  const committed = ports.snapshot().selection;
+  const parsed = parseInstallationSelectionSource(text);
+  if (
+    !committed ||
+    !parsed.ok ||
+    parsed.value.revision !== committed.revision
+  ) {
+    return text;
+  }
+  const semantic = documentToYaml(overlapCast(committed));
+  if (isPresentationOnlyChange(semantic, text)) return text;
+  const revision = `draft-${ports.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  try {
+    return patchYamlTopLevel(text, "revision", revision);
+  } catch {
+    return documentToYaml(overlapCast({ ...parsed.value, revision }));
+  }
+}
 
 function parses(kind: Kind, text: string): FileCheck {
   if (kind === "effective-plan") return { ok: false, message: READ_ONLY };
@@ -117,7 +169,11 @@ export function capabilityFiles(
   session: CapabilityFilesSession,
 ): VirtualFileProvider {
   const bases = new Map<string, string>();
+  /** The instance policy is the operator's alone, whoever asks for it. */
+  const visible = (kind: Kind) =>
+    kind !== "instance-policy" || session.operator();
   const editable = (kind: Kind) =>
+    visible(kind) &&
     capabilityResourceEditable(kind, session.ports().snapshot());
 
   function list(): readonly VirtualFile[] {
@@ -130,14 +186,10 @@ export function capabilityFiles(
       },
     ];
     if (session.operator()) {
-      const managed = !editable("instance-policy");
       files.push({
         path: POLICY_FILE,
         language: "yaml",
-        readOnly: managed,
-        readOnlyLabel: managed
-          ? "Set by this deployment; read-only"
-          : undefined,
+        readOnly: false,
         removable: false,
       });
     }
@@ -155,7 +207,7 @@ export function capabilityFiles(
     list,
     async read(path) {
       const kind = KINDS.get(path);
-      if (kind === undefined) return "";
+      if (kind === undefined || !visible(kind)) return "";
       const ports = session.ports();
       bases.set(path, revisionToken(ports.snapshot()));
       const source = readCapabilitySource(kind, ports);
@@ -177,8 +229,12 @@ export function capabilityFiles(
         return { ok: false, message: READ_ONLY };
       }
       const ports = session.ports();
+      const source =
+        kind === "installation-selection"
+          ? withFreshRevision(ports, text)
+          : text;
       const input = {
-        source: text,
+        source,
         baseRevision: bases.get(path) ?? revisionToken(ports.snapshot()),
       };
       const result =
@@ -189,7 +245,7 @@ export function capabilityFiles(
         return { ok: false, message: result.message };
       }
       bases.set(path, result.revisionToken ?? revisionToken(ports.snapshot()));
-      return { ok: true, path };
+      return outcomeOf(result, path, source);
     },
     async remove() {
       return { ok: false, message: "This file cannot be removed." };
