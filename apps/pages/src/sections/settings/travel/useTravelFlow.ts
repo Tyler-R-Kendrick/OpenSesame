@@ -8,6 +8,7 @@ import { MAX_TRAVEL_BUNDLE_BYTES } from "@opensesame/app-core/lib/travel/bundle-
 import {
   type DeparturePackage,
   type OpenedReturn,
+  clearTravelRemnants,
   departForTravel,
   openTravelReturn,
   packTravelDeparture,
@@ -16,10 +17,10 @@ import {
 import { useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
 import { useVault } from "../../../lib/vault/hooks.js";
+import { remnantsNotice, returnedNotice } from "./TravelReturnViews.js";
 import {
   type TravelNotice,
   departedNotice,
-  returnedNotice,
   travelRefusalText,
 } from "./TravelViews.js";
 
@@ -42,6 +43,8 @@ function useTravelState() {
     null,
   );
   const [code, setCode] = useState("");
+  // A bundle's site grants come back only when the person ticks for them.
+  const [grants, setGrants] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
 
@@ -63,6 +66,7 @@ function useTravelState() {
     setAck(NO_ACK);
     setBundle(null);
     setCode("");
+    setGrants(false);
     setNotice(next);
   }
 
@@ -77,6 +81,7 @@ function useTravelState() {
     ack,
     bundle,
     code,
+    grants,
     busy,
     notice,
     setMode,
@@ -84,6 +89,7 @@ function useTravelState() {
     setAck,
     setBundle,
     setCode,
+    setGrants,
     setNotice,
     run,
     reset,
@@ -143,7 +149,7 @@ function returnSteps(state: TravelState) {
 
   const bringHome = (opened: OpenedReturn) =>
     state.run(async () => {
-      const outcome = await returnFromTravel(opened);
+      const outcome = await returnFromTravel(opened, { grants: state.grants });
       if (!outcome.ok) return state.refuse(outcome.code);
       state.reset(returnedNotice(outcome.receipt));
     });
@@ -168,7 +174,22 @@ function returnSteps(state: TravelState) {
     state.setMode({ kind: "return" });
   };
 
-  return { open, bringHome, chooseBundle, typeCode, startReturn };
+  const clearRemnants = (after: () => void) =>
+    state.run(async () => {
+      const outcome = await clearTravelRemnants();
+      if (!outcome.ok) return state.refuse(outcome.code);
+      state.setNotice(remnantsNotice(outcome));
+      after();
+    });
+
+  return {
+    open,
+    bringHome,
+    chooseBundle,
+    typeCode,
+    startReturn,
+    clearRemnants,
+  };
 }
 
 /** The panel's state and the steps it can take. */

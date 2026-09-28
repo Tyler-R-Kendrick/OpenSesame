@@ -22,7 +22,7 @@ import { listTombs, registerTomb, unregisterTomb } from "../vfs.js";
 import type { VaultNamespace } from "./bundle-format.js";
 
 /** Tombs that exist on some device but are never a vault that travels. */
-const SESSION_TOMBS = ["guest", "guest-scratch"] as const;
+export const SESSION_TOMBS = ["guest", "guest-scratch"] as const;
 const OFFLINE_CACHE_PREFIX = "vault.offline-ciphertext.v1:";
 
 export type TravelStorage = {
@@ -48,6 +48,11 @@ export function tombStem(id: string): string {
 /** A vault's plaintext header: the file that says a vault is here at all. */
 export function headerOf(id: string): string {
   return `${tombStem(id)}header.json`;
+}
+
+/** A vault's sealed body: gone with the header still here is a removal cut short. */
+export function bodyOf(id: string): string {
+  return `${tombStem(id)}body.json`;
 }
 
 /** The plaintext records named for a vault, as origin file names. */

@@ -33,13 +33,20 @@ export function fileSteps({ press }) {
      * "bytes": 68157440 } }` — hand a labelled file input a file of that
      * size, the way a person picks the wrong, very large file. Written to
      * the temp directory: Playwright takes a path, not a buffer, past 50 MB.
+     * `{ "setFile": { "label": …, "file": "docs/…/x.json" } }` hands it a
+     * file from the repository instead.
      */
-    async setFile(page, { label, name, bytes }) {
+    async setFile(page, { label, name, bytes, file: fixture }) {
       const input = page.getByLabel(label, { exact: true }).first();
       if (!(await input.count()))
         throw new Error(
           `capture-evidence setFile("${label}"): no input matched — refusing a silent miss`,
         );
+      if (fixture) {
+        await input.setInputFiles(path.join(repoRoot, fixture));
+        await page.waitForTimeout(1500);
+        return;
+      }
       const file = path.join(os.tmpdir(), name);
       writeFileSync(file, Buffer.alloc(bytes, 0x20));
       await input.setInputFiles(file);
