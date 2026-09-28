@@ -89,7 +89,8 @@ pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright cli
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
-                          #   upstream source, the carriers verify:live-join runs (ADR 0150 §6)
+                          #   upstream source + live-turn (pion/turn, UDP/TCP/TLS), the servers
+                          #   verify:live-join runs (ADR 0150 §6)
 pnpm test:all            # typecheck + test + test:integration
 pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
@@ -219,8 +220,11 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # pin), a real ntfy (LIVE_NTFY_SERVER, default .cache/live-fixtures/bin/ntfy)
 # and BroadcastChannel each pair with nothing pasted and see no plaintext; a
 # joiner who declines is never heard of. Relayed: relay-only through a real
-# TURN server (node-turn), relay to relay. A missing server fails the run
-# (LIVE_CARRIERS narrows it; `pnpm test:live-fixtures` builds them). Run
+# TURN server, relay to relay, over UDP (node-turn), TCP (`turn:…?transport=tcp`)
+# and TLS (`turns:`, a self-signed certificate trusted by its public key alone)
+# on live-turn (pion/turn, scripts/test/live-turn), whose per-transport counters
+# show which one carried the browsers. A missing server fails the run
+# (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.
 ```

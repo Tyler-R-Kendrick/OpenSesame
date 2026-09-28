@@ -180,7 +180,30 @@ browsers over real WebRTC:
   - NATS: a real nats-server, set by `LIVE_NATS_SERVER` or the mTLS fixture pin;
   - ntfy: a real ntfy server, set by `LIVE_NTFY_SERVER`;
   - BroadcastChannel;
-- relay-only through a real TURN server.
+- relay-only through a real TURN server, once for each way to reach one, each
+  with both browsers relay-only and meeting relay to relay:
+  - `turn:host:port?transport=udp` (node-turn);
+  - `turn:host:port?transport=tcp`, the road through a firewall that lets only
+    TCP out;
+  - `turns:host:port?transport=tcp` (TLS), the road through Pangolin, Tailscale
+    Funnel or port 443. The certificate is a throwaway self-signed one, and
+    Chromium is told to trust its public key alone
+    (`--ignore-certificate-errors-spki-list`), not certificate errors in
+    general.
 
-`LIVE_CARRIERS=nostr,mqtt` limits which carriers run. A missing server fails
-the run; it is never skipped silently.
+  TCP and TLS run on `live-turn`, a pion/turn server (`scripts/test/live-turn`)
+  that speaks UDP, TCP and TLS at once and counts what each transport saw. The
+  walk asks it, not the browser: the transport named must have authenticated
+  and allocated for both peers, and no client traffic may have reached the
+  others.
+
+`LIVE_CARRIERS=nostr,mqtt` limits which carriers run, and
+`LIVE_SCENARIOS=relayed,relayed-tcp,relayed-tls` (from `direct`, `carriers`,
+`declined`, `relayed`, `relayed-tcp`, `relayed-tls`, `tunnel`) limits which
+walks. `LIVE_TURN_SERVER` names the `live-turn` binary; `pnpm
+test:live-fixtures` builds it (Go is needed) to `.cache/live-fixtures/bin`. A
+missing server fails the run; it is never skipped silently.
+
+What the walk does not cover: a TURN REST secret (coturn's `use-auth-secret`,
+credentials minted per session) is a road of its own and is checked by unit
+tests, not by a real server.
