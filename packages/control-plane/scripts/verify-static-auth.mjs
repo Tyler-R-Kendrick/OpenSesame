@@ -29,7 +29,7 @@ try {
       await verifyScenario(browser, scenario);
     }
     console.info(
-      `PASS: Chromium hosted authentication, artifact ${fixture.version}; SRI, actual CORS, code/PKCE, nonce, issuer/state, single-use callback and server code replay.`,
+      `PASS: Chromium hosted authentication, artifact ${fixture.version}; SRI, actual CORS, code/PKCE sealed at rest, nonce, issuer/state, single-use callback and server code replay.`,
     );
   }
 } catch {
@@ -176,6 +176,11 @@ async function verifyScenario(browser, scenario) {
     assert.ok(callback);
     stage = "valid: pending transaction captured";
     assert.ok(pending);
+    // Sealed at rest (ADR 0148): not the verifier, the nonce or the state.
+    stage = "valid: pending transaction sealed";
+    assert.match(pending.value, /^osc1\./);
+    const state = new URL(callback).searchParams.get("state");
+    assert.ok(state && !pending.value.includes(state));
     stage = "valid: client callback replay";
     await page.goto(callback);
     await page.getByRole("status").filter({ hasText: "Refused" }).waitFor();
