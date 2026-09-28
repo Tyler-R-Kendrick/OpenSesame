@@ -41,3 +41,17 @@ beside `effective-plan.yaml`, read-only).
 The instance-policy file (`instance-policy.yaml`) is listed only to the operator of a
 personal-local device in the personal tomb, so a guest capture does not show it; it is
 covered by `capability-files.test.ts` and `CapabilitiesPanel.test.tsx`.
+
+## 6. Saving the installation selection — 1280 × 800
+
+Save with the text unchanged. `0 outcome marks after Save → 1 ok mark`, labelled
+"Saved source comments. Nothing else changed." (a session-only save shows a warn mark,
+covered by `capability-files-store.test.ts`).
+
+![1280 saved](1280-saved.png)
+
+## 7. Saving on a phone — 390 × 844
+
+`0 outcome marks → 1 ok mark`, same label.
+
+![390 saved](390-saved.png)
