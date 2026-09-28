@@ -48,6 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
+| [`2026-09-28-member-organizations/`](2026-09-28-member-organizations/README.md) | The signed-in member's organizations |
 | [`2026-09-28-manifest-export-sheet/`](2026-09-28-manifest-export-sheet/README.md) | The sealed-store manifest is saved from a sheet, and never for a guest |
 | [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
 | [`2026-09-28-activity-rail-listing/`](2026-09-28-activity-rail-listing/README.md) | Activity: a paged, searchable listing in the rail and on the page |

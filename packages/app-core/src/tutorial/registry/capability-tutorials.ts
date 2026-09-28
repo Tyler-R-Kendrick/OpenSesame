@@ -55,6 +55,9 @@ export const CAPABILITY_TUTORIALS = {
   "identity.local.policy.manage": "identity.local.policy.manage",
   "identity.local.requests.manage": "identity.local.requests.manage",
   "identity.local.passkeys.manage": "identity.local.passkeys.manage",
+  "identity.local.organizations.read": "identity.local.organizations.member",
+  "identity.local.organizations.membership.manage":
+    "identity.local.organizations.member",
   "identity.local.agent.keys.manage": "identity.local.agent.keys.manage",
   "identity.local.application.authorize":
     "identity.local.application.authorize",

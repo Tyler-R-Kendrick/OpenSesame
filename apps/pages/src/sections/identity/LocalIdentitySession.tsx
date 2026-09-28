@@ -1,9 +1,11 @@
 import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import type { LocalSession } from "@opensesame/app-core/lib/local-sessions.js";
-import { useEffect, useState } from "react";
+import { MEMBERSHIP_CHANGED_SIGN_IN_AGAIN } from "@opensesame/app-core/sections/identity/member-organizations-model.js";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconLock, IconPasskey } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { LocalMemberOrganizations } from "./LocalMemberOrganizations.js";
 
 export function useLocalSessionPresentation(tomb: string, principalId: string) {
   const [session, setSession] = useState<LocalSession | null>(null);
@@ -64,6 +66,39 @@ export function useLocalSessionPresentation(tomb: string, principalId: string) {
   return { session, setSession, message, setMessage, error, setError };
 }
 
+/**
+ * A committed membership edit ends every local session (ADR 0104 revision
+ * binding). Revalidate rather than assume: say so only once the library no
+ * longer honours the session, then hand focus to Sign in locally if it fell.
+ */
+function useMembershipEnded(
+  tomb: string,
+  principalId: string,
+  presentation: ReturnType<typeof useLocalSessionPresentation>,
+) {
+  const { session, setSession, setMessage } = presentation;
+  const [changed, setChanged] = useState(false);
+  const signIn = useRef<HTMLButtonElement>(null);
+  const ended = changed && session === null;
+  useLayoutEffect(() => {
+    if (ended && document.activeElement === document.body)
+      signIn.current?.focus();
+  }, [ended]);
+  async function confirmEnded() {
+    try {
+      const api = await import("@opensesame/app-core/lib/local-sessions.js");
+      if (await api.currentLocalIdentitySession(tomb, principalId)) return;
+      setSession(null);
+      setMessage("No active local session.");
+      setChanged(true);
+    } catch {
+      setSession(null);
+      setMessage("Local session unavailable.");
+    }
+  }
+  return { ended, setChanged, signIn, confirmEnded };
+}
+
 export function LocalIdentitySession({
   tomb,
   principalId,
@@ -73,14 +108,21 @@ export function LocalIdentitySession({
   principalId: string;
   disabled: boolean;
 }) {
+  const presentation = useLocalSessionPresentation(tomb, principalId);
   const { session, setSession, message, setMessage, error, setError } =
-    useLocalSessionPresentation(tomb, principalId);
+    presentation;
   const [busy, setBusy] = useState(false);
+  const { ended, setChanged, signIn, confirmEnded } = useMembershipEnded(
+    tomb,
+    principalId,
+    presentation,
+  );
 
   async function run(signOut: boolean) {
     if (busy || (!signOut && disabled)) return;
     setBusy(true);
     setError("");
+    setChanged(false);
     try {
       const api = await import("@opensesame/app-core/lib/local-sessions.js");
       if (signOut) {
@@ -106,13 +148,15 @@ export function LocalIdentitySession({
   }
 
   const tone = error ? "err" : session ? "ok" : "idle";
+  const current = ended ? MEMBERSHIP_CHANGED_SIGN_IN_AGAIN : message;
   const label =
-    error || (busy ? "Complete the local session operation…" : message);
+    error || (busy ? "Complete the local session operation…" : current);
 
   return (
     <div className="identity-session" aria-busy={busy}>
       <div className="actions">
         <button
+          ref={signIn}
           type="button"
           className="icon-btn icon-btn--sm"
           disabled={disabled || busy || session !== null}
@@ -140,9 +184,16 @@ export function LocalIdentitySession({
         </span>
       ) : (
         <output className="visually-hidden" aria-label="Local session status">
-          {busy ? "Complete the local session operation…" : message}
+          {busy ? "Complete the local session operation…" : current}
         </output>
       )}
+      {session ? (
+        <LocalMemberOrganizations
+          tomb={tomb}
+          session={session}
+          onChanged={() => void confirmEnded()}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,0 +1,370 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "authenticator": null
+        },
+        {
+          "enable": "Directory provisioning"
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "press": "^People$"
+        },
+        {
+          "press": "^New person$"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Ada Owner"
+          }
+        },
+        {
+          "press": "^Save changes$"
+        },
+        {
+          "press": "^New person$"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Ben Member"
+          }
+        },
+        {
+          "press": "^Save changes$"
+        },
+        {
+          "press": "^Organizations$"
+        },
+        {
+          "disclose": {
+            "record": "Personal",
+            "summary": "Members"
+          }
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Person or agent",
+            "option": "Ben Member"
+          }
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Organization role",
+            "option": "Member"
+          }
+        },
+        {
+          "press": "^Add member$"
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Person or agent",
+            "option": "Ada Owner"
+          }
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Organization role",
+            "option": "Owner (operator)"
+          }
+        },
+        {
+          "press": "^Add member$"
+        },
+        {
+          "press": "^People$"
+        },
+        {
+          "disclose": {
+            "record": "Ada Owner",
+            "summary": "Passkeys"
+          }
+        },
+        {
+          "pressOn": {
+            "record": "Ada Owner",
+            "key": "Enroll passkey"
+          }
+        },
+        {
+          "pressOn": {
+            "record": "Ada Owner",
+            "key": "Sign in locally"
+          }
+        },
+        {
+          "discloseOptional": "Personal"
+        },
+        {
+          "centreOn": ".identity-orgs, .identity-session"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            ".identity-orgs",
+            ".identity-orgs details li",
+            ".identity-orgs select",
+            ".identity-orgs .icon-btn"
+          ]
+        },
+        {
+          "measure": ".identity-orgs .icon-btn"
+        },
+        {
+          "measure": ".identity-orgs select"
+        },
+        {
+          "measure": ".identity-orgs summary"
+        },
+        {
+          "shot": "390-member-view"
+        },
+        {
+          "selectOptional": {
+            "label": "Role for Ben Member",
+            "value": "admin"
+          }
+        },
+        {
+          "pressExactOptional": "Save role"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "centreOn": ".identity-session"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".identity-orgs"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "390-after-edit"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "authenticator": null
+        },
+        {
+          "enable": "Directory provisioning"
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "press": "^People$"
+        },
+        {
+          "press": "^New person$"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Ada Owner"
+          }
+        },
+        {
+          "press": "^Save changes$"
+        },
+        {
+          "press": "^New person$"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Ben Member"
+          }
+        },
+        {
+          "press": "^Save changes$"
+        },
+        {
+          "press": "^Organizations$"
+        },
+        {
+          "disclose": {
+            "record": "Personal",
+            "summary": "Members"
+          }
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Person or agent",
+            "option": "Ben Member"
+          }
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Organization role",
+            "option": "Member"
+          }
+        },
+        {
+          "press": "^Add member$"
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Person or agent",
+            "option": "Ada Owner"
+          }
+        },
+        {
+          "selectOn": {
+            "record": "Personal",
+            "label": "Organization role",
+            "option": "Owner (operator)"
+          }
+        },
+        {
+          "press": "^Add member$"
+        },
+        {
+          "press": "^People$"
+        },
+        {
+          "disclose": {
+            "record": "Ada Owner",
+            "summary": "Passkeys"
+          }
+        },
+        {
+          "pressOn": {
+            "record": "Ada Owner",
+            "key": "Enroll passkey"
+          }
+        },
+        {
+          "pressOn": {
+            "record": "Ada Owner",
+            "key": "Sign in locally"
+          }
+        },
+        {
+          "discloseOptional": "Personal"
+        },
+        {
+          "centreOn": ".identity-orgs, .identity-session"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [
+            ".identity-orgs",
+            ".identity-orgs details li",
+            ".identity-orgs select",
+            ".identity-orgs .icon-btn"
+          ]
+        },
+        {
+          "measure": ".identity-orgs .icon-btn"
+        },
+        {
+          "measure": ".identity-orgs select"
+        },
+        {
+          "measure": ".identity-orgs summary"
+        },
+        {
+          "shot": "1280-member-view"
+        },
+        {
+          "selectOptional": {
+            "label": "Role for Ben Member",
+            "value": "admin"
+          }
+        },
+        {
+          "pressExactOptional": "Save role"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "centreOn": ".identity-session"
+        },
+        {
+          "marks": null
+        },
+        {
+          "count": [".identity-orgs"]
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "1280-after-edit"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-member-view",
+      "width": 390,
+      "title": "Signed in with a passkey \u2014 390",
+      "caption": "Ada owns the vault's Personal organization. After a local passkey sign-in, her own organizations appear under the session, and opening one lists its members with the keys her role allows.",
+      "before": "session mark only; 0 organizations, 0 member rows",
+      "after": "1 organization, 4 member rows, 2 role selects 218\u00d744, 6 keys 44\u00d744"
+    },
+    {
+      "shot": "390-after-edit",
+      "width": 390,
+      "title": "After a role change \u2014 390",
+      "caption": "Ada makes Ben an admin. The directory revision moves, every local session ends, and the session mark says so; Sign in locally takes focus.",
+      "before": "no edit possible; session still signed in",
+      "after": "Save role \u2192 'Membership changed. Local sessions ended; sign in again.'; 0 organizations; focus on Sign in locally 44\u00d744"
+    },
+    {
+      "shot": "1280-member-view",
+      "width": 1280,
+      "title": "Signed in with a passkey \u2014 1280",
+      "caption": "Ada owns the vault's Personal organization. After a local passkey sign-in, her own organizations appear under the session, and opening one lists its members with the keys her role allows.",
+      "before": "session mark only; 0 organizations, 0 member rows",
+      "after": "1 organization, 4 member rows, 2 role selects 480\u00d732, 6 keys 24\u00d724"
+    },
+    {
+      "shot": "1280-after-edit",
+      "width": 1280,
+      "title": "After a role change \u2014 1280",
+      "caption": "Ada makes Ben an admin. The directory revision moves, every local session ends, and the session mark says so; Sign in locally takes focus.",
+      "before": "no edit possible; session still signed in",
+      "after": "Save role \u2192 session ended mark; 0 organizations; focus on Sign in locally"
+    }
+  ]
+}
