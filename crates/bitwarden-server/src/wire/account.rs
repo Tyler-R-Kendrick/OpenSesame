@@ -42,7 +42,7 @@ fn account_keys(user: &BitwardenUser) -> Value {
 
 /// `ProfileResponseModel`.
 #[must_use]
-pub fn profile(user: &BitwardenUser, two_factor_enabled: bool) -> Value {
+pub fn profile(user: &BitwardenUser, two_factor_enabled: bool, organizations: &[Value]) -> Value {
     json!({
         "id": user.id,
         "name": user.name,
@@ -62,7 +62,7 @@ pub fn profile(user: &BitwardenUser, two_factor_enabled: bool) -> Value {
         "avatarColor": null,
         "creationDate": date(user.created_at),
         "verifyDevices": false,
-        "organizations": [],
+        "organizations": organizations,
         "providers": [],
         "providerOrganizations": [],
         "object": "profile",

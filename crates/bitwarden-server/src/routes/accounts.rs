@@ -20,7 +20,8 @@ pub async fn profile(
     Authed { user, .. }: Authed,
 ) -> ApiResult<Json<Value>> {
     let two_factor = super::two_factor::enabled(&server, &user.id).await?;
-    Ok(Json(profile_json(&user, two_factor)))
+    let organizations = super::organizations::for_profile(&server, &user.id).await?;
+    Ok(Json(profile_json(&user, two_factor, &organizations)))
 }
 
 /// Epoch milliseconds; a client syncs when this moves.

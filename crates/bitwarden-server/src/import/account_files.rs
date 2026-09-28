@@ -102,7 +102,7 @@ async fn fetch(
         attachment: BitwardenAttachment {
             id,
             cipher_id: cipher_id.to_owned(),
-            user_id: user.id.clone(),
+            user_id: Some(user.id.clone()),
             file_name,
             key: text(attachment, "key"),
             size: i64::try_from(bytes.len()).unwrap_or(i64::MAX),

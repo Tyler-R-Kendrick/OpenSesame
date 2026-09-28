@@ -9,7 +9,7 @@ use chrono::Utc;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use super::attachments::CipherViews;
+use super::vault_view::VaultView;
 use crate::auth::Authed;
 use crate::error::ApiResult;
 use crate::routes::identity::normalize_email;
@@ -91,9 +91,9 @@ pub async fn sync(
     Query(query): Query<SyncQuery>,
 ) -> ApiResult<Json<Value>> {
     let folders = server.db.bitwarden_folders(&user.id).await?;
-    let ciphers = server.db.bitwarden_ciphers(&user.id).await?;
     let two_factor = super::two_factor::enabled(&server, &user.id).await?;
-    let views = CipherViews::load(&server, &user.id).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let organizations = super::organizations::for_profile(&server, &user.id).await?;
     let sends = super::sends::for_sync(&server, &user.id).await?;
     let domains = if query.exclude_domains.unwrap_or(false) {
         Value::Null
@@ -105,11 +105,11 @@ pub async fn sync(
         })
     };
     Ok(Json(json!({
-        "profile": profile(&user, two_factor),
+        "profile": profile(&user, two_factor, &organizations),
         "folders": folders.iter().map(folder_json).collect::<Vec<_>>(),
-        "collections": [],
+        "collections": super::collections::for_sync(&view),
         "policies": [],
-        "ciphers": ciphers.iter().map(|c| views.render(c)).collect::<Vec<_>>(),
+        "ciphers": view.rendered(),
         "domains": domains,
         "sends": sends,
         "userDecryption": sync_decryption(&user),

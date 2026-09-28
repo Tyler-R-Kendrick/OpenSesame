@@ -191,7 +191,8 @@ pub(crate) fn cipher(
     let input = parse_cipher(request, user_id).ok()?;
     Some(BitwardenCipher {
         id: id.to_owned(),
-        user_id: user_id.to_owned(),
+        user_id: Some(user_id.to_owned()),
+        organization_id: None,
         folder_id: input.folder_id,
         cipher_type: input.cipher_type,
         favorite: input.favorite,
