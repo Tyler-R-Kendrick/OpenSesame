@@ -199,11 +199,19 @@ browsers over real WebRTC:
 
 `LIVE_CARRIERS=nostr,mqtt` limits which carriers run, and
 `LIVE_SCENARIOS=relayed,relayed-tcp,relayed-tls` (from `direct`, `carriers`,
-`declined`, `relayed`, `relayed-tcp`, `relayed-tls`, `tunnel`) limits which
-walks. `LIVE_TURN_SERVER` names the `live-turn` binary; `pnpm
+`declined`, `relayed`, `relayed-tcp`, `relayed-tls`, `relayed-rest`,
+`relayed-rest-wrong`, `tunnel`) limits which walks. `LIVE_TURN_SERVER` names the `live-turn` binary; `pnpm
 test:live-fixtures` builds it (Go is needed) to `.cache/live-fixtures/bin`. A
 missing server fails the run; it is never skipped silently.
 
-What the walk does not cover: a TURN REST secret (coturn's `use-auth-secret`,
-credentials minted per session) is a road of its own and is checked by unit
-tests, not by a real server.
+- relay-only through a TURN server that authenticates with a REST secret
+  (coturn's `use-auth-secret`): the owner types the profile file
+  (`settings/live/transport.json`, opened from the command bar; the Routes
+  Form has no secret field) with the server's `"secret"`, saves it and reads it
+  back, and the app mints each session's credential. `live-turn` runs with
+  `-rest-secret`, and the walk asserts both peers authenticated with zero
+  failures, the link carries a `<expiry>:osl` username and its HMAC-SHA1
+  credential and never the secret, and no peer connection holds the secret.
+  A negative control, `relayed-rest-wrong`, gives the server another secret:
+  every authentication is refused, nothing is allocated, and the browsers
+  never meet (it waits 10 seconds, not the full connection timeout).

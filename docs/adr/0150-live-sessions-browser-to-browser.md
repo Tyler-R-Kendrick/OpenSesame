@@ -216,7 +216,11 @@ joiner.
   transport each allocation arrived on — so the walk asserts the browsers used
   TCP and TLS, and that no client traffic reached the other listeners. The
   self-signed certificate is trusted by public key alone
-  (`--ignore-certificate-errors-spki-list`), never by a blanket override.
+  (`--ignore-certificate-errors-spki-list`), never by a blanket override; and
+  through a server that authenticates with a TURN REST secret, where the owner
+  types the secret into the profile file (the Form has no field for it), the
+  app mints the credential, the link carries it and never the secret, and a
+  server holding a different secret refuses every authentication.
 - The Host-based ceremony of ADR 0136 remains for sessions a Host runs; the
   door's road opens the live join, and a Host invite link still opens the
   Host ceremony.

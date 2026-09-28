@@ -108,7 +108,13 @@ export async function openGeneral(page) {
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
   await openSection(page, "settings/");
-  const link = page.getByRole("link", { name: label, exact: true });
+  // Inside a category the breadcrumb names it too: the sections list is the one.
+  const section = page
+    .locator(".set__nav")
+    .getByRole("link", { name: label, exact: true });
+  const link = (await section.count())
+    ? section
+    : page.getByRole("link", { name: label, exact: true });
   if (await link.count()) {
     await link.click();
   } else {
