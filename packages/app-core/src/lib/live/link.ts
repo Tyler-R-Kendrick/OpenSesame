@@ -32,22 +32,17 @@
  * never sent anywhere to find out.
  */
 
-import { fromB64url } from "./b64.js";
-
 /** Routes are a few servers, base64url, never a document. */
 const ROUTES = /^[A-Za-z0-9_-]{2,6000}$/;
-/** A raw P-256 point, and 32 random bytes. */
-const OWNER_BYTES = 65;
-const SECRET_BYTES = 32;
-
 /**
- * A key of `bytes` bytes in its one canonical spelling: an alias would seal
- * to other additional data, and the owner would drop the request without a
- * word.
+ * A raw P-256 point (65 bytes, 87 characters) and 32 random bytes (43
+ * characters), each in its one canonical spelling: the last character of
+ * either carries two unused bits, which must be zero. An alias would seal to
+ * other additional data, and the owner would drop the request without a word.
+ * Shape only, so the door needs no decoder: `b64.ts` is the capability's.
  */
-function isKey(text: string | undefined, bytes: number): text is string {
-  return text !== undefined && fromB64url(text)?.length === bytes;
-}
+const OWNER = /^[A-Za-z0-9_-]{86}[AEIMQUYcgkosw048]$/;
+const SECRET = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/;
 const LINK_MAX = 8192;
 
 export type LiveLink = Readonly<{
@@ -73,7 +68,8 @@ export function readLiveValue(value: string): LiveLink | null {
     .split(".");
   if (version !== "v1" || rest.length > 0) return null;
   if (mode !== "i" && mode !== "o") return null;
-  if (!isKey(owner, OWNER_BYTES) || !isKey(secret, SECRET_BYTES)) return null;
+  if (owner === undefined || !OWNER.test(owner)) return null;
+  if (secret === undefined || !SECRET.test(secret)) return null;
   if (segment !== undefined && !ROUTES.test(segment)) return null;
   const routes = segment ?? null;
   return { admission: mode === "i" ? "invite" : "open", owner, secret, routes };
