@@ -14,6 +14,7 @@ import {
   vaultSealBinding,
 } from "@opensesame/vault-core";
 import { BODY_PATH, readSealedFile } from "../vfs.js";
+import { retireLegacySample } from "./body-edits.js";
 
 const ROLLED_BACK =
   "this vault file is older than the last write recorded on this device. " +
@@ -48,7 +49,7 @@ export async function loadVaultBody(
     );
     const rev = body.rev ?? 0;
     if (rev < recorded) throw new VaultCorruptError(ROLLED_BACK);
-    return {
+    const opened: VaultBody = {
       v: 1,
       items: body.items ?? [],
       folders: body.folders ?? [],
@@ -60,6 +61,12 @@ export async function loadVaultBody(
         : undefined),
       rev,
     };
+    // What the retired sample-data feature wrote is not shown, exported or
+    // synced: it leaves the open body here and the next write drops it from
+    // the sealed file, tombstoned so a device that still holds it cannot
+    // bring it back.
+    retireLegacySample(opened);
+    return opened;
   } catch (error) {
     throw error instanceof VaultCorruptError
       ? error

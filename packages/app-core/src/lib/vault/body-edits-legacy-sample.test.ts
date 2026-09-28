@@ -1,7 +1,7 @@
 import { type Folder, createItem, emptyBody } from "@opensesame/vault-core";
 import type { VaultBody, VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { hasLegacySample, retireLegacySample } from "./body-edits.js";
+import { retireLegacySample } from "./body-edits.js";
 
 const folder = (id: string, name: string): Folder => ({
   id,
@@ -25,12 +25,10 @@ describe("retireLegacySample", () => {
       [real, legacy("GitHub", "demo"), legacy("Bank", "demo")],
       [folder("work", "Work"), folder("demo", "Sample data")],
     );
-    expect(hasLegacySample(body)).toBe(true);
     retireLegacySample(body);
     expect(body.items).toEqual([real]);
     expect(body.folders.map((f) => f.name)).toEqual(["Work"]);
     expect(JSON.stringify(body.tombstones)).toContain("demo");
-    expect(hasLegacySample(body)).toBe(false);
   });
 
   it("takes a trashed flagged item too, and leaves a trashed real one", () => {
@@ -62,7 +60,6 @@ describe("retireLegacySample", () => {
     const real = createItem("login", "Mine");
     const body = bodyWith([real], []);
     const before = JSON.stringify(body);
-    expect(hasLegacySample(body)).toBe(false);
     retireLegacySample(body);
     expect(JSON.stringify(body)).toBe(before);
   });

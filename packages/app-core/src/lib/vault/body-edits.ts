@@ -83,11 +83,6 @@ function isLegacySample(item: VaultItem): boolean {
   return (item as { sample?: unknown }).sample === true;
 }
 
-/** Whether the body still holds items the retired sample-data feature wrote. */
-export function hasLegacySample(body: VaultBody): boolean {
-  return body.items.some(isLegacySample);
-}
-
 /**
  * Take out what the retired sample-data feature left in a vault: every item
  * it flagged, live or trashed, and each folder only those items sat in —

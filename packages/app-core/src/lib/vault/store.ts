@@ -62,11 +62,9 @@ import {
 import {
   adoptMerged,
   applyManifestPlan,
-  hasLegacySample,
   recordItemTypes,
   renameFolder,
   restoreItem,
-  retireLegacySample,
   toggleFavorite,
 } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
@@ -662,7 +660,6 @@ export class VaultStore {
       this.#body = emptyBody();
       throw error;
     }
-    await this.#retireLegacySample();
     await this.#protection.ensureProtectionProjected();
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
@@ -671,17 +668,6 @@ export class VaultStore {
     this.#emit();
     noteVaultUnlocked();
   }
-  /**
-   * A vault that loaded the retired sample data still holds those synthetic
-   * items. They are taken out on unlock (`retireLegacySample`), so none stays
-   * to pass for a real login or to be sealed into a store by a manifest. A
-   * failed write leaves them for the next unlock.
-   */
-  async #retireLegacySample(): Promise<void> {
-    if (!hasLegacySample(this.#body)) return;
-    await this.#mutate(retireLegacySample).catch(() => undefined);
-  }
-
   /** After primary unwrap: either activate or park the key for a second step. */
   async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
     if (hasSecondStep(this.#header)) {
