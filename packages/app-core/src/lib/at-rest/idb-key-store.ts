@@ -15,8 +15,10 @@
 import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import type { AtRestKeyPort } from "../../ports.js";
 import { openOwnedDatabase } from "../../ports.js";
+import { haltedWriteError, storageWritesHalted } from "../storage-halt.js";
 import { AT_REST_DATABASE } from "../storage-ownership.js";
 import { AT_REST_KEY_BYTES } from "./cipher.js";
+import { deviceHoldsSeals } from "./sealed-evidence.js";
 
 const VERSION = 1;
 const STORE = "keys";
@@ -107,11 +109,26 @@ async function unwrap(record: KeyRecord): Promise<Uint8Array> {
   return new Uint8Array(plain);
 }
 
-/** The data key this browser keeps for this origin, minted on first use. */
-export async function loadIndexedDbAtRestKey(): Promise<Uint8Array> {
+/**
+ * The data key this browser keeps for this origin, minted on first use —
+ * and only when `mayMint` agrees: a device that already holds seals lost its
+ * key, and a new one would read everything as absent (`sealed-evidence.ts`).
+ */
+export async function loadIndexedDbAtRestKey(
+  mayMint: () => Promise<boolean> = async () => true,
+): Promise<Uint8Array> {
+  // Opening alone recreates a deleted database: a tab whose browser is
+  // being reset must not bring the key back.
+  if (storageWritesHalted()) throw haltedWriteError();
   const db = await open();
   try {
-    const record = (await read(db)) ?? (await addOrRead(db, await mint()));
+    let record = await read(db);
+    if (!record) {
+      if (await mayMint()) record = await addOrRead(db, await mint());
+      // The seals found may be another tab's, minted a moment ago.
+      else record = await read(db);
+      if (!record) throw new Error("this device holds seals whose key is gone");
+    }
     return await unwrap(record);
   } finally {
     // An open connection would block "Reset this browser" from deleting it.
@@ -120,5 +137,5 @@ export async function loadIndexedDbAtRestKey(): Promise<Uint8Array> {
 }
 
 export const indexedDbAtRestKeys: AtRestKeyPort = {
-  load: loadIndexedDbAtRestKey,
+  load: () => loadIndexedDbAtRestKey(async () => !(await deviceHoldsSeals())),
 };

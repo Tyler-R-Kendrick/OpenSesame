@@ -189,8 +189,14 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
         const sealed = sealRow(atRest, store, entry, entry.accountId);
         await idbReq(tx.objectStore(store).put(sealed));
       } else if (isString(row.id)) {
-        // Unreadable to the app either way; not left in the clear.
-        await idbReq(tx.objectStore(store).delete(row.id));
+        // Unreadable to the app either way: sealed whole rather than dropped
+        // or left in the clear.
+        const sealed = sealAtRest(
+          atRest.key,
+          rowBinding(store, row.id),
+          JSON.stringify(row),
+        );
+        await idbReq(tx.objectStore(store).put({ id: row.id, sealed }));
       }
     }
   }

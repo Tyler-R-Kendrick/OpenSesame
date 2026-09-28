@@ -100,14 +100,24 @@ export function kvFileName(key: string): string {
  */
 export function kvForgetAll(): void {
   memory.clear();
+  unreadable.clear();
 }
 
 /** Drop every in-memory copy whose origin file is in `files` (already removed). */
 export function kvForgetFiles(files: ReadonlySet<string>): void {
-  for (const key of [...memory.keys()]) {
-    if (files.has(fileName(key))) memory.delete(key);
+  for (const key of [...memory.keys(), ...unreadable]) {
+    if (!files.has(fileName(key))) continue;
+    memory.delete(key);
+    unreadable.delete(key);
   }
 }
+
+/**
+ * Keys whose file is sealed under a key this device does not hold. Nothing
+ * writes over one: the app reads it as absent, and a first run must not put a
+ * new vault where an old one still lies (ADR 0148).
+ */
+const unreadable = new Set<string>();
 
 async function opfsRead(key: string): Promise<string | null> {
   try {
@@ -116,7 +126,9 @@ async function opfsRead(key: string): Promise<string | null> {
     const name = fileName(key);
     const handle = await root.getFileHandle(name);
     const file = await handle.getFile();
-    return await openOriginFile(name, await file.text());
+    const opened = await openOriginFile(name, await file.text());
+    if (opened === null) unreadable.add(key);
+    return opened;
   } catch {
     return null;
   }
@@ -126,6 +138,9 @@ async function opfsWriteNow(key: string, value: string): Promise<void> {
   const atRest = await atRestReady();
   // No durable key: memory is all there is, and nothing reaches a file.
   if (!atRest.durable) return;
+  if (unreadable.has(key)) {
+    throw new Error("refusing to overwrite a file sealed under another key");
+  }
   const root = await opfsRoot(true);
   if (!root) return;
   const name = fileName(key);
