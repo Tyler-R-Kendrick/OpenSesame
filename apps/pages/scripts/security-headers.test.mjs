@@ -16,6 +16,9 @@ import {
 const ORIGIN = "https://vault.example.test";
 const BROKERS = ["https://shoo.dev"];
 
+/** A bare scheme source (`wss:`, `https:`) — a wildcard over every host. */
+const BARE_SCHEME = /(^|\s)(https?|wss?):(?=\s|;|$)/;
+
 function policy(overrides = {}) {
   return {
     schemaVersion: 1,
@@ -106,7 +109,8 @@ test("NET-07: a strict profile has no http:/https: wildcard and no unlisted orig
   const result = generate(profile(policy()));
   const connect = directive(result.csp, "connect-src");
   assert.deepEqual(connect, ["'self'", ...BROKERS]);
-  assert.equal(/\b(https?|wss?):(\s|;|$)/.test(result.csp), false, result.csp);
+  // No bare scheme source (`https:`, `wss:`, `ws:`) is a wildcard over hosts.
+  assert.equal(BARE_SCHEME.test(result.csp), false, result.csp);
   assert.deepEqual(directive(result.csp, "form-action"), ["'self'"]);
 });
 
@@ -139,6 +143,67 @@ test("NET-07: allowed service origins appear exactly, and an open allow is named
   );
   assert.ok(directive(open.csp, "connect-src").includes("https:"));
   assert.ok(open.notes.some((n) => n.includes("widened")));
+});
+
+function allowing(origins, externalServices = "allow") {
+  return profile(
+    policy({ network: { externalServices, allowedServiceOrigins: origins } }),
+  );
+}
+
+test("NET-07: a wss:// carrier is listed as itself, never as a wildcard scheme", () => {
+  const result = generate(
+    allowing([
+      "https://ntfy.example.test",
+      "wss://relay.example.test",
+      "wss://mqtt.example.test:8884",
+      "ws://127.0.0.1:7777",
+    ]),
+  );
+  const connect = directive(result.csp, "connect-src");
+  assert.deepEqual(connect, [
+    "'self'",
+    ...BROKERS,
+    "https://ntfy.example.test",
+    "wss://relay.example.test",
+    "wss://mqtt.example.test:8884",
+    "ws://127.0.0.1:7777",
+  ]);
+  assert.equal(BARE_SCHEME.test(connect.join(" ")), false, result.csp);
+  // The shipped meta policy carries the same listed hosts and nothing wider.
+  assert.deepEqual(directive(result.metaCsp, "connect-src"), connect);
+});
+
+test("NET-07: only listed hosts, and only when externalServices allow", () => {
+  const denied = generate(allowing(["wss://relay.example.test"], "deny"));
+  assert.deepEqual(directive(denied.csp, "connect-src"), [
+    "'self'",
+    ...BROKERS,
+  ]);
+  // ws:// off loopback, credentials, a path and a wildcard never reach the CSP.
+  const refused = generate(
+    allowing([
+      "ws://relay.example.test",
+      "wss://user:pw@relay.example.test",
+      "wss://relay.example.test/nostr",
+      "wss://*.example.test",
+      "wss:",
+      "wss://relay.example.test",
+    ]),
+  );
+  assert.deepEqual(directive(refused.csp, "connect-src"), [
+    "'self'",
+    ...BROKERS,
+    "wss://relay.example.test",
+  ]);
+  // An open allow widens https: and is named; it never invents a wss: wildcard.
+  const open = generate(allowing([]));
+  const connect = directive(open.csp, "connect-src");
+  assert.ok(connect.includes("https:"));
+  assert.equal(
+    connect.some((source) => /^wss?:$/.test(source)),
+    false,
+  );
 });
 
 test("NET-08: form-action follows approved navigation targets only", () => {

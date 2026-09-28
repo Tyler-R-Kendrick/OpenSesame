@@ -20,11 +20,16 @@
  * only for the owner's sessions and joiners who agree to the hosts the link
  * lists: the STUN and TURN servers named, and the carriers named
  * (`carriers/`: a Nostr relay, an MQTT broker or NATS server over wss, an
- * ntfy server over https, or BroadcastChannel), each client loaded only then.
+ * ntfy server over https, or BroadcastChannel), each client loaded only then
+ * and only if the installation allows it: ntfy fetches through this module's
+ * `EgressPort`, and the socket carriers are held to the same plan and
+ * allowlist (`carriers/allowed.ts`). A session ends if the plan stops
+ * approving this capability (`lib/live/session.ts`).
  * Side effects: none at import.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import {
   LIVE_ROUTES,
@@ -34,6 +39,8 @@ import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveSettings } from "./LiveSettings.js";
+import { carrierFactory, carriersUnavailable } from "./carriers/index.js";
+import { liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 export const CAPABILITY = "sharing.live";
@@ -43,6 +50,19 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+
+    // Carriers open through this activation's egress port and the current
+    // plan, so a session started here is held to what the installation allows
+    // (ADR 0150 §7); a later activation replaces it, and dispose takes it away.
+    const carriers = carrierFactory({
+      egress: ctx.egress,
+      plan: () => compositionStore.getSnapshot().plan,
+    });
+    liveUiSeams.carriers = carriers;
+    activation.onDispose(() => {
+      if (liveUiSeams.carriers === carriers)
+        liveUiSeams.carriers = carriersUnavailable;
+    });
 
     activation.register("route", {
       id: "live",

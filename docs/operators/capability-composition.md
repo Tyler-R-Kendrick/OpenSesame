@@ -78,6 +78,35 @@ sync a person asks for by hand still runs. A withdrawn git backup makes no
 call at all. A non-empty `allowedServiceOrigins` is an allowlist for every
 backup call.
 
+An `allowedServiceOrigins` entry is exactly what `URL.origin` prints (scheme,
+host, a non-default port, nothing else) over `https://` or `wss://`, or over
+`http://` or `ws://` to loopback only; a path, credentials, a wildcard host or
+a bare scheme refuses the document, naming the entry. A `wss://` origin is its
+own entry: a Content-Security-Policy `https:` source does not admit a
+WebSocket, so `https://relay.example.com` never stands in for
+`wss://relay.example.com`. `security-headers.mjs` puts each listed origin into
+`connect-src` as itself, only while `externalServices` is `allow`. An empty
+list still widens to `https:` alone, as before; it never adds a `wss:`
+wildcard, so a deployment that sends headers and wants WebSocket carriers must
+list them.
+
+Live sessions (`sharing.live`) reach external services only through what the
+owner names in Routes, and a hardened deployment governs those:
+
+- Prohibit it (`prohibited: [sharing.live]`) and the join road, the tab and
+  every carrier are gone; a session already running when the plan stops
+  approving it ends at once, hosted or joined.
+- Allow it, and list each carrier's origin: `https://ntfy.example.com` for
+  ntfy, `wss://relay.example.com` for Nostr, MQTT and NATS. Under
+  `externalServices: deny`, or an origin not on a non-empty list, the carrier
+  is refused before anything is contacted, and the person sees **Blocked by
+  this installation: relay.example.com**, not Unreachable.
+- STUN and TURN servers are WebRTC, which `connect-src` does not govern. The
+  policy cannot narrow them; prohibit `sharing.live` to keep them out.
+
+The operator guide for the routes is
+[`live-sessions.md`](live-sessions.md#under-a-hardened-deployment).
+
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,
