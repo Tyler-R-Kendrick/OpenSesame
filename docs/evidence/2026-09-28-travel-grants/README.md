@@ -17,8 +17,8 @@ the bundle is chosen, and Open the bundle is pressed.
 
 | | Before | After |
 |---|---|---|
-| Bundle row | `Work` · `3 files` — the grant counted as a vault file | `Work` · `2 files · 1 site grant` |
-| Opt-in | none: the grant was written back with the vault | one checkbox, unticked: "Let these sites in again: https://rp.example" |
+| Bundle row | `Work` · `4 files` — the consent and the policy counted as vault files | `Work` · `2 files · 1 site grant` |
+| Opt-in | none: both records were written back with the vault | one checkbox, unticked: "Let these sites in again: https://rp.example" |
 
 ![1280 × 900](1280-return-grants.png)
 
