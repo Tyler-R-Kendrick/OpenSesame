@@ -95,11 +95,12 @@ async fn a_vaultwarden_accounts_attachments_and_sends_move_with_their_bytes() {
         .unwrap();
     let moved = target
         .db
-        .bitwarden_attachment(&user.id, LOGIN, ATTACHMENT)
+        .bitwarden_attachment_of(LOGIN, ATTACHMENT)
         .await
         .unwrap()
         .unwrap();
     assert!(moved.uploaded);
+    assert_eq!(moved.user_id.as_deref(), Some(user.id.as_str()));
     assert_eq!(
         target.db.bitwarden_blob(ATTACHMENT).await.unwrap().unwrap(),
         ATTACHMENT_BYTES

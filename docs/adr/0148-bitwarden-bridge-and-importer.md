@@ -143,6 +143,59 @@ challenge (`--method 0 --code`) and signs in with an API key under the oracle.
   that origin). The oracle drives `send receive` against a server at an
   origin's root.
 
+### 5. Organizations and collections
+
+An organization is served as Bitwarden's is, and the server holds none of its
+keys: its creator's device makes the organization key and sends it wrapped
+under their own public key (`EncString` type 4, RSA-OAEP), with the
+organization's RSA private key wrapped under the organization key. Collection
+names and every organization cipher are encrypted under that key. The
+organization's name and billing address are the only plaintext, as on
+Bitwarden.
+
+- **Joining takes two people.** This server sends no mail, so an invitation
+  carries no token: an address that already has an account is *accepted* at
+  once, and one that has none waits and is claimed when that address
+  registers (vaultwarden's behaviour with mail off). Either way the member
+  holds nothing — no organization in their profile, no cipher, no keys —
+  until an administrator *confirms* them, wrapping the organization key under
+  the member's public key on the administrator's own device. That is the step
+  where Bitwarden's clients show the member's fingerprint phrase; since
+  registration verifies no address, it is the step that decides who is in.
+- **One rule decides who reaches a cipher** (`routes/vault_view.rs`), and
+  every read and write goes through it: owners, admins, members with access to
+  everything and custom roles allowed to edit any collection reach every
+  cipher of the organization; anyone else reaches a cipher through the
+  collections they are assigned — editing it if one is not read-only, seeing
+  its password if one does not hide it, changing its collections if one says
+  *manage*. A member names only collections they can see, adds a cipher only
+  to collections they can write to, and collections they cannot see stay on a
+  cipher whatever they send. A folder and a favourite on an organization
+  cipher are each member's own.
+- **Roles bound roles.** An owner may grant anything; an admin anything but
+  owner, and cannot act on an owner; a custom role allowed to manage users may
+  add plain users only. The last confirmed owner can neither leave nor be
+  demoted or removed. Deleting an organization, and purging its vault, take its
+  owner's master password; `purge` with an `organizationId` never touches the
+  caller's personal vault.
+- **Served:** creating an organization with a first collection; reading,
+  renaming and deleting it; leaving it; its keys; members (invite, accept,
+  confirm singly and in bulk, public keys for confirmation, change role and
+  collections, revoke, restore, remove); collections (list, details, create,
+  rename, reassign, delete); sharing a personal cipher in, its attachments
+  re-encrypted first; putting a cipher in collections; the administrators'
+  `…-admin` forms; `organization-details`; and importing into an
+  organization. Groups, policies, single sign-on, account recovery and
+  directory sync are not: groups and policies list empty, and clients hide
+  the rest as they do against a server without them.
+- **Files** on an organization's ciphers count against the organization, not
+  against whoever uploaded them, under the same per-account quota.
+
+The official `bw` lists an organization, its collections and members,
+confirms a member itself (fetching their public key and wrapping the key),
+creates a collection, moves a personal item in, and — signed in as the
+member — decrypts it, under the oracle.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve
@@ -152,6 +205,10 @@ challenge (`--method 0 --code`) and signs in with an API key under the oracle.
 - The importer holds the master password of a live account for the length of
   one sign-in, in the person's own terminal, zeroized after use; it is the same
   exposure as signing in with `bw`.
+- A self-hosted team can move onto the Host with its shared vaults, not just
+  its personal ones; the vaultwarden importer still carries personal vaults
+  only, so an organization's ciphers are exported from the old server and
+  imported into the new organization (`bw import --organizationid`).
 - The Bitwarden consume-client (`crates/provider-bitwarden`) now names the
   two-step providers a server offers and a new-device challenge, and signs in
   with an answer; its own vault reads still decline both (ADR 0052).

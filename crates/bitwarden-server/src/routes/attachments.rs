@@ -7,8 +7,6 @@
 //! short-lived token, so a client can hand it to its file fetcher without its
 //! own bearer token.
 
-use std::collections::HashMap;
-
 use axum::body::Bytes;
 use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;
@@ -19,16 +17,20 @@ use serde_json::{json, Value};
 
 use super::credentials::text;
 use super::file_links::{download_url, file_id};
+use super::vault_view::{render_one, VaultView};
 use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
-use crate::wire::cipher::{cipher_json, is_enc_string, normalize};
+use crate::wire::cipher::{is_enc_string, normalize};
 use crate::wire::files::size_name;
 use crate::BitwardenServer;
 
 /// Declared and uploaded sizes may differ by this much (encryption padding).
 pub(crate) const SIZE_LEEWAY: i64 = 1024 * 1024;
 
-fn attachment_json(server: &BitwardenServer, attachment: &BitwardenAttachment) -> ApiResult<Value> {
+pub(crate) fn attachment_json(
+    server: &BitwardenServer,
+    attachment: &BitwardenAttachment,
+) -> ApiResult<Value> {
     Ok(json!({
         "id": attachment.id,
         "url": download_url(server, &attachment.cipher_id, &attachment.id)?,
@@ -40,47 +42,20 @@ fn attachment_json(server: &BitwardenServer, attachment: &BitwardenAttachment) -
     }))
 }
 
-/// Ciphers as clients read them, each with its uploaded attachments.
-pub(crate) struct CipherViews {
-    by_cipher: HashMap<String, Vec<Value>>,
-}
-
-impl CipherViews {
-    pub(crate) async fn load(server: &BitwardenServer, user_id: &str) -> ApiResult<Self> {
-        let mut by_cipher: HashMap<String, Vec<Value>> = HashMap::new();
-        for attachment in server.db.bitwarden_attachments(user_id).await? {
-            if attachment.uploaded {
-                by_cipher
-                    .entry(attachment.cipher_id.clone())
-                    .or_default()
-                    .push(attachment_json(server, &attachment)?);
-            }
-        }
-        Ok(Self { by_cipher })
+/// A file of `size` bytes fits the per-file limit and, with the `used`
+/// bytes already claimed, the quota.
+fn admit(server: &BitwardenServer, used: i64, size: i64) -> ApiResult<()> {
+    let limit = i64::try_from(server.config.max_file_bytes).unwrap_or(i64::MAX);
+    if size <= 0 || size > limit {
+        return Err(ApiError::bad_request(format!(
+            "Max file size is {}.",
+            size_name(limit)
+        )));
     }
-
-    pub(crate) fn render(&self, cipher: &BitwardenCipher) -> Value {
-        cipher_json(cipher, self.by_cipher.get(&cipher.id).map(Vec::as_slice))
+    if used.saturating_add(size) > server.config.storage_quota_bytes {
+        return Err(ApiError::bad_request("Not enough storage available."));
     }
-}
-
-/// One cipher as clients read it.
-pub(crate) async fn render(server: &BitwardenServer, cipher: &BitwardenCipher) -> ApiResult<Value> {
-    Ok(CipherViews::load(server, &cipher.user_id)
-        .await?
-        .render(cipher))
-}
-
-async fn owned_cipher(
-    server: &BitwardenServer,
-    user_id: &str,
-    id: &str,
-) -> ApiResult<BitwardenCipher> {
-    server
-        .db
-        .bitwarden_cipher(user_id, id)
-        .await?
-        .ok_or_else(ApiError::not_found)
+    Ok(())
 }
 
 /// A file of `size` bytes fits the per-file limit and the account's quota.
@@ -89,41 +64,68 @@ pub(crate) async fn admit_size(
     user_id: &str,
     size: i64,
 ) -> ApiResult<()> {
-    let limit = i64::try_from(server.config.max_file_bytes).unwrap_or(i64::MAX);
-    if size <= 0 || size > limit {
-        return Err(ApiError::bad_request(format!(
-            "Max file size is {}.",
-            size_name(limit)
-        )));
+    admit(
+        server,
+        server.db.bitwarden_storage_used(user_id).await?,
+        size,
+    )
+}
+
+/// A file for this cipher fits its owner's quota: the account's for a
+/// personal cipher, the organization's for one of its ciphers.
+async fn admit_for(server: &BitwardenServer, cipher: &BitwardenCipher, size: i64) -> ApiResult<()> {
+    match (&cipher.user_id, &cipher.organization_id) {
+        (Some(user_id), _) => admit_size(server, user_id, size).await,
+        (None, Some(org_id)) => admit(
+            server,
+            server.db.bitwarden_org_storage_used(org_id).await?,
+            size,
+        ),
+        (None, None) => Err(ApiError::not_found()),
     }
-    let used = server.db.bitwarden_storage_used(user_id).await?;
-    if used.saturating_add(size) > server.config.storage_quota_bytes {
-        return Err(ApiError::bad_request("Not enough storage available."));
-    }
-    Ok(())
 }
 
 /// What a client needs to upload an announced file: where to, and the
 /// cipher as it will read once the file lands, the new attachment included.
-async fn upload_data(
+fn upload_data(
     server: &BitwardenServer,
+    view: &VaultView,
     cipher: &BitwardenCipher,
     attachment: &BitwardenAttachment,
 ) -> ApiResult<Json<Value>> {
-    let mut view = render(server, cipher).await?;
+    let mut rendered = view.render(cipher);
     let pending = attachment_json(server, attachment)?;
-    match view.get_mut("attachments") {
+    match rendered.get_mut("attachments") {
         Some(Value::Array(listed)) => listed.push(pending),
-        _ => view["attachments"] = json!([pending]),
+        _ => rendered["attachments"] = json!([pending]),
     }
     Ok(Json(json!({
         "attachmentId": attachment.id,
         "url": format!("{}/api/ciphers/{}/attachment/{}", server.config.public_url, cipher.id, attachment.id),
         "fileUploadType": 0,
-        "cipherResponse": view,
-        "cipherMiniResponse": view,
+        "cipherResponse": rendered,
+        "cipherMiniResponse": rendered,
         "object": "attachment-fileUpload",
     })))
+}
+
+/// A new attachment on `cipher`, counted against the cipher's owner.
+fn new_attachment(
+    cipher: &BitwardenCipher,
+    file_name: String,
+    key: String,
+    size: i64,
+) -> BitwardenAttachment {
+    BitwardenAttachment {
+        id: file_id(),
+        cipher_id: cipher.id.clone(),
+        user_id: cipher.user_id.clone(),
+        file_name,
+        key: Some(key),
+        size,
+        uploaded: false,
+        created_at: Utc::now(),
+    }
 }
 
 /// `POST /ciphers/{id}/attachment/v2`: announce a file; upload it next.
@@ -134,7 +136,8 @@ pub async fn announce(
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
     let body = normalize(body);
-    let cipher = owned_cipher(&server, &user.id, &cipher_id).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let cipher = view.reach_to_edit(&cipher_id)?;
     let file_name = text(&body, "fileName").filter(|n| is_enc_string(n));
     let key = text(&body, "key").filter(|k| is_enc_string(k));
     let (Some(file_name), Some(key)) = (file_name, key) else {
@@ -143,19 +146,10 @@ pub async fn announce(
         ));
     };
     let size = body.get("fileSize").and_then(Value::as_i64).unwrap_or(0);
-    admit_size(&server, &user.id, size).await?;
-    let attachment = BitwardenAttachment {
-        id: file_id(),
-        cipher_id: cipher.id.clone(),
-        user_id: user.id.clone(),
-        file_name,
-        key: Some(key),
-        size,
-        uploaded: false,
-        created_at: Utc::now(),
-    };
+    admit_for(&server, cipher, size).await?;
+    let attachment = new_attachment(cipher, file_name, key, size);
     server.db.bitwarden_add_attachment(&attachment).await?;
-    upload_data(&server, &cipher, &attachment).await
+    upload_data(&server, &view, cipher, &attachment)
 }
 
 /// `GET /ciphers/{id}/attachment/{attachmentId}/renew`: the upload URL again.
@@ -164,14 +158,11 @@ pub async fn renew(
     Authed { user, .. }: Authed,
     Path((cipher_id, id)): Path<(String, String)>,
 ) -> ApiResult<Json<Value>> {
-    let cipher = owned_cipher(&server, &user.id, &cipher_id).await?;
-    match server
-        .db
-        .bitwarden_attachment(&user.id, &cipher_id, &id)
-        .await?
-    {
+    let view = VaultView::load(&server, &user.id).await?;
+    let cipher = view.reach_to_edit(&cipher_id)?;
+    match server.db.bitwarden_attachment_of(&cipher.id, &id).await? {
         Some(attachment) if !attachment.uploaded => {
-            upload_data(&server, &cipher, &attachment).await
+            upload_data(&server, &view, cipher, &attachment)
         }
         _ => Err(ApiError::not_found()),
     }
@@ -207,7 +198,7 @@ pub(crate) async fn read_upload(
 
 async fn store(
     server: &BitwardenServer,
-    user_id: &str,
+    cipher: &BitwardenCipher,
     attachment: &BitwardenAttachment,
     data: &[u8],
 ) -> ApiResult<()> {
@@ -217,7 +208,7 @@ async fn store(
     }
     if !server
         .db
-        .bitwarden_upload_attachment(user_id, &attachment.id, data)
+        .bitwarden_upload_attachment_of(&cipher.id, &attachment.id, data)
         .await?
     {
         return Err(ApiError::bad_request(
@@ -226,9 +217,9 @@ async fn store(
     }
     server
         .db
-        .bitwarden_touch_cipher(user_id, &attachment.cipher_id, Utc::now())
+        .bitwarden_touch_any_cipher(&cipher.id, Utc::now())
         .await?;
-    super::touch(server, user_id).await?;
+    super::touch_cipher(server, cipher).await?;
     Ok(())
 }
 
@@ -239,13 +230,15 @@ pub async fn upload(
     Path((cipher_id, id)): Path<(String, String)>,
     form: Multipart,
 ) -> ApiResult<StatusCode> {
+    let view = VaultView::load(&server, &user.id).await?;
+    let cipher = view.reach_to_edit(&cipher_id)?;
     let attachment = server
         .db
-        .bitwarden_attachment(&user.id, &cipher_id, &id)
+        .bitwarden_attachment_of(&cipher.id, &id)
         .await?
         .ok_or_else(ApiError::not_found)?;
     let (data, _, _) = read_upload(form).await?;
-    store(&server, &user.id, &attachment, &data).await?;
+    store(&server, cipher, &attachment, &data).await?;
     Ok(StatusCode::OK)
 }
 
@@ -257,7 +250,8 @@ pub async fn upload_legacy(
     Path(cipher_id): Path<String>,
     form: Multipart,
 ) -> ApiResult<Json<Value>> {
-    let cipher = owned_cipher(&server, &user.id, &cipher_id).await?;
+    let view = VaultView::load(&server, &user.id).await?;
+    let cipher = view.reach_to_edit(&cipher_id)?;
     let (data, key, name) = read_upload(form).await?;
     let (Some(file_name), Some(key)) = (
         name.filter(|n| is_enc_string(n)),
@@ -268,21 +262,11 @@ pub async fn upload_legacy(
         ));
     };
     let size = i64::try_from(data.len()).unwrap_or(i64::MAX);
-    admit_size(&server, &user.id, size).await?;
-    let attachment = BitwardenAttachment {
-        id: file_id(),
-        cipher_id: cipher.id.clone(),
-        user_id: user.id.clone(),
-        file_name,
-        key: Some(key),
-        size,
-        uploaded: false,
-        created_at: Utc::now(),
-    };
+    admit_for(&server, cipher, size).await?;
+    let attachment = new_attachment(cipher, file_name, key, size);
     server.db.bitwarden_add_attachment(&attachment).await?;
-    store(&server, &user.id, &attachment, &data).await?;
-    let cipher = owned_cipher(&server, &user.id, &cipher_id).await?;
-    Ok(Json(render(&server, &cipher).await?))
+    store(&server, cipher, &attachment, &data).await?;
+    Ok(Json(render_one(&server, &user.id, &cipher_id).await?))
 }
 
 /// `GET /ciphers/{id}/attachment/{attachmentId}`: metadata and a fresh link.
@@ -291,11 +275,9 @@ pub async fn describe(
     Authed { user, .. }: Authed,
     Path((cipher_id, id)): Path<(String, String)>,
 ) -> ApiResult<Json<Value>> {
-    match server
-        .db
-        .bitwarden_attachment(&user.id, &cipher_id, &id)
-        .await?
-    {
+    let view = VaultView::load(&server, &user.id).await?;
+    let (cipher, _) = view.reach(&cipher_id)?;
+    match server.db.bitwarden_attachment_of(&cipher.id, &id).await? {
         Some(attachment) if attachment.uploaded => Ok(Json(attachment_json(&server, &attachment)?)),
         _ => Err(ApiError::not_found()),
     }
@@ -307,18 +289,21 @@ pub async fn remove(
     Authed { user, .. }: Authed,
     Path((cipher_id, id)): Path<(String, String)>,
 ) -> ApiResult<Json<Value>> {
+    let view = VaultView::load(&server, &user.id).await?;
+    let cipher = view.reach_to_edit(&cipher_id)?;
     if !server
         .db
-        .bitwarden_delete_attachment(&user.id, &cipher_id, &id)
+        .bitwarden_delete_attachment_of(&cipher.id, &id)
         .await?
     {
         return Err(ApiError::not_found());
     }
     server
         .db
-        .bitwarden_touch_cipher(&user.id, &cipher_id, Utc::now())
+        .bitwarden_touch_any_cipher(&cipher.id, Utc::now())
         .await?;
-    super::touch(&server, &user.id).await?;
-    let cipher = owned_cipher(&server, &user.id, &cipher_id).await?;
-    Ok(Json(json!({ "cipher": render(&server, &cipher).await? })))
+    super::touch_cipher(&server, cipher).await?;
+    Ok(Json(
+        json!({ "cipher": render_one(&server, &user.id, &cipher_id).await? }),
+    ))
 }
