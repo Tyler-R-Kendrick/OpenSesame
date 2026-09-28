@@ -88,11 +88,18 @@ already a dependency, not SubtleCrypto.
   - `@opensesame/sdk-browser` on a relying party's origin: the PKCE
     transaction, the return path and the session (`session-store.ts`). The
     storage contract stays synchronous; the client seals and opens around
-    it, and `getReturnTo()` reads what `handleRedirectCallback` loaded;
+    it. `getReturnTo()` reads what `handleRedirectCallback` loaded, and
+    `resolveReturnTo()` waits for it;
   - `@opensesame/static-auth`'s hosted client: the transaction between
     `begin` and `complete`, released as hosted SDK 1.0.3 (1.0.2 and the
     loopback compatibility bytes stay frozen).
-  With no key, these keep values in memory; nothing is written in the clear.
+  With no key these keep values in memory, and nothing is written in the
+  clear. A transaction that must outlive the redirect cannot live in memory,
+  so an origin that can keep no key refuses to sign in up front
+  (`storage_unavailable`) rather than fail on the callback page. The
+  transaction is taken — read and removed — before anything is awaited, so
+  two racing callbacks cannot both spend one verifier, and writes land in
+  the order they were asked for.
 
 ### 4. The key's states, and what a store does in each
 
