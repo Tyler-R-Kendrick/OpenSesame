@@ -2,7 +2,8 @@
  * The routes a live-session link may carry (ADR 0150 §6): the owner's ICE
  * servers, whether to relay only, and the carriers that pass the pairing
  * codes — each read strictly, so a link naming anything else is refused
- * whole. Core: the door reads a link before the capability loads; the
+ * whole. The door (core) only checks the segment's shape; this is the
+ * capability's, run by the join screen before anything is contacted. The
  * owner's own profile, and what mints credentials from it, is
  * `transport.ts`.
  */
@@ -12,6 +13,8 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { fromB64url, toB64url } from "./b64.js";
+import type { LiveLink } from "./link.js";
 
 export const CARRIER_KINDS = [
   "nostr",
@@ -247,4 +250,34 @@ export function readRoutes(value: BoundaryValue): LiveRoutes | null {
 
 export function hasRoutes(routes: LiveRoutes): boolean {
   return routes.ice.length > 0 || routes.carriers.length > 0 || routes.relay;
+}
+
+/** A link's routes, strictly: none when it names none, null when unreadable. */
+export function linkRoutes(link: LiveLink): LiveRoutes | null {
+  if (link.routes === null) return NO_ROUTES;
+  const bytes = fromB64url(link.routes);
+  if (!bytes) return null;
+  try {
+    const value: BoundaryValue = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+    );
+    return readRoutes(value);
+  } catch {
+    return null;
+  }
+}
+
+/** The routes segment for a link, or null when there is nothing to carry. */
+export function routesSegment(routes: LiveRoutes): string | null {
+  if (!hasRoutes(routes)) return null;
+  const value: Record<string, BoundaryValue> = {};
+  if (routes.ice.length > 0)
+    value.ice = routes.ice.map((server) => ({
+      ...server,
+      urls: [...server.urls],
+    }));
+  if (routes.relay) value.relay = true;
+  if (routes.carriers.length > 0)
+    value.carriers = routes.carriers.map((carrier) => ({ ...carrier }));
+  return toB64url(new TextEncoder().encode(JSON.stringify(value)));
 }

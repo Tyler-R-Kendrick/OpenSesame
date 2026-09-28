@@ -19,8 +19,8 @@ import type { LiveLink } from "./link.js";
 import type { Catalog } from "./messages.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
 import type { IceSettings, PeerFactory } from "./peer.js";
+import { type LiveRoutes, NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
-import { type LiveRoutes, NO_ROUTES } from "./transport.js";
 
 export const MAX_MISSES = 5;
 export const MAX_GUESTS = 8;
@@ -107,7 +107,7 @@ export class LiveHost {
       admission: options.admission,
       owner: owner.pub,
       secret: newLinkSecret(),
-      routes: options.routes ?? NO_ROUTES,
+      routes: routesSegment(options.routes ?? NO_ROUTES),
     };
     this.code = options.admission === "invite" ? newCode() : null;
     this.expiresAt = Math.min(options.expiresAt, this.#now() + MAX_SESSION_MS);

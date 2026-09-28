@@ -17,6 +17,7 @@ import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
 import { type CarrierFactory, Rendezvous } from "./rendezvous.js";
+import { NO_ROUTES, linkRoutes } from "./routes.js";
 import {
   type CarrierSpec,
   DIRECT_TRANSPORT,
@@ -189,7 +190,8 @@ export type JoinInput = Readonly<{
  */
 export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   leaveLive();
-  const { routes } = input.link;
+  // The join screen refuses a link whose routes do not read; direct here.
+  const routes = linkRoutes(input.link) ?? NO_ROUTES;
   const ice: IceSettings = input.useRoutes
     ? { iceServers: rtcServers(routes.ice), relay: routes.relay, addresses: [] }
     : DIRECT_ONLY;

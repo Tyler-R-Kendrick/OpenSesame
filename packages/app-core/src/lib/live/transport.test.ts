@@ -6,6 +6,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { withAddressHints } from "./candidates.js";
 import { formatLiveLink, parseLiveLink } from "./link.js";
+import { linkRoutes, routesSegment } from "./routes.js";
 import { newKeypair, newLinkSecret } from "./seal.js";
 import {
   NO_ROUTES,
@@ -141,31 +142,39 @@ describe("TURN REST credentials", () => {
 });
 
 describe("a link with routes", () => {
-  it("round-trips them, and refuses a link whose routes are not strict", async () => {
+  it("round-trips them, and the join screen refuses routes that are not strict", async () => {
     const read = readTransport(PROFILE);
     if (!read.ok) throw new Error("profile");
+    const routes = await routesFor(read.transport, Date.now() + 60_000);
     const link = {
       admission: "open" as const,
       owner: (await newKeypair()).pub,
       secret: newLinkSecret(),
-      routes: await routesFor(read.transport, Date.now() + 60_000),
+      routes: routesSegment(routes),
     };
     const url = formatLiveLink("https://example.test/OpenSesame/", link);
-    expect(parseLiveLink(url)).toEqual(link);
+    const parsed = parseLiveLink(url);
+    expect(parsed).toEqual(link);
+    expect(parsed && linkRoutes(parsed)).toEqual(routes);
     const direct = formatLiveLink("https://example.test/", {
       ...link,
-      routes: NO_ROUTES,
+      routes: routesSegment(NO_ROUTES),
     });
     expect(direct).toMatch(/#live=v1\.o\.[\w-]{87}\.[\w-]{43}$/);
-    expect(parseLiveLink(direct)?.routes).toEqual(NO_ROUTES);
-    expect(parseLiveLink(`${direct}.e30`)?.routes).toEqual(NO_ROUTES);
-    // Routes naming a plain socket elsewhere are refused whole.
+    const none = parseLiveLink(direct);
+    expect(none && linkRoutes(none)).toEqual(NO_ROUTES);
+    const empty = parseLiveLink(`${direct}.e30`);
+    expect(empty && linkRoutes(empty)).toEqual(NO_ROUTES);
+    // The door knows the link by its shape; routes naming a plain socket
+    // elsewhere do not read, and the join screen refuses the link whole.
     const bad = btoa(
       JSON.stringify({
         carriers: [{ kind: "nats", url: "ws://nats.example.com" }],
       }),
     ).replace(/=+$/, "");
-    expect(parseLiveLink(`${direct}.${bad}`)).toBeNull();
+    const refused = parseLiveLink(`${direct}.${bad}`);
+    expect(refused && linkRoutes(refused)).toBeNull();
+    expect(parseLiveLink(`${direct}.not*base64`)).toBeNull();
   });
 });
 

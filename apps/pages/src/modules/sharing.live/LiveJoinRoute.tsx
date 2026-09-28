@@ -23,6 +23,7 @@ import {
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
+import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuestCarriers,
   joinLive,
@@ -90,7 +91,10 @@ function useAsk(held: LiveLink | null) {
     joinDraft.useRoutes = next;
     setRoutesState(next);
   };
-  const link = held ?? parseLiveLink(pasted);
+  // A link whose routes do not read is no link: nothing it names is contacted.
+  const candidate = held ?? parseLiveLink(pasted);
+  const routes = candidate ? linkRoutes(candidate) : null;
+  const link = routes ? candidate : null;
   const needsCode = link?.admission === "invite";
   const normalized = needsCode ? normalizeInviteCode(code) : null;
   const ready =
@@ -124,6 +128,7 @@ function useAsk(held: LiveLink | null) {
     fields: { pasted, code, name, note, useRoutes },
     set: { setPasted, setCode, setName, setNote, setUseRoutes },
     link,
+    routes,
     needsCode,
     ready,
     busy,
@@ -133,7 +138,7 @@ function useAsk(held: LiveLink | null) {
 }
 
 function AskForm({ held }: { held: LiveLink | null }) {
-  const { fields, set, link, needsCode, ready, busy, failed, ask } =
+  const { fields, set, link, routes, needsCode, ready, busy, failed, ask } =
     useAsk(held);
   const { pasted, code, name, note, useRoutes } = fields;
   const { setPasted, setCode, setName, setNote, setUseRoutes } = set;
@@ -146,9 +151,11 @@ function AskForm({ held }: { held: LiveLink | null }) {
         void ask();
       }}
     >
-      {held ? (
-        <StatusMark tone="ok" label="Link in hand" />
-      ) : (
+      {held && link ? <StatusMark tone="ok" label="Link in hand" /> : null}
+      {held && !link ? (
+        <StatusMark tone="err" label="Not a live-session link" />
+      ) : null}
+      {held ? null : (
         <FieldShell
           id="live-link"
           label="Link"
@@ -196,9 +203,9 @@ function AskForm({ held }: { held: LiveLink | null }) {
         disabled={busy}
         onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
       />
-      {link ? (
+      {routes ? (
         <RoutesChoice
-          routes={link.routes}
+          routes={routes}
           checked={useRoutes}
           disabled={busy}
           onChange={setUseRoutes}

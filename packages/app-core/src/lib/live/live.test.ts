@@ -16,7 +16,6 @@ import {
 } from "./pairing.js";
 import { DIRECT_ONLY } from "./peer.js";
 import { newKeypair, newLinkSecret, newRequestId } from "./seal.js";
-import { NO_ROUTES } from "./transport.js";
 
 const SECRET_VALUE = "correct horse battery staple";
 
@@ -235,7 +234,7 @@ describe("the codes' keys", () => {
       admission: "invite" as const,
       owner: owner.pub,
       secret: newLinkSecret(),
-      routes: NO_ROUTES,
+      routes: null,
     };
     return { owner, link, code: "BCDF-GHJK" };
   }

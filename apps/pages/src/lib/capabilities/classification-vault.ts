@@ -90,16 +90,6 @@ export const VAULT_LIB_RULES = [
     "identity.brokered-signin",
     "boot takes a live-session link out of the address bar (ADR 0150)",
   ),
-  core(
-    "src/lib/live/routes",
-    "identity.brokered-signin",
-    "a link's optional routes are read strictly before the capability loads (ADR 0150 §6)",
-  ),
-  core(
-    "src/lib/live/b64",
-    "identity.brokered-signin",
-    "base64url for the live-session link boot reads (ADR 0150)",
-  ),
   optional(
     "src/lib/live/",
     "sharing.live",

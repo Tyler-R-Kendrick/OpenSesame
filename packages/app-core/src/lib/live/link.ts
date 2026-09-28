@@ -13,7 +13,8 @@
  * - `secret`: 32 random bytes, base64url. It keys the pairing codes; alone it
  *   opens nothing in an invite session.
  * - `routes`, optional: base64url JSON of the owner's ICE servers, relay-only
- *   switch and carriers (`transport.ts`). Absent, the link names no server:
+ *   switch and carriers, read strictly by `routes.ts`. Absent, the link
+ *   names no server:
  *   the two browsers pair by codes the two people pass each other
  *   (`pairing.ts`) and meet directly.
  *
@@ -21,14 +22,10 @@
  * never sent anywhere to find out.
  */
 
-import type { BoundaryValue } from "@opensesame/os-domain";
-import { fromB64url, toB64url } from "./b64.js";
-import { type LiveRoutes, NO_ROUTES, hasRoutes, readRoutes } from "./routes.js";
-
+/** Routes are a few servers, base64url, never a document. */
+const ROUTES = /^[A-Za-z0-9_-]{2,6000}$/;
 const OWNER = /^[A-Za-z0-9_-]{87}$/;
 const SECRET = /^[A-Za-z0-9_-]{43}$/;
-/** Routes are a few servers, never a document. */
-const ROUTES_MAX = 6000;
 const LINK_MAX = 8192;
 
 export type LiveLink = Readonly<{
@@ -38,36 +35,14 @@ export type LiveLink = Readonly<{
   owner: string;
   /** The link secret, base64url (32 bytes). */
   secret: string;
-  /** How the joiner reaches the owner beyond a direct route. */
-  routes: LiveRoutes;
+  /**
+   * The routes segment as the link carries it, or null for none. Read it
+   * with `linkRoutes` (`routes.ts`, the capability's): the door only needs
+   * to know a link when it sees one, and what the routes say is the join
+   * screen's to check before anything is contacted.
+   */
+  routes: string | null;
 }>;
-
-function decodeRoutes(segment: string): LiveRoutes | null {
-  if (segment.length > ROUTES_MAX) return null;
-  const bytes = fromB64url(segment);
-  if (!bytes) return null;
-  try {
-    const value: BoundaryValue = JSON.parse(
-      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-    );
-    return readRoutes(value);
-  } catch {
-    return null;
-  }
-}
-
-function encodeRoutes(routes: LiveRoutes): string {
-  const value: Record<string, BoundaryValue> = {};
-  if (routes.ice.length > 0)
-    value.ice = routes.ice.map((server) => ({
-      ...server,
-      urls: [...server.urls],
-    }));
-  if (routes.relay) value.relay = true;
-  if (routes.carriers.length > 0)
-    value.carriers = routes.carriers.map((carrier) => ({ ...carrier }));
-  return toB64url(new TextEncoder().encode(JSON.stringify(value)));
-}
 
 /** Read the `live=` value: `v1.<i|o>.<owner>.<secret>[.<routes>]`, or null. */
 export function readLiveValue(value: string): LiveLink | null {
@@ -78,8 +53,8 @@ export function readLiveValue(value: string): LiveLink | null {
   if (mode !== "i" && mode !== "o") return null;
   if (!owner || !OWNER.test(owner) || !secret || !SECRET.test(secret))
     return null;
-  const routes = segment === undefined ? NO_ROUTES : decodeRoutes(segment);
-  if (!routes) return null;
+  if (segment !== undefined && !ROUTES.test(segment)) return null;
+  const routes = segment ?? null;
   return { admission: mode === "i" ? "invite" : "open", owner, secret, routes };
 }
 
@@ -87,7 +62,7 @@ export function readLiveValue(value: string): LiveLink | null {
 export function liveValue(link: LiveLink): string {
   const mode = link.admission === "invite" ? "i" : "o";
   const parts = ["v1", mode, link.owner, link.secret];
-  if (hasRoutes(link.routes)) parts.push(encodeRoutes(link.routes));
+  if (link.routes) parts.push(link.routes);
   return parts.join(".");
 }
 

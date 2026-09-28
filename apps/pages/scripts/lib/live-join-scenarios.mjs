@@ -41,6 +41,13 @@ let PASSTHROUGH;
 let NATS;
 let NTFY;
 
+/**
+ * The joiner's name. It has a space in it, which base64url never does, so
+ * finding it in what a carrier passed means plaintext, not a coincidence
+ * inside ciphertext (three letters turn up in random base64url often).
+ */
+const JOINER = "Ada Lovelace";
+
 /** The runner's harness, pages and settings, for every walk below. */
 export function bindWalk(walk) {
   ({
@@ -91,12 +98,12 @@ export async function direct(browser, owner) {
   );
   await shot(owner.page, "direct-1-owner-live");
   const joiner = await device(browser, PHONE);
-  const request = await joinerAsks(joiner.page, { link, code, name: "Ada" });
+  const request = await joinerAsks(joiner.page, { link, code, name: JOINER });
   check(
-    /^osl-request\./.test(request) && !request.includes("Ada"),
+    /^osl-request\./.test(request) && !request.includes(JOINER),
     "a sealed request code",
   );
-  const reply = await ownerAdmitsByHand(owner.page, panel, request, "Ada");
+  const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
   await joinerConnects(joiner.page, reply);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   await joiner.page
@@ -176,13 +183,13 @@ async function tunnelWith(browser, owner, init) {
   const joiner = await device(browser, { ...PHONE, init });
   const request = await joinerAsks(joiner.page, {
     link: session.link,
-    name: "Ada",
+    name: JOINER,
   });
   const reply = await ownerAdmitsByHand(
     owner.page,
     session.panel,
     request,
-    "Ada",
+    JOINER,
     { admit: false },
   );
   await joinerConnects(joiner.page, reply);
@@ -253,9 +260,9 @@ export async function carried(browser, owner, kind) {
         ? { page: await owner.context.newPage(), sockets: [], context: null }
         : await device(browser, PHONE);
     if (kind === "broadcast") await joiner.page.addInitScript(WATCH_RTC);
-    await joinerAsks(joiner.page, { link, code, name: "Ada", routes: true });
+    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
-    const admit = panel.getByRole("button", { name: "Let Ada in" });
+    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     await joined(joiner.page).waitFor({ timeout: 45_000 });
@@ -272,9 +279,9 @@ export async function carried(browser, owner, kind) {
       );
       const heard = server.frames.join("\n");
       for (const [what, plain] of [
-        ["the name", "Ada"],
+        ["the name", JOINER],
         ["an SDP", "v=0"],
-        ["a field", "octo"],
+        ["a field", '"octo"'],
         ["the value", SECRET],
         ["the link secret", secret],
       ])
@@ -312,8 +319,8 @@ export async function relayed(browser, owner) {
     await shot(owner.page, "relayed-1-routes");
     const { panel, code, link } = await startSession(owner.page);
     const joiner = await device(browser, PHONE);
-    await joinerAsks(joiner.page, { link, code, name: "Ada", routes: true });
-    const admit = panel.getByRole("button", { name: "Let Ada in" });
+    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     await joined(joiner.page).waitFor({ timeout: 45_000 });
@@ -356,7 +363,7 @@ export async function declined(browser, owner) {
     const { panel, code, link } = await startSession(owner.page);
     const before = server.frames.length;
     const joiner = await device(browser, PHONE);
-    await joinerAsks(joiner.page, { link, code, name: "Ada", routes: false });
+    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: false });
     await joiner.page.waitForTimeout(1500);
     check(joiner.sockets.length === 0, "declined: the joiner opened no socket");
     check(
@@ -364,7 +371,9 @@ export async function declined(browser, owner) {
       "declined: the carrier heard nothing of them",
     );
     check(
-      (await panel.getByRole("button", { name: "Let Ada in" }).count()) === 0,
+      (await panel
+        .getByRole("button", { name: `Let ${JOINER} in` })
+        .count()) === 0,
       "declined: not asked",
     );
     await endSession(panel);

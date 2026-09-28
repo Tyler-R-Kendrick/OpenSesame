@@ -8,6 +8,7 @@
  */
 import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
 import { FakeBus, FakeNet } from "@opensesame/app-core/lib/live/live-fakes.js";
+import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuest,
   currentHost,
@@ -184,8 +185,12 @@ describe("joining through the owner's routes", () => {
   it("lists every host before contacting any, and pairs with nothing pasted", async () => {
     await host(CARRIED);
     const link = currentHost()?.link ?? null;
-    expect(JSON.stringify(link)).not.toContain("rest-secret");
-    expect(JSON.stringify(link)).not.toContain("100.101.102.103");
+    // What the link carries, decoded: minted credentials, never the secret;
+    // and never the owner's address.
+    const carried = JSON.stringify(link && linkRoutes(link));
+    expect(carried).toContain("turn.example.ts.net");
+    expect(carried).not.toContain("rest-secret");
+    expect(carried).not.toContain("100.101.102.103");
     holdLiveLink(link);
     const joiner = openJoin();
     const choice = joiner.getByRole("checkbox", {
