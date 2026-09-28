@@ -77,6 +77,8 @@ After a Google sign-in, 17 of 17 app-owned values were in the clear.
   wrapping key from the browser's own IndexedDB serialization.
 - Key names, file names (random tomb ids), sizes and timestamps remain
   visible.
-- MSAL's in-flight redirect record, and the relying-party SDKs' storage on
-  their own origins, are outside this change (ADR 0148, "What this
-  protects, and what it does not").
+
+Also fixed, in the same series: the relying-party SDKs' storage on their own
+origins (`sdk-browser`'s PKCE transaction and session, `static-auth`'s hosted
+transaction, released as SDK 1.0.3) is sealed through
+`@opensesame/browser-at-rest`, and MSAL runs no flow that writes Web Storage.
