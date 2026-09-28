@@ -42,7 +42,8 @@ async fn a_vaultwarden_server_moves_over_and_the_same_password_opens_the_same_va
     assert_eq!(source.left_behind["organizations"], 1);
     assert_eq!(source.left_behind["organization items"], 1);
     let arrival = &source.arrivals[0];
-    assert_eq!(arrival.left_behind["attachments"], 1);
+    // The attachment's row arrives; its file is read when written.
+    assert_eq!(arrival.attachments.len(), 1);
     assert!(!arrival.left_behind.contains_key("unreadable items"));
 
     let target = Harness::start().await;

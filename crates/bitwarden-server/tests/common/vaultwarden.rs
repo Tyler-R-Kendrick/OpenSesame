@@ -84,6 +84,11 @@ pub const API_KEY: &str = "vwApiKey0123456789abcdefghijkl";
 pub const RECOVERY: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 pub const AUTHENTICATOR_KEY: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
+/// The login's attachment, and the ciphertext vaultwarden keeps for it
+/// under `attachments/<cipher>/<id>` (written by `write_files`).
+pub const ATTACHMENT: &str = "k2b8xq0z9m1n3p5r7t9v1x3z5b7d9f1h";
+pub const ATTACHMENT_BYTES: &[u8] = b"2.fake-attachment-ciphertext-bytes";
+
 pub const LOGIN: &str = "0c6f1d2a-4b1e-4a5c-9d3f-2e8b7a6c5d41";
 pub const NOTE: &str = "1d7e2f3b-5c2f-4b6d-8e4a-3f9c8b7d6e52";
 const FOLDER: &str = "2e8f3a4c-6d3a-4c7e-9f5b-4a0d9c8e7f63";
@@ -230,11 +235,15 @@ async fn insert_ciphers(pool: &SqlitePool, keys: &Keys) {
         &format!("INSERT INTO favorites VALUES ('{USER}', '{LOGIN}')"),
     )
     .await;
-    exec(
-        pool,
-        &format!("INSERT INTO attachments VALUES ('att', '{LOGIN}', 'x', 10, NULL)"),
-    )
-    .await;
+    sqlx::query("INSERT INTO attachments VALUES (?, ?, ?, ?, ?)")
+        .bind(ATTACHMENT)
+        .bind(LOGIN)
+        .bind(enc("statement.pdf"))
+        .bind(i64::try_from(ATTACHMENT_BYTES.len()).unwrap())
+        .bind(enc("attachment key"))
+        .execute(pool)
+        .await
+        .unwrap();
     exec(pool, "INSERT INTO organizations VALUES ('org', 'Family')").await;
 }
 
@@ -262,6 +271,74 @@ pub async fn fixture(path: &std::path::Path) -> Keys {
     insert_ciphers(&pool, &keys).await;
     pool.close().await;
     keys
+}
+
+/// vaultwarden's data folder beside the database: the attachment's bytes,
+/// and a text Send and a password-protected file Send with its bytes.
+pub const SEND_TEXT: &str = "6b1c2d3e-4f50-4a61-8b72-9c83d4e5f607";
+pub const SEND_FILE: &str = "7c2d3e4f-5061-4b72-9c83-ad94e5f60718";
+pub const SEND_FILE_ID: &str = "sendfile0123456789abcdefghijklmn";
+pub const SEND_FILE_BYTES: &[u8] = b"2.fake-send-file-ciphertext";
+/// What the client sends as the file Send's password (its own hash of it).
+pub const SEND_PASSWORD_HASH: &str = "client-side-send-password-hash";
+
+pub async fn write_files(path: &std::path::Path, keys: &Keys) {
+    let data = path.parent().unwrap();
+    let dir = data.join("attachments").join(LOGIN);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(ATTACHMENT), ATTACHMENT_BYTES).unwrap();
+    let dir = data.join("sends").join(SEND_FILE);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(SEND_FILE_ID), SEND_FILE_BYTES).unwrap();
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(SqliteConnectOptions::new().filename(path))
+        .await
+        .unwrap();
+    exec(
+        &pool,
+        "CREATE TABLE sends (uuid TEXT PRIMARY KEY, user_uuid TEXT, organization_uuid TEXT, \
+         name TEXT NOT NULL, notes TEXT, atype INTEGER NOT NULL, data TEXT NOT NULL, \
+         akey TEXT NOT NULL, password_hash BLOB, password_salt BLOB, password_iter INTEGER, \
+         max_access_count INTEGER, access_count INTEGER NOT NULL, creation_date DATETIME NOT NULL, \
+         revision_date DATETIME NOT NULL, expiration_date DATETIME, deletion_date DATETIME NOT NULL, \
+         disabled BOOLEAN NOT NULL, hide_email BOOLEAN)",
+    )
+    .await;
+    let enc = |plain: &str| encrypt(&keys.user_key, plain.as_bytes());
+    let salt: Vec<u8> = (100..164_u8).collect();
+    let mut hash = [0_u8; 32];
+    pbkdf2::pbkdf2_hmac::<Sha256>(SEND_PASSWORD_HASH.as_bytes(), &salt, 1_000, &mut hash);
+    let later = (chrono::Utc::now() + chrono::Duration::days(3))
+        .format("%Y-%m-%d %H:%M:%S%.6f")
+        .to_string();
+    let text = json!({"Text": enc("the gate code is 4321"), "Hidden": false});
+    let file =
+        json!({"id": SEND_FILE_ID, "fileName": enc("keys.txt"), "size": SEND_FILE_BYTES.len()});
+    for (uuid, atype, data, password) in [(SEND_TEXT, 0, text, false), (SEND_FILE, 1, file, true)] {
+        sqlx::query(
+            "INSERT INTO sends (uuid, user_uuid, name, atype, data, akey, password_hash, \
+             password_salt, password_iter, access_count, creation_date, revision_date, \
+             deletion_date, disabled, hide_email) VALUES (?,?,?,?,?,?,?,?,?,0,?,?,?,0,0)",
+        )
+        .bind(uuid)
+        .bind(USER)
+        .bind(enc("a send"))
+        .bind(atype)
+        .bind(data.to_string())
+        .bind(enc("send key"))
+        .bind(password.then_some(&hash[..]))
+        .bind(password.then_some(&salt[..]))
+        .bind(password.then_some(1_000_i64))
+        .bind(AT)
+        .bind(AT)
+        .bind(&later)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    pool.close().await;
 }
 
 /// Turn two-step login on for the fixture account, as vaultwarden stores it:
