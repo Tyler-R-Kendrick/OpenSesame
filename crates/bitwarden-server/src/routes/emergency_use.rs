@@ -121,6 +121,7 @@ pub async fn password(
         .db
         .bitwarden_emergency_takeover(&grantor.id, &credentials)
         .await?;
+    super::signed_out(&server, &grantor.id);
     tracing::info!("bitwarden-compat account taken over by its emergency contact");
     Ok(StatusCode::OK)
 }
