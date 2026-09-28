@@ -13,7 +13,7 @@ use super::vault_view::VaultView;
 use crate::auth::Authed;
 use crate::error::ApiResult;
 use crate::routes::identity::normalize_email;
-use crate::wire::account::{date, profile, sync_decryption};
+use crate::wire::account::{date, sync_decryption};
 use crate::wire::cipher::folder_json;
 use crate::BitwardenServer;
 
@@ -91,21 +91,15 @@ pub async fn sync(
     Query(query): Query<SyncQuery>,
 ) -> ApiResult<Json<Value>> {
     let folders = server.db.bitwarden_folders(&user.id).await?;
-    let two_factor = super::two_factor::enabled(&server, &user.id).await?;
     let view = VaultView::load(&server, &user.id).await?;
-    let organizations = super::organizations::for_profile(&server, &user.id).await?;
     let sends = super::sends::for_sync(&server, &user.id).await?;
     let domains = if query.exclude_domains.unwrap_or(false) {
         Value::Null
     } else {
-        json!({
-            "equivalentDomains": [],
-            "globalEquivalentDomains": [],
-            "object": "domains",
-        })
+        super::account_extras::domains_body(&server, &user.id).await?
     };
     Ok(Json(json!({
-        "profile": profile(&user, two_factor, &organizations),
+        "profile": super::account_extras::profile_body(&server, &user).await?,
         "folders": folders.iter().map(folder_json).collect::<Vec<_>>(),
         "collections": super::collections::for_sync(&view),
         "policies": [],

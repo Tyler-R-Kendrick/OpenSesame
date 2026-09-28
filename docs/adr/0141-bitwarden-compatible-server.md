@@ -91,9 +91,10 @@ flag day: no forced password reset and no re-encryption.
   (`OPENSESAME_BITWARDEN_SIGNUPS=open` or a domain list). With no mail, a
   domain list limits which addresses can be claimed but proves nobody receives
   that address's mail.
-- Not served: emergency access, the notifications hub, and key rotation.
-  (API-key sign-in and authenticator two-step login arrived with ADR 0148 §3;
-  attachments and Sends with §4; organizations and collections with §5.)
+- Not served: the notifications hub. (API-key sign-in and authenticator
+  two-step login arrived with ADR 0148 §3; attachments and Sends with §4;
+  organizations and collections with §5; emergency access and key rotation
+  with §6.)
 
 ## Consequences
 
