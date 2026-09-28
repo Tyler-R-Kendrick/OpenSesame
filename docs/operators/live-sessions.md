@@ -163,8 +163,47 @@ Nothing is contacted before they ask, and declining leaves no trace on any
 carrier.
 
 While a request is out, each carrier shows as **Connecting**, **Carrying
-codes** or **Unreachable**. A session that could not connect ends with **No
-route to the owner's browser**.
+codes**, **Unreachable** or **Blocked by this installation**. A session that
+could not connect ends with **No route to the owner's browser**.
+
+## Under a hardened deployment
+
+An instance policy
+([capability composition](capability-composition.md)) governs Live sessions
+like any optional capability, and a carrier is external service egress:
+
+- **The operator can prohibit `sharing.live`.** Nothing of it loads; the join
+  road and the Settings tab are absent. If the plan stops approving it while a
+  session is running — the operator withdrew it, or the person switched Live
+  sessions off in Settings › Capabilities — the session ends at once, hosted
+  or joined: the peer connection, the carriers and ntfy's stream are closed.
+  A lock, an unlock or a consent commit re-plans the page but still approves
+  it, and drops nobody.
+- **Carriers must be listed.** With `externalServices: allow` and a non-empty
+  `allowedServiceOrigins`, list each carrier's own origin: `https://` for
+  ntfy, `wss://` for Nostr, MQTT and NATS (`wss://relay.example.com`, with the
+  port if it is not 443). `https://relay.example.com` does not cover
+  `wss://relay.example.com`: a Content-Security-Policy `https:` source does
+  not admit a WebSocket, so a deployment that sends headers needs the `wss://`
+  entry to open one at all. Plain `ws://` and `http://` are only for the
+  device itself (loopback).
+- **What the person sees.** A carrier the plan does not allow is refused
+  before any socket opens or request leaves, and it shows as **Blocked by this
+  installation: relay.example.com**, apart from **Unreachable**, which means
+  the server did not answer. The other carriers, and pasting codes by hand,
+  carry on. ntfy's requests go through the same egress gate as every other
+  optional module: no redirects, no cookies, checked against the current plan
+  on each request.
+- **STUN and TURN are not covered.** They are WebRTC, which `connect-src` and
+  `allowedServiceOrigins` do not govern. The joiner still sees every host
+  before any is contacted, but a policy cannot narrow them; to keep them out,
+  prohibit `sharing.live`, or leave Routes without ICE servers.
+- **The shipped page's own `<meta>` policy allows every `https:` and `wss:`
+  connection** (`index.html`), so on GitHub Pages the plan and allowlist are
+  the gate. The policy `scripts/security-headers.mjs` generates from a profile
+  (the header, or its `metaCsp` on a host that cannot send headers) is
+  stricter, and lists each `wss://` origin in `connect-src` only while
+  external services are allowed.
 
 ## Checking a setup
 

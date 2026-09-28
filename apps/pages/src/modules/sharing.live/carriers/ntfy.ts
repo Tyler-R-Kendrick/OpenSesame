@@ -5,8 +5,18 @@
  * if the server drops it — from the last message heard (`since=`), so a code
  * posted while it was reconnecting is not lost. A token or a user and
  * password go in the Authorization header, never in the URL.
+ *
+ * Every request goes through the module's `EgressPort`, so it is checked
+ * against the current plan on each call: a withdrawn capability or a
+ * narrowed allowlist refuses it before a socket opens, a redirect is never
+ * followed, and credentials are omitted. The port hands the response back
+ * untouched, so the JSON stream still arrives as it is written.
  */
 
+import {
+  EgressDenied,
+  type EgressPort,
+} from "@opensesame/app-core/lib/capabilities/egress.js";
 import type { Carrier } from "@opensesame/app-core/lib/live/rendezvous.js";
 import type { CarrierSpec } from "@opensesame/app-core/lib/live/transport.js";
 import {
@@ -14,9 +24,18 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { CARRIER_META } from "./allowed.js";
 
 const RETRY_MS = 3000;
 const LINE_MAX = 16 * 1024;
+
+/** `user:password` as Basic credentials: UTF-8 first (RFC 7617), then base64. */
+export function basicCredentials(user: string, password: string): string {
+  let binary = "";
+  for (const byte of new TextEncoder().encode(`${user}:${password}`))
+    binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
 
 function authorization(spec: CarrierSpec): Headers {
   const headers = new Headers();
@@ -24,7 +43,7 @@ function authorization(spec: CarrierSpec): Headers {
   else if (spec.username && spec.password)
     headers.set(
       "Authorization",
-      `Basic ${btoa(`${spec.username}:${spec.password}`)}`,
+      `Basic ${basicCredentials(spec.username, spec.password)}`,
     );
   return headers;
 }
@@ -76,6 +95,9 @@ function withType(headers: Headers): Headers {
 export async function ntfyCarrier(
   spec: CarrierSpec,
   topic: string,
+  egress: EgressPort,
+  /** Aborted when the connect budget runs out; it ends the first request. */
+  connecting: AbortSignal,
 ): Promise<Carrier> {
   const base = spec.url.replace(/\/+$/, "");
   const headers = authorization(spec);
@@ -85,20 +107,28 @@ export async function ntfyCarrier(
   // One subscription proves the server is there before the session counts on it.
   const first = new AbortController();
   aborts.add(first);
-  const opened = await fetch(`${base}/${topic}/json`, {
-    headers,
-    signal: first.signal,
-    cache: "no-store",
-  });
-  if (!opened.ok) throw new Error(`ntfy_${opened.status}`);
+  const stopFirst = () => first.abort();
+  if (connecting.aborted) stopFirst();
+  else connecting.addEventListener("abort", stopFirst, { once: true });
+  const opened = await egress
+    .fetch(
+      `${base}/${topic}/json`,
+      { headers, signal: first.signal, cache: "no-store" },
+      CARRIER_META,
+    )
+    .finally(() => connecting.removeEventListener("abort", stopFirst));
+  if (!opened.ok) {
+    void opened.body?.cancel();
+    throw new Error(`ntfy_${opened.status}`);
+  }
 
   return {
     async post(text) {
-      const response = await fetch(`${base}/${topic}`, {
-        method: "POST",
-        headers: withType(headers),
-        body: text,
-      });
+      const response = await egress.fetch(
+        `${base}/${topic}`,
+        { method: "POST", headers: withType(headers), body: text },
+        CARRIER_META,
+      );
       if (!response.ok) throw new Error(`ntfy_${response.status}`);
     },
     listen(onText) {
@@ -112,9 +142,10 @@ export async function ntfyCarrier(
             if (!response) {
               const again = new AbortController();
               aborts.add(again);
-              response = await fetch(
+              response = await egress.fetch(
                 `${base}/${topic}/json?since=${encodeURIComponent(since)}`,
                 { headers, signal: again.signal, cache: "no-store" },
+                CARRIER_META,
               );
               if (!response.ok) throw new Error(`ntfy_${response.status}`);
             }
@@ -122,8 +153,11 @@ export async function ntfyCarrier(
               since = heard.id;
               onText(heard.message);
             });
-          } catch {
+          } catch (error) {
             failed = true;
+            // Egress said no: the plan changed under a running session, and
+            // retrying cannot help.
+            if (error instanceof EgressDenied) closed = true;
           }
           response = null;
           // A stream the server ended is picked up again at once; a refusal

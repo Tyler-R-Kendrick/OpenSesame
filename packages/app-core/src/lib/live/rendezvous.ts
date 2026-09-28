@@ -34,9 +34,22 @@ export type CarrierFactory = (
   topic: string,
 ) => Promise<Carrier>;
 
+/**
+ * A carrier the installation's policy does not allow: the capability is not
+ * approved, external services are off, or the origin is not on the operator's
+ * list. Not a network fault — the shell refuses before any socket opens, and
+ * the person is told it is this installation, not the server, that said no.
+ */
+export class CarrierBlocked extends Error {
+  constructor(message = "carrier_blocked") {
+    super(message);
+    this.name = "CarrierBlocked";
+  }
+}
+
 export type CarrierState = Readonly<{
   spec: CarrierSpec;
-  status: "connecting" | "ready" | "failed";
+  status: "connecting" | "ready" | "failed" | "blocked";
 }>;
 
 const FRAME_PREFIX = "osl1";
@@ -172,7 +185,11 @@ export class Rendezvous {
       specs.forEach((spec, at) => {
         factory(spec, topic).then(
           (carrier) => rendezvous.#ready(at, carrier, onCode),
-          () => rendezvous.#mark(at, "failed"),
+          (error) =>
+            rendezvous.#mark(
+              at,
+              error instanceof CarrierBlocked ? "blocked" : "failed",
+            ),
         );
       }),
     );
@@ -194,8 +211,12 @@ export class Rendezvous {
     if (!state || this.#closed) return;
     this.#states[at] = { ...state, status };
     for (const listener of this.#listeners) listener(this.states);
-    // Nothing left to wait for once every carrier has failed.
-    if (this.#states.every((entry) => entry.status === "failed"))
+    // Nothing left to wait for once every carrier has failed or been refused.
+    if (
+      this.#states.every(
+        (entry) => entry.status === "failed" || entry.status === "blocked",
+      )
+    )
       for (const waiter of this.#waiting.splice(0)) waiter();
   }
 

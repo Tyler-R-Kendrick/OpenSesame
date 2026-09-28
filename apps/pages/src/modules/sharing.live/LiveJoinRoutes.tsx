@@ -48,6 +48,10 @@ export function carrierStanding(state: CarrierState): Standing {
       ? "this browser"
       : new URL(state.spec.url).host;
   const name = `${where} (${state.spec.kind})`;
+  // The installation said no before anything was contacted: not a fault of
+  // the server, so not "Unreachable".
+  if (state.status === "blocked")
+    return { tone: "warn", label: `Blocked by this installation: ${where}` };
   if (state.status === "ready")
     return { tone: "ok", label: `Carrying codes: ${name}` };
   if (state.status === "failed")

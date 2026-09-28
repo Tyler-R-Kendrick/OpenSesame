@@ -7,9 +7,21 @@
  * commit, and a joiner mid-session must not be dropped because the page
  * re-planned. A hosted session is different on purpose — locking the vault
  * ends it, because the vault it reads from is gone.
+ *
+ * What does end both, hosted and joined, is the capability going away: the
+ * page's resolved plan no longer approves `sharing.live` — an operator
+ * withdrew it, or the person switched it off. The UI is gone by then, and a
+ * peer connection, carrier sockets and a polling loop must not outlive it.
+ * A re-plan that still approves it (a lock, an unlock, a consent commit)
+ * changes nothing here (ADR 0150 §7).
  */
 
+import {
+  type EffectivePlan,
+  capabilityState,
+} from "@opensesame/capability-composition";
 import type { VaultItem } from "@opensesame/vault-core";
+import { compositionStore } from "../capabilities/store.js";
 import { vaultStore } from "../vault/store.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
@@ -30,13 +42,46 @@ import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
 export const liveSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
   onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
+  /** The page's resolved plan; null until the composition store has one. */
+  plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
+  /** Hear the composition store publish, on every re-plan and activity note. */
+  onPlan: (handler: () => void): (() => void) =>
+    compositionStore.subscribe(handler),
 };
+
+const CAPABILITY = "sharing.live";
+
+/** Whether a resolved plan approves Live sessions. */
+export function planApprovesLive(plan: EffectivePlan): boolean {
+  return capabilityState(plan, CAPABILITY)?.approved === true;
+}
 
 let host: LiveHost | null = null;
 let hostCarriers: Rendezvous | null = null;
 let stopLockWatch: (() => void) | null = null;
 let guest: LiveGuest | null = null;
 let guestCarriers: Rendezvous | null = null;
+let stopPlanWatch: (() => void) | null = null;
+
+/**
+ * While a session stands, end both when a resolved plan does not approve
+ * Live sessions. A plan not yet resolved says nothing either way.
+ */
+function watchPlan(): void {
+  if (stopPlanWatch) return;
+  stopPlanWatch = liveSeams.onPlan(() => {
+    const plan = liveSeams.plan();
+    if (plan === null || planApprovesLive(plan)) return;
+    endHosting();
+    leaveLive();
+  });
+}
+
+function unwatchPlanIfIdle(): void {
+  if (host || guest) return;
+  stopPlanWatch?.();
+  stopPlanWatch = null;
+}
 
 /** How long a first post waits for a carrier to connect. */
 const CARRIER_WAIT_MS = 8000;
@@ -144,6 +189,7 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     });
   }
   stopLockWatch = liveSeams.onLock(() => endHosting());
+  watchPlan();
   changed();
   return next;
 }
@@ -166,6 +212,7 @@ export function endHosting(): void {
   if (!host) return;
   host.end("owner");
   host = null;
+  unwatchPlanIfIdle();
   changed();
 }
 
@@ -217,6 +264,7 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
       : null,
   });
   guest = next;
+  watchPlan();
   changed();
   await next.start();
   return next;
@@ -238,5 +286,6 @@ export function leaveLive(): void {
   if (!guest) return;
   guest.leave();
   guest = null;
+  unwatchPlanIfIdle();
   changed();
 }

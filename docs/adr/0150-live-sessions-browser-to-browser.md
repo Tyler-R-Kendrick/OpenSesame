@@ -189,6 +189,20 @@ Routes). The sessions themselves live in app-core (`lib/live/session.ts`), so
 re-planning the page — every lock, unlock and consent commit — never drops a
 joiner.
 
+Optional does not mean ungoverned. A carrier is external-service egress: ntfy
+fetches through the module's `EgressPort` (declared purpose, current plan,
+`allowedServiceOrigins`, redirects refused, credentials omitted; the port is
+http(s)-only but hands the streaming response back untouched), and the three
+WebSocket kinds are asked of the same plan and allowlist before a socket
+opens, against their own `wss://host` origin, because a CSP `https:` source
+does not admit a WebSocket and the origin grammar now lists `wss://`. A
+refusal is shown as blocked by this installation, not unreachable. STUN and
+TURN are WebRTC and remain outside `connect-src`. Sessions are not tied to the
+module's activation, but they are tied to its approval: when a resolved plan
+stops approving `sharing.live` — an operator's withdrawal, or the person's
+switch — `session.ts` ends the hosted session and leaves the joined one, and
+closes their carriers; a re-plan that still approves it changes nothing.
+
 ## Consequences
 
 - An invited person can join from github.io, from a phone, with no account,
