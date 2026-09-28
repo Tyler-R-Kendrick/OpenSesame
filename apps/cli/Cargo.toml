@@ -58,5 +58,7 @@ default = []
 browserpass = ["opensesame-pm-bridges/browserpass"]
 gopass = ["opensesame-pm-bridges/gopass"]
 keepassxc = ["opensesame-pm-bridges/keepassxc"]
+# The Bitwarden-compatible server, a password-manager bridge (ADR 0148).
+bitwarden-compat = ["opensesame-gateway/bitwarden-compat"]
 tailscale = ["opensesame-daemon/tailscale"]
 wasm-connectors = ["opensesame-gateway/wasm-connectors"]

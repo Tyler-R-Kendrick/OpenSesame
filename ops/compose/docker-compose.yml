@@ -60,6 +60,9 @@ services:
     build:
       context: ../..
       dockerfile: ops/compose/Dockerfile
+      args:
+        # Optional bridges compiled into the Host, e.g. `bitwarden-compat`.
+        OPENSESAME_FEATURES: ${OPENSESAME_FEATURES:-}
     command: ["host", "run"]
     environment:
       OPENSESAME_LISTEN: "0.0.0.0:8787"

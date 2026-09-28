@@ -153,6 +153,9 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: Test (workspace, all targets)
         run: cargo test --workspace --all-targets
+      - name: Test the Bitwarden bridge build (ADR 0148)
+        # Default builds leave the bridge out; this compiles it in.
+        run: cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
 
   mtls:
     # Optional mTLS / workload identity (ADR 0132): the fast suite, then the

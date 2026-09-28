@@ -8,7 +8,9 @@ Bitwarden's own server ([ADR 0141](../../docs/adr/0141-bitwarden-compatible-serv
 ## Where it fits
 
 - **Used by:** [`crates/gateway`](../gateway) (`src/bitwarden_compat.rs`), which
-  mounts it at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on`. Off by default.
+  mounts it at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on`. Off by default,
+  and compiled in only with the gateway's `bitwarden-compat` feature
+  ([ADR 0148](../../docs/adr/0148-bitwarden-bridge-and-importer.md)).
 - **Builds on:** [`crates/storage`](../storage) (`bitwarden_accounts.rs`,
   `bitwarden_vault.rs`, migration `0042_bitwarden_compat`). `argon2`,
   `pbkdf2` (verify only), `jsonwebtoken`, `axum`.

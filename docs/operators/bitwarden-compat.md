@@ -8,7 +8,13 @@ and edit a personal vault against it, and never learn the difference beyond a
 
 ## Turn it on
 
+The server is a password-manager bridge, so a default build leaves it out
+([ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)). Build the Host with
+it, then switch it on:
+
 ```bash
+cargo build --release -p opensesame-cli --features bitwarden-compat
+# or the image: docker build --build-arg OPENSESAME_FEATURES=bitwarden-compat …
 export OPENSESAME_BITWARDEN_COMPAT=on
 export OPENSESAME_BITWARDEN_SIGNUPS=open          # closed (default) | open | example.com,corp.example
 # A domain list limits which addresses can be claimed; no mail is sent, so it
@@ -18,6 +24,9 @@ export OPENSESAME_BITWARDEN_REQUIRE_ARGON2ID=true  # optional: refuse PBKDF2 for
 export OPENSESAME_BITWARDEN_URL=https://vault.example.com/bitwarden
 opensesame host run
 ```
+
+A Host built without the feature refuses to start while
+`OPENSESAME_BITWARDEN_COMPAT` is on, rather than come up without the surface.
 
 Bitwarden clients refuse plain HTTP, so the URL they are given must be HTTPS:
 the Host's own TLS listener ([mTLS guide](mtls.md)) or a TLS-terminating

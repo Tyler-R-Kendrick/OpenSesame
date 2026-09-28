@@ -26,7 +26,7 @@ opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-security-events = { path = "../../crates/security-events" }
 opensesame-breach-intel = { path = "../../crates/breach-intel" }
 opensesame-storage = { path = "../../crates/storage" }
-opensesame-bitwarden-server = { path = "../../crates/bitwarden-server" }
+opensesame-bitwarden-server = { path = "../../crates/bitwarden-server", optional = true }
 opensesame-claims = { path = "../../crates/claims" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-client-core = { path = "../../crates/client-core" }
@@ -76,6 +76,9 @@ zeroize = { workspace = true }
 # Pass-through for the ADR 0065 §3 community connector runtime. Default off;
 # enabling it is a gateway deployment decision, never the daemon's.
 wasm-connectors = ["opensesame-connector-host/wasm-connectors"]
+# The Bitwarden-compatible server (ADR 0141, ADR 0148): a password-manager
+# bridge, so it is compiled only on request, like crates/pm-bridges (ADR 0053).
+bitwarden-compat = ["dep:opensesame-bitwarden-server"]
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
