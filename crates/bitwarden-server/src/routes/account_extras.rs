@@ -168,6 +168,7 @@ async fn delete_account(
         }
     }
     server.db.bitwarden_delete_user(&user.id).await?;
+    super::signed_out(&server, &user.id);
     tracing::info!("bitwarden-compat account deleted by its owner");
     Ok(StatusCode::OK)
 }
@@ -228,6 +229,7 @@ async fn change_email(
     {
         return Err(ApiError::bad_request("Email already taken."));
     }
+    super::signed_out(&server, &user.id);
     tracing::info!("bitwarden-compat account changed its address");
     Ok(StatusCode::OK)
 }

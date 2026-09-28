@@ -264,6 +264,7 @@ pub async fn rotate(
         .map_err(|_| {
             ApiError::bad_request("The rotation names something this account does not own.")
         })?;
+    super::signed_out(&server, &user.id);
     tracing::info!("bitwarden-compat account rotated its user key");
     Ok(StatusCode::OK)
 }

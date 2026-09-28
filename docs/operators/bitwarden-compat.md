@@ -161,11 +161,29 @@ every device out.
 The server sends no mail, so password hints and account-deletion links are
 refused rather than reported as sent.
 
+## Live sync and the web vault
+
+Clients that stay signed in — the desktop app, browser extension and web
+vault — hold `/notifications/hub` open and sync as soon as a change is made
+elsewhere; nothing needs configuring. Put a WebSocket-capable proxy in front
+if there is one (Caddy and nginx pass upgrades with their defaults for this
+path).
+
+To serve the web vault, unpack a build of Bitwarden's web app and name its
+directory:
+
+```bash
+export OPENSESAME_BITWARDEN_WEB_VAULT=/srv/bitwarden-web-vault   # holds index.html
+```
+
+The Host refuses to start if the directory has no `index.html`. Give the
+server a host name of its own for the web vault, as for Sends.
+
 ## What is not served
 
 Other two-step providers (email, Duo, `YubiKey`, security keys), organization
 groups and policies, log in with a device, trusted-device encryption, breach
-reports by address, and live-sync notifications. Clients hide or fail those
+reports by address, and mobile push notifications through Bitwarden's relay. Clients hide or fail those
 features as they do against a server that has them turned off.
 
 ## Operating notes

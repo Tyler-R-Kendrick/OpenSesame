@@ -35,6 +35,7 @@ pub mod hashing;
 pub mod import;
 pub mod kdf;
 mod limiter;
+pub mod notifications;
 pub(crate) mod routes;
 pub mod second_factor;
 pub mod tokens;
@@ -123,6 +124,9 @@ pub struct ServerConfig {
     pub max_file_bytes: usize,
     /// The bytes of files one account may keep, attachments and Sends together.
     pub storage_quota_bytes: i64,
+    /// A directory holding a build of Bitwarden's web vault to serve beside
+    /// the API; `None` serves none.
+    pub web_vault: Option<std::path::PathBuf>,
 }
 
 impl ServerConfig {
@@ -140,6 +144,7 @@ impl ServerConfig {
             refresh_token_ttl: Duration::from_secs(30 * 24 * 3600),
             max_file_bytes: 100 * 1024 * 1024,
             storage_quota_bytes: 1024 * 1024 * 1024,
+            web_vault: None,
         }
     }
 }
@@ -149,6 +154,8 @@ pub struct Inner {
     pub config: ServerConfig,
     pub hashes: HashRegistry,
     pub tokens: TokenKeys,
+    /// Clients holding the live-sync hub open.
+    pub hub: notifications::Hub,
     pub(crate) sign_in_failures: limiter::FailureLimiter,
     hash_admission: Semaphore,
     hash_permits: Semaphore,
@@ -182,6 +189,7 @@ impl BitwardenServer {
         Self(Arc::new(Inner {
             db,
             tokens: TokenKeys::new(token_secret, &issuer, ttl),
+            hub: notifications::Hub::default(),
             sign_in_failures: limiter::FailureLimiter::new(
                 config.max_failed_sign_ins.max(1),
                 config.failure_window,
@@ -197,6 +205,22 @@ impl BitwardenServer {
     /// Every Bitwarden route, relative to the configured server URL.
     pub fn router(self) -> Router {
         routes::router(self)
+    }
+
+    /// The routes mounted under `prefix` (e.g. `/bitwarden`). The bare
+    /// `prefix/` — where a browser opens the web vault — is answered too,
+    /// which a plain nest does not do.
+    pub fn mounted(self, prefix: &str) -> Router {
+        let router = self.router();
+        if prefix.is_empty() {
+            return router;
+        }
+        Router::new()
+            .route(
+                &format!("{prefix}/"),
+                axum::routing::any_service(router.clone()),
+            )
+            .nest(prefix, router)
     }
 
     /// A place in the hashing queue, then a hashing slot. A full queue is
