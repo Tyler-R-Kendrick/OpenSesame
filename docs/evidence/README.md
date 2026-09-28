@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
 | [`2026-09-28-activity-rail-listing/`](2026-09-28-activity-rail-listing/README.md) | Activity: a paged, searchable listing in the rail and on the page |
 | [`2026-09-27-webmcp-review/`](2026-09-27-webmcp-review/README.md) | The WebMCP review no longer claims a reload |
 | [`2026-09-27-vault-import-export/`](2026-09-27-vault-import-export/README.md) | The vault's Import and Export keys, restored |

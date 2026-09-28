@@ -7,7 +7,7 @@ import {
   connectorPath,
   statusSentence,
 } from "@opensesame/app-core/sections/connections/shared.js";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconPlus, IconSettings } from "../../components/Icons.js";
@@ -32,6 +32,9 @@ export function ConnectedPanel({
   loading,
   setupRequired,
   hostConfigured = false,
+  tools,
+  sheet,
+  imported,
 }: {
   connections: Connection[] | null;
   providers: Provider[];
@@ -39,6 +42,12 @@ export function ConnectedPanel({
   setupRequired: boolean;
   /** Unconfigured Connect is empty, not a failed read (ADR 0090/0128). */
   hostConfigured?: boolean;
+  /** Keys in the head beside the title (Import). */
+  tools?: ReactNode;
+  /** What those keys open, above the list. */
+  sheet?: ReactNode;
+  /** Connectors imported from a directory, listed after the live ones. */
+  imported?: ReactNode;
 }) {
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
   const [limit, setLimit] = useState(CONNECTIONS_PAGE_SIZE);
@@ -51,10 +60,14 @@ export function ConnectedPanel({
     <section id="connected" className="panel" ref={panelRef}>
       <div className="panel__head">
         <h2>Connected</h2>
+        {tools ? <div className="vtree__keys">{tools}</div> : null}
       </div>
       <div className="panel__body panel__body--tight">
+        {sheet}
         {connections !== null && live.length === 0 ? (
-          nothingConnected()
+          imported ? null : (
+            nothingConnected()
+          )
         ) : setupRequired ? (
           <div className="empty conn-gate">
             <h3>Choose an organization</h3>
@@ -108,6 +121,7 @@ export function ConnectedPanel({
             ) : null}
           </>
         )}
+        {imported}
       </div>
     </section>
   );

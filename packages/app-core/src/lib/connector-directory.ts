@@ -2,10 +2,12 @@
  * The connector directory — connectors already authorized somewhere else,
  * pulled in by reference (ADR 0115).
  *
- * The setup ceremony's connectors tab and Access › Connectors both read and
- * write through here. A directory is a Nango-compatible endpoint the operator
- * names (`lib/nango-directory.ts` does the reading); what comes back is the
- * list a PAM plane binds people and agents to, and never a credential.
+ * The setup ceremony's connectors tab and the Connections page's Import
+ * connectors both read and write through here; Access › Connectors only
+ * reads the list, to offer its connectors as what a grant is made on. A
+ * directory is a Nango-compatible endpoint the operator names
+ * (`lib/nango-directory.ts` does the reading); what comes back is the list a
+ * PAM plane binds people and agents to, and never a credential.
  *
  * Three homes, by sensitivity:
  *
@@ -18,8 +20,8 @@
  *  - A sync run **before a vault exists** waits in memory, and the first
  *    unlock seals it (`sealPendingConnectorDirectory`, called from the app
  *    shell). A reload before then forgets the key — the endpoint survives,
- *    and Access › Connectors asks for the key again. Nothing sensitive is
- *    ever written in the clear to get around that.
+ *    and importing again asks for the key. Nothing sensitive is ever
+ *    written in the clear to get around that.
  */
 
 import {

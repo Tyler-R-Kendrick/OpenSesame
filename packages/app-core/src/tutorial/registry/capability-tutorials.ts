@@ -98,7 +98,7 @@ export const CAPABILITY_TUTORIALS = {
   "delegations.claim": "setup.join-session",
   "shared_sessions.join_request": "setup.join-session",
   "browser.grant.renew": "setup.join-session",
-  "connectors.directory.sync": "access.connectors",
+  "connectors.directory.sync": "connection.create",
   "connectors.bind": "access.connectors",
   "connectors.connect.configure": "connection.create",
   "connectors.connect.authorize_user": "connection.create",

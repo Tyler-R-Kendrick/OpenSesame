@@ -6,7 +6,10 @@ import {
 } from "@opensesame/app-core/lib/connector-directory.js";
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
-import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
+import {
+  createLocalShare,
+  listLocalShares,
+} from "@opensesame/app-core/lib/local-share-grants.js";
 import type { DirectoryConnection } from "@opensesame/app-core/lib/nango-directory.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
@@ -18,6 +21,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ConnectorsPanel } from "./ConnectorsPanel.js";
 
@@ -68,6 +72,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Two connectors imported from a directory (on the Connections page). */
 async function seeded() {
   const fixture = await localRequestFixture();
   await syncConnectorDirectory({
@@ -78,116 +83,163 @@ async function seeded() {
   return fixture;
 }
 
-it("lists the directory's connectors with their source and health", async () => {
+/** The same, with Test person already granted the GitHub one. */
+async function granted() {
   const fixture = await seeded();
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "nango:github/octocat",
+    resourceLabel: "GitHub · octo@example.com",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  return fixture;
+}
+
+function mount(tomb: string) {
+  return render(
+    <MemoryRouter>
+      <ConnectorsPanel tomb={tomb} />
+    </MemoryRouter>,
+  );
+}
+
+function accessRow(name: string) {
+  const list = screen.getByRole("list", { name: "Connector access" });
+  const heading = within(list).getByRole("heading", { name });
+  const item = heading.closest("li");
+  if (!item) throw new Error(`${name} is not in a row`);
+  return within(item);
+}
+
+it("lists access, not connectors: only the connector someone holds a grant on", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  // Slack is known (imported) but nobody holds it: it is not listed.
+  expect(screen.queryByRole("heading", { name: "Slack" })).toBeNull();
+  const row = accessRow("GitHub · octo@example.com");
+  // Health is a StatusMark glyph whose sentence is its accessible name.
+  expect(row.getByRole("img", { name: "Authorized" })).toBeTruthy();
+  expect(row.getByText("Test person")).toBeTruthy();
+  expect(row.getByText("1 bound")).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("never asks for a directory, a key or a sync: that is the Connections page's", async () => {
+  const fixture = await seeded();
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "No connector access" });
+  expect(screen.queryByLabelText("Directory endpoint")).toBeNull();
+  expect(screen.queryByLabelText("Environment key")).toBeNull();
   expect(
-    screen.getByText(/^api\.nango\.dev · 2 connectors · synced /),
+    screen.queryByRole("button", { name: /sync|import|export/i }),
+  ).toBeNull();
+  expect(screen.queryByText(/api\.nango\.dev/)).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Add connector access" }),
   ).toBeTruthy();
-  const rows = screen.getAllByRole("listitem");
-  // Health is a StatusMark glyph whose sentence is its accessible name
-  // (DESIGN.md § Status is a symbol), never a text pill.
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const healthy = within(rows[0] as HTMLElement);
-  expect(healthy.getByRole("img", { name: "Authorized" })).toBeTruthy();
-  expect(healthy.queryByText("Authorized")).toBeNull();
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const failing = within(rows[1] as HTMLElement);
-  expect(failing.getByRole("img", { name: "1 error" })).toBeTruthy();
-  expect(failing.queryByRole("img", { name: "Authorized" })).toBeNull();
-  // One source only: a chip on every row would say nothing.
-  expect(screen.queryByText("directory")).toBeNull();
-  expect(screen.queryByRole("alert")).toBeNull();
 });
 
-it("asks for a directory, and nothing else, when none has been synced", async () => {
-  const fixture = await localRequestFixture();
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
-  await screen.findByLabelText("Directory endpoint");
-  expect(screen.getByLabelText("Environment key")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Sync connectors" })).toBeTruthy();
-  expect(screen.queryByRole("alert")).toBeNull();
-  expect(screen.queryByText(/could not|failed|went wrong/i)).toBeNull();
-});
-
-it("binds a connector to a person under a policy, lists it, and revokes it", async () => {
+it("Add offers the connectors this device knows; choosing one grants it and lists it", async () => {
   const fixture = await seeded();
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
-  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  const [githubRow] = screen.getAllByRole("listitem");
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const row = within(githubRow as HTMLElement);
-  await userEvent.click(row.getByRole("button", { name: "Bind" }));
+  mount(fixture.tomb);
+  const add = await screen.findByRole("button", {
+    name: "Add connector access",
+  });
+  await userEvent.click(add);
+  const choices = within(
+    screen.getByRole("list", { name: "Choose a connector" }),
+  );
+  expect(choices.getByRole("button", { name: /Slack/ })).toBeTruthy();
+  await userEvent.click(
+    choices.getByRole("button", { name: /GitHub · octo@example\.com/ }),
+  );
   expect(document.activeElement).toBe(screen.getByLabelText("Identity"));
-  // The form carries the verb while it is open; the row's Bind steps aside.
-  expect(row.getAllByRole("button", { name: "Bind" })).toHaveLength(1);
   await userEvent.selectOptions(screen.getByLabelText("Policy"), "Invoke");
   await userEvent.selectOptions(screen.getByLabelText("Duration"), "1 day");
   const form = screen.getByRole("group", { name: /^Bind GitHub/ });
   await userEvent.click(within(form).getByRole("button", { name: "Bind" }));
   await waitFor(() =>
-    expect(row.getByRole("list", { name: /Bound to/ })).toBeTruthy(),
+    expect(
+      screen.queryByRole("group", { name: "Add connector access" }),
+    ).toBeNull(),
   );
-  // The ledger's change notice can paint the binding before the bind's own
-  // write (the grant's audit entry) settles; the form closes once it has.
-  await waitFor(() =>
-    expect(screen.queryByRole("group", { name: /^Bind GitHub/ })).toBeNull(),
-  );
-  expect(screen.queryByRole("alert")).toBeNull();
-  expect(row.getByText("Test person")).toBeTruthy();
+  const row = accessRow("GitHub · octo@example.com");
   expect(row.getByText("Invoke")).toBeTruthy();
-  expect(row.getByText("1 bound")).toBeTruthy();
   const shares = await listLocalShares(fixture.tomb);
   expect(shares).toHaveLength(1);
   expect(shares[0]?.resourceId).toBe("nango:github/octocat");
-  expect(shares[0]?.resourceLabel).toBe("GitHub · octo@example.com");
   expect(shares[0]?.policy).toBe("invoke");
-
-  // The form is gone; the keyboard is back on the row's Bind, not on body.
+  // The keyboard follows the grant to its row.
   await waitFor(() =>
     expect(document.activeElement).toBe(
       row.getByRole("button", { name: "Bind" }),
     ),
   );
+});
 
-  await userEvent.click(row.getByRole("button", { name: "Revoke" }));
-  await waitFor(() => expect(row.getByText("0 bound")).toBeTruthy());
+it("with nothing configured, Add offers the way to configure a connector", async () => {
+  const fixture = await localRequestFixture();
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  expect(
+    screen.getByRole("heading", { name: "No connectors configured" }),
+  ).toBeTruthy();
+  const choices = within(
+    screen.getByRole("list", { name: "Choose a connector" }),
+  );
+  expect(choices.queryAllByRole("button")).toHaveLength(0);
+  expect(
+    choices.getByRole("link", { name: "New connector" }).getAttribute("href"),
+  ).toBe("/connections#catalog");
+});
+
+it("Escape closes the choices and returns the keyboard to Add", async () => {
+  const fixture = await seeded();
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: /Slack/ }));
+  await userEvent.keyboard("{Escape}");
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("group", { name: "Add connector access" }),
+    ).toBeNull(),
+  );
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Add connector access" }),
+    ),
+  );
+});
+
+it("revoking the last grant takes the connector off the access list", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  await userEvent.click(
+    accessRow("GitHub · octo@example.com").getByRole("button", {
+      name: "Revoke",
+    }),
+  );
+  await screen.findByRole("heading", { name: "No connector access" });
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });
 
-it("returns the keyboard to the row's Bind when its form is cancelled", async () => {
-  const fixture = await seeded();
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
+it("grants one more from a listed row, and returns the keyboard to its Bind on cancel", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  const [githubRow] = screen.getAllByRole("listitem");
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const row = within(githubRow as HTMLElement);
+  const row = accessRow("GitHub · octo@example.com");
   await userEvent.click(row.getByRole("button", { name: "Bind" }));
   expect(document.activeElement).toBe(screen.getByLabelText("Identity"));
-  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  await waitFor(() =>
-    expect(document.activeElement).toBe(
-      row.getByRole("button", { name: "Bind" }),
-    ),
-  );
-  expect(screen.queryByRole("group", { name: /^Bind GitHub/ })).toBeNull();
-});
-
-it("returns the keyboard to Bind even when a frame fires before the form's removal commits", async () => {
-  // Under load a frame can run before React commits the render that closes
-  // the form, when the row's Bind is not in the document yet.
-  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-    callback(0);
-    return 0;
-  });
-  const fixture = await seeded();
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
-  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  const [githubRow] = screen.getAllByRole("listitem");
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const row = within(githubRow as HTMLElement);
-  await userEvent.click(row.getByRole("button", { name: "Bind" }));
+  // The form carries the verb while it is open; the row's Bind steps aside.
+  expect(row.getAllByRole("button", { name: "Bind" })).toHaveLength(1);
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   await waitFor(() =>
     expect(document.activeElement).toBe(
@@ -196,34 +248,11 @@ it("returns the keyboard to Bind even when a frame fires before the form's remov
   );
 });
 
-it("re-syncs with the sealed key from the command strip", async () => {
-  const fixture = await seeded();
-  connectorDirectorySeams.listDirectory = vi.fn(async () => ({
-    integrations: [],
-    connections: [github],
-  }));
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
-  await screen.findByText(/· 2 connectors ·/);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Sync the directory" }),
-  );
-  await screen.findByText(/· 1 connector ·/);
-  expect(screen.getByRole("status").textContent).toContain(
-    "1 connector synced.",
-  );
-  expect(connectorDirectorySeams.listDirectory).toHaveBeenCalledWith(
-    "https://api.nango.dev",
-    "sk-env",
-  );
-});
-
-it("configures a connector: alias, disable, and bind defaults", async () => {
-  const fixture = await seeded();
-  render(<ConnectorsPanel tomb={fixture.tomb} />);
+it("configures a granted connector: alias, disable, and bind defaults", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  const [githubRow] = screen.getAllByRole("listitem");
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const row = within(githubRow as HTMLElement);
+  const row = accessRow("GitHub · octo@example.com");
   await userEvent.click(row.getByRole("button", { name: "Configure" }));
   const form = screen.getByRole("group", {
     name: "Configure GitHub · octo@example.com",
@@ -238,28 +267,85 @@ it("configures a connector: alias, disable, and bind defaults", async () => {
     "Invoke",
   );
   await userEvent.click(within(form).getByRole("button", { name: "Save" }));
-  await waitFor(() =>
-    expect(screen.getByRole("heading", { name: "CI mirror" })).toBeTruthy(),
-  );
-  expect(await row.findByRole("img", { name: "Disabled" })).toBeTruthy();
-  expect(row.queryByRole("img", { name: "Authorized" })).toBeNull();
-  // A disabled connector refuses new binds.
+  const renamed = await waitFor(() => accessRow("CI mirror"));
+  expect(await renamed.findByRole("img", { name: "Disabled" })).toBeTruthy();
+  // A disabled connector refuses new grants, here and in the choices.
   expect(
-    row.getByRole<HTMLButtonElement>("button", { name: "Bind" }).disabled,
+    renamed.getByRole<HTMLButtonElement>("button", { name: "Bind" }).disabled,
   ).toBe(true);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add connector access" }),
+  );
+  expect(
+    screen.getByRole<HTMLButtonElement>("button", { name: /CI mirror/ })
+      .disabled,
+  ).toBe(true);
+});
 
-  // Its bind form opens on the configured defaults once re-enabled.
-  await userEvent.click(row.getByRole("button", { name: "Configure" }));
-  const reopened = screen.getByRole("group", { name: "Configure CI mirror" });
-  await userEvent.click(within(reopened).getByLabelText(/Enabled/));
-  await userEvent.click(within(reopened).getByRole("button", { name: "Save" }));
-  await waitFor(() =>
-    expect(
-      row.getByRole<HTMLButtonElement>("button", { name: "Bind" }).disabled,
-    ).toBe(false),
+it("a disabled connector stays listed after its last grant, so it can be enabled again", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  await userEvent.click(
+    accessRow("GitHub · octo@example.com").getByRole("button", {
+      name: "Configure",
+    }),
   );
-  await userEvent.click(row.getByRole("button", { name: "Bind" }));
-  expect(screen.getByLabelText<HTMLSelectElement>("Policy").value).toBe(
-    "invoke",
+  const form = screen.getByRole("group", {
+    name: "Configure GitHub · octo@example.com",
+  });
+  await userEvent.click(within(form).getByLabelText(/Enabled/));
+  await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+  const row = await waitFor(() => accessRow("GitHub · octo@example.com"));
+  await row.findByRole("img", { name: "Disabled" });
+  await userEvent.click(row.getByRole("button", { name: "Revoke" }));
+  await waitFor(async () =>
+    expect(await listLocalShares(fixture.tomb)).toHaveLength(0),
   );
+  // Nobody holds it, and its row is still where it is switched back on.
+  const still = accessRow("GitHub · octo@example.com");
+  expect(still.getByText("0 bound")).toBeTruthy();
+  await userEvent.click(still.getByRole("button", { name: "Configure" }));
+  await userEvent.click(
+    within(
+      screen.getByRole("group", {
+        name: "Configure GitHub · octo@example.com",
+      }),
+    ).getByLabelText(/Enabled/),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await screen.findByRole("heading", { name: "No connector access" });
+});
+
+it("cancelling the chosen connector's form returns the keyboard to its choice", async () => {
+  const fixture = await seeded();
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  const choice = screen.getByRole("button", { name: /Slack/ });
+  await userEvent.click(choice);
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByLabelText("Identity")).toBeNull();
+  await waitFor(() => expect(document.activeElement).toBe(choice));
+});
+
+it("one bind form at a time: a row's Bind closes the choices", async () => {
+  const fixture = await granted();
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add connector access" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: /Slack/ }));
+  expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
+  await userEvent.click(
+    accessRow("GitHub · octo@example.com").getByRole("button", {
+      name: "Bind",
+    }),
+  );
+  expect(
+    screen.queryByRole("group", { name: "Add connector access" }),
+  ).toBeNull();
+  expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
 });

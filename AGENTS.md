@@ -569,13 +569,17 @@ Do not add new top-level directories or loose root files — find the group.
   (`pnpm --filter @opensesame/app-core generate:catalog`). A target shows a
   subset only as an ordered selection of catalog ids.
 - A connector arrives by reference, never by credential. The connectors tab
-  of setup and Access › Connectors read a Nango-compatible directory's two
-  listing routes and nothing else; `GET /connection/{id}` — the route that
+  of setup and the Connections page's *Import connectors* read a
+  Nango-compatible directory's two listing routes and nothing else; `GET /connection/{id}` — the route that
   returns tokens — is never called, no Nango package is depended on, and the
   directory's key is sealed in the tomb or held in memory, never written in
   the clear. Binding a connector to a person or agent is a local share grant
   of kind `connection` — the one ledger Identity shares use — not a second
   authority model ([ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)).
+  Access › Connectors lists access — connectors someone holds a grant on —
+  and adds a grant by choosing a connector Connections configured or
+  imported; it never asks for an endpoint, a key or a sync (ADR 0115,
+  amended 2026-09-28).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,

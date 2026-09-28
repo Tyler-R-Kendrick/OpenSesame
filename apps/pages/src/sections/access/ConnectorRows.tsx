@@ -1,13 +1,12 @@
 /**
- * Access › Connectors rows — one row per connector with its bindings beneath
- * it (ADR 0115).
+ * Access › Connectors rows — one row per connector someone holds access to,
+ * with those grants beneath it (ADR 0115).
  *
- * A row is a connector the directory synced or the Connections page
- * configured; it names its source and health and lists who is bound to it.
- * Bind opens one form under one row; Configure opens that connector's sealed
- * access settings; a Connections row links back to where the connector itself
- * is configured. Revoke asks nothing twice — a binding is time-boxed already,
- * and the ledger records the revocation.
+ * A row names its connector's source and health and lists who is bound to
+ * it. Bind opens one form under one row to grant one more; Configure opens
+ * that connector's sealed access settings; a Connections row links back to
+ * where the connector itself is configured. Revoke asks nothing twice — a
+ * binding is time-boxed already, and the ledger records the revocation.
  */
 
 import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
@@ -30,8 +29,8 @@ import { formatTime } from "./format.js";
 import type {
   ConnectorIdentity,
   ConnectorRow,
-  useConnectorDirectory,
-} from "./useConnectorDirectory.js";
+  useConnectorAccess,
+} from "./useConnectorAccess.js";
 
 function BindingRow({
   share,
@@ -104,7 +103,7 @@ function RowChips({
       {showSource ? <span className="chip">{row.source}</span> : null}
       {!setting.enabled ? (
         <StatusMark tone="warn" label="Disabled" />
-      ) : (
+      ) : row.healthy === null ? null : (
         <StatusMark
           tone={row.healthy ? "ok" : "warn"}
           label={row.healthy ? "Authorized" : (row.problem ?? "Unavailable")}
@@ -167,6 +166,9 @@ function RowActions({
   onOpenBind: () => void;
   onOpenSettings: () => void;
 }) {
+  // A grant on a connector this device does not list can only be revoked:
+  // there is nothing here to bind it to or configure.
+  if (row.source === "unlisted") return null;
   return (
     <div className="actions">
       <button
@@ -307,6 +309,7 @@ function ConnectorRowItem({
 /** The rows, each with its bindings and its open form at most. */
 export function ConnectorRows({
   state,
+  rows,
   mixedSources,
   bindingRow,
   settingsRow,
@@ -318,7 +321,8 @@ export function ConnectorRows({
   onSaveSetting,
   onRevoke,
 }: {
-  state: ReturnType<typeof useConnectorDirectory>;
+  state: ReturnType<typeof useConnectorAccess>;
+  rows: readonly ConnectorRow[];
   mixedSources: boolean;
   bindingRow: string | null;
   settingsRow: string | null;
@@ -333,10 +337,10 @@ export function ConnectorRows({
   onSaveSetting: (row: ConnectorRow, setting: ConnectorSetting) => void;
   onRevoke: (share: LocalShare) => void;
 }) {
-  if (state.rows.length === 0) return null;
+  if (rows.length === 0) return null;
   return (
-    <ul className="identity-rows">
-      {state.rows.map((row) => (
+    <ul className="identity-rows" aria-label="Connector access">
+      {rows.map((row) => (
         <ConnectorRowItem
           key={row.id}
           row={row}

@@ -11,7 +11,7 @@ import {
 } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconX } from "../../components/Icons.js";
-import type { BindInput, ConnectorIdentity } from "./useConnectorDirectory.js";
+import type { BindInput, ConnectorIdentity } from "./useConnectorAccess.js";
 
 type Choice = { id: string | number; label: string };
 

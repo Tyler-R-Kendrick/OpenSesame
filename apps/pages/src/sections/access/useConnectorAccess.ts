@@ -1,27 +1,28 @@
 /**
  * Everything Access › Connectors reads and changes (ADR 0115).
  *
- * The rows are two lists made one: the connections a Nango-compatible
- * directory holds (sealed in this tomb) and the connectors configured on the
- * Connections page — the same `listConnections()` that page reads, whether
- * they live on Vercel Connect, a Host, or this device. Connectors are
- * configured there; who may use them is decided here. A binding is a local share grant of kind
- * `connection` — the same ledger Identity shares use — so the PAM question
- * "who may use which connector, under which policy, until when" has one
- * answer wherever it is asked.
+ * Access › Connectors answers one question: who may use which connector,
+ * under which policy, until when. The connectors themselves are configured —
+ * or imported from a Nango-compatible directory or Vercel Connect — on the
+ * Connections page; here they are only what a grant is made on. A grant is a
+ * local share of kind `connection`, the same ledger Identity shares use, so
+ * the PAM question has one answer wherever it is asked.
+ *
+ * `rows` is every connector a grant can be made on: the Connections page's
+ * `listConnections()` and the directory list it imported. `granted` is the
+ * subset someone holds access to — what the panel lists.
  */
 
 import {
   type Connection,
   listConnections,
 } from "@opensesame/app-core/lib/connections.js";
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import {
   type ConnectorDirectory,
   connectorResourceId,
   connectorResourceLabel,
   readConnectorDirectory,
-  readDirectoryEndpoint,
-  syncConnectorDirectory,
 } from "@opensesame/app-core/lib/connector-directory.js";
 import {
   type ConnectorSetting,
@@ -50,12 +51,14 @@ export type ConnectorRow = Readonly<{
   name: string;
   /** `integration · connection id`, or the connection's reference. */
   detail: string;
-  /** Where the connector is configured: the synced directory, or the
-      Connections page. */
-  source: "directory" | "connections";
+  /** Where the row came from: imported from a directory, configured on the
+      Connections page, a provider-wide grant with no connection of that
+      provider here, or a grant on a connector this device does not list. */
+  source: "directory" | "connections" | "provider" | "unlisted";
   /** The connector's own page on Connections, for a Connections row. */
   href: string | null;
-  healthy: boolean;
+  /** Null where there is no connection whose health could be read. */
+  healthy: boolean | null;
   /** What is wrong, when something is. */
   problem: string | null;
 }>;
@@ -70,7 +73,8 @@ export type BindInput = {
 
 type Loaded = {
   directory: ConnectorDirectory | null;
-  connections: Connection[];
+  /** Null when the Connections list could not be read. */
+  connections: Connection[] | null;
   shares: LocalShare[];
   identities: ConnectorIdentity[];
   settings: Record<string, ConnectorSetting>;
@@ -113,13 +117,68 @@ function connectionRows(connections: readonly Connection[]): ConnectorRow[] {
     }));
 }
 
-async function readConnections(): Promise<Connection[]> {
+/**
+ * A row for every grant no connector row carries, so access that exists is
+ * always listed and can be revoked: a provider-wide grant (a standing grant,
+ * keyed by provider id) with no connection of that provider here, and a grant
+ * on a connector this device does not list — removed, never imported, or on
+ * a Connections list that did not answer (`connectionsRead` false), which is
+ * why such a row then reports no health rather than claiming it is gone.
+ */
+function grantOnlyRows(
+  shares: readonly LocalShare[],
+  rows: readonly ConnectorRow[],
+  connectionsRead: boolean,
+): ConnectorRow[] {
+  const covered = (share: LocalShare) =>
+    rows.some(
+      (row) =>
+        row.id === share.resourceId || row.providerId === share.resourceId,
+    );
+  const seen = new Map<string, ConnectorRow>();
+  for (const share of shares) {
+    if (covered(share) || seen.has(share.resourceId)) continue;
+    const unlisted = /[:/#]/.test(share.resourceId);
+    if (!unlisted) {
+      seen.set(share.resourceId, {
+        id: share.resourceId,
+        label: share.resourceLabel,
+        providerId: share.resourceId,
+        // A standing grant's label was written when it was issued; the
+        // catalog names the provider now.
+        name:
+          catalogProvider(share.resourceId)?.displayName ?? share.resourceLabel,
+        detail: `${share.resourceId} · every connection`,
+        source: "provider",
+        href: connectorPath(share.resourceId),
+        healthy: null,
+        problem: null,
+      });
+      continue;
+    }
+    const known = connectionsRead || !share.resourceId.startsWith("host:");
+    seen.set(share.resourceId, {
+      id: share.resourceId,
+      label: share.resourceLabel,
+      providerId: "",
+      name: share.resourceLabel,
+      detail: share.resourceId,
+      source: "unlisted",
+      href: null,
+      healthy: known ? false : null,
+      problem: known ? "Not configured" : null,
+    });
+  }
+  return [...seen.values()];
+}
+
+async function readConnections(): Promise<Connection[] | null> {
   try {
     return await listConnections();
   } catch {
     // Connections that do not answer are not this panel's failure to report:
     // the Connections page says so, and the directory rows stand.
-    return [];
+    return null;
   }
 }
 
@@ -188,13 +247,15 @@ function useConnectorReads(tomb: string) {
   return { loaded, error, setError, reload, alive };
 }
 
-export function useConnectorDirectory(tomb: string) {
+export function useConnectorAccess(tomb: string) {
   const reads = useConnectorReads(tomb);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const directory = reads.loaded?.directory ?? null;
   const shares = reads.loaded?.shares ?? [];
   const connections = reads.loaded?.connections ?? [];
+  const connectionsRead = reads.loaded?.connections !== null;
+  const settings = reads.loaded?.settings ?? {};
 
   async function run(action: () => Promise<string>): Promise<boolean> {
     if (busy) return false;
@@ -221,27 +282,44 @@ export function useConnectorDirectory(tomb: string) {
     () => [...directoryRows(directory), ...connectionRows(connections)],
     [directory, connections],
   );
+  // This connection's own bindings, then the provider-wide grants that
+  // cover it (the standing grants, keyed by provider id).
+  const bindingsFor = (row: ConnectorRow) =>
+    shares.filter(
+      (share) =>
+        share.resourceId === row.id || share.resourceId === row.providerId,
+    );
+
+  // A disabled connector stays listed with nobody bound: switching it off
+  // is an access decision too, and its row is where it is switched back on.
+  const granted = useMemo(
+    () => [
+      ...rows.filter(
+        (row) =>
+          !settingFor(settings, row.id).enabled ||
+          shares.some(
+            (share) =>
+              share.resourceId === row.id ||
+              share.resourceId === row.providerId,
+          ),
+      ),
+      ...grantOnlyRows(shares, rows, connectionsRead),
+    ],
+    [rows, shares, settings, connectionsRead],
+  );
 
   return {
-    directory,
-    endpoint: directory?.endpoint ?? readDirectoryEndpoint(),
     rows,
-    settings: reads.loaded?.settings ?? {},
-    settingsFor: (row: ConnectorRow) =>
-      settingFor(reads.loaded?.settings ?? {}, row.id),
+    granted,
+    settings,
+    settingsFor: (row: ConnectorRow) => settingFor(settings, row.id),
     identities: reads.loaded?.identities ?? [],
     loaded: reads.loaded !== null,
     busy,
     error: reads.error,
     message,
     reload: reads.reload,
-    // This connection's own bindings, then the provider-wide grants that
-    // cover it (the standing grants, keyed by provider id).
-    bindingsFor: (row: ConnectorRow) =>
-      shares.filter(
-        (share) =>
-          share.resourceId === row.id || share.resourceId === row.providerId,
-      ),
+    bindingsFor,
     bind: (row: ConnectorRow, input: BindInput) =>
       run(async () => {
         await createLocalShare(tomb, {
@@ -263,16 +341,6 @@ export function useConnectorDirectory(tomb: string) {
       run(async () => {
         await writeConnectorSetting(tomb, row.id, setting);
         return `${row.name} configured.`;
-      }),
-    sync: (key?: string) =>
-      run(async () => {
-        const record = await syncConnectorDirectory({
-          endpoint: directory?.endpoint ?? readDirectoryEndpoint(),
-          key: key ?? directory?.key ?? "",
-          tomb,
-        });
-        const count = record.connections.length;
-        return `${count} ${count === 1 ? "connector" : "connectors"} synced.`;
       }),
   };
 }

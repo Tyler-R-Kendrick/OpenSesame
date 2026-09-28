@@ -1,0 +1,6 @@
+{
+  "data": [
+    { "unique_key": "github", "provider": "github", "display_name": "GitHub" },
+    { "unique_key": "slack", "provider": "slack", "display_name": "Slack" }
+  ]
+}

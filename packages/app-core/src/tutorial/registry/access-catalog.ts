@@ -40,7 +40,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.connectors",
     description:
-      "The Connectors tab: connectors read by reference from a Nango-compatible directory or brokered by OpenSesame, and who is bound to each — sync the directory, then Bind under a row.",
+      "The Connectors tab: who may use which connector. Each row is a connector someone holds a grant on; Add chooses one Connections configured or imported, then who, which policy, until when.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "connectors.bind",
