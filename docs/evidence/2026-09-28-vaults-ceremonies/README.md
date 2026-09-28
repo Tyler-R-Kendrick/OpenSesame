@@ -9,7 +9,8 @@ Change: Settings › Vaults stops drawing ceremonies as form fields on the page.
 - **Sealed store** is one row with its count and one key; the card lives in
   the sheet the key opens. **Tailnet sync** pairing is a sheet, too (it is
   behind the Networking capability, which the default install leaves off, so
-  it is not in these captures).
+  it is captured separately, with the capability switched on through
+  Settings › Capabilities; see [Tailnet sync](#tailnet-sync-pairing)).
 - **Sample data** is removed: the panel, the load/remove key, the
   `vault.sample_data` capability, the synthetic badges and the item flag.
 
@@ -77,3 +78,36 @@ first" on each.
 
 Keys in the Travel panel measure `44×44` before and after. On the branch the
 sheet's toggles are `44×44` and the commit is `248×44`.
+
+## Tailnet sync pairing
+
+Walked by [`tailnet-journey.json`](tailnet-journey.json) against the same two
+builds. A password vault is sealed, Networking is switched on in Settings ›
+Capabilities (Apply), the page is reloaded and unlocked, then Settings ›
+Vaults › Tailnet sync. Numbers below are read from the browser.
+
+### Panel — 1280 × 800
+
+![tailnet panel](D-tailnet.png)
+
+`#tailnet-sync-code` fields on the page `1 → 0`; keys named "Pair with a
+drive" `0 → 1`. The base's field measures `442×32` beside a `32×32` key; the
+branch's row has one `24×24` key.
+
+### The ceremony — 1280 × 800
+
+![tailnet ceremony](D-tailnet-pair.png)
+
+Pressing the key: `.sheet` `0 → 1`, `#tailnet-sync-code` inside the sheet
+`0 → 1` (on the page `1 → 0`). The base has no such key, so its picture is the
+same page. In the sheet the field is `355×34` and the commit `213×36`.
+
+### Phone — 390 × 844
+
+![tailnet phone panel](M-tailnet.png)
+
+![tailnet phone ceremony](M-tailnet-pair.png)
+
+Base: field `308×44` and key `44×44` on the page. Branch: one row with a
+`44×44` key; the bottom sheet's field is `322×44` and the commit `213×44`,
+within the width.
