@@ -1,5 +1,5 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
-import { openFromRest, sealForRest } from "@opensesame/client-core";
+import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
 import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
 
 type HealthResponse = {

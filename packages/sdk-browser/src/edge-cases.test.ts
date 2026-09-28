@@ -1,4 +1,5 @@
 import { SignJWT } from "jose";
+import { opened } from "./test/at-rest-key.js";
 import { createTestSigningKey } from "./test/jwt-fixtures.js";
 const signingKeys = createTestSigningKey("ES256");
 import {
@@ -594,9 +595,8 @@ describe("session persistence", () => {
     );
     expect(session.refreshToken).toBe("rt-secret");
 
-    const stored: Session = overlapCast(
-      JSON.parse(overlapCast(storage.getItem("opensesame:session"))),
-    );
+    const raw = await opened(storage, "opensesame:session");
+    const stored: Session = overlapCast(JSON.parse(`${raw}`));
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw.refresh_token).toBeUndefined();
 

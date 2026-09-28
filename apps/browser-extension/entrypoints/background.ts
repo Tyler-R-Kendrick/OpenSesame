@@ -7,12 +7,11 @@ import {
   normalizeLoopbackBaseUrl,
 } from "@opensesame/api-client";
 import {
-  createCursor,
   isSealedForRest,
   openFromRest,
-  persistSealedStore,
   sealForRest,
-} from "@opensesame/client-core";
+} from "@opensesame/browser-at-rest";
+import { createCursor, persistSealedStore } from "@opensesame/client-core";
 import { ENDPOINTS, isString } from "@opensesame/os-domain";
 
 const DEFAULT_HOST = ENDPOINTS.host.default;
@@ -58,6 +57,8 @@ export default defineBackground(() => {
         cursor: { device_id: cursor.deviceId, epoch: cursor.epoch },
         blobs: [],
       }),
+      // The store's file is sealed at rest too (ADR 0149).
+      { sealForRest, openFromRest },
     );
   });
 

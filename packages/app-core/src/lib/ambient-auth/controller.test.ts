@@ -225,7 +225,6 @@ describe("ambient controller", () => {
     entraSeams.loadSdk = async () => ({
       getAllAccounts: () => [],
       ssoSilent,
-      loginRedirect: async () => undefined,
       clearCache: async () => undefined,
     });
     const eligibility = evaluateEligibility({
@@ -296,7 +295,6 @@ describe("ambient controller", () => {
         fenceLocalSignOut();
         return { idToken: "stale-id-token" };
       },
-      loginRedirect: async () => undefined,
       clearCache: async () => undefined,
     });
     const eligibility = evaluateEligibility({

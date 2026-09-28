@@ -1,3 +1,4 @@
+import { useClientAtRestKeys } from "@opensesame/browser-at-rest";
 import { isString, overlapCast } from "@opensesame/os-domain";
 import { createHostedClient } from "@opensesame/static-auth";
 import { decodeJwt } from "jose";
@@ -19,6 +20,15 @@ const RP_ORIGIN = "http://127.0.0.1:4101";
 const CALLBACK = `${RP_ORIGIN}/opensesame/callback`;
 const CLIENT_ID = `origin:${RP_ORIGIN}`;
 const wireFetch = globalThis.fetch;
+
+// Node has no IndexedDB: the RP origin's at-rest key is held in memory, so
+// the SDK's transaction is sealed exactly as in a browser (ADR 0149).
+const rpKey = crypto.subtle.generateKey(
+  { name: "AES-GCM", length: 256 },
+  false,
+  ["encrypt", "decrypt"],
+);
+useClientAtRestKeys(() => rpKey);
 
 class BrowserStorage {
   readonly values = new Map<string, string>();
