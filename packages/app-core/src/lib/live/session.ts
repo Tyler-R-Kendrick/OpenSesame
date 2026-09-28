@@ -94,9 +94,8 @@ export type HostInput = Readonly<{
   carriers?: CarrierFactory;
 }>;
 
-/** Start hosting; any session this tab was hosting ends first. */
-export async function startHosting(input: HostInput): Promise<LiveHost> {
-  endHosting();
+/** The session's host and the routes its link carries, built but not yet live. */
+async function buildHost(input: HostInput, post: (code: string) => void) {
   // The host clamps the lifetime; the catalog states the clamped one.
   const expiresAt = Math.min(
     Date.now() + input.minutes * 60_000,
@@ -110,12 +109,11 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     relay: transport.relay,
     addresses: transport.addresses,
   };
-  let post: ((code: string) => Promise<void>) | null = null;
   const next = await LiveHost.start({
     admission: input.admission,
     ice,
     routes,
-    post: (code) => void post?.(code),
+    post,
     expiresAt,
     catalog: () =>
       vaultCatalog({
@@ -128,24 +126,84 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     readField: vaultField({ scope: input.scope, items }),
     peers: input.peers,
   });
+  return { next, routes };
+}
+
+/**
+ * Start hosting; any session this tab was hosting ends first.
+ *
+ * The lock watch is registered before anything is awaited: building a session
+ * awaits, and a vault that locks in that window must not be left with a live
+ * session over it. A session whose vault locked while it was being built
+ * comes back already ended and is never the current one.
+ */
+export async function startHosting(input: HostInput): Promise<LiveHost> {
   endHosting();
-  host = next;
-  const carriers = openCarriers(
-    routes.carriers,
-    next.link.secret,
-    input.carriers,
-    (code) => void next.receive(code),
-  );
-  hostCarriers = carriers;
-  if (carriers) {
-    post = poster(carriers);
-    next.subscribe((state) => {
-      if (state.status === "ended") carriers.close();
-    });
+  let started: LiveHost | null = null;
+  let carriers: Rendezvous | null = null;
+  let locked = false;
+  const stopWatch = liveSeams.onLock(() => {
+    locked = true;
+    if (started && host === started) endHosting();
+  });
+  let post: ((code: string) => Promise<void>) | null = null;
+  try {
+    const built = await buildHost(input, (code) => void post?.(code));
+    const made = built.next;
+    started = made;
+    // A session another start installed while this one was building ends.
+    endHosting();
+    if (locked) {
+      made.end("owner");
+      stopWatch();
+      return made;
+    }
+    host = made;
+    stopLockWatch = stopWatch;
+    carriers = openCarriers(
+      built.routes.carriers,
+      made.link.secret,
+      input.carriers,
+      (code) => void made.receive(code),
+    );
+    hostCarriers = carriers;
+    if (carriers) {
+      const opened = carriers;
+      post = poster(opened);
+      made.subscribe((state) => {
+        if (state.status === "ended") opened.close();
+      });
+    }
+    changed();
+    return made;
+  } catch (error) {
+    abandon(started, carriers, stopWatch);
+    throw error;
   }
-  stopLockWatch = liveSeams.onLock(() => endHosting());
-  changed();
-  return next;
+}
+
+/**
+ * A start that failed leaves nothing behind: the host it made (if it got
+ * that far) ends, its carriers close, its lock watch goes, and it is not the
+ * current session.
+ */
+function abandon(
+  started: LiveHost | null,
+  carriers: Rendezvous | null,
+  stopWatch: () => void,
+): void {
+  stopWatch();
+  carriers?.close();
+  started?.end("owner");
+  if (stopLockWatch === stopWatch) stopLockWatch = null;
+  if (carriers && hostCarriers === carriers) hostCarriers = null;
+  if (!started || host !== started) return;
+  host = null;
+  try {
+    changed();
+  } catch {
+    // The failure that brought us here is the one to report.
+  }
 }
 
 export function currentHost(): LiveHost | null {

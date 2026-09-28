@@ -16,7 +16,7 @@
  */
 
 import type { LiveLink } from "./link.js";
-import type { Catalog, ChannelMessage } from "./messages.js";
+import { type Catalog, type ChannelMessage, cleanText } from "./messages.js";
 import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
   type IceSettings,
@@ -88,21 +88,31 @@ export class LiveGuest {
     for (const listener of this.#listeners) listener(status);
   }
 
-  /** Make the offer and the request code that carries it. */
+  /**
+   * Make the offer and the request code that carries it; empty if the person
+   * left before there was one.
+   */
   async start(): Promise<string> {
     const { link, code, name, note, peers, ice } = this.options;
     const keys = await newKeypair();
     this.#keys = keys;
     const side = await makeOffer(peers, ice);
+    if (this.#over()) {
+      // Left while the browser was gathering: `#finish` found no connection.
+      side.pc.close();
+      side.channel.catch(() => undefined);
+      return "";
+    }
     this.#side = side;
     side.channel.then(
       (channel) => this.#connected(channel),
       () => this.#finish(),
     );
+    // The owner reads these cleaned (`readJoinRequest`); say the same here.
     const request = await makeRequestCode(link, code, keys, {
       id: this.#id,
-      name,
-      note,
+      name: cleanText(name) || "Guest",
+      note: cleanText(note),
       offer: side.offer,
     });
     if (this.#status.at === "preparing") {
@@ -120,15 +130,22 @@ export class LiveGuest {
     let left = REPOSTS;
     this.#repost = setInterval(() => {
       left -= 1;
-      if (this.#status.at !== "request" || left <= 0) this.#release();
+      if (this.#status.at !== "request") this.#release();
+      // Enough reposts: stop posting, but keep listening — the owner may
+      // answer long after, and a reply on a closed carrier is heard by nobody.
+      else if (left <= 0) this.#stopReposts();
       else void carriers.post(request);
     }, REPOST_MS);
   }
 
-  /** Done with the carriers: a reply arrived, or the ask is over. */
-  #release(): void {
+  #stopReposts(): void {
     if (this.#repost) clearInterval(this.#repost);
     this.#repost = null;
+  }
+
+  /** Done with the carriers: a reply arrived, or the ask is over. */
+  #release(): void {
+    this.#stopReposts();
     this.options.carriers?.close();
   }
 

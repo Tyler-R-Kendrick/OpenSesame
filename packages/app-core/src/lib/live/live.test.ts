@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_GUESTS, MAX_MISSES } from "./host.js";
 import { formatLiveLink, parseLiveLink } from "./link.js";
-import { FakeNet } from "./live-fakes.js";
+import { FakeNet, fakeSdp } from "./live-fakes.js";
 import type { Catalog, SharePolicy } from "./messages.js";
 import {
   makeReplyCode,
@@ -151,19 +151,24 @@ describe("an invite session", () => {
     expect(reply).not.toContain("a=fake");
   });
 
-  it("the link alone is not the code, and the fifth miss ends the session", async () => {
+  it("the link alone is not the code, and the fifth miss locks the session", async () => {
     const r = await room();
     for (let miss = 1; miss <= MAX_MISSES; miss += 1) {
       const code = miss === 1 ? null : "BCDF-GHJK";
       const request = await guest(r, code, `guess ${miss}`).start();
-      expect(await r.host.receive(request)).toEqual(
-        miss < MAX_MISSES
-          ? { kind: "not-this-session", misses: miss }
-          : { kind: "not-this-session", misses: MAX_MISSES },
-      );
+      expect(await r.host.receive(request)).toEqual({
+        kind: "not-this-session",
+        misses: miss,
+      });
     }
-    expect(r.host.state.status).toBe("ended");
-    expect(r.host.state.endedBecause).toBe("code");
+    // Locked, not ended: nothing new is taken, and nobody in is thrown out.
+    expect(r.host.state).toMatchObject({
+      status: "live",
+      endedBecause: null,
+      locked: true,
+    });
+    const right = await guest(r, r.host.code, "Right code, too late").start();
+    expect(await r.host.receive(right)).toEqual({ kind: "locked" });
     expect(r.host.state.guests).toEqual([]);
   });
 
@@ -243,7 +248,7 @@ describe("an invite session", () => {
 
 describe("the codes' keys", () => {
   const id = newRequestId();
-  const request = { id, name: "Ada", note: "", offer: "v=0\r\n" };
+  const request = { id, name: "Ada", note: "", offer: fakeSdp() };
 
   async function session() {
     const owner = await newKeypair();
@@ -286,7 +291,7 @@ describe("the codes' keys", () => {
   it("a reply from anyone but the owner does not open", async () => {
     const { owner, link, code } = await session();
     const joiner = await newKeypair();
-    const reply = { id, answer: "v=0\r\n" };
+    const reply = { id, answer: fakeSdp() };
     const real = await makeReplyCode(link, code, owner, joiner.pub, reply);
     expect(await openReplyCode(link, code, joiner, id, real)).toEqual(reply);
     const impostor = await newKeypair();

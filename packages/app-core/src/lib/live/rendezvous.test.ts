@@ -6,10 +6,10 @@
 import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LiveHost } from "./host.js";
-import { FakeBus, FakeNet } from "./live-fakes.js";
-import { makeRequestCode } from "./pairing.js";
+import { FakeBus, FakeNet, fakeSdp } from "./live-fakes.js";
+import { makeRequestCode, openRequestCode } from "./pairing.js";
 import { Reassembler, carrierTopic, toFrames } from "./rendezvous.js";
-import { newKeypair, newRequestId } from "./seal.js";
+import { newKeypair, newLinkSecret, newRequestId } from "./seal.js";
 import {
   currentGuest,
   currentHostCarriers,
@@ -56,18 +56,75 @@ describe("frames", () => {
       expect(joiner.push(junk)).toBeNull();
   });
 
-  it("hold a bounded number of partial codes, for a bounded time", () => {
+  it("hold partial codes for a bounded time", () => {
     let now = 0;
     const joiner = new Reassembler(() => now);
-    for (let at = 0; at < 40; at += 1)
-      joiner.push(toFrames("y".repeat(6000))[0] ?? "");
-    const late = toFrames("z".repeat(6000));
-    expect(joiner.push(late[0] ?? "")).toBeNull();
-    expect(joiner.push(late[1] ?? "")).toBeNull();
+    const stale = toFrames("y".repeat(6000));
+    joiner.push(stale[0] ?? "");
     now = 10 * 60_000;
+    // Its first frame has aged out: the rest never completes it.
+    expect(joiner.push(stale[1] ?? "")).toBeNull();
+    expect(joiner.push(stale[2] ?? "")).toBeNull();
     const fresh = toFrames("w".repeat(3000));
     expect(joiner.push(fresh[0] ?? "")).toBeNull();
     expect(joiner.push(fresh[1] ?? "")).toBe("w".repeat(3000));
+  });
+
+  it("make room for a new code by dropping the oldest, so nobody can lock the topic up", () => {
+    const joiner = new Reassembler();
+    // Whoever holds the topic starts many long messages and finishes none.
+    const started = Array.from({ length: 40 }, () =>
+      toFrames("y".repeat(6000)),
+    );
+    for (const frames of started) joiner.push(frames[0] ?? "");
+    // A real one, arriving now, still gets through whole.
+    const real = toFrames("z".repeat(6000));
+    const heard = real.map((frame) => joiner.push(frame));
+    expect(heard).toEqual([null, null, "z".repeat(6000)]);
+    // The flood's oldest starts were the ones dropped; a late tail of the
+    // first cannot finish it.
+    const oldest = started[0] ?? [];
+    expect(joiner.push(oldest[1] ?? "")).toBeNull();
+    expect(joiner.push(oldest[2] ?? "")).toBeNull();
+  });
+
+  it("a chunk slipped into a message spoils that message, and the repost still arrives", async () => {
+    const owner = await newKeypair();
+    const link = {
+      admission: "open" as const,
+      owner: owner.pub,
+      secret: newLinkSecret(),
+      routes: null,
+    };
+    // Long enough to need several frames.
+    const padding = Array.from(
+      { length: 10 },
+      () => `${"a=x-pad:".padEnd(400, "a")}\r\n`,
+    ).join("");
+    const code = await makeRequestCode(link, null, await newKeypair(), {
+      id: newRequestId(),
+      name: "Ada",
+      note: "",
+      offer: `${fakeSdp()}${padding}`,
+    });
+    const joiner = new Reassembler();
+    const frames = toFrames(code);
+    expect(frames.length).toBeGreaterThan(1);
+    const [prefix, id, , count] = (frames[0] ?? "").split(".");
+    const bogus = `${prefix}.${id}.1.${count}.${"x".repeat(100)}`;
+    const heard = [frames[0], bogus, ...frames.slice(1)].map((frame) =>
+      joiner.push(frame ?? ""),
+    );
+    const spoiled = heard.find((value) => value !== null);
+    expect(spoiled).toBeDefined();
+    expect(spoiled).not.toBe(code);
+    // What it made is no request — and no miss.
+    expect((await openRequestCode(link, null, owner, spoiled ?? "")).kind).toBe(
+      "not-a-request",
+    );
+    // The joiner's next post has an id of its own.
+    const again = toFrames(code).map((frame) => joiner.push(frame));
+    expect(again.filter((value) => value !== null)).toEqual([code]);
   });
 });
 

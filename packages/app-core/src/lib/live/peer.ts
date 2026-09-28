@@ -163,8 +163,14 @@ export async function makeOffer(
 ): Promise<OfferSide> {
   const pc = factory(rtcConfig(ice));
   const channel = pc.createDataChannel(CHANNEL_LABEL, { ordered: true });
-  await pc.setLocalDescription(await pc.createOffer());
-  return { pc, offer: await gathered(pc, ice), channel: opened(channel) };
+  try {
+    await pc.setLocalDescription(await pc.createOffer());
+    return { pc, offer: await gathered(pc, ice), channel: opened(channel) };
+  } catch (error) {
+    // Nobody holds a connection that never made an offer.
+    pc.close();
+    throw error;
+  }
 }
 
 /** Finish the joiner's side with the answer the owner's reply carries. */
@@ -194,7 +200,13 @@ export async function answerOffer(
       opened(event.channel).then(resolve, reject);
     });
   });
-  await pc.setRemoteDescription({ type: "offer", sdp: offer });
-  await pc.setLocalDescription(await pc.createAnswer());
-  return { pc, answer: await gathered(pc, ice), channel };
+  try {
+    await pc.setRemoteDescription({ type: "offer", sdp: offer });
+    await pc.setLocalDescription(await pc.createAnswer());
+    return { pc, answer: await gathered(pc, ice), channel };
+  } catch (error) {
+    // An offer the browser refuses leaves no connection behind.
+    pc.close();
+    throw error;
+  }
 }

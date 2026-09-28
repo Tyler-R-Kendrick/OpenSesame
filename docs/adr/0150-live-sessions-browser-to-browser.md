@@ -77,7 +77,21 @@ reached the joiner); an owner may name a carrier that passes them instead
    The root, not a path of its own: a fresh load there always meets the
    unlock screen, whose join road takes the link (boot has already removed
    it from the address bar and history), and a deep path is a 404 on GitHub
-   Pages. `i` is an invite session, `o` an open one.
+   Pages. `i` is an invite session, `o` an open one. Each key has one
+   spelling: a link whose owner key or secret is not the canonical base64url
+   of its bytes is refused, because the owner's seal binds the key's text and
+   an alias would parse and then be dropped without a word.
+
+   **The link is a bearer, and its routes segment is encoded, not
+   encrypted.** Every holder of the link reads it. A carrier's username,
+   password or token, and a TURN or STUN server's *static* username and
+   credential, are in it in the clear, for every joiner, and they stay valid
+   for as long as the owner's server honours them — not just for the session.
+   Only a TURN REST secret (§6) never travels: the link carries the
+   credential minted from it, which expires with the session. An owner who
+   names a static credential is handing it to everyone the link reaches, and
+   should name one made for this (a topic-scoped carrier token, a TURN user
+   with a quota) and rotate it after.
 2. The joiner's page makes its WebRTC offer and a fresh ECDH key, and seals
    the offer, with the person's name and note, into a **request code**
    (`osl-request.…`) in two layers. The inner layer is AES-256-GCM under
@@ -88,9 +102,29 @@ reached the joiner); an owner may name a carrier that passes them instead
 3. The owner's page opens it. What the link secret does not open was never
    a request — a stranger on a carrier, a stray paste — and is dropped
    uncounted. What opens outside but not inside came from a link holder with
-   the wrong code: a **miss**, and the fifth ends the session (the ADR 0044
-   rule). A request that opens waits for the owner — or, in an open session,
-   is let in at once.
+   the wrong code: a **miss**, a guess at the out-of-band code (the ADR 0044
+   rule), so only an **invite** session counts them, and the same wrong code
+   again is one miss, not two. An open session has no code to guess: a
+   request that does not open there is not a request and is never a miss.
+
+   The fifth miss **locks** an invite session; it does not end it. A locked
+   session takes no new request — right code or wrong — but everyone already
+   asking or in stays: a pending asker can still be let in, a guest in still
+   asks for values, and a request already seated is still answered with the
+   same reply. Ending the session on the fifth miss, as ADR 0044's claim link
+   does, would let anyone holding the link, who need not know the code, throw
+   out every guest already in; the lock leaves them the session and leaves
+   the owner the end key. The owner's view shows the lock as a single mark.
+   The lock does not lift: the owner ends the session and starts another.
+
+   A request that opens waits for the owner — or, in an open session, is let
+   in at once. It does not wait for ever: a seat that is asking or was let in
+   but never connects expires after the pairing window (15 minutes), so
+   requests that never finish cannot fill the eight seats; a seat that has
+   ended is forgotten a minute later, and its request is not seated again if
+   a carrier reposts it. Letting in is one admission per seat: a second press
+   while the browser is still answering does nothing, and a seat turned away
+   or ended in that window leaves no connection open.
 4. Letting someone in answers their offer, and the answer is sealed into a
    **reply code** (`osl-reply.…`) under the secret the owner shares with that
    request's key, bound to its id. Only that joiner can read it, and only the
@@ -101,6 +135,23 @@ reached the joiner); an owner may name a carrier that passes them instead
 Codes forgive what chat apps wrap around them (whitespace, quotes) and are
 refused whole otherwise. Another joiner holding the same link and code can
 read neither someone else's request nor the reply to it.
+
+What is inside a request is read strictly, because it comes from someone the
+owner has not yet let in. The **name and note** are shown to the owner, so
+control, format (zero-width, bidi override and isolate, tags, soft hyphen),
+private-use and blank-filler characters and line breaks are removed or read
+as a space, runs of space collapse, and only then are the length caps
+applied: nobody can be shown a name that hides, reorders or imitates the text
+around it (look-alike letters from other scripts remain, and the owner
+should be told who to expect out of band). The **session description** must
+be exactly one SCTP data-channel section: no other media section, candidates
+with an IP or an mDNS name and a real port, a bounded number of them, and
+only attributes shaped like the ones browsers send — an attribute nobody has
+met is let through if it is shaped like one, because refusing a real
+browser's offer costs a person their join. The real offers and answers of
+Chromium (mDNS on and off, with STUN and TURN, relay only) are the test
+vectors; Firefox's and Safari's shapes are written from their published
+output and not captured here.
 
 ### 4. No address before admission, and no third party by default
 
@@ -200,6 +251,27 @@ joiner.
 - Two browsers on different networks meet through what the owner runs: a
   tailnet address, a TURN server, or both. Nothing is anyone else's unless
   the owner chose it.
+- Whatever the owner puts in the routes reaches every joiner who keeps them,
+  in the clear inside the link (§3): carrier usernames, passwords and tokens
+  and static TURN credentials are shared with the whole audience of the link
+  and outlive the session. Only a TURN REST secret does not travel. §6's
+  "the link carries nothing that outlives it" holds for that case alone.
+- A link holder without the code cannot end an invite session by guessing: the
+  fifth wrong code locks it against new requests, and those already in are
+  untouched. In an open session nothing is guessed, so nothing locks; the
+  link alone admits, and the owner ends the session or refuses a seat to
+  shut a joiner out. Anyone holding the link can still fill the eight seats
+  with requests until they expire (15 minutes), and in an open session can
+  occupy them; that is the price of a link that admits by itself.
+- Starting a session is all-or-nothing and watches the vault from its first
+  step: a vault that locks while the session is being built comes back ended
+  and never current, and a start that fails — routes too long for a link,
+  carriers that cannot be opened — leaves no host, no carrier and no lock
+  watch behind.
+- A carrier topic can be flooded by anyone who holds the link: frames are
+  reassembled in a bounded table that drops the oldest partial code when it
+  is full, so a flood costs a message a repost (each has a fresh id) and can
+  no longer keep messages out for the length of the window.
 - The owner's IP address reaches admitted joiners only, and none at all
   under relay only.
 - `verify:live-join` proves each road in real browser contexts over real

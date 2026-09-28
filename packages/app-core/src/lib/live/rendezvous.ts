@@ -116,7 +116,14 @@ export class Reassembler {
     this.#expire();
     let pending = this.#pending.get(id);
     if (!pending) {
-      if (this.#pending.size >= MAX_PENDING) return null;
+      // Full: make room by dropping the oldest, never by refusing the new.
+      // Refusing would let whoever holds the topic keep every later message
+      // out with 32 first frames; evicting costs a flooder his own traffic
+      // and a message a repost (each repost has an id of its own).
+      if (this.#pending.size >= MAX_PENDING) {
+        const oldest = this.#pending.keys().next().value;
+        if (oldest !== undefined) this.#pending.delete(oldest);
+      }
       pending = {
         parts: new Array(of).fill(undefined),
         seen: 0,
