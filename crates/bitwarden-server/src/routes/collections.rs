@@ -3,9 +3,9 @@
 //! created, renamed, reassigned and deleted by those it lets.
 //!
 //! Only owners, admins and custom roles allowed to create collections make
-//! one (Bitwarden's "limit collection creation"); a collection is renamed or
-//! reassigned by whoever manages it, and deleted by an owner or admin, a
-//! custom role allowed to delete any, or a member who manages it.
+//! one, and only owners, admins and custom roles allowed to delete any delete
+//! one (Bitwarden's "limit collection creation / deletion", which this server
+//! reports on); a collection is renamed or reassigned by whoever manages it.
 
 use std::collections::HashSet;
 
@@ -314,8 +314,7 @@ async fn set_users(
 async fn delete(server: &BitwardenServer, view: &OrgView, ids: &[String]) -> ApiResult<()> {
     let allowed = |id: &String| {
         view.collections.iter().any(|c| &c.id == id)
-            && (manages(view, id)
-                || super::vault_view::permitted(&view.member, "deleteAnyCollection"))
+            && (view.manages() || super::vault_view::permitted(&view.member, "deleteAnyCollection"))
     };
     if !ids.iter().all(allowed) {
         return Err(ApiError::bad_request("You may not delete this collection."));

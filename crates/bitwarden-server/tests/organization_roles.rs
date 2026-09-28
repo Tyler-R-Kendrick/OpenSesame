@@ -225,3 +225,83 @@ async fn purging_an_organization_leaves_personal_vaults_alone() {
     assert_eq!(left.len(), 1, "{sync}");
     assert_eq!(left[0]["organizationId"], Value::Null);
 }
+
+#[tokio::test]
+async fn delegated_roles_hand_out_no_more_than_they_hold() {
+    let harness = Harness::start().await;
+    let (_, owner) = account(&harness, "owner@example.com").await;
+    let (_, helper) = account(&harness, "helper@example.com").await;
+    let (_, user) = account(&harness, "user@example.com").await;
+    let (org, first) = Org::create(&owner, "Acme").await;
+    let base = format!("/organizations/{}", org.id);
+    let second = owner
+        .ok(
+            "POST",
+            &format!("{base}/collections"),
+            Some(json!({"name": org.enc("Second")})),
+        )
+        .await["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let helper_id = add_member(
+        &owner,
+        &org,
+        "helper@example.com",
+        &helper,
+        json!([{"id": first, "manage": true}]),
+    )
+    .await;
+    owner
+        .ok(
+            "PUT",
+            &format!("{base}/users/{helper_id}"),
+            Some(json!({"type": 4, "permissions": {"manageUsers": true},
+                        "collections": [{"id": first, "manage": true}]})),
+        )
+        .await;
+    let user_id = add_member(&owner, &org, "user@example.com", &user, json!([])).await;
+
+    // The helper grants what it reaches, but not a collection it does not,
+    // and not every collection.
+    helper
+        .ok(
+            "PUT",
+            &format!("{base}/users/{user_id}"),
+            Some(json!({"type": 2, "collections": [{"id": first}]})),
+        )
+        .await;
+    let (status, _) = helper
+        .put(
+            &format!("{base}/users/{user_id}"),
+            json!({"type": 2, "collections": [{"id": second}]}),
+        )
+        .await;
+    assert_eq!(status, 400);
+    helper
+        .ok(
+            "PUT",
+            &format!("{base}/users/{user_id}"),
+            Some(json!({"type": 2, "accessAll": true, "collections": [{"id": first}]})),
+        )
+        .await;
+    let listed = owner
+        .ok("GET", &format!("{base}/users/{user_id}"), None)
+        .await;
+    assert_eq!(listed["accessAll"], false);
+    // Managing a collection is not deleting it.
+    assert_eq!(
+        helper
+            .delete(&format!("{base}/collections/{first}"), json!({}))
+            .await
+            .0,
+        400
+    );
+    owner
+        .ok(
+            "DELETE",
+            &format!("{base}/collections/{first}"),
+            Some(json!({})),
+        )
+        .await;
+}

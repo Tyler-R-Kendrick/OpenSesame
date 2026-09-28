@@ -209,6 +209,12 @@ pub(super) fn collection_access(
                 "A collection does not belong to this organization.",
             ));
         }
+        // A custom role that manages users hands out only what it reaches.
+        if !view.manages() && view.collection_rights(&id).is_none() {
+            return Err(ApiError::bad_request(
+                "You may not grant access to that collection.",
+            ));
+        }
         out.push(BitwardenCollectionAccess {
             collection_id: id,
             member_id: member_id.to_owned(),
@@ -268,10 +274,13 @@ async fn update(
         ));
     }
     target.member_type = role;
-    target.access_all = body
-        .get("accessAll")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    // Only owners and admins give a member every collection.
+    if view.manages() {
+        target.access_all = body
+            .get("accessAll")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+    }
     target.permissions = permissions_from(body.get("permissions"));
     let access = collection_access(&view, &target.id, &body)?;
     server.db.bitwarden_update_member(&target).await?;
