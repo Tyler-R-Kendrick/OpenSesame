@@ -24,7 +24,7 @@ import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
-import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
+import { KeybindingsPanel } from "./settings/KeybindingsPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
@@ -128,7 +128,7 @@ export function SettingsSection({
               <resolvedPanels.InstallPanel />
             </GuideTarget>
             <GeneralPrefsPanel />
-            <KeybindingsViewsPanel />
+            <KeybindingsPanel />
           </>
         ) : null}
 

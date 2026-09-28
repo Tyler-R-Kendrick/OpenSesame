@@ -124,7 +124,7 @@
     "J-NAV": {
       "status": "verified",
       "coverageKind": "playwright_e2e",
-      "evidence": "Settings keybindings remap j\u2192item.edit, pin pending-approvals view, command bar autoLockMinutes, Source typing j does not trash, remap survives lock/reload"
+      "evidence": "Settings keybindings remap j\u2192item.edit, command bar autoLockMinutes, Source typing j does not trash, remap survives lock/reload; Settings \u203a General carries no approvals view (Access \u203a Requests owns pending approvals)"
     },
     "J-APP": {
       "status": "verified",

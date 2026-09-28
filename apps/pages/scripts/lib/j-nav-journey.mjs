@@ -1,5 +1,5 @@
 /**
- * J-NAV: remap a safe action, pin a saved view, command-bar setting search,
+ * J-NAV: remap a safe action, command-bar setting search,
  * source typing does not fire global chords, remap survives reload.
  */
 import {
@@ -32,11 +32,7 @@ export async function walkJNav({ page, origin, base, check, snap }) {
   await setTextarea(page, KEYBINDINGS, REMAPPED);
   await page.getByRole("button", { name: "Save keybindings" }).click();
   await page.getByText(/Keybindings saved/).waitFor({ timeout: 8000 });
-  await page.getByRole("button", { name: "Pin view" }).click();
-  await page
-    .getByText(/Pinned pending-approvals view/)
-    .waitFor({ timeout: 8000 });
-  check(true, "saved bindings and pinned view");
+  check(true, "saved bindings");
   const opened = await runCommand(page, "autoLockMinutes");
   check(
     /Opened autoLockMinutes/i.test(opened),
@@ -62,10 +58,9 @@ export async function walkJNav({ page, origin, base, check, snap }) {
     /^\s*"?j"?: "?item\.edit"?,?$/m.test(stored),
     "remap survived unlock/reload",
   );
+  // Pending approvals are an Access › Requests concern, not a setting.
   check(
-    /pending-approvals|saved view/i.test(
-      await page.locator("body").innerText(),
-    ),
-    "pinned view still listed",
+    (await page.getByLabel("Pin approvals view").count()) === 0,
+    "Settings › General carries no approvals view",
   );
 }

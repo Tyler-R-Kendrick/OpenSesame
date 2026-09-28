@@ -1,8 +1,4 @@
-import {
-  type BoundaryValue,
-  isJsonObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { type WebStorage, maybeLocalStore } from "../../ports.js";
 import { isBindableAction } from "./actions.js";
 
@@ -11,14 +7,8 @@ import {
   type KeybindingMap,
   importKeybindings,
 } from "./keybindings.js";
-import {
-  type SavedView,
-  resolveSavedView,
-  validateSavedView,
-} from "./views.js";
 
 const KEYBINDINGS_KEY = "opensesame.keybindings.v1";
-const VIEWS_KEY = "opensesame.saved-views.v1";
 
 function webStorage(): WebStorage | undefined {
   try {
@@ -29,7 +19,6 @@ function webStorage(): WebStorage | undefined {
 }
 
 let liveBindings: KeybindingMap = { ...DEFAULT_KEYBINDINGS };
-let liveViews: SavedView[] = [];
 
 export function loadKeybindings(): KeybindingMap {
   try {
@@ -55,38 +44,6 @@ export function persistKeybindings(
 
 export function currentKeybindings(): KeybindingMap {
   return liveBindings;
-}
-
-export function loadViews(): SavedView[] {
-  try {
-    const raw = webStorage()?.getItem(VIEWS_KEY);
-    if (!raw) return liveViews;
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return liveViews;
-    liveViews = parsed.filter((row): row is SavedView => {
-      const candidate: BoundaryValue = overlapCast(row);
-      if (!isJsonObject(candidate)) return false;
-      const view: SavedView = overlapCast(candidate);
-      return validateSavedView(view).ok;
-    });
-  } catch {
-    /* keep previous */
-  }
-  return liveViews;
-}
-
-export function persistView(
-  view: SavedView,
-): { ok: true } | { ok: false; reason: string } {
-  const valid = validateSavedView(view);
-  if (!valid.ok) return { ok: false, reason: valid.reason };
-  liveViews = [...liveViews.filter((row) => row.id !== view.id), view];
-  webStorage()?.setItem(VIEWS_KEY, JSON.stringify(liveViews));
-  return { ok: true };
-}
-
-export function pinnedViewsForScope(scopeKey: string): SavedView[] {
-  return loadViews().filter((view) => resolveSavedView(view, scopeKey).ok);
 }
 
 export function bindingChord(event: KeyboardEvent): string {

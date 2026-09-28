@@ -30,7 +30,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
   await snap(page, "J-FILE-yaml");
   await openConfigForm(page, "General");
   await page
-    .getByRole("heading", { name: "Keybindings and views" })
+    .getByRole("heading", { name: "Keybindings" })
     .waitFor({ timeout: 8000 });
   check(
     (await page.getByLabel("Clear copied secrets after").count()) > 0,
@@ -62,7 +62,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
     .first()
     .click();
   await page
-    .getByRole("heading", { name: "Keybindings and views" })
+    .getByRole("heading", { name: "Keybindings" })
     .waitFor({ timeout: 8000 });
   check(true, "General link still reaches the same draft");
 }
