@@ -218,7 +218,8 @@ async fn writes_are_atomic_against_concurrent_edits_and_folder_deletes() {
     let now = Utc::now();
     let cipher = BitwardenCipher {
         id: "5f0c5e2a-0000-4000-8000-0000000000c1".into(),
-        user_id: user.id.clone(),
+        user_id: Some(user.id.clone()),
+        organization_id: None,
         // A folder that was deleted between the check and the write.
         folder_id: Some("5f0c5e2a-0000-4000-8000-00000000dead".into()),
         cipher_type: 2,

@@ -174,4 +174,12 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0044_bitwarden_files",
         include_str!("../migrations/0044_bitwarden_files.sql"),
     ),
+    (
+        "0045_bitwarden_organizations",
+        include_str!("../migrations/0045_bitwarden_organizations.sql"),
+    ),
+    (
+        "0046_bitwarden_emergency_access",
+        include_str!("../migrations/0046_bitwarden_emergency_access.sql"),
+    ),
 ];

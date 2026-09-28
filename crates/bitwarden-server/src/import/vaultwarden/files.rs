@@ -54,7 +54,7 @@ pub(super) async fn attachments(
             attachment: BitwardenAttachment {
                 id,
                 cipher_id,
-                user_id: user_id.to_owned(),
+                user_id: Some(user_id.to_owned()),
                 file_name,
                 key: text(row, "akey"),
                 size: int(row, "file_size").unwrap_or(0),

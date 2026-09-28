@@ -135,12 +135,38 @@ receive` asks before it opens a link (and refuses when it cannot ask). Point a
 dedicated name at the Host with an ingress that maps it to `/bitwarden`, and
 set `OPENSESAME_BITWARDEN_URL` to that name.
 
+## Organizations
+
+Any account can create an organization from the web vault or a desktop
+client; its creator is its owner. The server sends no mail, so an invitation
+for an address that already has an account is accepted at once, and one for
+an address without an account waits until that address registers. Nobody
+reaches an organization's items until an owner or admin **confirms** them
+(`bw confirm org-member <member-id> --organizationid <org-id>`, or the web
+vault's Members page). Check the fingerprint phrase the client shows against
+the person before confirming: registration verifies no address, so
+confirmation is what decides who is in.
+
+Groups, policies, single sign-on and account recovery are not served.
+
+## Emergency access and key rotation
+
+Emergency contacts work as on Bitwarden: the grantor names a contact, the
+contact is accepted at once if they have an account (or when they register),
+and nothing is usable until the grantor confirms them. A contact's recovery
+is approved by the grantor or when the wait the grantor chose runs out.
+Rotating the user key (the web vault's *Rotate account encryption key*) signs
+every device out.
+
+The server sends no mail, so password hints and account-deletion links are
+refused rather than reported as sent.
+
 ## What is not served
 
-Organizations and collections, emergency access, other
-two-step providers (email, Duo, `YubiKey`, security keys), live-sync
-notifications and key rotation. Clients hide or fail those features as they do
-against a server that has them turned off.
+Other two-step providers (email, Duo, `YubiKey`, security keys), organization
+groups and policies, log in with a device, trusted-device encryption, breach
+reports by address, and live-sync notifications. Clients hide or fail those
+features as they do against a server that has them turned off.
 
 ## Operating notes
 
