@@ -16,15 +16,19 @@
  * it). A file's base revision is the one its text was last read at.
  */
 
+import type { InstallationCapabilitySelection } from "@opensesame/capability-composition";
+import { overlapCast } from "@opensesame/os-domain";
 import {
   commitInstallationSelectionSource,
   commitInstancePolicySource,
   readCapabilitySource,
 } from "../../lib/configuration/capabilities-adapter.js";
 import {
+  documentToYaml,
   parseInstallationSelectionSource,
   parseInstancePolicySource,
 } from "../../lib/configuration/capabilities-document.js";
+import type { CompositionSnapshot } from "../../lib/configuration/capabilities-ports.js";
 import {
   type CapabilityConfigPorts,
   capabilityResourceEditable,
@@ -74,6 +78,41 @@ function parses(kind: Kind, text: string): FileCheck {
     : { ok: false, message: parsed.diagnostics[0]?.message ?? "Refused." };
 }
 
+/**
+ * The revision of a starter selection. Fixed, so the text is the same on every
+ * read; the store only refuses a draft whose revision equals the committed
+ * one, and there is none yet.
+ */
+export const STARTER_REVISION = "draft-initial";
+
+/**
+ * What an installation that never committed a selection is shown instead of an
+ * empty file: a valid, empty selection bound to this installation's identity
+ * (the base a switch draft starts from), ready to be edited and saved.
+ */
+export function starterSelection(
+  snapshot: CompositionSnapshot,
+): InstallationCapabilitySelection {
+  return {
+    schemaVersion: 1,
+    kind: "InstallationCapabilitySelection",
+    instanceId:
+      snapshot.plan?.identity.instanceId ??
+      snapshot.policy?.instanceId ??
+      "personal-local",
+    installationId: snapshot.plan?.identity.installationId ?? "",
+    basePolicyRevision:
+      snapshot.plan?.identity.policyRevision ??
+      snapshot.policy?.revision ??
+      "0",
+    revision: STARTER_REVISION,
+    acceptedRequired: [],
+    selectedOptional: [],
+    chosenAlternatives: {},
+    delivery: { prefetch: "none", offlineCache: "shell-only" },
+  };
+}
+
 export function capabilityFiles(
   session: CapabilityFilesSession,
 ): VirtualFileProvider {
@@ -119,7 +158,11 @@ export function capabilityFiles(
       if (kind === undefined) return "";
       const ports = session.ports();
       bases.set(path, revisionToken(ports.snapshot()));
-      return readCapabilitySource(kind, ports);
+      const source = readCapabilitySource(kind, ports);
+      if (kind === "installation-selection" && source === "") {
+        return documentToYaml(overlapCast(starterSelection(ports.snapshot())));
+      }
+      return source;
     },
     check(path, text): FileCheck {
       const kind = KINDS.get(path);

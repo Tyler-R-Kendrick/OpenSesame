@@ -19,6 +19,7 @@ import {
   EFFECTIVE_FILE,
   POLICY_FILE,
   SELECTION_FILE,
+  STARTER_REVISION,
   capabilityFiles,
 } from "./capability-files.js";
 
@@ -155,6 +156,45 @@ describe("capabilities as files", () => {
     const outcome = await provider.write(SELECTION_FILE, text);
     expect(outcome.ok).toBe(false);
     if (!outcome.ok) expect(outcome.message).toContain("another session");
+  });
+
+  describe("with no committed selection", () => {
+    beforeEach(() => resetDouble({ selection: null }));
+
+    it("reads a starter document that passes check, not an empty file", async () => {
+      const provider = files();
+      const text = await provider.read(SELECTION_FILE);
+      expect(text).toContain("kind: InstallationCapabilitySelection");
+      expect(text).toContain("installationId: inst-1");
+      expect(provider.check(SELECTION_FILE, text)).toEqual({ ok: true });
+      expect(await provider.read(SELECTION_FILE)).toBe(text);
+    });
+
+    it("commits the starter once through the store and then reads it back", async () => {
+      const provider = files();
+      const text = await provider.read(SELECTION_FILE);
+      expect(await provider.write(SELECTION_FILE, text)).toEqual({
+        ok: true,
+        path: SELECTION_FILE,
+      });
+      expect(double.commits).toHaveLength(1);
+      expect(double.commits[0]?.draft.revision).toBe(STARTER_REVISION);
+      expect(double.getSnapshot().selection).toMatchObject({
+        revision: STARTER_REVISION,
+        selectedOptional: [],
+      });
+      expect(await provider.read(SELECTION_FILE)).toContain(
+        `revision: ${STARTER_REVISION}`,
+      );
+    });
+
+    it("leaves the effective plan and policy as they were", async () => {
+      const provider = files();
+      expect(await provider.read(EFFECTIVE_FILE)).toContain(
+        "approvedCapabilities",
+      );
+      expect(await provider.read(POLICY_FILE)).toContain("kind:");
+    });
   });
 
   it("cannot be removed", async () => {
