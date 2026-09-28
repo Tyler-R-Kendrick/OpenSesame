@@ -13,6 +13,8 @@
  */
 
 import { originFiles } from "../../ports.js";
+import { atRestReady } from "../at-rest/key.js";
+import { openOriginFile, sealOriginFile } from "../at-rest/origin-files.js";
 import { kvDurability, kvFileName, kvForgetFiles } from "../kv.js";
 import { projectScopedKeys } from "../projects.js";
 import { haltedWriteError, storageWritesHalted } from "../storage-halt.js";
@@ -107,7 +109,13 @@ async function root(): Promise<FileSystemDirectoryHandle> {
   return open();
 }
 
-/** The origin's own storage: OPFS, the same files `kv.ts` writes. */
+/**
+ * The origin's own storage: OPFS, the same files `kv.ts` writes. Files are
+ * read opened and written sealed under this device's at-rest key
+ * (ADR 0149), so a bundle carries what the vault is, not this browser's
+ * seal on it — a vault can come home to a browser that was reset while it
+ * travelled.
+ */
 export const originTravelStorage: TravelStorage = {
   durable: () => kvDurability() === "persistent",
   async listFiles() {
@@ -118,7 +126,12 @@ export const originTravelStorage: TravelStorage = {
   async read(file) {
     try {
       const handle = await (await root()).getFileHandle(file);
-      return await (await handle.getFile()).text();
+      const text = await (await handle.getFile()).text();
+      const opened = await openOriginFile(file, text);
+      if (opened === null) {
+        throw new Error("A stored file does not open on this device.");
+      }
+      return opened;
     } catch (error) {
       if (error instanceof DOMException && error.name === "NotFoundError") {
         return null;
@@ -128,9 +141,13 @@ export const originTravelStorage: TravelStorage = {
   },
   async write(file, text) {
     if (storageWritesHalted()) throw haltedWriteError();
+    const atRest = await atRestReady();
+    if (!atRest.durable) {
+      throw new Error("This browser keeps nothing for this site past the tab.");
+    }
     const handle = await (await root()).getFileHandle(file, { create: true });
     const writable = await handle.createWritable();
-    await writable.write(text);
+    await writable.write(sealOriginFile(atRest, file, text));
     await writable.close();
   },
   async remove(file) {

@@ -32,8 +32,25 @@ test("popup refuses a remote rewrite before persisting", () => {
   assertSourceOrder(src, [
     "normalizeLoopbackBaseUrl(raw)",
     "if (!value)",
-    "chrome.storage.local.set({ hostApiBase: value })",
+    'sealForRest(STORE, "hostApiBase", value)',
+    "chrome.storage.local.set({ hostApiBase: sealed })",
   ]);
+});
+
+test("hostApiBase is never stored in the clear (ADR 0149)", () => {
+  for (const file of [
+    "entrypoints/popup/main.ts",
+    "entrypoints/background.ts",
+  ]) {
+    const src = readFileSync(join(ext, file), "utf8");
+    const writes = [
+      ...src.matchAll(/chrome\.storage\.local\.set\(\{([^}]*)\}/g),
+    ];
+    assert.ok(writes.length > 0, `${file} writes hostApiBase somewhere`);
+    for (const [, body] of writes) {
+      assert.equal(body.trim(), "hostApiBase: sealed", `${file}: ${body}`);
+    }
+  }
 });
 
 test("chaos: health errors do not persist an unnormalized host", () => {

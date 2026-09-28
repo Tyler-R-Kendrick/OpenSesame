@@ -18,9 +18,11 @@
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
 //   D. deep link: the icon resolves under the base, not under the route
+// After B and C, nothing the app stored may rest in the clear (ADR 0149).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkNothingInTheClear } from "./lib/at-rest-contract.mjs";
 import {
   addCapability,
   checkGatedSectionsAbsent,
@@ -80,6 +82,8 @@ const browser = await launch();
   // chrome naming it is what "you are inside the app as the guest" looks like.
   check(/guest-\d+/.test(inApp), "guest landed inside the app");
   check(!/Claim this guest session/.test(inApp), "no claim notice");
+  setStep("B-at-rest");
+  await checkNothingInTheClear(page, check, ["guest-\\d+"]);
   // What this installation carries, and how it changes (ADR 0130). This runs
   // before the surface contracts below, because those describe an
   // installation that has the capabilities they measure: the statusline's
@@ -276,13 +280,11 @@ const browser = await launch();
     "no pending-link noise",
   );
   check(/test person/i.test(landed), "prompt names the signed-in person");
-  const session = await page.evaluate(() =>
-    localStorage.getItem("opensesame:federation:session"),
-  );
-  check(
-    Boolean(session?.includes("pw_verify")),
-    "federation session saved on device",
-  );
+  setStep("C-at-rest");
+  // The federation session is saved on the device, and sealed.
+  const federation = "local:opensesame:federation:session";
+  const leaks = ["pw_verify", "[Tt]est [Pp]erson"];
+  await checkNothingInTheClear(page, check, leaks, [federation]);
   // This is a fresh device: the identity section (browser-local IAM) and the
   // provider directory are always on (ADR 0142), so there is nothing to add
   // and the walk only checks they are there.

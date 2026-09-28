@@ -6,12 +6,12 @@
  * These tests exist to pin the small decisions that a reader would otherwise
  * have to take on trust: no bearer is stashed, which failures are swallowed or
  * surfaced, and exactly when a pending federated link is marked or cleared.
- * Each is load-bearing for
- * ADR 0033 §4 — a first-time visitor must end up on one durable principal
- * without ever typing a password.
+ * Each is load-bearing for ADR 0033 §4 — a first-time visitor must end up on
+ * one durable principal without ever typing a password.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sessionStore } from "../ports.js";
 import {
   guestAuthDependencies,
   guestAuthSeams,
@@ -154,7 +154,7 @@ describe("adoptFederatedIdentity", () => {
       "/v1/principals/link-identities",
       expect.objectContaining({ method: "POST" }),
     );
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
     expect(outcome).toEqual({ kind: "linked" });
   });
 
@@ -181,7 +181,7 @@ describe("adoptFederatedIdentity", () => {
       kind: "link_failed",
       reason: "identity down",
     });
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBe("1");
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBe("1");
     const notice = listNotices().find((n) => n.kind === "guest_claim");
     expect(notice?.body).toContain("identity down");
   });
@@ -229,7 +229,7 @@ describe("adoptFederatedIdentity", () => {
     expect(outcome).toEqual({ kind: "pending_link" });
     expect(connectProvisional).not.toHaveBeenCalled();
     expect(identityJson).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBe("1");
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBe("1");
     expect(listNotices().find((n) => n.kind === "federated_link")).toBeTruthy();
   });
 
@@ -276,7 +276,7 @@ describe("adoptFederatedIdentity", () => {
 
     await guestAuthSeams.adoptFederatedIdentity("id-token");
 
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 });
 
@@ -334,7 +334,7 @@ describe("recoverPendingFederatedLink", () => {
 
     guestAuthSeams.recoverPendingFederatedLink();
 
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
     expect(listNotices()).toHaveLength(0);
   });
 
@@ -469,7 +469,7 @@ describe("branches the journey tests do not separate", () => {
 
     await guestAuthSeams.adoptFederatedIdentity("id-token");
 
-    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(sessionStore().getItem(PENDING_LINK_KEY)).toBeNull();
   });
 
   it("links rather than defers when the vault is open but no session is held", async () => {

@@ -3,7 +3,8 @@
  * `localStorage`. Every write replaces the file atomically — written beside
  * it, flushed, then renamed over it — and the file is created readable by its
  * owner only (0600), because what it holds is what a browser's local storage
- * holds: sealed vault state and settings, never a plaintext secret.
+ * holds: values sealed under the at-rest key (`at-rest-key-file.ts`,
+ * ADR 0149), never one in the clear.
  */
 import {
   closeSync,
