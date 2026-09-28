@@ -1,8 +1,9 @@
 /**
- * The door's road into somebody else's live session (ADR 0150 §6).
+ * The door's road into somebody else's live session (ADR 0150 §1, §7).
  *
- * Joining connects this browser directly to the owner's, once the two people
- * have passed each other their pairing codes. That is the `sharing.live`
+ * Joining connects this browser to the owner's — directly by default — once
+ * the pairing codes have crossed, by hand or over a carrier the link names.
+ * That is the `sharing.live`
  * capability, and an optional capability never loads before consent
  * (ADR 0130). So the road opens on the same review Settings shows: what
  * switching Live sessions on adds, the peer connection among it. Apply is

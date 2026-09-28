@@ -1,7 +1,7 @@
 # Live sessions across networks: optional routes (ADR 0150 §6)
 
-Before/after from two real builds: this branch's base at `43ad2a91` and this
-branch. Both were served as the production origin
+Before/after from two real builds: this branch's parent commit `43ad2a91` (live
+sessions without Routes; not `main`) and this branch. Both were served as the production origin
 (`https://tyler-r-kendrick.github.io/OpenSesame/`) out of `dist/` and walked
 with the same steps (`journey.json`). Every number below was read from the
 browser by `capture-evidence.mjs` (`count`, `measure`, `address`).
@@ -83,13 +83,16 @@ Nostr carrier:
 
 **Carriers.** Each pairs with nothing pasted either way:
 
-| Carrier | Frames it passed |
+| Carrier | Messages the server recorded |
 |---|---|
 | Nostr relay | 5 |
 | MQTT (aedes) | 2 |
 | real nats-server | 2 |
 | real ntfy (v2.11.0, built from upstream source) | 2 |
 | BroadcastChannel | — |
+
+The Nostr count is every client message the relay saw (REQ, EVENT, CLOSE); the
+others record only published codes, so the counts are not comparable.
 
 None of the recorded frames held the joiner's name, an SDP, a field, the
 value, or the link secret. A joiner who declines the routes is never heard of

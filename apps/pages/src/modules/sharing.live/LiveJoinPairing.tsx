@@ -1,7 +1,8 @@
 /**
  * The joiner's half of pairing (ADR 0150 §3): the request code to send the
  * owner, and the field the owner's reply code is pasted into. Both codes go
- * person to person — a message, a call, a note — never through a server.
+ * person to person — a message, a call, a note — or through a carrier the
+ * link names (`rendezvous.ts`); pasting always works.
  */
 
 import type { LiveGuest } from "@opensesame/app-core/lib/live/guest.js";

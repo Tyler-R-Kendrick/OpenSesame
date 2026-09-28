@@ -10,8 +10,9 @@
  * - `owner`: the session's ECDH P-256 public key (raw point, base64url).
  *   Requests are sealed to it and replies can only come from it, so a link
  *   holder can neither read another joiner's request nor pose as the owner.
- * - `secret`: 32 random bytes, base64url. It keys the pairing codes; alone it
- *   opens nothing in an invite session.
+ * - `secret`: 32 random bytes, base64url. It keys the pairing codes and the
+ *   carrier topic; alone it cannot read a request (that needs the owner's
+ *   key) and cannot make an invite session's inner seal (that needs the code).
  * - `routes`, optional: base64url JSON of the owner's ICE servers, relay-only
  *   switch and carriers, read strictly by `routes.ts`. Absent, the link
  *   names no server:

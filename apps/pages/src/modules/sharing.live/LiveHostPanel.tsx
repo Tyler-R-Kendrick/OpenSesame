@@ -1,5 +1,5 @@
 /**
- * Settings › Vaults › Live session (ADR 0150 §2): host one from this tab.
+ * Settings › Live sessions › Live session (ADR 0150 §2): host one from this tab.
  *
  * Contributed by `sharing.live`, so it exists only while Live sessions is
  * on. The session belongs to the tab, not to this panel: leaving Settings

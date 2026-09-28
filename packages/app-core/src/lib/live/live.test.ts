@@ -167,6 +167,23 @@ describe("an invite session", () => {
     expect(r.host.state.guests).toEqual([]);
   });
 
+  it("counts a wrong code once however often its joiner reposts it", async () => {
+    const r = await room();
+    const request = await guest(r, "BCDF-GHJK").start();
+    for (let repost = 0; repost < MAX_MISSES * 3; repost += 1)
+      expect(await r.host.receive(request)).toEqual({
+        kind: "not-this-session",
+        misses: 1,
+      });
+    expect(r.host.state.status).toBe("live");
+    // A different wrong code is a new guess.
+    const other = await guest(r, "BCDF-GHJL").start();
+    expect(await r.host.receive(other)).toEqual({
+      kind: "not-this-session",
+      misses: 2,
+    });
+  });
+
   it("does not count text that is not a request code at all", async () => {
     const r = await room();
     for (const text of ["", "hello", "osl-reply.abc", "osl-request.!!!"])

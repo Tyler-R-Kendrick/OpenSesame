@@ -10,8 +10,9 @@
  *   beside the candidates the browser hides behind mDNS names, so a joiner
  *   on the same tailnet reaches the owner's browser through the tunnel. One
  *   side's address is enough; ICE learns the other side's from the checks.
- * - **ice** — STUN and TURN servers (TURN over UDP, TCP or TLS on 443, which
- *   passes a Pangolin raw resource, a Tailscale Funnel or any TCP proxy). A
+ * - **ice** — STUN and TURN servers (TURN over UDP, TCP or TLS — TLS on a
+ *   port a Tailscale Funnel or another TCP proxy passes, or a raw Pangolin
+ *   resource on a port opened for it). A
  *   TURN server that shares a REST `secret` (coturn's `use-auth-secret`)
  *   gets credentials minted per session, so the link carries nothing that
  *   outlives it.

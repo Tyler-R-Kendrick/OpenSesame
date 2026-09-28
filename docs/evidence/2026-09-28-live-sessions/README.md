@@ -1,5 +1,9 @@
 # Live sessions and the two-road front door (ADR 0150)
 
+> Captured before optional routes (ADR 0150 §6). The Settings placement
+> (Vaults) and the consent text shown in the images are superseded by
+> [`2026-09-28-live-routes/`](../2026-09-28-live-routes/README.md).
+
 Before/after from two real builds: `main` at `0287bf9d` and this branch. Both
 were served as the production origin (`https://tyler-r-kendrick.github.io/OpenSesame/`)
 out of `dist/`, walked with the same steps (`journey.json`). Every number
@@ -26,8 +30,9 @@ Before: 1 road + sign-in panel, card 480×466 · after: 2 roads + Skip, card
 ![Join pressed](390-join.png)
 
 Before: no Join road on the shared origin, so nothing to press · after: the
-Live sessions consent review. Its one egress is the other person's browser,
-directly — no relay, STUN or TURN server — named before anything loads.
+Live sessions consent review. As captured, its one egress was the other
+person's browser, directly; it now also names what the owner may add in
+Routes (STUN/TURN, a code carrier), still before anything loads.
 
 ## Opening a shared live link, 390 × 844
 

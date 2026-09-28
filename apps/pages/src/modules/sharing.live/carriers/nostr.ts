@@ -1,6 +1,6 @@
 /**
  * A Nostr relay as a carrier (NIP-01): frames ride ephemeral events
- * (NIP-16, kind 25050, which a relay passes on and does not keep), tagged
+ * (NIP-01 ephemeral kinds 20000–29999; 25050 is ours, which a relay passes on and does not keep), tagged
  * with the topic, each signed by a key made for this carrier alone and
  * thrown away with it. `nostr-tools` checks every event's signature before
  * handing it on.

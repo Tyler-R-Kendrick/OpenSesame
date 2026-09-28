@@ -1,9 +1,11 @@
 /**
  * The owner's side of a live session (ADR 0150 §2–§5): the open tab hosts it.
  *
- * The owner pastes each request code a joiner sends. One that the link (and,
- * in an invite session, the code) does not open is a miss, and the fifth
- * miss ends the session. A request that opens waits for the owner — or, in
+ * The owner pastes each request code a joiner sends, or a carrier passes it
+ * on. One that the link (and, in an invite session, the code) does not open
+ * is a miss, and the fifth miss ends the session. A joiner's page reposts
+ * its unanswered request, so the same code again is one miss, not a new one:
+ * a single mistyped code cannot end the session by being retried. A request that opens waits for the owner — or, in
  * an open session, is let in at once. Letting someone in is the only thing
  * that answers their offer (`host-peer.ts`), and the answer leaves only in
  * the reply code the owner hands back, so nobody the owner turned away learns
@@ -24,6 +26,8 @@ import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 
 export const MAX_MISSES = 5;
 export const MAX_GUESTS = 8;
+/** How many distinct wrong codes are remembered; each still counts as a miss. */
+const MISSED_MAX = 256;
 export const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
 
 export type Admission = "invite" | "open";
@@ -94,6 +98,8 @@ export class LiveHost {
   readonly #now: () => number;
   #log: LogEntry[] = [];
   #misses = 0;
+  /** The wrong codes already counted, so a repost is not counted twice. */
+  readonly #missed = new Set<string>();
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -161,6 +167,11 @@ export class LiveHost {
     );
     if (opened.kind === "not-a-request") return opened;
     if (opened.kind === "not-this-session") {
+      // The same code again is a repost, not another guess.
+      const seen = text.replace(/\s+/g, "");
+      if (this.#missed.has(seen))
+        return { kind: "not-this-session", misses: this.#misses };
+      if (this.#missed.size < MISSED_MAX) this.#missed.add(seen);
       this.#misses += 1;
       if (this.#misses >= MAX_MISSES) this.end("code");
       else this.#emit();

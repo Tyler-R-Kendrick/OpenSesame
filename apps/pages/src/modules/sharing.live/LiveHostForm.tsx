@@ -1,6 +1,8 @@
 /**
  * Starting a live session (ADR 0150 §2): what it shares, how, for how long,
- * and who gets in. Nothing leaves this browser until someone is let in.
+ * and who gets in. Nothing but the carriers the owner named leaves this
+ * browser until someone is let in: the peer connection, its ICE servers and
+ * address hints wait for admission.
  */
 
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
