@@ -49,6 +49,10 @@ pub enum ImportSource {
         /// vaultwarden's `db.sqlite3`.
         #[arg(long = "from")]
         path: PathBuf,
+        /// vaultwarden's data folder, holding `attachments/` and `sends/`;
+        /// defaults to the database's own folder.
+        #[arg(long = "data")]
+        data: Option<PathBuf>,
         #[command(flatten)]
         target: Target,
     },
@@ -158,11 +162,13 @@ mod imp {
     fn print(source: &Source, reports: &[AccountReport]) {
         for report in reports {
             println!(
-                "{}: {} — {} folders, {} items",
+                "{}: {} — {} folders, {} items, {} attachments, {} Sends",
                 report.email,
                 outcome(report.written),
                 report.folders,
-                report.ciphers
+                report.ciphers,
+                report.attachments,
+                report.sends
             );
             for (kind, count) in &report.left_behind {
                 println!("  left behind: {count} {kind}");
@@ -192,8 +198,8 @@ mod imp {
     pub async fn run(cmd: BitwardenCmd) -> anyhow::Result<()> {
         let BitwardenCmd::Import { from } = cmd;
         match from {
-            ImportSource::Vaultwarden { path, target } => {
-                let source = vaultwarden::read(&path).await?;
+            ImportSource::Vaultwarden { path, data, target } => {
+                let source = vaultwarden::read_with(&path, data.as_deref()).await?;
                 write(&target, &source).await
             }
             ImportSource::Account {
@@ -239,7 +245,7 @@ mod tests {
     #[test]
     fn both_import_sources_parse_with_their_options() {
         let BitwardenCmd::Import {
-            from: ImportSource::Vaultwarden { path, target },
+            from: ImportSource::Vaultwarden { path, target, .. },
         } = parse(&[
             "opensesame",
             "bridge",

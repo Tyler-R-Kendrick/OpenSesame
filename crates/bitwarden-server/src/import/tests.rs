@@ -92,6 +92,8 @@ async fn a_dry_run_writes_nothing_and_a_taken_email_is_left_alone() {
                 sign_in: ArrivingSignIn::default(),
             },
             left_behind: LeftBehind::new(),
+            attachments: Vec::new(),
+            sends: Vec::new(),
         }],
         ..Source::default()
     };

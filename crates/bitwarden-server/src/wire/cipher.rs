@@ -162,7 +162,7 @@ pub fn parse_cipher(body: Value, user_id: &str) -> ApiResult<CipherInput> {
 
 /// `CipherDetailsResponseModel` for a personal cipher.
 #[must_use]
-pub fn cipher_json(cipher: &BitwardenCipher) -> Value {
+pub fn cipher_json(cipher: &BitwardenCipher, attachments: Option<&[Value]>) -> Value {
     let stored: Value = serde_json::from_str(&cipher.data).unwrap_or_else(|_| json!({}));
     let field = |key: &str| stored.get(key).cloned().unwrap_or(Value::Null);
     let mut body = json!({
@@ -176,7 +176,7 @@ pub fn cipher_json(cipher: &BitwardenCipher) -> Value {
         "reprompt": stored.get("reprompt").cloned().unwrap_or(json!(0)),
         "fields": field("fields"),
         "passwordHistory": field("passwordHistory"),
-        "attachments": null,
+        "attachments": attachments,
         "favorite": cipher.favorite,
         "edit": true,
         "viewPassword": true,

@@ -60,10 +60,13 @@ async fn record(
     response
 }
 
-fn app(server: BitwardenServer, trace: Trace) -> Router {
-    Router::new()
-        .nest(MOUNT, server.router())
-        .layer(middleware::from_fn_with_state(trace, record))
+fn app(server: BitwardenServer, trace: Trace, mount: &str) -> Router {
+    let routes = if mount.is_empty() {
+        server.router()
+    } else {
+        Router::new().nest(mount, server.router())
+    };
+    routes.layer(middleware::from_fn_with_state(trace, record))
 }
 
 fn tls_config() -> (Arc<rustls::ServerConfig>, String) {
@@ -130,12 +133,38 @@ impl Harness {
     }
 
     pub async fn start_with(configure: impl FnOnce(ServerConfig) -> ServerConfig) -> Self {
+        Self::start_mounted(MOUNT, configure).await
+    }
+
+    /// A server at the root of its origin, as behind a dedicated host name.
+    pub async fn start_at_root() -> Self {
+        Self::start_mounted("", |config| config).await
+    }
+
+    /// A server whose links name its plain listener, for a client in the
+    /// test that does not trust the test CA (the importer's downloads).
+    pub async fn start_plain() -> Self {
+        Self::start_mounted_as(MOUNT, false, |config| config).await
+    }
+
+    async fn start_mounted(
+        mount: &str,
+        configure: impl FnOnce(ServerConfig) -> ServerConfig,
+    ) -> Self {
+        Self::start_mounted_as(mount, true, configure).await
+    }
+
+    async fn start_mounted_as(
+        mount: &str,
+        public_is_secure: bool,
+        configure: impl FnOnce(ServerConfig) -> ServerConfig,
+    ) -> Self {
         let db = Db::connect_memory().await.unwrap();
         let (tls_listener, tls_addr) = bind().await;
         let (listener, addr) = bind().await;
-        let secure = format!("https://127.0.0.1:{}{MOUNT}", tls_addr.port());
-        let plain = format!("http://127.0.0.1:{}{MOUNT}", addr.port());
-        let mut config = ServerConfig::new(&secure);
+        let secure = format!("https://127.0.0.1:{}{mount}", tls_addr.port());
+        let plain = format!("http://127.0.0.1:{}{mount}", addr.port());
+        let mut config = ServerConfig::new(if public_is_secure { &secure } else { &plain });
         config.signups = SignupPolicy::Open;
         let config = configure(config);
         let server = BitwardenServer::new(db.clone(), config, HashRegistry::default(), None);
@@ -143,10 +172,13 @@ impl Harness {
         let (tls, ca_pem) = tls_config();
         tokio::spawn(serve_tls(
             tls_listener,
-            app(server.clone(), trace.clone()),
+            app(server.clone(), trace.clone(), mount),
             tls,
         ));
-        tokio::spawn(serve_plain(listener, app(server.clone(), trace.clone())));
+        tokio::spawn(serve_plain(
+            listener,
+            app(server.clone(), trace.clone(), mount),
+        ));
         Self {
             db,
             server,

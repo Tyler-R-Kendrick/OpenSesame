@@ -23,9 +23,9 @@
 //!
 //! # Scope
 //!
-//! Personal vaults: accounts, devices, folders and ciphers of every type;
-//! API-key sign-in and authenticator two-step login ([`second_factor`]).
-//! Organizations, collections, Sends, attachments and emergency access are
+//! Personal vaults: accounts, devices, folders and ciphers of every type,
+//! attachments and Sends; API-key sign-in and authenticator two-step login
+//! ([`second_factor`]). Organizations, collections and emergency access are
 //! not served; the routes that would carry them answer as a server with the
 //! feature off.
 
@@ -35,7 +35,7 @@ pub mod hashing;
 pub mod import;
 pub mod kdf;
 mod limiter;
-mod routes;
+pub(crate) mod routes;
 pub mod second_factor;
 pub mod tokens;
 mod wire;
@@ -119,6 +119,10 @@ pub struct ServerConfig {
     pub failure_window: Duration,
     /// A refresh token lapses after this long unused; each use slides it.
     pub refresh_token_ttl: Duration,
+    /// The largest file (attachment or Send) one upload may carry.
+    pub max_file_bytes: usize,
+    /// The bytes of files one account may keep, attachments and Sends together.
+    pub storage_quota_bytes: i64,
 }
 
 impl ServerConfig {
@@ -134,6 +138,8 @@ impl ServerConfig {
             max_failed_sign_ins: 10,
             failure_window: Duration::from_secs(15 * 60),
             refresh_token_ttl: Duration::from_secs(30 * 24 * 3600),
+            max_file_bytes: 100 * 1024 * 1024,
+            storage_quota_bytes: 1024 * 1024 * 1024,
         }
     }
 }
@@ -255,6 +261,15 @@ impl BitwardenServer {
                 Ok(true)
             }
         }
+    }
+
+    /// Check a secret against a stored hash that belongs to no account (a
+    /// Send's password), without re-hashing it.
+    pub(crate) async fn check_secret_only(&self, stored: &str, secret: &str) -> ApiResult<bool> {
+        Ok(matches!(
+            self.verify_secret(stored.to_owned(), secret).await?,
+            Verdict::Match { .. }
+        ))
     }
 
     /// Spend the same work on an unknown email as on a known one, so the
