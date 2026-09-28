@@ -18,7 +18,7 @@
   "totals": {
     "files": 452,
     "violations": 711,
-    "oversizedLines": 232826
+    "oversizedLines": 232337
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -377,7 +377,7 @@
       "max-lines": 515
     },
     "crates/connector-host/src/providers.rs": {
-      "max-lines": 1832
+      "max-lines": 1439
     },
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
@@ -715,7 +715,7 @@
     },
     "packages/app-core/src/lib/site-broker.ts": {
       "complexity": 1,
-      "max-lines": 614
+      "max-lines": 518
     },
     "packages/app-core/src/lib/vault/drop.test.ts": {
       "max-lines": 526

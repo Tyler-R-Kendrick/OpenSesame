@@ -48,6 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
+| [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
 | [`2026-09-28-member-organizations/`](2026-09-28-member-organizations/README.md) | The signed-in member's organizations |
 | [`2026-09-28-manifest-export-sheet/`](2026-09-28-manifest-export-sheet/README.md) | The sealed-store manifest is saved from a sheet, and never for a guest |
 | [`2026-09-28-live-sessions/`](2026-09-28-live-sessions/README.md) | Live sessions and the two-road front door (ADR 0148) |

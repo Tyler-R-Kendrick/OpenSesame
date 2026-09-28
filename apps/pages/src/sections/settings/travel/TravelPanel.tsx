@@ -10,16 +10,17 @@
 import { useDeviceVaults } from "../../../bindings/vaults.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconDownload, IconUpload } from "../../../components/Icons.js";
+import { RemnantsRow, ReturnPreviewView } from "./TravelReturnViews.js";
 import {
   PackedView,
   ReturnForm,
-  ReturnPreviewView,
   TravelReceipt,
   TravelRow,
   TravelStatus,
   travelRefusalText,
 } from "./TravelViews.js";
 import { useTravelFlow } from "./useTravelFlow.js";
+import { useTravelRemnants } from "./useTravelRemnants.js";
 import "../travel.css";
 
 function SafeList({
@@ -67,6 +68,7 @@ function SafeList({
 export function TravelPanel() {
   const flow = useTravelFlow();
   const { owner, mode, busy, notice } = flow;
+  const { remnants, reread } = useTravelRemnants(owner, notice);
   return (
     <section className="panel" id="travel" aria-labelledby="travel-title">
       <div className="panel__head">
@@ -110,6 +112,13 @@ export function TravelPanel() {
               flow.pack();
             }}
           >
+            {remnants.length > 0 ? (
+              <RemnantsRow
+                remnants={remnants}
+                busy={busy}
+                onClear={() => flow.clearRemnants(reread)}
+              />
+            ) : null}
             <SafeList safe={flow.safe} busy={busy} onToggle={flow.toggleSafe} />
             <FormCommit
               label="Pack the rest for travel"
@@ -141,6 +150,8 @@ export function TravelPanel() {
           <ReturnPreviewView
             preview={mode.opened.preview}
             busy={busy}
+            grants={flow.grants}
+            onGrants={flow.setGrants}
             onReturn={() => flow.bringHome(mode.opened)}
             onCancel={() => flow.reset()}
           />

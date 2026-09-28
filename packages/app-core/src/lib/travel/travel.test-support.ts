@@ -95,6 +95,7 @@ export function fakeOrigin(): FakeOrigin {
     forgetVaults: async (ids) => {
       origin.vaults = origin.vaults.filter((vault) => !ids.includes(vault.id));
     },
+    exclusive: (work) => work(),
     welcomeVaults: async (vaults) => {
       origin.welcomed.push(vaults.map((vault) => vault.id));
       for (const vault of vaults)
