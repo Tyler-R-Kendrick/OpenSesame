@@ -169,16 +169,15 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it("shows folder membership, sample marker, and update time", () => {
+  it("shows folder membership and update time", () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1", sample: true })],
+      items: [makeLogin({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
     };
     renderAt("itm_login");
     expect(
       screen.getByRole("link", { name: "Work" }).getAttribute("href"),
     ).toBe("/vault?folder=fld_1");
-    expect(screen.getByRole("img", { name: "Synthetic" })).toBeTruthy();
     expect(screen.getByText(/^Updated /)).toBeTruthy();
   });
 

@@ -75,13 +75,17 @@ afterEach(() => {
 });
 
 describe("TailnetSyncPanel", () => {
-  it("pairs from a pasted code with an icon key, not a word", async () => {
+  it("pairs from a pasted code in a sheet the row's key opens", async () => {
     render(<TailnetSyncPanel />);
+    expect(screen.queryByLabelText("Pairing code")).toBeNull();
+    const open = screen.getByRole("button", { name: "Pair with a drive" });
+    expect(open.textContent).toBe("");
+    fireEvent.click(open);
     const field = screen.getByLabelText("Pairing code");
     fireEvent.change(field, { target: { value: " opensesame-drive:v1:abc " } });
-    const pair = screen.getByRole("button", { name: "Pair with this drive" });
-    expect(pair.textContent).toBe("");
-    fireEvent.click(pair);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pair with this drive" }),
+    );
     await waitFor(() =>
       expect(observer.pairTailnetDrive).toHaveBeenCalledWith(
         " opensesame-drive:v1:abc ",
@@ -89,7 +93,7 @@ describe("TailnetSyncPanel", () => {
     );
   });
 
-  it("fills in the code boot took from a pairing link", () => {
+  it("opens the ceremony with the code boot took from a pairing link", () => {
     window.history.replaceState(
       null,
       "",
@@ -99,6 +103,9 @@ describe("TailnetSyncPanel", () => {
     expect(window.location.hash).toBe("");
     expect(window.location.pathname).toBe("/settings/vaults");
     render(<TailnetSyncPanel />);
+    expect(
+      screen.getByRole("dialog", { name: "Pair with a drive" }),
+    ).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>("Pairing code").value).toBe(
       "opensesame-drive:v1:xyz",
     );
@@ -107,9 +114,15 @@ describe("TailnetSyncPanel", () => {
   it("offers a guest to set the device up from the drive", () => {
     session.guest = true;
     render(<TailnetSyncPanel />);
-    expect(
+    fireEvent.click(
       screen.getByRole("button", { name: "Set this device up from the drive" }),
-    ).toBeTruthy();
+    );
+    // The sheet's own key says the same.
+    expect(
+      screen.getAllByRole("button", {
+        name: "Set this device up from the drive",
+      }),
+    ).toHaveLength(2);
   });
 
   it("says why a pairing failed, where it was asked", async () => {
@@ -117,15 +130,20 @@ describe("TailnetSyncPanel", () => {
       new Error("That snapshot belongs to another vault"),
     );
     render(<TailnetSyncPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Pair with a drive" }));
     fireEvent.change(screen.getByLabelText("Pairing code"), {
       target: { value: "x" },
     });
     fireEvent.click(
       screen.getByRole("button", { name: "Pair with this drive" }),
     );
-    expect((await screen.findByRole("alert")).textContent).toContain(
-      "another vault",
-    );
+    expect(
+      await screen.findByRole("img", { name: /another vault/ }),
+    ).toBeTruthy();
+    // The ceremony stays open: nothing was paired.
+    expect(
+      screen.getByRole("dialog", { name: "Pair with a drive" }),
+    ).toBeTruthy();
   });
 
   it("shows a paired drive with its state as a glyph and two keys", async () => {
