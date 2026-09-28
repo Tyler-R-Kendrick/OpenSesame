@@ -50,7 +50,18 @@
       "(~5 KiB) out: +2.9 KiB net, measured from source maps of both",
       "builds. Neither lowering experimentalMinChunkSize nor a dedicated",
       "module-support chunk kept `main` smaller; both made it larger.",
-      "total, javascript and gzip budgets are unchanged and still pass."
+      "total, javascript and gzip budgets are unchanged and still pass.",
+      "2026-09-28: largestAsset 748 -> 766 for both (ADR 0148). The base",
+      "(de8bf529) builds `main` at exactly 748.00 KiB, so any byte added to",
+      "boot fails. Sealing every stored value at rest has to be in `main`:",
+      "Web Storage is synchronous, so the seal is too, and the ports that",
+      "every module reads storage through open it. XChaCha20-Poly1305",
+      "(@noble/ciphers, already a dependency) is 11.1 KiB minified; the",
+      "seal, the device-key states and the IndexedDB key store are the",
+      "rest. Measured locally: 748.00 -> 765.04 KiB (+17.0); CI reports 763.",
+      "Loading the cipher lazily would leave a sealed read with no cipher",
+      "during boot. total, javascript and gzip budgets are unchanged and",
+      "still pass."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -60,7 +71,7 @@
           "javascript": 4122,
           "javascriptGzip": 1241,
           "css": 171,
-          "largestAsset": 748
+          "largestAsset": 766
         }
       },
       "family-local-hardened": {
@@ -70,7 +81,7 @@
           "javascript": 4122,
           "javascriptGzip": 1241,
           "css": 171,
-          "largestAsset": 748
+          "largestAsset": 766
         }
       }
     }
