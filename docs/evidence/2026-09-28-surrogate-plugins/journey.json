@@ -1,0 +1,104 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "featureOptional": "Surrogate credentials" },
+        { "featureOptional": "Browser autofill" },
+        { "reload": null },
+        { "visit": "settings/capabilities" },
+        {
+          "count": [
+            "#feature-surrogates",
+            "#feature-autofill",
+            ".plugin-tile",
+            "#feature-networking [role=switch][aria-checked=true]"
+          ]
+        },
+        { "scrollTo": "^AI$" },
+        { "scrollToOptional": "^Surrogate credentials$" },
+        {
+          "measure": "#feature-surrogates, #plugin-surrogate-proxy, #feature-surrogates .capsection__switch, #plugin-surrogate-proxy .status-mark"
+        },
+        { "report": "#plugin-surrogate-proxy .status-mark" },
+        { "shot": "390-surrogate-credentials" },
+        { "scrollTo": "^Local storage$" },
+        { "scrollToOptional": "^Browser autofill$" },
+        {
+          "measure": "#feature-autofill, #plugin-browser-autofill, #feature-autofill .capsection__switch"
+        },
+        { "shot": "390-browser-autofill" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "featureOptional": "Surrogate credentials" },
+        { "featureOptional": "Browser autofill" },
+        { "reload": null },
+        { "visit": "settings/capabilities" },
+        {
+          "count": [
+            "#feature-surrogates",
+            "#feature-autofill",
+            ".plugin-tile",
+            "#feature-networking [role=switch][aria-checked=true]"
+          ]
+        },
+        { "scrollTo": "^AI$" },
+        { "scrollToOptional": "^Surrogate credentials$" },
+        {
+          "measure": "#feature-surrogates, #plugin-surrogate-proxy, #feature-surrogates .capsection__switch, #plugin-surrogate-proxy .status-mark"
+        },
+        { "report": "#plugin-surrogate-proxy .status-mark" },
+        { "shot": "1280-surrogate-credentials" },
+        { "scrollTo": "^Local storage$" },
+        { "scrollToOptional": "^Browser autofill$" },
+        {
+          "measure": "#feature-autofill, #plugin-browser-autofill, #feature-autofill .capsection__switch"
+        },
+        { "shot": "1280-browser-autofill" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-surrogate-credentials",
+      "width": 390,
+      "title": "Settings › Capabilities, Surrogate credentials — 390 × 844",
+      "caption": "A guest switches Surrogate credentials on and applies it. The branch draws the section after AI with its own switch, and inside it the surrogate proxy's tile; a guest has no daemon paired, so the tile wears the idle mark and offers no switch. The base has no such section.",
+      "before": "no #feature-surrogates section",
+      "after": "section and #plugin-surrogate-proxy tile present"
+    },
+    {
+      "shot": "390-browser-autofill",
+      "width": 390,
+      "title": "Settings › Capabilities, Browser autofill — 390 × 844",
+      "caption": "The same walk for Browser autofill, which sits after Local storage.",
+      "before": "no #feature-autofill section",
+      "after": "section and #plugin-browser-autofill tile present"
+    },
+    {
+      "shot": "1280-surrogate-credentials",
+      "width": 1280,
+      "title": "Settings › Capabilities, Surrogate credentials — 1280 × 900",
+      "caption": "Same walk at desktop width.",
+      "before": "no #feature-surrogates section",
+      "after": "section and tile present"
+    },
+    {
+      "shot": "1280-browser-autofill",
+      "width": 1280,
+      "title": "Settings › Capabilities, Browser autofill — 1280 × 900",
+      "caption": "Same walk at desktop width.",
+      "before": "no #feature-autofill section",
+      "after": "section and tile present"
+    }
+  ]
+}
