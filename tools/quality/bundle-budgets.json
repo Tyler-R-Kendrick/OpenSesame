@@ -78,14 +78,17 @@
       "ships beside the frozen 1.0.2, +27.4 KiB raw and +9.8 KiB gzip of",
       "JavaScript that no page loads. Measured 4105/1236 -> 4132/1246.",
       "`main` sits at 766.0 after the at-rest review fixes (lost-key guard,",
-      "load timeout); 769 keeps it from failing on rounding alone."
+      "load timeout); 769 keeps it from failing on rounding alone.",
+      "2026-09-29: npm_and_yarn bump (hono 4.13.10) measured both hardened",
+      "profiles at 4745 KiB total and 4145 KiB javascript against 4741/4140.",
+      "Ceilings move to 4749 and 4149, four kibibytes over that measurement."
     ],
     "builds": {
       "minimal-local-hardened": {
         "dist": "apps/pages/dist-profiles/minimal-local-hardened",
         "budgets": {
-          "total": 4741,
-          "javascript": 4140,
+          "total": 4749,
+          "javascript": 4149,
           "javascriptGzip": 1252,
           "css": 171,
           "largestAsset": 769
@@ -94,8 +97,8 @@
       "family-local-hardened": {
         "dist": "apps/pages/dist-profiles/family-local-hardened",
         "budgets": {
-          "total": 4741,
-          "javascript": 4140,
+          "total": 4749,
+          "javascript": 4149,
           "javascriptGzip": 1252,
           "css": 171,
           "largestAsset": 769
