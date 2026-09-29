@@ -5,9 +5,9 @@
  * drawn by Settings › Capabilities among the always-on provider groups, so
  * this module registers nothing of its own.
  *
- * What deliberately stays core: the AWS KMS, GCP KMS and Azure Key Vault
- * connector configuration and the age / SOPS panels under Settings ›
- * Security. They configure vault key *protectors*, which is the unlock path
+ * What deliberately stays core: the AWS KMS and Google Cloud KMS connection
+ * configuration and the age / SOPS panels under Settings › Security. They
+ * configure vault key *protectors*, which is the unlock path
  * (`vault.local-unlock`), not secret storage.
  *
  * Egress this module wraps: none of its own today — bindings are recorded

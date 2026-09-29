@@ -429,7 +429,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0150).
+  0001–0152).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -602,6 +602,12 @@ Do not add new top-level directories or loose root files — find the group.
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
+- **A Settings row acts, or it is not drawn**
+  ([ADR 0150](docs/adr/0150-settings-rows-act-or-are-absent.md)). No disabled
+  key, no lock glyph standing for "not yet", no link to a page that does not
+  configure the thing, no static status a person cannot change. A control
+  whose precondition is unmet is absent; the row that needs a setting opens the
+  sheet that sets it. A setting is not removable while something depends on it.
 - **Settings is files, and the Form is a view of them**
   ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
   Configuration a Settings panel edits lives in a virtual file a

@@ -5,6 +5,7 @@ import { planeHookSeams } from "../../../bindings/planes.js";
 
 import { defaultCapabilityConnectors } from "@opensesame/app-core/lib/capabilities.js";
 import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
+import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import { createSetupSeams } from "../test-seams.js";
 import { MfaStep } from "./MfaStep.js";
 
@@ -57,17 +58,37 @@ describe("MfaStep", () => {
     expect(
       screen.queryByRole("button", { name: "Connect This vault" }),
     ).toBeNull();
-    // One that needs an account also carries its connect icon key — offered
-    // without a Host (Connect completes Pages alone, ADR 0090).
+    // One that needs an account is a choice object; it carries a connect icon
+    // key only where a road exists to connect through (ADR 0150, ADR 0151).
+    // With no Connect credential and no Host, no key could succeed, so none is
+    // drawn.
     for (const name of ["Bitwarden", "Resend", "SendGrid", "Twilio"]) {
       expect(
         screen.getByRole("button", { name: new RegExp(`^${name}`) }),
       ).toBeTruthy();
       expect(
-        screen.getByRole("button", { name: `Connect ${name}` }),
-      ).toBeTruthy();
+        screen.queryByRole("button", { name: `Connect ${name}` }),
+      ).toBeNull();
     }
     expect(screen.getByRole("button", { name: /^MessageBird/ })).toBeTruthy();
+  });
+
+  it("offers the connect key on a Connect-reachable connector once Connect is set up", () => {
+    setVercelConnectAuth({ token: "vercel_token" });
+    try {
+      render(<MfaStep />);
+      for (const name of ["Resend", "SendGrid", "Twilio"]) {
+        expect(
+          screen.getByRole("button", { name: `Connect ${name}` }),
+        ).toBeTruthy();
+      }
+      // Host-only, so still no key: Connect cannot authorize it.
+      expect(
+        screen.queryByRole("button", { name: "Connect Bitwarden" }),
+      ).toBeNull();
+    } finally {
+      setVercelConnectAuth(null);
+    }
   });
 
   it("binds this-vault authenticator instantly without a Host", () => {

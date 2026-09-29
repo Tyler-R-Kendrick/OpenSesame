@@ -64,6 +64,11 @@ export async function openTransport(page, touch = false) {
   return panel;
 }
 
+/** The endpoint probe's key — drawn only while an endpoint is set. */
+export function verifyKey(page) {
+  return page.getByRole("button", { name: /enforcement verification/ });
+}
+
 export function tone(page, dimension) {
   return page
     .locator(`[data-dimension="${dimension}"]`)

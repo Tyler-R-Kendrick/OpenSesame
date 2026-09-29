@@ -53,7 +53,7 @@ export const VAULT_LIB_RULES = [
     core(p, UNLOCK, "vault key, protectors, store lifecycle"),
   ),
   ...each(V, CLOUD_ADAPTERS, (p) =>
-    optional(p, CLOUD, "cloud KMS, age and YubiKey protectors"),
+    optional(p, CLOUD, "cloud KMS and age protectors"),
   ),
   core(
     `${V}offline-backup`,
