@@ -13,6 +13,7 @@ import {
   GUEST_PERSON_KEY,
 } from "@opensesame/app-core/lib/local-guest.js";
 import { PROJECTS_KEY } from "@opensesame/app-core/lib/projects.js";
+import { TRAVEL_SAFE_KEY } from "@opensesame/app-core/lib/travel/safe-flags.js";
 import { TOMBS_REGISTRY_KEY } from "@opensesame/app-core/lib/vfs.js";
 import { THEME_KEY } from "../lib/theme.js";
 
@@ -34,6 +35,8 @@ export const CORE_BOOT_KEYS: readonly string[] = [
   GUEST_PERSON_KEY,
   // Whether the guest road is offered at all — read before any vault opens.
   GUEST_ACCESS_KEY,
+  // Which vaults are marked safe to carry — chosen at home, needed at the border.
+  TRAVEL_SAFE_KEY,
   // Installation id, selection, receipt, policies, generation counter.
   ...CAPABILITY_BOOT_KEYS,
 ];

@@ -41,7 +41,6 @@ export const SHELL_RULES = [
     "src/modules/tutorial-test-realm",
     "boots a fixture realm so contributed guides render in tests",
   ),
-  core("src/routes/settings/", "settings.core", "settings route modules"),
   core(
     "src/components/ShellWrappers",
     "shell.navigation",

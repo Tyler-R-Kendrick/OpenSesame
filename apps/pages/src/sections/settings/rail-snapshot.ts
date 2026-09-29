@@ -1,9 +1,9 @@
-import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { useMemo } from "react";
 import { useContributions } from "../../bindings/contributions.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
+import { useDuressPanelShown } from "./security/DuressPanel.js";
 import { useAccountFactorsOffered } from "./security/account-offered.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
@@ -17,6 +17,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const guests = useGuestRowShown();
   const instancePolicy = useDeviceOperator();
   const account = useAccountFactorsOffered();
+  const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
   const contributed = useMemo(
     () =>
@@ -34,6 +35,6 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     instancePolicy,
     account,
     contributed,
-    duress: resolveDuressMode({}) !== "off",
+    duress,
   };
 }
