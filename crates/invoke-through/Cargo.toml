@@ -6,6 +6,8 @@ license.workspace = true
 description = "Invoke-through broker: daemon-mediated upstream calls over a credential that never leaves the machine (ADR 0048 D6/D7)"
 
 [dependencies]
+# Reflection scrub (ADR 0150 §4); already in the daemon's tree.
+base64 = { workspace = true }
 secrecy = { workspace = true }
 zeroize = { workspace = true }
 http = { workspace = true }

@@ -28,7 +28,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
-use opensesame_agent_events::AGENT_EVENT_TYPES;
+use opensesame_agent_events::{AGENT_EVENT_TYPES, SURROGATE_EVENT_TYPES, SURROGATE_SUBJECT_KINDS};
 use opensesame_breach_intel::{BreachSubjectKind, BREACH_EVENT_TYPES};
 use opensesame_connection_broker::crypto::seal_scoped;
 use opensesame_lifecycle::{ExpiryStage, ExpirySubject, SubjectKind, Track, LIFECYCLE_EVENT_TYPES};
@@ -223,13 +223,16 @@ fn known_event_types() -> Vec<&'static str> {
         .copied()
         .chain(BREACH_EVENT_TYPES.iter().copied())
         .chain(AGENT_EVENT_TYPES.iter().copied())
+        .chain(SURROGATE_EVENT_TYPES.iter().copied())
         .collect()
 }
 
 /// Whether a subject-kind filter names something some family actually reports.
 #[must_use]
 fn is_known_subject_kind(kind: &str) -> bool {
-    SubjectKind::parse(kind).is_some() || BreachSubjectKind::parse(kind).is_some()
+    SubjectKind::parse(kind).is_some()
+        || BreachSubjectKind::parse(kind).is_some()
+        || SURROGATE_SUBJECT_KINDS.contains(&kind)
 }
 
 #[derive(Debug, Deserialize)]
@@ -971,7 +974,10 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{view}");
         assert_eq!(
             view["event_types"].as_array().unwrap().len(),
-            LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
+            LIFECYCLE_EVENT_TYPES.len()
+                + BREACH_EVENT_TYPES.len()
+                + AGENT_EVENT_TYPES.len()
+                + SURROGATE_EVENT_TYPES.len(),
             "the frozen vocabulary is part of the contract, and it spans every family",
         );
         assert_eq!(view["secrets_returned"], json!(false));
@@ -1493,61 +1499,8 @@ mod custody_e2e {
 }
 
 #[cfg(test)]
-mod hook_filter_tests {
-    use super::known_event_types;
-    use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_RUN_BLOCKED};
-    use opensesame_breach_intel::BREACH_EVENT_TYPES;
-    use opensesame_lifecycle::{EVENT_RENEWAL_DUE, LIFECYCLE_EVENT_TYPES};
-    use opensesame_security_events::filter;
-
-    fn entries(names: &[&str]) -> Vec<String> {
-        names.iter().map(|name| (*name).to_string()).collect()
-    }
-
-    fn valid(names: &[&str]) -> bool {
-        filter::is_valid(&entries(names), &known_event_types())
-    }
-
-    #[test]
-    fn one_subscription_may_span_every_family() {
-        assert!(valid(&[EVENT_RENEWAL_DUE, EVENT_RUN_BLOCKED]));
-        assert!(valid(&["lifecycle.*", "breach.*", "agent.*"]));
-        assert!(valid(&["*"]));
-    }
-
-    #[test]
-    fn an_unknown_name_is_refused_even_beside_valid_ones() {
-        assert!(!valid(&[EVENT_RENEWAL_DUE, "agent.run.exploded"]));
-        assert!(!valid(&["everything"]));
-        assert!(!valid(&["rumour.*"]));
-    }
-
-    #[test]
-    fn an_empty_filter_is_refused_rather_than_read_as_everything() {
-        assert!(!valid(&[]));
-    }
-
-    #[test]
-    fn discovery_and_registration_answer_for_the_same_families() {
-        // One union, used by both surfaces. Two lists is how a caller reads
-        // the advertised vocabulary, registers from it, and is told a name it
-        // was just given is unknown — or, worse, never learns a family exists.
-        let advertised = known_event_types();
-        for name in LIFECYCLE_EVENT_TYPES
-            .iter()
-            .chain(BREACH_EVENT_TYPES.iter())
-            .chain(AGENT_EVENT_TYPES.iter())
-        {
-            assert!(advertised.contains(name), "{name} is not discoverable");
-            assert!(valid(&[name]), "{name} is advertised but not registrable");
-        }
-        assert_eq!(
-            advertised.len(),
-            LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
-            "the union carries every family and nothing else",
-        );
-    }
-}
+#[path = "lifecycle_hook_filter_tests.rs"]
+mod hook_filter_tests;
 
 #[cfg(test)]
 mod a2h_hook_tests {
