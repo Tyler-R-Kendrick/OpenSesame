@@ -35,10 +35,7 @@ describe("Settings › Vaults › Sealed store", () => {
     const token = createItem("secret", "Token");
     token.value = "t0k3n"; // gitleaks:allow -- fixture
     vault.current = {
-      items: [
-        { ...token, folderId: dev.id },
-        { ...createItem("login", "Demo"), sample: true },
-      ],
+      items: [{ ...token, folderId: dev.id }],
       folders: [dev],
       status: "unlocked",
       guest: false,
@@ -58,10 +55,12 @@ describe("Settings › Vaults › Sealed store", () => {
     });
     expect(key.className).toContain("icon-btn");
     expect(key.textContent).toBe("");
-    expect(key.closest(".panel__head")).not.toBeNull();
+    // A row of the panel, with its count; the ceremony's card is not on the page.
+    expect(key.closest(".sw")).not.toBeNull();
+    expect(screen.getByText("1 entry")).toBeTruthy();
     expect(
-      screen.getByText("opensesame pass seal <file> --shred"),
-    ).toBeTruthy();
+      screen.queryByText("opensesame pass seal <file> --shred"),
+    ).toBeNull();
 
     // The key opens a sheet that says what the file holds; nothing is saved.
     await user.click(key);
@@ -107,9 +106,9 @@ describe("Settings › Vaults › Sealed store", () => {
     expect(saved).toHaveLength(0);
   });
 
-  it("has nothing to save from a vault of sample data alone", () => {
+  it("has nothing to save from a vault with no items", () => {
     vault.current = {
-      items: [{ ...createItem("login", "Demo"), sample: true }],
+      items: [],
       folders: [],
       status: "unlocked",
       guest: false,

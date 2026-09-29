@@ -94,7 +94,6 @@ describe("settingsPageTree", () => {
       "project · 4f2a",
       "Travel",
       "Item types",
-      "Sample data",
       "Sealed store",
     ]);
     const capabilities = tabs.find((node) => node.id === "capabilities");

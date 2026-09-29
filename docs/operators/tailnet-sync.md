@@ -64,12 +64,15 @@ opensesame daemon drive rm <slot>       # close it; paired devices stop syncing
 Turn on **Networking** in Settings › Capabilities on each device; the
 **Tailnet sync** panel then appears under Settings › Vaults.
 
-- **The device that has the vault:** unlock it, paste the code (or open the
-  link), press the pair key. The first pass fills the drive.
+- **The device that has the vault:** unlock it, press the row's
+  **Pair with a drive** key in Settings › Vaults, paste the code in the sheet
+  that opens (or open the link, which opens the sheet with the code filled
+  in), and press **Pair with this drive**. The first pass fills the drive.
 - **A new device:** continue as a guest (or open the app with no vault),
-  turn on Networking, paste the code in Settings › Vaults. The vault is
-  written into this device and the unlock screen asks for its **master
-  password** or a **synced passkey**. Enrol a PIN afterwards if you want one;
+  turn on Networking, press the row's **Set this device up from the drive**
+  key in Settings › Vaults and paste the code in the sheet (or open the
+  link). The vault is written into this device and the unlock screen asks
+  for its **master password** or a **synced passkey**. Enrol a PIN afterwards if you want one;
   PINs never leave the device that set them, so a vault that only a PIN opens
   must get a password or passkey on its first device before it can be set up
   anywhere else.

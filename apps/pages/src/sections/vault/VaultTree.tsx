@@ -76,7 +76,6 @@ function Decorations({ item }: { item: VaultItem }) {
       {item.favorite ? (
         <IconStar size={13} filled title="Favorite" className="vtree__fav" />
       ) : null}
-      {item.sample ? <span className="vtree__syn">SYNTHETIC</span> : null}
     </span>
   );
 }

@@ -3,11 +3,10 @@
  * on the tailnet, see whether it is in step, sync now, or stop.
  *
  * Contributed by `networking.tailnet`, so it exists only while Networking is
- * on. A pairing link (`…/settings/vaults#pair-drive=<code>`, printed by
- * `opensesame daemon drive create`) fills the code in; boot has already
- * taken it out of the address bar (`lib/pairing-link.ts`). In a guest session the
- * same code sets this device up from the drive instead: the vault is written
- * into this device's own place and the unlock screen asks for its password.
+ * on. Pairing is a ceremony in a sheet (`TailnetPairSheet`), never a field
+ * on the page. A pairing link (`…/settings/vaults#pair-drive=<code>`, printed
+ * by `opensesame daemon drive create`) opens it with the code filled in; boot
+ * has already taken the code out of the address bar (`lib/pairing-link.ts`).
  */
 
 import {
@@ -18,7 +17,8 @@ import {
   syncTailnetNow,
   tailnetSyncState,
 } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { IconKey } from "../../components/IconKey.js";
 import { IconConnection, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
 import { type StatusMessage, StatusNote } from "../../components/StatusNote.js";
@@ -27,7 +27,9 @@ import {
   takeLinkedPairing,
 } from "../../lib/pairing-link.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { CeremonyRow } from "../../sections/settings/CeremonyRow.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
+import { TailnetPairSheet } from "./TailnetPairSheet.js";
 
 /**
  * The observer this panel reads and drives. A seam, so a test can stand in
@@ -121,70 +123,16 @@ function DriveRow({
   );
 }
 
-function PairForm({
-  busy,
-  run,
-  onEdit,
-}: {
-  busy: boolean;
-  run: Run;
-  onEdit: () => void;
-}) {
-  const { status, guest } = useVault();
-  const [code, setCode] = useState("");
-  const canPair = guest || status === "unlocked" || status === "empty";
-  const action = guest
-    ? "Set this device up from the drive"
-    : "Pair with this drive";
-
+/** A pairing link the boot took from the address bar opens the ceremony. */
+function useLinkedPairing(open: (code: string) => void) {
   useEffect(() => {
     const take = () => {
       const linked = takeLinkedPairing();
-      if (linked) setCode(linked);
+      if (linked) open(linked);
     };
     take();
     return subscribeLinkedPairing(take);
-  }, []);
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        const pasted = code;
-        run(async () => {
-          await tailnetPanelSeams.pair(pasted);
-          setCode("");
-        });
-      }}
-    >
-      <label htmlFor="tailnet-sync-code">Pairing code</label>
-      <div className="field-inline">
-        <input
-          id="tailnet-sync-code"
-          type="text"
-          value={code}
-          placeholder="opensesame-drive:v1:…"
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          disabled={busy || !canPair}
-          onChange={(event) => {
-            setCode(event.target.value);
-            onEdit();
-          }}
-        />
-        <button
-          type="submit"
-          className="icon-btn"
-          disabled={busy || !canPair || code.trim().length === 0}
-          aria-label={action}
-          title={action}
-        >
-          <IconConnection size={16} />
-        </button>
-      </div>
-    </form>
-  );
+  }, [open]);
 }
 
 export function TailnetSyncPanel() {
@@ -192,8 +140,12 @@ export function TailnetSyncPanel() {
     tailnetPanelSeams.subscribe,
     tailnetPanelSeams.state,
   );
+  const { status, guest } = useVault();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<StatusMessage | null>(null);
+  const [pairing, setPairing] = useState<{ code: string } | null>(null);
+  const canPair = guest || status === "unlocked" || status === "empty";
+  useLinkedPairing(useCallback((code) => setPairing({ code }), []));
 
   const run: Run = (task) => {
     setMessage(null);
@@ -213,7 +165,7 @@ export function TailnetSyncPanel() {
 
   return (
     <GuideTarget id="settings.tailnet-sync">
-      <section className="panel" id="tailnet-sync">
+      <section className="panel set__security" id="tailnet-sync">
         <div className="panel__head">
           <div>
             <h2>Tailnet sync</h2>
@@ -226,10 +178,49 @@ export function TailnetSyncPanel() {
           {drive ? (
             <DriveRow state={{ ...state, drive }} busy={busy} run={run} />
           ) : (
-            <PairForm busy={busy} run={run} onEdit={() => setMessage(null)} />
+            <CeremonyRow
+              icon={<IconConnection size={16} />}
+              label="Drive on your tailnet"
+              sub="Not paired"
+              action={
+                <IconKey
+                  small
+                  label={
+                    guest
+                      ? "Set this device up from the drive"
+                      : "Pair with a drive"
+                  }
+                  disabled={busy || !canPair}
+                  aria-haspopup="dialog"
+                  onClick={() => setPairing({ code: "" })}
+                >
+                  <IconConnection size={16} />
+                </IconKey>
+              }
+            />
           )}
           <StatusNote message={message} onDismiss={() => setMessage(null)} />
         </div>
+        {pairing ? (
+          <TailnetPairSheet
+            initialCode={pairing.code}
+            guest={guest}
+            canPair={canPair}
+            onPair={async (code) => {
+              await tailnetPanelSeams.pair(code);
+              setPairing(null);
+              // The row that opened the sheet is now the drive's row.
+              requestAnimationFrame(() =>
+                document
+                  .querySelector<HTMLElement>(
+                    '#tailnet-sync [aria-label="Sync now"]',
+                  )
+                  ?.focus(),
+              );
+            }}
+            onClose={() => setPairing(null)}
+          />
+        ) : null}
       </section>
     </GuideTarget>
   );

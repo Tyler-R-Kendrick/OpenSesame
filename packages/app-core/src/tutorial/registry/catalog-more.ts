@@ -14,7 +14,7 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.tailnet-sync",
     description:
-      "The Tailnet sync panel under Vaults, while Networking is on: pair this vault with a drive on the tailnet by its code, see whether it is in step, sync now, or stop. The drive holds only the sealed vault.",
+      "The Tailnet sync panel under Vaults, while Networking is on: pair this vault with a drive on the tailnet (the pair key opens a sheet where the code goes), see whether it is in step, sync now, or stop. The drive holds only the sealed vault.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "vault.drive.sync",

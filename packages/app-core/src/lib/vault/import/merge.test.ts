@@ -179,14 +179,4 @@ describe("planMerge", () => {
     const plan = planMerge([login("")], [], [], defaultMergeOptions);
     expect(plan.items[0]?.name).toBe("Untitled");
   });
-
-  it("never marks an imported item as sample data", () => {
-    const plan = planMerge(
-      [login("GitHub", "ada")],
-      [],
-      [],
-      defaultMergeOptions,
-    );
-    expect(plan.items[0]?.sample).toBeUndefined();
-  });
 });

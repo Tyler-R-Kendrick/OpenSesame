@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
 | [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
 | [`2026-09-28-settings-no-approvals-view/`](2026-09-28-settings-no-approvals-view/README.md) | Settings › General: no approvals view |
