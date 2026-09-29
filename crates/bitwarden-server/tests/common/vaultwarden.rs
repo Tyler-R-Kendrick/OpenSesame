@@ -35,6 +35,8 @@ pub struct Keys {
     pub login_hash: String,
     pub wrapped_user_key: String,
     pub user_key: SymmetricKey,
+    /// The organization's key, wrapped for the account in the fixture.
+    pub org_key: SymmetricKey,
 }
 
 pub fn keys(email: &str) -> Keys {
@@ -45,6 +47,11 @@ pub fn keys(email: &str) -> Keys {
         login_hash: master.password_hash_b64(PASSWORD.as_bytes()),
         wrapped_user_key: encrypt(&master.stretch(), &raw),
         user_key: SymmetricKey::from_bytes(&raw).unwrap(),
+        org_key: {
+            let mut org = Zeroizing::new(vec![0_u8; 64]);
+            rand::rngs::OsRng.fill_bytes(&mut org);
+            SymmetricKey::from_bytes(&org).unwrap()
+        },
     }
 }
 
@@ -59,7 +66,22 @@ CREATE TABLE users (uuid TEXT PRIMARY KEY, enabled BOOLEAN NOT NULL DEFAULT 1,
   excluded_globals TEXT NOT NULL DEFAULT '[]', client_kdf_type INTEGER NOT NULL DEFAULT 0,
   client_kdf_iter INTEGER NOT NULL DEFAULT 100000, client_kdf_memory INTEGER,
   client_kdf_parallelism INTEGER, api_key TEXT);
-CREATE TABLE organizations (uuid TEXT PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE organizations (uuid TEXT PRIMARY KEY, name TEXT NOT NULL,
+  billing_email TEXT NOT NULL, private_key TEXT, public_key TEXT);
+CREATE TABLE users_organizations (uuid TEXT PRIMARY KEY, user_uuid TEXT NOT NULL,
+  org_uuid TEXT NOT NULL, invited_by_email TEXT, access_all BOOLEAN NOT NULL, akey TEXT NOT NULL,
+  status INTEGER NOT NULL, atype INTEGER NOT NULL, reset_password_key TEXT, external_id TEXT);
+CREATE TABLE collections (uuid TEXT PRIMARY KEY, org_uuid TEXT NOT NULL, name TEXT NOT NULL,
+  external_id TEXT);
+CREATE TABLE users_collections (user_uuid TEXT NOT NULL, collection_uuid TEXT NOT NULL,
+  read_only BOOLEAN NOT NULL DEFAULT 0, hide_passwords BOOLEAN NOT NULL DEFAULT 0,
+  manage BOOLEAN NOT NULL DEFAULT 0, PRIMARY KEY (user_uuid, collection_uuid));
+CREATE TABLE ciphers_collections (cipher_uuid TEXT NOT NULL, collection_uuid TEXT NOT NULL,
+  PRIMARY KEY (cipher_uuid, collection_uuid));
+CREATE TABLE emergency_access (uuid TEXT PRIMARY KEY, grantor_uuid TEXT NOT NULL,
+  grantee_uuid TEXT, email TEXT, key_encrypted TEXT, atype INTEGER NOT NULL,
+  status INTEGER NOT NULL, wait_time_days INTEGER NOT NULL, recovery_initiated_at DATETIME,
+  last_notification_at DATETIME, updated_at DATETIME NOT NULL, created_at DATETIME NOT NULL);
 CREATE TABLE ciphers (uuid TEXT PRIMARY KEY, created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL, user_uuid TEXT, organization_uuid TEXT, key TEXT,
   atype INTEGER NOT NULL, name TEXT NOT NULL, notes TEXT, fields TEXT, data TEXT NOT NULL,
@@ -92,8 +114,10 @@ pub const ATTACHMENT_BYTES: &[u8] = b"2.fake-attachment-ciphertext-bytes";
 pub const LOGIN: &str = "0c6f1d2a-4b1e-4a5c-9d3f-2e8b7a6c5d41";
 pub const NOTE: &str = "1d7e2f3b-5c2f-4b6d-8e4a-3f9c8b7d6e52";
 const FOLDER: &str = "2e8f3a4c-6d3a-4c7e-9f5b-4a0d9c8e7f63";
-const ORG_ITEM: &str = "3f9a4b5d-7e4b-4d8f-8a6c-5b1e0d9f8a74";
-const AT: &str = "2024-05-06 07:08:09.123456";
+pub const ORG_ITEM: &str = "3f9a4b5d-7e4b-4d8f-8a6c-5b1e0d9f8a74";
+pub const ORG: &str = "4a0b5c6e-8f5c-4e9a-9b7d-6c2f1e0a9b85";
+pub const COLLECTION: &str = "5b1c6d7f-9a6d-4fab-8c8e-7d3a2f1bac96";
+pub(super) const AT: &str = "2024-05-06 07:08:09.123456";
 
 /// One `ciphers` row.
 struct CipherRow<'a> {
@@ -106,11 +130,11 @@ struct CipherRow<'a> {
     deleted: Option<&'a str>,
 }
 
-async fn exec(pool: &SqlitePool, sql: &str) {
+pub(super) async fn exec(pool: &SqlitePool, sql: &str) {
     sqlx::query(sql).execute(pool).await.unwrap();
 }
 
-async fn insert_users(pool: &SqlitePool, keys: &Keys) {
+async fn insert_users(pool: &SqlitePool, keys: &Keys) -> String {
     // vaultwarden: PBKDF2-SHA256 over the login hash string, 64-byte salt.
     let salt: Vec<u8> = (0..64_u8).collect();
     let mut hash = [0_u8; 32];
@@ -146,6 +170,7 @@ async fn insert_users(pool: &SqlitePool, keys: &Keys) {
     }
     // Every client since 2018 gives an account an RSA pair at registration.
     let (public, private) = key_pair(&keys.user_key);
+    let returned = public.clone();
     sqlx::query(
         "UPDATE users SET public_key = ?, private_key = ?, api_key = ?, totp_recover = ? \
          WHERE uuid = ?",
@@ -158,6 +183,7 @@ async fn insert_users(pool: &SqlitePool, keys: &Keys) {
     .execute(pool)
     .await
     .unwrap();
+    returned
 }
 
 async fn insert_ciphers(pool: &SqlitePool, keys: &Keys) {
@@ -200,9 +226,9 @@ async fn insert_ciphers(pool: &SqlitePool, keys: &Keys) {
         CipherRow {
             uuid: ORG_ITEM,
             user: None,
-            org: Some("org"),
+            org: Some(ORG),
             atype: 2,
-            name: enc("Shared"),
+            name: encrypt(&keys.org_key, b"Shared"),
             data: note,
             deleted: None,
         },
@@ -244,7 +270,6 @@ async fn insert_ciphers(pool: &SqlitePool, keys: &Keys) {
         .execute(pool)
         .await
         .unwrap();
-    exec(pool, "INSERT INTO organizations VALUES ('org', 'Family')").await;
 }
 
 /// A vaultwarden database with one registered account, one invited, one
@@ -267,8 +292,9 @@ pub async fn fixture(path: &std::path::Path) -> Keys {
         exec(&pool, statement).await;
     }
     let keys = keys(EMAIL);
-    insert_users(&pool, &keys).await;
+    let public = insert_users(&pool, &keys).await;
     insert_ciphers(&pool, &keys).await;
+    super::vaultwarden_org::insert_organization(&pool, &keys, &public).await;
     pool.close().await;
     keys
 }

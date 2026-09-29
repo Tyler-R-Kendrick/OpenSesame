@@ -39,8 +39,13 @@ async fn a_vaultwarden_server_moves_over_and_the_same_password_opens_the_same_va
     let source = vaultwarden::read(&path).await.unwrap();
     let skipped: Vec<&str> = source.skipped.iter().map(|s| s.email.as_str()).collect();
     assert_eq!(skipped, ["invited@example.test", "off@example.test"]);
-    assert_eq!(source.left_behind["organizations"], 1);
-    assert_eq!(source.left_behind["organization items"], 1);
+    assert!(source.left_behind.is_empty(), "{:?}", source.left_behind);
+    let org = &source.organizations[0].arrival;
+    assert_eq!(
+        (org.members.len(), org.collections.len(), org.ciphers.len()),
+        (2, 1, 1)
+    );
+    assert_eq!(source.emergency.len(), 1);
     let arrival = &source.arrivals[0];
     // The attachment's row arrives; its file is read when written.
     assert_eq!(arrival.attachments.len(), 1);
@@ -52,6 +57,11 @@ async fn a_vaultwarden_server_moves_over_and_the_same_password_opens_the_same_va
         .unwrap();
     assert_eq!(reports[0].written, Written::Created);
     assert_eq!((reports[0].folders, reports[0].ciphers), (1, 2));
+    let shared = import::write_shared(&target.db, &source, WriteOptions::default())
+        .await
+        .unwrap();
+    assert_eq!(shared.organizations[0].written, Written::Created);
+    assert_eq!((shared.emergency_written, shared.emergency_read), (1, 1));
 
     // The person's master password, unchanged, through a real key schedule.
     let mut client = unlock(&target.http_url, EMAIL).await;
