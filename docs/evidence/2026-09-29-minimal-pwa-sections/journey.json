@@ -9,7 +9,13 @@
       "steps": [
         { "guest": null },
         { "report": "a.railtree__row[aria-level='1']" },
-        { "count": ["a.railtree__row[aria-level='1']", "a[href*='f=secret']", "a[href*='f=login']"] },
+        {
+          "count": [
+            "a.railtree__row[aria-level='1']",
+            "a[href*='f=secret']",
+            "a[href*='f=login']"
+          ]
+        },
         { "shot": "1280-rail" },
         { "open": "New item" },
         { "report": "select option" },
