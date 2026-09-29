@@ -22,8 +22,40 @@ import type { AuthKind, Provider } from "./connections.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import { HISTORY_BACKUP_GROUPS } from "./history-backups.js";
 import { hostBase, hostLocalSessionEligible } from "./identity.js";
-import { hasConnectRoute } from "./vercel-connect-catalog.js";
-import { usesConnect } from "./vercel-connect.js";
+
+/**
+ * Connect's own answers (ADR 0153). Off until `connectors.external` installs
+ * them, so a minimal build never loads the Connect catalog.
+ */
+export const connectRoadSeams = {
+  usesConnect: (_providerId?: string): boolean => false,
+  hasConnectRoute: (_providerId: string): boolean => false,
+};
+
+export function resetConnectRoadSeams(): void {
+  connectRoadSeams.usesConnect = () => false;
+  connectRoadSeams.hasConnectRoute = () => false;
+}
+
+let epoch = 0;
+const listeners = new Set<() => void>();
+
+/** Changes when a Connect road opens or closes. */
+export function connectRoadEpoch(): number {
+  return epoch;
+}
+
+export function subscribeConnectRoads(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function notifyConnectRoads(): void {
+  epoch += 1;
+  for (const listener of listeners) listener();
+}
 
 /**
  * Panels that only seal a public key or a device configuration in the
@@ -49,7 +81,10 @@ export function formRoad(
   providerId: string,
   authKind: AuthKind,
 ): FormRoad | null {
-  if (authKind === "oauth2_authorization_code" && usesConnect(providerId)) {
+  if (
+    authKind === "oauth2_authorization_code" &&
+    connectRoadSeams.usesConnect(providerId)
+  ) {
     return "connect";
   }
   return hostRoadOpen() ? "host" : null;
@@ -91,6 +126,8 @@ export function connectorActs(
   // road changes that.
   if (VAULT_SEALED_PANELS.includes(provider.id)) return sealedVault;
   return (
-    actsLocally(provider.id) || hasConnectRoute(provider.id) || hostRoadOpen()
+    actsLocally(provider.id) ||
+    connectRoadSeams.hasConnectRoute(provider.id) ||
+    hostRoadOpen()
   );
 }

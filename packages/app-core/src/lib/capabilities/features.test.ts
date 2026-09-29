@@ -112,7 +112,6 @@ describe("FEATURES", () => {
 
   it("draws no switch where the function is always on (ADR 0142)", () => {
     for (const id of [
-      "identity",
       "encryption",
       "backups",
       "password-managers",
@@ -121,13 +120,34 @@ describe("FEATURES", () => {
     ] as const) {
       expect(isSwitchable(featureById(id)), id).toBe(false);
     }
-    for (const id of [
-      "backup.git-remote",
+    for (const id of ["backup.git-remote", "identity.site-broker"]) {
+      expect(coreCapabilityIds(), id).toContain(id);
+    }
+  });
+
+  it("switches Connections, Access, Identity and item types (ADR 0153)", () => {
+    expect(featureById("connections").capabilities).toEqual([
+      "connectors.external",
+    ]);
+    expect(featureById("access").capabilities).toEqual(["access.authority"]);
+    expect(featureById("identity").capabilities).toEqual([
       "identity.local-iam",
       "identity.siop",
-      "identity.site-broker",
-    ]) {
-      expect(coreCapabilityIds(), id).toContain(id);
+      "identity.federation",
+      "identity.ambient-sso",
+    ]);
+    expect(featureById("item-types").capabilities).toEqual([
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ]);
+    for (const id of [
+      "connections",
+      "access",
+      "identity",
+      "item-types",
+    ] as const) {
+      expect(isSwitchable(featureById(id)), id).toBe(true);
     }
   });
 });
@@ -246,7 +266,7 @@ describe("switchFeature", () => {
 
   it("drops a root that has since become always-on", () => {
     const next = switchFeature(
-      { roots: ["vault.passkey-records", "wallet.spending"], alternatives: {} },
+      { roots: ["identity.site-broker", "wallet.spending"], alternatives: {} },
       featureById("backups"),
       false,
       planWith([]),

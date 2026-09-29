@@ -19,6 +19,7 @@ import {
   noteConnectionCreated,
   noteConnectionRevoked,
 } from "./activity-log.js";
+import { ConnectionsError } from "./connections-error.js";
 import {
   type Integration,
   integrationFromLocal,
@@ -34,10 +35,12 @@ import {
   readLocalGithubApp,
 } from "./github-app-manifest.js";
 import { claimGuestConnection } from "./guest-connections.js";
-export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
 import { HostSessionError, hostBase, hostFetch } from "./identity.js";
 import * as vercelConnect from "./vercel-connect-ops.js";
+
+export type { Integration } from "./connections-integrations.js";
+export { ConnectionsError };
 
 export type ProviderCategory =
   | "identity"
@@ -153,17 +156,6 @@ export type Connection = {
   createdAt: string;
   updatedAt: string;
 };
-
-export class ConnectionsError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ConnectionsError";
-  }
-}
 
 /* ------------------------------------------------------------- transport */
 

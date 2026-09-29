@@ -2,7 +2,7 @@
  * Sections and their sub-panels.
  */
 
-import { core, each, optional } from "./classification-rule.js";
+import { core, each, optional, shared } from "./classification-rule.js";
 
 const CONNECTORS = "connectors.external";
 const CLOUD = "backup.cloud-secrets";
@@ -47,7 +47,10 @@ export const SECTION_RULES = [
     CONNECTORS,
     "connections section root",
   ),
-  optional("src/sections/connections", CONNECTORS, "stylesheet"),
+  shared(
+    "src/sections/connections",
+    "stylesheet shared by Settings provider tiles and the Connections section",
+  ),
   optional(
     "src/sections/connections/",
     CONNECTORS,
@@ -55,12 +58,26 @@ export const SECTION_RULES = [
   ),
   ...each(
     "src/sections/connections/",
-    ["AwsKms", "GcpKms", "useAwsKmsConnect", "useGcpKmsConnect"],
+    [
+      "AwsKmsConnectFields",
+      "GcpKmsConnectFields",
+      "shared",
+      "useAwsKmsConnect",
+      "useGcpKmsConnect",
+    ],
     (p) => optional(p, CLOUD, "cloud KMS connection panels"),
   ),
   ...each(
     "src/sections/connections/",
-    ["Backup", "GithubBackupRepo", "githubBackupRepo", "useGithubBackupRepo"],
+    [
+      "BackupEnableSwitch",
+      "GithubBackupRepo",
+      "GithubBackupRepoEditor",
+      "GithubBackupRepoResolve",
+      "githubBackupRepoActions",
+      "githubBackupRepoLoad",
+      "useGithubBackupRepo",
+    ],
     (p) => optional(p, GIT, "git backup controls"),
   ),
 
@@ -91,7 +108,10 @@ export const SECTION_RULES = [
     LOCAL_IAM,
     "identity section root; MIXED",
   ),
-  optional("src/sections/identity.css", LOCAL_IAM, "stylesheet"),
+  shared(
+    "src/sections/identity.css",
+    "stylesheet shared by Activity and the Identity section",
+  ),
   optional("src/sections/identity-section-model", LOCAL_IAM, "its view-model"),
   optional(
     "src/sections/identity/",
@@ -118,9 +138,19 @@ export const SECTION_RULES = [
     "identity.ceremonies",
     "the device-approval form /device and Identity › Devices share (ADR 0140)",
   ),
+  core(
+    "src/sections/identity/ConnectIdentityNote",
+    "identity.ceremonies",
+    "the note a ceremony shows; the Identity section stays optional (ADR 0153)",
+  ),
+  core(
+    "src/sections/connections/ConnectorMark",
+    SETTINGS,
+    "provider mark Settings draws; brand paths load with Connections",
+  ),
   ...each(
     "src/sections/identity/",
-    ["ProviderRouting", "ConnectIdentityNote", "RegistrationExtras"],
+    ["ProviderRouting", "RegistrationExtras"],
     (p) => optional(p, "identity.federation", "operator provider surfaces"),
   ),
 

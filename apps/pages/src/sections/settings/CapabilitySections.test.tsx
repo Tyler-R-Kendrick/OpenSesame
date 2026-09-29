@@ -36,6 +36,9 @@ const NOTHING_TO_DO_HERE = new Set([
   "encryption",
   "password-managers",
   "local-storage",
+  // Doppler is a Connect panel. It appears once Connections installs its
+  // roads; until then this section has no switch and no tile (ADR 0153).
+  "cloud-secret-storage",
 ]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
@@ -74,9 +77,13 @@ describe("sections — one list, one style, a switch only where something is opt
       else expect(switches + marks, feature.id).toBe(0);
     }
     expect(screen.queryByRole("switch", { name: "Passwords" })).toBeNull();
+    // Passkeys are an item-type extension. This fixture selects them, so the
+    // tile switch is on (ADR 0153).
     expect(
-      screen.queryByRole("switch", { name: "Passkey records" }),
-    ).toBeNull();
+      screen
+        .getByRole("switch", { name: "Passkey records" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
   });
 
   it("draws no view toggle: the documents are files, not a second view of the page", () => {

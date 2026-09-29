@@ -31,6 +31,7 @@ const LEGACY = policy(
 describe("a version-1 preset's residue (ADR 0142)", () => {
   it("drops the ids that became always on, and keeps the rest", () => {
     expect(withoutPresetResidue(LEGACY).capabilities.prohibited).toEqual([
+      "identity.siop",
       "telemetry.external",
     ]);
   });
@@ -46,8 +47,8 @@ describe("a version-1 preset's residue (ADR 0142)", () => {
       },
     };
     const read = withoutPresetResidue(homelab).capabilities;
-    expect(read.required).toEqual([]);
-    expect(read.optional).toEqual(["connectors.external"]);
+    expect(read.required).toEqual(["identity.local-iam"]);
+    expect(read.optional).toEqual(["connectors.external", "identity.siop"]);
   });
 
   it("leaves a hand-written or version-2 policy as written", () => {
@@ -83,6 +84,7 @@ describe("a version-1 preset's residue (ADR 0142)", () => {
       () => undefined,
     );
     expect(state.policy?.capabilities.prohibited).toEqual([
+      "identity.siop",
       "telemetry.external",
     ]);
   });

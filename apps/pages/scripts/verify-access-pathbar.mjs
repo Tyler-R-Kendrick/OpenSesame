@@ -50,8 +50,20 @@ await page.goto(`${ORIGIN}${BASE}`, {
 await doorGuest(page).click();
 await page.waitForSelector(".railtree", { timeout: 15000 });
 
+// Access is an optional extension (ADR 0153). The path bar exists once the
+// person turns Access authority on.
+await page.locator("#rail-s--settings").click();
+await page.getByRole("link", { name: "Capabilities", exact: true }).click();
+await page.locator(".capsections").waitFor({ timeout: 10000 });
+await page
+  .locator(
+    '[role="switch"][data-capability-title="Access authority"][aria-checked="false"]',
+  )
+  .click();
+await page.getByRole("button", { name: /Apply configuration/ }).click();
 const accessRail = page.locator('[data-rail-to="/access"]');
-check((await accessRail.count()) > 0, "Access is on the rail");
+await accessRail.waitFor({ timeout: 10000 });
+check((await accessRail.count()) > 0, "Access is on the rail once chosen");
 await accessRail.click();
 await page
   .getByRole("heading", { name: "Access", exact: true })

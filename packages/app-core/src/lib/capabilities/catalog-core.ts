@@ -21,7 +21,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "vault.passwords",
     "Vault items",
-    "Logins, notes, cards and secrets: the item list, editor, TOTP codes, website matching and the health report.",
+    "The base secret: the item list, editor, TOTP codes, website matching and the health report. Other item types project onto it and are optional.",
     {
       operationIds: [
         "vault.item_types.install",
@@ -46,7 +46,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       environments: ["document", "dedicated-worker"],
       browserPermissions: ["clipboard-write"],
       keyAccess: "item-plaintext",
-      itemKinds: ["login", "note", "card", "secret"],
+      itemKinds: ["secret"],
     },
   ),
   core(

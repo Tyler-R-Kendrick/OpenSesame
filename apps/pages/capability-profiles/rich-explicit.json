@@ -12,10 +12,16 @@
     "revision": "1",
     "acceptedRequired": [],
     "selectedOptional": [
+      "access.authority",
       "agents.surrogate-credentials",
       "agents.webmcp",
+      "connectors.external",
       "enterprise.ca-administration",
       "enterprise.directory-provisioning",
+      "identity.ambient-sso",
+      "identity.federation",
+      "identity.local-iam",
+      "identity.siop",
       "networking.tailnet",
       "notifications.routing",
       "notifications.web-push",
@@ -26,6 +32,9 @@
       "support.remote-ai",
       "telemetry.external",
       "vault.browser-autofill",
+      "vault.certificate-records",
+      "vault.derived-records",
+      "vault.passkey-records",
       "wallet.spending"
     ],
     "chosenAlternatives": {

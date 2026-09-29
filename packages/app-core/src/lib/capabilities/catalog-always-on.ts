@@ -1,15 +1,14 @@
 /**
- * Always-on descriptors: core tier, so every plan carries them and no
- * Settings screen offers a switch for them, but each one's code still
- * arrives as its `<id>/runtime` module through the loader after boot
- * (`alwaysOn` in `descriptor.ts`). These are the functions a person uses the
- * application *with* — passkeys, formats, certificates, key protectors, the
- * Connections catalogue, operator identity providers, ambient sign-on, the
- * Access section, the activity trail and guided help — as opposed to the
- * features a person or operator chooses to take on (`features.ts`).
+ * Descriptors whose code arrives as a module after boot.
+ *
+ * `alwaysOn` is core tier: every plan carries it and Settings offers no
+ * switch (import formats, key protectors, ceremonies, the activity trail,
+ * guided help). `optional` is off until its feature switch is on
+ * (Connections, Access, Identity, passkey and certificate records —
+ * ADR 0153).
  */
 
-import { type AuthoredDescriptor, alwaysOn } from "./descriptor.js";
+import { type AuthoredDescriptor, alwaysOn, optional } from "./descriptor.js";
 
 const IDENTITY_API_EGRESS = {
   class: "external-service",
@@ -18,7 +17,7 @@ const IDENTITY_API_EGRESS = {
 } as const;
 
 export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
-  alwaysOn(
+  optional(
     "vault.passkey-records",
     "Passkey records",
     "Keep passkeys as vault items: the passkey kind, its editor fields and its WebAuthn-backed ceremonies.",
@@ -28,7 +27,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       itemKinds: ["passkey"],
     },
   ),
-  alwaysOn(
+  optional(
     "vault.certificate-records",
     "Certificate records",
     "Keep X.509 certificates as vault items and issue self-signed ones locally with WebCrypto.",
@@ -71,7 +70,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "age protectors work offline; a cloud KMS protector needs its endpoint to unwrap.",
     },
   ),
-  alwaysOn(
+  optional(
     "connectors.external",
     "External connectors",
     "The Connections section and Access › Connectors: the embedded catalogue, Vercel Connect sessions, the GitHub App, and a Nango-compatible directory read by reference.",
@@ -109,7 +108,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "The embedded catalogue stays browsable; live connections and the directory need their relays.",
     },
   ),
-  alwaysOn(
+  optional(
     "access.authority",
     "Access authority",
     "The Access section: local grants, requests and the requests addressed to your Identity session, sessions, resources and policies, receipts, browser pairing and transport status.",
@@ -153,7 +152,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "Local grants, requests and policies work offline; Host sessions, delegations and receipts need the Host.",
     },
   ),
-  alwaysOn(
+  optional(
     "identity.federation",
     "Operator identity providers",
     "Sign in through operator-registered OpenID providers, bring-your-own issuers and the Identity API's directory: the Providers tab, the setup identity and MFA tabs, and the account's own passkeys and authenticator app as rows in Settings › Security.",
@@ -199,7 +198,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "The routes open and show what their link carried offline; approving a device or a request, accepting a claim or opening a drop needs the claim host.",
     },
   ),
-  alwaysOn(
+  optional(
     "identity.ambient-sso",
     "Ambient single sign-on",
     "Silent sign-in on boot through Microsoft Entra or another configured provider, with the MSAL redirect bridge page.",

@@ -17,6 +17,7 @@ function implementation(
     fenceLocalSignOut: () => {},
     cancelAllTransactions: () => {},
     applyAmbientReturn,
+    completeIfPresent: async () => null,
   };
 }
 

@@ -7,17 +7,13 @@
  *
  * Always on (ADR 0142): it runs entirely in the browser, and a git history
  * remote already defaults to GitHub, so the default installation has it.
- * Settings › Capabilities draws its tiles (the git providers) under Backups,
- * each with its own enable switch. Contributed: the backup observer as a
- * background job, held off by a plan that denies external services. Its guide target
- * `settings.backup` and goal are authored in the registry's connections
- * files and contributed by `connectors.external`, which this capability
- * depends on (catalog), so they are declared whenever this category mounts.
- * The per-connector pieces (`GithubInstallationPanel`, the backup repository
- * combobox `GithubBackupRepoCombobox`, `BackupSyncControls`) are reached
- * through `connectors.external`'s connector route, which is that
- * capability's surface; they stay where they are and are listed in the
- * catalog as this capability's dependency on it.
+ * Settings › Capabilities draws its tiles (the git providers) under Backups.
+ * Contributed: the backup observer as a background job, held off by a plan
+ * that denies external services. The Connections section is optional
+ * (ADR 0153) and this capability does not depend on it. Connector settings
+ * (`GithubInstallationPanel`, `GithubBackupRepoCombobox`,
+ * `BackupSyncControls`) stay on `connectors.external` and are absent until
+ * that section is on.
  *
  * Egress this module wraps (existing transport code):
  *  - Connect relay at `connectCallbackBase()`: `/api/github-app/lookup`,

@@ -59,7 +59,10 @@ describe("RELOAD_REQUIRED over the real catalog", () => {
     const plan = midSession([]);
     expect(plan.capabilities["agents.webmcp"]?.approved).toBe(true);
     expect(plan.capabilities["agents.webmcp"]?.reasons).toEqual([]);
-    expect(waiting([]).filter((id) => OPTIONAL.includes(id))).toEqual([]);
+    // Silent sign-in is the one optional capability that waits for a document.
+    expect(waiting([]).filter((id) => id !== "identity.ambient-sso")).toEqual(
+      [],
+    );
   });
 
   it("silent sign-in waits only when the document did not approve it at load", () => {

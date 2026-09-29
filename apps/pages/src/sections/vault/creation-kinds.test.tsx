@@ -3,9 +3,9 @@
 /**
  * SURFACE-08 — what a person is offered when they create an item.
  *
- * Passkey and certificate records are always on: every plan carries them.
- * Drops belong to the Sharing feature, which the Personal preset does not
- * select, so a Personal plan offers passkeys and certificates but no drop.
+ * The minimal vault offers the base secret. Passkey, certificate and the
+ * other derived types belong to Item types, which the Personal preset does
+ * not select. Drops belong to Sharing, also unselected.
  * This walks the surfaces a person actually creates through — the type
  * picker in the new-item editor and the kind filters in the vault rail —
  * and proves the drop is not offered, while a drop already sealed in the
@@ -119,34 +119,29 @@ describe("what a Personal plan offers when an item is created", () => {
     cleanup();
   });
 
-  it("carries passkeys and certificates always, and selects no sharing", () => {
-    expect(inPersonalPlan("vault.passkey-records")).toBe(true);
-    expect(inPersonalPlan("vault.certificate-records")).toBe(true);
+  it("selects no passkeys, certificates or sharing", () => {
+    expect(inPersonalPlan("vault.passkey-records")).toBe(false);
+    expect(inPersonalPlan("vault.certificate-records")).toBe(false);
+    expect(inPersonalPlan("vault.derived-records")).toBe(false);
     expect(inPersonalPlan("sharing.drops")).toBe(false);
     expect(PERSONAL_SELECTED.has("wallet.spending")).toBe(false);
   });
 
-  it("leaves the drop type out of the new-item type picker", () => {
+  it("offers the base secret and no derived type in the new-item picker", () => {
     renderEditor("/vault/new");
     const offered = typeOptions();
     for (const core of CORE_ITEM_KINDS) {
       expect(offered, core.id).toContain(core.id);
     }
-    expect(offered).toContain("passkey");
-    expect(offered).toContain("certificate");
+    expect(offered).not.toContain("login");
+    expect(offered).not.toContain("passkey");
+    expect(offered).not.toContain("certificate");
     expect(offered).not.toContain("drop");
   });
 
   it("leaves the drop filter out of the vault rail", () => {
     const kinds = itemKindsSnapshot();
-    expect(kinds.map((kind) => kind.id)).toEqual([
-      "login",
-      "passkey",
-      "card",
-      "secret",
-      "note",
-      "certificate",
-    ]);
+    expect(kinds.map((kind) => kind.id)).toEqual(["secret"]);
     const { container } = render(
       <MemoryRouter>
         <VaultRail
@@ -167,8 +162,9 @@ describe("what a Personal plan offers when an item is created", () => {
     const filters = [
       ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
     ].map((link) => link.getAttribute("href"));
-    expect(filters).toContain("/vault?f=passkey");
-    expect(filters).toContain("/vault?f=certificate");
+    expect(filters).toContain("/vault?f=secret");
+    expect(filters).not.toContain("/vault?f=passkey");
+    expect(filters).not.toContain("/vault?f=certificate");
     expect(filters).not.toContain("/vault?f=drop");
   });
 

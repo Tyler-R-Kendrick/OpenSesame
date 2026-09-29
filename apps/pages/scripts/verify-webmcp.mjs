@@ -37,6 +37,7 @@ const CHOSEN = [
   "Wallet",
   "Guided help",
   "Passkey records",
+  "Derived item types",
   "Secret drops",
   "Certificate records",
   "Access authority",

@@ -3,7 +3,7 @@
  * No React, no fetching — everything here is unit-testable in isolation.
  */
 
-import { ConnectionsError } from "../../lib/connections.js";
+import { ConnectionsError } from "../../lib/connections-error.js";
 import type {
   Connection,
   Provider,

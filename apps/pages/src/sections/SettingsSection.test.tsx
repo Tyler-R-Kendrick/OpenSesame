@@ -201,7 +201,7 @@ describe("SettingsSection", () => {
     expect(
       nav.querySelector('[aria-current="page"]')?.textContent?.toLowerCase(),
     ).toBe("capabilities");
-    expect(screen.queryByRole("link", { name: "Connections" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Connections" })).toBeNull();
 
     await userEvent.click(screen.getByRole("link", { name: /Danger/i }));
     expect(
@@ -270,12 +270,8 @@ describe("SettingsSection", () => {
     renderSettings("#connectivity");
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
-    expect(
-      screen.getByRole("region", { name: "Identity providers" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("heading", { name: "Identity providers" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Identity" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Identity" })).toBeTruthy();
   });
 
   it("lands a rail link on its panel on every tab, not only Security", () => {

@@ -53,8 +53,9 @@ const DENY: NetworkPolicy = {
 /**
  * Optional functions that run on this device with no connector, enterprise,
  * agent, remote-AI or telemetry surface. Personal and Family offer only
- * these. Browser-local IAM, SIOP, the site broker and git backup are always
- * on (ADR 0142), so no preset names them.
+ * these. The site broker and git backup are always on (ADR 0142). Identity,
+ * Connections, Access and derived item types are optional (ADR 0153); a
+ * preset names one only by offering it.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
   "sharing.drops",
@@ -123,7 +124,7 @@ export const PRESETS: readonly Preset[] = [
     version: 2,
     title: "Organization",
     summary:
-      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise and agent tools are offered, not pre-selected.",
+      "An operator-run instance people join. Enterprise and agent tools are offered, not pre-selected. Connections, Access and Identity stay off until chosen.",
     required: [],
     optional: everyOptional(),
     defaultSelected: [],

@@ -9,6 +9,7 @@ import {
   revokeToken,
   startAuthorization,
 } from "@vercel/connect";
+import { notifyConnectRoads } from "./connect-roads.js";
 import { isVercelConnectable } from "./vercel-connect-catalog.js";
 import { connectRelayConfigured } from "./vercel-connect-relay.js";
 
@@ -73,6 +74,7 @@ export function setVercelConnectAuth(next: VercelConnectAuth | null): void {
   sessionAuth = next;
   if (!next) knownConnectors.clear();
   for (const listener of listeners) listener();
+  notifyConnectRoads();
 }
 
 export function subscribeVercelConnectAuth(listener: () => void): () => void {

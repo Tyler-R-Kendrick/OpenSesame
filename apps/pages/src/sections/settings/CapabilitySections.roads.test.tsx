@@ -1,6 +1,13 @@
 /** @vitest-environment jsdom */
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -18,7 +25,15 @@ const originalIdentity = { ...identitySeams };
 
 afterEach(() => {
   Object.assign(identitySeams, originalIdentity);
+  resetConnectRoadSeams();
 });
+
+/** What `connectors.external` installs: Connect's own answers. */
+function installConnectRoads() {
+  connectRoadSeams.usesConnect = usesConnect;
+  connectRoadSeams.hasConnectRoute = hasConnectRoute;
+  notifyConnectRoads();
+}
 
 function openHostRoad() {
   identitySeams.hostBase = () => "https://host.test";
@@ -45,10 +60,11 @@ function tileNames(list: string): string[] {
 describe("connector tiles on a device with no Host", () => {
   it("draw only the connectors whose page has something to do", () => {
     renderPanel();
-    expect(tileNames("Identity providers")).toEqual(["WorkOS", "Auth0"]);
-    expect(tileNames("Cloud secret storage providers")).toEqual(["Doppler"]);
-    // Every one of these saves through a Host, and none can act here.
+    // Connect-only panels wait for the Connections extension (ADR 0153).
     for (const gone of [
+      "WorkOS",
+      "Auth0",
+      "Doppler",
       "Better Auth",
       "1Password",
       "Bitwarden",
@@ -59,9 +75,21 @@ describe("connector tiles on a device with no Host", () => {
     }
   });
 
+  it("draws Connect's own panels once Connections installs its roads", () => {
+    installConnectRoads();
+    renderPanel();
+    expect(tileNames("Identity providers")).toEqual(["WorkOS", "Auth0"]);
+    expect(tileNames("Cloud secret storage providers")).toEqual(["Doppler"]);
+  });
+
   it("leave out the section that has nothing left, rather than a subheader over nothing", () => {
     renderPanel();
-    for (const title of ["Password managers", "Local storage", "Encryption"]) {
+    for (const title of [
+      "Password managers",
+      "Local storage",
+      "Encryption",
+      "Cloud secret storage",
+    ]) {
       expect(screen.queryByRole("heading", { name: title }), title).toBeNull();
     }
     // A section with a switch keeps it even with no connector tiles.

@@ -9,13 +9,18 @@ import {
   type Feature,
   isSwitchable,
 } from "@opensesame/app-core/lib/capabilities/features.js";
+import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/catalog-provider.js";
 import type {
   Provider,
   ProviderCategory,
 } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
-import { featureBindingSections } from "../connections/page-tree.js";
+import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
+import {
+  connectorPath,
+  isFeatureBindingCategory,
+} from "@opensesame/app-core/sections/connections/shared.js";
 
 const HISTORY_ROADS = new Set(
   HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds),
@@ -34,6 +39,22 @@ function placed(provider: Provider): Provider {
 
 export type ProviderTileItem = { provider: Provider; href: string };
 
+/** One category's catalog brokers, skipping managed Connect ids. */
+function bindingItems(
+  providers: readonly Provider[],
+): Map<ProviderCategory, Provider[]> {
+  const grouped = new Map<ProviderCategory, Provider[]>();
+  for (const provider of providers) {
+    if (!isConnectionCatalogProvider(provider)) continue;
+    if (isManagedConnector(provider.id)) continue;
+    if (!isFeatureBindingCategory(provider.category)) continue;
+    const items = grouped.get(provider.category) ?? [];
+    items.push(provider);
+    grouped.set(provider.category, items);
+  }
+  return grouped;
+}
+
 /**
  * One category's tiles, in catalog order, keeping the connectors whose page
  * has something to do on this device (`acts`). A tile is a link to that page:
@@ -44,14 +65,13 @@ export function providerTileItems(
   acts: (provider: Provider) => boolean,
 ): ProviderTileItem[] {
   const providers = getBundledProviders().map(placed);
-  const byId = new Map(providers.map((provider) => [provider.id, provider]));
-  const group = featureBindingSections(providers).find(
-    (section) => section.id === category,
-  );
   const items: ProviderTileItem[] = [];
-  for (const item of group?.items ?? []) {
-    const provider = byId.get(item.id);
-    if (provider && acts(provider)) items.push({ provider, href: item.href });
+  for (const provider of bindingItems(providers).get(category) ?? []) {
+    if (!acts(provider)) continue;
+    items.push({
+      provider,
+      href: connectorPath(provider.id, undefined, "/settings/connections"),
+    });
   }
   return items;
 }

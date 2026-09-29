@@ -4,9 +4,16 @@
  * (`catalog-always-on-local.ts`, ADR 0142).
  */
 
+import { DERIVED_ITEM_KINDS } from "../derived-item-kinds.js";
 import { type AuthoredDescriptor, optional } from "./descriptor.js";
 
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
+  optional(
+    "vault.derived-records",
+    "Derived item types",
+    "Login, note, card and the other built-in item types. Each projects onto the base secret. The minimal vault creates secrets only.",
+    { itemKinds: [...DERIVED_ITEM_KINDS] },
+  ),
   optional(
     "sharing.drops",
     "Secret drops",

@@ -16,6 +16,7 @@
  */
 
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
+import { compositionStore } from "./capabilities/store.js";
 import type { CompletedSignIn } from "./federation.js";
 
 export type AmbientReturnResult = { returnTo?: string };
@@ -38,6 +39,11 @@ export type AmbientAuthSeams = {
   applyAmbientReturn: (
     result: AmbientCompleted,
   ) => Promise<AmbientReturnResult>;
+  /**
+   * Finish an ambient callback when this search is one. Null when it is
+   * not, or when the capability is not selected.
+   */
+  completeIfPresent: (search: string) => Promise<CompletedSignIn | null>;
 };
 
 /**
@@ -84,12 +90,31 @@ async function applyWhenInstalled(
   return ambientAuthSeams.applyAmbientReturn(result);
 }
 
+/**
+ * An ambient callback that arrives before the capability is installed waits
+ * for it. A plan that did not select ambient SSO answers immediately, so an
+ * ordinary sign-in return does not sit out the install bound.
+ */
+async function completeWhenInstalled(
+  search: string,
+): Promise<CompletedSignIn | null> {
+  const approved = compositionStore.getSnapshot().plan?.approvedCapabilities;
+  if (!approved?.includes("identity.ambient-sso")) return null;
+  await Promise.race([
+    installed.ready,
+    ambientSeamTimers.wait(AMBIENT_INSTALL_WAIT_MS),
+  ]);
+  if (ambientAuthSeams.completeIfPresent === completeWhenInstalled) return null;
+  return ambientAuthSeams.completeIfPresent(search);
+}
+
 const OFF: AmbientAuthSeams = {
   autoAuthSuppressed: () => false,
   clearAutoAuthSuppression: () => {},
   fenceLocalSignOut: () => {},
   cancelAllTransactions: () => {},
   applyAmbientReturn: applyWhenInstalled,
+  completeIfPresent: completeWhenInstalled,
 };
 
 export const ambientAuthSeams: AmbientAuthSeams = { ...OFF };
