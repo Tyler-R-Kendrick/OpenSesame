@@ -97,10 +97,6 @@
     "apps/pages/src/lib/keymap.coverage.test.ts": {
       "max-lines": 623
     },
-    "apps/pages/src/lib/keymap.ts": {
-      "complexity": 1,
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
       "max-lines-per-function": 1
     },
@@ -204,9 +200,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/AgeKeysPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/SettingsRawEditor.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
