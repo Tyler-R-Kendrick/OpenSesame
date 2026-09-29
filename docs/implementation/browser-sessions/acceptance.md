@@ -16,14 +16,14 @@ Authorized item edit is not part of this proof. ADR 0150 shares a field as `read
 
 ## Measurements
 
-Filled from the passing `pnpm test:browser-sessions` and `pnpm quality:bundle` runs. Until those runs finish, the cells below stay blank rather than inventing a hash or a size.
+Filled from the passing `pnpm test:browser-sessions` run on this source and the bundle-budget gate over that Pages build plus both hardened profiles.
 
 | Check | Result |
 | --- | --- |
-| Rich Pages `dist/index.html` SHA-256 | `bbd9d4187f091585135ebb59ebba03b28a69932f9e5c4b5c0f9438c6e7a04a7e` |
+| Rich Pages `dist/index.html` SHA-256 | `16aebbcfb0c1a2532a6189db6414757ae2d900e0abaf51ac91d65a42f42d2d8b` |
 | `minimal-local-hardened` total / javascript / javascriptGzip / css / largestAsset (KiB) | 4737 / 4130 / 1256 / 152 / 793 (ceilings 4830 / 4211 / 1272 / 171 / 793) |
 | `family-local-hardened` total / javascript / javascriptGzip / css / largestAsset (KiB) | 4737 / 4130 / 1256 / 152 / 793 (ceilings 4830 / 4211 / 1272 / 171 / 793) |
-| `apps/pages` inside recorded ceilings | 6095 / 5369 / 1638 / 154 / 803 (ceilings 17900 / 5460 / 1650 / 168 / 12800) |
+| `apps/pages` inside recorded ceilings | 6096 / 5369 / 1638 / 154 / 803 (ceilings 17900 / 5460 / 1650 / 168 / 12800) |
 | `apps/console` | No `apps/console` package and no console ceiling in `tools/quality/bundle-budgets.json` on this tree |
 
 Ceilings are the numbers already in `tools/quality/bundle-budgets.json` on this branch. None were raised.
