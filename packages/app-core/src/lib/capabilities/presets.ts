@@ -58,6 +58,7 @@ const DENY: NetworkPolicy = {
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
   "sharing.drops",
+  "sharing.live",
   "support.local-ai",
 ];
 

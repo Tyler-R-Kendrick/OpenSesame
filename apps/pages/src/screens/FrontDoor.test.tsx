@@ -21,10 +21,12 @@ import {
 import { isFunction } from "@opensesame/os-domain";
 
 /**
- * The front door (ADR 0115): the two roads made large, with every sign-in
- * road still whole beneath them. Its contract is the arrival — what is on
- * the screen, in which order, and where the keyboard lands — because the
- * roads themselves only open ceremonies other suites cover.
+ * The front door (ADR 0115, ADR 0150 §1): two roads made large — set up your
+ * own, join a session — and the guest road as the corner Skip. No sign-in:
+ * a device with no vault has nothing to sign in to. Its contract is the
+ * arrival — what is on the screen, in which order, and where the keyboard
+ * lands — because the roads themselves only open ceremonies other suites
+ * cover.
  */
 
 const state = { identityApi: "" };
@@ -62,9 +64,8 @@ import { FrontDoor } from "./FrontDoor.js";
 
 function renderDoor(overrides: Partial<Parameters<typeof FrontDoor>[0]> = {}) {
   const props = {
-    providers: [],
     onOpenSetup: vi.fn(),
-    onUseLocalOnly: vi.fn(),
+    onOpenJoin: vi.fn(),
     ...overrides,
   };
   render(<FrontDoor {...props} />);
@@ -115,7 +116,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the front door", () => {
-  it("titles the screen with the wordmark and offers the road before sign-in", () => {
+  it("titles the screen with the wordmark and offers two roads and nothing else", () => {
     renderDoor();
     expect(
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
@@ -124,59 +125,76 @@ describe("the front door", () => {
     const names = screen
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label") ?? button.textContent);
-    // Document order is Tab order: the road, then the corner skip, then the
-    // brand marks, guest, and the local-only seal.
-    expect(names.slice(0, 1)).toEqual(["Set up your own"]);
+    // Document order is Tab order: the corner skip, then the two roads.
+    expect(names.filter((name) => name !== "Reset this browser")).toEqual(
+      expect.arrayContaining([
+        "Skip sign-in and continue as guest",
+        "Set up your own",
+        "Join a session",
+      ]),
+    );
+    expect(names.indexOf("Set up your own")).toBeLessThan(
+      names.indexOf("Join a session"),
+    );
     expect(
       screen
         .getByRole("button", { name: "Set up your own" })
         .getAttribute("aria-describedby"),
     ).toBe("door-setup-kind");
-    expect(names).toContain("Skip sign-in and continue as guest");
-    expect(names).toContain("Continue with Google");
-    expect(names).toContain("Continue as guest");
-    expect(names).toContain("Use without an account");
-    expect(screen.getByText("or sign in")).toBeTruthy();
+    // Sign-in is for a device that holds a vault (ADR 0150 §1).
+    expect(
+      screen.queryByRole("button", { name: "Continue with Google" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Use without an account" }),
+    ).toBeNull();
+    expect(screen.queryByText("or sign in")).toBeNull();
+    expect(screen.queryByLabelText("Email or organization")).toBeNull();
   });
 
-  it("lands the keyboard on the road", () => {
+  it("lands the keyboard on the first road, even where an Identity API exists", () => {
+    state.identityApi = "https://id.example.com";
     renderDoor();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Set up your own" }),
     );
   });
 
-  it("yields the landing to the identifier field where an Identity API exists", () => {
-    state.identityApi = "https://id.example.com";
-    renderDoor();
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Email or organization"),
-    );
-  });
-
-  it("opens the road, and the local-only seal", () => {
+  it("opens each road", () => {
     const props = renderDoor();
     fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
     expect(props.onOpenSetup).toHaveBeenCalledTimes(1);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Use without an account" }),
-    );
-    expect(props.onUseLocalOnly).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+    expect(props.onOpenJoin).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps guest one press away, never behind a road (AGENTS.md §5)", async () => {
+  it("keeps guest one press away in the corner, never behind a road (AGENTS.md §5)", async () => {
     renderDoor();
-    const guest = screen.getByRole("button", { name: "Continue as guest" });
     const skip = screen.getByRole("button", {
       name: "Skip sign-in and continue as guest",
     });
-    fireEvent.click(guest);
+    fireEvent.click(skip);
     expect(continueAsGuest).toHaveBeenCalledTimes(1);
-    // The card is busy until the guest road settles; the corner skip starts
-    // the same road once it is free again.
+    // The card is busy until the guest road settles, then it is free again.
     await waitFor(() => expect(skip.hasAttribute("disabled")).toBe(false));
     fireEvent.click(skip);
     expect(continueAsGuest).toHaveBeenCalledTimes(2);
+  });
+
+  it("says why when the guest road fails", async () => {
+    continueAsGuest.mockRejectedValueOnce(new Error("Storage is full"));
+    renderDoor();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Skip sign-in and continue as guest",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: "Storage is full" })).toBeTruthy(),
+    );
   });
 
   it("names no deployment and no failure: a door that asks nothing reports nothing", () => {

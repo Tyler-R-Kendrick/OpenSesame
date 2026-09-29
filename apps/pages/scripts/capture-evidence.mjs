@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -118,9 +119,7 @@ const STEPS = {
     await page.waitForTimeout(1400);
   },
   async guest(page) {
-    await press(
-      page.getByRole("button", { name: "Continue as guest", exact: true }),
-    );
+    await press(doorGuest(page));
     await page.waitForTimeout(1400);
   },
   async tab(page, name) {

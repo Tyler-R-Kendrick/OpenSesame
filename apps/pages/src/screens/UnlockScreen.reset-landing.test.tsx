@@ -136,7 +136,11 @@ describe("the fresh document a reset left for", () => {
     expect(
       left.compareDocumentPosition(setUp) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Continue as guest" }));
+    expect(
+      screen.getByRole("button", {
+        name: "Skip sign-in and continue as guest",
+      }),
+    );
   });
 
   it("shows it beside a vault a failed reset could not remove", () => {

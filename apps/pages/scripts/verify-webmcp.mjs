@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { chooseInSetup } from "./lib/capability-walk-contract.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import { nativeWebMcp } from "./lib/native-webmcp.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -62,9 +63,7 @@ try {
   const { page, context } = await harness.newPage(browser);
   const native = await nativeWebMcp(page);
   await page.goto(`${origin}${base}`);
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .waitFor();
+  await doorGuest(page).waitFor();
   assert.equal(
     await page.evaluate(() =>
       document.modelContext?.registerTool.toString().includes("[native code]"),
@@ -90,9 +89,7 @@ try {
   ]);
   const initial = await native.invoke("opensesame_status");
   assert.equal(initial.vault, "empty");
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
+  await doorGuest(page).click();
   await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
   const vaultTools = native.names();
   for (const tool of VAULT_SESSION_WALLET_TOOLS) {

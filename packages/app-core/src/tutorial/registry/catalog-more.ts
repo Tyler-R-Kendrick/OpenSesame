@@ -20,6 +20,22 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.drive.sync",
   },
   {
+    id: "settings.live-session",
+    description:
+      "The Live session panel: share the whole vault or chosen items with people who open a link (and, for an invite, give its code), for up to eight hours, while this tab stays open. Each person sends a request code — by hand, or through a carrier the routes name — the owner lets them in, and a reply code goes back; the two browsers then connect. Values cross one at a time, on request, and the owner can end it for everyone.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "shared_sessions.live_host",
+  },
+  {
+    id: "settings.live-routes",
+    description:
+      "The Routes panel: optional ways a live session reaches people off this network. Addresses where this device is reachable through a tunnel (Tailscale, WireGuard, Pangolin, Cloudflare WARP), STUN and TURN servers, relay only, and carriers that pass the pairing codes (Nostr, MQTT, NATS, ntfy, this browser's tabs). With none, sessions are direct only and contact nothing. Written to settings/live/transport.json, sealed in the vault.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "shared_sessions.live_host",
+  },
+  {
     id: "settings.item-types",
     description:
       "Installs or removes a vault item type definition, from a git-repository marketplace or pasted source. Types are JSON manifests, not code paths.",

@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { doorGuest } from "./lib/front-door.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ORIGIN = process.env.PAGES_ORIGIN ?? "http://localhost:5180";
@@ -46,10 +47,7 @@ await page.goto(`${ORIGIN}${BASE}`, {
   waitUntil: "domcontentloaded",
   timeout: 15000,
 });
-await page
-  .getByRole("button", { name: "Continue as guest", exact: true })
-  .first()
-  .click();
+await doorGuest(page).click();
 await page.waitForSelector(".railtree", { timeout: 15000 });
 
 const accessRail = page.locator('[data-rail-to="/access"]');

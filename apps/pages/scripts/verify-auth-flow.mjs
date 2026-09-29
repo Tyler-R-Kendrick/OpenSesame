@@ -25,6 +25,7 @@ import {
   readSeed,
   withdrawSelfAuthenticator,
 } from "./lib/auth-flow-enroll.mjs";
+import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
 import { totp } from "./lib/totp.mjs";
 
@@ -167,9 +168,7 @@ const browser = await chromium.launch(launch);
   const { page, context } = await newPage(browser);
   step = "1-guest";
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
+  await doorGuest(page).click();
   await page.waitForTimeout(2000);
   check(/guest-\d+/.test(await text(page)), "guest landed inside the app");
   await openSecurity(page);
@@ -303,6 +302,8 @@ const browser = await chromium.launch(launch);
   const { page, context } = await newPage(browser);
   step = "2-password";
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
+  await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.waitForTimeout(500);
   await page.getByRole("tab", { name: "Password" }).click();

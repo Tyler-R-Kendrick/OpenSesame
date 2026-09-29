@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import {
@@ -142,16 +143,16 @@ async function openOverflowRow(page, pattern, label) {
   await page.waitForTimeout(350);
 }
 
-/** The front door and the two roads a person with no account has. */
+/** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
   await audit(page, stop("front-door"));
   for (const name of [
+    "Set up your own",
+    "Join a session",
     "Skip sign-in and continue as guest",
-    "Continue as guest",
   ]) {
-    const exact = name !== "Skip sign-in and continue as guest";
     harness.check(
-      (await page.getByRole("button", { name, exact }).count()) > 0,
+      (await page.getByRole("button", { name }).count()) > 0,
       `${stop("front-door")}: "${name}" is offered`,
     );
   }
@@ -228,9 +229,7 @@ async function walk(browser, phone) {
   await page.waitForTimeout(700);
 
   await frontDoor(page, stop);
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .tap();
+  await doorGuest(page).tap();
   await page.waitForTimeout(1100);
   await audit(page, stop("vault"));
 
@@ -283,10 +282,7 @@ async function tablet(browser, size) {
   const stop = (name) => `${size.name}-${name}`;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .first()
-    .tap();
+  await doorGuest(page).tap();
   await page.waitForTimeout(1100);
   // The strip's Support key is guided help's, so this installation chooses
   // it before the walk asks whether the key is reachable (ADR 0130).

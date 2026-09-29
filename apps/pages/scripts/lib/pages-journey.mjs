@@ -5,6 +5,7 @@ import {
   awaitCapabilitySections,
   capabilityOffSwitch,
 } from "./always-on.mjs";
+import { passTheDoor } from "./front-door.mjs";
 export const PASSWORD = "correct horse battery staple 2026";
 
 export async function waitOpen(page) {
@@ -16,6 +17,8 @@ export async function waitOpen(page) {
 }
 
 export async function sealWithPassword(page) {
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
+  await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.getByRole("tab", { name: "Password" }).click();
   await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);
@@ -105,7 +108,13 @@ export async function openGeneral(page) {
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
   await openSection(page, "settings/");
-  const link = page.getByRole("link", { name: label, exact: true });
+  // Inside a category the breadcrumb names it too: the sections list is the one.
+  const section = page
+    .locator(".set__nav")
+    .getByRole("link", { name: label, exact: true });
+  const link = (await section.count())
+    ? section
+    : page.getByRole("link", { name: label, exact: true });
   if (await link.count()) {
     await link.click();
   } else {

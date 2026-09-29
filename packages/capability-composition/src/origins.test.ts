@@ -33,6 +33,11 @@ describe("isServiceOrigin", () => {
     "http://127.0.0.1:8788",
     "http://[::1]:9090",
     "http://api.localhost:8787",
+    "wss://relay.example.com",
+    "wss://mqtt.example.com:8884",
+    "ws://localhost:7777",
+    "ws://127.0.0.1:4222",
+    "ws://[::1]:4222",
   ])("accepts %s", (origin) => {
     expect(isServiceOrigin(origin)).toBe(true);
   });
@@ -46,6 +51,15 @@ describe("isServiceOrigin", () => {
     ["api.example.com", "no scheme"],
     ["http://api.example.com", "plain http off loopback"],
     ["http://192.168.1.10", "plain http to the local network"],
+    ["ws://relay.example.com", "plain ws off loopback"],
+    ["ws://192.168.1.10:7777", "plain ws to the local network"],
+    ["wss://relay.example.com/", "a trailing slash on a wss origin"],
+    ["wss://relay.example.com/nostr", "a path on a wss origin"],
+    ["wss://user:pw@relay.example.com", "credentials on a wss origin"],
+    ["wss://relay.example.com:443", "the default wss port is not printed"],
+    ["wss://*.example.com", "a wildcard host"],
+    ["https://*.example.com", "a wildcard host is not one host"],
+    ["wss:", "a bare scheme"],
     ["ftp://files.example.com", "another scheme"],
     ["https://bücher.example", "an unencoded host"],
     ["null", "an opaque origin"],

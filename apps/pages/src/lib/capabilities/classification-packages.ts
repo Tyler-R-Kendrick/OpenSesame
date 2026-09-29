@@ -51,6 +51,31 @@ export const PACKAGE_RULES = [
     "the gateway provider only `ai` imports; unclaimed, it left vendor-ai-sdk in a chunk cycle",
   ),
   optional(
+    `${NM}mqtt`,
+    "sharing.live",
+    "MQTT carrier, loaded when a session names one (modules/sharing.live/carriers/mqtt.ts)",
+  ),
+  optional(
+    `${NM}@nats-io/nats-core`,
+    "sharing.live",
+    "NATS carrier, loaded when a session names one (modules/sharing.live/carriers/nats.ts)",
+  ),
+  optional(
+    `${NM}@nats-io/nkeys`,
+    "sharing.live",
+    "reached only through @nats-io/nats-core",
+  ),
+  optional(
+    `${NM}@nats-io/nuid`,
+    "sharing.live",
+    "reached only through @nats-io/nats-core",
+  ),
+  optional(
+    `${NM}nostr-tools`,
+    "sharing.live",
+    "Nostr carrier, loaded when a session names one (modules/sharing.live/carriers/nostr.ts)",
+  ),
+  optional(
     `${NM}driver.js`,
     "support.guided-help",
     "guide renderer (tutorial/rendering/driver-renderer.ts)",

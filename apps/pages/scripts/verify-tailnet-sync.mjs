@@ -29,6 +29,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
+import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -206,9 +207,7 @@ try {
   const b = await device(browser, {
     device: phoneContext({ width: 390, height: 844 }),
   });
-  await b.page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .tap();
+  await doorGuest(b.page).tap();
   await b.page.waitForTimeout(1400);
   await networkingOn(b.page);
   await visit(b.page, `settings/vaults#pair-drive=${code}`);

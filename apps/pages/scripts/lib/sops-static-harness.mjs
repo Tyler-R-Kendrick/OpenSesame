@@ -11,6 +11,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { doorGuest } from "./front-door.mjs";
 
 const MIME = {
   ".html": "text/html",
@@ -86,9 +87,7 @@ export async function newContext(browser, { origin, record }) {
 }
 
 export async function enterAsGuest(page) {
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
+  await doorGuest(page).click();
   await page.waitForTimeout(2000);
 }
 

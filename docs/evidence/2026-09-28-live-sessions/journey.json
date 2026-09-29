@@ -1,0 +1,103 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "count": [".door__roads .road", ".door .unlock__card button"]
+        },
+        {
+          "measure": ".door .unlock__card"
+        },
+        {
+          "shot": "390-door"
+        },
+        {
+          "pressOptional": "^Join a session"
+        },
+        {
+          "shot": "390-join"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "count": [".door__roads .road", ".door .unlock__card button"]
+        },
+        {
+          "measure": ".door .unlock__card"
+        },
+        {
+          "shot": "1280-door"
+        },
+        {
+          "pressOptional": "^Join a session"
+        },
+        {
+          "shot": "1280-join"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "arrive": "#live=v1.i.BGLQii0ZK3HynHGY-lvK74whx74CjMH25gOaI7v_cwgHWHxsf-ldOyZ07y8LkKvfqQHO5PGC-zUpzWi90fj5Kec.OlzFWfJ0GC0fzYOTvXs3hKf5mqcjR8PehYvzmBct6xQ"
+        },
+        {
+          "address": null
+        },
+        {
+          "count": [
+            ".door__roads .road",
+            ".capreview, [data-testid=capability-review]"
+          ]
+        },
+        {
+          "shot": "390-live-link"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-door",
+      "width": 390,
+      "title": "Front door \u2014 390 \u00d7 844, the shared GitHub Pages origin",
+      "caption": "A device with no vault. Two roads \u2014 set up your own, join a session \u2014 and guest as the corner Skip. Sign-in waits until setup is answered or skipped.",
+      "before": "1 road + sign-in panel \u00b7 7 buttons \u00b7 card 361\u00d7509",
+      "after": "2 roads + Skip \u00b7 5 buttons \u00b7 card 361\u00d7383"
+    },
+    {
+      "shot": "1280-door",
+      "width": 1280,
+      "title": "Front door \u2014 1280 \u00d7 900",
+      "caption": "The same door at desktop width; the keyboard lands on the first road.",
+      "before": "1 road + sign-in panel \u00b7 7 buttons \u00b7 card 480\u00d7466",
+      "after": "2 roads + Skip \u00b7 5 buttons \u00b7 card 480\u00d7279"
+    },
+    {
+      "shot": "390-join",
+      "width": 390,
+      "title": "Join a session pressed \u2014 390 \u00d7 844",
+      "caption": "The road opens on the Live sessions consent: its one egress is the other person's browser, directly, with no relay, STUN or TURN server (ADR 0130).",
+      "before": "no Join road on this origin",
+      "after": "consent review for sharing.live"
+    },
+    {
+      "shot": "390-live-link",
+      "width": 390,
+      "title": "Opening a shared live link \u2014 390 \u00d7 844",
+      "caption": "A link carrying #live=\u2026 on a fresh device.",
+      "before": "door ignores it; the bearer stays in the address bar",
+      "after": "address bar cleared; consent review opens (1)"
+    }
+  ]
+}

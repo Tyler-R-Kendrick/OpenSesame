@@ -6,6 +6,8 @@
  */
 
 /** Copy the panel must never show: an erasure, a TLS gate on the vault, a place. */
+import { doorGuest } from "./front-door.mjs";
+
 export const NO_SUCH_CLAIM =
   /erased|wiped|deleted your|TLS-gated|certificate to unlock|unlock requires|requires a certificate|127\.0\.0\.1|localhost/i;
 
@@ -24,10 +26,7 @@ async function press(locator, touch) {
 
 export async function guest(page, origin, base, touch = false) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await press(
-    page.getByRole("button", { name: "Continue as guest", exact: true }),
-    touch,
-  );
+  await press(doorGuest(page), touch);
   await page.waitForTimeout(1500);
 }
 

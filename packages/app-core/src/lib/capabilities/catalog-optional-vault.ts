@@ -33,6 +33,38 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
+    "sharing.live",
+    "Live sessions",
+    "Share the whole vault or chosen items live with people who join from a link — browser to browser, paired by codes the two people pass each other, while this tab stays open — and join somebody else's session from the front door. No server is needed; routes the owner names (a tailnet address, STUN or TURN, a code carrier) are optional, and nothing of a session is stored on either side.",
+    {
+      operationIds: ["shared_sessions.live_host", "shared_sessions.live_join"],
+      egress: [
+        {
+          class: "peer-or-local-network",
+          purpose:
+            "the other person's browser over WebRTC — directly, or through a tunnel address the owner names",
+          automatic: false,
+        },
+        {
+          class: "external-service",
+          purpose:
+            "only STUN/TURN servers and code carriers (Nostr, MQTT, NATS, ntfy) the owner names in Routes; joiners see them first",
+          automatic: false,
+        },
+        {
+          class: "user-mediated-navigation",
+          purpose:
+            "the session link and pairing codes a person copies and sends themselves",
+          automatic: false,
+        },
+      ],
+      browserPermissions: ["clipboard-write"],
+      keyAccess: "item-plaintext",
+      offlineLimits:
+        "Both browsers must reach each other: the same network, a tunnel address, or a TURN server the owner names; a session ends when the owner's tab closes.",
+    },
+  ),
+  optional(
     "sharing.household",
     "Household sharing",
     "Share chosen vault items with the people of one household over an explicitly chosen transport.",

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GitHub Pages installable PWA \u2014 offline client shell for OpenSesame",
+  "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
   "scripts": {
     "dev": "bash ../../scripts/dev/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
@@ -16,6 +16,8 @@
     "generate:connect": "node scripts/emit-connect-verify-targets.mjs && biome format --write server/connect-verify-targets.generated.mjs",
     "verify:static": "node scripts/verify-static-origin.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
+    "verify:live-join": "node scripts/verify-live-join.mjs",
+    "verify:live-netns": "node scripts/verify-live-netns.mjs",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
@@ -37,6 +39,7 @@
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",
+    "@nats-io/nats-core": "3.4.0",
     "@openfeature/core": "1.12.0",
     "@openfeature/web-sdk": "1.10.0",
     "@opensesame/app-core": "workspace:*",
@@ -56,6 +59,8 @@
     "@opensesame/webmcp": "workspace:*",
     "age-encryption": "0.3.1",
     "driver.js": "1.8.0",
+    "mqtt": "5.16.0",
+    "nostr-tools": "2.25.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "8.3.0",
@@ -69,12 +74,15 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "4.5.0",
+    "aedes": "1.2.0",
     "fast-check": "4.9.0",
     "jsdom": "26.1.0",
+    "node-turn": "0.0.6",
     "typescript": "5.8.3",
     "vite": "6.4.3",
     "vite-plugin-pwa": "1.0.3",
     "vitest": "4.1.11",
-    "workbox-window": "7.3.0"
+    "workbox-window": "7.3.0",
+    "ws": "8.21.3"
   }
 }

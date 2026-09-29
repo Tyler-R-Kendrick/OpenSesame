@@ -17,6 +17,7 @@ import {
   orgSignInState,
 } from "./capture-org-signin-steps.mjs";
 import { answerRouting, routingState } from "./capture-routing-steps.mjs";
+import { doorGuest } from "./front-door.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
 function journeyDropManifest(journey, journeyPath) {
@@ -194,7 +195,8 @@ function arrivalSteps({ press }) {
     },
     /**
      * Take the guest road from whatever this build shows first: the
-     * capability review, the front door's Continue as guest, or the unlock
+     * capability review, the front door's Skip, the sign-in panel's
+     * Continue as guest, or the unlock
      * screen's Unlock for a guest vault this page already made. A build that
      * drew its route without a locked screen in front has nothing to press.
      */
@@ -202,6 +204,7 @@ function arrivalSteps({ press }) {
       const apply = page.getByTestId("capability-apply");
       const road = [
         apply,
+        doorGuest(page),
         page.getByRole("button", { name: "Continue as guest", exact: true }),
         page.getByRole("button", { name: "Unlock", exact: true }),
       ];

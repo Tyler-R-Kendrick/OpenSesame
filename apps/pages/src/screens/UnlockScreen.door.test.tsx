@@ -7,6 +7,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UnlockScreen } from "./UnlockScreen.js";
 import { joinRoadDependencies } from "./join/JoinRoad.js";
@@ -43,10 +44,10 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     };
   }
 
-  it("opens on the front door on a fresh device, with the broker and guest on offer", () => {
-    // The screen this replaces was an operator's question ("This device is
-    // empty") with no sign-in and no guest road on it at all. The front door
-    // makes the setup road large and keeps every sign-in road whole.
+  it("opens on the front door on a fresh device: two roads, guest in the corner, no sign-in", () => {
+    // A device with no vault has nothing to sign in to (ADR 0150 §1): the
+    // door offers setting one up or joining somebody's, and the guest road
+    // stays one press away as Skip (AGENTS.md §5).
     fresh();
     render(<UnlockScreen />);
 
@@ -54,27 +55,28 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: /^Join a session/ }),
-    ).toBeNull();
-    expect(
       screen.getByRole("button", { name: /^Set up your own/ }),
     ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Join a session" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Continue with Google" }),
+      screen.getByRole("button", {
+        name: "Skip sign-in and continue as guest",
+      }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Continue with Google" }),
+    ).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Use without an account" }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Use without an account" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Email or organization")).toBeNull();
     expect(screen.queryByText("This device is empty")).toBeNull();
     expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
-    // This deployment has an Identity API, so the identifier field keeps the
-    // caret it took; without one the door lands on its first road
-    // (FrontDoor.test.tsx covers both).
     expect(document.activeElement).toBe(
-      screen.getByLabelText("Email or organization"),
+      screen.getByRole("button", { name: /^Set up your own/ }),
     );
   });
 
@@ -127,17 +129,18 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     expect(completeSetup).not.toHaveBeenCalled();
   });
 
-  it("walks from the front door to the local-only seal and back", () => {
+  it("walks from sign-in to the local-only seal and back, once setup is answered", () => {
     fresh();
+    setupHolder.current = ANSWERED;
     render(<UnlockScreen />);
     goLocalOnly();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Seal this device",
     );
     fireEvent.click(screen.getByRole("button", { name: "Sign in instead" }));
-    expect(
-      screen.getByRole("heading", { level: 1, name: "open-sesame" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Sign in",
+    );
   });
 
   it("withholds the user menu while nothing is sealed on this device", () => {
@@ -240,14 +243,21 @@ describe("UnlockScreen — joining a session (ADR 0136)", () => {
     };
   }
 
-  it("offers the join road beside setup where a join can be finished", () => {
+  it("offers the join road beside setup on every deployment, opening the live join's consent", () => {
     fresh();
-    joinRoadDependencies.joinAvailable = () => true;
-    render(<UnlockScreen />);
+    render(
+      <MemoryRouter>
+        <UnlockScreen />
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
     expect(
       screen.getByRole("heading", { level: 1, name: "Join a session" }),
     ).toBeTruthy();
+    // The plan has not resolved in this harness: the gate waits for it
+    // rather than calling the capability refused (the consent review itself
+    // runs in the browser, `verify:live-join`).
+    expect(screen.getByRole("img", { name: "Opening…" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),

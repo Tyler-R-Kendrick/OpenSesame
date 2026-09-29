@@ -1293,6 +1293,60 @@
     }
   },
   {
+    "id": "shared_sessions.live_host",
+    "title": "Host a live session from this browser",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/live/session.ts:startHosting",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "mcp_client": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "webmcp": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.live_join",
+    "title": "Join somebody's live session from a link",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/live/session.ts:joinLive",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "mcp_client": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "webmcp": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      }
+    }
+  },
+  {
     "id": "shared_sessions.decide_join_request",
     "title": "Admit or refuse a join request",
     "plane": "host",

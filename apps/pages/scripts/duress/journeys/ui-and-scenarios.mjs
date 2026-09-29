@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { doorGuest } from "../../lib/front-door.mjs";
 import { createHarness } from "../../lib/static-origin-harness.mjs";
 import { SCENARIO_IDS, buildScenarioMatrix } from "./scenario-matrix.mjs";
 
@@ -80,10 +81,7 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   const { page, context } = await harness.newPage(browser);
   try {
     await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-    const guest = page.getByRole("button", {
-      name: "Continue as guest",
-      exact: true,
-    });
+    const guest = doorGuest(page);
     if ((await guest.count()) === 0) {
       blockers.push("front door guest button not found");
     } else {
