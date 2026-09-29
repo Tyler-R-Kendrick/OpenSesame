@@ -1,5 +1,5 @@
-/* Settings › Capabilities — the page body, its Source and Effective views,
-   and the sections (drawn as the Connections catalogue's groups). */
+/* Settings › Capabilities — the page body and its sections (drawn as the
+   Connections catalogue's groups). */
 
 /* The body is a grid with no list indent: a list inside it must not sit
    40px inside the heading it belongs to. */
@@ -21,28 +21,11 @@
   font-size: 0.8125rem;
 }
 
-.capspanel__source {
-  width: 100%;
-  min-height: 14rem;
-  padding: 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 1rem;
-  line-height: 1.4;
-  resize: vertical;
-}
-
 .capspanel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  /* The heading and the Visual/Source/Effective toggle do not both fit a
-     320px phone; without this the head pushed the panel to 331px and the
-     whole section scrolled sideways (verify:mobile ELEMENT-WIDER-THAN-PHONE). */
   flex-wrap: wrap;
   min-width: 0;
 }

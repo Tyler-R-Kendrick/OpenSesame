@@ -103,7 +103,7 @@ const RESOURCES = {
   },
 } satisfies Record<CapabilityResourceKind, CapabilityResourceLocation>;
 
-/** Whether the Source view may write this kind under this snapshot. */
+/** Whether the file viewer may write this kind under this snapshot. */
 export function capabilityResourceEditable(
   kind: CapabilityResourceKind,
   snapshot: CompositionSnapshot,

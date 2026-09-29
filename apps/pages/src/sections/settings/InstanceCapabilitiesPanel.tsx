@@ -6,8 +6,8 @@
  * sees a policy control (SURFACE-06) — the section renders nothing, not a
  * disabled form. It is the purpose presets and nothing else: what each
  * capability's policy leaves it is already said where that capability's
- * switch is, and the policy document is the page's Source view, beside the
- * installation's selection (ADR 0142). Choosing a preset writes through
+ * switch is, and the policy document is `settings/capabilities/instance-policy.yaml`,
+ * beside the installation's selection (ADR 0134, ADR 0142). Choosing a preset writes through
  * `saveLocalInstancePolicy`, the one writer of `capabilities.policy.local.v1`.
  */
 
@@ -16,13 +16,15 @@ import {
   type CapabilityPreset,
   capabilityPorts,
 } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import { defaultCapabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-resources.js";
+import { POLICY_FILE } from "@opensesame/app-core/sections/settings/capability-files.js";
 import { useState } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { PurposeCards } from "../../screens/capabilities/PurposeCards.js";
-import { capabilitySourceSeams } from "./CapabilitiesPanelViews.js";
 import { SectionHead } from "./CapabilitySwitch.js";
+import { OpenFileKey } from "./files/OpenFileKey.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
 export const instancePanelSeams = {
@@ -37,7 +39,7 @@ export function InstanceCapabilitiesPanel() {
   if (!operator) return null;
   const plan = snapshot.plan;
   async function choosePreset(preset: CapabilityPreset) {
-    const ports = capabilitySourceSeams.ports(tomb);
+    const ports = defaultCapabilityPorts(() => tomb);
     const instanceId = plan?.identity.instanceId ?? "personal-local";
     try {
       await saveLocalInstancePolicy(
@@ -60,7 +62,9 @@ export function InstanceCapabilitiesPanel() {
       aria-labelledby="instance-policy-title"
       data-testid="instance-capabilities-panel"
     >
-      <SectionHead id="instance-policy-title" title="Instance policy" />
+      <SectionHead id="instance-policy-title" title="Instance policy">
+        <OpenFileKey path={POLICY_FILE} name="instance-policy.yaml" />
+      </SectionHead>
       {notice ? (
         <p className="capspanel__notice" role="alert">
           <StatusMark tone="err" label={notice} />

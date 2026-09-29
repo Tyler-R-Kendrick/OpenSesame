@@ -56,6 +56,8 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-28-live-sessions/`](2026-09-28-live-sessions/README.md) | Live sessions and the two-road front door (ADR 0150) |
 | [`2026-09-28-live-routes/`](2026-09-28-live-routes/README.md) | Live sessions across networks: optional routes (ADR 0150 §6) |
 | [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
+| [`2026-09-28-completion-not-repeated/`](2026-09-28-completion-not-repeated/README.md) | The config.yaml editor no longer offers back what is typed |
+| [`2026-09-28-capabilities-as-files/`](2026-09-28-capabilities-as-files/README.md) | Capabilities as files; `config.yaml` first |
 | [`2026-09-28-activity-rail-listing/`](2026-09-28-activity-rail-listing/README.md) | Activity: a paged, searchable listing in the rail and on the page |
 | [`2026-09-27-webmcp-review/`](2026-09-27-webmcp-review/README.md) | The WebMCP review no longer claims a reload |
 | [`2026-09-27-vault-import-export/`](2026-09-27-vault-import-export/README.md) | The vault's Import and Export keys, restored |

@@ -181,21 +181,46 @@ export function suggestSettings(
   if (typedKey && !line.startsWith(" ")) {
     const field = fields.find((item) => item.key === typedKey);
     if (field?.kind === "enum" && field.options) {
-      return field.options.filter((option) => option.startsWith(typedValue));
+      return continuations(field.options, typedValue);
     }
     if (field?.kind === "boolean") {
-      return ["true", "false"].filter((option) =>
-        option.startsWith(typedValue),
-      );
+      return continuations(["true", "false"], typedValue);
     }
     return [];
   }
   if (line.startsWith(" ") && source.slice(0, caret).includes("keybindings:")) {
-    return typedKey ? BINDING_ACTIONS : BINDING_KEYS;
+    // A key name is offered while it is still being typed, finished or not:
+    // Tab on a finished key is how the `: ` after it gets written.
+    return typedKey
+      ? continuations(BINDING_ACTIONS, typedValue)
+      : startingWith(BINDING_KEYS, trimmed.replace(/^["']|["']$/g, ""));
   }
-  return fields
-    .map((field) => field.key)
-    .filter((key) => key.startsWith(trimmed));
+  return startingWith(
+    fields.map((field) => field.key),
+    trimmed,
+  );
+}
+
+/** Key positions: every option the typed text is a prefix of, itself included. */
+function startingWith(
+  options: readonly string[],
+  typed: string,
+): readonly string[] {
+  return options.filter((option) => option.startsWith(typed));
+}
+
+/**
+ * Value positions: the options that still have something to add to what is
+ * typed — a longer option that starts with it, never the text itself. A
+ * finished value is not offered back to the person who just wrote it.
+ */
+function continuations(
+  options: readonly string[],
+  typed: string,
+): readonly string[] {
+  return options.filter(
+    (option) => option !== typed && option.startsWith(typed),
+  );
 }
 
 /** Same values, same bindings — spelling and comments aside. */
