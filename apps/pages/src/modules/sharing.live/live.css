@@ -32,3 +32,9 @@
   display: grid;
   gap: 4px;
 }
+
+.live-edit {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}

@@ -3,14 +3,20 @@
  *
  * The owner's vault key never crosses. What does: the catalog — shared
  * items' names and types, and their fields, with a concealed field's value
- * left out — and then one concealed value at a time, on request. Every
- * request is checked again against the session as it stands now: still
- * within its time, the item still shared, the field one that exists and is
- * concealed, and `reveal` only under the `read` policy. Every answer lands in
- * the owner's on-screen log.
+ * left out — and then one concealed value at a time, on request. Under
+ * `edit`, a joiner may also replace one shared field. Every request is
+ * checked again against the session as it stands now: still within its time,
+ * the item still shared, the field one that exists, `reveal` only under
+ * `read` or `edit`, and `edit` only under `edit`. Every answer lands in the
+ * owner's on-screen log.
  */
 
-import { type Catalog, type ChannelMessage, VALUE_MAX } from "./messages.js";
+import {
+  type Catalog,
+  type ChannelMessage,
+  VALUE_MAX,
+  characters,
+} from "./messages.js";
 import {
   type IceSettings,
   type PeerChannel,
@@ -22,7 +28,7 @@ import {
 export type LogEntry = Readonly<{
   at: number;
   guest: string;
-  what: "reveal" | "copy" | "denied";
+  what: "reveal" | "copy" | "edit" | "denied";
   item: string;
   field: string;
 }>;
@@ -30,12 +36,20 @@ export type LogEntry = Readonly<{
 /** A concealed field's value from the open vault, or null. */
 export type ReadField = (item: string, field: string) => Promise<string | null>;
 
+/** Replace one shared field in the open vault. False when it was refused. */
+export type WriteField = (
+  item: string,
+  field: string,
+  value: string,
+) => Promise<boolean>;
+
 export type HostPeerOptions = Readonly<{
   guest: string;
   ice: IceSettings;
   peers: PeerFactory;
   catalog: () => Catalog;
   readField: ReadField;
+  writeField?: WriteField;
   expiresAt: number;
   now: () => number;
   onJoined: () => void;
@@ -44,6 +58,7 @@ export type HostPeerOptions = Readonly<{
 }>;
 
 type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
+type EditRequest = Extract<ChannelMessage, { t: "edit" }>;
 
 export class HostPeer {
   #pc: RTCPeerConnection | null = null;
@@ -95,6 +110,10 @@ export class HostPeer {
   }
 
   async #handle(message: ChannelMessage): Promise<void> {
+    if (message.t === "edit") {
+      await this.#save(message);
+      return;
+    }
     if (message.t !== "reveal" && message.t !== "copy") return;
     const value = await this.#answerFor(message);
     this.options.onLog({
@@ -115,12 +134,46 @@ export class HostPeer {
     if (this.#closed || this.options.now() >= this.options.expiresAt)
       return null;
     const catalog = this.options.catalog();
-    if (request.t === "reveal" && catalog.policy !== "read") return null;
+    if (request.t === "reveal" && catalog.policy === "use") return null;
     const item = catalog.items.find((entry) => entry.id === request.item);
     const field = item?.fields.find((entry) => entry.key === request.field);
     if (!item || !field?.concealed) return null;
     const value = await this.options.readField(item.id, field.key);
     return value !== null && value.length <= VALUE_MAX ? value : null;
+  }
+
+  async #save(message: EditRequest): Promise<void> {
+    const value = await this.#commit(message);
+    this.options.onLog({
+      at: this.options.now(),
+      guest: this.options.guest,
+      what: value === null ? "denied" : "edit",
+      item: message.item,
+      field: message.field,
+    });
+    this.#channel?.send(
+      value === null
+        ? { t: "denied", req: message.req }
+        : { t: "value", req: message.req, value },
+    );
+  }
+
+  async #commit(message: EditRequest): Promise<string | null> {
+    if (this.#closed || this.options.now() >= this.options.expiresAt)
+      return null;
+    const catalog = this.options.catalog();
+    if (catalog.policy !== "edit") return null;
+    const item = catalog.items.find((entry) => entry.id === message.item);
+    const field = item?.fields.find((entry) => entry.key === message.field);
+    const write = this.options.writeField;
+    if (!item || !field || !write || characters(message.value) > VALUE_MAX)
+      return null;
+    try {
+      const saved = await write(item.id, field.key, message.value);
+      return saved ? message.value : null;
+    } catch {
+      return null;
+    }
   }
 
   close(): void {

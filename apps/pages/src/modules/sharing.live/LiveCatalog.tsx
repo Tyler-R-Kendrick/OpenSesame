@@ -2,8 +2,9 @@
  * What a joined live session shows (ADR 0150 §5): the shared items, their
  * open fields as the owner sent them, and each concealed field as a key that
  * asks the owner for it. A value the owner answers is held in this
- * component's state only — never written anywhere — and goes when the
- * person hides it, leaves, or the session ends.
+ * component's state only, and goes when the person hides it, leaves, or the
+ * session ends. An `edit` session can also ask the owner to replace a shared
+ * field in the open vault.
  *
  * `use` sessions copy without drawing: the owner refuses `reveal`, and the
  * reveal key is not drawn.
@@ -17,12 +18,12 @@ import type {
 import { useState } from "react";
 import {
   ConcealedValue,
-  FieldRow,
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import { IconCheck, IconCopy } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { EditableRow } from "./LiveFieldEdit.js";
 
 export type RequestField = (
   what: "reveal" | "copy",
@@ -30,16 +31,26 @@ export type RequestField = (
   field: string,
 ) => Promise<string | null>;
 
+export type SaveField = (
+  item: string,
+  field: string,
+  value: string,
+) => Promise<string | null>;
+
 function ConcealedField({
   item,
   field,
   canReveal,
+  canEdit,
   request,
+  save,
 }: {
   item: SharedItem;
   field: SharedField;
   canReveal: boolean;
+  canEdit: boolean;
   request: RequestField;
+  save?: SaveField;
 }) {
   const [shown, setShown] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
@@ -64,8 +75,15 @@ function ConcealedField({
   }
 
   return (
-    <FieldRow
-      label={field.label}
+    <EditableRow
+      fieldLabel={field.label}
+      editLabel={label}
+      canEdit={canEdit}
+      save={save ? (value) => save(item.id, field.key, value) : undefined}
+      onSaved={(value) => {
+        setDenied(false);
+        setShown(value);
+      }}
       actions={
         <>
           {canReveal ? (
@@ -95,18 +113,47 @@ function ConcealedField({
         revealed={shown !== null}
       />
       {denied ? <StatusMark tone="err" label="The owner refused" /> : null}
-    </FieldRow>
+    </EditableRow>
+  );
+}
+
+function OpenField({
+  item,
+  field,
+  canEdit,
+  save,
+}: {
+  item: SharedItem;
+  field: SharedField;
+  canEdit: boolean;
+  save?: SaveField;
+}) {
+  const [saved, setSaved] = useState<string | null>(null);
+  return (
+    <EditableRow
+      fieldLabel={field.label}
+      editLabel={`${item.name} ${field.label}`}
+      canEdit={canEdit}
+      save={save ? (value) => save(item.id, field.key, value) : undefined}
+      onSaved={setSaved}
+    >
+      <span className="frow__value">{saved ?? field.value}</span>
+    </EditableRow>
   );
 }
 
 function LiveItem({
   item,
   canReveal,
+  canEdit,
   request,
+  save,
 }: {
   item: SharedItem;
   canReveal: boolean;
+  canEdit: boolean;
   request: RequestField;
+  save?: SaveField;
 }) {
   return (
     <li className="panel live-item">
@@ -122,12 +169,18 @@ function LiveItem({
               item={item}
               field={field}
               canReveal={canReveal}
+              canEdit={canEdit}
               request={request}
+              save={save}
             />
           ) : (
-            <FieldRow key={field.key} label={field.label}>
-              <span className="frow__value">{field.value}</span>
-            </FieldRow>
+            <OpenField
+              key={field.key}
+              item={item}
+              field={field}
+              canEdit={canEdit}
+              save={save}
+            />
           ),
         )}
       </div>
@@ -138,20 +191,25 @@ function LiveItem({
 export function LiveCatalog({
   catalog,
   request,
+  save,
 }: {
   catalog: Catalog;
   request: RequestField;
+  save?: SaveField;
 }) {
   if (catalog.items.length === 0)
     return <StatusMark tone="idle" label="Nothing is shared yet" />;
+  const canEdit = catalog.policy === "edit" && save !== undefined;
   return (
     <ul className="live-items" aria-label={catalog.title}>
       {catalog.items.map((item) => (
         <LiveItem
           key={item.id}
           item={item}
-          canReveal={catalog.policy === "read"}
+          canReveal={catalog.policy === "read" || catalog.policy === "edit"}
+          canEdit={canEdit}
           request={request}
+          save={save}
         />
       ))}
     </ul>

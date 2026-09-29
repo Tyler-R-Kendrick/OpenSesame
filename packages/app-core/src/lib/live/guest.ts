@@ -16,7 +16,13 @@
  */
 
 import type { LiveLink } from "./link.js";
-import { type Catalog, type ChannelMessage, cleanText } from "./messages.js";
+import {
+  type Catalog,
+  type ChannelMessage,
+  VALUE_MAX,
+  characters,
+  cleanText,
+} from "./messages.js";
 import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
   type IceSettings,
@@ -191,6 +197,19 @@ export class LiveGuest {
       this.#pending.delete(message.req);
       pending?.resolve(message.t === "value" ? message.value : null);
     }
+  }
+
+  /** Replace one shared field. The saved text, or null if the owner refused. */
+  edit(item: string, field: string, value: string): Promise<string | null> {
+    if (this.#status.at !== "joined" || !this.#channel)
+      return Promise.resolve(null);
+    if (characters(value) > VALUE_MAX) return Promise.resolve(null);
+    this.#next += 1;
+    const req = `r${this.#next}`;
+    return new Promise((resolve) => {
+      this.#pending.set(req, { resolve });
+      this.#channel?.send({ t: "edit", req, item, field, value });
+    });
   }
 
   /** One concealed value, to show (`reveal`) or to copy; null if refused. */

@@ -26,7 +26,12 @@
  * that hosts it goes away.
  */
 
-import { HostPeer, type LogEntry, type ReadField } from "./host-peer.js";
+import {
+  HostPeer,
+  type LogEntry,
+  type ReadField,
+  type WriteField,
+} from "./host-peer.js";
 import type { LiveLink } from "./link.js";
 import type { Catalog } from "./messages.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
@@ -87,6 +92,8 @@ export type HostOptions = Readonly<{
   expiresAt: number;
   catalog: () => Catalog;
   readField: ReadField;
+  /** Present when the session may write a shared field back. Absent denies. */
+  writeField?: WriteField;
   peers: PeerFactory;
   /** What the link carries for joiners: ICE servers, relay only, carriers. */
   routes?: LiveRoutes;
@@ -280,6 +287,7 @@ export class LiveHost {
       peers: this.options.peers,
       catalog: this.options.catalog,
       readField: this.options.readField,
+      writeField: this.options.writeField,
       expiresAt: this.expiresAt,
       now: this.#now,
       onJoined: () => {

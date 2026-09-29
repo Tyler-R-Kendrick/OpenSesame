@@ -11,8 +11,9 @@ Status: local proof against the shipped Pages build. Physical-device, live-provi
 - A strict-direct live session (`iceServers: []`) between the other two processes. The runner only carries the sealed codes. The vault field moves on the browsers' real `RTCPeerConnection`.
 - Scoped projection: the joiner can reveal the shared login and is not offered the login the owner left unchecked.
 - Lifecycle: ending the session removes the revealed value and closes the peer connection.
+- Authorized edit, after that read session has ended: the owner starts another strict-direct session with Values set to Can edit, the joiner replaces the shared GitHub password, and the owner sees the new password on the open vault item. The unchecked Payroll login is still not offered. The edit runs in the consented `sharing.live` graph. Both hardened profiles stay on the recorded largest-asset ceiling.
 
-Authorized item edit is not part of this proof. ADR 0150 shares a field as `read` or `use`. The earlier divergent editor was not added: its extra chunks do not fit the recorded Pages JavaScript ceiling, and this record does not raise that ceiling.
+ADR 0150 shares a field as `read`, `use`, or `edit`. `edit` writes that one shared field back into the open vault. The session itself is not stored. Ceilings in `tools/quality/bundle-budgets.json` were not raised.
 
 ## Measurements
 
@@ -20,10 +21,10 @@ Filled from the passing `pnpm test:browser-sessions` run on this source and the 
 
 | Check | Result |
 | --- | --- |
-| Rich Pages `dist/index.html` SHA-256 | `16aebbcfb0c1a2532a6189db6414757ae2d900e0abaf51ac91d65a42f42d2d8b` |
+| Rich Pages `dist/index.html` SHA-256 | `882c428870762e9e1c1ac7756db012e8571a4a5095404b6aed67b19c138f541e` |
 | `minimal-local-hardened` total / javascript / javascriptGzip / css / largestAsset (KiB) | 4737 / 4130 / 1256 / 152 / 793 (ceilings 4830 / 4211 / 1272 / 171 / 793) |
 | `family-local-hardened` total / javascript / javascriptGzip / css / largestAsset (KiB) | 4737 / 4130 / 1256 / 152 / 793 (ceilings 4830 / 4211 / 1272 / 171 / 793) |
-| `apps/pages` inside recorded ceilings | 6096 / 5369 / 1638 / 154 / 803 (ceilings 17900 / 5460 / 1650 / 168 / 12800) |
+| `apps/pages` inside recorded ceilings | 6099 / 5373 / 1639 / 154 / 803 (ceilings 17900 / 5460 / 1650 / 168 / 12800) |
 | `apps/console` | No `apps/console` package and no console ceiling in `tools/quality/bundle-budgets.json` on this tree |
 
 Ceilings are the numbers already in `tools/quality/bundle-budgets.json` on this branch. None were raised.

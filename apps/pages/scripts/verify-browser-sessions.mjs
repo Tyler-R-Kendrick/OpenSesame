@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
+import { joinerSaves, ownerSeesSave } from "./lib/live-edit-walk.mjs";
 import {
   WATCH_RTC,
   endSession,
@@ -28,6 +29,7 @@ const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ?? path.join(root, "artifacts/browser-sessions"),
 );
 const secret = "correct-horse-battery-staple-2026";
+const edited = "rotated-horse-battery-staple-2026";
 const privateSecret = "payroll-not-shared-2026";
 const joinerName = "Ada";
 
@@ -219,6 +221,56 @@ try {
   check(
     (await owner.page.getByText(secret).count()) === 0,
     "lifecycle: the owner no longer shows the shared secret",
+  );
+
+  setStep("edit");
+  const again = await startSession(owner.page, { policy: "edit" });
+  check(
+    Boolean(again.code) && again.link.includes("#live="),
+    "owner published an edit session",
+  );
+  const editRequest = await joinerAsks(joiner.page, {
+    link: again.link,
+    code: again.code,
+    name: joinerName,
+  });
+  const editReply = await ownerAdmitsByHand(
+    owner.page,
+    again.panel,
+    editRequest,
+    joinerName,
+  );
+  await joinerConnects(joiner.page, editReply);
+  await joinerSaves(joiner.page, { label: "GitHub Password", value: edited });
+  check(
+    (await joiner.page.getByText(privateSecret).count()) === 0 &&
+      (await joiner.page
+        .getByRole("button", { name: "Reveal Payroll Password" })
+        .count()) === 0,
+    "edit session: the unshared item was not projected",
+  );
+  await ownerSeesSave(owner.page, {
+    name: "GitHub",
+    value: edited,
+    previous: secret,
+  });
+  check(
+    (await owner.page.getByText(edited, { exact: true }).count()) > 0 &&
+      (await owner.page.getByText(secret, { exact: true }).count()) === 0,
+    "authorized edit: the owner observed the joiner save",
+  );
+  check(
+    (await owner.page.getByText(privateSecret, { exact: true }).count()) === 0,
+    "authorized edit: the unshared secret stayed off the owner's item",
+  );
+  const later = [
+    ...(await owner.page.evaluate(() => window.__rtcConfigs ?? [])),
+    ...(await joiner.page.evaluate(() => window.__rtcConfigs ?? [])),
+  ].map((raw) => JSON.parse(raw));
+  check(
+    later.length > 0 &&
+      later.every((config) => (config.iceServers ?? []).length === 0),
+    "edit session stayed strict-direct",
   );
 } catch (error) {
   failures.push(

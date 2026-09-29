@@ -28,6 +28,7 @@ const SCOPES: readonly Choice<"vault" | "items">[] = [
 const POLICIES: readonly Choice<SharePolicy>[] = [
   { value: "read", label: "Show values" },
   { value: "use", label: "Copy only" },
+  { value: "edit", label: "Can edit" },
 ];
 const ADMISSIONS: readonly Choice<Admission>[] = [
   { value: "invite", label: "Link and code" },
