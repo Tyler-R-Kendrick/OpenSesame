@@ -35,6 +35,7 @@ import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
 import { lastVaultIsGuest } from "@opensesame/app-core/lib/last-vault.js";
 import {
   activeProject,
+  listProjects,
   projectScopedKeys,
   rehydrateProjects,
 } from "@opensesame/app-core/lib/projects.js";
@@ -47,7 +48,11 @@ import {
   migrateLegacyVaultStorage,
   tombStorageKeys,
 } from "@opensesame/app-core/lib/vault/tomb-migration.js";
-import { GUEST_TOMB } from "@opensesame/app-core/lib/vfs.js";
+import {
+  GUEST_TOMB,
+  HEADER_PATH,
+  tombFileKey,
+} from "@opensesame/app-core/lib/vfs.js";
 import { bootstrapTheme } from "../lib/theme.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
 
@@ -117,6 +122,10 @@ export async function bootCore(): Promise<CoreBoot> {
     ...tombStorageKeys(tomb),
     ...(guestTomb ? tombStorageKeys(guestTomb) : []),
     vaultSelectionKey(tomb),
+    // Every vault's plaintext header, so the front door says which ones are
+    // sealed. Only the active tomb's was read, and the others drew as "not
+    // sealed yet" — offering to seal a fresh vault over a sealed one.
+    ...listProjects().map((project) => tombFileKey(project.id, HEADER_PATH)),
   ]);
   // Move any legacy flat vault keys into the tomb before the store reads it.
   // Pre-unlock this is plaintext moves only (header params, sealed body

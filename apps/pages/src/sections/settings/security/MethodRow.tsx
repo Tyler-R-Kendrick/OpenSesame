@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import type { StatusTone } from "../../../components/StatusMark.js";
 import { CeremonyRow } from "../CeremonyRow.js";
-import { type MethodKind, methodIcon } from "./MethodSheet.js";
+import { type RowKind, methodIcon } from "./MethodSheet.js";
 
 /**
  * One row of Settings › Security: glyph, name, state chip, one line, one
@@ -13,13 +14,16 @@ export function MethodRow({
   on,
   sub,
   action,
+  tone,
 }: {
-  kind: MethodKind;
+  kind: RowKind;
   label: string;
   state: string;
   on: boolean;
   sub: string;
   action: ReactNode;
+  /** Overrides the mark's tone, for a state that is neither on nor off. */
+  tone?: StatusTone;
 }) {
   return (
     <CeremonyRow
@@ -30,7 +34,7 @@ export function MethodRow({
       // beside its own lock icon.
       mark={
         on || state !== "Off"
-          ? { tone: on ? "ok" : "idle", label: state }
+          ? { tone: tone ?? (on ? "ok" : "idle"), label: state }
           : null
       }
       sub={sub}

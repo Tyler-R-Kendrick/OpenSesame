@@ -1,0 +1,186 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "count": ["#duress-profiles", ".set__security .sw--method"]
+        },
+        {
+          "measure": "#duress-profiles"
+        },
+        {
+          "report": "#duress-profiles .sw"
+        },
+        {
+          "shot": "390-duress-row"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault."
+        },
+        {
+          "shot": "390-duress-sheet"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "report": "#duress-profiles .sw"
+        },
+        {
+          "shot": "390-duress-on"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "count": ["#duress-profiles", ".set__security .sw--method"]
+        },
+        {
+          "measure": "#duress-profiles"
+        },
+        {
+          "report": "#duress-profiles .sw"
+        },
+        {
+          "shot": "1280-duress-row"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault."
+        },
+        {
+          "shot": "1280-duress-sheet"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "report": "#duress-profiles .sw"
+        },
+        {
+          "shot": "1280-duress-on"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-duress-row",
+      "width": 390,
+      "title": "Settings \u203a Security \u203a Duress, off \u2014 390 \u00d7 844",
+      "caption": "A sealed password vault, Settings \u203a Security scrolled to Duress. The base build has no Duress row: the only duress panel sat behind a mode switch that is off on every deployment. On the branch it is one read-only row with one Add key, drawn the way every unlock method is.",
+      "before": "#duress-profiles: none; Security rows 13",
+      "after": "#duress-profiles 358x162 @16,71; Security rows 14; row reads 'Duress code \u00b7 8 to 12 digits. Not one you unlock with.'"
+    },
+    {
+      "shot": "390-duress-sheet",
+      "width": 390,
+      "title": "The ceremony: choose what it shows, type it twice, say you understand \u2014 390 \u00d7 844",
+      "caption": "Add opens one sheet. Two outcomes only, the two the unlock path applies: an empty decoy vault, or the refusal a wrong password gets. The commit key stays disabled until the code is 8 to 12 digits, matches, and the acknowledgement is ticked. The base has no such sheet, so its capture is the same Security page.",
+      "before": "no dialog, no code field",
+      "after": "dialog 'Duress code': outcome switch, two code fields, one acknowledgement, one commit key"
+    },
+    {
+      "shot": "390-duress-on",
+      "width": 390,
+      "title": "Turned on \u2014 390 \u00d7 844",
+      "caption": "After Turn on duress code. The code is sealed, proven to open its slot, and armed against the vault that is open; the sheet closes and the row says what is set. Change replaces it; Remove is beside it inside the sheet.",
+      "before": "no row",
+      "after": "row reads 'Duress code \u2713 \u00b7 Set on this device. What it does is sealed with it.'; key is Change"
+    },
+    {
+      "shot": "1280-duress-row",
+      "width": 1280,
+      "title": "Settings \u203a Security \u203a Duress, off \u2014 1280 \u00d7 800",
+      "caption": "A sealed password vault, Settings \u203a Security scrolled to Duress. The base build has no Duress row: the only duress panel sat behind a mode switch that is off on every deployment. On the branch it is one read-only row with one Add key, drawn the way every unlock method is.",
+      "before": "#duress-profiles: none; Security rows 13",
+      "after": "#duress-profiles 960x160 @280,0; Security rows 14; row reads 'Duress code \u00b7 8 to 12 digits. Not one you unlock with.'"
+    },
+    {
+      "shot": "1280-duress-sheet",
+      "width": 1280,
+      "title": "The ceremony: choose what it shows, type it twice, say you understand \u2014 1280 \u00d7 800",
+      "caption": "Add opens one sheet. Two outcomes only, the two the unlock path applies: an empty decoy vault, or the refusal a wrong password gets. The commit key stays disabled until the code is 8 to 12 digits, matches, and the acknowledgement is ticked. The base has no such sheet, so its capture is the same Security page.",
+      "before": "no dialog, no code field",
+      "after": "dialog 'Duress code': outcome switch, two code fields, one acknowledgement, one commit key"
+    },
+    {
+      "shot": "1280-duress-on",
+      "width": 1280,
+      "title": "Turned on \u2014 1280 \u00d7 800",
+      "caption": "After Turn on duress code. The code is sealed, proven to open its slot, and armed against the vault that is open; the sheet closes and the row says what is set. Change replaces it; Remove is beside it inside the sheet.",
+      "before": "no row",
+      "after": "row reads 'Duress code \u2713 \u00b7 Set on this device. What it does is sealed with it.'; key is Change"
+    }
+  ]
+}

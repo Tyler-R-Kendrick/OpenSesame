@@ -52,3 +52,10 @@ blocked either way.
   the code.
 - **It does not work under duress, in a guest session, or where the browser
   keeps no files.** Travel mode refuses in each of these cases.
+
+## Remembered choices
+
+The vaults you mark **Safe for travel** are remembered on the device across
+reloads (ADR 0150), so the choice is made once, at home. A vault that has left
+the device, or been deleted, drops out of the list when it is read. A departure
+does not clear the marks of the vaults that stayed.

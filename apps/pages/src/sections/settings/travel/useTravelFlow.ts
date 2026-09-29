@@ -15,6 +15,10 @@ import {
   packTravelDeparture,
   returnFromTravel,
 } from "@opensesame/app-core/lib/travel/index.js";
+import {
+  readSafeFlags,
+  writeSafeFlags,
+} from "@opensesame/app-core/lib/travel/safe-flags.js";
 import { useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
 import { useVault } from "../../../lib/vault/hooks.js";
@@ -38,7 +42,15 @@ const NO_ACK = { bundleSaved: false, codeRecorded: false };
 function useTravelState() {
   const { status, guest } = useVault();
   const [mode, setMode] = useState<TravelMode>({ kind: "plan" });
-  const [safe, setSafe] = useState<ReadonlySet<string>>(new Set());
+  const vaultIds = useDeviceVaults().map((vault) => vault.id);
+  // Chosen once, at home: the marks are remembered, not asked for again.
+  const [safe, setSafeNow] = useState<ReadonlySet<string>>(() =>
+    readSafeFlags(vaultIds),
+  );
+  const setSafe = (next: ReadonlySet<string>) => {
+    setSafeNow(next);
+    void writeSafeFlags(next).catch(() => {});
+  };
   const [ack, setAck] = useState(NO_ACK);
   const [bundle, setBundle] = useState<{ name: string; json: string } | null>(
     null,
@@ -123,19 +135,16 @@ function departureSteps(
       if (receipt.completion === "incomplete") {
         return state.setNotice(departedNotice(receipt));
       }
-      state.setSafe(new Set());
       state.reset(departedNotice(receipt));
       onDone();
     });
 
   const toggleSafe = (id: string) => {
     state.setNotice(null);
-    state.setSafe((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const next = new Set(state.safe);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    state.setSafe(next);
   };
 
   return { pack, depart, toggleSafe };

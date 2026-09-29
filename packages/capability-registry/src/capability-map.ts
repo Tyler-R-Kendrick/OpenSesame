@@ -35,6 +35,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- core: unlock and vaults ----------------------------------------
     "vaults.switch": "vault.local-unlock",
     "vaults.travel": "vault.local-unlock",
+    "vaults.duress_code": "vault.local-unlock",
     "vault.second_step.code": "vault.local-unlock",
     "vault.recovery_codes": "vault.local-unlock",
     "device.browser_reset": "vault.local-unlock",

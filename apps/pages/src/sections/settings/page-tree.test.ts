@@ -176,11 +176,11 @@ describe("settingsPageTree", () => {
       ),
     ).toEqual([
       "vault-key-protection",
-      "duress-profiles",
       "unlock-methods",
       "second-step",
       "recovery",
       "account-factors",
+      "duress-profiles",
       "ambient-auth",
       "formats-interoperability",
       "age-keys",

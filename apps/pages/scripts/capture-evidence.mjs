@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
+import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -246,6 +247,7 @@ const STEPS = {
     await page.waitForTimeout(600);
   },
   ...capabilitySteps({ press, openSettings }),
+  ...scopedSteps({ press }),
   /** A new section loads with the app root, so a chosen one needs a reload. */
   async reload(page) {
     await page.reload({ waitUntil: "networkidle" });

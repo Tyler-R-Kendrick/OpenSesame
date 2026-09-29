@@ -52,12 +52,13 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "vault.local-unlock",
     "Local unlock",
-    "Password, PIN and passkey protectors for the vault key, the enrolled second step, recovery codes, the device's vault list, travel mode and resetting this browser.",
+    "Password, PIN and passkey protectors for the vault key, the enrolled second step, recovery codes, the device's vault list, travel mode, the duress code and resetting this browser.",
     {
       operationIds: [
         "device.browser_reset",
         "vault.recovery_codes",
         "vault.second_step.code",
+        "vaults.duress_code",
         "vaults.switch",
         "vaults.travel",
       ],
