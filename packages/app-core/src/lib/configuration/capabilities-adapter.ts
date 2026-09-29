@@ -1,7 +1,7 @@
 /**
  * Capability documents as editable resources (S04).
  *
- * The Source view commits through here. The rules are the prefs adapter's:
+ * The Settings file viewer (`capability-files.ts`) commits through here. The rules are the prefs adapter's:
  * a stale base revision is a conflict, a comments-only edit is a
  * presentation change that touches no semantics, and every semantic change
  * goes through the one door that owns it — the store's `commit` for the

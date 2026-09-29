@@ -121,15 +121,6 @@
     flex: 1 1 auto;
     justify-content: center;
   }
-
-  /* The Capabilities view toggle's keys are real targets — 42×26 fails the
-     44px mobile floor. */
-  .set__view-btn {
-    box-sizing: border-box;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0.55rem 0.65rem;
-  }
 }
 
 /* Five categories do not fit a phone in one row. Wrapping put two of them on a
@@ -209,29 +200,6 @@
 .found .f__fills-label,
 .found .hint {
   color: var(--ink-2);
-}
-
-.set__view {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.set__view-btn {
-  appearance: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--ink-3);
-  font: inherit;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  padding: 0.2rem 0.35rem;
-  cursor: pointer;
-}
-
-.set__view-btn[aria-pressed="true"] {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
 }
 
 .set-raw__status {

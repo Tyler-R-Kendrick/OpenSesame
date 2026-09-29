@@ -31,7 +31,16 @@ export type FileCheck =
   | { readonly ok: false; readonly message: string };
 
 export type FileOutcome =
-  | { readonly ok: true; readonly path: string }
+  | {
+      readonly ok: true;
+      readonly path: string;
+      /** What the write did, when the provider has more to say than "saved". */
+      readonly message?: string;
+      /** `warn`: applied, but not as durably as asked (this session only). */
+      readonly tone?: "ok" | "warn";
+      /** The file as stored, when that is not the text that was written. */
+      readonly text?: string;
+    }
   | { readonly ok: false; readonly message: string };
 
 export type VirtualFileProvider = {

@@ -161,8 +161,9 @@ Advanced is removed:
 - The per-capability list is the tiles and switches already on the page.
 - The instance policy is one more section, holding only the purpose presets.
   Its capability list and its second view toggle are gone.
-- The page's one Source view shows the installation selection and, to the
-  operator, the instance policy. Effective is shown once.
+- The page's documents — the installation selection, to the operator the
+  instance policy, and the effective plan — are files beside the directory's
+  `config.yaml` (ADR 0134, 2026-09-28 note); the page has no view toggle.
 - The emergency **Disable now** key is gone from this page. The reviewed
   switch is how a capability is turned off here.
   `compositionStore.emergencyDisable` and its tests (LIFE-01, LIFE-09) are

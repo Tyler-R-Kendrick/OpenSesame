@@ -1,0 +1,172 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "facts": "1280-capabilities"
+        },
+        {
+          "shot": "1280-capabilities"
+        },
+        {
+          "rightClick": "vault/"
+        },
+        {
+          "menuOptional": "Show hidden items"
+        },
+        {
+          "escape": null
+        },
+        {
+          "tab": "settings/"
+        },
+        {
+          "expand": "Capabilities"
+        },
+        {
+          "facts": "1280-rail"
+        },
+        {
+          "shot": "1280-rail"
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "pressOptional": "^Source$"
+        },
+        {
+          "pressOptional": "Open installation-selection.yaml"
+        },
+        {
+          "facts": "1280-file"
+        },
+        {
+          "shot": "1280-file"
+        },
+        {
+          "pressOptional": "^Save "
+        },
+        {
+          "facts": "1280-saved"
+        },
+        {
+          "shot": "1280-saved"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "facts": "390-capabilities"
+        },
+        {
+          "shot": "390-capabilities"
+        },
+        {
+          "pressOptional": "^Source$"
+        },
+        {
+          "pressOptional": "Open installation-selection.yaml"
+        },
+        {
+          "facts": "390-file"
+        },
+        {
+          "shot": "390-file"
+        },
+        {
+          "pressOptional": "^Save "
+        },
+        {
+          "facts": "390-saved"
+        },
+        {
+          "shot": "390-saved"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities \u2014 1280 \u00d7 800",
+      "caption": "The Visual / Source / Effective toggle is gone from the page. The heading carries one key that opens the installation selection as a file.",
+      "before": "3 view keys (Visual, Source, Effective)",
+      "after": "0 view keys, 1 open-file key"
+    },
+    {
+      "shot": "1280-rail",
+      "width": 1280,
+      "title": "The rail under Capabilities, hidden items shown \u2014 1280 \u00d7 800",
+      "caption": "config.yaml is the first entry under the directory, ahead of its panels, not the last.",
+      "before": "14 rail rows before config.yaml (last)",
+      "after": "0 rows before config.yaml (first)"
+    },
+    {
+      "shot": "1280-file",
+      "width": 1280,
+      "title": "The installation selection \u2014 1280 \u00d7 800",
+      "caption": "Base: Source view of one document, capabilities/installation-selection.yaml, behind the toggle. Branch: the same document as a file in settings/capabilities/, listed beside config.yaml (first) and the read-only effective-plan.yaml.",
+      "before": "1 document behind a toggle, no file list",
+      "after": "3 files listed, config.yaml first"
+    },
+    {
+      "shot": "390-capabilities",
+      "width": 390,
+      "title": "Settings \u203a Capabilities on a phone \u2014 390 \u00d7 844",
+      "caption": "No toggle in the heading; one open-file key.",
+      "before": "3 view keys",
+      "after": "0 view keys, 1 open-file key"
+    },
+    {
+      "shot": "390-file",
+      "width": 390,
+      "title": "The installation selection on a phone \u2014 390 \u00d7 844",
+      "caption": "The file list sits above the open file; config.yaml is first.",
+      "before": "1 document behind a toggle, no file list",
+      "after": "3 files listed, config.yaml first"
+    },
+    {
+      "shot": "1280-saved",
+      "width": 1280,
+      "title": "Saving the installation selection \u2014 1280 \u00d7 800",
+      "caption": "Save with the document unchanged. Base: nothing is said about the save. Branch: one ok mark beside the save key; its label is the adapter's message. A session-only save shows a warn mark.",
+      "before": "0 outcome marks after Save",
+      "after": "1 ok mark: Saved source comments. Nothing else changed."
+    },
+    {
+      "shot": "390-saved",
+      "width": 390,
+      "title": "Saving the installation selection on a phone \u2014 390 \u00d7 844",
+      "caption": "Save with the document unchanged. Base: nothing is said about the save. Branch: one ok mark beside the save key; its label is the adapter's message. A session-only save shows a warn mark.",
+      "before": "0 outcome marks after Save",
+      "after": "1 ok mark: Saved source comments. Nothing else changed."
+    }
+  ]
+}

@@ -85,6 +85,39 @@ describe("a settings directory's config.yaml", () => {
     expect(file().value).toMatch(/theme: "?dark"?/);
   });
 
+  it("offers no completion for a value that is already typed", () => {
+    render(<SettingsRawEditor category="general" />);
+    const text = "lockOnHide: false";
+    fireEvent.change(file(), {
+      target: { value: text, selectionStart: text.length },
+    });
+    fireEvent.keyUp(file(), { key: "e" });
+    expect(screen.queryByRole("list", { name: "Completions" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "false" })).toBeNull();
+
+    // Half a value still completes; the same list returns.
+    const partial = "lockOnHide: fa";
+    fireEvent.change(file(), {
+      target: { value: partial, selectionStart: partial.length },
+    });
+    expect(screen.getByRole("list", { name: "Completions" }).textContent).toBe(
+      "false",
+    );
+  });
+
+  it("completes a finished key with its colon on Tab", () => {
+    render(<SettingsRawEditor category="general" />);
+    const text = "theme";
+    fireEvent.change(file(), {
+      target: { value: text, selectionStart: text.length },
+    });
+    expect(screen.getByRole("list", { name: "Completions" }).textContent).toBe(
+      "theme",
+    );
+    fireEvent.keyDown(file(), { key: "Tab" });
+    expect(file().value).toBe("theme: ");
+  });
+
   it("refuses a file that rewrites what a ceremony owns", () => {
     render(<SettingsRawEditor category="security" />);
     const field = screen.getByLabelText("settings/security/config.yaml");

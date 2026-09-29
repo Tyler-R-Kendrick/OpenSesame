@@ -5,15 +5,30 @@ import {
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { capabilitiesPanelSeams } from "./CapabilitiesPanel.js";
+import {
+  POLICY_FILE,
+  SELECTION_FILE,
+} from "@opensesame/app-core/sections/settings/capability-files.js";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import { describe, expect, it, vi } from "vitest";
+import {
+  CapabilitiesPanel,
+  capabilitiesPanelSeams,
+} from "./CapabilitiesPanel.js";
 import {
   PERSONAL_SELECTION,
   installPanelFixture,
   panelVault,
   renderPanel,
 } from "./capabilities-panel.test-support.js";
+import { SettingsFileContext } from "./files/context.js";
 
 installDoublePorts();
 
@@ -109,19 +124,28 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     expect(capabilitiesPanelSeams.reload).toHaveBeenCalled();
   });
 
-  it("switches Visual / Source / Effective, and Source holds both documents for the operator", () => {
-    renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Effective" }));
-    expect(screen.getByLabelText("Effective plan").textContent).toContain(
-      "approvedCapabilities",
+  it("has no Visual / Source / Effective toggle; its documents open as files", () => {
+    const openFile = vi.fn();
+    render(
+      <MemoryRouter>
+        <SettingsFileContext.Provider value={{ openFile }}>
+          <CapabilitiesPanel />
+        </SettingsFileContext.Provider>
+      </MemoryRouter>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Source" }));
+    expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(
-      screen.getByTestId("capability-source-installation-selection"),
-    ).toBeTruthy();
-    expect(
-      screen.getByTestId("capability-source-instance-policy"),
-    ).toBeTruthy();
+      screen.queryByTestId("capability-source-installation-selection"),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open installation-selection.yaml" }),
+    );
+    expect(openFile).toHaveBeenLastCalledWith(SELECTION_FILE);
+    // The operator's policy is a file beside it, opened from its own section.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open instance-policy.yaml" }),
+    );
+    expect(openFile).toHaveBeenLastCalledWith(POLICY_FILE);
   });
 });
 
