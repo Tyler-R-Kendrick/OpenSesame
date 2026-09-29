@@ -26,4 +26,4 @@ Varlock / `@env-spec` provide a durable, MIT-licensed developer config surface (
 - CLI: `opensesame dev check|resolve|run|--agent`
 - Domain + connector-host enforce delivery modes and placement
 - REUSE lists `@env-spec/parser`; Varlock is integrate/peer, not fork
-- MITM proxy is non-goal for this slice
+- MITM proxy is non-goal for this slice (amended by [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) §6.1: a per-run surrogate proxy in the daemon, recognize/strip/re-place, never a find-and-replace MITM)
