@@ -82,7 +82,12 @@ describe("the seal", () => {
   it("is fresh every time and refuses a tampered or truncated value", () => {
     const one = sealAtRest(KEY, where, "x");
     expect(sealAtRest(KEY, where, "x")).not.toBe(one);
-    const flipped = `${one.slice(0, -2)}${one.endsWith("A") ? "B" : "A"}${one.slice(-1)}`;
+    // Flip the penultimate digit itself. Choosing A or B from the final
+    // digit is a no-op when that digit is already the letter written there,
+    // and the unchanged seal still opens.
+    const at = one.length - 2;
+    const flipped = `${one.slice(0, at)}${one[at] === "A" ? "B" : "A"}${one.slice(at + 1)}`;
+    expect(flipped).not.toBe(one);
     expect(openAtRest(KEY, where, flipped)).toBeNull();
     expect(openAtRest(KEY, where, AT_REST_PREFIX)).toBeNull();
     expect(openAtRest(KEY, where, `${AT_REST_PREFIX}!!`)).toBeNull();

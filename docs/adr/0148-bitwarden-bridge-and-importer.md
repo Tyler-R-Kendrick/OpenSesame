@@ -58,8 +58,8 @@ or a decrypted value on the way, exactly as it never does in service.
   emergency contact. A member or contact keeps a key only when its own
   account came across; one at an address that has a different account here
   is accepted and waits to be confirmed again, and one at an address with no
-  account waits as an invitation. Groups and policies are counted, not
-  moved.
+  account waits as an invitation. Policies move with their organization
+  (§9); groups are counted, not moved.
 - **A live account** (`import account --from <server> --email <address>`),
   for bitwarden.com, bitwarden.eu, a self-hosted Bitwarden server or a
   vaultwarden whose database is out of reach: the person runs the CLI and
@@ -193,9 +193,9 @@ Bitwarden.
   rename, reassign, delete); sharing a personal cipher in, its attachments
   re-encrypted first; putting a cipher in collections; the administrators'
   `…-admin` forms; `organization-details`; and importing into an
-  organization. Groups, policies, single sign-on, account recovery and
-  directory sync are not: groups and policies list empty, and clients hide
-  the rest as they do against a server without them.
+  organization. Groups, single sign-on, account recovery and directory sync
+  are not: groups list empty, and clients hide the rest as they do against
+  a server without them. Policies arrived with §9.
 - **Files** on an organization's ciphers count against the organization, not
   against whoever uploaded them, under the same per-account quota.
 
@@ -285,6 +285,32 @@ its access code, and signs in with the same code on the password grant
 - The pinned SignalR client, connected as `AnonymousHubService` connects,
   hears the answer (`AuthRequestResponseRecieved`, Bitwarden's spelling)
   under the oracle; the signed-in client hears the request and its answer.
+
+### 9. Organization policies
+
+Owners, admins and custom roles allowed to manage policies set an
+organization's policies (`/organizations/{id}/policies/{type}`, in both the
+flat and the `{policy: {…}}` body clients send); a sync carries the enabled
+ones of every organization an account is a confirmed member of, and clients
+enforce the password, generator, timeout, export, PIN and item-type ones
+from there, as they do against Bitwarden's server.
+
+The server enforces the ones that guard what it stores, on members who are
+neither owners nor admins, as Bitwarden's does:
+
+- **Two-step login:** enabling it revokes members without it; turning one's
+  own off revokes one from such organizations; a member without it is
+  neither confirmed nor restored.
+- **Single organization:** enabling it revokes members who belong to
+  another organization; such a member is neither confirmed nor restored into
+  another, and creates none.
+- **Personal ownership:** no new items in the personal vault (items go to an
+  organization's collections instead).
+- **Disable Send**, and **Send options**' "hide my email": no new or changed
+  Sends, or none hiding the address.
+
+Policies move with an organization from vaultwarden. `/plans` answers with
+the one plan this server has, so the web vault can create an organization.
 
 ## Consequences
 
