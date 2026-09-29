@@ -127,6 +127,27 @@ pub(super) async fn insert_member(
     Ok(done.rows_affected() == 1)
 }
 
+pub(super) async fn insert_org(
+    tx: &mut sqlx::SqliteConnection,
+    org: &BitwardenOrganization,
+) -> anyhow::Result<()> {
+    sqlx::query(&format!(
+        "INSERT INTO bitwarden_organizations ({ORG_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?)"
+    ))
+    .bind(&org.id)
+    .bind(&org.name)
+    .bind(&org.billing_email)
+    .bind(org.plan_type)
+    .bind(org.seats)
+    .bind(&org.public_key)
+    .bind(&org.private_key)
+    .bind(bitwarden_timestamp(org.created_at))
+    .bind(bitwarden_timestamp(org.revision_at))
+    .execute(&mut *tx)
+    .await?;
+    Ok(())
+}
+
 impl Db {
     /// Create an organization with its owner and, if given, its first
     /// collection, in one transaction.
@@ -141,20 +162,7 @@ impl Db {
         first_collection: Option<&BitwardenCollection>,
     ) -> anyhow::Result<()> {
         let mut tx = self.pool.begin().await?;
-        sqlx::query(&format!(
-            "INSERT INTO bitwarden_organizations ({ORG_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?)"
-        ))
-        .bind(&org.id)
-        .bind(&org.name)
-        .bind(&org.billing_email)
-        .bind(org.plan_type)
-        .bind(org.seats)
-        .bind(&org.public_key)
-        .bind(&org.private_key)
-        .bind(bitwarden_timestamp(org.created_at))
-        .bind(bitwarden_timestamp(org.revision_at))
-        .execute(&mut *tx)
-        .await?;
+        insert_org(&mut tx, org).await?;
         insert_member(&mut tx, owner).await?;
         if let Some(collection) = first_collection {
             super::collections::insert_collection(&mut tx, collection).await?;
