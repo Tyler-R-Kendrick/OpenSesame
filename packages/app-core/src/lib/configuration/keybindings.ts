@@ -3,33 +3,33 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { actionById, isBindableAction } from "./actions.js";
+import { CORE_COMMANDS, keymapCommands } from "../keymap/commands.js";
+import { readKeymap } from "../keymap/config.js";
+import { defaultBindings } from "../keymap/effective.js";
+import { canonicalSequence } from "../keymap/notation.js";
 
+/** Flat `sequence → command` view of a keymap (ADR 0150 keeps it sparse). */
 export type KeybindingMap = Record<string, string>;
 
-export const DEFAULT_KEYBINDINGS = {
-  "Control+l": "command.palette",
-  ":": "command.palette",
-  "/": "listing.search",
-  j: "listing.next",
-  x: "item.trash",
-  s: "item.share",
-  e: "item.edit",
-  "?": "help.keymap",
-} satisfies KeybindingMap;
-
-const UNSAFE_TARGETS = /^(https?:|javascript:|data:|\/\/)/i;
+/** Every default binding the core shell has, before any capability adds jumps. */
+export const DEFAULT_KEYBINDINGS: Readonly<KeybindingMap> = Object.freeze(
+  Object.fromEntries(defaultBindings(CORE_COMMANDS)),
+);
 
 export type KeybindingImportResult =
   | { ok: true; bindings: KeybindingMap }
   | { ok: false; message: string; bindings: KeybindingMap };
 
+/**
+ * Check a flat map of keys to command ids and lay it over `previous`. A
+ * refused map changes nothing: the whole of it is read before any of it
+ * counts, and the old map comes back.
+ */
 export function importKeybindings(
   candidate: BoundaryValue,
   previous?: KeybindingMap,
 ): KeybindingImportResult {
-  const base: KeybindingMap = {};
-  Object.assign(base, previous ?? DEFAULT_KEYBINDINGS);
+  const base = { ...(previous ?? DEFAULT_KEYBINDINGS) };
   if (!isJsonObject(candidate)) {
     return {
       ok: false,
@@ -37,50 +37,21 @@ export function importKeybindings(
       bindings: base,
     };
   }
-  const next: KeybindingMap = {};
-  Object.assign(next, base);
-  for (const [key, value] of Object.entries(candidate)) {
-    if (!isString(value)) {
-      return {
-        ok: false,
-        message: `Binding for "${key}" is not an action id.`,
-        bindings: base,
-      };
-    }
-    if (UNSAFE_TARGETS.test(value) || value.includes("://")) {
-      return {
-        ok: false,
-        message: "Keybindings cannot name URLs or endpoints.",
-        bindings: base,
-      };
-    }
-    if (!actionById(value)) {
-      return {
-        ok: false,
-        message: `Unknown action "${value}".`,
-        bindings: base,
-      };
-    }
-    if (!isBindableAction(value)) {
-      const defaults: KeybindingMap = {};
-      Object.assign(defaults, DEFAULT_KEYBINDINGS);
-      if (defaults[key] === value) {
-        next[key] = value;
-        continue;
-      }
-      return {
-        ok: false,
-        message: `Action "${value}" requires confirmation and cannot be rebound to skip it.`,
-        bindings: base,
-      };
-    }
-    next[key] = value;
+  const commands = keymapCommands();
+  const read = readKeymap(
+    { bindings: candidate },
+    commands,
+    defaultBindings(commands),
+  );
+  if (!read.ok) return { ok: false, message: read.message, bindings: base };
+  const next = { ...base };
+  for (const [written, target] of Object.entries(candidate)) {
+    const sequence = canonicalSequence(written);
+    if (sequence !== null && isString(target)) next[sequence] = target;
   }
   return { ok: true, bindings: next };
 }
 
 export function resetKeybindings() {
-  const next: KeybindingMap = {};
-  Object.assign(next, DEFAULT_KEYBINDINGS);
-  return next;
+  return { ...DEFAULT_KEYBINDINGS };
 }

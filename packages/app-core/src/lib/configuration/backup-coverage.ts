@@ -40,7 +40,7 @@ export const BACKUP_COVERAGE: readonly CoverageEntry[] = [
     note: "Local application registrations are a separate VFS document.",
   },
   {
-    path: "settings/keybindings.yaml",
+    path: "settings/keybindings/config.yaml",
     kind: "not_in_vault_export",
     note: "Keybinding maps are presentation data, not vault ciphertext.",
   },

@@ -124,10 +124,12 @@ function jsonValue(
       }
       const keyBoundary: BoundaryValue = overlapCast(item.key.value);
       if (!isString(keyBoundary)) {
+        // A bare `0` or `on` is a number or a boolean: say how to write it.
+        const written = JSON.stringify(String(keyBoundary));
         pushError(
           diagnostics,
           "non_string_key",
-          "Mapping keys must be strings.",
+          `Mapping keys must be strings: write ${written} in quotes.`,
         );
         continue;
       }

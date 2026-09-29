@@ -1,0 +1,92 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Keybindings" },
+        { "scrollToOptional": "Keybindings and views" },
+        {
+          "count": [
+            "#keybindings-source",
+            ".kb-row",
+            ".keycap-btn",
+            ".set__nav a"
+          ]
+        },
+        { "report": ".set__nav a" },
+        { "shot": "1280-keybindings" },
+        { "pressOptional": "Change j for Next row" },
+        { "captureKeysOptional": { "keys": ["k"], "wait": 1400 } },
+        { "labels": ".kb-conflict .status-mark" },
+        { "shot": "1280-conflict" },
+        { "pressOptional": "Swap: Previous row takes the key you replaced" },
+        { "scrollToOptional": "Macros" },
+        { "pressOptional": "New macro" },
+        { "fillOptional": { "label": "Name", "text": "triage" } },
+        { "selectOptional": { "label": "Runs when", "value": "unlock" } },
+        { "pressOptional": "Record steps by pressing keys" },
+        {
+          "captureKeysOptional": {
+            "keys": ["g", "g", "3", "j", "/", "y", "Enter"],
+            "wait": 400
+          }
+        },
+        { "labels": ".kb-steps .status-mark" },
+        { "report": ".kb-step select" },
+        { "shot": "1280-macro" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Keybindings" },
+        { "scrollToOptional": "Keybindings and views" },
+        { "measure": ".keycap-btn" },
+        { "shot": "390-keybindings" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-keybindings",
+      "width": 1280,
+      "title": "Settings › Keybindings — 1280 × 900",
+      "caption": "Before, keybindings were the last panel of Settings › General: a YAML textarea that could remap five commands. After, Keybindings is its own tab: every command in the shell (30 on this plan), each with its keys as keycaps, a find field that also searches by pressing keys, the view filter, a reset, and the WCAG 2.1.4 single-character-keys switch.",
+      "before": "tabs: General · Security · Vaults · Capabilities · Danger; one textarea, 0 keycaps",
+      "after": "tabs: General · Keybindings · Security · Vaults · Capabilities · Danger; 30 command rows + 6 fixed, every key a keycap"
+    },
+    {
+      "shot": "1280-conflict",
+      "width": 1280,
+      "title": "Recording a key that is taken — 1280 × 900",
+      "caption": "After only: the j keycap of Next row is pressed and k is recorded in its place. k belongs to Previous row, so nothing is overwritten: the row names the holder and offers swap, take, or keep. Before, the same screen had no keycaps to press.",
+      "before": "no key capture",
+      "after": "mark: \"k is taken by Previous row\"; keys: swap · take · keep"
+    },
+    {
+      "shot": "1280-macro",
+      "width": 1280,
+      "title": "Recording a macro — 1280 × 900",
+      "caption": "After only: a new macro named triage, run when the vault unlocks, records gg 3j / y. The recorder reads the presses as the shell would, with the person's own keys — j was swapped onto Previous row on the sheet before, so 3j records as 3 × Previous row — and leaves out y (Copy secret), which an event may never run, naming it with a mark.",
+      "before": "no macros",
+      "after": "steps: First row, or row N · 3 × Previous row · Search this pane; mark: \"Left out: item.copy-secret\""
+    },
+    {
+      "shot": "390-keybindings",
+      "width": 390,
+      "title": "Settings › Keybindings — 390 × 844",
+      "caption": "At phone width the name takes the row and the keys share the line under it; every keycap is a 44 × 44 target.",
+      "before": "one textarea",
+      "after": "keycaps 44px and up (measured)"
+    }
+  ]
+}

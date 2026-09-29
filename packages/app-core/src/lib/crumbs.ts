@@ -20,12 +20,13 @@ export type Crumb = {
 
 /**
  * The categories the core Settings page always has, in tab order —
- * General → Security → Vaults → Capabilities → Danger. `connections` is an
+ * General → Keybindings → Security → Vaults → Capabilities → Danger. `connections` is an
  * older category that now reads as Capabilities (`SETTINGS_HASH_ALIAS`); a
  * module may still contribute a category of its own.
  */
 export const SETTINGS_CATEGORIES = [
   "general",
+  "keybindings",
   "security",
   "vaults",
   "capabilities",
@@ -37,6 +38,7 @@ export type SettingsCategory = CoreSettingsCategory | "connections";
 
 export const SETTINGS_CATEGORY_LABEL = {
   general: "General",
+  keybindings: "Keybindings",
   connections: "Connections",
   security: "Security",
   vaults: "Vaults",

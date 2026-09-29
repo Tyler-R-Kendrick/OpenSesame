@@ -57,6 +57,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-28-manifest-export-sheet/`](2026-09-28-manifest-export-sheet/README.md) | The sealed-store manifest is saved from a sheet, and never for a guest |
 | [`2026-09-28-live-sessions/`](2026-09-28-live-sessions/README.md) | Live sessions and the two-road front door (ADR 0150) |
 | [`2026-09-28-live-routes/`](2026-09-28-live-routes/README.md) | Live sessions across networks: optional routes (ADR 0150 §6) |
+| [`2026-09-28-keybindings/`](2026-09-28-keybindings/README.md) | Keybindings get their own Settings tab |
 | [`2026-09-28-host-less-connect/`](2026-09-28-host-less-connect/README.md) | Connector pages on a device with no Host: they act, or are not drawn |
 | [`2026-09-28-duress-and-travel-usable/`](2026-09-28-duress-and-travel-usable/README.md) | Duress and travel, usable from Settings — visual evidence |
 | [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
