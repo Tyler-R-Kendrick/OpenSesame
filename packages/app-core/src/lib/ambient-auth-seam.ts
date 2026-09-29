@@ -16,7 +16,6 @@
  */
 
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
-import { compositionStore } from "./capabilities/store.js";
 import type { CompletedSignIn } from "./federation.js";
 
 export type AmbientReturnResult = { returnTo?: string };
@@ -68,6 +67,17 @@ function pending(): Installed {
 
 let installed = pending();
 
+/**
+ * Whether the current plan approves ambient SSO. The composition store
+ * writes this. Reading the store from here would cycle back through
+ * federation, which is what calls this seam.
+ */
+let ambientSsoApproved = false;
+
+export function noteAmbientSsoApproved(approved: boolean): void {
+  ambientSsoApproved = approved;
+}
+
 export const ambientSeamTimers = {
   wait: (ms: number): Promise<void> =>
     new Promise((done) => setTimeout(done, ms)),
@@ -98,8 +108,7 @@ async function applyWhenInstalled(
 async function completeWhenInstalled(
   search: string,
 ): Promise<CompletedSignIn | null> {
-  const approved = compositionStore.getSnapshot().plan?.approvedCapabilities;
-  if (!approved?.includes("identity.ambient-sso")) return null;
+  if (!ambientSsoApproved) return null;
   await Promise.race([
     installed.ready,
     ambientSeamTimers.wait(AMBIENT_INSTALL_WAIT_MS),

@@ -122,7 +122,7 @@ function readRawSettings(): JsonObject | undefined {
 }
 
 function readCapabilityConnectors(
-  value: JsonValue,
+  value: JsonObject,
 ): Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>> {
   const connectors: Partial<
     Record<CapabilityId, Partial<CapabilityConnectorBinding>>
