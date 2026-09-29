@@ -141,6 +141,14 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
 
     let broker = state.connection_broker.as_ref();
     let policy = enabled_policy_for(state, event, &target).await;
+    // A web login is a run its owner's browser drives, hooked end to end; the
+    // runner claims, runs, announces and releases on its own clock (ADR 0150).
+    if let RotationTarget::WebLogin { origin } = &target {
+        let launcher = crate::web_login::WebLoginLauncher::new(state.clone(), None);
+        return launcher
+            .rotate(event, origin, &organization_id, policy)
+            .await;
+    }
 
     // Claim before acting. A policy-less run is operator-triggered and has no
     // lease to take; a policy-backed one must win its lease or stand down.
@@ -173,11 +181,9 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     )
     .await;
 
-    let mut job_id = None;
     let outcome = match requested {
         Err(error) => Outcome::failed(format!("rotation request failed: {}", error.hint())),
         Ok(job) => {
-            job_id = Some(job.id.clone());
             match execute_rotation(broker, bus.as_ref(), &organization_id, &job.id).await {
                 // The failure is already persisted on the job and in the
                 // changelog; the outcome event makes it visible to subscribers
@@ -190,22 +196,6 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
         }
     };
     drop(bus);
-
-    // A web login is observed, so its runs are announced on the agent feed as
-    // well as the lifecycle one. The two say different things: `lifecycle.*`
-    // reports that a deadline was acted on, `agent.*` reports that a run needs
-    // a person — and it is the second that a phone should ring for.
-    if event.subject.kind == SubjectKind::WebLogin {
-        publish_agent_phase(
-            state,
-            event,
-            policy.as_ref().and_then(|p| p.owner_subject.clone()),
-            job_id,
-            &outcome,
-        )
-        .await;
-    }
-
     if let Some(policy) = policy {
         release_policy(broker, &policy, &outcome).await;
     }
@@ -222,13 +212,16 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
 /// remembers to fill in.
 const WEB_LOGIN_RESPONSE_WINDOW_SECONDS: i64 = 3_600;
 
-/// Announce a web-login run's outcome on the `agent.*` feed.
+/// Announce a web-login run's outcome on the `agent.*` feed. A web login is
+/// observed, so its runs are announced there as well as on the lifecycle one:
+/// `lifecycle.*` reports that a deadline was acted on, `agent.*` that a run
+/// needs a person — and it is the second that a phone should ring for.
 ///
 /// A failed web-login rotation is not merely a failure: ADR 0076's whole T5
 /// design is that a run which cannot continue parks and asks a person to show
 /// it the way through. So failure maps to `agent.run.blocked` — an escalation
 /// with a deadline — rather than to a notice nobody is expected to answer.
-async fn publish_agent_phase(
+pub(crate) async fn publish_agent_phase(
     state: &AppState,
     event: &LifecycleEvent,
     owner_subject: Option<String>,
@@ -291,7 +284,7 @@ async fn publish_agent_phase(
 /// Success advances `last_rotated_at` and schedules the next attempt one
 /// interval out, which is what moves the subject's deadline and resets the
 /// ladder. Failure backs off, and parks once the attempts are exhausted.
-async fn release_policy(
+pub(crate) async fn release_policy(
     broker: &opensesame_connection_broker::ConnectionBroker,
     policy: &RotationPolicy,
     outcome: &Outcome,
