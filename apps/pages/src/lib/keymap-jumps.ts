@@ -14,6 +14,7 @@ import {
   assertNavigationContribution,
   contributionsSnapshot,
 } from "@opensesame/app-core/lib/contributions.js";
+import { sectionCommandId } from "@opensesame/app-core/lib/keymap/commands.js";
 
 const CORE_JUMPS: ReadonlyMap<string, string> = new Map([
   ["v", "/vault"],
@@ -30,7 +31,13 @@ export function sectionJumpPath(key: string): string | null {
   const jump = contributionsSnapshot("keymap-jump").find(
     (entry) => entry.key === key,
   );
-  if (!jump) return null;
+  return jump ? authorizedJumpPath(jump) : null;
+}
+
+/** `jump`'s path when its own contribution still holds authority, else null. */
+function authorizedJumpPath(jump: { key: string; path: string }):
+  | string
+  | null {
   try {
     assertNavigationContribution(
       "keymap-jump",
@@ -41,6 +48,22 @@ export function sectionJumpPath(key: string): string | null {
     throw error;
   }
   return jump.path;
+}
+
+/**
+ * The path a `section.<id>` command opens (ADR 0150), gated exactly as a
+ * `g <key>` press is: null when no jump names it or its capability no longer
+ * holds authority, so a stale binding is swallowed rather than obeyed.
+ */
+export function sectionCommandPath(commandId: string): string | null {
+  for (const path of CORE_JUMPS.values()) {
+    if (sectionCommandId(path) === commandId) return path;
+  }
+  const jump = contributionsSnapshot("keymap-jump").find(
+    (entry) => sectionCommandId(entry.path) === commandId,
+  );
+  // The command's own contribution, not the first one that shares its key.
+  return jump ? authorizedJumpPath(jump) : null;
 }
 
 /** Every jump key that exists right now, in the rail's order. */

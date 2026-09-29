@@ -324,14 +324,19 @@ const browser = await chromium.launch(launch);
     .click();
   await page.waitForTimeout(2500);
   const dialog = page.getByRole("dialog");
-  const scan = await snap(page, "2-password-scan");
+  await snap(page, "2-password-scan");
   check(
     (await dialog.locator(".steps__seg.is-now .steps__label").textContent()) ===
       "1 · Scan",
     "straight to Scan — no key step for a vault that has one",
   );
+  // The sheet's own steps, not the page: the rail beside it names sections
+  // (Settings › Keybindings) that have a "Key" of their own.
+  const steps = await dialog.locator(".steps__label").allTextContents();
   check(
-    /2 · Confirm/.test(scan) && !/Key/.test(scan),
+    steps.length === 2 &&
+      /2 · Confirm/.test(steps.join(" ")) &&
+      !steps.some((label) => /Key/.test(label)),
     "two steps, no key step",
   );
   const secret = await readSeed(page, check);

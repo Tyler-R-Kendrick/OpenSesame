@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { useKeymapEvents } from "../lib/keymap-events.js";
 import {
   createChordState,
   createKeymapHandler,
@@ -130,6 +131,9 @@ function Shell({ children }: { children?: ReactNode }) {
   useEffect(() => installRouterNavigate(navigate), [navigate]);
 
   useEffect(() => registerKeymapHelp(showKeymap), [showKeymap]);
+
+  // A macro bound to `on: unlock` or `on: enter:<section>` (ADR 0150).
+  useKeymapEvents(useVaultStore(), navigate);
 
   return (
     <div className="app">

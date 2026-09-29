@@ -1,11 +1,63 @@
-import { keysForAction } from "@opensesame/app-core/lib/configuration/nav-persist.js";
-import { useRef } from "react";
+import {
+  type KeymapCommand,
+  NOP,
+  keymapCommands,
+} from "@opensesame/app-core/lib/keymap/commands.js";
+import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
+import {
+  CONTEXT_LABEL,
+  KEYMAP_CONTEXTS,
+  type KeymapContext,
+} from "@opensesame/app-core/lib/keymap/context.js";
+import { targetLabel } from "@opensesame/app-core/lib/keymap/effective.js";
+import {
+  keycapLabel,
+  parseSequence,
+} from "@opensesame/app-core/lib/keymap/notation.js";
+import {
+  loadKeymap,
+  subscribeKeymap,
+} from "@opensesame/app-core/lib/keymap/store.js";
+import { useRef, useSyncExternalStore } from "react";
 
 import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
 
 import { useContributions } from "../bindings/contributions.js";
+/**
+ * A person's own keys as rows: everywhere first, then each listing's
+ * (ADR 0150 §6), each saying where it holds.
+ */
+function yourKeys(keymap: KeymapConfig, commands: readonly KeymapCommand[]) {
+  const said = (sequence: string) =>
+    (parseSequence(sequence) ?? [sequence]).map(keycapLabel).join(" ");
+  const row = (sequence: string, target: string, context?: KeymapContext) => {
+    const where = context ? CONTEXT_LABEL[context] : null;
+    const action =
+      target === NOP
+        ? ["unbound", where]
+        : [
+            `${targetLabel(target, commands)} (yours${where ? `, ${where}` : ""})`,
+          ];
+    return {
+      id: `${context ?? ""}:${sequence}`,
+      keys: said(sequence),
+      action: action.filter(Boolean).join(" "),
+    };
+  };
+  return [
+    ...Object.entries(keymap.bindings).map(([sequence, target]) =>
+      row(sequence, target),
+    ),
+    ...KEYMAP_CONTEXTS.flatMap((context) =>
+      Object.entries(keymap.contexts?.[context] ?? {}).map(
+        ([sequence, target]) => row(sequence, target, context),
+      ),
+    ),
+  ];
+}
+
 export function KeymapSheet({
   open,
   close,
@@ -20,6 +72,12 @@ export function KeymapSheet({
   useContributions("command-assist");
   useContributions("secret-share");
   const rows = keymapHelp();
+  const keymap = useSyncExternalStore(subscribeKeymap, loadKeymap, loadKeymap);
+  const commands = keymapCommands();
+  // A person's own keys (ADR 0150), after the defaults: what they bound,
+  // and the defaults they took away, so the sheet never promises a key the
+  // handler would not run.
+  const yours = yourKeys(keymap, commands);
 
   if (!open) return null;
   return (
@@ -63,16 +121,14 @@ export function KeymapSheet({
                   <td>{action}</td>
                 </tr>
               ))}
-              {keysForAction("item.edit").map((key) =>
-                key === "e" ? null : (
-                  <tr key={`custom-${key}`}>
-                    <th scope="row">
-                      <kbd>{key}</kbd>
-                    </th>
-                    <td>Edit (custom)</td>
-                  </tr>
-                ),
-              )}
+              {yours.map(({ id, keys, action }) => (
+                <tr key={`yours-${id}`}>
+                  <th scope="row">
+                    <kbd>{keys}</kbd>
+                  </th>
+                  <td>{action}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

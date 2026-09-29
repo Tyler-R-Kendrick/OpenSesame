@@ -29,8 +29,10 @@ export async function walkJFile({ page, origin, base, check, snap }) {
   );
   await snap(page, "J-FILE-yaml");
   await openConfigForm(page, "General");
+  // Keybindings left General for their own tab (ADR 0150). Pending approvals
+  // are not a setting. Locking is the panel that stayed.
   await page
-    .getByRole("heading", { name: "Keybindings" })
+    .getByRole("heading", { name: "Locking" })
     .waitFor({ timeout: 8000 });
   check(
     (await page.getByLabel("Clear copied secrets after").count()) > 0,
@@ -62,7 +64,30 @@ export async function walkJFile({ page, origin, base, check, snap }) {
     .first()
     .click();
   await page
-    .getByRole("heading", { name: "Keybindings" })
+    .getByRole("heading", { name: "Locking" })
     .waitFor({ timeout: 8000 });
-  check(true, "General link still reaches the same draft");
+  check(
+    (await page.getByRole("heading", { name: "Locking" }).count()) === 1 &&
+      (await page.getByLabel("Clear copied secrets after").count()) > 0,
+    "General link still reaches the same draft",
+  );
+  // Keybindings is its own category with its own document (ADR 0150).
+  await openConfigFile(page, "keybindings");
+  check(
+    (await page.locator(".set-raw__path").innerText()).includes(
+      "settings/keybindings/config.yaml",
+    ),
+    "keybindings/config.yaml is the document the Keybindings tab edits",
+  );
+  await openConfigForm(page, "Keybindings");
+  await page
+    .getByRole("heading", { name: "Keymap" })
+    .waitFor({ timeout: 8000 });
+  check(
+    (await page.getByRole("heading", { name: "Keymap" }).count()) === 1 &&
+      (await page
+        .getByRole("button", { name: "Change j for Next row" })
+        .count()) === 1,
+    "the Keybindings tab draws the same keymap as its file",
+  );
 }
