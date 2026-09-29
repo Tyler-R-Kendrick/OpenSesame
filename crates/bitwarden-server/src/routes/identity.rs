@@ -103,14 +103,28 @@ async fn password_grant(
         server.sign_in_failures.record_failure(&email);
         return Err(ApiError::invalid_grant());
     };
-    if !server
-        .check_secret(&user.id, &user.master_password_hash, secret)
-        .await?
+    // "Log in with device": the password is the access code of a request
+    // one of the account's devices approved, spent here once; it stands in
+    // for both steps, as on Bitwarden.
+    let by_device = match form.get("authRequest").filter(|id| !id.is_empty()) {
+        Some(request) => super::auth_requests::spend(server, &user, request, secret).await?,
+        None => false,
+    };
+    if !by_device
+        && (form.contains_key("authRequest")
+            || !server
+                .check_secret(&user.id, &user.master_password_hash, secret)
+                .await?)
     {
         server.sign_in_failures.record_failure(&email);
         return Err(ApiError::invalid_grant());
     }
-    let passed = match second_step::check(server, &user, identifier, form).await {
+    let second = if by_device {
+        Ok(second_step::Passed { remember: false })
+    } else {
+        second_step::check(server, &user, identifier, form).await
+    };
+    let passed = match second {
         Ok(passed) => passed,
         Err(refused) => {
             // A wrong code counts against the address like a wrong password.
