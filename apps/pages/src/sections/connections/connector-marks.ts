@@ -57,7 +57,6 @@ import {
   siVault,
   siVaultwarden,
   siVercel,
-  siYubico,
   siZoom,
 } from "simple-icons";
 
@@ -139,7 +138,6 @@ const MARKS = {
   "proton-pass": markOf(siProton),
   vault: markOf(siVault),
   "password-store": markOf(siGnuprivacyguard),
-  yubikey: markOf(siYubico),
 } satisfies Record<string, ConnectorMarkDef>;
 
 export function connectorMark(providerId: string): ConnectorMarkDef | null {

@@ -29,7 +29,13 @@ export function githubConnectorStatus(
   connections: Connection[],
   backupReady: boolean,
   localApp: boolean,
+  available = true,
 ): ConnectorTitleStatus {
+  // A page reached with nothing to do on this device says so in its own mark,
+  // not "Not enabled": there is no switch or key here that would enable it.
+  if (!available && connection === null && connections.length === 0) {
+    return { tone: "idle", label: "Not available here" };
+  }
   if (provider.id === "github") {
     if (connection !== null && !backupReady) {
       return {

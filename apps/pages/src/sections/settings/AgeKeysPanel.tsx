@@ -1,8 +1,9 @@
 /**
  * Settings › Security — age key inventory (typage), not a Connections broker.
  *
- * Configures recipients and the sealed identity used when encryption capability
- * is bound to age. Browser crypto is FiloSottile typage (`age-encryption`).
+ * Configures recipients and the sealed identity for age documents. Browser
+ * crypto is FiloSottile typage (`age-encryption`). A key that protects the
+ * vault itself is enrolled under Vault key protection, never sealed here.
  */
 
 import {
@@ -12,21 +13,9 @@ import {
   readAgeKeyConfig,
   writeAgeKeyConfig,
 } from "@opensesame/app-core/lib/age-keys.js";
-import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
-import {
-  bindCapabilityConnector,
-  bindingNeedsAuth,
-} from "@opensesame/app-core/lib/capability-bind.js";
-import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import { type FormEvent, useEffect, useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconKey } from "../../components/IconKey.js";
-import {
-  IconCheck,
-  IconLock,
-  IconRefresh,
-  IconSecret,
-} from "../../components/Icons.js";
+import { IconCheck, IconRefresh, IconSecret } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -35,8 +24,6 @@ import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 type Flash = { tone: "ok" | "warn" | "err"; text: string } | null;
 
 export const ageKeysPanelDependencies = {
-  loadSettings,
-  bindCapabilityConnector,
   readAgeKeyConfig,
   writeAgeKeyConfig,
   generateAgeKeyPair,
@@ -46,10 +33,6 @@ export const ageKeysPanelDependencies = {
 export function AgeKeysPanel() {
   const { tomb } = useVault();
   const panelRef = useGuideTarget<HTMLElement>("settings.age-keys");
-  const [binding, setBinding] = useState(
-    () =>
-      ageKeysPanelDependencies.loadSettings().capabilityConnectors.encryption,
-  );
   const [config, setConfig] = useState<AgeKeyConfig>({
     recipients: [],
     identity: null,
@@ -60,8 +43,6 @@ export function AgeKeysPanel() {
   const [flash, setFlash] = useState<Flash>(null);
   const [busy, setBusy] = useState(false);
 
-  const active = binding.providerId === "age";
-
   useEffect(() => {
     if (!tomb) {
       setConfig({ recipients: [], identity: null, identities: [] });
@@ -69,27 +50,19 @@ export function AgeKeysPanel() {
       return;
     }
     let cancelled = false;
-    void ageKeysPanelDependencies.readAgeKeyConfig(tomb).then((next) => {
-      if (cancelled) return;
-      setConfig(next);
-      setRecipientsText(next.recipients.join("\n"));
-    });
+    void ageKeysPanelDependencies
+      .readAgeKeyConfig(tomb)
+      .then((next) => {
+        if (cancelled) return;
+        setConfig(next);
+        setRecipientsText(next.recipients.join("\n"));
+      })
+      // A tomb whose key is not held yet reads as no keys, not as a crash.
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [tomb]);
-
-  function useAge() {
-    const next = ageKeysPanelDependencies.bindCapabilityConnector(
-      "encryption",
-      "age",
-    );
-    setBinding(next);
-    setFlash({
-      tone: "ok",
-      text: `${connectorLabel("age")} is selected for post-unlock file encryption — not vault key protection. Generate or import an identity below.`,
-    });
-  }
 
   async function saveRecipients(event: FormEvent) {
     event.preventDefault();
@@ -210,6 +183,10 @@ export function AgeKeysPanel() {
     }
   }
 
+  // Age keys are sealed into a vault. Without one (a guest, a locked device)
+  // every control here would be disabled, so none is drawn.
+  if (!tomb) return null;
+
   return (
     <section className="panel" id="age-keys" ref={panelRef}>
       <div className="panel__head">
@@ -220,7 +197,7 @@ export function AgeKeysPanel() {
           <button
             type="button"
             className="icon-btn icon-btn--sm"
-            disabled={!tomb || busy || bindingNeedsAuth("encryption", binding)}
+            disabled={!tomb || busy}
             aria-label="Prove round-trip"
             title="Prove round-trip"
             onClick={() => void prove()}
@@ -231,33 +208,6 @@ export function AgeKeysPanel() {
       </div>
       <div className="panel__body">
         {flash ? <StatusNote message={flash} /> : null}
-        {/* Which key seals files here, and the key that makes it age — a
-            row of its own. In the panel head, the connector's name, its
-            glyph and three keys wrapped on a phone and left the ✓ alone. */}
-        <div className="keyed-row">
-          <span className="label">Encryption</span>
-          <span className="age-keys__using">
-            {active ? "age" : connectorLabel(binding.providerId)}
-          </span>
-          {active ? (
-            <StatusMark tone="ok" label="age seals files on this device" />
-          ) : (
-            <IconKey
-              label="Use age on this device"
-              small
-              disabled={!tomb || busy}
-              onClick={useAge}
-            >
-              <IconLock size={16} />
-            </IconKey>
-          )}
-        </div>
-        {!tomb ? (
-          <p className="hint">
-            Unlock a vault to configure the age key inventory.
-          </p>
-        ) : null}
-
         <form onSubmit={(event) => void saveRecipients(event)}>
           <div className="keyed-field">
             <label htmlFor="age-recipients">Recipients</label>

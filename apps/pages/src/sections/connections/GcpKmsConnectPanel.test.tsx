@@ -62,9 +62,6 @@ describe("Google Cloud KMS connector", () => {
     Object.assign(gcpKmsConnectDependencies, originalDeps);
     vaultHooksSeams.useVault = () =>
       vaultState({ status: "unlocked", guest: false, tomb: "personal" });
-    gcpKmsConnectDependencies.loadSettings = () => ({
-      capabilityConnectors: { encryption: { providerId: "webcrypto" } },
-    });
     gcpKmsConnectDependencies.readGcpKmsConfig = async () => ({
       keyName: "",
       projectId: "",
@@ -80,9 +77,6 @@ describe("Google Cloud KMS connector", () => {
       configVersion: "1",
     });
     gcpKmsConnectDependencies.clearGcpKmsConfig = async () => undefined;
-    gcpKmsConnectDependencies.bindCapabilityConnector = (_cap, providerId) => ({
-      providerId,
-    });
   });
 
   afterEach(() => {

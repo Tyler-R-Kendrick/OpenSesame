@@ -11,9 +11,7 @@ import {
   setConnectionCredential,
 } from "@opensesame/app-core/lib/connections.js";
 import {
-  configurationDefaults,
   configurationPayload,
-  fieldGuidance,
   needsScopeSelection,
 } from "@opensesame/app-core/lib/connector-guidance.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
@@ -24,19 +22,21 @@ import {
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useId, useState } from "react";
-import { FormCommit } from "../../components/FormCommit.js";
-import { IconInfo } from "../../components/Icons.js";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
+import { ApiKeyForm } from "./ApiKeyForm.js";
+import { ConfigurationForm } from "./ConfigurationForm.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 import { OauthConnectBody } from "./OauthConnectBody.js";
+import { defaultsFor } from "./connect-defaults.js";
+import { useConnectSave } from "./useConnectSave.js";
 
-export function defaultsFor(provider: Provider) {
-  const defaults = new Map<string, string>();
-  for (const [key, value] of Object.entries(configurationDefaults(provider))) {
-    if (value !== undefined) defaults.set(key, value);
-  }
-  return Object.fromEntries(defaults);
-}
-
+/**
+ * A connector's own form. A git remote is sealed on this device and GitHub's
+ * App is registered from the browser; every other form saves through a road
+ * that must be open (`formRoad`), and with none open it is not drawn — a key
+ * that could only fail is not offered (ADR 0150). What a person types stays
+ * until the save has worked; a failure is said beside the key and in the bell.
+ */
 export function ConnectForm({
   provider,
   online,
@@ -58,9 +58,16 @@ export function ConnectForm({
   const [configuration, setConfiguration] = useState<Record<string, string>>(
     () => defaultsFor(provider),
   );
-  const [busy, setBusy] = useState(false);
+  const [authorizing, setAuthorizing] = useState(false);
   const nameId = useId();
   const keyId = useId();
+  const sealing = useConnectSave(provider, {
+    onFlash,
+    onConnected,
+    onRememberOffer,
+  });
+  const road = useConnectorRoads().form(provider);
+  const busy = sealing.busy || authorizing;
   const missingScope = needsScopeSelection(provider, scopes);
 
   function toggle(scope: string) {
@@ -75,7 +82,7 @@ export function ConnectForm({
     // Opened synchronously or the browser treats it as an unsolicited popup;
     // the real destination is set once the broker has issued the state.
     const popup = openConsentPopup("about:blank");
-    setBusy(true);
+    setAuthorizing(true);
     let created = false;
     try {
       if (!usesConnect(provider.id)) await ensureHostSession();
@@ -124,67 +131,35 @@ export function ConnectForm({
       onFlash({ tone: "err", text: errorText(error) });
       if (created) onConnected();
     } finally {
-      setBusy(false);
+      setAuthorizing(false);
     }
   }
 
   async function saveKey(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
-    let created = false;
-    try {
-      const connection = await createConnection({
-        providerId: provider.id,
-        displayName: name.trim() || provider.displayName,
-        scopes: scopes.length > 0 ? scopes : undefined,
-      });
-      created = true;
-      await setConnectionCredential(connection.connectionId, apiKey.trim());
-      setApiKey("");
-      onFlash({
-        tone: "ok",
-        text:
-          provider.id === "github"
-            ? "GitHub connected."
-            : `${provider.displayName} connected.`,
-      });
-      onRememberOffer?.(connection);
-      onConnected();
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-      if (created) onConnected();
-    } finally {
-      setBusy(false);
-    }
+    const saved = await sealing.save(
+      { name, scopes: scopes.length > 0 ? scopes : undefined },
+      async (connection) => {
+        await setConnectionCredential(connection.connectionId, apiKey.trim());
+      },
+      provider.id === "github"
+        ? "GitHub connected."
+        : `${provider.displayName} connected.`,
+    );
+    if (saved) setApiKey("");
   }
 
-  async function saveConfiguration(event: FormEvent<HTMLFormElement>) {
+  async function saveConfiguration(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
-    const form = event.currentTarget;
     const payload = configurationPayload(provider, configuration);
-    form.reset();
-    setConfiguration(defaultsFor(provider));
-    let created = false;
-    try {
-      const connection = await createConnection({
-        providerId: provider.id,
-        displayName: name.trim() || provider.displayName,
-      });
-      created = true;
-      await setConnectionConfiguration(connection.connectionId, payload);
-      onFlash({
-        tone: "ok",
-        text: `${provider.displayName} configuration saved.`,
-      });
-      onRememberOffer?.(connection);
-      onConnected();
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-      if (created) onConnected();
-    } finally {
-      setBusy(false);
-    }
+    const saved = await sealing.save(
+      { name },
+      async (connection) => {
+        await setConnectionConfiguration(connection.connectionId, payload);
+      },
+      `${provider.displayName} configuration saved.`,
+    );
+    if (saved) setConfiguration(defaultsFor(provider));
   }
 
   if (isGitBackupProvider(provider.id)) {
@@ -200,133 +175,36 @@ export function ConnectForm({
   }
 
   if (provider.authKind === "configuration") {
-    const defaults = defaultsFor(provider);
-    const fields = provider.configurationFields ?? [];
-    const requiredFields = fields.filter(
-      (field) => field.required && defaults[field.name] === undefined,
-    );
-    const optionalFields = fields.filter(
-      (field) => !requiredFields.includes(field),
-    );
-    const renderFields = (configurationFields: typeof fields) =>
-      configurationFields.map((field) => {
-        const id = `${nameId}-${field.name}`;
-        const guidance = fieldGuidance(field);
-        const automatic = defaults[field.name];
-        return (
-          <div className="field" key={field.name}>
-            <label className="label conn-field-label" htmlFor={id}>
-              {field.label}
-              {automatic
-                ? " (automatic)"
-                : field.required
-                  ? " (required)"
-                  : " (optional)"}
-              <span title={guidance.help} aria-hidden="true">
-                <IconInfo size={14} />
-              </span>
-            </label>
-            <input
-              id={id}
-              name={field.name}
-              type={
-                field.secret
-                  ? "password"
-                  : field.name.endsWith("_url")
-                    ? "url"
-                    : "text"
-              }
-              autoComplete="off"
-              required={field.required}
-              placeholder={guidance.placeholder}
-              aria-describedby={`${id}-help`}
-              title={guidance.help}
-              value={configuration[field.name] ?? ""}
-              onChange={(event) =>
-                setConfiguration((current) => ({
-                  ...current,
-                  [field.name]: event.target.value,
-                }))
-              }
-            />
-            <p className="hint" id={`${id}-help`}>
-              {guidance.help}
-              {automatic ? " Filled automatically; change it if needed." : ""}
-            </p>
-          </div>
-        );
-      });
-
-    return (
-      <form className="conn-tile__body" onSubmit={saveConfiguration}>
-        {renderFields(requiredFields)}
-        <details className="conn-client-alt">
-          <summary>Optional settings</summary>
-          <div className="field">
-            <label className="label" htmlFor={nameId}>
-              Name it (optional)
-            </label>
-            <input
-              id={nameId}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-            <p className="hint">
-              Only changes the label in OpenSesame; the provider never sees it.
-            </p>
-          </div>
-          {renderFields(optionalFields)}
-        </details>
-        <p className="hint">
-          Secret fields are sealed on arrival and are never returned to this
-          browser.
-        </p>
-        <FormCommit
-          label={busy ? "Saving" : "Save configuration"}
-          disabled={busy || !online}
-        />
-      </form>
+    return road === null ? null : (
+      <ConfigurationForm
+        provider={provider}
+        name={name}
+        values={configuration}
+        busy={busy}
+        online={online}
+        failure={sealing.failure}
+        onName={setName}
+        onValue={(field, value) =>
+          setConfiguration((current) => ({ ...current, [field]: value }))
+        }
+        onSubmit={(event) => void saveConfiguration(event)}
+      />
     );
   }
 
   if (provider.authKind === "api_key") {
-    return (
-      <form className="conn-tile__body" onSubmit={saveKey}>
-        <div className="field">
-          <label className="label" htmlFor={keyId}>
-            API key
-          </label>
-          <input
-            id={keyId}
-            type="password"
-            autoComplete="off"
-            placeholder="Paste API key once"
-            title="Paste once. It is not shown again."
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
-        </div>
-        <details className="conn-client-alt">
-          <summary>Optional settings</summary>
-          <div className="field">
-            <label className="label" htmlFor={nameId}>
-              Name it (optional)
-            </label>
-            <input
-              id={nameId}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-            <p className="hint">
-              Only changes the label in OpenSesame; the provider never sees it.
-            </p>
-          </div>
-        </details>
-        <FormCommit
-          label={busy ? "Saving" : `Connect ${provider.displayName}`}
-          disabled={busy || !online || apiKey.trim() === ""}
-        />
-      </form>
+    return road === null ? null : (
+      <ApiKeyForm
+        provider={provider}
+        name={name}
+        apiKey={apiKey}
+        busy={busy}
+        online={online}
+        failure={sealing.failure}
+        onName={setName}
+        onApiKey={setApiKey}
+        onSubmit={(event) => void saveKey(event)}
+      />
     );
   }
 
@@ -335,6 +213,8 @@ export function ConnectForm({
       provider={provider}
       online={online}
       busy={busy}
+      road={road}
+      failure={sealing.failure}
       name={name}
       nameId={nameId}
       keyId={keyId}

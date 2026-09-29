@@ -1,3 +1,4 @@
+import type { FormRoad } from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import {
   readLocalGithubApp,
@@ -46,6 +47,7 @@ function PatForm({
   provider,
   online,
   busy,
+  failure,
   keyId,
   apiKey,
   onApiKey,
@@ -54,6 +56,8 @@ function PatForm({
   provider: Provider;
   online: boolean;
   busy: boolean;
+  /** The sentence for the last try that failed, drawn beside the key. */
+  failure: string;
   keyId: string;
   apiKey: string;
   onApiKey: (value: string) => void;
@@ -87,8 +91,11 @@ function PatForm({
       </div>
       <FormCommit
         label={busy ? "Saving" : `Connect ${provider.displayName} with token`}
+        busy={busy}
         disabled={busy || !online || apiKey.trim() === ""}
-      />
+      >
+        {failure ? <StatusMark tone="err" label={failure} /> : null}
+      </FormCommit>
     </form>
   );
 }
@@ -159,6 +166,8 @@ export function OauthConnectBody({
   provider,
   online,
   busy,
+  road,
+  failure,
   name,
   nameId,
   keyId,
@@ -175,6 +184,12 @@ export function OauthConnectBody({
   provider: Provider;
   online: boolean;
   busy: boolean;
+  /**
+   * The road the OAuth client, Authorize and token forms save through; null
+   * when none is open, and only what the browser does alone is drawn.
+   */
+  road: FormRoad | null;
+  failure: string;
   name: string;
   nameId: string;
   keyId: string;
@@ -211,27 +226,31 @@ export function OauthConnectBody({
       <OauthClientPanel
         provider={provider}
         online={online}
+        clientForm={road !== null}
         onFlash={onFlash}
         onClientState={setHasClient}
       />
-      <AuthorizeForm
-        provider={provider}
-        online={online}
-        busy={busy}
-        name={name}
-        nameId={nameId}
-        scopes={scopes}
-        missingScope={missingScope}
-        oauthReady={oauthReady}
-        onName={onName}
-        onToggleScope={onToggleScope}
-        onConnectOauth={onConnectOauth}
-      />
-      {acceptsPat && !oauthReady ? (
+      {road === null ? null : (
+        <AuthorizeForm
+          provider={provider}
+          online={online}
+          busy={busy}
+          name={name}
+          nameId={nameId}
+          scopes={scopes}
+          missingScope={missingScope}
+          oauthReady={oauthReady}
+          onName={onName}
+          onToggleScope={onToggleScope}
+          onConnectOauth={onConnectOauth}
+        />
+      )}
+      {road === "host" && acceptsPat && !oauthReady ? (
         <PatForm
           provider={provider}
           online={online}
           busy={busy}
+          failure={failure}
           keyId={keyId}
           apiKey={apiKey}
           onApiKey={onApiKey}
