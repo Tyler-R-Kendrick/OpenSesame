@@ -144,16 +144,15 @@ describe("planStoreManifest", () => {
 });
 
 describe("storeManifestFile", () => {
-  it("writes live, real items only, as a JSON array pass seal reads", () => {
+  it("writes live items only, as a JSON array pass seal reads", () => {
     const real = createItem("secret", "Token");
     real.value = "t0k3n"; // gitleaks:allow -- fixture
-    const sample = { ...createItem("login", "Demo"), sample: true };
     const trashed = {
       ...createItem("login", "Old"),
       deletedAt: "2026-01-01T00:00:00Z",
     };
     const file = storeManifestFile(
-      [real, sample, trashed],
+      [real, trashed],
       [],
       new Date("2026-09-27T10:00:00Z"),
     );

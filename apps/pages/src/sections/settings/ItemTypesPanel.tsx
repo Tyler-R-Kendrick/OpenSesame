@@ -1,10 +1,9 @@
 /**
  * The Vaults category of Settings: the vault switcher, travel (ADR 0143),
  * then the item types those vaults can hold (`item-types/`, ADR 0087 §7 and
- * ADR 0134), then the open vault's sample data.
+ * ADR 0134).
  */
 import type { ComponentType } from "react";
-import { SampleDataPanel } from "./SampleDataPanel.js";
 import { ItemTypesPanel } from "./item-types/ItemTypesPanel.js";
 import { TravelPanel } from "./travel/TravelPanel.js";
 
@@ -19,7 +18,6 @@ export function VaultsAndTypes({
       <VaultsPanel />
       <TravelPanel />
       <ItemTypesPanel />
-      <SampleDataPanel />
     </>
   );
 }

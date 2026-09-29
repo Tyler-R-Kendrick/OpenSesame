@@ -92,6 +92,9 @@ export function FieldShell({
           value={value}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          // Codes and secrets are not prose: no capital, no correction.
+          autoCapitalize={mono ? "off" : undefined}
+          spellCheck={mono ? false : undefined}
           inputMode={inputMode}
           disabled={disabled}
           readOnly={readOnly}

@@ -82,7 +82,7 @@ afterEach(() => {
 
 async function openBundle(bundleJson: string, returnCode: string) {
   fireEvent.click(
-    await screen.findByRole("button", { name: "Bring vaults home" }),
+    await screen.findByRole("button", { name: "Turn off travel mode" }),
   );
   const bundle = new File([bundleJson], "trip.travel.json", {
     type: "application/json",
@@ -97,7 +97,7 @@ async function openBundle(bundleJson: string, returnCode: string) {
     target: { value: returnCode },
   });
   fireEvent.click(screen.getByRole("button", { name: "Open the bundle" }));
-  await screen.findByRole("list", { name: "Vaults in the bundle" });
+  await screen.findByText("Ready to come home");
 }
 
 describe("Travel › coming home (ADR 0143)", () => {
@@ -107,7 +107,9 @@ describe("Travel › coming home (ADR 0143)", () => {
     render(<TravelPanel />);
     await openBundle(pkg.bundleJson, pkg.returnCode);
 
-    expect(screen.getByText("5 files · 1 site grant")).toBeTruthy();
+    expect(
+      screen.getByText("5 files · 1 site grant · Comes home"),
+    ).toBeTruthy();
     const tick = screen.getByRole("checkbox", {
       name: "Let these sites in again: https://a.example",
     });

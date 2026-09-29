@@ -112,8 +112,7 @@
       "Master-password gate, no PIN theater, no recovery path",
       "One paper surface: the rail shares the light canvas; teal is the single accent, for state and identity; primary actions are ink",
       "List-and-detail spine for the vault; flowing chapter documents for the plane-backed sections",
-      "System font stack with no third-party origin",
-      "Sample data always badged"
+      "System font stack with no third-party origin"
     ],
     "rules": [
       {
@@ -155,7 +154,6 @@
     "dos": [
       "Do conceal secret values by default and allow copying without revealing.",
       "Do state what a network-backed surface cannot show while offline or unauthenticated.",
-      "Do badge sample data on every item and keep removing it to one action.",
       "Do treat a reload re-locking the vault as correct behavior and say so."
     ],
     "donts": [

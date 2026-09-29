@@ -16,6 +16,7 @@ import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
+import { unlockWithPassword } from "./pages-journey.mjs";
 
 export function extraSteps({ press }) {
   return {
@@ -32,6 +33,16 @@ export function extraSteps({ press }) {
     ...routingSteps(),
     ...orgSignInSteps(),
     ...networkSteps(),
+    /**
+     * Reload the page and open the sealed password vault again, for a change
+     * a device only picks up on a cold load (a section a capability adds).
+     */
+    async reloadUnlock(page) {
+      await page.reload({ waitUntil: "networkidle" });
+      await page.waitForTimeout(5200);
+      await unlockWithPassword(page);
+      await page.waitForTimeout(1400);
+    },
     /**
      * Pick a labelled radio when this build has it — a connector's
      * connection method. A base build without the choice is a legitimate
@@ -77,10 +88,12 @@ export function extraSteps({ press }) {
      */
     async fillOptional(page, { label, text }) {
       const field = page.getByLabel(label, { exact: true }).first();
-      if ((await field.count()) && (await field.isEnabled())) {
-        await field.fill(text);
-        await page.waitForTimeout(300);
-      }
+      if (!(await field.count()) || !(await field.isEnabled())) return;
+      // A label can name a key in the other build; only a real field is filled.
+      if (!(await field.evaluate((node) => node.matches("input, textarea"))))
+        return;
+      await field.fill(text);
+      await page.waitForTimeout(300);
     },
   };
 }

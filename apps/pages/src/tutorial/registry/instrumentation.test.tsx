@@ -127,7 +127,6 @@ function weakLogin(): LoginItem {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     deletedAt: null,
-    sample: false,
     username: "me@example.invalid",
     password: "abc",
     totp: "",

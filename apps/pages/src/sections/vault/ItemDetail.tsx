@@ -116,7 +116,6 @@ export function ItemDetail() {
               </Link>
             ) : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
-            {item.sample ? <StatusMark tone="idle" label="Synthetic" /> : null}
             {inTrash ? <StatusMark tone="warn" label="In trash" /> : null}
           </div>
         </div>

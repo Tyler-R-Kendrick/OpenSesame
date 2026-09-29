@@ -59,7 +59,7 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Tailnet sync keeps this vault in step with your other devices through a drive on your own tailnet. The drive only ever holds the sealed vault. Switch Networking on under Settings, Capabilities first."',
       'navigate "/settings/vaults"',
       'wait route "/settings/vaults" timeout=15000',
-      'focus "settings.tailnet-sync" "Paste the pairing code the drive printed, or open its link. On a new device this sets the vault up here, and its master password opens it." side=top',
+      'focus "settings.tailnet-sync" "Press the pair key to open the pairing sheet, then paste the code the drive printed, or open its link and the sheet opens with the code filled in. On a new device this sets the vault up here, and its master password opens it." side=top',
       "end",
     ].join("\n"),
   },

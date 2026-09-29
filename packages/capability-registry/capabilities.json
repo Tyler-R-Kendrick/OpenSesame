@@ -5008,33 +5008,6 @@
     }
   },
   {
-    "id": "vault.sample_data",
-    "title": "Load badged sample items into the vault, or remove them all",
-    "plane": "client_local",
-    "kind": "act",
-    "surfaces": {
-      "cli": null,
-      "pwa": "lib/vault/sample.ts:buildSample",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": null
-    },
-    "excluded": {
-      "mcp_host": {
-        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "mcp_client": {
-        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "webmcp": {
-        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-        "adr": "0065-agent-surface-parity.md"
-      }
-    }
-  },
-  {
     "id": "vaults.travel",
     "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
     "plane": "client_local",

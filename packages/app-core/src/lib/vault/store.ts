@@ -62,7 +62,6 @@ import {
 import {
   adoptMerged,
   applyManifestPlan,
-  dropSample,
   recordItemTypes,
   renameFolder,
   restoreItem,
@@ -1446,14 +1445,6 @@ export class VaultStore {
     const { adds, updates, newFolders } = plan;
     if (adds.length + updates.length + newFolders.length === 0) return;
     await this.#mutate((body) => applyManifestPlan(body, plan));
-  }
-
-  /**
-   * Remove the sample data — every `sample` item and a folder only they
-   * sat in — in one mutation, tombstoned (`dropSample`). Real items stay.
-   */
-  async removeSample(): Promise<void> {
-    await this.#mutate(dropSample);
   }
 
   /**

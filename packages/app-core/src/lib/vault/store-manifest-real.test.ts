@@ -1,6 +1,6 @@
 /**
- * Sample data and the store path manifest against a real, unlocked vault
- * store: the writes the Settings keys and the Import sheet make, end to end.
+ * The store path manifest against a real, unlocked vault store: the write
+ * the Import sheet makes, end to end.
  */
 import { createItem } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -9,10 +9,6 @@ import {
   readStoreManifest,
   storeManifestFile,
 } from "../../sections/vault/import/store-manifest.js";
-import {
-  pressSampleKey,
-  sampleKey,
-} from "../../sections/vault/sample-model.js";
 import { kvDelete } from "../kv.js";
 import {
   BODY_PATH,
@@ -48,43 +44,6 @@ async function unlockedStore(): Promise<VaultStore> {
   await store.create(PASSWORD);
   return store;
 }
-
-describe("sample data in a real vault", () => {
-  it("loads badged items, and one key removes them and nothing else", async () => {
-    const store = await unlockedStore();
-    const work = await store.addFolder("Work");
-    const real = { ...createItem("login", "Payroll"), folderId: work.id };
-    await store.saveItem(real);
-    await store.saveItem(createItem("secret", "API token"));
-
-    const load = sampleKey(store.getSnapshot().items);
-    expect(load.action).toBe("load");
-    await pressSampleKey(load, store.getSnapshot().folders, store);
-
-    const loaded = store.getSnapshot();
-    const samples = loaded.items.filter((item) => item.sample === true);
-    expect(samples).toHaveLength(7);
-    expect(loaded.folders.map((folder) => folder.name)).toEqual([
-      "Work",
-      "Sample data",
-    ]);
-
-    const remove = sampleKey(loaded.items);
-    expect(remove).toMatchObject({ action: "remove", count: 7 });
-    await pressSampleKey(remove, loaded.folders, store);
-
-    const after = store.getSnapshot();
-    expect(after.items.map((item) => item.name).sort()).toEqual([
-      "API token",
-      "Payroll",
-    ]);
-    expect(after.items.find((item) => item.id === real.id)).toEqual(
-      loaded.items.find((item) => item.id === real.id),
-    );
-    expect(after.folders.map((folder) => folder.name)).toEqual(["Work"]);
-    expect(sampleKey(after.items).action).toBe("load");
-  });
-});
 
 describe("the store path manifest in a real vault", () => {
   it("exports, and importing it twice into another vault never duplicates", async () => {

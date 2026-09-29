@@ -100,7 +100,7 @@ function sectionsFor(
           : []),
         panel("general", "settings-appearance", "Appearance"),
         panel("general", "settings-locking", "Locking"),
-        panel("general", "settings-keybindings", "Keybindings and views"),
+        panel("general", "settings-keybindings", "Keybindings"),
         ...contributed,
       ];
     case "security":
@@ -131,7 +131,6 @@ function sectionsFor(
         })),
         panel("vaults", "travel", "Travel"),
         panel("vaults", "item-types", "Item types"),
-        panel("vaults", "sample-data", "Sample data"),
         ...contributed,
       ];
     case "capabilities":

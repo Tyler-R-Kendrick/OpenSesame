@@ -12,12 +12,14 @@
 // origin; the only other address either may reach is the drive.
 //
 //   TS-PAIR    device A seals a vault with a password, saves an item, turns
-//              Networking on and pairs: the panel reports it in step and the
-//              drive holds generation ≥ 1 of a snapshot it cannot read
-//   TS-ADOPT   device B, a guest, opens the pairing link: the code arrives
-//              from the fragment and leaves the address bar, pressing the
-//              key hands over to an unlock screen, and A's master password
-//              opens A's item
+//              Networking on and pairs (the row's key opens the pairing
+//              sheet, the code goes in the sheet, its commit pairs): the panel
+//              reports it in step and the drive holds generation ≥ 1 of a
+//              snapshot it cannot read
+//   TS-ADOPT   device B, a guest, opens the pairing link: the sheet opens with
+//              the code from the fragment filled in and gone from the address
+//              bar, pressing the sheet's commit hands over to an unlock
+//              screen, and A's master password opens A's item
 //   TS-BACK    B saves an item; A, syncing, shows it
 //
 // Screenshots land in $TAILNET_SYNC_OUT (default: the system temp dir).
@@ -182,8 +184,17 @@ try {
   await saveItem(a.page, "Bank of Example");
   await networkingOn(a.page);
   await visit(a.page, "settings/vaults");
-  await a.page.getByLabel("Pairing code", { exact: true }).fill(code);
-  await a.page.getByRole("button", { name: "Pair with this drive" }).click();
+  // Pairing is a ceremony in a sheet: the row's key opens it, the code goes
+  // in the sheet, and the sheet's commit pairs.
+  await a.page
+    .getByRole("button", { name: "Pair with a drive", exact: true })
+    .click();
+  const pairSheet = a.page.getByRole("dialog");
+  await pairSheet.getByLabel("Pairing code", { exact: true }).fill(code);
+  await pairSheet
+    .getByRole("button", { name: "Pair with this drive", exact: true })
+    .click();
+  await pairSheet.waitFor({ state: "detached", timeout: 20_000 });
   await inStep(a.page);
   const stored = await readSlot(code);
   if (!(stored.generation >= 1)) throw new Error("TS-PAIR: drive is empty");
@@ -200,14 +211,21 @@ try {
   await b.page.waitForTimeout(1400);
   await networkingOn(b.page);
   await visit(b.page, `settings/vaults#pair-drive=${code}`);
-  await expect(b.page.getByLabel("Pairing code", { exact: true })).toHaveValue(
-    code,
-  );
+  // The link opens the sheet by itself with the code already in the field.
+  const linkSheet = b.page.getByRole("dialog");
+  await expect(
+    linkSheet.getByLabel("Pairing code", { exact: true }),
+  ).toHaveValue(code);
   if (b.page.url().includes("pair-drive"))
     throw new Error("TS-ADOPT: the code stayed in the address bar");
   await shot(b.page, "390-device-b-link");
-  await b.page
-    .getByRole("button", { name: "Set this device up from the drive" })
+  // The row's key carries the same name as the sheet's commit; the commit is
+  // the one inside the dialog.
+  await linkSheet
+    .getByRole("button", {
+      name: "Set this device up from the drive",
+      exact: true,
+    })
     .tap();
   await b.page
     .getByLabel("Password", { exact: true })

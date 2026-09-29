@@ -78,6 +78,8 @@ const BASE_FIELDS = [
   "createdAt",
   "updatedAt",
   "deletedAt",
+  // Written by the retired sample-data feature: a vault or export that still
+  // carries it opens, and the flag is ignored.
   "sample",
 ] as const;
 

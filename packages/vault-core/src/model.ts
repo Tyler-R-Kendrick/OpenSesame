@@ -46,8 +46,6 @@ type BaseItem = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  /** Set on items created by "load sample vault" so they can be told apart and purged. */
-  sample?: boolean;
 };
 
 export type LoginItem = BaseItem & {
