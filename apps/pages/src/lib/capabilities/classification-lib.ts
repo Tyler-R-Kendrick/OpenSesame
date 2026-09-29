@@ -244,6 +244,10 @@ export const LIB_RULES = [
     `${L}activity-log`,
     "append API used by core; the section is activity.log",
   ),
+  shared(
+    `${L}document-lifecycle`,
+    "trusted-hide and persisted-restore decisions the shell and a live session share",
+  ),
   ...each(L, CONNECTOR_FILES, (p) =>
     optional(
       p,

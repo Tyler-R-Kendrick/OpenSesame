@@ -22,10 +22,12 @@ import {
 } from "@opensesame/capability-composition";
 import type { VaultItem } from "@opensesame/vault-core";
 import { compositionStore } from "../capabilities/store.js";
+import { persistedRestoreRefuses } from "../document-lifecycle.js";
 import { vaultStore } from "../vault/store.js";
 import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
+import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
@@ -180,6 +182,31 @@ async function buildHost(input: HostInput, post: (code: string) => void) {
   return { next, routes };
 }
 
+function authorityStands(): boolean {
+  return host !== null || guest !== null;
+}
+
+function dropAuthority(): void {
+  endHosting();
+  leaveLive();
+}
+
+/** The document navigated away, so a frozen copy must not still be hosting. */
+export function noteDocumentLeft(): void {
+  if (authorityStands()) dropAuthority();
+}
+
+/** A persisted pageshow refuses authority that was live when the document froze. */
+export function notePersistedRestore(persisted: boolean): void {
+  if (persistedRestoreRefuses({ persisted, hadAuthority: authorityStands() })) {
+    dropAuthority();
+  }
+}
+
+function armRestoreGuard(): void {
+  watchDocumentLifecycle(noteDocumentLeft, notePersistedRestore);
+}
+
 /**
  * Start hosting; any session this tab was hosting ends first.
  *
@@ -189,6 +216,7 @@ async function buildHost(input: HostInput, post: (code: string) => void) {
  * comes back already ended and is never the current one.
  */
 export async function startHosting(input: HostInput): Promise<LiveHost> {
+  armRestoreGuard();
   endHosting();
   let started: LiveHost | null = null;
   let carriers: Rendezvous | null = null;
@@ -303,6 +331,7 @@ export type JoinInput = Readonly<{
  * Any session this tab had joined is left first.
  */
 export async function joinLive(input: JoinInput): Promise<LiveGuest> {
+  armRestoreGuard();
   leaveLive();
   // The join screen refuses a link whose routes do not read; direct here.
   const routes = linkRoutes(input.link) ?? NO_ROUTES;

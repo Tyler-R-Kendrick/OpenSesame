@@ -1,6 +1,6 @@
 # Browser-session acceptance
 
-Status: local proof against the shipped Pages build. Physical-device, live-provider, native window-hide, and `pageshow.persisted=true` bfcache restoration are not claimed.
+Status: local proof against the shipped Pages build. `pageshow.persisted=true` bfcache restoration is claimed from two history-back runs: each browser `pageshow` was trusted with `persisted: true`, `PerformanceNavigationTiming.type` stayed `navigate` (the original load; the return was not a reload and `notRestoredReasons` was null), the peer could no longer read the shared field, and the restored document did not show a live session. Physical-device, live-provider, and native window-hide are not claimed.
 
 ## What this proves
 
@@ -17,14 +17,14 @@ ADR 0150 shares a field as `read`, `use`, or `edit`. `edit` writes that one shar
 
 ## Measurements
 
-Filled from the passing `pnpm test:browser-sessions` run on this source and the bundle-budget gate over that Pages build plus both hardened profiles.
+Sizes are this commit's bundle-budget gate over the Pages build and both hardened profiles. The index hash is that gate's `apps/pages` dist. Ceilings were not raised.
 
 | Check | Result |
 | --- | --- |
-| Rich Pages `dist/index.html` SHA-256 | `882c428870762e9e1c1ac7756db012e8571a4a5095404b6aed67b19c138f541e` |
+| Rich Pages `dist/index.html` SHA-256 | `53bb7b615476f8d4d227623c28d4cb0be1ee4ff5cc359747b2d1ee5c81f28b67` |
 | `minimal-local-hardened` total / javascript / javascriptGzip / css / largestAsset (KiB) | 4737 / 4130 / 1256 / 152 / 793 (ceilings 4830 / 4211 / 1272 / 171 / 793) |
 | `family-local-hardened` total / javascript / javascriptGzip / css / largestAsset (KiB) | 4737 / 4130 / 1256 / 152 / 793 (ceilings 4830 / 4211 / 1272 / 171 / 793) |
-| `apps/pages` inside recorded ceilings | 6099 / 5373 / 1639 / 154 / 803 (ceilings 17900 / 5460 / 1650 / 168 / 12800) |
+| `apps/pages` inside recorded ceilings | 6101 / 5373 / 1639 / 154 / 803 (ceilings 17900 / 5460 / 1650 / 168 / 12800) |
 | `apps/console` | No `apps/console` package and no console ceiling in `tools/quality/bundle-budgets.json` on this tree |
 
 Ceilings are the numbers already in `tools/quality/bundle-budgets.json` on this branch. None were raised.

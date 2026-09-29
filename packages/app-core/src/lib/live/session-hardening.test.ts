@@ -15,6 +15,8 @@ import {
   joinLive,
   leaveLive,
   liveSeams,
+  noteDocumentLeft,
+  notePersistedRestore,
   onLiveSessionChange,
   startHosting,
 } from "./session.js";
@@ -174,5 +176,26 @@ describe("a start that fails leaves nothing behind", () => {
     // And the next start is an ordinary one.
     const host = await startHosting(hostInput(new FakeNet(), new FakeBus()));
     expect(currentHost()).toBe(host);
+  });
+});
+
+describe("a document that leaves and comes back", () => {
+  it("drops a live session when the document navigates away", async () => {
+    const host = await startHosting(hostInput(new FakeNet(), new FakeBus()));
+    expect(currentHost()).toBe(host);
+    noteDocumentLeft();
+    expect(host.state.status).toBe("ended");
+    expect(currentHost()).toBeNull();
+  });
+
+  it("refuses a persisted restore of a session that was still live, and does not revive an idle one", async () => {
+    const host = await startHosting(hostInput(new FakeNet(), new FakeBus()));
+    notePersistedRestore(false);
+    expect(currentHost()).toBe(host);
+    notePersistedRestore(true);
+    expect(host.state.status).toBe("ended");
+    expect(currentHost()).toBeNull();
+    notePersistedRestore(true);
+    expect(currentHost()).toBeNull();
   });
 });
