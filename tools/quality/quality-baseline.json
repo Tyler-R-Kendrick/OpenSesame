@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 2481
+      "max-lines": 2409
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -270,7 +270,7 @@
       "max-lines": 631
     },
     "crates/agent-events/src/lib.rs": {
-      "max-lines": 792
+      "max-lines": 493
     },
     "crates/audit/src/lib.rs": {
       "max-lines": 512
@@ -348,7 +348,7 @@
       "max-lines": 501
     },
     "crates/connector-host/src/lib.rs": {
-      "max-lines": 1385
+      "max-lines": 1012
     },
     "crates/connector-host/src/manifest.rs": {
       "max-lines": 515
@@ -366,7 +366,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1539
+      "max-lines": 1522
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -378,7 +378,7 @@
       "max-lines": 439
     },
     "crates/domain/src/authority.rs": {
-      "max-lines": 1008
+      "max-lines": 700
     },
     "crates/domain/src/capability.rs": {
       "max-lines": 412
@@ -456,7 +456,7 @@
       "max-lines": 747
     },
     "crates/gateway/src/routes/lifecycle.rs": {
-      "max-lines": 1639
+      "max-lines": 1592
     },
     "crates/gateway/src/routes/mod.rs": {
       "max-lines": 404
@@ -490,9 +490,6 @@
     },
     "crates/human-vault/src/lib.rs": {
       "max-lines": 792
-    },
-    "crates/invoke-through/src/invoke.rs": {
-      "max-lines": 602
     },
     "crates/kdbx-bridge/src/import.rs": {
       "max-lines": 426
@@ -795,7 +792,7 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 1651
+      "max-lines": 1617
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 412,

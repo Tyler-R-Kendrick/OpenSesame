@@ -8,6 +8,7 @@ import {
   PM_PLANE,
 } from "./exclusions.js";
 import type { Capability } from "./index.js";
+import { optionalPluginCapabilities } from "./optional-plugins.js";
 
 /**
  * The native host: one `opensesame` binary that runs the Host API, the local
@@ -278,4 +279,6 @@ export const nativeHostCapabilities: readonly Capability[] = [
       extension: "message:opensesame.sync_cursor",
     },
   },
+  // Optional plugins the native host installs and switches (ADR 0150 §7).
+  ...optionalPluginCapabilities,
 ];

@@ -1,0 +1,33 @@
+{
+  "$comment": [
+    "Optional, runtime-installed plugins (ADR 0150 §7). Nothing listed here is in a",
+    "default build or a default bundle: each is installed by a person, pinned by",
+    "sha256, recorded in the plugin settings file, and off until switched on.",
+    "Consumed by crates/plugin-settings (native), packages/capability-registry and",
+    "packages/app-core (the Settings capability); a drift test in each."
+  ],
+  "schema_version": 1,
+  "settings_file": "plugins.json",
+  "env_override_prefix": "OPENSESAME_PLUGIN_",
+  "plugins": [
+    {
+      "id": "surrogate-proxy",
+      "kind": "native-binary",
+      "binary": "opensesame-surrogate-proxy",
+      "capability": "agents.surrogate-credentials",
+      "adr": "0150",
+      "default_enabled": false,
+      "summary": "Per-run proxy that lets an unmodified tool hold an osr_ surrogate instead of a credential."
+    },
+    {
+      "id": "browser-autofill",
+      "kind": "browser-extension",
+      "package": "@opensesame/browser-extension-autofill",
+      "capability": "vault.browser-autofill",
+      "adr": "0150",
+      "default_enabled": false,
+      "daemon_routes": ["/v1/fill"],
+      "summary": "Companion extension that fills a login field by reference from extension-owned UI only."
+    }
+  ]
+}
