@@ -25,6 +25,8 @@ mod org_joining;
 mod org_member_status;
 mod org_members;
 mod organizations;
+mod policies;
+mod policy_rules;
 mod register;
 mod rotation;
 mod second_step;
@@ -72,6 +74,7 @@ pub fn router(server: BitwardenServer) -> Router {
         .merge(emergency::routes())
         .merge(account_extras::routes())
         .merge(auth_requests::routes())
+        .merge(policies::routes())
         .route(
             "/accounts/key-management/rotate-user-account-keys",
             post(rotation::rotate).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),

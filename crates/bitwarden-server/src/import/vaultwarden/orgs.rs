@@ -1,15 +1,15 @@
 //! A vaultwarden server's organizations and emergency contacts (ADR 0148
 //! §2): every organization with its members, collections, who reaches
 //! which, its ciphers and their collections, each member's own folder and
-//! favourite, and its files; and every emergency contact. Nothing is
+//! favourite, its files and its policies. Nothing is
 //! decrypted — the organization key stays wrapped per member, as it was.
 
 use std::collections::{HashMap, HashSet};
 
 use chrono::Utc;
 use opensesame_storage::bitwarden::{
-    BitwardenCipher, BitwardenCollection, BitwardenCollectionAccess, BitwardenEmergencyAccess,
-    BitwardenMark, BitwardenOrgArrival, BitwardenOrgMember, BitwardenOrganization,
+    BitwardenCipher, BitwardenCollection, BitwardenCollectionAccess, BitwardenMark,
+    BitwardenOrgArrival, BitwardenOrgMember, BitwardenOrganization, BitwardenPolicy,
 };
 use serde_json::Value;
 use sqlx::sqlite::SqliteRow;
@@ -29,20 +29,6 @@ const MEMBER_COLUMNS: &[&str] = &[
     "atype",
     "reset_password_key",
     "external_id",
-];
-
-const EMERGENCY_COLUMNS: &[&str] = &[
-    "uuid",
-    "grantor_uuid",
-    "grantee_uuid",
-    "email",
-    "key_encrypted",
-    "atype",
-    "status",
-    "wait_time_days",
-    "recovery_initiated_at",
-    "created_at",
-    "updated_at",
 ];
 
 fn enc(value: Option<String>) -> Option<String> {
@@ -78,7 +64,7 @@ impl Reader {
         Ok(sqlx::query(sql).bind(bind).fetch_all(&self.pool).await?)
     }
 
-    fn select(&self, table: &str, wanted: &[&str]) -> String {
+    pub(super) fn select(&self, table: &str, wanted: &[&str]) -> String {
         if self
             .schema
             .columns
@@ -270,6 +256,34 @@ impl Reader {
         Ok((ciphers, links, marks))
     }
 
+    async fn policies(&self, org: &str) -> anyhow::Result<Vec<BitwardenPolicy>> {
+        let rows = self
+            .rows(
+                "org_policies",
+                "SELECT uuid, atype, enabled, data FROM org_policies WHERE org_uuid = ?",
+                org,
+            )
+            .await?;
+        Ok(rows
+            .iter()
+            .filter_map(|row| {
+                // Clients refuse an id that is not a UUID; nothing refers
+                // to a policy by id, so one that is not gets a new one.
+                let id = text(row, "uuid")
+                    .filter(|id| uuid::Uuid::parse_str(id).is_ok())
+                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+                Some(BitwardenPolicy {
+                    id,
+                    org_id: org.to_owned(),
+                    policy_type: int(row, "atype")?,
+                    enabled: int(row, "enabled").unwrap_or(0) != 0,
+                    data: text(row, "data").filter(|d| serde_json::from_str::<Value>(d).is_ok()),
+                    revision_at: Utc::now(),
+                })
+            })
+            .collect())
+    }
+
     async fn organization(
         &self,
         row: &SqliteRow,
@@ -292,6 +306,7 @@ impl Reader {
             &mut left,
         )
         .await?;
+        let policies = self.policies(&id).await?;
         let now = Utc::now();
         Ok(Some(ArrivingOrganization {
             arrival: BitwardenOrgArrival {
@@ -312,6 +327,7 @@ impl Reader {
                 ciphers,
                 links,
                 marks,
+                policies,
             },
             attachments,
             left_behind: left,
@@ -341,7 +357,7 @@ impl Reader {
         Ok(out)
     }
 
-    async fn emails(&self) -> anyhow::Result<HashMap<String, String>> {
+    pub(super) async fn emails(&self) -> anyhow::Result<HashMap<String, String>> {
         let rows: Vec<(String, String)> = sqlx::query_as("SELECT uuid, email FROM users")
             .fetch_all(&self.pool)
             .await?;
@@ -349,46 +365,5 @@ impl Reader {
             .into_iter()
             .map(|(id, email)| (id, email.trim().to_ascii_lowercase()))
             .collect())
-    }
-
-    /// Every emergency contact.
-    pub(super) async fn emergency(&self) -> anyhow::Result<Vec<BitwardenEmergencyAccess>> {
-        if !self.schema.tables.contains("emergency_access") {
-            return Ok(Vec::new());
-        }
-        let emails = self.emails().await?;
-        let sql = format!(
-            "SELECT {} FROM emergency_access",
-            self.select("emergency_access", EMERGENCY_COLUMNS)
-        );
-        let now = Utc::now();
-        let mut out = Vec::new();
-        for row in sqlx::query(&sql).fetch_all(&self.pool).await? {
-            let grantee = text(&row, "grantee_uuid");
-            let email = grantee
-                .as_ref()
-                .and_then(|g| emails.get(g).cloned())
-                .or_else(|| text(&row, "email").map(|e| e.trim().to_ascii_lowercase()));
-            let (Some(id), Some(grantor_id), Some(email)) =
-                (text(&row, "uuid"), text(&row, "grantor_uuid"), email)
-            else {
-                continue;
-            };
-            let created = timestamp(text(&row, "created_at")).unwrap_or(now);
-            out.push(BitwardenEmergencyAccess {
-                id,
-                grantor_id,
-                grantee_id: grantee,
-                email,
-                key_encrypted: enc(text(&row, "key_encrypted")),
-                access_type: int(&row, "atype").unwrap_or(0),
-                status: int(&row, "status").unwrap_or(0),
-                wait_time_days: int(&row, "wait_time_days").unwrap_or(7).clamp(1, 90),
-                recovery_initiated_at: timestamp(text(&row, "recovery_initiated_at")),
-                created_at: created,
-                revision_at: timestamp(text(&row, "updated_at")).unwrap_or(created),
-            });
-        }
-        Ok(out)
     }
 }

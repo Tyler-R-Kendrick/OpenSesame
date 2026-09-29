@@ -16,7 +16,7 @@ use super::org_ciphers::put_mark;
 use super::orgs::{insert_member, insert_org};
 use super::{
     member_status, ArrivalOutcome, BitwardenCipher, BitwardenCollection, BitwardenCollectionAccess,
-    BitwardenMark, BitwardenOrgMember, BitwardenOrganization,
+    BitwardenMark, BitwardenOrgMember, BitwardenOrganization, BitwardenPolicy,
 };
 use crate::Db;
 
@@ -32,6 +32,7 @@ pub struct BitwardenOrgArrival {
     pub links: Vec<(String, String)>,
     /// `(cipher, user, mark)`: a member's own folder and favourite.
     pub marks: Vec<(String, String, BitwardenMark)>,
+    pub policies: Vec<BitwardenPolicy>,
 }
 
 /// Where an account named by id or address stands here.
@@ -80,6 +81,59 @@ async fn arriving_member(
     Ok(out)
 }
 
+/// Everything an arriving organization holds, in the open transaction.
+async fn insert_contents(
+    tx: &mut sqlx::SqliteConnection,
+    arrival: &BitwardenOrgArrival,
+) -> anyhow::Result<()> {
+    insert_org(tx, &arrival.org).await?;
+    for member in &arrival.members {
+        let member = arriving_member(tx, member).await?;
+        insert_member(tx, &member).await?;
+    }
+    for collection in &arrival.collections {
+        insert_collection(tx, collection).await?;
+    }
+    write_access(tx, &arrival.access).await?;
+    for cipher in &arrival.ciphers {
+        insert_cipher(&mut *tx, cipher).await?;
+    }
+    for (cipher, collection) in &arrival.links {
+        sqlx::query(
+            "INSERT OR IGNORE INTO bitwarden_collection_ciphers (collection_id, cipher_id) \
+                 VALUES (?, ?)",
+        )
+        .bind(collection)
+        .bind(cipher)
+        .execute(&mut *tx)
+        .await?;
+    }
+    for policy in &arrival.policies {
+        sqlx::query(
+                "INSERT INTO bitwarden_org_policies (id, org_id, policy_type, enabled, data, \
+                 revision_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(org_id, policy_type) DO NOTHING",
+            )
+            .bind(&policy.id)
+            .bind(&arrival.org.id)
+            .bind(policy.policy_type)
+            .bind(i64::from(policy.enabled))
+            .bind(&policy.data)
+            .bind(super::accounts::bitwarden_timestamp(policy.revision_at))
+            .execute(&mut *tx)
+            .await?;
+    }
+    for (cipher, user, mark) in &arrival.marks {
+        let present = sqlx::query("SELECT 1 FROM bitwarden_users WHERE id = ?")
+            .bind(user)
+            .fetch_optional(&mut *tx)
+            .await?;
+        if present.is_some() {
+            put_mark(tx, cipher, user, mark).await?;
+        }
+    }
+    Ok(())
+}
+
 impl Db {
     /// Write an arriving organization in one transaction. With `replace`, an
     /// organization already here under its id is replaced; without, it is
@@ -118,37 +172,7 @@ impl Db {
                 return Ok(ArrivalOutcome::IdTaken);
             }
         }
-        insert_org(&mut tx, &arrival.org).await?;
-        for member in &arrival.members {
-            let member = arriving_member(&mut tx, member).await?;
-            insert_member(&mut tx, &member).await?;
-        }
-        for collection in &arrival.collections {
-            insert_collection(&mut tx, collection).await?;
-        }
-        write_access(&mut tx, &arrival.access).await?;
-        for cipher in &arrival.ciphers {
-            insert_cipher(&mut *tx, cipher).await?;
-        }
-        for (cipher, collection) in &arrival.links {
-            sqlx::query(
-                "INSERT OR IGNORE INTO bitwarden_collection_ciphers (collection_id, cipher_id) \
-                 VALUES (?, ?)",
-            )
-            .bind(collection)
-            .bind(cipher)
-            .execute(&mut *tx)
-            .await?;
-        }
-        for (cipher, user, mark) in &arrival.marks {
-            let present = sqlx::query("SELECT 1 FROM bitwarden_users WHERE id = ?")
-                .bind(user)
-                .fetch_optional(&mut *tx)
-                .await?;
-            if present.is_some() {
-                put_mark(&mut tx, cipher, user, mark).await?;
-            }
-        }
+        insert_contents(&mut tx, arrival).await?;
         tx.commit().await?;
         Ok(if exists {
             ArrivalOutcome::Replaced

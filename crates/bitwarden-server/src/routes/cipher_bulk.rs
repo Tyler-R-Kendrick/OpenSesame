@@ -210,6 +210,7 @@ pub async fn import(
     Authed { user, .. }: Authed,
     Json(body): Json<Value>,
 ) -> ApiResult<StatusCode> {
+    super::policy_rules::may_own_items(&server, &user.id).await?;
     let mut body = normalize(body);
     let count = |key: &str| body.get(key).and_then(Value::as_array).map_or(0, Vec::len);
     if count("ciphers") > IMPORT_CIPHERS

@@ -41,7 +41,6 @@ pub(super) fn routes() -> Router<BitwardenServer> {
         .route("/organizations/{org}/leave", post(leave))
         .route("/organizations/{org}/keys", get(keys).post(set_keys))
         .route("/organizations/{org}/public-key", get(public_key))
-        .route("/organizations/{org}/policies", get(empty_list))
         .route("/organizations/{org}/groups", get(empty_list))
         .route("/organizations/{org}/auto-enroll-status", get(auto_enroll))
 }
@@ -88,6 +87,7 @@ async fn create(
     Authed { user, .. }: Authed,
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
+    super::policy_rules::may_create_org(&server, &user.id).await?;
     let body = normalize(body);
     let name = plain_text(&body, "name", "organization name")?;
     let billing_email = plain_text(&body, "billingEmail", "billing email")?;

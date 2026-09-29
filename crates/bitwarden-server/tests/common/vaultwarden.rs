@@ -71,6 +71,8 @@ CREATE TABLE organizations (uuid TEXT PRIMARY KEY, name TEXT NOT NULL,
 CREATE TABLE users_organizations (uuid TEXT PRIMARY KEY, user_uuid TEXT NOT NULL,
   org_uuid TEXT NOT NULL, invited_by_email TEXT, access_all BOOLEAN NOT NULL, akey TEXT NOT NULL,
   status INTEGER NOT NULL, atype INTEGER NOT NULL, reset_password_key TEXT, external_id TEXT);
+CREATE TABLE org_policies (uuid TEXT PRIMARY KEY, org_uuid TEXT NOT NULL, atype INTEGER NOT NULL,
+  enabled BOOLEAN NOT NULL, data TEXT NOT NULL);
 CREATE TABLE collections (uuid TEXT PRIMARY KEY, org_uuid TEXT NOT NULL, name TEXT NOT NULL,
   external_id TEXT);
 CREATE TABLE users_collections (user_uuid TEXT NOT NULL, collection_uuid TEXT NOT NULL,

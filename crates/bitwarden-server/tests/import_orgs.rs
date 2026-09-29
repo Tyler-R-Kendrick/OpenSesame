@@ -48,6 +48,9 @@ async fn members_keep_their_key_only_with_their_own_account() {
         .await
         .unwrap();
 
+    let policies = target.db.bitwarden_policies(ORG).await.unwrap();
+    assert_eq!((policies[0].policy_type, policies[0].enabled), (2, true));
+    assert_eq!(policies[0].data.as_deref(), Some("{\"minLength\":20}"));
     let owner = member(&target, common::vaultwarden::EMAIL).await;
     assert_eq!(owner.status, member_status::CONFIRMED);
     assert!(owner.key.as_deref().is_some_and(|k| k.starts_with("4.")));

@@ -171,6 +171,7 @@ async fn confirm_one(
             "The organization key must be encrypted.",
         ));
     }
+    super::policy_rules::may_confirm(server, org, &find(server, org, member).await?).await?;
     if !server.db.bitwarden_confirm_member(org, member, key).await? {
         return Err(ApiError::bad_request("User not valid."));
     }

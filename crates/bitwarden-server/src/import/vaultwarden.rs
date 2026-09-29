@@ -19,6 +19,7 @@ use opensesame_storage::bitwarden::{BitwardenArrival, BitwardenKdf, BitwardenUse
 use serde_json::{json, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 
+mod emergency;
 mod files;
 mod orgs;
 mod rows;
@@ -339,18 +340,11 @@ pub async fn read_with(path: &Path, data: Option<&Path>) -> anyhow::Result<Sourc
     }
     source.organizations = reader.organizations().await?;
     source.emergency = reader.emergency().await?;
-    for (kind, table, sql) in [
-        (
-            "organization groups",
-            "groups",
-            "SELECT COUNT(*) FROM groups",
-        ),
-        (
-            "organization policies",
-            "org_policies",
-            "SELECT COUNT(*) FROM org_policies WHERE enabled = 1",
-        ),
-    ] {
+    for (kind, table, sql) in [(
+        "organization groups",
+        "groups",
+        "SELECT COUNT(*) FROM groups",
+    )] {
         let n = reader.schema.count(&reader.pool, table, sql, None).await;
         leave(&mut source.left_behind, kind, n);
     }

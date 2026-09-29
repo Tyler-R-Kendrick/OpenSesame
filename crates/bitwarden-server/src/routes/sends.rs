@@ -30,6 +30,7 @@ async fn create_send(
     input: SendInput,
     file: Option<(String, i64)>,
 ) -> ApiResult<BitwardenSend> {
+    super::policy_rules::may_send(server, &user.id, input.hide_email).await?;
     let now = Utc::now();
     let password_hash = match &input.password {
         Some(password) => Some(server.hash_secret(password).await?),
@@ -194,6 +195,7 @@ pub async fn update(
 ) -> ApiResult<Json<Value>> {
     let current = owned(&server, &user.id, &id).await?;
     let input = parse_send(&normalize(body))?;
+    super::policy_rules::may_send(&server, &user.id, input.hide_email).await?;
     if input.send_type != current.send_type {
         return Err(ApiError::bad_request("Sends cannot change type."));
     }
