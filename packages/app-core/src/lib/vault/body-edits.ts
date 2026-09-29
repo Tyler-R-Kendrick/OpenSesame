@@ -80,7 +80,8 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
 
 /** An item the retired sample-data feature wrote: its flag is no longer typed. */
 function isLegacySample(item: VaultItem): boolean {
-  return (item as { sample?: unknown }).sample === true;
+  // SAFETY: sample is a retired field the item contract no longer types; the stored object still carries the checked flag.
+  return (item as { sample?: boolean }).sample === true;
 }
 
 /**

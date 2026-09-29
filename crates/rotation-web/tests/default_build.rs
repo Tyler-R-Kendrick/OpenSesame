@@ -18,12 +18,7 @@ const FEATURE: &str = "login-surrogate";
 const PLUGIN_BINARY: &str = "opensesame-surrogate-proxy";
 /// Dependencies only substitution uses. Each must be optional and pulled in
 /// by the feature alone.
-const FEATURE_ONLY: &[&str] = &[
-    "opensesame-plugin-settings",
-    "base64",
-    "secrecy",
-    "zeroize",
-];
+const FEATURE_ONLY: &[&str] = &["opensesame-plugin-settings", "base64", "secrecy", "zeroize"];
 
 fn cargo(args: &[&str]) -> String {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());

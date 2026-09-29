@@ -11,6 +11,7 @@ const folder = (id: string, name: string): Folder => ({
 
 /** An item as the retired sample-data feature wrote it: flagged, untyped. */
 function legacy(name: string, folderId: string | null): VaultItem {
+  // SAFETY: sample is the retired flag this fixture preserves on an otherwise checked login item.
   return { ...createItem("login", name), folderId, sample: true } as VaultItem;
 }
 

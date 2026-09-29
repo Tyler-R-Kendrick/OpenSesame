@@ -49,6 +49,7 @@ describe("a vault that loaded the retired sample data", () => {
     real.username = "ada";
     await store.saveItem(real);
     for (const name of ["GitHub", "Bank"]) {
+      // SAFETY: sample is the retired flag this fixture preserves on an otherwise checked login item.
       const demo = {
         ...createItem("login", name),
         folderId: demoFolder.id,

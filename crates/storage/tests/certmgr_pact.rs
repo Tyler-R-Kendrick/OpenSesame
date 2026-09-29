@@ -299,8 +299,5 @@ fn pact_migrations_are_append_only_and_end_with_0040() {
             "0050_web_login_runs",
         ]
     );
-    assert_eq!(
-        versions.last().copied(),
-        Some("0050_web_login_runs")
-    );
+    assert_eq!(versions.last().copied(), Some("0050_web_login_runs"));
 }

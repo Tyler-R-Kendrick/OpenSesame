@@ -70,6 +70,9 @@ describe("CeremonySheet", () => {
     fireEvent.change(field, { target: { value: "A" } });
     fireEvent.change(field, { target: { value: "AB" } });
     expect(document.activeElement).toBe(field);
-    expect((field as HTMLInputElement).value).toBe("AB");
+    if (!(field instanceof HTMLInputElement)) {
+      throw new Error("Return code is not an input");
+    }
+    expect(field.value).toBe("AB");
   });
 });
