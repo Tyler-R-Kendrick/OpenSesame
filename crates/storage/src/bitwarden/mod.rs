@@ -4,6 +4,7 @@
 
 mod accounts;
 mod attachments;
+mod auth_requests;
 mod ciphers;
 mod collections;
 mod devices;
@@ -20,6 +21,7 @@ mod sends;
 
 pub use accounts::{BitwardenCredentials, BitwardenKdf, BitwardenUser};
 pub use attachments::BitwardenAttachment;
+pub use auth_requests::BitwardenAuthRequest;
 pub use ciphers::BitwardenCipher;
 pub use collections::{BitwardenCollection, BitwardenCollectionAccess};
 pub use devices::{BitwardenDevice, BitwardenSignIn};

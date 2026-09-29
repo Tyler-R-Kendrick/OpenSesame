@@ -1,7 +1,6 @@
 //! The rest of an account (ADR 0148 §6): its name and avatar, its address,
 //! deleting it, its devices, its equivalent domains — and honest answers
-//! for what this server does not do (mail, log in with a device, breach
-//! reports on an address).
+//! for what this server does not do (mail, breach reports on an address).
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -59,9 +58,6 @@ pub(super) fn routes() -> Router<BitwardenServer> {
         .route("/devices/{id}", axum::routing::delete(forget_device))
         .route("/devices/lost-trust", post(nothing))
         .route("/devices/untrust", post(nothing))
-        .route("/auth-requests", get(empty).post(no_device_login))
-        .route("/auth-requests/", post(no_device_login))
-        .route("/auth-requests/pending", get(empty))
         .route("/webauthn", get(empty))
         .route("/hibp/breach", get(no_breach_reports))
 }
@@ -246,10 +242,6 @@ async fn empty(_: Authed) -> Json<Value> {
 /// not send; answering "sent" would be a lie.
 async fn no_mail() -> ApiError {
     ApiError::bad_request("This server sends no mail, so it cannot send that.")
-}
-
-async fn no_device_login() -> ApiError {
-    ApiError::bad_request("Log in with device is not offered by this server.")
 }
 
 /// A breach report on an address would disclose it to a third party; the

@@ -182,4 +182,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0046_bitwarden_emergency_access",
         include_str!("../migrations/0046_bitwarden_emergency_access.sql"),
     ),
+    (
+        "0047_bitwarden_auth_requests",
+        include_str!("../migrations/0047_bitwarden_auth_requests.sql"),
+    ),
 ];
