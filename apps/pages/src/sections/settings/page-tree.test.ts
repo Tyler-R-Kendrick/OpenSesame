@@ -55,6 +55,7 @@ describe("settingsPageTree", () => {
     // Capabilities, under the feature (or always-on group) that uses it.
     expect(tabs.map((node) => node.label)).toEqual([
       "General",
+      "Keybindings",
       "Security",
       "Vaults",
       "Capabilities",
@@ -62,6 +63,7 @@ describe("settingsPageTree", () => {
     ]);
     expect(tabs.map((node) => node.href)).toEqual([
       "/settings",
+      "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
       "/settings/capabilities",
@@ -121,6 +123,7 @@ describe("settingsPageTree", () => {
   it("keeps sources in tab order without a synthetic Settings wrapper", () => {
     expect(settingsPageSources().map((source) => source.id)).toEqual([
       "general",
+      "keybindings",
       "security",
       "vaults",
       "capabilities",
@@ -135,9 +138,19 @@ describe("settingsPageTree", () => {
         ?.children.map((node) => node.label);
     // A rail entry for a panel that returned null opened General at its
     // top with nothing to show for it.
-    const always = ["Appearance", "Locking", "Keybindings"];
+    const always = ["Appearance", "Locking"];
     expect(general(false)).toEqual(always);
     expect(general(true)).toEqual(["Install", ...always]);
+  });
+
+  it("gives Keybindings its own tab: the keymap and the macros", () => {
+    const keybindings = settingsPageTree().find(
+      (node) => node.id === "keybindings",
+    );
+    expect(keybindings?.children.map((node) => node.label)).toEqual([
+      "Keymap",
+      "Macros",
+    ]);
   });
 
   it("gives every tab its panels, so no tab is a caret-less row among branches", () => {

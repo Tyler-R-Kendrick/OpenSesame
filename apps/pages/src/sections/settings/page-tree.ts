@@ -107,7 +107,12 @@ function sectionsFor(
           : []),
         panel("general", "settings-appearance", "Appearance"),
         panel("general", "settings-locking", "Locking"),
-        panel("general", "settings-keybindings", "Keybindings"),
+        ...contributed,
+      ];
+    case "keybindings":
+      return [
+        panel("keybindings", "settings-keymap", "Keymap"),
+        panel("keybindings", "settings-macros", "Macros"),
         ...contributed,
       ];
     case "security":
