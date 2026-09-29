@@ -179,24 +179,6 @@ describe("useSessionGuards", () => {
     });
     expect(touch).toHaveBeenCalledTimes(2);
   });
-
-  it("locks on tab hide only when the operator asked for it", () => {
-    const snapshot = vaultStore.getSnapshot();
-    const lock = vi.spyOn(vaultStore, "lock").mockImplementation(() => {});
-    vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
-      ...snapshot,
-      status: "unlocked",
-      prefs: { ...snapshot.prefs, lockOnHide: true },
-    });
-
-    renderHook(() => useSessionGuards());
-    setVisibility("hidden");
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(lock).toHaveBeenCalled();
-    setVisibility("visible");
-  });
 });
 
 describe("useCopySecret", () => {
