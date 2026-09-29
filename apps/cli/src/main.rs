@@ -9,6 +9,7 @@ mod daemon_cmd;
 mod daemon_toolbar;
 mod entry;
 mod github;
+mod hooks;
 mod init_schema;
 mod lifecycle;
 mod local_authority;
@@ -269,29 +270,12 @@ enum Commands {
     /// Breach exposure: what has turned up publicly, and vetting a new secret.
     Security {
         #[command(subcommand)]
-        cmd: SecurityCmd,
+        cmd: security::SecurityCmd,
     },
-}
-
-#[derive(Subcommand, Debug)]
-enum SecurityCmd {
-    /// Breach findings for this organization (metadata only).
-    Findings {
-        #[arg(long, default_value = "100")]
-        limit: usize,
-    },
-    /// Run one breach scan now instead of waiting for the tick.
-    Scan,
-    /// Check a candidate secret against the breach corpus before storing it.
-    ///
-    /// The secret is read from a no-echo prompt or standard input, never from
-    /// an argument: an argument lands in shell history and in `ps`.
-    Check {
-        /// What the secret belongs to — a store path or a connection id.
-        subject_id: String,
-        /// `store_path` (default) or `connection_credential`.
-        #[arg(long, default_value = "store_path")]
-        subject_kind: String,
+    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0150).
+    Hooks {
+        #[command(subcommand)]
+        cmd: hooks::HooksCmd,
     },
 }
 
@@ -1362,18 +1346,8 @@ async fn main() -> anyhow::Result<()> {
             }
             LifecycleCmd::Scan => lifecycle::cmd_scan(&cli.server, &cli.output).await?,
         },
-        Commands::Security { cmd } => match cmd {
-            SecurityCmd::Findings { limit } => {
-                security::cmd_findings(&cli.server, &cli.output, limit).await?;
-            }
-            SecurityCmd::Scan => security::cmd_scan(&cli.server, &cli.output).await?,
-            SecurityCmd::Check {
-                subject_id,
-                subject_kind,
-            } => {
-                security::cmd_check(&cli.server, &cli.output, &subject_id, &subject_kind).await?;
-            }
-        },
+        Commands::Security { cmd } => security::run(&cli.server, &cli.output, cmd).await?,
+        Commands::Hooks { cmd } => hooks::run(&cli.server, cmd).await?,
         Commands::Cert { cmd } => match cmd {
             CertCmd::Ca { out } => certs::cmd_ca(&cli.server, &cli.output, out).await?,
             CertCmd::Issue {

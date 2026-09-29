@@ -12,9 +12,44 @@
 //! was sent.
 
 use anyhow::{Context, Result};
+use clap::Subcommand;
 use serde_json::{json, Value};
 
 use crate::connect;
+
+#[derive(Subcommand, Debug)]
+pub enum SecurityCmd {
+    /// Breach findings for this organization (metadata only).
+    Findings {
+        #[arg(long, default_value = "100")]
+        limit: usize,
+    },
+    /// Run one breach scan now instead of waiting for the tick.
+    Scan,
+    /// Check a candidate secret against the breach corpus before storing it.
+    ///
+    /// The secret is read from a no-echo prompt or standard input, never from
+    /// an argument: an argument lands in shell history and in `ps`.
+    Check {
+        /// What the secret belongs to — a store path or a connection id.
+        subject_id: String,
+        /// `store_path` (default) or `connection_credential`.
+        #[arg(long, default_value = "store_path")]
+        subject_kind: String,
+    },
+}
+
+/// `opensesame security …`.
+pub async fn run(server: &str, output: &str, cmd: SecurityCmd) -> Result<()> {
+    match cmd {
+        SecurityCmd::Findings { limit } => cmd_findings(server, output, limit).await,
+        SecurityCmd::Scan => cmd_scan(server, output).await,
+        SecurityCmd::Check {
+            subject_id,
+            subject_kind,
+        } => cmd_check(server, output, &subject_id, &subject_kind).await,
+    }
+}
 
 /// Rows printed before the table truncates.
 const MAX_TABLE_ROWS: usize = 50;

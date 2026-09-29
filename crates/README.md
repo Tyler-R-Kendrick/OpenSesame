@@ -93,6 +93,7 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`security-events`](security-events) | The shared `SecurityNotice` envelope and its Alertmanager, PagerDuty and syslog renderings ([ADR 0080](../docs/adr/0080-security-event-hooks.md)). |
 | [`breach-intel`](breach-intel) | Value-blind breach detection: Pwned Passwords k-anonymity and public breach catalogues. |
 | [`agent-events`](agent-events) | Frozen `agent.*` event vocabulary for sandboxed runs. |
+| [`agent-hooks`](agent-hooks) | OpenSesame as an agent-hooks/0.1 interceptor: tool rules, a value-blind secret guard, digest-bound approvals ([ADR 0150](../docs/adr/0150-agent-hooks-interceptor.md)). |
 | [`session-observe`](session-observe) | Live observation of agent runs and single-holder control handoff. |
 | [`rotation`](rotation) | Credential rotation state machine. |
 | [`rotation-web`](rotation-web) | Web-login rotation: step IR and a tool boundary that never returns a credential. |

@@ -3060,6 +3060,215 @@
     }
   },
   {
+    "id": "agent_hooks.intercept",
+    "title": "Answer an agent-hooks interception with a verdict: tool rules and the secret guard",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame hooks intercept",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.policy.check",
+    "title": "Check an agent-hooks policy and show it with its defaults",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame hooks check",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.intercept.remote",
+    "title": "Answer an agent-hooks interception over the Host API, under the organization's stored policy",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "cli": {
+        "reason": "the agent framework calls POST /api/v1/agent-hooks/intercept itself; at a terminal the same verdict is `opensesame hooks intercept`, which needs no Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.policy.read",
+    "title": "Read the organization's agent-hooks policy on the Host",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame hooks policy get",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.policy.write",
+    "title": "Replace the organization's agent-hooks policy on the Host (compare-and-set)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame hooks policy put",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
     "id": "ceremony.catalog.read",
     "title": "Read which connector registrations this build can automate",
     "plane": "host",

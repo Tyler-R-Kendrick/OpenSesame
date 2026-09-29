@@ -3,7 +3,9 @@ import {
   accessPortalCapabilities,
 } from "./access-portal.js";
 import { accountCapabilities } from "./account.js";
+import { agentHooksCapabilities } from "./agent-hooks.js";
 import { backupSyncCapabilities } from "./backup-sync.js";
+import { breachExposureCapabilities } from "./breach-exposure.js";
 import { connectorCapabilities } from "./connectors.js";
 import { enrollmentCapabilities } from "./enrollment.js";
 import {
@@ -12,7 +14,6 @@ import {
   ADR_LIVE_OBSERVATION,
   ADR_NOTIFICATION_CEREMONIES,
   AUTH_CEREMONY,
-  BREACH_CHECK_TAKES_A_SECRET,
   COMMAND_BAR_HUMAN_ONLY,
   CUSTODY_KEY_MATERIAL,
   DEFERRED,
@@ -932,56 +933,8 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   ...lifecycleCapabilities,
   ...securityAuthorityCapabilities,
-  // ── Host plane: breach exposure (ADR 0080) ────────────────────────────
-  {
-    id: "security.findings.read",
-    title: "Read breach findings for this organization",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame security findings",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
-  },
-  {
-    id: "security.breach_scan.trigger",
-    title: "Run one breach scan now",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: "opensesame security scan",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
-  },
-  {
-    id: "security.breach_check.run",
-    title: "Check a candidate secret against the breached-password corpus",
-    plane: "host",
-    kind: "admin",
-    surfaces: {
-      cli: "opensesame security check",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: BREACH_CHECK_TAKES_A_SECRET,
-      webmcp: BREACH_CHECK_TAKES_A_SECRET,
-    },
-  },
+  ...breachExposureCapabilities,
+  ...agentHooksCapabilities,
   {
     id: "ceremony.catalog.read",
     title: "Read which connector registrations this build can automate",
