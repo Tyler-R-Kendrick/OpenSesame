@@ -13,7 +13,87 @@ import {
   seedReposKey,
 } from "@opensesame/app-core/sections/connections/githubBackupRepoLoad.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+type RepoView = {
+  accounts: AppInstallAccount[];
+  busy: boolean;
+  connection: Connection;
+  draft: string;
+  editing: boolean;
+  flight: { current: boolean };
+  issue: string | null;
+  listError: string | null;
+  loading: boolean;
+  onFlash: (flash: Flash) => void;
+  onReady: { current: ((ready: boolean) => void) | undefined };
+  online: boolean;
+  reload: () => Promise<void>;
+  repos: RepoChoice[];
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  setDraft: Dispatch<SetStateAction<string>>;
+  setEditing: Dispatch<SetStateAction<boolean>>;
+  setIssue: Dispatch<SetStateAction<string | null>>;
+  setRepos: Dispatch<SetStateAction<RepoChoice[]>>;
+  setTarget: Dispatch<SetStateAction<BackupTargetView | null>>;
+  target: BackupTargetView | null;
+};
+
+function backupRepoView(state: RepoView) {
+  const selected = state.target
+    ? `${state.target.owner}/${state.target.repo}`
+    : "";
+  const handlers = {
+    connection: state.connection,
+    online: state.online,
+    onFlash: state.onFlash,
+    onBound: (saved: BackupTargetView) => {
+      state.setTarget(saved);
+      state.setEditing(false);
+      state.setDraft(`${saved.owner}/${saved.repo}`);
+    },
+    onIssue: state.setIssue,
+    onBusy: state.setBusy,
+    onReady: (ready: boolean) => state.onReady.current?.(ready),
+  };
+  return {
+    accounts: state.accounts,
+    bound: isBound(state.target),
+    busy: state.busy,
+    commit: (raw: string) =>
+      commitRepoSlug(
+        {
+          handlers,
+          selected,
+          repos: state.repos,
+          accounts: state.accounts,
+          setRepos: state.setRepos,
+          setEditing: state.setEditing,
+        },
+        raw,
+        state.flight,
+      ),
+    draft: state.draft,
+    editing: state.editing,
+    issue: state.issue,
+    listError: state.listError,
+    loading: state.loading,
+    online: state.online,
+    reload: state.reload,
+    repos: state.repos,
+    selected,
+    setDraft: state.setDraft,
+    setEditing: state.setEditing,
+    setIssue: state.setIssue,
+  };
+}
 
 export function useGithubBackupRepo(
   connection: Connection,
@@ -33,6 +113,7 @@ export function useGithubBackupRepo(
   const [issue, setIssue] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const onReadyRef = useRef(onReady);
+  const alive = useRef(true);
   const flight = useRef(false);
   const targetRef = useRef<BackupTargetView | null>(null);
   const connectionRef = useRef(connection);
@@ -58,6 +139,7 @@ export function useGithubBackupRepo(
         seedReposRef.current,
         targetRef.current,
       );
+      if (!alive.current) return;
       targetRef.current = loaded.target;
       setTarget(loaded.target);
       setAccounts(loaded.accounts);
@@ -66,50 +148,42 @@ export function useGithubBackupRepo(
       onReadyRef.current?.(isBound(loaded.target));
       setDraft(loaded.draft);
     } finally {
-      setLoading(false);
+      if (alive.current) setLoading(false);
     }
   }, [connectionId, accountsKey, reposKey]);
+
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const selected = target ? `${target.owner}/${target.repo}` : "";
-  const handlers = {
-    connection,
-    online,
-    onFlash,
-    onBound: (saved: BackupTargetView) => {
-      setTarget(saved);
-      setEditing(false);
-      setDraft(`${saved.owner}/${saved.repo}`);
-    },
-    onIssue: setIssue,
-    onBusy: setBusy,
-    onReady: (ready: boolean) => onReadyRef.current?.(ready),
-  };
-
-  return {
+  return backupRepoView({
     accounts,
-    bound: isBound(target),
     busy,
-    commit: (raw: string) =>
-      commitRepoSlug(
-        { handlers, selected, repos, accounts, setRepos, setEditing },
-        raw,
-        flight,
-      ),
+    connection,
     draft,
     editing,
+    flight,
     issue,
     listError,
     loading,
+    onFlash,
+    onReady: onReadyRef,
     online,
     reload,
     repos,
-    selected,
+    setBusy,
     setDraft,
     setEditing,
     setIssue,
-  };
+    setRepos,
+    setTarget,
+    target,
+  });
 }
