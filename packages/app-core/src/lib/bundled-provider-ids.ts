@@ -5,6 +5,7 @@
  */
 import parity from "../../../../spec/connectors/fnox-parity.json";
 import {
+  BROWSER_UNENROLLABLE_PROTECTORS,
   DEVICE_KEY_PROTECTORS,
   HOST_PROVIDER_IDS,
   IDENTITY_PROVIDER_IDS,
@@ -15,6 +16,9 @@ import {
 } from "./embedded-catalog-data.js";
 
 const DEVICE: ReadonlySet<string> = new Set(DEVICE_KEY_PROTECTORS);
+const NOT_IN_BROWSER: ReadonlySet<string> = new Set(
+  BROWSER_UNENROLLABLE_PROTECTORS,
+);
 
 /** The generic git remote, drawn first and bundled on every device. */
 export const BUNDLED_GIT_ID = "git";
@@ -24,7 +28,9 @@ export const BUNDLED_CATALOG_IDS: readonly string[] = [
   ...DEVICE_KEY_PROTECTORS,
   // fido2 is not a connector — WebAuthn PRF passkeys live under Unlock methods /
   // Vault key protection. Keep the fnox parity list intact; omit the row here.
-  ...parity.providers.filter((id) => id !== "fido2" && !DEVICE.has(id)),
+  ...parity.providers.filter(
+    (id) => id !== "fido2" && !DEVICE.has(id) && !NOT_IN_BROWSER.has(id),
+  ),
   ...HOST_PROVIDER_IDS,
   ...LLM_PROVIDER_IDS,
   ...IDENTITY_PROVIDER_IDS,

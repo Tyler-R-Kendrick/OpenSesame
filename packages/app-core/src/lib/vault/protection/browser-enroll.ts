@@ -7,6 +7,11 @@ import { mintRootKeyHandle } from "./adapter.js";
 import { enrollAgeWebauthn } from "./adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./adapters/webauthn-prf-ops.js";
 import { createWebauthnPrfProtector } from "./adapters/webauthn-prf-ops.js";
+import {
+  type ExternalEnrollment,
+  provenExternalRecord,
+  rootsEqual,
+} from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
 import { enrollRecoveryKey, openWithRecoveryKey } from "./recovery-key.js";
@@ -24,12 +29,11 @@ export function contextForRecord(
   };
 }
 
-function rootsEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.byteLength !== b.byteLength) return false;
-  let diff = 0;
-  for (let i = 0; i < a.byteLength; i += 1) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
-  return diff === 0;
-}
+export type EnrollableKind =
+  | "recovery-key"
+  | "age-webauthn"
+  | "webauthn-prf"
+  | ExternalEnrollment["kind"];
 
 export type HeldWebauthnPrf = {
   prfOutput: ArrayBuffer;
@@ -40,14 +44,30 @@ export type HeldWebauthnPrf = {
 
 /** Build a proven protector record. Does not touch the mutation journal. */
 export async function provenEnrollmentRecord(input: {
-  kind: "recovery-key" | "age-webauthn" | "webauthn-prf";
+  kind: EnrollableKind;
   base: RootProtectionManifest;
   rootKey: Uint8Array;
   operationId: string;
   sessionGeneration: number;
   signal: AbortSignal;
   held?: HeldWebauthnPrf | undefined;
-}): Promise<{ record: ProtectionRecord; recoverySecretB64?: string }> {
+  external?: ExternalEnrollment | undefined;
+}): Promise<{
+  record: ProtectionRecord;
+  recoverySecretB64?: string;
+  ageIdentitySecret?: string;
+}> {
+  if (input.external) {
+    return provenExternalRecord({
+      enrollment: input.external,
+      base: input.base,
+      rootKey: input.rootKey,
+      operationId: input.operationId,
+      sessionGeneration: input.sessionGeneration,
+      signal: input.signal,
+      context: (protectorId) => contextForRecord(input.base, protectorId),
+    });
+  }
   if (input.held) {
     return {
       record: await protectorFromPrfMaterial({

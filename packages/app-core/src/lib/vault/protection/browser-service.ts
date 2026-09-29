@@ -11,6 +11,7 @@ import type {
 } from "@opensesame/vault-core";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
 import {
+  type EnrollableKind,
   type HeldWebauthnPrf,
   contextForRecord,
   provenEnrollmentRecord,
@@ -21,8 +22,10 @@ import {
   setPreferredProtector as setPreferredProtectorOp,
   testProtector as testProtectorOp,
 } from "./browser-lifecycle-ops.js";
+import type { ExternalEnrollment } from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId } from "./ids.js";
+import { reconcileLegacyRecords } from "./legacy-sync.js";
 import {
   type MutationJournal,
   assertExpectedRevision,
@@ -34,6 +37,7 @@ import {
 } from "./manifest-auth.js";
 import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 import { resolveProtectionManifest } from "./protection-view.js";
+import type { ProofMaterial } from "./protector-proof.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import type { ProtectionSessionGuard } from "./session-guard.js";
 
@@ -54,6 +58,8 @@ export type EnrollCandidateResult = {
   record: ProtectionRecord;
   /** Shown-once recovery secret; never persisted by this service. */
   recoverySecretB64?: string;
+  /** Shown-once age identity minted for a new recipient; never persisted. */
+  ageIdentitySecret?: string;
 };
 
 type PendingEnrollment = {
@@ -73,6 +79,7 @@ function manifestAuthority(header: VaultHeader): RootProtectionManifest | null {
 export class VaultProtectionBrowserService {
   #host: ProtectionBrowserHost;
   #pending: PendingEnrollment | null = null;
+  #projecting: Promise<void> = Promise.resolve();
 
   constructor(host: ProtectionBrowserHost) {
     this.#host = host;
@@ -95,13 +102,48 @@ export class VaultProtectionBrowserService {
    * wrap bytes. Idempotent when protection is already present.
    */
   async ensureProtectionProjected(): Promise<void> {
+    const run = this.#projecting.then(() => this.#project());
+    this.#projecting = run.catch(() => undefined);
+    return run;
+  }
+
+  async #project(): Promise<void> {
     const header = this.#host.getHeader();
     if (!header || !this.#host.isUnlocked()) return;
-    if (header.protection) return;
     const raw = this.#host.requireRawRoot();
-    const { manifest } = migrateLegacyHeaderToManifest({ header });
-    const sealed = await sealAuthenticatedManifest(raw, manifest);
-    await this.#host.persistHeader({ ...header, protection: sealed });
+    if (!header.protection) {
+      const { manifest } = migrateLegacyHeaderToManifest({ header });
+      const sealed = await sealAuthenticatedManifest(raw, manifest);
+      await this.#host.persistHeader({ ...header, protection: sealed });
+      return;
+    }
+    // Password, PIN and passkey change under Unlock methods, which knows
+    // nothing of the manifest: bring its copy of those wraps back in step. A
+    // manifest that does not verify is left for the operation that acts on it
+    // to report — housekeeping must not stand between a person and unlock.
+    try {
+      await verifyManifestAuth(raw, header.protection);
+    } catch {
+      return;
+    }
+    const records = reconcileLegacyRecords(header, header.protection);
+    if (!records) return;
+    const { authB64: _drop, preferredProtectorId, ...rest } = header.protection;
+    const body: Omit<RootProtectionManifest, "authB64"> = {
+      ...rest,
+      revision: header.protection.revision + 1,
+      records,
+    };
+    if (
+      preferredProtectorId !== undefined &&
+      records.some((record) => record.protectorId === preferredProtectorId)
+    ) {
+      body.preferredProtectorId = preferredProtectorId;
+    }
+    await this.#host.persistHeader({
+      ...header,
+      protection: await sealAuthenticatedManifest(raw, body),
+    });
   }
 
   /**
@@ -120,9 +162,21 @@ export class VaultProtectionBrowserService {
     return this.#stageEnrollment(kind);
   }
 
+  /**
+   * An age recipient or a cloud KMS key: the record is built and opened again
+   * before this returns, and reaches the manifest only through
+   * `commitEnrollment`, like every other kind.
+   */
+  async enrollExternal(
+    enrollment: ExternalEnrollment,
+  ): Promise<EnrollCandidateResult> {
+    return this.#stageEnrollment(enrollment.kind, undefined, enrollment);
+  }
+
   async #stageEnrollment(
-    kind: "recovery-key" | "age-webauthn" | "webauthn-prf",
+    kind: EnrollableKind,
     held?: HeldWebauthnPrf | undefined,
+    external?: ExternalEnrollment | undefined,
   ): Promise<EnrollCandidateResult> {
     this.#assertCanMutate();
     assertNotCanceled(this.#host.session.signal);
@@ -147,7 +201,10 @@ export class VaultProtectionBrowserService {
       sessionGeneration,
       signal: this.#host.session.signal,
       held,
+      external,
     });
+    assertSessionGeneration(sessionGeneration, this.#host.session.generation);
+    assertNotCanceled(this.#host.session.signal);
     journal.phase = "proven";
     journal.candidateManifest = {
       ...base,
@@ -173,6 +230,8 @@ export class VaultProtectionBrowserService {
     };
     if (built.recoverySecretB64 !== undefined)
       result.recoverySecretB64 = built.recoverySecretB64;
+    if (built.ageIdentitySecret !== undefined)
+      result.ageIdentitySecret = built.ageIdentitySecret;
     return result;
   }
 
@@ -228,7 +287,7 @@ export class VaultProtectionBrowserService {
 
   async testProtector(
     protectorId: string,
-    material?: { recoverySecretB64?: string },
+    material?: ProofMaterial,
   ): Promise<ProtectionRecord> {
     this.#assertCanMutate();
     await this.ensureProtectionProjected();

@@ -6,12 +6,12 @@ import {
   MANIFEST_SCHEMA_VERSION,
   type PasswordProtectorRecord,
   type ProtectionRecord,
-  type RecoveryKeyProtectorRecord,
   type RootProtectionManifest,
   type VaultHeader,
   mintVaultKey,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
+import { protectorUnlocksVault } from "../unlock-preference.js";
 import { assertNewPassword } from "../unlock-secret-guard.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId, newProtectorId } from "./ids.js";
@@ -21,7 +21,11 @@ import {
 } from "./lifecycle.js";
 import { sealAuthenticatedManifest } from "./manifest-auth.js";
 import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
-import { openWithRecoveryKey } from "./recovery-key.js";
+import {
+  type ProofMaterial,
+  protectorCanBeTested,
+  proveRecord,
+} from "./protector-proof.js";
 
 export type LifecycleHost = {
   getHeader(): VaultHeader | null;
@@ -59,10 +63,17 @@ export async function setPreferredProtector(
   }
   const base = requireManifest(header);
   assertExpectedRevision(base, base.revision);
-  if (!base.records.some((r) => r.protectorId === protectorId)) {
+  const target = base.records.find((r) => r.protectorId === protectorId);
+  if (!target) {
     throw new ProtectionError(
       "malformed_encoding",
       `Protector ${protectorId} is not enrolled.`,
+    );
+  }
+  if (!protectorUnlocksVault(target)) {
+    throw new ProtectionError(
+      "unavailable",
+      "Only a password, PIN or passkey opens this vault at the unlock screen, so only one of them can be preferred.",
     );
   }
   const { authB64: _drop, ...rest } = base;
@@ -90,6 +101,13 @@ export async function removeProtector(
     );
   }
   const base = requireManifest(header);
+  const target = base.records.find((r) => r.protectorId === protectorId);
+  if (target && protectorUnlocksVault(target)) {
+    throw new ProtectionError(
+      "unavailable",
+      "A password, PIN or passkey is removed under Unlock methods — removing its row here would leave the wrap that still opens the vault.",
+    );
+  }
   assertCanRemoveProtector(base, protectorId);
   assertExpectedRevision(base, base.revision);
   const { authB64: _drop, preferredProtectorId: _pref, ...rest } = base;
@@ -112,13 +130,15 @@ export async function removeProtector(
 }
 
 /**
- * Re-prove a recovery-key protector when the operator supplies the secret.
- * Password/PIN/PRF records that match live unlock wraps stay verified.
+ * Prove a protector by opening its capsule with what the person supplies now
+ * and comparing the root that comes out with this session's. Password, PIN and
+ * passkey wraps are proved by unlocking with them; kinds with no browser road
+ * are refused rather than re-marked verified.
  */
 export async function testProtector(
   host: LifecycleHost,
   protectorId: string,
-  material?: { recoverySecretB64?: string },
+  material: ProofMaterial = {},
 ): Promise<ProtectionRecord> {
   const header = host.getHeader();
   if (!header) {
@@ -135,42 +155,22 @@ export async function testProtector(
       `Protector ${protectorId} is not enrolled.`,
     );
   }
-  if (record.kind === "recovery-key") {
-    const secret = material?.recoverySecretB64;
-    if (!secret) {
-      throw new ProtectionError(
-        "unavailable",
-        "Recovery-key test requires the shown-once secret.",
-      );
-    }
-    // SAFETY: record.kind === "recovery-key" checked above; RecoveryKeyProtectorRecord contract established.
-    const recovery = record as RecoveryKeyProtectorRecord;
-    const opened = await openWithRecoveryKey({
-      context: contextFor(base, recovery.protectorId),
-      record: recovery,
-      secretB64: secret,
-    });
-    opened.fill(0);
-  } else if (
-    record.kind === "password" ||
-    record.kind === "pin" ||
-    record.kind === "webauthn-prf"
-  ) {
+  if (!protectorCanBeTested(record.kind)) {
     throw new ProtectionError(
       "unavailable",
-      "Password, PIN, and passkey proofs require their unlock ceremony — open the vault with that method instead of Test.",
-    );
-  } else if (record.proofStatus !== "verified") {
-    throw new ProtectionError(
-      "unavailable",
-      `Protector kind ${record.kind} cannot be tested without its adapter ceremony.`,
+      record.kind === "password" ||
+        record.kind === "pin" ||
+        record.kind === "webauthn-prf"
+        ? "Password, PIN, and passkey proofs require their unlock ceremony — open the vault with that method instead of Test."
+        : `Protector kind ${record.kind} cannot be tested from a browser.`,
     );
   }
-
-  const updated: ProtectionRecord = {
-    ...record,
-    proofStatus: "verified",
-  };
+  const updated = await proveRecord({
+    record,
+    context: contextFor(base, record.protectorId),
+    rootKey: host.requireRawRoot(),
+    material,
+  });
   const { authB64: _drop, ...rest } = base;
   const nextBody: Omit<RootProtectionManifest, "authB64"> = {
     ...rest,

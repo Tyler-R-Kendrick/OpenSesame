@@ -86,7 +86,6 @@ describe("the one integration catalog", () => {
         "apple-wallet",
         "auth0",
         "aws-kms",
-        "azure-key-vault-keys",
         "better-auth",
         "bitwarden",
         "bitwarden-secrets-manager",
@@ -99,7 +98,6 @@ describe("the one integration catalog", () => {
         "plain",
         "samsung-wallet",
         "tailscale",
-        "yubikey",
       ].sort(),
     );
   });

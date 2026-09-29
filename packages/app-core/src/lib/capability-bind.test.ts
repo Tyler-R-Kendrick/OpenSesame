@@ -54,9 +54,9 @@ afterEach(() => {
 
 describe("bindCapabilityConnector", () => {
   it("writes the choice through to settings", () => {
-    const next = bindCapabilityConnector("encryption", "yubikey");
-    expect(next.providerId).toBe("yubikey");
-    expect(stored.capabilityConnectors.encryption.providerId).toBe("yubikey");
+    const next = bindCapabilityConnector("encryption", "aws-kms");
+    expect(next.providerId).toBe("aws-kms");
+    expect(stored.capabilityConnectors.encryption.providerId).toBe("aws-kms");
   });
 
   it("drops a connection when the provider changes", () => {
@@ -90,7 +90,7 @@ describe("bindCapabilityConnector", () => {
 
   it("bumps the consent generation when the provider changes", () => {
     const before = currentConsentOperationGeneration();
-    bindCapabilityConnector("encryption", "yubikey");
+    bindCapabilityConnector("encryption", "aws-kms");
     expect(currentConsentOperationGeneration()).toBeGreaterThan(before);
   });
 });
@@ -107,15 +107,15 @@ describe("connectionAuthorizationState / bindingNeedsAuth (KP-14)", () => {
 
   it("is missing when a connector is bound but not consented", () => {
     expect(
-      connectionAuthorizationState("encryption", { providerId: "yubikey" }),
+      connectionAuthorizationState("encryption", { providerId: "aws-kms" }),
     ).toBe("missing");
-    expect(bindingNeedsAuth("encryption", { providerId: "yubikey" })).toBe(
+    expect(bindingNeedsAuth("encryption", { providerId: "aws-kms" })).toBe(
       true,
     );
   });
 
   it("treats a bare encryption connectionId as pending, not authorized", () => {
-    const binding = { providerId: "yubikey", connectionId: "conn-1" };
+    const binding = { providerId: "aws-kms", connectionId: "conn-1" };
     expect(connectionAuthorizationState("encryption", binding)).toBe("pending");
     expect(bindingNeedsAuth("encryption", binding)).toBe(true);
     expect(bindingAuthorizedForRootProtection(binding)).toBe(false);
@@ -123,7 +123,7 @@ describe("connectionAuthorizationState / bindingNeedsAuth (KP-14)", () => {
 
   it("treats explicit pending as not authorized for encryption", () => {
     const binding = {
-      providerId: "yubikey",
+      providerId: "aws-kms",
       connectionId: "conn-1",
       authorization: "pending" as const,
     };
@@ -134,7 +134,7 @@ describe("connectionAuthorizationState / bindingNeedsAuth (KP-14)", () => {
 
   it("is authorized for encryption only after explicit authorized state", () => {
     const binding = {
-      providerId: "yubikey",
+      providerId: "aws-kms",
       connectionId: "conn-1",
       authorization: "authorized" as const,
     };
@@ -198,7 +198,7 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("records authorized state when consent comes back active", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     arrange();
     const outcome = await authorizeCapabilityConnector("encryption", popup());
     expect(outcome.tone).toBe("ok");
@@ -216,7 +216,7 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("remembers an unfinished connection as pending, not authorized", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     arrange({
       awaitConsent: vi.fn().mockResolvedValue({
         result: "pending",
@@ -242,7 +242,7 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("does not record a connection that was refused", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     arrange({
       awaitConsent: vi.fn().mockResolvedValue({
         result: "failed",
@@ -256,13 +256,13 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("reuses a live connection rather than creating a second one", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     const createConnection = vi.fn();
     arrange({
       listConnections: vi.fn().mockResolvedValue([
         {
           connectionId: "conn-existing",
-          providerId: "yubikey",
+          providerId: "aws-kms",
           status: "active",
         },
       ]),
@@ -273,7 +273,7 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("replaces a revoked connection instead of reauthorizing a dead one", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     const createConnection = vi
       .fn()
       .mockResolvedValue({ connectionId: "conn-fresh", status: "pending" });
@@ -281,7 +281,7 @@ describe("authorizeCapabilityConnector", () => {
       listConnections: vi.fn().mockResolvedValue([
         {
           connectionId: "conn-old",
-          providerId: "yubikey",
+          providerId: "aws-kms",
           status: "revoked",
         },
       ]),
@@ -296,7 +296,7 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("closes the popup and reports when the round trip throws", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     const shut = vi.fn();
     arrange({
       listConnections: vi.fn().mockRejectedValue(new Error("identity is down")),
@@ -312,10 +312,10 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("discards a stale callback when the provider changed mid-consent (KP-15)", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     arrange({
       awaitConsent: vi.fn().mockImplementation(async () => {
-        bindCapabilityConnector("encryption", "aws-kms");
+        bindCapabilityConnector("encryption", "gcp-kms");
         return {
           result: "active",
           connection: { connectionId: "conn-stale" },
@@ -325,7 +325,7 @@ describe("authorizeCapabilityConnector", () => {
     const outcome = await authorizeCapabilityConnector("encryption", popup());
     expect(outcome.tone).toBe("warn");
     expect(outcome.text).toMatch(/discarded/);
-    expect(stored.capabilityConnectors.encryption.providerId).toBe("aws-kms");
+    expect(stored.capabilityConnectors.encryption.providerId).toBe("gcp-kms");
     expect(stored.capabilityConnectors.encryption.connectionId).toBeUndefined();
     expect(
       bindingAuthorizedForRootProtection(
@@ -335,7 +335,7 @@ describe("authorizeCapabilityConnector", () => {
   });
 
   it("discards a stale callback when the vault scope changed (KP-15)", async () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     arrange({
       awaitConsent: vi.fn().mockImplementation(async () => {
         vaultScope = "project-other";
@@ -356,7 +356,7 @@ describe("authorizeCapabilityConnector", () => {
 
 describe("consentCaptureIsCurrent", () => {
   it("rejects when operation generation advances", () => {
-    stored.capabilityConnectors.encryption = { providerId: "yubikey" };
+    stored.capabilityConnectors.encryption = { providerId: "aws-kms" };
     const capture = captureConsentOperation(
       "encryption",
       stored.capabilityConnectors.encryption,

@@ -146,10 +146,25 @@ describe("VaultProtectionBrowserService", () => {
     await store.protection.commitEnrollment(recovery.operationId);
     const recoveryId = recovery.record.protectorId;
 
-    await store.protection.setPreferred(recoveryId);
+    // A recovery key never opens the vault at the unlock screen, so it cannot
+    // be the preferred way in; the password wrap can.
+    await expect(
+      store.protection.setPreferred(recoveryId),
+    ).rejects.toMatchObject({ code: "unavailable" });
+    await store.protection.setPreferred(passwordId);
     expect(store.getSnapshot().header?.protection?.preferredProtectorId).toBe(
-      recoveryId,
+      passwordId,
     );
+    // Its wrap is removed under Unlock methods; removing the row here would
+    // leave the wrap that still opens the vault.
+    await expect(
+      store.protection.removeProtector(passwordId),
+    ).rejects.toMatchObject({ code: "unavailable" });
+    expect(
+      store.protection
+        .listProtectors()
+        .some((r) => r.protectorId === passwordId),
+    ).toBe(true);
 
     await expect(
       store.protection.testProtector(passwordId),

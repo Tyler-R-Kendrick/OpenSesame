@@ -55,20 +55,20 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "backup.cloud-secrets",
     "Cloud key services",
-    "Wrap the vault key with AWS KMS, GCP KMS, Azure Key Vault, YubiKey PIV or age recipients, and read or write SOPS documents.",
+    "Wrap the vault key with AWS KMS, Google Cloud KMS or age recipients, and read or write SOPS documents.",
     {
       egress: [
         {
           class: "external-service",
           purpose:
-            "the AWS KMS, GCP KMS or Azure Key Vault endpoint a person configured",
+            "the AWS KMS or Google Cloud KMS endpoint a person configured, or the cloud key a SOPS document names and they approved",
           automatic: false,
         },
       ],
       browserPermissions: ["webauthn"],
       keyAccess: "protector-wrap",
       offlineLimits:
-        "age and YubiKey protectors work offline; a cloud KMS protector needs its endpoint to unwrap.",
+        "age protectors work offline; a cloud KMS protector needs its endpoint to unwrap.",
     },
   ),
   alwaysOn(

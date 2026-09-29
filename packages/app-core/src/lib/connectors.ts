@@ -11,12 +11,7 @@
  */
 
 import { briefOrigin, repoHint } from "@opensesame/os-domain";
-import {
-  type CapabilityConnectorBinding,
-  type CapabilityId,
-  capabilityDef,
-  connectorLabel,
-} from "./capabilities.js";
+import { connectorLabel } from "./capabilities.js";
 import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
 import type { IdentityPlane, PlaneStatus } from "./planes.js";
 import { type FailureClass, failureLabel } from "./probe-failure.js";
@@ -147,38 +142,20 @@ export function classifyIdentityConnector(
 }
 
 /**
- * History and keys are the same shape: a capability bound to a catalog
- * connector, which may or may not still need authorization to finish.
+ * The key vault glyph says what protects the vault on this device. The
+ * encryption setup preference this once read never changed a protector — the
+ * enrolled ones live in the vault's manifest — so it no longer speaks here, and
+ * a preference left behind by an earlier version cannot turn the glyph amber
+ * over an authorization nothing consumes.
  */
-type CapabilityClassification = { tone: ConnectorTone; detail: string };
-
-function classifyCapability(
-  id: CapabilityId,
-  binding: CapabilityConnectorBinding,
-): CapabilityClassification {
-  const label = connectorLabel(binding.providerId);
-  if (capabilityDef(id).requiresAuth(binding.providerId)) {
-    if (!binding.connectionId) {
-      return { tone: "attn", detail: `${label} not authorized` };
-    }
-    const remote = binding.remote ? repoHint(binding.remote) : "";
-    return { tone: "live", detail: remote ? `${label} · ${remote}` : label };
-  }
-  return { tone: "live", detail: label };
-}
-
 export function classifyKeysConnector(
-  settings: PagesSettings,
+  _settings: PagesSettings,
 ): ConnectorStatus {
   return {
     id: "keys",
     name: "Key vault",
-    // WebCrypto on this device is the built-in default and always satisfies
-    // the capability, so there is nothing here a ceremony must repair.
-    ...classifyCapability(
-      "encryption",
-      settings.capabilityConnectors?.encryption ?? { providerId: "webcrypto" },
-    ),
+    tone: "live",
+    detail: connectorLabel("webcrypto"),
     ...UNPROBED,
   };
 }

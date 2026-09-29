@@ -74,16 +74,8 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "encryption",
     title: "Encryption key vault",
     summary:
-      "Where vault and sealed-store keys are wrapped. Password wraps use WebCrypto on this device; passkeys protect via WebAuthn PRF under Unlock methods / Vault key protection — not as a connector. age recipients and cloud KMS are optional external protectors; YubiKey PIV is advanced hardware.",
-    connectorIds: [
-      "webcrypto",
-      "sealed-local",
-      "age",
-      "yubikey",
-      "aws-kms",
-      "azure-key-vault-keys",
-      "gcp-kms",
-    ],
+      "Where vault and sealed-store keys are wrapped. Password wraps use WebCrypto on this device; passkeys protect via WebAuthn PRF under Unlock methods / Vault key protection — not as a connector. age recipients, AWS KMS and Google Cloud KMS are optional external protectors enrolled under Vault key protection.",
+    connectorIds: ["webcrypto", "sealed-local", "age", "aws-kms", "gcp-kms"],
     requiresAuth: (providerId) =>
       providerId !== "webcrypto" &&
       providerId !== "sealed-local" &&
