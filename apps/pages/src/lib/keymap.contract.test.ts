@@ -33,6 +33,8 @@ const REQUIRED_IN_DESIGN = [
   "g v/c/a/i/w/s",
   "Shift+F10",
   "Shift+Enter",
+  "`q{a–z}`",
+  "`@@`",
 ];
 
 describe("listing keymap contract", () => {
@@ -75,6 +77,7 @@ describe("listing keymap contract", () => {
       "e / x",
       "n / .",
       "s",
+      "qa … q  @a  @@",
       "Shift-F10 / Shift-Enter",
       "g v/c/a/i/w/y/s",
     ]);

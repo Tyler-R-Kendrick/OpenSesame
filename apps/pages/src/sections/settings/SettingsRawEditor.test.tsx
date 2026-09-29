@@ -19,7 +19,39 @@ const vault = { prefs: prefs("system"), header: null };
 const store = { commitPrefs: vi.fn(async () => undefined) };
 const original = { ...vaultHooksSeams };
 
+function ensureMemoryLocalStorage(): void {
+  const existing = globalThis.localStorage;
+  if (existing && typeof existing.getItem === "function") return;
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    enumerable: true,
+    value: {
+      get length() {
+        return store.size;
+      },
+      clear() {
+        store.clear();
+      },
+      getItem(key: string) {
+        const value = store.get(key);
+        return value === undefined ? null : value;
+      },
+      key(index: number) {
+        return [...store.keys()][index] ?? null;
+      },
+      removeItem(key: string) {
+        store.delete(key);
+      },
+      setItem(key: string, value: string) {
+        store.set(key, String(value));
+      },
+    },
+  });
+}
+
 beforeEach(() => {
+  ensureMemoryLocalStorage();
   localStorage.clear();
   vault.prefs = prefs("system");
   store.commitPrefs.mockClear();
@@ -83,6 +115,75 @@ describe("a settings directory's config.yaml", () => {
     view.rerender(<SettingsRawEditor category="general" />);
     expect(file().value).toContain("# laptop");
     expect(file().value).toMatch(/theme: "?dark"?/);
+  });
+
+  describe("Tab", () => {
+    function keymapFile(): HTMLTextAreaElement {
+      const field = screen.getByLabelText("settings/keybindings/config.yaml");
+      if (!(field instanceof HTMLTextAreaElement)) throw new Error("no file");
+      return field;
+    }
+
+    function type(field: HTMLTextAreaElement, text: string) {
+      fireEvent.focus(field);
+      fireEvent.change(field, { target: { value: text } });
+      field.setSelectionRange(text.length, text.length);
+    }
+
+    /** True when the press was left to the browser (focus moves on). */
+    const tab = (field: HTMLElement) =>
+      fireEvent.keyDown(field, { key: "Tab" });
+    const shiftTab = (field: HTMLElement) =>
+      fireEvent.keyDown(field, { key: "Tab", shiftKey: true });
+
+    it("completes a half-typed key at the end of its line", () => {
+      render(<SettingsRawEditor category="general" />);
+      type(file(), "th");
+      expect(tab(file())).toBe(false);
+      expect(file().value).toBe("theme: ");
+    });
+
+    it("leaves a macro's steps line alone and lets focus move", () => {
+      render(<SettingsRawEditor category="keybindings" />);
+      const steps = "macros:\n  triage:\n    steps: [3 listing.next]";
+      type(keymapFile(), steps);
+      expect(tab(keymapFile())).toBe(true);
+      expect(keymapFile().value).toBe(steps);
+      type(keymapFile(), `${steps}\n    s`);
+      expect(tab(keymapFile())).toBe(true);
+      expect(keymapFile().value).toBe(`${steps}\n    s`);
+    });
+
+    it("lets focus move from an empty line, a finished word, Shift-Tab and a fresh focus", () => {
+      render(<SettingsRawEditor category="keybindings" />);
+      type(keymapFile(), "keybindings:\n  ");
+      expect(tab(keymapFile())).toBe(true);
+      type(keymapFile(), "keybindings:\n  w: nop");
+      expect(tab(keymapFile())).toBe(true);
+      type(keymapFile(), "keybindings:\n  w: item.s");
+      expect(shiftTab(keymapFile())).toBe(true);
+      expect(keymapFile().value).toBe("keybindings:\n  w: item.s");
+      // Landed on by Tab, nothing typed yet: it is not the person's word.
+      fireEvent.focus(keymapFile());
+      expect(tab(keymapFile())).toBe(true);
+      expect(keymapFile().value).toBe("keybindings:\n  w: item.s");
+    });
+
+    it("completes an action id inside keybindings", () => {
+      render(<SettingsRawEditor category="keybindings" />);
+      type(keymapFile(), "keybindings:\n  w: item.s");
+      expect(tab(keymapFile())).toBe(false);
+      expect(keymapFile().value).toBe("keybindings:\n  w: item.share");
+    });
+
+    it("lists what matches what is typed, quoting a key YAML would misread", () => {
+      render(<SettingsRawEditor category="keybindings" />);
+      type(keymapFile(), "keybindings:\n  w: item.s");
+      expect(screen.getByRole("button", { name: "item.share" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "item.new" })).toBeNull();
+      type(keymapFile(), "keybindings:\n  Control+l");
+      expect(screen.getByRole("button", { name: '"Control+l"' })).toBeTruthy();
+    });
   });
 
   it("offers no completion for a value that is already typed", () => {
