@@ -52,6 +52,14 @@ or a decrypted value on the way, exactly as it never does in service.
   person's next sign-in (ADR 0141 §4). vaultwarden's salts are 64 bytes,
   longer than generic PHC parsers accept, so the verify-only scheme reads that
   form itself. Nobody resets a password; each device signs in once more.
+  Once the accounts are in, every organization follows in one transaction
+  each — members with the key each held, collections, who reaches which, its
+  ciphers and files, each member's own folder and favourite — and every
+  emergency contact. A member or contact keeps a key only when its own
+  account came across; one at an address that has a different account here
+  is accepted and waits to be confirmed again, and one at an address with no
+  account waits as an invitation. Groups and policies are counted, not
+  moved.
 - **A live account** (`import account --from <server> --email <address>`),
   for bitwarden.com, bitwarden.eu, a self-hosted Bitwarden server or a
   vaultwarden whose database is out of reach: the person runs the CLI and
@@ -266,9 +274,11 @@ The pinned SignalR client (10.0.0, as `bitwarden/clients` pins it) hears
   one sign-in, in the person's own terminal, zeroized after use; it is the same
   exposure as signing in with `bw`.
 - A self-hosted team can move onto the Host with its shared vaults, not just
-  its personal ones; the vaultwarden importer still carries personal vaults
-  only, so an organization's ciphers are exported from the old server and
-  imported into the new organization (`bw import --organizationid`).
+  its personal ones: the vaultwarden importer carries organizations and
+  emergency contacts with the accounts. A live-account import is one
+  person's, so what they reach through an organization stays with the
+  organization; it is counted, and moves when the organization's server is
+  imported.
 - The Bitwarden consume-client (`crates/provider-bitwarden`) now names the
   two-step providers a server offers and a new-device challenge, and signs in
   with an answer; its own vault reads still decline both (ADR 0052).

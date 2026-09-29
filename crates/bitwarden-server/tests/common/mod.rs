@@ -7,6 +7,7 @@ pub mod bw;
 pub mod client;
 pub mod orgs;
 pub mod vaultwarden;
+pub mod vaultwarden_org;
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};

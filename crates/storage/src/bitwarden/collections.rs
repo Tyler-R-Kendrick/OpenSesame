@@ -69,7 +69,7 @@ pub(super) async fn insert_collection(
     Ok(())
 }
 
-async fn write_access(
+pub(super) async fn write_access(
     tx: &mut sqlx::SqliteConnection,
     access: &[BitwardenCollectionAccess],
 ) -> anyhow::Result<()> {

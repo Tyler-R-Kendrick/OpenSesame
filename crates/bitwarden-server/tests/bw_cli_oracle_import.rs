@@ -100,6 +100,9 @@ async fn bw_signs_in_to_a_moved_vaultwarden_account_with_its_old_password() {
     import::write(&new.db, &source, WriteOptions::default())
         .await
         .unwrap();
+    import::write_shared(&new.db, &source, WriteOptions::default())
+        .await
+        .unwrap();
 
     let mut bw = Bw::new(&new).await;
     bw.login(vaultwarden::EMAIL, vaultwarden::PASSWORD).await;
@@ -116,5 +119,37 @@ async fn bw_signs_in_to_a_moved_vaultwarden_account_with_its_old_password() {
         .any(|f| f["name"] == "Money"));
     let trash = bw.json(&["list", "items", "--trash"]).await;
     assert_eq!(trash[0]["name"], "Old note");
+
+    // The organization came with it: bw unwraps its key with the account's
+    // private key and reads the collection and the shared item.
+    let orgs = bw.json(&["list", "organizations"]).await;
+    assert_eq!(orgs[0]["name"], "Family");
+    let collections = bw
+        .json(&[
+            "list",
+            "org-collections",
+            "--organizationid",
+            vaultwarden::ORG,
+        ])
+        .await;
+    assert_eq!(collections[0]["name"], "Household");
+    let shared = bw.json(&["get", "item", vaultwarden::ORG_ITEM]).await;
+    assert_eq!(shared["name"], "Shared");
+    assert_eq!(shared["organizationId"], vaultwarden::ORG);
+    assert_eq!(shared["collectionIds"], json!([vaultwarden::COLLECTION]));
+    assert_eq!(shared["favorite"], true);
+    let members = bw
+        .json(&["list", "org-members", "--organizationid", vaultwarden::ORG])
+        .await;
+    let waiting = members
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["email"] == "invited@example.test")
+        .unwrap();
+    assert_eq!(
+        waiting["status"], 0,
+        "an unregistered member waits as an invitation"
+    );
     assert!(new.unrouted().is_empty(), "{:?}", new.unrouted());
 }
