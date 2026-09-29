@@ -25,9 +25,15 @@
 //! courier role is a shape rather than a promise, and [`UntrustedText`] holds
 //! model-authored prose in a wrapper that refuses to render itself.
 
+mod credentials;
 mod lease;
 mod stream;
 mod viewer;
+
+pub use credentials::{
+    apply_tripwire, end_and_revoke, park_and_revoke, suspend_and_revoke, tripwire_verdict,
+    NoRunCredentials, RunCredentials, RunNotice, TripwireVerdict, MISDIRECTED_EVENT,
+};
 
 pub use lease::{
     ControlError, ControlLease, ControlState, CriticalExit, HandoffOutcome, Quiescence, Reassertion,
