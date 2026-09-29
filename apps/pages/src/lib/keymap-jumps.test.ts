@@ -18,8 +18,9 @@ import {
   registerContribution,
 } from "@opensesame/app-core/lib/capabilities/registry.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { sectionCommandId } from "@opensesame/app-core/lib/keymap/commands.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sectionJumpPath } from "./keymap-jumps.js";
+import { sectionCommandPath, sectionJumpPath } from "./keymap-jumps.js";
 import { createKeymapHandler } from "./keymap.js";
 
 const PASSKEYS = "vault.passkey-records";
@@ -75,6 +76,23 @@ describe("contributed section jumps", () => {
     const navigate = vi.fn();
     chord(navigate);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("open the section a command names, not the first jump on its key", async () => {
+    await registerJump();
+    const child = deriveLease(compositionStore.currentLease());
+    bindLeaseToCapability(child.lease, PASSKEYS);
+    registerContribution(
+      "keymap-jump",
+      { key: "p", path: "/keys" },
+      child.lease,
+    );
+    // The key answers with one of the two; each command answers with its own.
+    expect(["/passkeys", "/keys"]).toContain(sectionJumpPath("p"));
+    expect(sectionCommandPath(sectionCommandId("/keys"))).toBe("/keys");
+    expect(sectionCommandPath(sectionCommandId("/passkeys"))).toBe("/passkeys");
+    await compositionStore.emergencyDisable(PASSKEYS);
+    expect(sectionCommandPath(sectionCommandId("/keys"))).toBeNull();
   });
 
   it("leave the core jumps alone", async () => {

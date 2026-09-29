@@ -118,3 +118,80 @@
     display: none;
   }
 }
+
+/* ——— Half-typed keys: vim's showcmd, then which-key ———————————————
+   A segment of the row, never a layer over it: the count and keys typed so
+   far as small caps, `recording @a` while a register records, and on a wide
+   screen what each next key runs. It draws only while something is pending,
+   and gives way (it shrinks and clips) before the command field does. The
+   wrapper is `display: contents` so an empty segment costs the row no gap. */
+.statusline__keys {
+  display: contents;
+}
+
+.pending-keys {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pending-keys kbd {
+  display: inline-block;
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  font: inherit;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+}
+
+.pending-keys__typed {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pending-keys__rec {
+  flex-shrink: 0;
+  color: var(--err);
+}
+
+.pending-keys__rec::before {
+  content: "●";
+  margin-right: 0.35em;
+}
+
+.pending-keys__which {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  color: var(--ink-3);
+}
+
+.pending-keys__which li + li::before {
+  content: "·";
+  padding: 0 0.5em;
+}
+
+.pending-keys__which kbd {
+  color: var(--ink-2);
+}
+
+/* A phone, or a finger: the keys typed and the recording mark, no list. */
+@media (pointer: coarse), (max-width: 900px) {
+  .pending-keys__which {
+    display: none;
+  }
+}

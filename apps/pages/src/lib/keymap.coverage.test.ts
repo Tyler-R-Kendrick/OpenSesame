@@ -446,7 +446,7 @@ describe("bindings", () => {
     handler(heldInTree);
     expect(heldInTree.defaultPrevented).toBe(true);
     const stray = new KeyboardEvent("keydown", {
-      key: "q",
+      key: "z",
       cancelable: true,
     });
     Object.defineProperty(stray, "target", { value: row });

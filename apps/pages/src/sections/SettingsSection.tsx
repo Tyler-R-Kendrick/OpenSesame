@@ -22,7 +22,6 @@ import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
-import { KeybindingsPanel } from "./settings/KeybindingsPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
@@ -32,6 +31,12 @@ import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
 import { useSettingsPanels } from "./settings/rail-snapshot.js";
+/** Its own chunk: the keymap editor is read on a Keybindings visit. */
+const KeybindingsPanels = lazy(() =>
+  import("./settings/keybindings/KeybindingsPanels.js").then((module) => ({
+    default: module.KeybindingsPanels,
+  })),
+);
 /** Its own chunk: Transport is read on a Security visit, never on boot. */
 const TransportPanel = lazy(() =>
   import("./settings/transport/TransportPanel.js").then((module) => ({
@@ -53,6 +58,12 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
       navigate(settingsPath(fromHash, hash), { replace: true });
     }
   }, [hash, navigate, pathname]);
+
+  // Keybindings were a panel of General before they had a tab (ADR 0150).
+  useEffect(() => {
+    if (category !== "general" || hash !== "#settings-keybindings") return;
+    navigate(settingsPath("keybindings"), { replace: true });
+  }, [category, hash, navigate]);
 
   useEffect(() => {
     if (category !== "security") return;
@@ -127,8 +138,12 @@ export function SettingsSection({
               <resolvedPanels.InstallPanel />
             </GuideTarget>
             <GeneralPrefsPanel />
-            <KeybindingsPanel />
           </>
+        ) : null}
+        {form && category === "keybindings" ? (
+          <Suspense fallback={null}>
+            <KeybindingsPanels />
+          </Suspense>
         ) : null}
 
         {form && category === "security" ? (

@@ -241,8 +241,18 @@ keys: `y` copies the secret, `u` the username, `e` edits, `x` trashes, `n`
 creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/w/s`
 jumps between sections (`g` times out like vim so a stray `g` does not
 swallow the next key). `Ctrl-l` / `:` focuses the command bar (browser
-URL-bar style); `m` toggles push-to-speak on the mic, which is the on-device model's and drawn once it is on. `?` shows the keymap. A mono status line always
+URL-bar style); `m` toggles push-to-speak on the mic, which is the on-device model's and drawn once it is on. `?` shows the keymap. `q{a–z}` records
+what the keys run into that register until the next `q`, and `@{a–z}` replays
+it (`3@a` three times, `@@` the last one again); a recording leaves out trash
+and share, and is kept as the macro `q-a`. A mono status line always
 shows the focused path, item count, and active filter (or the live query).
+While keys are half-typed the workspace statusline shows them as small caps
+beside the command field, vim's `showcmd` (`3`, `g`, `recording @a`), and on
+a wide screen what each next key runs, which-key's list
+(`g · v Vault · s Settings`), read from the keymap of the listing the keys
+were typed in. It is a segment of the row, drawn only while
+something is pending, and a phone shows the caps and the recording mark
+without the list.
 Pointer access remains complete: rows click, directories toggle, a `⋯` menu
 on the cursor or hovered row carries the verbs, and the `/` and `?` key
 chips in the path strip are buttons.
@@ -542,6 +552,49 @@ from the same files, and every Form key writes one of them. A row carries a
 key that opens its file. Do not draw a per-panel Visual/Source toggle or a
 paste box: give the configuration a file, and the viewer shows it
 ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
+
+### Keybindings are keycaps
+Settings › Keybindings is a table a person reads the way they read a vimrc:
+each command's name over its id, its keys as keycaps, and at the row's end
+what can be done about it ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)).
+A keycap is a hairline cap with a heavier lower edge that sinks a pixel
+under the pointer. A sequence is its caps side by side, closer together than
+two separate bindings sit. A key the person added carries the accent on that
+lower edge. A default they struck stays drawn, dashed and struck through, and
+pressing it brings the key back; a default is never hidden. A key that
+shares a prefix with another is dashed, because it waits.
+A changed row carries an editor's gutter mark in the accent and a reset key.
+A command that asks before it acts shows its key under the lock mark and
+offers no other; if another command took that key, the key stays drawn,
+struck and inert, so it is never shown as bound.
+
+The head holds a scope choice beside the view filter, a native select:
+*everywhere*, *in the vault list*, *in the rail*. Each row then draws its
+keys as they hold in that scope. A key that holds in that listing only is a
+keycap washed with the accent, and says where in its title and label; a key
+struck there only is drawn struck, likewise labelled. Recording, conflicts,
+swap, take, remove, restore, a row's reset, the changed filter and the gutter
+mark all act on the chosen scope, so a key held only in the vault list is
+free in the rail. A person's key for a command this plan does not have is
+never invisible: it is listed under **Unavailable**, after the commands and
+before **Fixed**, as its keycap and the command's id, with a status mark
+that says the command is not on this plan and a remove key. There is no
+caption above it.
+
+A key is recorded where its keycap was, never in a dialog, and pressing the
+Remove or Cancel key beside the field never costs it its focus. Press the key,
+or a sequence, and the hairline under the field drains over the keymap's
+own timeout. When it is gone, the sequence is kept. Enter keeps it at once,
+Escape puts the keycap back untouched, and Tab leaves: the field never
+traps the keyboard. A taken key is never overwritten quietly. The row names
+what holds the key, with three keys: swap, take, keep. A key that cannot be
+bound (Tab, Enter, Escape, F6, the count digits) is refused in place as a
+mark while recording goes on, and those keys are listed read-only under
+**Fixed**. The keyboard key in the find field switches it from words to
+pressing keys. A macro opens as a record under its row, not over the page,
+with its name, what it runs on, and its steps, each a count and a command.
+The record key reads presses into steps the way the shell reads them. At
+phone width the cap grows to the 44px target rather than floating inside it.
 
 ### Field rows
 The vault's atom: a small sentence-case label, value, and right-aligned

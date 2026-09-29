@@ -95,5 +95,19 @@ export function extraSteps({ press }) {
       await field.fill(text);
       await page.waitForTimeout(300);
     },
+    /**
+     * Press keys into a key-capture field (Settings › Keybindings) when one
+     * holds focus, then wait `wait` ms — the capture keeps a sequence once the
+     * keymap's timeout lapses. With no capture focused (a base build without
+     * one) nothing is pressed: a stray `k` would move the page's listing.
+     */
+    async captureKeysOptional(page, { keys, wait = 0 }) {
+      const capturing = await page.evaluate(
+        () => document.activeElement?.closest("[data-key-capture]") != null,
+      );
+      if (!capturing) return;
+      for (const key of keys) await page.keyboard.press(key);
+      await page.waitForTimeout(wait);
+    },
   };
 }

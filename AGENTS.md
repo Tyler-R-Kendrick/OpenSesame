@@ -602,6 +602,17 @@ Do not add new top-level directories or loose root files — find the group.
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
+- **Every key is a person's, and a few keep the road open**
+  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  resolves every press through the effective keymap (the catalogue in
+  `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
+  sparse bindings), so a new key is a catalogue row, never a second
+  hard-coded table. Tab, Enter, Escape, F6, Shift-F10/Shift-Enter and the
+  count digits stay fixed. A command that asks before it acts (trash, share)
+  never gains a key and never runs from a macro, and an event trigger
+  (`on: unlock`, `on: enter:<section>`) runs navigation only. A key may be
+  scoped to a closed set of contexts (`vault`, `rail`, read from
+  `listingOf(event)`), never an expression, and every guardrail holds in each.
 - **A Settings row acts, or it is not drawn**
   ([ADR 0150](docs/adr/0150-settings-rows-act-or-are-absent.md)). No disabled
   key, no lock glyph standing for "not yet", no link to a page that does not
