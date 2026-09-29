@@ -27,6 +27,7 @@ import {
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { LIB_RULES } from "./classification-lib.js";
 import { PACKAGE_RULES } from "./classification-packages.js";
+import { PLUGIN_RULES } from "./classification-plugins.js";
 import { SECTION_RULES } from "./classification-sections.js";
 import { SHELL_RULES } from "./classification-shell.js";
 import { TUTORIAL_RULES, VAULT_LIB_RULES } from "./classification-vault.js";
@@ -79,6 +80,7 @@ export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...VAULT_LIB_RULES,
   ...TUTORIAL_RULES,
   ...PACKAGE_RULES,
+  ...PLUGIN_RULES,
 ].map(alwaysOnIsCore);
 
 /**

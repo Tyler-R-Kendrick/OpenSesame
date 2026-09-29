@@ -21,9 +21,12 @@ const handled = new Set(
   [...background.matchAll(/message\?\.type === "([^"]+)"/g)].map((m) => m[1]),
 );
 
+// A capability carried by an optional plugin (ADR 0150 §7) speaks through
+// that plugin's own companion extension, never this one: its rows are swept
+// by the companion's parity test instead.
 const mapped = new Map(
   registry
-    .filter((c) => typeof c.surfaces.extension === "string")
+    .filter((c) => typeof c.surfaces.extension === "string" && !c.plugin)
     .map((c) => [c.surfaces.extension.replace(/^message:/, ""), c.id]),
 );
 

@@ -12,6 +12,7 @@
     "revision": "1",
     "acceptedRequired": [],
     "selectedOptional": [
+      "agents.surrogate-credentials",
       "agents.webmcp",
       "enterprise.ca-administration",
       "enterprise.directory-provisioning",
@@ -24,6 +25,7 @@
       "support.local-ai",
       "support.remote-ai",
       "telemetry.external",
+      "vault.browser-autofill",
       "wallet.spending"
     ],
     "chosenAlternatives": {

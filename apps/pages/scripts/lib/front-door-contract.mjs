@@ -109,9 +109,11 @@ export async function walkSetupCeremony(page, check, snap) {
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
   check(
-    // ADR 0142: the browser-local four are core. Thirteen optional
-    // capabilities since sharing.live (ADR 0150).
-    rows === 13,
+    // ADR 0142: the browser-local four are core. Fifteen optional
+    // capabilities since notifications.routing (ADR 0140 D9), sharing.live
+    // (ADR 0150), and the two runtime-installed plugins,
+    // agents.surrogate-credentials and vault.browser-autofill (ADR 0150 §7).
+    rows === 15,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

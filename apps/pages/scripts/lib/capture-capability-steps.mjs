@@ -45,6 +45,15 @@ export function capabilitySteps({ press, openSettings }) {
         .waitFor({ state: "visible", timeout: 20_000 });
       await page.waitForTimeout(400);
     },
+    /**
+     * `feature`, for a section only one of the two builds has: the base
+     * that has not grown it yet is a legitimate difference, not a miss.
+     */
+    async featureOptional(page, title) {
+      await openSettings(page, "Capabilities");
+      const toggle = page.getByRole("switch", { name: title, exact: true });
+      if (await toggle.count()) await apply(page, toggle.first());
+    },
     /** A whole section, by its own switch — what a person actually turns on. */
     async feature(page, title) {
       await openSettings(page, "Capabilities");

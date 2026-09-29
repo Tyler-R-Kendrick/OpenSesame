@@ -1,0 +1,24 @@
+{
+  "name": "@opensesame/browser-extension-autofill",
+  "version": "0.1.0",
+  "description": "Optional companion extension (the browser-autofill plugin, ADR 0150 \u00a77): fills a focused login field by reference after a gesture on its own UI, only on sites a person switched on, and never ships in the default extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json",
+    "test": "vitest run && node --test tests/capability-parity.test.mjs tests/placement.test.mjs"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11",
+    "wxt": "0.20.6"
+  }
+}
