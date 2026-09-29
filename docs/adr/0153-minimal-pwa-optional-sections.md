@@ -40,11 +40,17 @@ secret through `spec.native`.
 4. `activity.log` stays always on, so the minimal rail is vault,
    activity and settings.
 5. `minimal-local` still approves zero optional capabilities.
+6. `support.local-ai`, `support.remote-ai` and `agents.webmcp` stay
+   optional and unselected. The status bar parses commands — navigate,
+   search, copy — directly. It hands a sentence to a model only while
+   one of the model capabilities is approved. Guided help stays always
+   on and does not turn the bar into an ask box.
 
 ## Consequences
 
 - A fresh personal install has no `~/connections`, `~/access` or
-  `~/identity` until those switches are on.
+  `~/identity` until those switches are on, and the status bar does not
+  ask a model until On-device model or Remote support model is on.
 - Enabling directory provisioning or CA administration pulls in the
   optional capabilities those descriptors already depend on
   (`identity.federation`, `access.authority`, `vault.certificate-records`),

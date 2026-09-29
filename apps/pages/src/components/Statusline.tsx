@@ -9,8 +9,9 @@ import "./statusline.css";
 /**
  * One strip for command, support, plane truth, and notifications.
  *
- * CommandBar lives here — typed or spoken commands on every unlocked screen.
- * Unmatched sentences go to Support. The support sheet keeps its own composer.
+ * CommandBar lives here — typed commands on every unlocked screen.
+ * A model capability, when it is on, also reads a question. The support
+ * sheet keeps its own composer.
  * Beside it, the keys half-typed and what may follow them (`PendingKeys`).
  */
 export function Statusline() {

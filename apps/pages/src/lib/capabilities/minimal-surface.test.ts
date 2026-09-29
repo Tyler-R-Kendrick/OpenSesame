@@ -33,7 +33,12 @@ describe("minimal surface", () => {
     }
     expect(plan.approvedModules).toContain("activity.log/runtime");
     expect(plan.approvedItemKinds).toEqual(["secret"]);
-    for (const id of SECTION_FLAGS) {
+    for (const id of [
+      ...SECTION_FLAGS,
+      "support.local-ai",
+      "support.remote-ai",
+      "agents.webmcp",
+    ]) {
       expect(plan.capabilities[id]?.approved, id).toBe(false);
       expect(plan.approvedModules, id).not.toContain(`${id}/runtime`);
       expect(capabilityFlagKey(id)).toBe(`capability.${id}`);

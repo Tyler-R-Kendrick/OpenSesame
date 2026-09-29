@@ -18,14 +18,15 @@ function useCommandRunner() {
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // "Command or ask": a sentence no verb claims is a question, and the one
-  // field in the chrome hands it to Support rather than shrugging. Support
-  // learns whether a model exists only once it is opened, so an unknown
-  // availability is still a road in; a known absence keeps the honest
-  // no-match, because the sheet could only refuse the question again.
+  // A model capability registers command-assist. Without one, the bar
+  // parses commands only: navigate, search, copy. With one, a sentence no
+  // verb claims is a question. Support learns whether that model can answer
+  // only once it is opened, so an unknown availability is still a road in;
+  // a known absence keeps the honest no-match.
   const supportAccess = useSupportIfMounted();
   const availability = supportAccess?.view.availability ?? null;
   const canAsk =
+    assist != null &&
     supportAccess !== null &&
     (availability === null || availability.kind === "ready") &&
     !supportAccess.view.thinking;
@@ -83,15 +84,16 @@ function useCommandRunner() {
     busy,
     run,
     Voice: assist?.Voice,
+    asks: assist != null,
   };
 }
 
 /**
- * Shell omnibox — typed or spoken commands that drive navigation and
- * clipboard verbs. Click the mic to toggle listening; Enter submits.
+ * Shell omnibox. With no model it runs parsed commands: navigate, search,
+ * copy. A model adds interpretation, the mic, and the ask road.
  */
 export function CommandBar() {
-  const { value, setValue, notice, setNotice, busy, run, Voice } =
+  const { value, setValue, notice, setNotice, busy, run, Voice, asks } =
     useCommandRunner();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
 
@@ -113,7 +115,11 @@ export function CommandBar() {
           enterKeyHint="go"
           autoComplete="off"
           spellCheck={false}
-          placeholder="Command or ask… copy password for github"
+          placeholder={
+            asks
+              ? "Command or ask… copy password for github"
+              : "go to vault · search · copy password for …"
+          }
           value={value}
           disabled={busy}
           onChange={(event) => setValue(event.target.value)}
