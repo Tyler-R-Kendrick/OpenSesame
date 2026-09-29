@@ -90,7 +90,6 @@ export const CAPABILITY_TUTORIALS = {
   "vault.import": "vault.import",
   "vault.store_manifest.export": "vault.store-manifest",
   "vault.store_manifest.import": "vault.import",
-  "vault.sample_data": "vault.sample-data",
   "app.status": "host.health.check",
   "app.navigate": "client.support",
   "client.support": "client.support",

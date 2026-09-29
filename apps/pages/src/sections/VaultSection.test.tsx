@@ -366,14 +366,13 @@ describe("VaultSection", () => {
     );
   });
 
-  it("shows sample and favorite markers on rows", () => {
+  it("shows the favorite marker on a row", () => {
     vault.current = {
-      items: [makeLogin({ sample: true }), makeNote({ favorite: true })],
+      items: [makeLogin(), makeNote({ favorite: true })],
       folders: [],
       header: null,
     };
     renderSection();
-    expect(screen.getByText("SYNTHETIC")).toBeTruthy();
     expect(screen.getByTitle("Favorite")).toBeTruthy();
   });
 

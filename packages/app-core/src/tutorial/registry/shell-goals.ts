@@ -24,21 +24,6 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   {
-    id: "vault.sample-data",
-    title: "Load or remove sample data",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "vault.sample-data"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/vaults"',
-      'wait route "/settings/vaults" timeout=15000',
-      'focus "vault.sample-data" "Sample items are synthetic and badged. The same key removes every one of them, and nothing else." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-
-  {
     id: "vault.store-manifest",
     title: "Move items to and from the sealed store",
     routes: [],
