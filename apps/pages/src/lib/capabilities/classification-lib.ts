@@ -213,6 +213,7 @@ export const LIB_RULES = [
     L,
     [
       "settings",
+      "capability-connector-scope",
       "setup",
       "runtime-config",
       "deployment-profile",

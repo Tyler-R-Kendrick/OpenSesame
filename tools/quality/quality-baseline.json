@@ -18,7 +18,7 @@
   "totals": {
     "files": 442,
     "violations": 699,
-    "oversizedLines": 229709
+    "oversizedLines": 229657
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -676,7 +676,7 @@
       "max-lines": 466
     },
     "packages/app-core/src/lib/settings.ts": {
-      "max-lines": 481
+      "max-lines": 429
     },
     "packages/app-core/src/lib/siop-keys.ts": {
       "complexity": 1
