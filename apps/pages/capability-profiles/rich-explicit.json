@@ -15,6 +15,7 @@
       "access.authority",
       "agents.surrogate-credentials",
       "agents.webmcp",
+      "ai.password-reset",
       "connectors.external",
       "enterprise.ca-administration",
       "enterprise.directory-provisioning",

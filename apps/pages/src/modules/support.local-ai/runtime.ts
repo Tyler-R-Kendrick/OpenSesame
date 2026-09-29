@@ -25,8 +25,15 @@
  * function, and the module it names is only `import()`ed when called.
  */
 
+import { browserInference } from "@opensesame/app-core/lib/browser-inference.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { interpretCommand } from "@opensesame/app-core/lib/command-bar/interpret.js";
+import {
+  autonomousResetAvailable,
+  loadModelProvider,
+  resolveModelPlane,
+} from "@opensesame/app-core/lib/model-provider.js";
+import { installAutonomousResetReady } from "@opensesame/app-core/lib/password-reset-mail.js";
 import { suggestDraftLabels } from "@opensesame/app-core/lib/vault/draft-suggestions.js";
 import { SETTINGS_READ_TOOL } from "@opensesame/app-core/webmcp/settings-tools.js";
 import { CommandBarVoice } from "../../components/command-bar-voice.js";
@@ -83,6 +90,14 @@ export const capabilityRuntime: CapabilityRuntime = {
       Panel: EmbeddedModelProviderPanel,
       order: 10,
     });
+    activation.onDispose(
+      installAutonomousResetReady(async () => {
+        const verdict = await browserInference();
+        return autonomousResetAvailable(
+          resolveModelPlane(loadModelProvider(), verdict),
+        );
+      }),
+    );
 
     return activation.handle();
   },

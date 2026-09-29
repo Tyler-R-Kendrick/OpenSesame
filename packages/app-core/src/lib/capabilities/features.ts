@@ -40,6 +40,7 @@ export type FeatureId =
   | "sharing"
   | "payments"
   | "ai"
+  | "password-reset"
   | "surrogates"
   | "networking"
   | "notifications"
@@ -146,6 +147,7 @@ export const FEATURES: readonly Feature[] = [
     ),
     models: true,
   },
+  section("password-reset", "Password reset", ["ai.password-reset"], []),
   section(
     "surrogates",
     "Surrogate credentials",

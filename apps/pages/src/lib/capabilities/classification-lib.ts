@@ -214,6 +214,7 @@ export const LIB_RULES = [
     [
       "settings",
       "capability-connector-scope",
+      "password-reset-mail",
       "setup",
       "runtime-config",
       "deployment-profile",

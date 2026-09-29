@@ -56,7 +56,9 @@ optional capability. `~/connections`, `~/access` and `~/identity` load only
 after their Settings › Capabilities switch is on (`capability.<id>` is the
 OpenFeature flag). The minimal vault's only creatable kind is `secret`.
 Login, note, card, passkey, certificate and the other built-in types
-project onto that secret and stay out until Item types is on.
+project onto that secret and stay out until Item types is on. Password reset
+(`ai.password-reset`) is its own section, off until chosen, and it depends on
+the login item type (`vault.derived-records`).
 
 **Withdrawing an always-on capability.** A verified instance policy may list
 an always-on capability in `prohibited`. The capability is then withdrawn: it
@@ -116,7 +118,7 @@ Settings › Capabilities is one list of **sections**
 way: a subheader and the tiles configured under it. In order: Guests,
 Identity, Access, Connections, Directory, Encryption, Certificate authority,
 Backups, Password managers, Cloud secret storage, Local storage, Item types,
-Browser autofill, Sharing, Payments, AI, Surrogate credentials, Networking,
+Browser autofill, Sharing, Payments, AI, Password reset, Surrogate credentials, Networking,
 Notifications, Telemetry, and — for the operator — Instance policy. A section with optional
 capabilities carries one switch on its
 subheader over all of them; a section with more than one (Sharing, AI) also
