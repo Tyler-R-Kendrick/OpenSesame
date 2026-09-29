@@ -15,6 +15,22 @@ use serde_json::json;
 use crate::app_state::AppState;
 use crate::middleware::auth::require_session_or_operator;
 
+/// The experimental surface's routes (default off at request time).
+pub(super) fn routes() -> axum::Router<AppState> {
+    use axum::routing::{get, post};
+    axum::Router::new()
+        .route("/experimental/aauth/v1/status", get(status))
+        .route(
+            "/experimental/aauth/v1/map/person",
+            post(map_person_handler),
+        )
+        .route("/experimental/aauth/v1/map/agent", post(map_agent_handler))
+        .route(
+            "/experimental/aauth/v1/mission/digest",
+            post(mission_digest),
+        )
+}
+
 fn aauth_enabled() -> bool {
     std::env::var("OPENSESAME_AAUTH_EXPERIMENTAL")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))

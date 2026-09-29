@@ -6,12 +6,20 @@ license.workspace = true
 description = "Web-login rotation executor: step IR, tool boundary, and the ordering that must not be rearranged"
 
 [dependencies]
+# The canonical agent-hooks core (MIT, responsibleai/agent-hooks): this crate
+# is an agent-hooks/0.1 *host* for its own runs (ADR 0150). Pinned exactly,
+# with the same pin as crates/agent-hooks — the contract is pre-1.0, and the
+# vendored CTK corpus in spec/agent-hooks/conformance moves with this line.
+agent-hooks-sdk = "=0.1.0-alpha.5"
+futures = { workspace = true }
 opensesame-ceremony = { path = "../ceremony" }
 opensesame-session-observe = { path = "../session-observe" }
 async-trait = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+# The CTK runner and `Harness` seam (§13.2), for tests/agent_hooks_ctk.rs.
+agent-hooks-sdk = { version = "=0.1.0-alpha.5", features = ["ctk"] }
 tokio = { workspace = true, features = ["macros", "rt"] }

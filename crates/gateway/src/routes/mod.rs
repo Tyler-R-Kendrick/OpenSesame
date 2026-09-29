@@ -3,6 +3,7 @@ mod aauth;
 mod access_domains;
 mod admin;
 pub(crate) mod agent_capabilities;
+mod agent_hooks;
 mod agent_runs;
 mod agents;
 mod attachments;
@@ -382,19 +383,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
         .route("/api/v1/tasks/{id}", get(tasks::get_task))
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
-        .route("/experimental/aauth/v1/status", get(aauth::status))
-        .route(
-            "/experimental/aauth/v1/map/person",
-            post(aauth::map_person_handler),
-        )
-        .route(
-            "/experimental/aauth/v1/map/agent",
-            post(aauth::map_agent_handler),
-        )
-        .route(
-            "/experimental/aauth/v1/mission/digest",
-            post(aauth::mission_digest),
-        );
+        // ADR 0150: agent-hooks verdicts and the organization's hook policy.
+        .merge(agent_hooks::routes())
+        .merge(aauth::routes());
     // Vault KV v2 read facade (ops plane, default off). Merged rather than
     // chained so that with the flag unset the routes are absent entirely: an
     // unmounted surface answers 404, where a mounted-but-disabled one would

@@ -18,7 +18,7 @@
   "totals": {
     "files": 448,
     "violations": 707,
-    "oversizedLines": 231681
+    "oversizedLines": 231592
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 2507
+      "max-lines": 2481
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -422,7 +422,7 @@
       "max-lines": 493
     },
     "crates/gateway/src/lifecycle/responders.rs": {
-      "max-lines": 517
+      "max-lines": 510
     },
     "crates/gateway/src/lifecycle/scanner.rs": {
       "max-lines": 638
@@ -476,7 +476,7 @@
       "max-lines": 1639
     },
     "crates/gateway/src/routes/mod.rs": {
-      "max-lines": 413
+      "max-lines": 404
     },
     "crates/gateway/src/routes/relay.rs": {
       "max-lines": 955
@@ -812,7 +812,7 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 1698
+      "max-lines": 1651
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 412,

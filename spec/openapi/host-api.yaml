@@ -2534,6 +2534,125 @@ paths:
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
         "502": { $ref: "#/components/responses/ContractError" }
+  /agent-hooks/intercept:
+    post:
+      summary: Answer one agent-hooks/0.1 interception with a verdict
+      description: >-
+        OpenSesame as a remote agent-hooks/0.1 interceptor (ADR 0150), for an
+        agent framework that cannot spawn `opensesame hooks intercept`. The body
+        is one `AgentContext`; the answer is its `Verdict`, decided under the
+        caller organization's hook policy (the built-in default — every tool
+        escalates, credential-shaped content is redacted — when none is
+        stored). The caller is the agent framework, never the agent it
+        governs: a native session of any role in the organization, or the
+        operator. Agent-capability bearers and browser grants are refused
+        before dispatch.
+
+
+        A context the interceptor cannot read — over 5 MiB (spec §12.3), not
+        UTF-8, or failing the §4 envelope — is answered 200 with a deny verdict
+        (`opensesame:context_unreadable`): a verdict endpoint answers with
+        verdicts, and never with a partial read. Every decision is recorded
+        before it is answered, as an `agent_hooks.decision` outbox event
+        carrying the interception point, decision, reason and policy version —
+        never the target, a message, or a transformed value. A decision that
+        cannot be recorded is not answered (500), which a conformant host
+        turns into `deny host_error:interceptor_failed` (spec §6.3).
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentHookContext" }
+      responses:
+        "200":
+          description: The verdict, including a deny for an unreadable context
+          headers:
+            OpenSesame-Hook-Policy-Version:
+              description: The policy version the verdict was decided under (0 for the default).
+              schema: { type: integer, minimum: 0 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookVerdict" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "500": { $ref: "#/components/responses/ContractError" }
+  /agent-hooks/policy:
+    get:
+      summary: Read the organization's agent-hooks policy
+      description: >-
+        The policy with every default filled in, and its compare-and-set
+        version (0 when none is stored), which is also the `ETag`. Owner/admin
+        or operator only; never an agent surface — an agent must not read the
+        policy that governs it.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      responses:
+        "200":
+          description: The policy in force
+          headers:
+            ETag:
+              description: The policy version as a strong entity tag, like `"3"`.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookPolicyView" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Replace the organization's agent-hooks policy
+      description: >-
+        Compare-and-set: `If-Match` names the version the replacement was made
+        against (`"0"` when none is stored). The body is the policy document,
+        checked by the same parser the interceptor uses — closed shape, version
+        1, unambiguous rules — whose errors name a rule's position and pass
+        through as the `hint`. What is stored is the parsed policy with its
+        defaults filled. Owner/admin or operator only; the replacement and its
+        `agent_hooks.policy.updated` outbox event commit together.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - name: If-Match
+          in: header
+          required: true
+          description: The version read from GET, as a strong entity tag (`"3"`).
+          schema: { type: string, pattern: '^"[0-9]+"$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentHookPolicy" }
+      responses:
+        "200":
+          description: The policy now in force
+          headers:
+            ETag:
+              description: The new version as a strong entity tag.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookPolicyView" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "412":
+          description: The policy changed since that version was read; nothing was written.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, current_version]
+                properties:
+                  error: { type: string, const: precondition_failed }
+                  hint: { type: string }
+                  current_version: { type: integer, minimum: 0 }
+        "413": { $ref: "#/components/responses/ContractError" }
+        "428": { $ref: "#/components/responses/ContractError" }
   /a2h/callback:
     post:
       summary: Receive a human's A2H reply
@@ -2879,6 +2998,17 @@ paths:
         The returned request names a credential *reference* and a selector. It
         has no field able to carry a value: the driver resolves the reference
         itself, because in the local model the driver holds the vault.
+
+
+        Steps are enqueued by the Host's web-login runner, which hosts each run
+        as an agent-hooks/0.1 session (ADR 0150): a verb the organization's
+        hook policy refuses at `pre_tool_call` is never enqueued. Besides the
+        browser's verbs (`navigate`, `wait_for`, `fill_credential` with
+        `reference` `current_password` or a candidate handle, `assert_present`,
+        `submit`, `verify_login`, `read_dom_redacted`, `screenshot_redacted`)
+        the runner issues three custody steps for the candidate, which lives in
+        the driver's vault: `generate_candidate`, `seal_candidate` and
+        `promote_candidate`, each carrying only a Host-minted `handle`.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -2910,7 +3040,9 @@ paths:
       description: >-
         Only the claimant may, and a claim that lapsed is not a claim. A driver
         that went away and came back finds its step taken and is told so, rather
-        than settling a step somebody else is now executing.
+        than settling a step somebody else is now executing. A run that has
+        closed — its executor stopped waiting — takes no further outcome, so
+        a late answer is refused rather than stored where nothing reads it.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -2926,7 +3058,13 @@ paths:
                 outcome:
                   type: object
                   description: >-
-                    The StepOutcome. No variant carries a credential value.
+                    The StepOutcome, tagged by `outcome` (`done`, `filled`,
+                    `presence`, `verified`, `dom`, `frame`, `captured`,
+                    `failed`); a `seal_candidate` step answers `sealed` with
+                    `backed_up`, and anything else is read as not backed up.
+                    No variant carries a credential value. The runner reads
+                    it once and rewrites the stored copy with any
+                    credential-shaped text redacted.
       responses:
         "200":
           description: Recorded
@@ -2941,7 +3079,7 @@ paths:
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "409":
-          description: The caller does not hold this step's claim
+          description: The caller does not hold this step's claim, or the run has closed
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentRunError" }
@@ -3006,6 +3144,74 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ContractError" }
   schemas:
+    AgentHookContext:
+      type: object
+      description: >-
+        One agent-hooks/0.1 `AgentContext` (spec §4). Validated by the
+        canonical core, not by this schema; a context that fails is answered
+        with a deny verdict.
+      required: [spec, interception_point, timestamp, sequence, agent, session]
+      properties:
+        spec: { type: string, pattern: '^agent-hooks/[0-9]+\.[0-9]+$' }
+        interception_point:
+          type: string
+          enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown]
+        timestamp: { type: string }
+        sequence: { type: integer, minimum: 0 }
+        agent: { type: object }
+        session: { type: object }
+        target: {}
+      additionalProperties: true
+    AgentHookVerdict:
+      type: object
+      description: >-
+        An agent-hooks/0.1 `Verdict` (spec §5). `reason` is a fixed
+        `opensesame:*` identifier or the operator's own; `message` names
+        credential kinds and counts, never content. An `approval` block marks
+        a deny a person may lift.
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [allow, deny, transform] }
+        reason: { type: string }
+        message: { type: string }
+        warnings: { type: array, items: { type: object } }
+        approval: { type: object }
+        transform: { type: object }
+        evidence: { type: object }
+        result_labels: { type: array, items: { type: string } }
+    AgentHookToolRule:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      description: Exactly one of `name` and `prefix`.
+      properties:
+        name: { type: string, minLength: 1 }
+        prefix: { type: string, minLength: 1 }
+        decision: { type: string, enum: [allow, escalate, deny] }
+        reason: { type: string, maxLength: 128 }
+        message: { type: string }
+        labels: { type: array, items: { type: string }, maxItems: 16 }
+        refuse_labels: { type: array, items: { type: string }, maxItems: 16 }
+    AgentHookPolicy:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version: { type: integer, const: 1 }
+        tools: { type: array, items: { $ref: "#/components/schemas/AgentHookToolRule" } }
+        unlisted_tools: { type: string, enum: [allow, escalate, deny], default: escalate }
+        secret_guard: { type: string, enum: [redact, deny, "off"], default: redact }
+        refuse_labels: { type: array, items: { type: string }, maxItems: 16 }
+    AgentHookPolicyView:
+      type: object
+      required: [spec, version, stored, policy]
+      properties:
+        spec: { type: string, const: agent-hooks/0.1 }
+        version: { type: integer, minimum: 0, description: 0 when no policy is stored }
+        stored: { type: boolean }
+        policy: { $ref: "#/components/schemas/AgentHookPolicy" }
+        updated_at: { type: [string, "null"] }
+        updated_by: { type: [string, "null"] }
     AgentAudience:
       type: string
       enum: ['urn:opensesame:agent:mcp-host', 'urn:opensesame:agent:mcp-client']
