@@ -42,6 +42,7 @@ panels of [`pages`](pages)
 |---|---|---|---|
 | [`pages`](pages) | `@opensesame/pages` | 5180 | **The OpenSesame app.** Installable offline PWA published to GitHub Pages: vault, connections, agents, access, identity, sites, settings. Complete with no backend. |
 | [`browser-extension`](browser-extension) | `@opensesame/browser-extension` | — | WXT browser extension: Host API, sync cursor, optional daemon. Never exposes a secret to a web page. |
+| [`browser-extension-autofill`](browser-extension-autofill) | `@opensesame/browser-extension-autofill` | — | **Optional plugin** (`browser-autofill`, [ADR 0150](../docs/adr/0150-surrogate-credentials-at-the-last-hop.md) §7): a companion extension that fills a focused login field by reference, only on sites a person switched on, after a gesture on its own UI. Installed at runtime, never in the default extension. |
 | [`android`](android) | `@opensesame/android` | — | **The Android app** (was `authenticator-native`, [ADR 0138](../docs/adr/0138-self-issued-identity-one-native-host.md)): OpenID4VC holder through Multipaz, and the contract tests the web app holds it to. Its `ios/` sources are the matching Apple wallet extension. |
 
 The two MCP servers are packages served by the client CLI

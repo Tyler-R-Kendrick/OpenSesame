@@ -646,6 +646,25 @@ Do not add new top-level directories or loose root files — find the group.
   opensesame-connection-broker --test catalog_view`) and the client module
   (`pnpm --filter @opensesame/app-core generate:catalog`). A target shows a
   subset only as an ordered selection of catalog ids.
+- **A surrogate selects a credential; it never becomes one**
+  ([ADR 0150](docs/adr/0150-surrogate-credentials-at-the-last-hop.md)).
+  An unmodified client may hold `osr_…` instead of a token, and the broker
+  *recognizes* it, *strips* its header and *re-places* the credential into
+  the provider's own site through invoke-through — never a find-and-replace
+  of the text. A surrogate anywhere but its one declared site, at another
+  host, from another caller, or outside its method/path scope is refused
+  and is a `surrogate.*` tripwire; the client learns only one message.
+  Surrogates carry no provider prefix. Every brokered response is scrubbed
+  of the credential it carried. No extension or PWA does network
+  substitution (ADR 0150 §6.4–6.5). The proxy, login-form substitution and
+  autofill are **optional runtime plugins** (ADR 0150 §7,
+  `spec/plugins/catalog.json`, `crates/plugin-settings`): never in the
+  default `opensesame` binary, the daemon's dependency tree, the Pages
+  bootstrap or `apps/browser-extension`; installed from a terminal with a
+  sha256 pin re-verified at every launch; recorded off until switched on in
+  Settings or `opensesame plugins enable`; `OPENSESAME_PLUGIN_<ID>=off` can
+  only turn one off. A gate fails if `opensesame-cli` or the daemon reaches
+  the plugin crate.
 - A connector arrives by reference, never by credential. The connectors tab
   of setup and the Connections page's *Import connectors* read a
   Nango-compatible directory's two listing routes and nothing else; `GET /connection/{id}` — the route that

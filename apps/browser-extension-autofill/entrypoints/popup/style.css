@@ -1,0 +1,183 @@
+/* OpenSesame autofill popup — the vault app's design language (DESIGN.md):
+   icon keys, one status mark, no word on a button face. */
+
+:root {
+  --canvas: #f2f5f9;
+  --surface: #ffffff;
+  --ink: #0e1826;
+  --ink-2: #566880;
+  --line: #dce4ef;
+  --accent: #0d7268;
+  --accent-ink: #ffffff;
+  --warn: #9a5b00;
+  --radius: 10px;
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0a121d;
+    --surface: #111d2c;
+    --ink: #e7eefa;
+    --ink-2: #9db0c8;
+    --line: #223349;
+    --accent: #2fb3a3;
+    --accent-ink: #04231f;
+    --warn: #f0b35a;
+
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.shell {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.head,
+.site-row,
+.pair-row,
+.go-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.head {
+  justify-content: space-between;
+}
+
+.brand {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.origin {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.status-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--ink-2);
+}
+
+.status-mark[data-tone="ok"] {
+  color: var(--accent);
+}
+
+.status-mark[data-tone="warn"] {
+  color: var(--warn);
+}
+
+.status-mark svg:not([data-tone]) {
+  display: none;
+}
+
+.status-mark[data-tone="ok"] svg:not([data-tone="ok"]),
+.status-mark[data-tone="warn"] svg:not([data-tone="warn"]),
+.status-mark[data-tone="off"] svg:not([data-tone="off"]) {
+  display: none;
+}
+
+.icon-btn,
+.go {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.go {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+
+.go:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.go-verb {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.go[hidden] + .go-verb {
+  display: none;
+}
+
+.icon-btn:focus-visible,
+.go:focus-visible,
+.refs input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+
+.refs {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.refs legend {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.refs label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
