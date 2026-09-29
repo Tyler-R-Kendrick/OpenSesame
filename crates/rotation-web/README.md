@@ -19,6 +19,11 @@ with a digest.
   stores its `StepRequest` as JSON, and the gateway's agent-run routes
   (`crates/gateway/src/routes/agent_runs.rs`) hand that JSON to a driver without
   linking this crate.
+- **Agent Hooks host:** `src/hooks/` emits agent-hooks/0.1 around its runs
+  through the canonical core `agent-hooks-sdk` (pinned `=0.1.0-alpha.5`), and
+  `tests/agent_hooks_ctk.rs` runs the vendored CTK corpus
+  ([`spec/agent-hooks/conformance`](../../spec/agent-hooks/conformance)); the
+  claim is [`docs/validation/agent-hooks-conformance.md`](../../docs/validation/agent-hooks-conformance.md).
 - **Builds on:** [`opensesame-ceremony`](../ceremony) (capture slots and
   refusals) and [`opensesame-session-observe`](../session-observe) (frame
   admission, mask manifests, `UntrustedText`).
@@ -42,11 +47,13 @@ generate candidate -> seal to vault -> WAIT for backup acknowledgement -> fill
 | `ceremony` | `CeremonyTransport`, `run_capture_steps`, `CaptureStep`, `CaptureVault`, `SealedCapture`, `CaptureReport`, `CaptureError` |
 | `capture` | `classify`, `solve_mask`, `strip_targets`, `FieldSnapshot`, `Classification`, `ActionRecord`, `FrameRecord`, `ThoughtRecord` |
 | `extension` | `ExtensionTransport`, `StepChannel`, `StepRequest`, `StepOutcome` — a fill carries a reference and a selector, never a value |
+| `hooks` | `HookedTransport`, `HookSession`, `host_run`, `run_change_password_hooked`, `run_capture_steps_hooked`, `RunRequest`, `Refusal` — each run as an agent-hooks/0.1 session ([ADR 0150](../../docs/adr/0150-agent-hooks-interceptor.md)): every verb bracketed by `pre_tool_call`/`post_tool_call`, plus startup, input, output and shutdown; §5.4 labels resurfaced on later emissions; `HostedRunError::Withheld` when the run acted but its report was refused. A tool router: no model calls |
 
 ## Develop
 
 ```bash
 cargo +1.88.0 test -p opensesame-rotation-web
+cargo +1.88.0 test -p opensesame-rotation-web --test agent_hooks_ctk -- --nocapture  # CTK report
 ```
 
 `tests/ordering.rs` pins the sequence; the wait for backup acknowledgement and

@@ -912,6 +912,7 @@ fn decode_receipt_for_organization(
 }
 pub mod a2h_replies;
 pub mod agent_capabilities;
+pub mod agent_hook_policy;
 pub mod bitwarden;
 pub mod callback_replay;
 pub mod host_authorizations;
@@ -1534,7 +1535,6 @@ macro_rules! optional_sealed_material {
 // `optional_sealed_material!` is a textually scoped `macro_rules!` macro: a
 // module declared above its definition cannot see it.
 mod managed_certs;
-
 mod shared_sessions;
 pub use shared_sessions::StoredSession;
 
@@ -1545,8 +1545,8 @@ pub use security::{
 };
 
 mod observation;
-
 mod runner_steps;
+pub mod web_login_runs;
 
 /// Root-owned tenant insertion is visible to every descendant `impl Db` module.
 impl Db {

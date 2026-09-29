@@ -39,6 +39,7 @@ members = [
   "crates/lifecycle",
   "crates/security-events",
   "crates/agent-events",
+  "crates/agent-hooks",
   "crates/ceremony",
   "crates/a2h",
   "crates/breach-intel",

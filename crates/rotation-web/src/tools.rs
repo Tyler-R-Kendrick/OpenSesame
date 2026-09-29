@@ -146,6 +146,13 @@ pub enum StepError {
     Challenge,
     #[error("the runner is unavailable")]
     Transport,
+    /// An agent-hooks verdict refused the step (ADR 0150): a combined deny at
+    /// `pre_tool_call` (the step was never dispatched) or at `post_tool_call`
+    /// (its result was discarded), or a transform the host could not apply.
+    /// Carries no reason on purpose — `StepError` crosses the driver channel,
+    /// and the verdict's reason stays with the hook session that recorded it.
+    #[error("an agent-hooks verdict refused the step")]
+    Refused,
 }
 
 /// The sandbox's tool surface, as a trait.

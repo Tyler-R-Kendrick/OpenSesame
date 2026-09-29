@@ -189,4 +189,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0147](0147-connector-plans-and-user-token-proof.md) | Connector plans, whole-configuration connectors, and the user-token proof | Accepted |
 | [0148](0148-bitwarden-bridge-and-importer.md) | The Bitwarden server as an optional bridge, and moving onto it | Accepted |
 | [0149](0149-nothing-stored-in-the-clear.md) | Nothing the client stores rests in the clear | Accepted |
+| [0150](0150-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor | Accepted |
 | [0150](0150-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |

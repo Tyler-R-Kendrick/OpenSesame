@@ -221,3 +221,25 @@ async fn a_purged_run_takes_its_steps_with_it() {
         .unwrap()
         .is_none());
 }
+
+#[tokio::test]
+async fn a_closed_run_takes_no_more_outcomes() {
+    // An executor that stopped waiting closes the run; a driver answering late
+    // must not leave what it sent in a row nobody will read or narrow.
+    let db = seeded().await;
+    db.enqueue_runner_step(ORG, "run:1", 0, REQUEST, NOW)
+        .await
+        .unwrap();
+    db.claim_runner_step(ORG, "run:1", "device:alice", NOW, LATER)
+        .await
+        .unwrap()
+        .expect("claimable while open");
+    db.close_observation_run(ORG, "run:1", NOW).await.unwrap();
+    assert!(!db
+        .settle_runner_step(ORG, "run:1", 0, "device:alice", OUTCOME, NOW)
+        .await
+        .unwrap());
+    let step = db.get_runner_step(ORG, "run:1", 0).await.unwrap().unwrap();
+    assert_eq!(step.state, "claimed");
+    assert_eq!(step.outcome_json, None);
+}
