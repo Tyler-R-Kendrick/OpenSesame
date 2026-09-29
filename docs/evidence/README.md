@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-09-29-minimal-pwa-sections/`](2026-09-29-minimal-pwa-sections/README.md) | Minimal PWA sections |
 | [`2026-09-29-live-session-edit/`](2026-09-29-live-session-edit/README.md) | Authorized edit on a live session |
 | [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
