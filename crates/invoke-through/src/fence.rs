@@ -24,6 +24,32 @@ use crate::invoke::InvokeRequest;
 /// broker owns it.
 pub(crate) const REQUEST_HEADER_ALLOWLIST: &[&str] = &["accept", "content-type", "user-agent"];
 
+/// Headers one provider's own clients send and its API reads, on top of the
+/// shared allowlist. Each is a request *parameter* the API documents, never a
+/// credential or a session: GitHub selects its REST version with
+/// `X-GitHub-Api-Version`, and its SDKs send it on every call. A header named
+/// here reaches only that provider's hosts.
+fn provider_request_headers(provider_id: &str) -> &'static [&'static str] {
+    match provider_id {
+        "github" => &["x-github-api-version"],
+        _ => &[],
+    }
+}
+
+/// Whether a caller-set header may travel upstream on a call to
+/// `provider_id`: the shared allowlist plus that provider's own parameters,
+/// case-insensitively. The surrogate adapter drops every header this refuses
+/// rather than failing the call. An unmodified SDK sends plenty of headers
+/// (`accept-encoding`, `connection`, telemetry) that no upstream needs from
+/// us, and `accept-encoding` above all must not pass: the reflection scrub
+/// reads identity-encoded bodies only.
+#[must_use]
+pub fn forwardable_request_header(provider_id: &str, name: &str) -> bool {
+    let lowered = name.trim().to_ascii_lowercase();
+    REQUEST_HEADER_ALLOWLIST.contains(&lowered.as_str())
+        || provider_request_headers(provider_id).contains(&lowered.as_str())
+}
+
 /// A request that has passed every pre-connect fence. Constructing one is
 /// proof the egress allowlist, scheme, method, header allowlist, and body cap
 /// all checked out. Carries no credential — the token is added in
@@ -140,7 +166,7 @@ impl EgressFence {
                 host: authority.as_str().to_string(),
             });
         }
-        let headers = filter_request_headers(&req.headers)?;
+        let headers = filter_request_headers(&req.provider_id, &req.headers)?;
         let body = req.body.unwrap_or_default();
         if body.len() > self.request_body_cap {
             return Err(InvokeError::RequestBodyTooLarge {
@@ -175,13 +201,14 @@ fn parse_method(method: &str) -> Result<Method, InvokeError> {
 }
 
 fn filter_request_headers(
+    provider_id: &str,
     headers: &[(String, String)],
 ) -> Result<Vec<(HeaderName, HeaderValue)>, InvokeError> {
     headers
         .iter()
         .map(|(name, value)| {
             let lowered = name.trim().to_ascii_lowercase();
-            if !REQUEST_HEADER_ALLOWLIST.contains(&lowered.as_str()) {
+            if !forwardable_request_header(provider_id, &lowered) {
                 return Err(InvokeError::HeaderNotAllowed(lowered));
             }
             let name = HeaderName::from_bytes(lowered.as_bytes())
@@ -196,3 +223,7 @@ fn filter_request_headers(
 fn is_loopback_host(host: &str) -> bool {
     matches!(host, "127.0.0.1" | "::1" | "localhost")
 }
+
+#[cfg(test)]
+#[path = "fence_tests.rs"]
+mod tests;

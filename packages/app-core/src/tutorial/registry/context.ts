@@ -8,7 +8,11 @@
  * which a secret can arrive here to be leaked further on.
  */
 
-import { CAPABILITIES } from "@opensesame/capability-registry";
+// The page-reachable projection, not the whole registry: every CLI, daemon and
+// MCP row's surfaces and exclusions stay out of the bundle (ADR 0150 §7).
+import PWA_CAPABILITIES from "@opensesame/capability-registry/pwa-summaries.json" with {
+  type: "json",
+};
 import type {
   SupportCapabilityDescription,
   SupportHelpEntry,
@@ -45,7 +49,7 @@ function describeCapabilities(
   const out: SupportCapabilityDescription[] = [];
   const helpGoals = help.flatMap((entry) => (entry.goal ? [entry.goal] : []));
   for (const capability of capabilitiesForContext(
-    CAPABILITIES,
+    PWA_CAPABILITIES,
     route,
     helpGoals,
   )) {

@@ -25,8 +25,10 @@ pub enum InvokeError {
     /// Only idempotent-class and body methods a human CLI would issue.
     #[error("method `{0}` is not allowed for invoke-through")]
     MethodNotAllowed(String),
-    /// Request headers are allowlisted (accept, content-type, user-agent) so
-    /// a caller can never inject `authorization` or a cookie jar.
+    /// Request headers are allowlisted (accept, content-type, user-agent,
+    /// plus a provider's documented request parameters such as GitHub's
+    /// `x-github-api-version`) so a caller can never inject `authorization`
+    /// or a cookie jar.
     #[error("header `{0}` is not on the invoke-through request allowlist")]
     HeaderNotAllowed(String),
     #[error("request body exceeds the {cap} byte cap")]

@@ -34,6 +34,12 @@ import {
   NOTIFICATIONS_ROUTES,
   NOTIFICATIONS_TARGETS,
 } from "./notifications-catalog.js";
+import {
+  AUTOFILL_GOALS,
+  AUTOFILL_TARGETS,
+  SURROGATE_GOALS,
+  SURROGATE_TARGETS,
+} from "./plugins-catalog.js";
 import { CORE_GUIDE_ROUTES, type GuideRouteDescriptor } from "./routes.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { WALLET_ROUTES, WALLET_TARGETS } from "./wallet-catalog.js";
@@ -102,6 +108,22 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     goals: NOTIFICATIONS_GOALS,
     help: [],
     routes: NOTIFICATIONS_ROUTES,
+  },
+  {
+    capability: "agents.surrogate-credentials",
+    files: { targets: "plugins-catalog.ts", goals: "plugins-catalog.ts" },
+    targets: SURROGATE_TARGETS,
+    goals: SURROGATE_GOALS,
+    help: [],
+    routes: [],
+  },
+  {
+    capability: "vault.browser-autofill",
+    files: { targets: "plugins-catalog.ts", goals: "plugins-catalog.ts" },
+    targets: AUTOFILL_TARGETS,
+    goals: AUTOFILL_GOALS,
+    help: [],
+    routes: [],
   },
 ];
 

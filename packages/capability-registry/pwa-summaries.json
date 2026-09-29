@@ -1,0 +1,810 @@
+[
+  {
+    "id": "authority.portal.templates.manage",
+    "title": "Install or revise Access portal authority templates",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "authority.portal.templates.read",
+    "title": "Read Access portal authority templates",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "identity.approval.requests",
+    "title": "Create and review addressed authorization requests",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "host.health.pages",
+    "title": "Connectivity posture inside the authority vault",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "host.whoami",
+    "title": "Resolve the authenticated principal",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "plugins.surrogate_proxy.switch",
+    "title": "Switch the surrogate proxy plugin on or off on the paired daemon",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/plugins/client.ts:setPluginEnabled"
+    }
+  },
+  {
+    "id": "plugins.surrogate_proxy.tripwires",
+    "title": "Read the surrogate proxy's recent tripwires",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/plugins/client.ts:readPluginNotices"
+    }
+  },
+  {
+    "id": "plugins.browser_autofill.switch",
+    "title": "Switch the autofill extension plugin on or off on the paired daemon",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/plugins/client.ts:setPluginEnabled"
+    }
+  },
+  {
+    "id": "receipts.read",
+    "title": "Read invocation receipts",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "shared_sessions.join_request",
+    "title": "Ask to join a public shared session",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/join/client.ts:askToJoin"
+    }
+  },
+  {
+    "id": "shared_sessions.live_host",
+    "title": "Host a live session from this browser",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/live/session.ts:startHosting"
+    }
+  },
+  {
+    "id": "shared_sessions.live_join",
+    "title": "Join somebody's live session from a link",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/live/session.ts:joinLive"
+    }
+  },
+  {
+    "id": "transport.status.view",
+    "title": "Read desired policy, credential, runtime, observation and enforcement status per target",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/transport-status.ts:readTransportStatus"
+    }
+  },
+  {
+    "id": "transport.verify.run",
+    "title": "Run the positive/negative enforcement probe against a target",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/transport-verify.ts:runTransportVerify"
+    }
+  },
+  {
+    "id": "transport.identity.reference",
+    "title": "Select a registered identity source by public reference (never a path or socket)",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/transport-settings.ts:withTransportTarget"
+    }
+  },
+  {
+    "id": "delegations.claim",
+    "title": "Claim a delegation offer",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/join/client.ts:claimInvite"
+    }
+  },
+  {
+    "id": "agent_identities.read",
+    "title": "Read registered agent identities",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "providers.list",
+    "title": "Browse the provider catalog",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/embedded-catalog.ts:getBundledProviders"
+    }
+  },
+  {
+    "id": "connections.list",
+    "title": "List connections",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/connections.ts:listConnections"
+    }
+  },
+  {
+    "id": "connections.inspect",
+    "title": "Inspect a connection and its activity",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/connections.ts:getConnection"
+    }
+  },
+  {
+    "id": "connections.create",
+    "title": "Create a connection (consent + credential ceremony)",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/connections.ts:createConnection"
+    }
+  },
+  {
+    "id": "connections.credential.set",
+    "title": "Enter or replace a connection credential",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/connections.ts:setConnectionCredential"
+    }
+  },
+  {
+    "id": "connections.remove",
+    "title": "Revoke a connection",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/connections.ts:revokeConnection"
+    }
+  },
+  {
+    "id": "integrations.read",
+    "title": "Read configured integrations",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/connections.ts:listIntegrations"
+    }
+  },
+  {
+    "id": "certs.issue",
+    "title": "Issue a certificate",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/certs.ts:issueCertificate"
+    }
+  },
+  {
+    "id": "browser.pairing.begin",
+    "title": "Request an origin and proof-key bound browser pairing",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/browser-pairing.ts:beginBrowserPairing"
+    }
+  },
+  {
+    "id": "browser.identity.authenticate",
+    "title": "Bind verified Identity evidence to the paired browser",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/join/client.ts:verifyAt"
+    }
+  },
+  {
+    "id": "browser.grant.renew",
+    "title": "Renew a join sitting's browser grant to the same proof key",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/browser-pairing.ts:renewBrowserGrant"
+    }
+  },
+  {
+    "id": "model_plane.read",
+    "title": "Read which plane runs the password-reset model",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "model_plane.choose",
+    "title": "Choose who runs the password-reset model",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "backup.status",
+    "title": "Read vault backup posture",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/backup.ts:getBackupStatus"
+    }
+  },
+  {
+    "id": "backup.target.set",
+    "title": "Configure the vault backup target",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/backup.ts:putBackupTarget"
+    }
+  },
+  {
+    "id": "vault.drive.sync",
+    "title": "Pair the vault with a tailnet drive and keep it in step",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/tailnet-sync/observer.ts:pairTailnetDrive"
+    }
+  },
+  {
+    "id": "identity.interaction.approve",
+    "title": "Approve a cross-device interaction",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/i/:ref"
+    }
+  },
+  {
+    "id": "identity.interaction.deny",
+    "title": "Deny a cross-device interaction",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/i/:ref"
+    }
+  },
+  {
+    "id": "identity.login",
+    "title": "Identity sign-in (device, loopback, anonymous)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "lib/federation.ts:beginSignIn"
+    }
+  },
+  {
+    "id": "identity.signout",
+    "title": "Sign out of this device: end the Identity session, forget the upstream assertion, lock the vault",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "lib/session-exit.ts:signOut"
+    }
+  },
+  {
+    "id": "identity.switch_account",
+    "title": "Switch account: sign out, then sign in afresh as somebody else (prompt=login on OIDC issuers)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "lib/session-exit.ts:switchAccount"
+    }
+  },
+  {
+    "id": "identity.account_factors.list",
+    "title": "List the signed-in account's own passkeys and authenticator app (GET /v1/mfa/factors; never a key, seed or counter)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "lib/account-factors.ts:listAccountFactors"
+    }
+  },
+  {
+    "id": "identity.account_factors.enroll",
+    "title": "Add a passkey or an authenticator app to the signed-in account (POST /v1/mfa/passkey/*, /v1/mfa/totp/*)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "lib/account-factors.ts:enrollAccountPasskey"
+    }
+  },
+  {
+    "id": "identity.account_factors.remove",
+    "title": "Remove one of the signed-in account's own factors, proved by a fresh step-up from one of them (DELETE /v1/mfa/factors/:id; ADR 0146)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "lib/account-factors.ts:removeAccountFactor"
+    }
+  },
+  {
+    "id": "device.browser_reset",
+    "title": "Reset this browser: sign out, then erase every vault, setting, database, cache and service worker the app keeps on this origin",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/browser-reset.ts:resetBrowser"
+    }
+  },
+  {
+    "id": "identity.whoami",
+    "title": "Resolve the identity-plane principal",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.local.requests.manage",
+    "title": "Create and decide encrypted local access requests",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "identity.local.policy.manage",
+    "title": "Configure browser-local application scope and role policies",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "identity.local.access.manage",
+    "title": "Inspect and revoke vault-local sessions and application grants",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
+    "id": "identity.local.agent.keys.manage",
+    "title": "Enroll and revoke local agent keys and verify machine sessions",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.local.application.authorize",
+    "title": "Approve or deny browser-local application sign-in",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity/authorize"
+    }
+  },
+  {
+    "id": "identity.local.siop.authorize",
+    "title": "Approve or deny browser-native Self-Issued OpenID Provider v2 sign-in",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity/siop"
+    }
+  },
+  {
+    "id": "identity.local.passkeys.manage",
+    "title": "Manage vault-local passkeys and passkey-backed sessions",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.local.directory.manage",
+    "title": "Manage vault-local identities, devices, memberships and application registrations",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.agent.register",
+    "title": "Register a provisional agent identity",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.agent.manage",
+    "title": "List, rename and revoke owned agent registrations",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.users.manage",
+    "title": "Provision and manage organization directory users",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.claim.accept",
+    "title": "Review and accept an ownership claim",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/claim"
+    }
+  },
+  {
+    "id": "identity.drop.open",
+    "title": "Open a drop someone sent",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/claim"
+    }
+  },
+  {
+    "id": "identity.authenticator.invoke",
+    "title": "Hand an authenticator request to the native app",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/invoke/:kind"
+    }
+  },
+  {
+    "id": "identity.local.organizations.read",
+    "title": "Read the organizations a signed-in local person or agent belongs to, and their members",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/local-organizations.ts:listLocalOrganizations"
+    }
+  },
+  {
+    "id": "identity.local.organizations.membership.manage",
+    "title": "Change or remove organization members from a signed-in local passkey session",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/local-organizations.ts:changeLocalOrganizationMembership"
+    }
+  },
+  {
+    "id": "identity.org_signin.upstream.manage",
+    "title": "Read and set an organization's sign-in upstream: OIDC issuer and client, or SAML IdP (PATCH /v1/organizations/:id)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.org_signin.domains.manage",
+    "title": "Claim, verify and release an organization's email domains (/v1/organizations/:id/domains)",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.org_signin.scim_tokens.manage",
+    "title": "List and revoke an organization's SCIM provisioning tokens: ids and dates, never a value",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.org_signin.scim_token.mint",
+    "title": "Mint a SCIM provisioning token; its plaintext is shown once, to the owner who asked",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "connectors.directory.sync",
+    "title": "Sync authorized connectors from a Nango-compatible directory",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/connector-directory.ts:syncConnectorDirectory"
+    }
+  },
+  {
+    "id": "connectors.bind",
+    "title": "Bind a connector to a local identity under a policy",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/local-share-grants.ts:createLocalShare"
+    }
+  },
+  {
+    "id": "connectors.connect.configure",
+    "title": "Create or edit a connector from its plan",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vercel-connect-manage.ts:createConfiguredConnector"
+    }
+  },
+  {
+    "id": "connectors.connect.authorize_user",
+    "title": "Authorize a connector on behalf of the signed-in person",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vercel-connect-manage.ts:authorizeConnectorAs"
+    }
+  },
+  {
+    "id": "connectors.connect.token_check",
+    "title": "Prove a person's connector token can be acquired",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vercel-connect-manage.ts:checkConnectorToken"
+    }
+  },
+  {
+    "id": "identity.admin",
+    "title": "People, providers, devices, orgs, OAuth clients, audit",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "identity.device.approve",
+    "title": "Approve a device sign-in",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/device"
+    }
+  },
+  {
+    "id": "identity.notification.channels.read",
+    "title": "List notification channels and what each can do",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "identity.notification.bindings.manage",
+    "title": "Bind, verify, or revoke a notification destination",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "identity.notification.preferences.manage",
+    "title": "Read or change where authorization prompts are delivered",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "identity.approval.activation",
+    "title": "Run the transaction-bound authenticator ceremony for an approval",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/approve/:ref"
+    }
+  },
+  {
+    "id": "identity.approval.comparison",
+    "title": "Issue and check the number-matching value for an approval",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/approve/:ref"
+    }
+  },
+  {
+    "id": "identity.approval.report",
+    "title": "Report an authorization request as unrecognized",
+    "plane": "identity",
+    "surfaces": {
+      "pwa": "route:/approve/:ref"
+    }
+  },
+  {
+    "id": "vault.items.search",
+    "title": "Search vault items (names, folders, kinds, flags)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/store.ts:vaultStore"
+    }
+  },
+  {
+    "id": "vault.items.read_meta",
+    "title": "Read vault item metadata (never secret fields)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/store.ts:vaultStore"
+    }
+  },
+  {
+    "id": "vault.items.write_meta",
+    "title": "Create/edit vault item non-secret metadata",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/store.ts:vaultStore"
+    }
+  },
+  {
+    "id": "vault.login_draft",
+    "title": "Read and fill the on-screen login editor (metadata only)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/login-draft.ts:bindLoginDraft"
+    }
+  },
+  {
+    "id": "vault.import",
+    "title": "Import another manager's export, or restore an encrypted backup, into the vault",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/import/merge.ts:planMerge"
+    }
+  },
+  {
+    "id": "vault.export",
+    "title": "Export the vault as an encrypted backup file",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/offline-backup-file.ts:offlineBackupFile"
+    }
+  },
+  {
+    "id": "vault.store_manifest.export",
+    "title": "Save the vault as a store path manifest for opensesame pass seal (plain text)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/store-sync.ts:vaultItemToEntry"
+    }
+  },
+  {
+    "id": "vault.store_manifest.import",
+    "title": "Merge a store path manifest into the vault by store path",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/store-sync.ts:planManifestMerge"
+    }
+  },
+  {
+    "id": "vaults.travel",
+    "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/travel/index.ts:packTravelDeparture"
+    }
+  },
+  {
+    "id": "vaults.duress_code",
+    "title": "Duress code: a second unlock code that shows a decoy or a refusal, set and cleared by the owner",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/duress/settings/device-duress.ts:enableDuressCode"
+    }
+  },
+  {
+    "id": "vault.items.reveal",
+    "title": "Reveal a vault item secret",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/vault"
+    }
+  },
+  {
+    "id": "vaults.switch",
+    "title": "Switch between the vaults on this device, seal or delete one",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vaults.ts:switchVault"
+    }
+  },
+  {
+    "id": "vault.totp.code",
+    "title": "Read a current TOTP code (never the seed)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/vault"
+    }
+  },
+  {
+    "id": "vault.second_step.code",
+    "title": "Add, use or remove a one-time code by email or text as the vault's second step",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/remote-code.ts:sendCode"
+    }
+  },
+  {
+    "id": "vault.recovery_codes",
+    "title": "Make, view or redeem the vault's recovery codes",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/unlock-methods.ts:randomRecoveryCodes"
+    }
+  },
+  {
+    "id": "vault.item_types.list",
+    "title": "List the item types registered on this device",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "vault-core/item-types.ts:itemTypeRegistry"
+    }
+  },
+  {
+    "id": "vault.item_types.install",
+    "title": "Install or remove a vault item type definition",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "vault.item_types.marketplace",
+    "title": "Read an item-type marketplace from a git repository a person listed",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "app.status",
+    "title": "App/session status summary",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/"
+    }
+  },
+  {
+    "id": "app.navigate",
+    "title": "Navigate between app sections",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/"
+    }
+  },
+  {
+    "id": "client.support",
+    "title": "In-product contextual support conversation",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/"
+    }
+  },
+  {
+    "id": "client.command_bar",
+    "title": "Shell command omnibox (typed + mic STT)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/command-bar/execute.ts:executeCommand"
+    }
+  },
+  {
+    "id": "client.tutorial",
+    "title": "Named in-product walkthroughs",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/"
+    }
+  },
+  {
+    "id": "app.install",
+    "title": "Install the PWA on this device",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/install.ts:installWorthShowing"
+    }
+  },
+  {
+    "id": "setup.first_run",
+    "title": "Deployment setup ceremony (optional, never a gate — ADR 0090)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/setup.ts:completeSetup"
+    }
+  }
+]

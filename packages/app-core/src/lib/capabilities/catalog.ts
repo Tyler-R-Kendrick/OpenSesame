@@ -18,6 +18,7 @@ import { BROWSER_LOCAL_DESCRIPTORS } from "./catalog-always-on-local.js";
 import { ALWAYS_ON_DESCRIPTORS } from "./catalog-always-on.js";
 import { CORE_DESCRIPTORS } from "./catalog-core.js";
 import { IDENTITY_FAMILY_DESCRIPTORS } from "./catalog-optional-identity.js";
+import { PLUGIN_FAMILY_DESCRIPTORS } from "./catalog-optional-plugins.js";
 import { SERVICE_FAMILY_DESCRIPTORS } from "./catalog-optional-services.js";
 import { VAULT_FAMILY_DESCRIPTORS } from "./catalog-optional-vault.js";
 
@@ -31,6 +32,7 @@ export const CAPABILITY_CATALOG: CapabilityCatalog = buildCatalog(
     ...VAULT_FAMILY_DESCRIPTORS,
     ...IDENTITY_FAMILY_DESCRIPTORS,
     ...SERVICE_FAMILY_DESCRIPTORS,
+    ...PLUGIN_FAMILY_DESCRIPTORS,
   ],
   CATALOG_VERSION,
 );

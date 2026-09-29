@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -265,5 +266,47 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
         screen.getByRole("dialog", { name: "Turn on travel mode" }),
       ).toBeTruthy(),
     );
+  });
+
+  it("does not update the panel after it is gone", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // TravelDeps is readonly. The fake origin's object is mutable; the pages
+    // build typechecks this file, so the seam is widened only here.
+    const seam = origin.deps as {
+      duressActive: typeof origin.deps.duressActive;
+    };
+    const duress = seam.duressActive;
+    seam.duressActive = async () => {
+      await gate;
+      return duress();
+    };
+    const seen: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      seen.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    const view = render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    view.unmount();
+    try {
+      release();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      });
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(seen).toEqual([]);
   });
 });

@@ -1,0 +1,68 @@
+[package]
+name = "opensesame-surrogate-proxy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Per-run surrogate proxy: an unmodified client holds osr_… and invoke-through places the real credential at the last hop (ADR 0150 §6.1)"
+
+[lib]
+name = "opensesame_surrogate_proxy"
+path = "src/lib.rs"
+
+# The installable plugin (ADR 0150 §7). Never a dependency of `opensesame` or
+# the daemon; `pnpm audit:plugin-boundary` fails if either tree reaches it.
+[[bin]]
+name = "opensesame-surrogate-proxy"
+path = "src/bin/opensesame-surrogate-proxy.rs"
+
+# ## Dependency notes
+#
+# Everything here was already in Cargo.lock. The daemon's budget (ADR 0048 §5)
+# admits hyper, hyper-rustls and rustls; certificate minting (`rcgen`, `time`)
+# is the one addition ADR 0150 §6.1 names, and it needs an ADR 0048 amendment
+# when the daemon links this crate.
+#
+# * rustls / tokio-rustls use the `ring` provider only, as the rest of the
+#   workspace does, and every config here is built with
+#   `builder_with_provider`: a second rustls provider feature in the graph
+#   makes `CryptoProvider::get_default()` refuse to choose.
+# * `rcgen` 0.14 keeps its own `aws_lc_rs` backend, exactly as
+#   `crates/transport-security`'s testkit does. rcgen links aws-lc-rs
+#   directly, not through rustls, so it adds no rustls provider.
+# * `rand_core` with `getrandom` is the daemon's own entropy source already.
+#
+# The plugin half adds the settings reader (its install gate), the notice
+# conversion, and serde/chrono for the control protocol — all already in the
+# workspace. None of it reaches `opensesame` or the daemon, which never link
+# this crate.
+[dependencies]
+opensesame-invoke-through = { path = "../invoke-through" }
+opensesame-plugin-settings = { path = "../plugin-settings" }
+opensesame-agent-events = { path = "../agent-events" }
+base64 = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+http = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true, features = ["client", "server", "http1"] }
+hyper-rustls = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy", "server", "http1", "tokio"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+rcgen = { version = "0.14.9", default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+secrecy = { workspace = true }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+time = { version = "0.3.41", default-features = false, features = ["std"] }
+tokio = { workspace = true }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+# Disposable PKI for the loopback TLS upstream stub; never a normal edge.
+opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+tempfile = { workspace = true }

@@ -3732,6 +3732,7 @@ dependencies = [
  "opensesame-host-core",
  "opensesame-human-vault",
  "opensesame-kdbx-bridge",
+ "opensesame-plugin-settings",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
  "opensesame-sealed-store",
@@ -3848,17 +3849,26 @@ name = "opensesame-connector-host"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "http",
  "opensesame-domain",
+ "opensesame-invoke-through",
  "opensesame-sealed-store",
+ "opensesame-transport-security",
+ "secrecy",
  "serde",
  "serde_json",
  "serde_norway",
  "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "url",
+ "uuid",
  "wasmtime",
 ]
 
@@ -3907,6 +3917,8 @@ dependencies = [
  "opensesame-connection-detect",
  "opensesame-host-core",
  "opensesame-invoke-through",
+ "opensesame-plugin-settings",
+ "opensesame-sealed-store",
  "opensesame-tailscale-authn",
  "opensesame-uds-authn",
  "p256",
@@ -3922,6 +3934,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "url",
  "uuid",
  "windows-sys 0.59.0",
  "zeroize",
@@ -4155,6 +4168,7 @@ name = "opensesame-invoke-through"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "http",
@@ -4279,6 +4293,19 @@ dependencies = [
  "x509-cert 0.2.5",
  "x509-parser 0.16.0",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-plugin-settings"
+version = "0.1.0"
+dependencies = [
+ "directories",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4442,13 +4469,18 @@ version = "0.1.0"
 dependencies = [
  "agent-hooks-sdk",
  "async-trait",
+ "base64 0.22.1",
  "futures",
  "opensesame-ceremony",
+ "opensesame-plugin-settings",
+ "opensesame-rotation-web",
  "opensesame-session-observe",
+ "secrecy",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]
@@ -4500,6 +4532,7 @@ dependencies = [
 name = "opensesame-session-observe"
 version = "0.1.0"
 dependencies = [
+ "opensesame-agent-events",
  "serde",
  "thiserror 2.0.19",
 ]
@@ -4553,6 +4586,37 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "opensesame-surrogate-proxy"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "opensesame-agent-events",
+ "opensesame-invoke-through",
+ "opensesame-plugin-settings",
+ "opensesame-transport-security",
+ "rand_core 0.6.4",
+ "rcgen 0.14.9",
+ "rustls",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "zeroize",
 ]
 
 [[package]]

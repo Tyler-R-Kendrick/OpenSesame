@@ -3,6 +3,8 @@
 use crate::daemon_toolbar::ToolbarCmd;
 #[path = "daemon_drive.rs"]
 mod daemon_drive;
+#[path = "daemon_fill.rs"]
+mod daemon_fill;
 use clap::Subcommand;
 use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;
@@ -50,6 +52,10 @@ enum DaemonCmd {
     /// This machine's tailnet vault drive (ADR 0144).
     #[command(subcommand)]
     Drive(daemon_drive::DriveCmd),
+    /// Approve, revoke or list the companion autofill extension's pairing
+    /// (the optional `browser-autofill` plugin, ADR 0150 §7).
+    #[command(subcommand)]
+    Fill(daemon_fill::FillCmd),
     #[command(flatten)]
     Toolbar(ToolbarCmd),
 }
@@ -71,6 +77,9 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
         DaemonCmd::Run(daemon) => opensesame_daemon::run(*daemon).await?,
         DaemonCmd::Drive(verb) => {
             daemon_drive::run(base, operator_token.as_deref(), verb).await?;
+        }
+        DaemonCmd::Fill(verb) => {
+            daemon_fill::run(base, operator_token.as_deref(), verb).await?;
         }
         DaemonCmd::Toolbar(verb) => {
             crate::daemon_toolbar::run(base, operator_token.as_deref(), verb).await?;

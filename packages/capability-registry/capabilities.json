@@ -957,6 +957,353 @@
     }
   },
   {
+    "id": "plugins.read",
+    "title": "List optional plugins and one plugin's state and pin (GET /v1/plugins)",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame plugins list",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "Pages uses the per-plugin operations",
+        "adr": "0130-operator-controlled-capability-composition.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.install",
+    "title": "Install an optional plugin pinned by sha256, recorded off",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins install",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "install and remove are terminal-only; no daemon route installs",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.toggle",
+    "title": "Switch an installed plugin on or off (PUT /v1/plugins/{id})",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins enable",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "Pages uses the per-plugin operations",
+        "adr": "0130-operator-controlled-capability-composition.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.remove",
+    "title": "Delete an optional plugin's installed files and its record",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins remove",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "install and remove are terminal-only; no daemon route installs",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.notices",
+    "title": "Read a plugin's recent tripwire notices, never a surrogate (GET /v1/plugins/{id}/notices)",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame plugins notices",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "Pages uses the per-plugin operations",
+        "adr": "0130-operator-controlled-capability-composition.md"
+      }
+    }
+  },
+  {
+    "id": "agents.surrogate.dev_run",
+    "title": "Run a child with surrogates in place of placeholders through the surrogate-proxy plugin",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame dev run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "a page spawns no processes",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.surrogate_proxy.switch",
+    "title": "Switch the surrogate proxy plugin on or off on the paired daemon",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins enable",
+      "pwa": "lib/plugins/client.ts:setPluginEnabled",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.surrogate_proxy.tripwires",
+    "title": "Read the surrogate proxy's recent tripwires",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame plugins notices",
+      "pwa": "lib/plugins/client.ts:readPluginNotices",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.browser_autofill.switch",
+    "title": "Switch the autofill extension plugin on or off on the paired daemon",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins enable",
+      "pwa": "lib/plugins/client.ts:setPluginEnabled",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "vault.autofill.fill",
+    "title": "Fill a focused login field by reference from the companion extension",
+    "plane": "host",
+    "kind": "act",
+    "plugin": "browser-autofill",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": "message:opensesame.fill",
+      "android": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "a terminal has no page to fill",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "only the companion extension fills",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_host": {
+        "reason": "a fill follows a person's gesture on extension UI; no model triggers one",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a fill follows a person's gesture on extension UI; no model triggers one",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a fill follows a person's gesture on extension UI; no model triggers one",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "android": {
+        "reason": "the plugin is a browser extension only",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "vault.autofill.pairing",
+    "title": "Pair the companion autofill extension with this computer",
+    "plane": "host",
+    "kind": "ceremony",
+    "plugin": "browser-autofill",
+    "surfaces": {
+      "cli": "opensesame daemon fill approve",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": "message:opensesame.fill.pair",
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "a person approves the pairing code",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a person approves the pairing code",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a person approves the pairing code",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "android": {
+        "reason": "the plugin is a browser extension only",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "intents.invoke",
     "title": "Capability invoke through a ConnectionRef",
     "plane": "host",

@@ -33,9 +33,11 @@ export type FeatureId =
   | "password-managers"
   | "cloud-secret-storage"
   | "local-storage"
+  | "autofill"
   | "sharing"
   | "payments"
   | "ai"
+  | "surrogates"
   | "networking"
   | "notifications"
   | "telemetry";
@@ -117,6 +119,10 @@ export const FEATURES: readonly Feature[] = [
     ["local_storage"],
     ["connectors.external"],
   ),
+  // Runtime-installed plugins (ADR 0150 §7): advanced, default off, and
+  // nothing of the plugin itself is in the bundle — the section shows what
+  // the paired daemon has installed and switches it there.
+  section("autofill", "Browser autofill", ["vault.browser-autofill"], []),
   section(
     "sharing",
     "Sharing",
@@ -133,6 +139,12 @@ export const FEATURES: readonly Feature[] = [
     ),
     models: true,
   },
+  section(
+    "surrogates",
+    "Surrogate credentials",
+    ["agents.surrogate-credentials"],
+    [],
+  ),
   section("networking", "Networking", ["networking.tailnet"], ["networking"]),
   section(
     "notifications",

@@ -9,5 +9,10 @@ description = "Value-blind live session observation and control handoff"
 serde = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+# Drift test only: the tripwire that parks a watched run is agent-events'
+# frozen `surrogate.misdirected` (ADR 0150 §6.2).
+opensesame-agent-events = { path = "../agent-events" }
+
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }

@@ -32,6 +32,8 @@ else.
 | `DEFAULT_REQUEST_BODY_CAP`, `DEFAULT_RESPONSE_BODY_CAP`, `DEFAULT_TIMEOUT` | The default bounds (256 KiB, 1 MiB, 15 s) |
 | `egress`: `EGRESS_RULES`, `rule_for`, `EgressRule`, `AuthStyle` | Static allowlist derived from the connection-broker catalogue |
 | `fence`: `EgressFence`, `PreparedRequest` | Check a request against the allowlist before any socket opens |
+| `forwardable_request_header` | The request-header allowlist per provider: the shared three plus a provider's documented parameters (GitHub's `x-github-api-version`) |
+| `surrogate`: `SurrogateLedger`, `Admission::invoke_request` | Surrogate admission ([ADR 0150](../../docs/adr/0150-surrogate-credentials-at-the-last-hop.md)) and the brokered call an admission stands for; the proxy adapter is [`surrogate-proxy`](../surrogate-proxy) |
 | `TokenSource`, `source_tool`, `SourceToolSpec` | The one sanctioned way token bytes enter the path; the daemon supplies the runner |
 | `tls`: `TlsClientSpec`, `Resolver` | An injected, already-validated `rustls::ClientConfig` pinned to one authority ([ADR 0132](../../docs/adr/0132-optional-mtls-and-workload-identity.md)) |
 | `InvokeError` | Failure classes; never tool output or token bytes |

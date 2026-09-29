@@ -111,13 +111,30 @@ Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,
 Identity providers, Directory, Encryption, Certificate authority, Backups,
-Password managers, Cloud secret storage, Local storage, Sharing, Payments,
-AI, Networking, Notifications, Telemetry, and — for the operator — Instance
-policy. A section with optional capabilities carries one switch on its
+Password managers, Cloud secret storage, Local storage, Browser autofill,
+Sharing, Payments, AI, Surrogate credentials, Networking, Notifications,
+Telemetry, and — for the operator — Instance policy. A section with optional
+capabilities carries one switch on its
 subheader over all of them; a section with more than one (Sharing, AI) also
 lists each as a tile with its own switch. A section of an always-on function
 has no switch. Every optional capability and every connector family has
 exactly one section. **Guests** is on unless an operator turns it off.
+
+**Runtime-installed plugins** (ADR 0150 §7, `spec/plugins/catalog.json`).
+Browser autofill (`vault.browser-autofill`) and Surrogate credentials
+(`agents.surrogate-credentials`) are optional, default off, and never
+always-on. Their plugins — the `opensesame-surrogate-proxy` binary and the
+companion autofill extension — are in no default build and never in the
+Pages bundle; a person installs one at a terminal on the daemon's machine,
+and it stays off until switched on. Switching a section on loads only the
+Settings tile for its plugin: what the daemon paired over the tailnet
+(`networking.tailnet`, pulled in as a dependency) reports as installed, on,
+off or forced off, one key that switches it there (`PUT /v1/plugins/{id}`),
+and for the proxy its recent tripwires by event, time and subject. A forced
+off plugin (`OPENSESAME_PLUGIN_<ID>=off` on the daemon) cannot be turned on
+from Pages. Each plugin's state is also the read-only file
+`settings/capabilities/plugins/<id>.json`. With no daemon paired — a guest,
+a locked vault, nothing paired — the tile sends nothing.
 
 ## 2. The five scopes, and which one wins
 

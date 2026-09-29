@@ -1,4 +1,5 @@
-//! In-memory token bucket for `POST /v1/discover` (ADR 0048 — discovery is a
+//! In-memory token buckets for the daemon's budgeted routes — discovery,
+//! promotion, invoke-through, mint and fill (ADR 0048: discovery is a
 //! disclosure surface, so even an authorized caller gets a budget).
 //!
 //! One bucket per caller key: the attested UID on the Unix socket, a single
@@ -7,6 +8,12 @@
 //! by design — the daemon is a single-process local agent, so a map plus a
 //! mutex is the whole state.
 
+use axum::{
+    http::{header, HeaderValue, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
+};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -29,6 +36,22 @@ pub enum RateKey {
     /// Tailnet caller, keyed by whois login or node name.
     #[cfg(all(unix, feature = "tailscale"))]
     Tailnet(String),
+    /// A browser extension, keyed by its exact extension origin
+    /// (`chrome-extension://…`), on the fill routes (ADR 0150 §6.4).
+    Extension(String),
+}
+
+/// 429 with a `Retry-After` the caller can actually wait on.
+pub fn rate_limited(retry_after: u64) -> Response {
+    let mut response = (
+        StatusCode::TOO_MANY_REQUESTS,
+        Json(json!({"error": "rate_limited", "retry_after": retry_after})),
+    )
+        .into_response();
+    if let Ok(value) = HeaderValue::from_str(&retry_after.to_string()) {
+        response.headers_mut().insert(header::RETRY_AFTER, value);
+    }
+    response
 }
 
 struct Bucket {

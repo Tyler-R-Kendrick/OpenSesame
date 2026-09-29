@@ -130,6 +130,11 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
 
+    // --- optional: runtime-installed plugins (ADR 0150 §7) ---------------
+    "plugins.surrogate_proxy.switch": "agents.surrogate-credentials",
+    "plugins.surrogate_proxy.tripwires": "agents.surrogate-credentials",
+    "plugins.browser_autofill.switch": "vault.browser-autofill",
+
     // --- optional: live sessions (ADR 0150) -----------------------------
     "shared_sessions.live_host": "sharing.live",
     "shared_sessions.live_join": "sharing.live",

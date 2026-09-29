@@ -12,6 +12,7 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/main.rs"),
     include_str!("../src/daemon_cmd.rs"),
     include_str!("../src/daemon_toolbar.rs"),
+    include_str!("../src/daemon_fill.rs"),
     include_str!("../src/serve.rs"),
     include_str!("../src/entry.rs"),
     include_str!("../src/connect.rs"),
@@ -29,6 +30,8 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/local_authority.rs"),
     include_str!("../src/vault_migration.rs"),
     include_str!("../src/vault_file.rs"),
+    include_str!("../src/dev_run.rs"),
+    include_str!("../src/plugins.rs"),
 ];
 
 /// True when `token` appears in `haystack` (lowercased) delimited by

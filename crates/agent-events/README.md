@@ -17,13 +17,23 @@ value-blind.
   `agent.*` reaches subscribers. There is no second subscription table and no
   private fan-out.
 - `agent.*` is the third family on ADR 0080's feed, beside `lifecycle.*` and
-  `breach.*`.
+  `breach.*`. `surrogate.*` (ADR 0150 §5) is the fourth, and lives here because
+  a surrogate is issued to an agent run and reports under it.
 - A request for a person carries its deadline: `AgentEvent::waiting` requires a
   `responds_by`, and `AgentEvent::reporting` refuses one.
 - The payload is built key by key. Nothing is serialized from a caller's map,
   and no key matches the audit redactor's deny pattern (`token`, `value`,
   `secret`, `user_code`, `device_code`). `detail` is capped at
   `MAX_DETAIL_CHARS` (160).
+- A surrogate refusal is converted from plain strings — the broker's
+  `RefusalCode::as_str()` and its optional run, provider and detail — so this
+  crate does not depend on `invoke-through`. An unknown code is refused, not
+  published. The detail is attacker-chosen (the host a surrogate was sent to,
+  the site it was found at), so it is carried only when it is shaped like a
+  host or a site name and holds no surrogate in any case or encoding; otherwise
+  it is withheld and named in the payload's `withheld` list, and the notice is
+  still published. `tests/surrogate_vocabulary_drift.rs` reads the broker's
+  refusal module as text and fails when the two vocabularies differ.
 
 ## Surface
 
@@ -35,6 +45,12 @@ value-blind.
 | `AgentRun` | The run an event is about: ids, owner, origin, tier, control state — metadata only |
 | `AgentEvent` | `waiting`, `reporting`, `seconds_to_respond`, `payload`, `from_payload`, `summary`, `notice` |
 | `AgentEventError` | `MissingDeadline`, `UnexpectedDeadline` |
+| `SURROGATE_EVENT_TYPES`, `SURROGATE_EVENT_WILDCARD`, `SURROGATE_SUBJECT_KINDS` | The frozen `surrogate.*` names (`surrogate.ambiguous` … `surrogate.out_of_scope`), the `surrogate.*` pattern, and the `agent_run` / `surrogate_proxy` subject kinds |
+| `SurrogateFence` | The nine fences; `parse` takes a refusal code exactly, `severity()` is the documented ladder (`error` for misdirected, foreign caller, revoked; `warning` for misplaced, out of scope, ambiguous, cleartext; `info` for unknown, expired) |
+| `SurrogateRefusalReport` | The broker's refusal as plain strings; its `Debug` never prints their text |
+| `SurrogateEvent`, `surrogate_refusal_notice` | The vetted event and the conversion into a `SecurityNotice` |
+| `SurrogateNoticeError` | `UnknownCode`, `InvalidOrganization` |
+| `surrogate::carries_surrogate` | Whether text holds a surrogate's marker in any case, or a hex run as long as its body |
 
 ## Develop
 
@@ -42,7 +58,10 @@ value-blind.
 cargo +1.88.0 test -p opensesame-agent-events
 ```
 
-Tests live inline in `src/lib.rs`.
+Unit tests live in `src/tests.rs` (`agent.*`) and `src/surrogate/tests.rs`
+(`surrogate.*`, one per way a surrogate could reach the feed).
+`tests/surrogate_sinks.rs` renders every notice through Alertmanager,
+`PagerDuty` and RFC 5424 and searches each for the surrogate.
 
 ## Related
 
@@ -52,3 +71,5 @@ Tests live inline in `src/lib.rs`.
   feed, one envelope
 - [ADR 0074](../../docs/adr/0074-expiry-lifecycle-hooks.md) — the feed rule this
   applies
+- [ADR 0150](../../docs/adr/0150-surrogate-credentials-at-the-last-hop.md) —
+  surrogate credentials, and why every refusal is a tripwire

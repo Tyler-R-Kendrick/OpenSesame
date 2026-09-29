@@ -45,6 +45,15 @@ import { featureDraws } from "./provider-tile-items.js";
 /** `support.local-ai`'s model picker, drawn in the AI section once AI is on. */
 export const MODEL_PROVIDER_PANEL = "model-provider";
 
+/**
+ * The `settings-panel` category that draws a panel inside one section
+ * (`capabilities.feature-<id>`) — a category no settings route renders on
+ * its own, so the panel appears in its section and nowhere else.
+ */
+export function sectionCategory(sectionId: string): string {
+  return `capabilities.${sectionId}`;
+}
+
 type Propose = (proposal: FeatureProposal) => void;
 
 function titleOf(id: CapabilityId): string {
@@ -228,9 +237,13 @@ function CapabilitySection({
   // mount: they are AI's own code, drawn once AI is on — unlike a provider
   // tile, which is a connector configured by reference.
   const models = feature.models === true && featureState(feature, plan).on;
-  const ModelPanel = useContributions("settings-panel").find(
+  const panels = useContributions("settings-panel");
+  const ModelPanel = panels.find(
     (panel) => panel.id === MODEL_PROVIDER_PANEL,
   )?.Panel;
+  // A capability's own panel inside its section (a runtime-installed
+  // plugin's state and switch): there only while its module is active.
+  const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch and no connector whose
   // page has something to do on this device (ADR 0150).
   if (!featureDraws(feature, roads.acts)) return null;
@@ -269,6 +282,9 @@ function CapabilitySection({
           <ModelPanel />
         </GuideTarget>
       ) : null}
+      {own.map(({ id: panelId, Panel }) => (
+        <Panel key={panelId} />
+      ))}
       {feature.providerCategories.map((category) => (
         <ProviderTiles
           key={category}

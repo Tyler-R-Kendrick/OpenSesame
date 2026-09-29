@@ -13,6 +13,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Health and operations](health-and-operations.md) | Health and readiness endpoints, logs, and day-two checks for both planes. |
 | [Pages origin](pages-origin.md) | What the GitHub Pages build can and cannot do from a shared origin, and how to give it its own. |
 | [Capability composition](capability-composition.md) | Deciding which optional features a deployment contains, permits and lets a device run. |
+| [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 
 ## Identity
 

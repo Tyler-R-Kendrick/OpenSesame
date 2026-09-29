@@ -7,6 +7,8 @@ mod configs;
 mod connect;
 mod daemon_cmd;
 mod daemon_toolbar;
+mod dev_run;
+mod dev_surrogate;
 mod entry;
 mod github;
 mod hooks;
@@ -15,6 +17,8 @@ mod lifecycle;
 mod local_authority;
 mod pass_otp;
 mod pass_protect;
+mod plugins;
+mod plugins_install;
 mod providers_native;
 mod security;
 mod serve;
@@ -27,6 +31,7 @@ mod vault_file;
 mod vault_migration;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use dev_run::{dev_cmd, DevCmd};
 use init_schema::init_schema;
 use opensesame_authn::{
     detect_signals_from_env, resolve_login_flow, DevicePollState, DeviceServerStatus, LoginFlow,
@@ -36,17 +41,10 @@ use opensesame_connector_host::providers::{
     crypto_plan, execute_crypto_plan, execute_human_plan, human_plan, CryptoOperation,
     HumanProviderOperation, HumanProviderPlan,
 };
-use opensesame_domain::DevDeliveryPolicy;
-use opensesame_env_spec::{parse_schema_file, resolve_for_delivery, schema_summary};
 use opensesame_host_core::endpoints::{self, HOST};
 use serde::Deserialize;
 use serde_json::json;
-use std::{
-    env,
-    path::PathBuf,
-    process::{Command as StdCommand, Stdio},
-    time::Duration,
-};
+use std::{env, path::PathBuf, time::Duration};
 use sync_commands::{sync_cmd, SyncCmd};
 
 #[derive(Parser, Debug)]
@@ -272,6 +270,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: security::SecurityCmd,
     },
+    /// Optional plugins installed at runtime, pinned by sha256 (ADR 0150).
+    Plugins {
+        #[command(subcommand)]
+        cmd: plugins::PluginsCmd,
+    },
     /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0150).
     Hooks {
         #[command(subcommand)]
@@ -386,19 +389,6 @@ enum CertCmd {
         reveal: bool,
         #[arg(long)]
         out: Option<PathBuf>,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-enum DevCmd {
-    /// Parse schema; print metadata without secrets.
-    Check,
-    /// Resolve env under delivery policy (redacted summary + projected values).
-    Resolve,
-    /// Run a child process with projected env (`opensesame dev run -- npm run dev`).
-    Run {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
-        args: Vec<String>,
     },
 }
 
@@ -1299,6 +1289,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Worker { cmd } => serve::worker(cmd).await?,
         Commands::Helpers { cmd } => entry::helpers(cmd)?,
         Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Plugins { cmd } => plugins::run(&cli.output, cmd).await?,
         Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Rotate { cmd } => match cmd {
             RotateCmd::Runs => agent_runs::cmd_runs(&cli.server, &cli.output).await?,
@@ -1377,69 +1368,6 @@ async fn main() -> anyhow::Result<()> {
                 certs::cmd_key(&cli.server, &cli.output, &id, reveal, out).await?;
             }
         },
-    }
-    Ok(())
-}
-
-fn dev_cmd(cmd: DevCmd, agent: bool, schema: &std::path::Path) -> anyhow::Result<()> {
-    match cmd {
-        DevCmd::Check => {
-            let doc = parse_schema_file(schema)
-                .map_err(|e| anyhow::anyhow!("env-spec parse failed: {e}"))?;
-            let summary = schema_summary(&doc);
-            println!("{}", serde_json::to_string_pretty(&summary)?);
-        }
-        DevCmd::Resolve => {
-            let doc = parse_schema_file(schema)
-                .map_err(|e| anyhow::anyhow!("env-spec parse failed: {e}"))?;
-            let policy = if agent {
-                DevDeliveryPolicy::agent_default()
-            } else {
-                DevDeliveryPolicy::development_default()
-            };
-            let entries = resolve_for_delivery(&doc, &policy, agent)
-                .map_err(|e| anyhow::anyhow!("resolve failed: {e}"))?;
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&json!({
-                    "agent": agent,
-                    "policy_denies_materialize": !policy.allows(opensesame_domain::CredentialDeliveryMode::Materialize),
-                    "summary": schema_summary(&doc),
-                    "entries": entries,
-                }))?
-            );
-        }
-        DevCmd::Run { args } => {
-            if args.is_empty() {
-                anyhow::bail!("usage: opensesame dev run [--agent] -- <cmd>");
-            }
-            let doc = parse_schema_file(schema)
-                .map_err(|e| anyhow::anyhow!("env-spec parse failed: {e}"))?;
-            let policy = if agent {
-                DevDeliveryPolicy::agent_default()
-            } else {
-                DevDeliveryPolicy::development_default()
-            };
-            let entries = resolve_for_delivery(&doc, &policy, agent)
-                .map_err(|e| anyhow::anyhow!("resolve failed: {e}"))?;
-            let mut child = StdCommand::new(&args[0]);
-            if args.len() > 1 {
-                child.args(&args[1..]);
-            }
-            for e in entries.iter().filter(|entry| !entry.omitted) {
-                if let Some(v) = &e.env_value {
-                    child.env(&e.key, v);
-                }
-            }
-            child
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
-            let status = child.status()?;
-            if !status.success() {
-                std::process::exit(status.code().unwrap_or(1));
-            }
-        }
     }
     Ok(())
 }
