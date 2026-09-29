@@ -270,9 +270,14 @@ fn revoke_path(created: &wire::Created) -> String {
 /// cancelled the emission, or wrapped it in its own timeout), so nothing it
 /// raised stays answerable for an action that will never run. The normal
 /// exits withdraw inline and disarm it.
+///
+/// The runtime handle is captured when the guard is armed. `Drop` often runs
+/// after the host's timeout has left the task, where `Handle::try_current`
+/// is empty, and a revoke that never starts leaves the interaction live.
 struct WithdrawOnDrop {
     client: Arc<IdentityClient>,
     path: Option<String>,
+    runtime: tokio::runtime::Handle,
 }
 
 impl WithdrawOnDrop {
@@ -280,6 +285,7 @@ impl WithdrawOnDrop {
         Self {
             client: Arc::clone(client),
             path: Some(revoke_path(created)),
+            runtime: tokio::runtime::Handle::current(),
         }
     }
 
@@ -293,12 +299,10 @@ impl Drop for WithdrawOnDrop {
         let Some(path) = self.path.take() else {
             return;
         };
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            let client = Arc::clone(&self.client);
-            runtime.spawn(async move {
-                let _ = client.post::<Value>(&path, None).await;
-            });
-        }
+        let client = Arc::clone(&self.client);
+        self.runtime.spawn(async move {
+            let _ = client.post::<Value>(&path, None).await;
+        });
     }
 }
 

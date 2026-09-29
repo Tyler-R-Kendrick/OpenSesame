@@ -284,11 +284,18 @@ async fn the_deadline_is_a_wall_even_mid_attempt() {
 
 #[tokio::test]
 async fn a_dropped_ask_still_withdraws_its_interaction() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     use opensesame_agent_hooks::sdk::InterceptionPoint;
     use opensesame_agent_hooks::{ApprovalPrompt, HumanApprover};
 
     let server = serve(vec![Step::Pending], 201).await;
-    let approver = approver(&server.base);
+    let raised = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&raised);
+    // `on_pending` runs only after the withdraw guard is armed.
+    let approver = approver(&server.base).with_on_pending(Arc::new(move |_| {
+        flag.store(true, Ordering::SeqCst);
+    }));
     let context = deploy_context();
     let prompt = ApprovalPrompt {
         context_identity: interaction_mock::DIGEST,
@@ -297,18 +304,41 @@ async fn a_dropped_ask_still_withdraws_its_interaction() {
         message: None,
         context: &context,
     };
-    // The host gives up long before the approver's own deadline.
-    let asked = tokio::time::timeout(Duration::from_millis(150), approver.ask(prompt)).await;
-    assert!(asked.is_err(), "the host cancelled the ask");
-    for _ in 0..100 {
+    // The pin binding is only a reference. Leaving the block drops `ask`
+    // itself, after the interaction exists and before the approver's deadline.
+    {
+        let ask = approver.ask(prompt);
+        tokio::pin!(ask);
+        let give_up = tokio::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            tokio::select! {
+                result = &mut ask => {
+                    let _ = result;
+                    panic!("ask finished before the host cancelled it");
+                }
+                () = tokio::time::sleep(Duration::from_millis(10)) => {
+                    if raised.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    assert!(
+                        tokio::time::Instant::now() < give_up,
+                        "the interaction was not raised"
+                    );
+                }
+            }
+        }
+    }
+    for _ in 0..200 {
         if server.seen.lock().unwrap().revokes > 0 {
             break;
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
+    let seen = server.seen.lock().unwrap();
     assert_eq!(
-        server.seen.lock().unwrap().revokes,
+        seen.interactions.len(),
         1,
-        "a cancelled ask leaves nothing answerable"
+        "the ask had raised an interaction"
     );
+    assert_eq!(seen.revokes, 1, "a cancelled ask leaves nothing answerable");
 }

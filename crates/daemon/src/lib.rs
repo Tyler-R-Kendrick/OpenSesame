@@ -9,7 +9,7 @@
 use axum::{
     body::Bytes,
     extract::{connect_info::ConnectInfo, DefaultBodyLimit, Request, State},
-    http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode},
+    http::{header, HeaderMap, HeaderName, StatusCode},
     response::{IntoResponse, Response},
     routing::{any, get, post},
     Extension, Json, Router,
@@ -27,10 +27,12 @@ use uuid::Uuid;
 mod agent_capability;
 mod args;
 pub use args::Args;
+pub use plugin_routes::recent_notices as plugin_notices;
 mod cli_probe;
 mod discovery;
 mod duress_receiver;
 mod duress_routes;
+mod fill;
 use duress_routes::{duress_peer_envelope, duress_peer_health};
 mod proxy_path;
 use proxy_path::is_local_session_path;
@@ -38,6 +40,7 @@ mod invoke_through;
 mod keychain;
 mod mint;
 mod peer_auth;
+mod plugin_routes;
 mod promote;
 mod ratelimit;
 mod runner;
@@ -52,7 +55,7 @@ mod vault_drive_routes;
 use startup::{build_state, secured_router};
 
 use peer_auth::UdsConnectInfo;
-use ratelimit::RateKey;
+use ratelimit::{rate_limited, RateKey};
 
 /// Hard cap on a serialized discovery report; oversized reports shed items
 /// rather than stream unboundedly (see [`discover_response`]).
@@ -92,21 +95,11 @@ struct App {
     duress_peer: Option<duress_receiver::DuressReceiverState>,
     /// The tailnet vault drive (ADR 0144); `None` when no state dir resolves.
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
+    /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
+    plugins: plugin_routes::PluginHost,
 }
 
-/// How the daemon turns a provider id into its credential source.
-type TokenSourceFactory =
-    Arc<dyn Fn(&str) -> Option<Box<dyn opensesame_invoke_through::TokenSource>> + Send + Sync>;
-
-/// Production factory: the provider's CLI credential command under the
-/// scrubbed runner, over a fresh environment snapshot per call.
-fn cli_token_source_factory() -> TokenSourceFactory {
-    Arc::new(|provider_id: &str| {
-        let env: std::collections::BTreeMap<String, String> = std::env::vars().collect();
-        token_source::CliTokenSource::for_provider(provider_id, &env)
-            .map(|source| Box::new(source) as Box<dyn opensesame_invoke_through::TokenSource>)
-    })
-}
+use token_source::{cli_token_source_factory, TokenSourceFactory};
 
 #[derive(Clone, Debug)]
 struct HostSession {
@@ -221,19 +214,6 @@ fn operator_forward_method(
         .http
         .request(method, url)
         .header("x-opensesame-operator", &st.operator_token))
-}
-
-/// 429 with a `Retry-After` the caller can actually wait on.
-fn rate_limited(retry_after: u64) -> Response {
-    let mut response = (
-        StatusCode::TOO_MANY_REQUESTS,
-        Json(json!({"error": "rate_limited", "retry_after": retry_after})),
-    )
-        .into_response();
-    if let Ok(value) = HeaderValue::from_str(&retry_after.to_string()) {
-        response.headers_mut().insert(header::RETRY_AFTER, value);
-    }
-    response
 }
 
 /// Serialize a discovery report under [`MAX_DISCOVER_RESPONSE_BYTES`]. A
@@ -587,6 +567,8 @@ fn router(state: App) -> Router {
         .route("/v1/duress/peer/health", get(duress_peer_health))
         .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
         .merge(vault_drive_routes::routes())
+        .merge(plugin_routes::routes())
+        .merge(fill::routes(fill::FillState::from_env(), &state))
         .with_state(state)
 }
 
@@ -1031,6 +1013,7 @@ mod tests {
             token_source_factory: Arc::new(|_| None),
             duress_peer: None,
             vault_drive: None,
+            plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
         }
     }
 
