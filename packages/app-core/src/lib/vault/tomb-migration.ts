@@ -61,6 +61,7 @@ import {
   writePlaintextFile,
 } from "../vfs.js";
 import { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
+import { retireUnusedConnectionConfigs } from "./retired-config.js";
 
 /** Legacy flat-KV base keys (still scoped per project via `scopedKey`). */
 export const LEGACY_HEADER_KEY = "vault.header.v1";
@@ -178,6 +179,7 @@ export async function hydrateAndMigrateTombOnUnlock(
   tomb: string,
 ): Promise<void> {
   await kvHydrate(tombSessionKeys(tomb));
+  await retireUnusedConnectionConfigs(tomb);
 
   const marker = readMarker(tomb);
   if (!marker.config) {
