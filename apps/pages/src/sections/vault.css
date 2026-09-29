@@ -255,11 +255,6 @@
   color: color-mix(in srgb, var(--canvas) 75%, var(--ink));
 }
 
-.vtree__row.is-cursor .vtree__syn {
-  border-color: color-mix(in srgb, var(--canvas) 40%, var(--ink));
-  color: color-mix(in srgb, var(--canvas) 70%, var(--ink));
-}
-
 .vtree__caret {
   flex: none;
   color: var(--ink-3);
@@ -300,17 +295,6 @@
 
 .vtree__fav {
   color: var(--ink-2);
-}
-
-.vtree__syn {
-  padding: 0.05rem 0.25rem;
-  border: 1px dashed var(--line-strong);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--ink-3);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.07em;
 }
 
 .vtree__more {

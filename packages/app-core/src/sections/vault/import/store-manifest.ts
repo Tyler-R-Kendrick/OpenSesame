@@ -153,9 +153,8 @@ export function manifestRefusal(
 }
 
 /**
- * The manifest file for the unlocked vault: every live item that is not
- * sample data, as `pass seal` reads it. Sample items stay out — a sealed
- * store has no badge, so a synthetic login there would pass for a real one.
+ * The manifest file for the unlocked vault: every live item, as
+ * `pass seal` reads it.
  */
 export function storeManifestFile(
   items: readonly VaultItem[],
@@ -163,7 +162,7 @@ export function storeManifestFile(
   now: Date = new Date(),
 ): StoreManifestFile {
   const entries = items
-    .filter((item) => item.deletedAt === null && item.sample !== true)
+    .filter((item) => item.deletedAt === null)
     .map((item) => vaultItemToEntry(item, folders));
   return {
     fileName: `opensesame-store-manifest-${now.toISOString().slice(0, 10)}.json`,

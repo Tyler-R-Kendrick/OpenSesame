@@ -1,7 +1,8 @@
 /**
  * The state behind Settings › Vaults › Travel (ADR 0143): which vaults are
  * marked safe, the packed bundle while it waits for both acknowledgements,
- * and the bundle and code on the way home.
+ * and the bundle and code on the way home — one state for the two ceremonies
+ * that run in sheets.
  */
 
 import { MAX_TRAVEL_BUNDLE_BYTES } from "@opensesame/app-core/lib/travel/bundle-format.js";
@@ -17,12 +18,12 @@ import {
 import { useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
 import { useVault } from "../../../lib/vault/hooks.js";
-import { remnantsNotice, returnedNotice } from "./TravelReturnViews.js";
 import {
   type TravelNotice,
   departedNotice,
   travelRefusalText,
 } from "./TravelViews.js";
+import { remnantsNotice, returnedNotice } from "./return-text.js";
 
 export type TravelMode =
   | { kind: "plan" }
@@ -99,7 +100,11 @@ function useTravelState() {
 
 type TravelState = ReturnType<typeof useTravelState>;
 
-function departureSteps(state: TravelState, openId: string | undefined) {
+function departureSteps(
+  state: TravelState,
+  openId: string | undefined,
+  onDone: () => void,
+) {
   const pack = () =>
     state.run(async () => {
       const safe = [...state.safe, ...(openId ? [openId] : [])];
@@ -120,6 +125,7 @@ function departureSteps(state: TravelState, openId: string | undefined) {
       }
       state.setSafe(new Set());
       state.reset(departedNotice(receipt));
+      onDone();
     });
 
   const toggleSafe = (id: string) => {
@@ -135,7 +141,7 @@ function departureSteps(state: TravelState, openId: string | undefined) {
   return { pack, depart, toggleSafe };
 }
 
-function returnSteps(state: TravelState) {
+function returnSteps(state: TravelState, onDone: () => void) {
   const open = () =>
     state.run(async () => {
       if (!state.bundle) return;
@@ -152,6 +158,7 @@ function returnSteps(state: TravelState) {
       const outcome = await returnFromTravel(opened, { grants: state.grants });
       if (!outcome.ok) return state.refuse(outcome.code);
       state.reset(returnedNotice(outcome.receipt));
+      onDone();
     });
 
   const chooseBundle = (file: File) =>
@@ -192,13 +199,17 @@ function returnSteps(state: TravelState) {
   };
 }
 
-/** The panel's state and the steps it can take. */
-export function useTravelFlow() {
+/**
+ * The panel's state and the steps it can take. `onDone` runs when a
+ * departure has removed everything or a return has put everything back: the
+ * ceremony is over and its sheet can close.
+ */
+export function useTravelFlow(onDone: () => void) {
   const state = useTravelState();
   const openId = useDeviceVaults().find((vault) => vault.state === "open")?.id;
   return {
     ...state,
-    ...departureSteps(state, openId),
-    ...returnSteps(state),
+    ...departureSteps(state, openId, onDone),
+    ...returnSteps(state, onDone),
   };
 }

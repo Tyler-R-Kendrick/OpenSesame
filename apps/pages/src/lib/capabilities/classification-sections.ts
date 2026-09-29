@@ -184,11 +184,6 @@ export const SECTION_RULES = [
     ["ItemTypesPanel", "item-types/", "item-type-marketplace-model"],
     (p) => core(p, "vault.passwords", "item types and their marketplaces"),
   ),
-  core(
-    "src/sections/settings/SampleDataPanel",
-    "vault.passwords",
-    "load and remove the badged sample items",
-  ),
   ...each(
     "src/sections/settings/",
     [

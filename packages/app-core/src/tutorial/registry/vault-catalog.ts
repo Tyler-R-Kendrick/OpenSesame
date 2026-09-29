@@ -37,14 +37,6 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.import",
   },
   {
-    id: "vault.sample-data",
-    description:
-      "The Sample data key under Settings, Vaults: loads a set of synthetic items, each badged, into a folder of its own, or removes every one of them at once. Real items are never touched.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "vault.sample_data",
-  },
-  {
     id: "vault.store-manifest",
     description:
       "The Sealed store key under Settings, Vaults: saves the vault as a plain-text store path manifest for the command-line sealed store to seal and shred. The vault's Import key reads one back and merges it by path.",

@@ -128,7 +128,6 @@ function fixtureVault() {
   passkey.custody = "vault";
   passkey.alg = -7;
 
-  const demo = { ...createItem("login", "Sample login"), sample: true };
   const gone = {
     ...createItem("login", "Trashed"),
     deletedAt: "2026-02-01T00:00:00Z",
@@ -141,7 +140,6 @@ function fixtureVault() {
     card,
     cert,
     passkey,
-    demo,
     gone,
   ];
   return { items, folders: [DEV, PERSONAL] };

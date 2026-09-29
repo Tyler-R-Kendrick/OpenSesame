@@ -1,0 +1,262 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "count": [
+            ".panel input[type=text], .panel input:not([type])",
+            "[role=switch]",
+            ".found",
+            "h2"
+          ]
+        },
+        {
+          "shot": "D-vaults-top"
+        },
+        {
+          "pressOptional": "Seal a new vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Work"
+          }
+        },
+        {
+          "shot": "D-new-vault"
+        },
+        {
+          "pressOptional": "Seal vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Seal a new vault",
+            "text": "Work"
+          }
+        },
+        {
+          "pressOptional": "Create vault"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "count": [
+            ".travel__row",
+            "[role=switch][aria-label^='Safe for travel']"
+          ]
+        },
+        {
+          "shot": "D-travel"
+        },
+        {
+          "pressOptional": "Turn on travel mode"
+        },
+        {
+          "shot": "D-travel-leave"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Turn off travel mode"
+        },
+        {
+          "shot": "D-travel-return"
+        },
+        {
+          "escape": null
+        },
+        {
+          "scrollToOptional": "Item types"
+        },
+        {
+          "shot": "D-item-types"
+        },
+        {
+          "scrollToOptional": "Sealed store"
+        },
+        {
+          "count": [".found", "#sealed-store .sw", "#sample-data"]
+        },
+        {
+          "shot": "D-sealed-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "count": [".travel__row", "#travel .sw", "#travel button[disabled]"]
+        },
+        {
+          "shot": "G-travel"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "pressOptional": "Seal a new vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Work"
+          }
+        },
+        {
+          "pressOptional": "Seal vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Seal a new vault",
+            "text": "Work"
+          }
+        },
+        {
+          "pressOptional": "Create vault"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "measure": "#travel .icon-btn, #travel .toggle"
+        },
+        {
+          "shot": "M-travel"
+        },
+        {
+          "pressOptional": "Turn on travel mode"
+        },
+        {
+          "measure": ".sheet .found button, .sheet .toggle"
+        },
+        {
+          "shot": "M-travel-leave"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "D-vaults-top",
+      "width": 1280,
+      "title": "Settings › Vaults, top of the page — 1280 × 800",
+      "caption": "A sealed password vault, then Settings › Vaults. The base draws the creation form on the page: a label, a field and a key under the list of vaults. On the branch the list has one key in its head, and the form waits in a sheet.",
+      "before": "name field and create key drawn on the page",
+      "after": "list and one + key in the panel head; no form on the page"
+    },
+    {
+      "shot": "D-new-vault",
+      "width": 1280,
+      "title": "Sealing a new vault — 1280 × 800",
+      "caption": "The base has no ceremony here, so its picture is the page with the inline form. On the branch the + key opens a ceremony sheet: a name, the choice of this vault's key or its own, and the facts each choice implies. The commit key is inside the card.",
+      "before": "inline field + checkbox + prose hint",
+      "after": "sheet with name, key choice, two facts and Seal vault"
+    },
+    {
+      "shot": "D-travel",
+      "width": 1280,
+      "title": "Settings › Vaults › Travel — 1280 × 800",
+      "caption": "Work is sealed with the same key and the personal vault is open. The base draws the whole travel plan on the page: a list of vaults with switches and a commit. The branch draws two rows, one action each: turn travel mode on, turn it off.",
+      "before": "inline safe-for-travel switches on the page",
+      "after": "two rows and two keys; no switches on the page"
+    },
+    {
+      "shot": "D-travel-leave",
+      "width": 1280,
+      "title": "Turning travel mode on — 1280 × 800",
+      "caption": "On the branch the first row's key opens the ceremony in a sheet: what travels, what leaves, the safe list, then Pack the rest for travel. The base has no such key, so its picture is the same page.",
+      "before": "no key; plan inline",
+      "after": "ceremony sheet: facts + safe list + one commit"
+    },
+    {
+      "shot": "D-travel-return",
+      "width": 1280,
+      "title": "Turning travel mode off — 1280 × 800",
+      "caption": "The second row's key opens the way home: a bundle, its return code, then a preview of what would come home before anything is written.",
+      "before": "no key; return hidden until a key in the panel head",
+      "after": "ceremony sheet: bundle, return code, one commit"
+    },
+    {
+      "shot": "D-item-types",
+      "width": 1280,
+      "title": "Item types and what follows — 1280 × 800",
+      "caption": "The base lists Item types, then a Sample data panel with a + key. The branch has no Sample data panel: it was never asked for.",
+      "before": "Sample data panel present",
+      "after": "Sample data panel gone"
+    },
+    {
+      "shot": "D-sealed-store",
+      "width": 1280,
+      "title": "Settings › Vaults › Sealed store — 1280 × 800",
+      "caption": "The base dumps the ceremony's card — entries, what it holds, the command — on the page under the title. The branch keeps a row with the count and its one key; the card is in the sheet the key opens.",
+      "before": "ceremony card drawn on the page",
+      "after": "one row: name, entry count, one key"
+    },
+    {
+      "shot": "G-travel",
+      "width": 1280,
+      "title": "Travel as a guest — 1280 × 800",
+      "caption": "A guest carries nothing to travel with. The base shows a lock and nothing else, so the panel reads as broken. The branch shows both rows with their keys disabled and the reason on each.",
+      "before": "a lock glyph, no rows",
+      "after": "two rows, both keys disabled, reason on each"
+    },
+    {
+      "shot": "M-travel",
+      "width": 390,
+      "title": "Settings › Vaults › Travel — 390 × 844",
+      "caption": "The same two rows on a phone. Keys are the phone's 44px size.",
+      "before": "inline safe list and commit",
+      "after": "two rows, keys at the touch floor"
+    },
+    {
+      "shot": "M-travel-leave",
+      "width": 390,
+      "title": "The ceremony on a phone — 390 × 844",
+      "caption": "The sheet is a bottom sheet on a phone; the card, its list and its commit fit the width without horizontal scroll.",
+      "before": "(no ceremony)",
+      "after": "bottom sheet with the card"
+    }
+  ]
+}

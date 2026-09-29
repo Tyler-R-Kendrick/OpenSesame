@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StatusMark } from "../../../components/StatusMark.js";
+import { CeremonyRow } from "../CeremonyRow.js";
 import { type MethodKind, methodIcon } from "./MethodSheet.js";
 
 /**
@@ -22,21 +22,19 @@ export function MethodRow({
   action: ReactNode;
 }) {
   return (
-    <div className="sw sw--method">
-      <div>
-        <div className="sw__name">
-          {methodIcon(kind)}
-          {label}
-          {/* A mark for what is set or what cannot be; "off" is the row's
-              + key already. The idle glyph is a lock, so an off PIN drew a
-              lock badge beside its own lock icon. */}
-          {on || state !== "Off" ? (
-            <StatusMark tone={on ? "ok" : "idle"} label={state} />
-          ) : null}
-        </div>
-        <p className="sw__sub">{sub}</p>
-      </div>
-      {action}
-    </div>
+    <CeremonyRow
+      icon={methodIcon(kind)}
+      label={label}
+      // A mark for what is set or what cannot be; "off" is the row's + key
+      // already. The idle glyph is a lock, so an off PIN drew a lock badge
+      // beside its own lock icon.
+      mark={
+        on || state !== "Off"
+          ? { tone: on ? "ok" : "idle", label: state }
+          : null
+      }
+      sub={sub}
+      action={action}
+    />
   );
 }

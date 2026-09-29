@@ -1,0 +1,150 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Networking"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Tailnet sync"
+        },
+        {
+          "count": [
+            "#tailnet-sync-code",
+            "#tailnet-sync .panel__body #tailnet-sync-code",
+            "#tailnet-sync .sheet",
+            "#tailnet-sync [aria-label='Pair with a drive']"
+          ]
+        },
+        {
+          "measure": "#tailnet-sync .panel__body input, #tailnet-sync .panel__body .icon-btn"
+        },
+        {
+          "shot": "D-tailnet"
+        },
+        {
+          "pressOptional": "Pair with a drive"
+        },
+        {
+          "count": [
+            "#tailnet-sync-code",
+            "#tailnet-sync .panel__body #tailnet-sync-code",
+            "#tailnet-sync .sheet #tailnet-sync-code",
+            "#tailnet-sync .sheet"
+          ]
+        },
+        {
+          "measure": "#tailnet-sync-code, #tailnet-sync .sheet .go, #tailnet-sync .sheet button[type=submit]"
+        },
+        {
+          "shot": "D-tailnet-pair"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Networking"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "scrollToOptional": "Tailnet sync"
+        },
+        {
+          "count": [
+            "#tailnet-sync-code",
+            "#tailnet-sync .panel__body #tailnet-sync-code",
+            "#tailnet-sync .sheet",
+            "#tailnet-sync [aria-label='Pair with a drive']"
+          ]
+        },
+        {
+          "measure": "#tailnet-sync .panel__body input, #tailnet-sync .panel__body .icon-btn"
+        },
+        {
+          "shot": "M-tailnet"
+        },
+        {
+          "pressOptional": "Pair with a drive"
+        },
+        {
+          "count": [
+            "#tailnet-sync-code",
+            "#tailnet-sync .panel__body #tailnet-sync-code",
+            "#tailnet-sync .sheet #tailnet-sync-code",
+            "#tailnet-sync .sheet"
+          ]
+        },
+        {
+          "measure": "#tailnet-sync-code, #tailnet-sync .sheet .go, #tailnet-sync .sheet button[type=submit]"
+        },
+        {
+          "shot": "M-tailnet-pair"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "D-tailnet",
+      "width": 1280,
+      "title": "Settings › Vaults › Tailnet sync, Networking on — 1280 × 800",
+      "caption": "A sealed password vault, Networking switched on in Settings › Capabilities, then Settings › Vaults, Tailnet sync. The base draws the pairing code field and its key on the page. The branch draws one row, Drive on your tailnet, Not paired, with one key.",
+      "before": "pairing-code field on the page",
+      "after": "one row, one key; no field on the page"
+    },
+    {
+      "shot": "D-tailnet-pair",
+      "width": 1280,
+      "title": "Pairing with a drive — 1280 × 800",
+      "caption": "On the branch the key opens the pairing ceremony in a sheet: the code field, what pairing does, where the code comes from, and the commit. The base has no such key, so its picture is the same page with the inline field.",
+      "before": "no key; field stays on the page",
+      "after": "sheet holds the field, two facts and the commit"
+    },
+    {
+      "shot": "M-tailnet",
+      "width": 390,
+      "title": "Tailnet sync on a phone — 390 × 844",
+      "caption": "The same panel at phone width.",
+      "before": "pairing-code field and key on the page",
+      "after": "one row and one key"
+    },
+    {
+      "shot": "M-tailnet-pair",
+      "width": 390,
+      "title": "Pairing on a phone — 390 × 844",
+      "caption": "The ceremony is a bottom sheet on a phone; the field and commit fit the width.",
+      "before": "(no ceremony)",
+      "after": "bottom sheet with the field and commit"
+    }
+  ]
+}

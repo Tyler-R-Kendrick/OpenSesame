@@ -131,8 +131,6 @@ The local `dev` command starts Identity and Host with the PWA. A static deployme
 configures remote Identity and Host addresses in **Settings** because static hosting cannot
 run either plane. Every section degrades to an honest disconnected state rather than pretending.
 
-Sample data is opt-in from Settings, badged in the UI, and removable in one action.
-
 ## Git sealed store
 
 **Settings → Capability connectors** binds encryption (default WebCrypto on this
@@ -141,11 +139,12 @@ device) and history/persistence (default GitHub). Connect GitHub with **OAuth**
 or paste a **personal access token** with `repo` scope — Host seals it and never
 returns it to the browser. Then pick or create a private `opensesame-passwords`
 repo. Host also auto-discovers `GITHUB_TOKEN` / `GH_TOKEN` when present.
-**Settings → Git sealed store** exports or imports a path manifest that maps vault
+**Settings › Vaults › Sealed store** has a row with a **Save store path manifest**
+key: it opens a sheet that writes a path manifest mapping vault
 items to `pass`-style paths (`Folder/name`). Seal the manifest with the Host CLI —
 `opensesame pass seal manifest.json --shred` encrypts every entry into the store and
 deletes the plaintext — then `opensesame pass backup` pushes ciphertext to the store's
-git remote. Importing a manifest here merges by store path (re-imports are
-idempotent). Agents never see the manifest — they use ConnectionRefs only
+git remote. Importing a manifest through the vault's Import key merges by store
+path (re-imports are idempotent). Agents never see the manifest — they use ConnectionRefs only
 (ADR 0005 / 0037 / 0038).
 
