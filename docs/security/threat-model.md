@@ -82,6 +82,9 @@ Host-specific passkey contract does not upgrade unrelated interaction approvals.
 | WASM `secrets.get` | Not in WIT imports; authorized-http/sign only | `spec/wit/connector/world.wit` |
 | SecretRef late-binding into agent env | Agent API is ConnectionRef+Intent (ADR 0005) | domain `resolve_secret_for_agent` |
 | Unconstrained placeholder substitution (email token away) | Placement + max occurrences fail-closed | `PlaceholderPlacement` / connector-host |
+| Surrogate reflected through the allowed host (gist/issue body) to read the credential back | Recognize, strip, re-place: the credential is written only into the provider's own site; a surrogate anywhere else is refused (ADR 0150 §2) | `surrogate_tests::a_surrogate_in_the_body_is_refused_even_beside_a_valid_header` |
+| Allowed upstream echoes the presented credential in its response | Response scrub (raw, percent, base64 at every alignment) before the caller sees it (ADR 0150 §4) | `invoke_tests::a_reflected_credential_never_reaches_the_caller` |
+| Surrogate exfiltrated and replayed / sent to attacker host | Caller-bound, run-revocable, exact-host; every refusal is a `surrogate.*` tripwire with one client message (ADR 0150 §3, §5) | `surrogate_tests`, `surrogate_lifecycle_tests` |
 | Same-UID agent reads host keychain | Host agent session capability; sandbox egress via broker | credential-agent + ADR 0006 |
 | Agent `materialize` via `.env` | DevDeliveryPolicy denies materialize for agents | `opensesame dev --agent` |
 | Root or leaf key exposed by certificate ceremony/storage | Host generates keys; authority and delivery records are sealed with organization/purpose AAD | gateway/storage certificate tests; ADR 0052 |

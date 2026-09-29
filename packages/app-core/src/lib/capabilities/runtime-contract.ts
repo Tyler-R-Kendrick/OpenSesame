@@ -124,6 +124,13 @@ export type SettingsPanelContribution = Readonly<{
   category: string;
   Panel: ComponentType;
   order: number;
+  /**
+   * The panel's own files (ADR 0134), listed under the category its
+   * `category` names up to the first dot: a panel drawn inside a
+   * Capabilities section (`capabilities.feature-<id>`) lists its files
+   * under Capabilities.
+   */
+  files?: VirtualFileProvider;
 }>;
 
 export type CommandPathContribution = Readonly<{ path: string; label: string }>;

@@ -153,4 +153,5 @@ here. The architecture-level documents they refine live one level up in
 | 2026-09-23 | [Audit 2026-09-23 — Sealed-store root protection and CLI secret handling](2026-09-23-sealed-store-root-protection.md) |
 | 2026-09-23 | [Audit 2026-09-23 — Security architecture review](2026-09-23-security-architecture-review.md) |
 | 2026-09-26 | [Audit 2026-09-26 — Local certificate issuance](2026-09-26-local-certificate-issuance.md) |
+| 2026-09-28 | [Invoke-through returned a reflected credential to its caller](2026-09-28-invoke-through-reflection.md) |
 | 2026-09-28 | [Audit 2026-09-28 — Client data at rest in the clear](2026-09-28-plaintext-at-rest.md) |
