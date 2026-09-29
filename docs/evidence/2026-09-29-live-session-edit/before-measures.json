@@ -1,0 +1,18 @@
+{
+  "phase": "before",
+  "optionsDesktop": ["Show values", "Copy only"],
+  "optionsPhone": ["Show values", "Copy only"],
+  "valuesBoxPhone": {
+    "width": 192,
+    "height": 44
+  },
+  "selectedValues": "use",
+  "valuesBoxPhoneSelected": {
+    "width": 192,
+    "height": 44
+  },
+  "editCountPhone": 0,
+  "editBoxPhone": null,
+  "editCountDesktop": 0,
+  "editBoxDesktop": null
+}

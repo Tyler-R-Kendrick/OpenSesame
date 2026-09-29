@@ -160,11 +160,14 @@ export async function setRoutes(page, wanted) {
   }
 }
 
-export async function startSession(page, { admission = "invite" } = {}) {
+export async function startSession(
+  page,
+  { admission = "invite", policy = "read" } = {},
+) {
   const { session } = await openLive(page);
   await session.getByLabel("Session name").fill("Team");
   await session.getByRole("checkbox", { name: "GitHub" }).check();
-  await session.getByLabel("Values").selectOption("read");
+  await session.getByLabel("Values").selectOption(policy);
   await session.getByLabel("Who gets in").selectOption(admission);
   await session.getByRole("button", { name: "Start the live session" }).click();
   await session.getByRole("img", { name: "Live" }).waitFor();

@@ -8,7 +8,7 @@
  *   joiner's request (a name, a note, its WebRTC offer) and the owner's
  *   reply (the answer to that offer).
  * - **channel** — the WebRTC data channel once connected: the shared items'
- *   catalog and one-field-at-a-time reveals and copies.
+ *   catalog, one-field-at-a-time reveals and copies, and an authorized edit.
  *
  * Every reader bounds every string and list, and a message that does not
  * match its shape exactly is dropped, never read as the nearest thing it
@@ -52,7 +52,7 @@ export type JoinReply = Readonly<{
   answer: string;
 }>;
 
-export type SharePolicy = "read" | "use";
+export type SharePolicy = "read" | "use" | "edit";
 
 export type SharedField = Readonly<{
   key: string;
@@ -87,6 +87,13 @@ export type ChannelMessage =
       req: string;
       item: string;
       field: string;
+    }>
+  | Readonly<{
+      t: "edit";
+      req: string;
+      item: string;
+      field: string;
+      value: string;
     }>;
 
 /** Code points, not UTF-16 units: an emoji is one character. */
@@ -192,7 +199,7 @@ function readCatalog(value: BoundaryValue): Catalog | null {
   if (!isJsonObject(value)) return null;
   const { title, policy, expiresAt, items } = value;
   if (!bounded(title, LABEL_MAX) || !isNumber(expiresAt)) return null;
-  if (policy !== "read" && policy !== "use") return null;
+  if (policy !== "read" && policy !== "use" && policy !== "edit") return null;
   if (!Array.isArray(items) || items.length > MAX_ITEMS) return null;
   const read = items.map(readItem);
   if (read.some((item) => item === null)) return null;
@@ -222,6 +229,13 @@ function readRequest(
     : null;
 }
 
+function readEdit(body: JsonObject): ChannelMessage | null {
+  const { req, item, field, value } = body;
+  return isReq(req) && isId(item) && isId(field) && bounded(value, VALUE_MAX)
+    ? { t: "edit", req, item, field, value }
+    : null;
+}
+
 /** One data-channel message, or null. */
 export function readChannelMessage(raw: string): ChannelMessage | null {
   const body = parse(raw, 1024 * 1024);
@@ -243,6 +257,8 @@ export function readChannelMessage(raw: string): ChannelMessage | null {
     case "reveal":
     case "copy":
       return readRequest(t, body);
+    case "edit":
+      return readEdit(body);
     default:
       return null;
   }

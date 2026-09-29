@@ -23,6 +23,7 @@ import {
 import type { VaultItem } from "@opensesame/vault-core";
 import { compositionStore } from "../capabilities/store.js";
 import { vaultStore } from "../vault/store.js";
+import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
 import type { LiveLink } from "./link.js";
@@ -171,6 +172,9 @@ async function buildHost(input: HostInput, post: (code: string) => void) {
         items,
       }),
     readField: vaultField({ scope: input.scope, items }),
+    writeField: vaultWrite({ scope: input.scope, items }, (item) =>
+      vaultStore.saveItem(item),
+    ),
     peers: input.peers,
   });
   return { next, routes };

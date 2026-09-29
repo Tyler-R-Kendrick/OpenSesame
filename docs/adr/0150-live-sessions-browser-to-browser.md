@@ -53,11 +53,13 @@ sign-in panel beside an existing vault and on the unlock form, unchanged.
 
 The owner, with the vault unlocked, opens a **live session**: what it shares
 (the whole vault or chosen items), how (`read` shows values, `use` copies
-them without drawing them), for how long (at most eight hours), and who gets
+them without drawing them, `edit` lets the joiner replace a shared field in
+the open vault), for how long (at most eight hours), and who gets
 in — **invite** (a link plus an out-of-band code, the ADR 0044 shape) or
 **open** (anyone holding the link is let in as they ask). The tab hosts the
 session: closing it, locking the vault, or the time running out ends it for
-everyone. Nothing about a session is written to storage on either side.
+everyone. The session itself is not written to storage on either side. An
+authorized edit writes that one shared field back into the open vault.
 
 ### 3. The browsers pair by two codes
 
@@ -174,10 +176,12 @@ The owner's key never leaves its device. Over the data channel the owner
 sends the shared items' names, types and non-concealed fields, and answers a
 `reveal` or `copy` request for one concealed field at a time, re-checking
 scope, policy and expiry on every request and recording each in the
-session's on-screen log. The joiner keeps everything in memory, drops it the
-moment the channel closes, and never writes it to storage. `use` is a
-display policy: a browser that receives a value to copy can keep it, and the
-page says nothing to the contrary.
+session's on-screen log. Under `edit`, an `edit` request replaces one shared
+field in the open vault. The session itself is still not stored. The joiner
+keeps received values in memory, drops them the moment the channel closes,
+and never writes them to storage. `use` is a display policy: a browser that
+receives a value to copy can keep it, and the page says nothing to the
+contrary.
 
 ### 6. Routes: every one optional, every one the owner's
 
