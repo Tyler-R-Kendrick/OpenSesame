@@ -294,10 +294,11 @@ fn pact_migrations_are_append_only_and_end_with_0040() {
             "0045_bitwarden_organizations",
             "0046_bitwarden_emergency_access",
             "0047_bitwarden_auth_requests",
+            "0048_bitwarden_org_policies",
         ]
     );
     assert_eq!(
         versions.last().copied(),
-        Some("0047_bitwarden_auth_requests")
+        Some("0048_bitwarden_org_policies")
     );
 }

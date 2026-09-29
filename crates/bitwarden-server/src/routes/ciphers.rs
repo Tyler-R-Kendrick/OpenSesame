@@ -74,6 +74,7 @@ async fn insert(
     user: &BitwardenUser,
     body: Value,
 ) -> ApiResult<Json<Value>> {
+    super::policy_rules::may_own_items(server, &user.id).await?;
     let mut input = parse_cipher(body, &user.id)?;
     input.folder_id = owned_folder(server, &user.id, input.folder_id.take()).await?;
     let cipher = new_cipher(user, input, Utc::now());

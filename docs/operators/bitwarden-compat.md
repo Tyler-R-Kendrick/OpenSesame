@@ -147,7 +147,10 @@ vault's Members page). Check the fingerprint phrase the client shows against
 the person before confirming: registration verifies no address, so
 confirmation is what decides who is in.
 
-Groups, policies, single sign-on and account recovery are not served.
+Policies are set from the web vault's Admin Console. Clients enforce most of
+them; the Host itself enforces two-step login, single organization, personal
+ownership and the Send policies on members who are neither owners nor
+admins. Groups, single sign-on and account recovery are not served.
 
 ## Emergency access and key rotation
 
@@ -189,7 +192,7 @@ minutes; an account can have five waiting at once.
 ## What is not served
 
 Other two-step providers (email, Duo, `YubiKey`, security keys), organization
-groups and policies, trusted-device encryption, breach reports by address, and
+groups, trusted-device encryption, breach reports by address, and
 mobile push notifications through Bitwarden's relay. Clients hide or fail those
 features as they do against a server that has them turned off.
 

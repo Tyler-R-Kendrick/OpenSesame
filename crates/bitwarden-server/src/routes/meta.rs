@@ -102,7 +102,7 @@ pub async fn sync(
         "profile": super::account_extras::profile_body(&server, &user).await?,
         "folders": folders.iter().map(folder_json).collect::<Vec<_>>(),
         "collections": super::collections::for_sync(&view),
-        "policies": [],
+        "policies": super::policies::for_sync(&server, &user.id).await?,
         "ciphers": view.rendered(),
         "domains": domains,
         "sends": sends,
