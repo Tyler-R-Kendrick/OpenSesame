@@ -35,6 +35,8 @@ pub enum BlockedReason {
     HumanDriving,
     /// The runner could not act.
     Transport,
+    /// An agent-hooks verdict refused a step before the submit (ADR 0150).
+    HookRefused,
 }
 
 impl BlockedReason {
@@ -48,6 +50,7 @@ impl BlockedReason {
             Self::CandidateAbsent => "the password field did not hold the new value",
             Self::HumanDriving => "a person is driving this run",
             Self::Transport => "the sandbox runner could not act",
+            Self::HookRefused => "a hook verdict refused a step",
         }
     }
 }
@@ -161,15 +164,19 @@ pub async fn run_change_password(
         });
     }
 
-    if browser.navigate(&recipe.change_url).await.is_err() {
-        return Ok(blocked(BlockedReason::Transport, steps, lease));
+    if let Err(error) = browser.navigate(&recipe.change_url).await {
+        return Ok(blocked(
+            refused_or(error, BlockedReason::Transport),
+            steps,
+            lease,
+        ));
     }
-    if browser
-        .wait_for(&recipe.new_password_selector)
-        .await
-        .is_err()
-    {
-        return Ok(blocked(BlockedReason::RecipeDrift, steps, lease));
+    if let Err(error) = browser.wait_for(&recipe.new_password_selector).await {
+        return Ok(blocked(
+            refused_or(error, BlockedReason::RecipeDrift),
+            steps,
+            lease,
+        ));
     }
     steps.push(ActionStep::Navigated);
 
@@ -313,6 +320,15 @@ fn blocked(reason: BlockedReason, steps: Vec<ActionStep>, lease: ControlLease) -
     }
 }
 
+/// A refused step is named as one; any other failure keeps `otherwise`.
+const fn refused_or(error: crate::tools::StepError, otherwise: BlockedReason) -> BlockedReason {
+    if matches!(error, crate::tools::StepError::Refused) {
+        BlockedReason::HookRefused
+    } else {
+        otherwise
+    }
+}
+
 const fn step_block(error: crate::tools::StepError) -> BlockedReason {
     match error {
         crate::tools::StepError::Challenge => BlockedReason::Challenge,
@@ -322,5 +338,6 @@ const fn step_block(error: crate::tools::StepError) -> BlockedReason {
         crate::tools::StepError::Navigation | crate::tools::StepError::Transport => {
             BlockedReason::Transport
         }
+        crate::tools::StepError::Refused => BlockedReason::HookRefused,
     }
 }

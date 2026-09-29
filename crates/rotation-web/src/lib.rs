@@ -36,6 +36,7 @@ mod capture;
 mod ceremony;
 mod executor;
 mod extension;
+pub mod hooks;
 mod tools;
 
 pub use capture::{
@@ -51,6 +52,10 @@ pub use executor::{
     ExecutorError, RunOutcome, RunReport,
 };
 pub use extension::{ExtensionTransport, StepChannel, StepOutcome, StepRequest};
+pub use hooks::{
+    host_run, run_capture_steps_hooked, run_change_password_hooked, HookSession, HookedTransport,
+    HostedRunError, RunRequest,
+};
 pub use tools::{
     AdmittedFrame, BrowserTransport, CandidateHandle, CredentialRef, Filled, Presence, RedactedDom,
     StepError, Verified,
