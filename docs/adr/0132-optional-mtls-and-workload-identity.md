@@ -6,9 +6,39 @@ Supplements: ADR 0005 (authority handles), ADR 0017 (host/client topology),
 ADR 0042 (NATS TaskBus and auth callout), ADR 0048 §5 (daemon dependency
 budget), ADR 0075 (host certificate key custody), ADR 0090 / ADR 0128 (Pages
 is complete without a backend)
+Amended: 2026-09-28 (Transport panel, ADR 0150)
 Operator reference: [docs/operators/mtls.md](../operators/mtls.md)
 Threat model: [docs/security/mtls-threat-model.md](../security/mtls-threat-model.md)
 Evidence: [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
+
+## Amended 2026-09-28: the Transport panel draws no idle rows without an endpoint
+
+Acceptance scenario `AT-STATIC-EMPTY` originally required that, with no
+endpoint configured, Settings › Security › Transport render the five status
+rows (desired, credential, runtime, observed, enforcement) as idle "Not checked"
+marks and offer a keyboard-reachable Refresh key. `AT-BROWSER-UX` measured that
+key on the phone journeys. The rows and the key had nothing to read from and
+nothing to ask, which [ADR 0150](0150-settings-rows-act-or-are-absent.md)
+("a Settings row acts, or it is not drawn") rules out, and the product owner
+has decided that Transport follows it.
+
+What changes, and only this:
+
+- With no endpoint set and no status already read, the panel draws its
+  configuration form alone (target, policy, execution, identity, trust, remote
+  profile — real configuration that saves). It draws no status rows, no Refresh
+  key and no verification key.
+- With an endpoint set, or a status already read, the five rows and the Refresh
+  key are drawn as before; the verification key is drawn only while an endpoint
+  is set to run it.
+- `AT-STATIC-EMPTY` and `AT-BROWSER-UX` are restated accordingly in
+  `apps/pages/scripts/verify-transport.mjs` and
+  [the validation record](../validation/mtls-implementation.md).
+
+Nothing else in §9 moves: status still has five dimensions, kept apart;
+enforcement is still `verified` only by the negative probe; a fresh origin still
+asks nothing, reports nothing failed, and puts no backend in front of guest
+access. The static core is untouched.
 
 ## Context
 

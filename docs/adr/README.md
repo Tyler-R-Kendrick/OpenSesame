@@ -191,4 +191,7 @@ looks arbitrary, the ADR it cites explains it.
 | [0149](0149-nothing-stored-in-the-clear.md) | Nothing the client stores rests in the clear | Accepted |
 | [0150](0150-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor | Accepted |
 | [0150](0150-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |
+| [0150](0150-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
 | [0150](0150-the-device-duress-code.md) | The device's duress code, in Settings | Accepted |
+| [0151](0151-connector-pages-act-on-the-roads-a-device-has.md) | A connector page acts on the roads a device has, or is not drawn | Accepted |
+| [0152](0152-browser-key-protector-enrollment.md) | Which key protectors the static browser client enrolls | Accepted |
