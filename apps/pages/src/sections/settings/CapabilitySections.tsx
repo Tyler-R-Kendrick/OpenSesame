@@ -28,6 +28,7 @@ import {
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useComposition } from "../../bindings/capabilities.js";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
@@ -39,6 +40,7 @@ import {
   SectionHead,
 } from "./CapabilitySwitch.js";
 import { ProviderTiles } from "./ProviderTiles.js";
+import { featureDraws } from "./provider-tile-items.js";
 
 /** `support.local-ai`'s model picker, drawn in the AI section once AI is on. */
 export const MODEL_PROVIDER_PANEL = "model-provider";
@@ -219,6 +221,7 @@ function CapabilitySection({
   sectionRef,
 }: SectionProps) {
   const { plan } = useComposition();
+  const roads = useConnectorRoads();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
   // The model picks configure AI and probe the browser and the harnesses on
@@ -228,6 +231,9 @@ function CapabilitySection({
   const ModelPanel = useContributions("settings-panel").find(
     (panel) => panel.id === MODEL_PROVIDER_PANEL,
   )?.Panel;
+  // A subheader over nothing is not drawn: no switch and no connector whose
+  // page has something to do on this device (ADR 0150).
+  if (!featureDraws(feature, roads.acts)) return null;
   return (
     <section
       className="conn-group capsection"

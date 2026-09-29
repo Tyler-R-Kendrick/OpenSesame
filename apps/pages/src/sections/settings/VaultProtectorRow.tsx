@@ -1,4 +1,6 @@
 import type { ProtectorViewRow } from "@opensesame/app-core/lib/vault/protection/protection-view.js";
+import { protectorCanBeTested } from "@opensesame/app-core/lib/vault/protection/protector-proof.js";
+import { protectorUnlocksVault } from "@opensesame/app-core/lib/vault/unlock-preference.js";
 import type { ReactNode } from "react";
 import { IconRefresh, IconStar, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -16,20 +18,20 @@ function proofMark(row: ProtectorViewRow): ReactNode {
 export function ProtectorRow({
   row,
   preferred,
-  disabledReason,
-  actionsWired,
   onTest,
   onPreferred,
   onRemove,
 }: {
   row: ProtectorViewRow;
   preferred: boolean;
-  disabledReason: string | undefined;
-  actionsWired: boolean;
   onTest: (id: string) => void;
   onPreferred: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
+  // Only the header's own wraps open the vault, so only they can be preferred
+  // — and they are removed under Unlock methods, where the wrap goes with the
+  // row. Every other protector is proved with Test and removed here.
+  const unlocks = protectorUnlocksVault(row);
   return (
     <div className="sw sw--method" data-protector-id={row.protectorId}>
       <div>
@@ -41,36 +43,39 @@ export function ProtectorRow({
         <p className="sw__sub">{row.identityLabel}</p>
       </div>
       <div className="actions">
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label={`Test ${row.mechanismLabel}`}
-          title={disabledReason ?? `Test ${row.mechanismLabel}`}
-          disabled={!actionsWired}
-          onClick={() => onTest(row.protectorId)}
-        >
-          <IconRefresh size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label={`Preferred unlock ${row.mechanismLabel}`}
-          title={disabledReason ?? `Preferred unlock ${row.mechanismLabel}`}
-          disabled={!actionsWired}
-          onClick={() => onPreferred(row.protectorId)}
-        >
-          <IconStar size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label={`Remove ${row.mechanismLabel}`}
-          title={disabledReason ?? `Remove ${row.mechanismLabel}`}
-          disabled={!actionsWired}
-          onClick={() => onRemove(row.protectorId)}
-        >
-          <IconTrash size={16} />
-        </button>
+        {protectorCanBeTested(row.kind) ? (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label={`Test ${row.mechanismLabel}`}
+            title={`Test ${row.mechanismLabel}`}
+            onClick={() => onTest(row.protectorId)}
+          >
+            <IconRefresh size={16} />
+          </button>
+        ) : null}
+        {unlocks ? (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label={`Preferred unlock ${row.mechanismLabel}`}
+            title={`Preferred unlock ${row.mechanismLabel}`}
+            onClick={() => onPreferred(row.protectorId)}
+          >
+            <IconStar size={16} />
+          </button>
+        ) : null}
+        {unlocks ? null : (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label={`Remove ${row.mechanismLabel}`}
+            title={`Remove ${row.mechanismLabel}`}
+            onClick={() => onRemove(row.protectorId)}
+          >
+            <IconTrash size={16} />
+          </button>
+        )}
       </div>
     </div>
   );

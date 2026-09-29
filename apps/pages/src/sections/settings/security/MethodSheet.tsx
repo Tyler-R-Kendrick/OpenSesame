@@ -5,6 +5,7 @@ import type {
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { type ReactNode, useState } from "react";
 import {
+  IconConnection,
   IconMail,
   IconMessage,
   IconPhone,
@@ -33,6 +34,7 @@ import {
   CodeCeremony,
   RecoveryCeremony,
 } from "./SecondStepCeremonies.js";
+import { ServiceCeremony } from "./ServiceCeremony.js";
 import { SheetFrame } from "./SheetFrame.js";
 import type { Run } from "./run.js";
 
@@ -41,6 +43,7 @@ export type MethodKind =
   | "totp"
   | CodeChannel
   | "recovery"
+  | "service"
   | AccountMethodKind;
 export type MethodView = KeyView;
 /** A row of the Security list: a method the sheet handles, or the duress code. */
@@ -62,6 +65,7 @@ const TITLE = {
   email: "Email code",
   sms: "Text message code",
   recovery: "Recovery codes",
+  service: "Sign-in service",
   ...ACCOUNT_TITLE,
 } satisfies Record<MethodKind, string>;
 
@@ -71,6 +75,7 @@ const SUBTITLE = {
   email: "For a lost phone. Sent by your sign-in service.",
   sms: "For a lost phone. Sent by your sign-in service.",
   recovery: "Each stands in for the second step once.",
+  service: "Where email and text codes are requested from.",
   ...ACCOUNT_SUBTITLE,
 } satisfies Record<MethodKind, string>;
 
@@ -84,6 +89,8 @@ export function methodIcon(kind: RowKind, size = 16): ReactNode {
       return <IconMessage size={size} />;
     case "recovery":
       return <IconSecret size={size} />;
+    case "service":
+      return <IconConnection size={size} />;
     case "duress":
       return <IconShield size={size} />;
     case "account-totp":
@@ -159,6 +166,10 @@ export function MethodSheet({
         setFoot={setFoot}
       />
     );
+  } else if (kind === "service") {
+    body = (
+      <ServiceCeremony view={view} busy={busy} run={run} onDone={onClose} />
+    );
   } else if (kind === "recovery") {
     body = <RecoveryCeremony busy={busy} run={run} setFoot={setFoot} />;
   } else {
@@ -201,6 +212,8 @@ function footFor(kind: MethodKind, view: MethodView): string {
   switch (kind) {
     case "totp":
       return "The seed lives only in memory until a code matches.";
+    case "service":
+      return "Saved on this device. Nothing is sent until you add an email or text code.";
     case "email":
     case "sms":
       return "Your sign-in service sends the code. The vault key never leaves this device.";
