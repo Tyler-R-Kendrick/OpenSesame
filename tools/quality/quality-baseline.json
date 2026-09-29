@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 448,
-    "violations": 707,
+    "files": 447,
+    "violations": 706,
     "oversizedLines": 231496
   },
   "files": {
@@ -224,9 +224,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/security/KeyCeremony.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/security/MethodSheet.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
