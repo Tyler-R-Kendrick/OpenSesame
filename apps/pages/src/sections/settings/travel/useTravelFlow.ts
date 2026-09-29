@@ -19,7 +19,7 @@ import {
   readSafeFlags,
   writeSafeFlags,
 } from "@opensesame/app-core/lib/travel/safe-flags.js";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import {
@@ -41,6 +41,13 @@ const NO_ACK = { bundleSaved: false, codeRecorded: false };
 
 function useTravelState() {
   const { status, guest } = useVault();
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const [mode, setMode] = useState<TravelMode>({ kind: "plan" });
   const vaultIds = useDeviceVaults().map((vault) => vault.id);
   // Chosen once, at home: the marks are remembered, not asked for again.
@@ -66,12 +73,15 @@ function useTravelState() {
     setNotice(null);
     void task()
       .catch((caught) => {
+        if (!alive.current) return;
         setNotice({
           tone: "err",
           text: caught instanceof Error ? caught.message : String(caught),
         });
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        if (alive.current) setBusy(false);
+      });
   }
 
   function reset(next: Notice = null): void {

@@ -198,6 +198,30 @@ describe("capability profiles", () => {
     expect(rich.approvedModules).toContain("notifications.routing/runtime");
   });
 
+  it("minimal-local proves the runtime-installed plugins absent: no module, no operation", () => {
+    const plan = resolve("minimal-local");
+    for (const [id, operations] of [
+      [
+        "agents.surrogate-credentials",
+        ["plugins.surrogate_proxy.switch", "plugins.surrogate_proxy.tripwires"],
+      ],
+      ["vault.browser-autofill", ["plugins.browser_autofill.switch"]],
+    ] as const) {
+      expect(plan.capabilities[id]?.tier, id).toBe("optional");
+      expect(plan.capabilities[id]?.approved, id).toBe(false);
+      expect(plan.approvedModules).not.toContain(`${id}/runtime`);
+      for (const op of operations)
+        expect(plan.approvedOperations).not.toContain(op);
+      // Selected with consent, each resolves its module and pulls the
+      // tailnet daemon pairing it reads through.
+      const rich = resolve("rich-explicit");
+      expect(rich.approvedModules).toContain(`${id}/runtime`);
+      expect(rich.capabilities["networking.tailnet"]?.dependencyOf).toContain(
+        id,
+      );
+    }
+  });
+
   it("family profiles keep enterprise, agents, remote AI and telemetry unapproved", () => {
     for (const name of ["family-local", "family-sharing-selected"]) {
       const plan = resolve(name);
