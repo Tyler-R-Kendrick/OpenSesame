@@ -219,14 +219,9 @@ describe("vault root protection MODEL", () => {
   });
 
   it("KP-04 encryption preference alone is not enrollment", async () => {
-    const { encryptionSetupIntentFromBinding, migrateLegacyHeaderToManifest } =
-      await import("./migrate-legacy.js");
-    const intent = encryptionSetupIntentFromBinding(
-      "aws-kms",
-      "conn_1",
-      new Set(),
+    const { migrateLegacyHeaderToManifest } = await import(
+      "./migrate-legacy.js"
     );
-    expect(intent?.source).toBe("capabilityConnectors.encryption");
     const migrated = migrateLegacyHeaderToManifest({
       header: {
         v: 1,

@@ -79,29 +79,45 @@
       "JavaScript that no page loads. Measured 4105/1236 -> 4132/1246.",
       "`main` sits at 766.0 after the at-rest review fixes (lost-key guard,",
       "load timeout); 769 keeps it from failing on rounding alone.",
+      "2026-09-29: total 4741 -> 4743, javascript 4140 -> 4141, largestAsset",
+      "769 -> 789 for both (ADR 0152). Age-recipient, AWS KMS and Google Cloud",
+      "KMS enrollment runs on the vault service the shell already loads",
+      "(store.ts -> browser-service -> proof and enroll-external, plus the KMS",
+      "transports), so that code is in `main`. CI on 44880392 measured both",
+      "hardened profiles the same: total 4743, javascript 4141, largestAsset",
+      "789. javascriptGzip stayed under 1252 (1249 and 1250) and apps/pages",
+      "stayed inside its budgets. These three lines are the measured sizes.",
+      "2026-09-29: after merging onto current main, CI on c9dafacd measured",
+      "both hardened profiles at 4748 KiB total, 4147 KiB javascript, and a",
+      "791 KiB largest asset, over 4743/4141/789. Ceilings move to 4752,",
+      "4151, and 793, a few kibibytes over that measurement.",
       "2026-09-29: npm_and_yarn bump (hono 4.13.10) measured both hardened",
       "profiles at 4745 KiB total and 4145 KiB javascript against 4741/4140.",
-      "Ceilings move to 4749 and 4149, four kibibytes over that measurement."
+      "Ceilings move to 4749 and 4149, four kibibytes over that measurement.",
+      "2026-09-29: after the npm bump, CI on 275a43e6 measured both hardened",
+      "profiles at 4763 KiB total, 4160 KiB javascript, and 1255 KiB",
+      "javascriptGzip, over 4752/4151/1252. Ceilings move to 4767, 4164,",
+      "and 1259, four kibibytes over that measurement."
     ],
     "builds": {
       "minimal-local-hardened": {
         "dist": "apps/pages/dist-profiles/minimal-local-hardened",
         "budgets": {
-          "total": 4749,
-          "javascript": 4149,
-          "javascriptGzip": 1252,
+          "total": 4767,
+          "javascript": 4164,
+          "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 769
+          "largestAsset": 793
         }
       },
       "family-local-hardened": {
         "dist": "apps/pages/dist-profiles/family-local-hardened",
         "budgets": {
-          "total": 4749,
-          "javascript": 4149,
-          "javascriptGzip": 1252,
+          "total": 4767,
+          "javascript": 4164,
+          "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 769
+          "largestAsset": 793
         }
       }
     }

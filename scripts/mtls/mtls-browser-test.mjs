@@ -9,6 +9,9 @@
  *                  front end is complete with no backend and no certificate — STATIC-CORE)
  *   transport-ux   apps/pages/scripts/verify-transport.mjs        (SW-PWA: AT-BROWSER-UX,
  *                  AT-EVIDENCE-STALE, AT-BROWSER-CACHE, AT-STATIC-BADREMOTE)
+ *                  (the empty origin draws the Transport form alone — no idle
+ *                  rows, no Refresh key; rows and keys need an endpoint — ADR 0132
+ *                  as amended 2026-09-28, ADR 0150)
  *   browser-cert   apps/pages/scripts/verify-browser-cert.mjs     (SW-INTEROP: AT-BROWSER-EXTERNAL,
  *                  AT-BROWSER-CORS)
  *

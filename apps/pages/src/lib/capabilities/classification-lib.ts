@@ -132,14 +132,7 @@ const GIT_FILES = [
   "vault-backup-sync",
   "embedded-git",
 ];
-const CLOUD_FILES = [
-  "age-keys",
-  "aws-kms-config",
-  "azure-key-vault-keys-config",
-  "gcp-kms-config",
-  "yubikey-config",
-  "sops/",
-];
+const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-audit",
@@ -261,9 +254,7 @@ export const LIB_RULES = [
   ...each(L, GIT_FILES, (p) =>
     optional(p, GIT, "git remote backup and history"),
   ),
-  ...each(L, CLOUD_FILES, (p) =>
-    optional(p, CLOUD, "cloud KMS, age, YubiKey, SOPS"),
-  ),
+  ...each(L, CLOUD_FILES, (p) => optional(p, CLOUD, "cloud KMS, age, SOPS")),
   ...each(L, ACCESS_FILES, (p) =>
     optional(p, ACCESS, "local PAM records and Host plane"),
   ),

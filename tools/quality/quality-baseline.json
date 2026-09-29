@@ -76,9 +76,6 @@
     "apps/pages/src/components/InstallOffer.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/components/KeyVaultCeremony.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/components/NotificationsBar.tsx": {
       "max-lines-per-function": 1
     },
@@ -200,10 +197,6 @@
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/connections/YubikeyConnectPanel.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/identity/ApplicationDiagnostics.tsx": {
       "max-lines-per-function": 1
     },
@@ -217,7 +210,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
-      "max-lines": 451
+      "max-lines": 428
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.tsx": {
       "complexity": 1,
@@ -770,7 +763,7 @@
       "max-lines": 1676
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 580
+      "max-lines": 577
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 470

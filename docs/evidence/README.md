@@ -50,11 +50,14 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
 | [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
+| [`2026-09-28-settings-security-rows/`](2026-09-28-settings-security-rows/README.md) | Settings › Security: every row acts, or is not drawn |
 | [`2026-09-28-settings-no-approvals-view/`](2026-09-28-settings-no-approvals-view/README.md) | Settings › General: no approvals view |
+| [`2026-09-28-protector-enrollment/`](2026-09-28-protector-enrollment/README.md) | Enrolling an age recipient, AWS KMS and Google Cloud KMS from Security |
 | [`2026-09-28-member-organizations/`](2026-09-28-member-organizations/README.md) | The signed-in member's organizations |
 | [`2026-09-28-manifest-export-sheet/`](2026-09-28-manifest-export-sheet/README.md) | The sealed-store manifest is saved from a sheet, and never for a guest |
 | [`2026-09-28-live-sessions/`](2026-09-28-live-sessions/README.md) | Live sessions and the two-road front door (ADR 0150) |
 | [`2026-09-28-live-routes/`](2026-09-28-live-routes/README.md) | Live sessions across networks: optional routes (ADR 0150 §6) |
+| [`2026-09-28-host-less-connect/`](2026-09-28-host-less-connect/README.md) | Connector pages on a device with no Host: they act, or are not drawn |
 | [`2026-09-28-duress-and-travel-usable/`](2026-09-28-duress-and-travel-usable/README.md) | Duress and travel, usable from Settings — visual evidence |
 | [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
 | [`2026-09-28-completion-not-repeated/`](2026-09-28-completion-not-repeated/README.md) | The config.yaml editor no longer offers back what is typed |

@@ -5,10 +5,10 @@ export {
 import { AccountFactorError } from "@opensesame/app-core/lib/account-factors.js";
 import { describeRecovery } from "@opensesame/app-core/lib/configuration/recovery-outcomes.js";
 import { loadSession } from "@opensesame/app-core/lib/federation.js";
+import { readSignInService } from "@opensesame/app-core/lib/identity-service.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
 import { RemoteCodeError } from "@opensesame/app-core/lib/vault/remote-code.js";
 import {
-  type CodeChannel,
   type UnlockMethodId,
   type WebauthnHostCheck,
   checkWebauthnHost,
@@ -17,19 +17,18 @@ import {
   listSecondSteps,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import {
   IconEdit,
   IconEye,
   IconPlus,
-  IconSettings,
   IconTrash,
 } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AccountFactorsPanel } from "./security/AccountFactorsPanel.js";
+import { CodeRows } from "./security/CodeRows.js";
 import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
 import { MethodRow } from "./security/MethodRow.js";
 import {
@@ -64,6 +63,10 @@ function UnlockMethodsBody() {
   const secondSteps = listSecondSteps(header);
   const hasRecovery = Boolean(header?.unlocks?.recovery);
   const hasIdentity = isRemoteIdentityConfigured();
+  const signInService = readSignInService();
+  // A code can only guard a key, so a keyless vault is offered the
+  // authenticator (which walks a key first) and nothing it cannot finish.
+  const offersCodes = enrolled.length > 0;
   const accountEmail = loadSession()?.email ?? null;
 
   const [message, setMessage] = useState<{
@@ -172,51 +175,6 @@ function UnlockMethodsBody() {
     );
   };
 
-  const codeRow = (channel: CodeChannel, label: string) => {
-    const on = secondSteps.includes(channel);
-    return (
-      <MethodRow
-        kind={channel}
-        label={label}
-        state={!hasIdentity ? "Unavailable" : on ? "On" : "Off"}
-        on={on}
-        sub={
-          !hasIdentity
-            ? "Needs a sign-in service to send it."
-            : enrolled.length === 0
-              ? "After a key."
-              : on
-                ? "Offered at step 2. Sent by your sign-in service."
-                : "For a lost phone. Sent by your sign-in service to an address you confirm."
-        }
-        action={
-          !hasIdentity ? (
-            // A route link, not an href: `/settings/capabilities` without the
-            // deployment's base path was a full reload onto a 404 on Pages.
-            // Drawn as the row's one key, in the column every row's key is.
-            <Link
-              className="icon-btn icon-btn--sm"
-              to="/settings/capabilities"
-              aria-label="Set up a sign-in service under Capabilities"
-              title="Set up a sign-in service under Capabilities"
-            >
-              <IconSettings size={16} />
-            </Link>
-          ) : (
-            <IconKey
-              label={on ? "Remove" : "Add"}
-              small
-              disabled={busy || (!on && enrolled.length === 0)}
-              onClick={open(channel, on ? "remove" : "add")}
-            >
-              {on ? <IconTrash size={16} /> : <IconPlus size={16} />}
-            </IconKey>
-          )
-        }
-      />
-    );
-  };
-
   const totpOn = secondSteps.includes("totp");
 
   return (
@@ -226,7 +184,8 @@ function UnlockMethodsBody() {
           <div>
             <h2>Unlock methods</h2>
             <p className="hint">
-              Which key opens this vault on this device. Keep at least one.
+              Which key opens this vault on this device. Keep at least one.{" "}
+              {describeRecovery("identity")}
             </p>
           </div>
         </div>
@@ -301,33 +260,38 @@ function UnlockMethodsBody() {
               </IconKey>
             }
           />
-          {codeRow("email", "Email code")}
-          {codeRow("sms", "Text message")}
+          {offersCodes ? (
+            <CodeRows
+              secondSteps={secondSteps}
+              hasService={hasIdentity}
+              service={signInService}
+              busy={busy}
+              open={open}
+            />
+          ) : null}
         </div>
       </section>
 
-      <section className="panel set__security" id="recovery" ref={recoveryRef}>
-        <div className="panel__head">
-          <div>
-            <h2>Recovery</h2>
-            <p className="hint">
-              For the day the phone is gone. {describeRecovery("identity")}
-            </p>
+      {hasRecovery ? (
+        <section
+          className="panel set__security"
+          id="recovery"
+          ref={recoveryRef}
+        >
+          <div className="panel__head">
+            <div>
+              <h2>Recovery</h2>
+              <p className="hint">For the day the phone is gone.</p>
+            </div>
           </div>
-        </div>
-        <div className="panel__body">
-          <MethodRow
-            kind="recovery"
-            label="Recovery codes"
-            state={hasRecovery ? "Made" : "None yet"}
-            on={hasRecovery}
-            sub={
-              hasRecovery
-                ? "Each stands in for the second step once."
-                : "Made with your first second step, and shown once."
-            }
-            action={
-              hasRecovery ? (
+          <div className="panel__body">
+            <MethodRow
+              kind="recovery"
+              label="Recovery codes"
+              state="Made"
+              on
+              sub="Each stands in for the second step once."
+              action={
                 <IconKey
                   label="View recovery codes"
                   small
@@ -336,11 +300,11 @@ function UnlockMethodsBody() {
                 >
                   <IconEye size={16} />
                 </IconKey>
-              ) : null
-            }
-          />
-        </div>
-      </section>
+              }
+            />
+          </div>
+        </section>
+      ) : null}
 
       <AccountFactorsPanel busy={busy} closed={closed} onOpen={openAccount} />
 

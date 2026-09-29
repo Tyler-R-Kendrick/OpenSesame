@@ -27,6 +27,17 @@ installDoublePorts();
 
 installPanelFixture();
 
+/**
+ * Sections that draw nothing on a device with no Host, no Connect credential
+ * and no unlocked vault: their connectors need one of those, and a subheader
+ * over no tile and no switch is not drawn (ADR 0150).
+ */
+const NOTHING_TO_DO_HERE = new Set([
+  "encryption",
+  "password-managers",
+  "local-storage",
+]);
+
 describe("sections — one list, one style, a switch only where something is optional", () => {
   it("draws every section once, as a subheader, never as a card row", () => {
     const { container } = renderPanel();
@@ -35,7 +46,9 @@ describe("sections — one list, one style, a switch only where something is opt
     ].map((node) => node.textContent);
     expect(titles).toEqual([
       "Guests",
-      ...FEATURES.map((feature) => feature.title),
+      ...FEATURES.filter((feature) => !NOTHING_TO_DO_HERE.has(feature.id)).map(
+        (feature) => feature.title,
+      ),
       "Instance policy",
     ]);
     // No second list of capabilities, no card rows, nothing that collapses.
@@ -50,6 +63,7 @@ describe("sections — one list, one style, a switch only where something is opt
   it("puts the switch on the subheader of a section with optional capabilities, and none on an always-on one", () => {
     const { container } = renderPanel();
     for (const feature of FEATURES) {
+      if (NOTHING_TO_DO_HERE.has(feature.id)) continue;
       const head = container.querySelector(
         `#feature-${feature.id} > .capsection__head`,
       );
@@ -163,8 +177,8 @@ describe("sections — one list, one style, a switch only where something is opt
     // storage no longer draws it a second time.
     expect(tiles.textContent).toContain("password-store");
     expect(
-      screen.getByRole("list", { name: "Local storage providers" }).textContent,
-    ).not.toContain("password-store");
+      screen.queryByRole("list", { name: "Local storage providers" }),
+    ).toBeNull();
     for (const group of ["Identity providers", "Password managers"]) {
       expect(screen.queryByRole("switch", { name: group })).toBeNull();
     }

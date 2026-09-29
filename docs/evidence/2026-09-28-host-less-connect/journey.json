@@ -1,0 +1,274 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [".capsection__title", "a.conn-tile__link"]
+        },
+        {
+          "shot": "1280-capabilities-top"
+        },
+        {
+          "scrollTo": "Cloud secret storage"
+        },
+        {
+          "shot": "1280-capabilities-lower"
+        },
+        {
+          "visit": "settings/connections/better-auth"
+        },
+        {
+          "fillOptional": {
+            "label": "Base URL",
+            "text": "https://auth.example.com/api/auth"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "API key",
+            "text": "ba_typed_secret"
+          }
+        },
+        {
+          "shot": "1280-better-auth-typed"
+        },
+        {
+          "values": ".conn-settings input[name]"
+        },
+        {
+          "pressOptional": "Save configuration"
+        },
+        {
+          "values": ".conn-settings input[name]"
+        },
+        {
+          "count": [
+            ".conn-settings input[name]",
+            ".conn-settings button.go",
+            ".conn-settings .panel"
+          ]
+        },
+        {
+          "labels": ".conn-settings .status-mark"
+        },
+        {
+          "shot": "1280-better-auth-saved"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [".capsection__title", "a.conn-tile__link"]
+        },
+        {
+          "shot": "390-capabilities-top"
+        },
+        {
+          "visit": "settings/connections/better-auth"
+        },
+        {
+          "fillOptional": {
+            "label": "Base URL",
+            "text": "https://auth.example.com/api/auth"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "API key",
+            "text": "ba_typed_secret"
+          }
+        },
+        {
+          "pressOptional": "Save configuration"
+        },
+        {
+          "count": [".conn-settings input[name]", ".conn-settings button.go"]
+        },
+        {
+          "labels": ".conn-settings .status-mark"
+        },
+        {
+          "shot": "390-better-auth-saved"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "count": [".capsection__title", "a.conn-tile__link"]
+        },
+        {
+          "scrollTo": "Encryption"
+        },
+        {
+          "shot": "1280-vault-encryption"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/connections/workos"
+        },
+        {
+          "count": [
+            "#connector",
+            "#connector button.go",
+            "#connector button.go:disabled"
+          ]
+        },
+        {
+          "shot": "1280-workos-unsealed"
+        },
+        {
+          "fill": {
+            "label": "Vercel access token",
+            "text": "vcp_test_token"
+          }
+        },
+        {
+          "press": "Seal in vault"
+        },
+        {
+          "count": [
+            "#connector",
+            "#connector button.go:disabled",
+            "button.cx__btn--attn"
+          ]
+        },
+        {
+          "press": "Create connector"
+        },
+        {
+          "labels": ".conn-settings .status-mark"
+        },
+        {
+          "labels": "button[aria-label^=\"Notifications\"]"
+        },
+        {
+          "count": ["button.cx__btn--attn"]
+        },
+        {
+          "shot": "1280-workos-failed"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-capabilities-top",
+      "width": 1280,
+      "title": "Settings › Capabilities as a guest, no Host — desktop",
+      "caption": "Every tile now leads to a page with something to do. Better Auth and the other tiles whose only road is a Host are not drawn, and the Encryption subheader, which only a sealed vault can act under, is gone for a guest.",
+      "before": "14 subheaders, 48 connector tiles",
+      "after": "11 subheaders, 14 connector tiles"
+    },
+    {
+      "shot": "1280-capabilities-lower",
+      "width": 1280,
+      "title": "Cloud secret storage, Password managers, Local storage — desktop",
+      "caption": "Eleven cloud secret stores that each ended in a Host form are one tile, Doppler, whose page seals a Connect credential and then creates the connector. The Password managers and Local storage subheaders would draw nothing, so they are not drawn.",
+      "before": "Cloud secret storage: 11 tiles, then Password managers (6) and Local storage (2)",
+      "after": "Cloud secret storage: 1 tile (Doppler); Password managers and Local storage not drawn"
+    },
+    {
+      "shot": "1280-better-auth-typed",
+      "width": 1280,
+      "title": "Better Auth, values typed — desktop",
+      "caption": "The base draws a Connect form and lets a person fill it in; this branch has no road for it on this device and draws none.",
+      "before": "4 fields, 2 typed (Base URL, API key); 1 Save key",
+      "after": "0 fields, 0 keys; the page has no panel"
+    },
+    {
+      "shot": "1280-better-auth-saved",
+      "width": 1280,
+      "title": "Better Auth, after pressing Save — desktop",
+      "caption": "Before: the values are gone and a 14px ✗ appears at the top of the page. After: there was nothing to press.",
+      "before": "Save pressed: base_url and api_key filled → empty; the only feedback is a 14px ✗ at the top of the page (label: \"This browser has no approved grant for that action.\"); bell: none",
+      "after": "No key to press: 0 fields, 0 keys, 0 panels; mark: \"Not available here\""
+    },
+    {
+      "shot": "390-capabilities-top",
+      "width": 390,
+      "title": "Settings › Capabilities as a guest — phone",
+      "caption": "The same list at 390 wide.",
+      "before": "14 subheaders, 48 connector tiles",
+      "after": "11 subheaders, 14 connector tiles"
+    },
+    {
+      "shot": "390-better-auth-saved",
+      "width": 390,
+      "title": "Better Auth, after pressing Save — phone",
+      "caption": "The same page at 390 wide.",
+      "before": "base_url and api_key filled → empty; ✗ at the top with the same label; bell: none",
+      "after": "0 fields, 0 keys; mark: \"Not available here\""
+    },
+    {
+      "shot": "1280-vault-encryption",
+      "width": 1280,
+      "title": "Encryption with a sealed vault — desktop",
+      "caption": "A person with an unlocked vault keeps the four keys that seal there. A guest does not see them: their pages drew an empty Connect panel.",
+      "before": "16 subheaders, 48 tiles; Encryption: YubiKey, AWS KMS, Azure Key Vault Keys, Google Cloud KMS",
+      "after": "14 subheaders, 18 tiles; Encryption: the same four"
+    },
+    {
+      "shot": "1280-workos-unsealed",
+      "width": 1280,
+      "title": "WorkOS before its Connect credential is sealed — desktop",
+      "caption": "The Create connector form was drawn whole, with a key that stayed disabled until the credential above it was sealed. Now the page asks for the credential first.",
+      "before": "#connector drawn: 1 key, disabled, before any credential exists",
+      "after": "#connector not drawn: the page asks for the credential first"
+    },
+    {
+      "shot": "1280-workos-failed",
+      "width": 1280,
+      "title": "WorkOS, credential sealed, Create pressed with no network — desktop",
+      "caption": "A real failing action on a device with no Host. The mark is the same in both builds; this branch also says the sentence in the bell.",
+      "before": "mark: \"Couldn't reach the connected service.\"; bell: \"Notifications — none\", 0 attention keys",
+      "after": "same mark; bell: \"Notifications — 1 pending\", 1 attention key"
+    }
+  ]
+}

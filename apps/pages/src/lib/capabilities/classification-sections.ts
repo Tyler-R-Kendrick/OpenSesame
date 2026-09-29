@@ -55,16 +55,8 @@ export const SECTION_RULES = [
   ),
   ...each(
     "src/sections/connections/",
-    [
-      "AwsKms",
-      "AzureKeyVault",
-      "GcpKms",
-      "Yubikey",
-      "useAwsKmsConnect",
-      "useAzureKeyVaultKeysConnect",
-      "useGcpKmsConnect",
-    ],
-    (p) => optional(p, CLOUD, "cloud KMS / YubiKey protector panels"),
+    ["AwsKms", "GcpKms", "useAwsKmsConnect", "useGcpKmsConnect"],
+    (p) => optional(p, CLOUD, "cloud KMS connection panels"),
   ),
   ...each(
     "src/sections/connections/",

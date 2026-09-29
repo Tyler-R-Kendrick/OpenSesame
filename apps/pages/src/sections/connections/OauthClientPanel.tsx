@@ -42,11 +42,18 @@ export function callbackUrlFor(provider: Provider): string {
 export function OauthClientPanel({
   provider,
   online,
+  clientForm,
   onFlash,
   onClientState,
 }: {
   provider: Provider;
   online: boolean;
+  /**
+   * The OAuth client form saves an integration, which only an open road can
+   * take. Without one it is not drawn: GitHub keeps registering its App from
+   * the browser, and every other provider has nothing here.
+   */
+  clientForm: boolean;
   onFlash: (flash: Flash) => void;
   /** Reports whether a sealed org OAuth client exists for this provider. */
   onClientState: (hasClient: boolean) => void;
@@ -235,7 +242,7 @@ export function OauthClientPanel({
   );
 
   if (provider.id !== "github") {
-    return <div className="conn-client-setup">{form}</div>;
+    return clientForm ? <div className="conn-client-setup">{form}</div> : null;
   }
 
   return (
@@ -250,10 +257,12 @@ export function OauthClientPanel({
         icon={<IconExternal size={18} />}
         onClick={() => void deployGithubApp()}
       />
-      <details className="conn-client-alt">
-        <summary>Or use an existing OAuth app</summary>
-        {form}
-      </details>
+      {clientForm ? (
+        <details className="conn-client-alt">
+          <summary>Or use an existing OAuth app</summary>
+          {form}
+        </details>
+      ) : null}
     </div>
   );
 }

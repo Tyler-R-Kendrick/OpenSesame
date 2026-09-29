@@ -1,15 +1,16 @@
+import type { VaultHeader } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
-  ProtectionNotWiredError,
-  preferenceMechanismLabel,
-  protectionLifecycleStubs,
+  protectionMechanismLabel,
   selectProtectionView,
 } from "./protection-view.js";
 
 describe("protection-view", () => {
   it("never labels WebCrypto as a protector", () => {
-    expect(preferenceMechanismLabel("webcrypto")).toBe("Password");
-    expect(preferenceMechanismLabel("fido2")).toBe("Passkey / security key");
+    expect(protectionMechanismLabel("password")).toBe("Password");
+    expect(protectionMechanismLabel("webauthn-prf")).toBe(
+      "Passkey / security key",
+    );
   });
 
   it("derives enrolled methods from header wrap/unlocks", () => {
@@ -34,17 +35,15 @@ describe("protection-view", () => {
           },
         },
       },
-      encryptionBinding: { providerId: "webcrypto" },
     });
     expect(view.methods.map((row) => row.mechanismLabel)).toEqual([
       "Password",
       "PIN",
     ]);
-    expect(view.setupIntent).toBeNull();
     expect(view.lifecycleReady).toBe(true);
   });
 
-  it("KP-04: cloud preference without enrollment is setup intent", () => {
+  it("KP-04: only an enrolled protector is a row — a saved cloud preference is not", () => {
     const view = selectProtectionView({
       header: {
         v: 1,
@@ -56,15 +55,63 @@ describe("protection-view", () => {
         },
         wrap: { ivB64: "aXY=", ctB64: "Y3Q=" },
       },
-      encryptionBinding: { providerId: "aws-kms", connectionId: "c1" },
     });
-    expect(view.setupIntent?.providerId).toBe("aws-kms");
-    expect(view.setupIntent?.source).toBe("capabilityConnectors.encryption");
+    expect(view.methods.map((row) => row.kind)).toEqual(["password"]);
+    expect("setupIntent" in view).toBe(false);
   });
 
-  it("stubs throw typed not_wired", () => {
-    expect(() => protectionLifecycleStubs.rotateCompromised()).toThrow(
-      ProtectionNotWiredError,
+  it("reads the header's sealed manifest, so ids are stable and every record is listed", () => {
+    const header: VaultHeader = {
+      v: 1,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      kdf: {
+        alg: "PBKDF2-SHA256",
+        saltB64: "c2FsdA==",
+        iterations: 600_000,
+      },
+      wrap: { ivB64: "aXY=", ctB64: "Y3Q=" },
+      protection: {
+        schemaVersion: 1,
+        vaultId: "vault_x",
+        rootKeyId: "root_x",
+        rootEpoch: 0,
+        revision: 2,
+        purpose: "human-vault-root",
+        preferredProtectorId: "password_kept",
+        records: [
+          {
+            kind: "password",
+            protectorId: "password_kept",
+            legacy: true,
+            kdf: {
+              alg: "PBKDF2-SHA256",
+              saltB64: "c2FsdA==",
+              iterations: 600_000,
+            },
+            wrap: { ivB64: "aXY=", ctB64: "Y3Q=" },
+            proofStatus: "verified",
+          },
+          {
+            kind: "recovery-key",
+            protectorId: "recovery-key_kept",
+            wrap: { ivB64: "aXY=", ctB64: "Y3Q=" },
+            fingerprintB64: "ZnA=",
+            proofStatus: "verified",
+          },
+        ],
+        authB64: "YXV0aA==",
+      },
+    };
+    const first = selectProtectionView({ header });
+    const second = selectProtectionView({ header });
+    expect(first.methods.map((row) => row.protectorId)).toEqual([
+      "password_kept",
+      "recovery-key_kept",
+    ]);
+    // Not re-minted per call: this id is what the service is asked to act on.
+    expect(second.methods.map((row) => row.protectorId)).toEqual(
+      first.methods.map((row) => row.protectorId),
     );
+    expect(first.preferredProtectorId).toBe("password_kept");
   });
 });

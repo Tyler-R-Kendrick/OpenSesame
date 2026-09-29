@@ -38,6 +38,11 @@ export type SettingsRailSnapshot = {
   duress?: boolean;
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
+  /**
+   * Capabilities sections that draw nothing on this device (no switch, no
+   * connector with anything to do): unlisted, as the page leaves them out.
+   */
+  emptyFeatures?: readonly string[];
 };
 
 export type ContributedPanel = Readonly<{
@@ -64,11 +69,13 @@ function panel(category: string, id: string, label: string): PageTreeSource {
 export function capabilitiesSettingsSections(
   guests = true,
   instancePolicy = false,
+  emptyFeatures: readonly string[] = [],
 ): PageTreeSource[] {
   return [
     ...(guests ? [panel("capabilities", "feature-guests", "Guests")] : []),
-    ...FEATURES.map((feature) =>
-      panel("capabilities", `feature-${feature.id}`, feature.title),
+    ...FEATURES.filter((feature) => !emptyFeatures.includes(feature.id)).map(
+      (feature) =>
+        panel("capabilities", `feature-${feature.id}`, feature.title),
     ),
     ...(instancePolicy
       ? [panel("capabilities", "instance-policy", "Instance policy")]
@@ -139,6 +146,7 @@ function sectionsFor(
         ...capabilitiesSettingsSections(
           snapshot.guests ?? true,
           snapshot.instancePolicy ?? false,
+          snapshot.emptyFeatures ?? [],
         ),
       ];
     case "danger":

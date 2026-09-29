@@ -33,11 +33,40 @@ application keeps working with none of this present. It does.
 
 | Property | Evidence |
 |---|---|
-| An empty device with no endpoints configured completes guest, vault and settings journeys with no network setup prompt | `pnpm --filter @opensesame/pages verify:transport`, 63 checks, exit 0; fails on any loopback request |
+| An empty device with no endpoints configured completes guest, vault and settings journeys with no network setup prompt; Settings › Security › Transport draws its configuration form alone — no status rows, no Refresh key, no verify key, and Tab walks the form in order (`AT-STATIC-EMPTY`, amended 2026-09-28 below) | `pnpm --filter @opensesame/pages verify:transport`, 109 checks, exit 0; fails on any loopback request |
 | A remote target with broken TLS degrades only that target | same harness, the bad-remote journey: exactly one status request and one verify request leave the tab, only the observed row degrades |
 | No native TLS, filesystem, workload-socket or process adapter reaches the shipped bundle | `scripts/mtls/mtls-static-imports.mjs`, 69 chunks scanned plus the transitive dependency graph, exit 0 |
 | Touch, keyboard, local sign-in and self-issued identity journeys unchanged | `verify:mobile`, `verify:keyboard`, `verify:local-iam`, `verify:siop`, all exit 0 |
 | A browser operation needing a vault-controlled TLS identity | returns a typed unsupported outcome; no key export, no silent proxy |
+
+**Amended 2026-09-28: `AT-STATIC-EMPTY` and `AT-BROWSER-UX` no longer require
+idle rows.** As first written, `AT-STATIC-EMPTY` required Settings › Security ›
+Transport to draw five idle "Not checked" rows and a keyboard-reachable Refresh
+key with no endpoint, and `AT-BROWSER-UX` measured that Refresh key on the phone
+journeys. Both were rows and keys that did nothing on a device with nothing to
+ask. [ADR 0150](../adr/0150-settings-rows-act-or-are-absent.md) ("a Settings
+row acts, or it is not drawn") now governs the panel, and the scenarios are
+restated:
+
+- `AT-STATIC-EMPTY` (`verify-transport.mjs` `emptyJourney`, 1280 and 390): the
+  empty origin draws the six form fields (target, policy, execution, identity,
+  trust, profile), each reachable by Tab in that order and left again by
+  Shift+Tab; it draws **no** `[data-dimension]` row, no status glyph, no Refresh
+  key and no verification key; no error box, no false claim, no "Not checked"
+  copy; and zero requests leave the tab for another origin.
+- With an endpoint set, the five rows, the Refresh key and the verification key
+  are drawn and asserted exactly as before (`badremote-open`), the Refresh key
+  is reached by Tab ahead of the form, and it meets the 44px coarse-pointer floor
+  (`phone-configured-tablet-portrait`; the endpoint is written through the
+  settings file, which needs the rail, so that journey runs in a coarse-pointer
+  context wide enough to draw it).
+- The phone journeys on the empty origin assert the form's 16px field floor, the
+  mobile audit, zero external requests, and the **absence** of the rows and the
+  key.
+
+The contract change is deliberate, recorded as an amendment to ADR 0132, and
+does not weaken what the scenario protects: an empty static origin still makes
+no request, claims no failure and puts no backend in front of guest access.
 
 Two Pages gates, `verify:static` and `verify:auth`, fail — **identically on the
 base build**, proven by building `apps/pages` from the merge base

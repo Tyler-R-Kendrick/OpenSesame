@@ -62,30 +62,60 @@ afterEach(() => {
 });
 
 describe("TransportPanel", () => {
-  it("renders five idle rows, asks nothing, and offers no verification without an endpoint", async () => {
+  it("with no endpoint: the form only — no status rows, no keys to press, nothing asked", async () => {
     render(<TransportPanel />);
     expect(screen.getByRole("heading", { name: "Transport" })).toBeTruthy();
-    for (const dimension of DIMENSIONS)
-      expect(row(dimension).dataset.tone).toBe(
-        dimension === "desired" ? "idle" : "idle",
-      );
+    expect(document.querySelector("[data-dimension]")).toBeNull();
+    expect(document.querySelector(".status-mark")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Refresh transport status" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /verification/ })).toBeNull();
+    // What is there is configuration: the target's policy can be set.
+    expect(screen.getAllByRole("combobox").length).toBeGreaterThan(0);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(seamFetch).not.toHaveBeenCalled();
+    expect(globalFetch).not.toHaveBeenCalled();
+    expect(
+      document.querySelector(".note, .conn-flash, [role=alert]"),
+    ).toBeNull();
+    expect(document.body.textContent).not.toMatch(
+      /erased|TLS-gated|127\.0\.0\.1|localhost|unreachable|failed to|Not checked/i,
+    );
+  });
+
+  it("with an endpoint: five status rows and both keys, read once on open", async () => {
+    saveSettings({ ...loadSettings(), hostApi: REMOTE });
+    seamFetch.mockResolvedValueOnce(json(transportStatusWire()));
+    render(<TransportPanel />);
+    await waitFor(() => expect(row("enforcement").dataset.tone).toBe("ok"));
+    expect(
+      Array.from(document.querySelectorAll("[data-dimension]")).map(
+        (node) => (node as HTMLElement).dataset.dimension,
+      ),
+    ).toEqual(DIMENSIONS);
+    expect(
+      screen.getByRole("button", { name: "Refresh transport status" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Run enforcement verification/ }),
+    ).toBeTruthy();
+    expect(seamFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("with a status already read but no endpoint: rows and refresh stay, verification does not", async () => {
+    saveSettings({ ...loadSettings(), hostApi: REMOTE });
+    seamFetch.mockResolvedValueOnce(json(transportStatusWire()));
+    const first = render(<TransportPanel />);
+    await waitFor(() => expect(row("enforcement").dataset.tone).toBe("ok"));
+    first.unmount();
+    saveSettings({ ...loadSettings(), hostApi: "" });
+    render(<TransportPanel />);
+    expect(document.querySelectorAll("[data-dimension]").length).toBe(5);
     expect(
       screen.getByRole("button", { name: "Refresh transport status" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /verification/ })).toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(seamFetch).not.toHaveBeenCalled();
-    expect(globalFetch).not.toHaveBeenCalled();
-    // No in-page error box, no text pill: status is a glyph with a sentence.
-    expect(
-      document.querySelector(".note, .conn-flash, [role=alert]"),
-    ).toBeNull();
-    expect(
-      document.querySelectorAll(".status-mark").length,
-    ).toBeGreaterThanOrEqual(5);
-    expect(document.body.textContent).not.toMatch(
-      /erased|TLS-gated|127\.0\.0\.1|localhost|unreachable|failed to/i,
-    );
   });
 
   it("reads status on open when an endpoint is set; a bad remote degrades the observed row only", async () => {
@@ -172,7 +202,9 @@ describe("TransportPanel", () => {
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText("Policy"), "mtls_required");
     expect(loadTransportSettings().remote?.desiredPolicy).toBe("mtls_required");
-    expect(row("desired").textContent).toContain("mTLS required");
+    expect((screen.getByLabelText("Policy") as HTMLSelectElement).value).toBe(
+      "mtls_required",
+    );
 
     const identity = screen.getByLabelText("Identity");
     await user.type(identity, "/etc/ssl/private/host.key");

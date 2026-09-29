@@ -33,6 +33,7 @@ import {
   getPasskeyUnlockCeremonyForDefault,
 } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
+import { chooseUnlockMethod } from "./unlock-preference.js";
 
 export {
   type WebauthnHostCheck,
@@ -178,11 +179,7 @@ function listAvailableUnlockMethodsDefault(
 function preferredUnlockMethodDefault(
   header: VaultHeader | null | undefined,
 ): UnlockMethodId | null {
-  const methods = listAvailableUnlockMethods(header);
-  if (methods.includes("passkey")) return "passkey";
-  if (methods.includes("pin")) return "pin";
-  if (methods.includes("password")) return "password";
-  return null;
+  return chooseUnlockMethod(header, listAvailableUnlockMethods(header));
 }
 
 /** Every format problem a PIN has, in plain words, empty when it passes. */

@@ -113,6 +113,14 @@ describe("keys connector", () => {
     expect(row.id).toBe("keys");
     expect(row.tone).toBe("live");
   });
+
+  it("stays live over a preference an earlier version left behind", () => {
+    const left = settings();
+    left.capabilityConnectors.encryption = { providerId: "aws-kms" };
+    const row = classifyKeysConnector(left);
+    expect(row.tone).toBe("live");
+    expect(row.detail).not.toMatch(/not authorized/);
+  });
 });
 
 describe("buildConnectors", () => {

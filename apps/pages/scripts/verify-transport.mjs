@@ -9,7 +9,9 @@
 // `verify-static-origin.mjs` serves it; every other origin is refused.
 //
 //   AT-STATIC-EMPTY     empty runtime endpoints: guest → Settings › Security ›
-//                       Transport renders five idle rows and the tab makes
+//                       Transport draws its configuration form and nothing
+//                       else — no status rows, no refresh or verify key
+//                       (ADR 0150, amending ADR 0132) — and the tab makes
 //                       zero requests to any other origin
 //   AT-STATIC-BADREMOTE an endpoint that cannot answer, set through the
 //                       settings UI: only the observed row degrades; guest,
@@ -17,8 +19,9 @@
 //   AT-BROWSER-CACHE    after the status changed, no copy says local data
 //                       was erased or that the vault is now TLS-gated
 //   AT-BROWSER-UX       keyboard reaches every transport control at 1280
-//                       and 390; the phone contract holds at 320/390/430
-//                       and landscape in a real coarse-pointer context
+//                       and 390, empty origin and configured endpoint alike;
+//                       the phone contract holds at 320/390/430 and landscape
+//                       in a real coarse-pointer context
 //
 // Fails on any page error, console error, loopback request, or check below.
 import fs from "node:fs";
@@ -29,12 +32,17 @@ import { addCapability } from "./lib/capability-walk-contract.mjs";
 import {
   AUDIT,
   PHONES,
+  TABLETS,
   TOUCH_FLOOR,
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
 import { openConfigFile, openConfigForm } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import {
+  createEmptyJourney,
+  tabThroughForm,
+} from "./lib/transport-empty-journey.mjs";
 import {
   DIMENSIONS,
   NO_SUCH_CLAIM,
@@ -44,6 +52,7 @@ import {
   openTransport,
   tabTo,
   tone,
+  verifyKey,
 } from "./lib/transport-journey.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -86,72 +95,17 @@ async function measured(page, label) {
   return m;
 }
 
-async function verifyKey(page) {
-  return page.getByRole("button", { name: /enforcement verification/ });
-}
-
-/** AT-STATIC-EMPTY and the keyboard, at one width with a mouse. */
-async function emptyJourney(browser, width) {
-  const step = `empty-${width}`;
-  const { page, context } = await harness.newPage(browser, {
-    device: { viewport: { width, height: 900 } },
-  });
-  setStep(step);
-  await guest(page, ORIGIN, BASE);
-  await openTransport(page);
-  const text = await snap(page, step, { fullPage: false });
-  check(/Transport/.test(text), `${width}: Transport panel is on Security`);
-  for (const dimension of DIMENSIONS) {
-    check(
-      (await tone(page, dimension)) === "idle",
-      `${width}: ${dimension} row is idle with no endpoint`,
-    );
-  }
-  check(
-    (await (await verifyKey(page)).count()) === 0,
-    `${width}: no verification key without an endpoint`,
-  );
-  check(
-    (await page
-      .locator("#transport [role=alert], #transport .note")
-      .count()) === 0,
-    `${width}: no error box`,
-  );
-  check(!NO_SUCH_CLAIM.test(text), `${width}: no false claim on screen`);
-  check(
-    externalDuring(step).length === 0,
-    `${width}: zero requests to any other origin`,
-  );
-  const m = await measured(page, step);
-  check(m.rows.length === 5, `${width}: five rows`);
-
-  const refresh = page.getByRole("button", {
-    name: "Refresh transport status",
-  });
-  await tabTo(page, refresh);
-  await expect(refresh).toBeFocused();
-  // By id: Security has other panels with an "Identity" field of their own.
-  for (const id of [
-    "transport-target",
-    "transport-policy",
-    "transport-execution",
-    "transport-identity",
-    "transport-trust",
-    "transport-profile",
-  ]) {
-    await tabTo(page, page.locator(`#${id}`));
-  }
-  await tabTo(page, page.locator("#transport-trust"), "Shift+Tab");
-  check(
-    true,
-    `${width}: Tab reaches refresh and every field; Shift+Tab returns`,
-  );
-  await context.close();
-}
+const emptyJourney = createEmptyJourney({
+  harness,
+  origin: ORIGIN,
+  base: BASE,
+  externalDuring,
+  measured,
+});
 
 /** AT-STATIC-BADREMOTE, part one: an endpoint that cannot answer, set through the settings file. */
-async function configureBadRemote(page) {
-  setStep("badremote-configure");
+async function configureBadRemote(page, step = "badremote-configure") {
+  setStep(step);
   await guest(page, ORIGIN, BASE);
   await openSection(page, "settings/");
   // Connections is always on and folded into Settings › Capabilities
@@ -171,7 +125,7 @@ async function configureBadRemote(page) {
   );
   await openConfigForm(page, "Capabilities");
   check(
-    externalDuring("badremote-configure").length === 0,
+    externalDuring(step).length === 0,
     "setting an endpoint asks it nothing",
   );
 }
@@ -204,9 +158,25 @@ async function openDegraded(page) {
     `exactly one status read went to the endpoint (${asked.join(", ")})`,
   );
   check(
+    (await page.locator("#transport [data-dimension]").count()) === 5,
+    "the five status rows are drawn once an endpoint exists",
+  );
+  check(
+    (await page
+      .getByRole("button", { name: "Refresh transport status" })
+      .count()) === 1,
+    "the refresh key is drawn once an endpoint exists",
+  );
+  check(
     (await (await verifyKey(page)).count()) === 1,
     "verification is offered once an endpoint exists",
   );
+  await tabTo(
+    page,
+    page.getByRole("button", { name: "Refresh transport status" }),
+  );
+  await tabTo(page, await verifyKey(page));
+  await tabThroughForm(page, "configured", check);
   check(
     (await page.locator('[role="alert"]').count()) === 0,
     "a bad endpoint is a glyph, not an alert",
@@ -276,32 +246,68 @@ async function badRemoteJourney(browser) {
   await context.close();
 }
 
-/** AT-BROWSER-UX: the phone contract, in a real touch context. */
-async function phoneJourney(browser, phone) {
-  const step = `phone-${phone.name}`;
+/**
+ * AT-BROWSER-UX: the phone contract, in a real touch context. An empty origin
+ * draws the form alone (its controls meet the floors, and there is no refresh
+ * key to measure); an origin with an endpoint draws the rows and the keys, and
+ * the keys meet the same 44px floor. The endpoint is set through the settings
+ * file, which needs the rail, so that journey runs in a coarse-pointer context
+ * wide enough to draw it (a tablet); the floor is a pointer rule, not a width one.
+ */
+async function phoneJourney(browser, phone, configured = false) {
+  const step = configured
+    ? `phone-configured-${phone.name}`
+    : `phone-${phone.name}`;
   const { page, context } = await harness.newPage(browser, {
     device: phoneContext(phone),
   });
   setStep(step);
-  await guest(page, ORIGIN, BASE, true);
-  await openTransport(page, true);
+  if (configured) {
+    await configureBadRemote(page, step);
+    await openTransport(page, true);
+    await expect(page.locator('[data-dimension="observed"]')).toHaveAttribute(
+      "data-tone",
+      "err",
+      { timeout: 15_000 },
+    );
+  } else {
+    await guest(page, ORIGIN, BASE, true);
+    await openTransport(page, true);
+  }
   const result = await page.evaluate(`(${AUDIT})()`);
   recordStop(harness, step, result);
   check(result.coarse, `${phone.name}: measured in a coarse-pointer context`);
   const m = await measured(page, step);
-  check(
-    m.refresh && m.refresh.w >= TOUCH_FLOOR && m.refresh.h >= TOUCH_FLOOR,
-    `${phone.name}: refresh key ${m.refresh?.w}×${m.refresh?.h} meets the ${TOUCH_FLOOR}px floor`,
-  );
+  if (configured) {
+    check(m.rows.length === 5, `${phone.name}: five rows with an endpoint`);
+    check(
+      m.refresh && m.refresh.w >= TOUCH_FLOOR && m.refresh.h >= TOUCH_FLOOR,
+      `${phone.name}: refresh key ${m.refresh?.w}×${m.refresh?.h} meets the ${TOUCH_FLOOR}px floor`,
+    );
+    check(
+      (await (await verifyKey(page)).count()) === 1,
+      `${phone.name}: verification key is drawn with an endpoint`,
+    );
+  } else {
+    check(
+      m.rows.length === 0,
+      `${phone.name}: no status rows without an endpoint`,
+    );
+    check(
+      m.refresh === null,
+      `${phone.name}: no refresh key without an endpoint`,
+    );
+  }
   check(
     Number.parseFloat(m.selectFont) >= 16,
     `${phone.name}: select ${m.selectFont} will not zoom iOS`,
   );
   await snap(page, step, { fullPage: false });
-  check(
-    externalDuring(step).length === 0,
-    `${phone.name}: zero external requests`,
-  );
+  if (!configured)
+    check(
+      externalDuring(step).length === 0,
+      `${phone.name}: zero external requests`,
+    );
   await context.close();
 }
 
@@ -310,6 +316,7 @@ try {
   for (const width of [1280, 390]) await emptyJourney(browser, width);
   await badRemoteJourney(browser);
   for (const phone of PHONES) await phoneJourney(browser, phone);
+  await phoneJourney(browser, TABLETS[0], true);
 } finally {
   await browser.close();
 }
@@ -329,7 +336,7 @@ const hardKinds = [
 // its own connection-refused line for that one origin, and nothing else.
 const expectedRefusal = (e) =>
   e.kind === "console-error" &&
-  /^badremote-(open|verify)$/.test(e.step) &&
+  /^(badremote-(open|verify)|phone-configured-[\w-]+)$/.test(e.step) &&
   /ERR_CONNECTION_REFUSED/.test(e.detail);
 const hard = log.filter(
   (e) => hardKinds.includes(e.kind) && !expectedRefusal(e),

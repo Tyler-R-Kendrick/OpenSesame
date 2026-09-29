@@ -5,158 +5,127 @@ import {
 import { type ReactNode, useRef, useState } from "react";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
+import { FormCommit } from "../../components/FormCommit.js";
 import {
   IconAlert,
   IconPasskey,
   IconPlus,
   IconSecret,
+  IconShield,
   IconX,
 } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
+import {
+  AgeRecipientBody,
+  AwsKmsBody,
+  GcpKmsBody,
+  TestAgeCeremony,
+  externalCeremonyDependencies,
+} from "./VaultKeyProtectionExternalCeremonies.js";
 
 export type ProtectionSheetKind =
   | "add"
   | "rotate"
   | "test-recovery"
-  | "age-webauthn";
+  | "test-age";
 
 export type ProtectionSheetRequest = {
   kind: ProtectionSheetKind;
   protectorId?: string;
 };
 
-function downloadOnce(filename: string, body: string): void {
-  const blob = new Blob([body], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-function AddCeremony({
+export function AddKeyProtection({
   onDone,
-  onOpenAgeWebauthn,
-}: {
-  onDone: () => void;
-  onOpenAgeWebauthn: () => void;
-}): ReactNode {
+}: { onDone: () => void }): ReactNode {
   const store = useVaultStore();
   const [busy, setBusy] = useState(false);
-  const [unlockWithPasskey, setUnlockWithPasskey] = useState(true);
+  const enroll = (
+    kind: "recovery-key" | "webauthn-prf" | "age-webauthn",
+    ok: [string, string],
+    fallback: string,
+  ) => {
+    setBusy(true);
+    void runCaught(async () => {
+      const candidate = await store.protection.enrollCandidate(kind);
+      if (candidate.recoverySecretB64) {
+        externalCeremonyDependencies.downloadOnce(
+          "opensesame-recovery-key.txt",
+          `${candidate.recoverySecretB64}\n`,
+        );
+      }
+      await store.protection.commitEnrollment(candidate.operationId);
+      status("info", ok[0], ok[1]);
+      onDone();
+    }, fallback).finally(() => setBusy(false));
+  };
   return (
     <CeremonyShell
       ok
       name="Add key protection"
-      facts={[{ key: "Policy", value: "Any enrolled method unlocks alone" }]}
       primary={{
         label: "Recovery key",
         busy,
         disabled: busy,
-        onClick: () => {
-          setBusy(true);
-          void runCaught(async () => {
-            const candidate =
-              await store.protection.enrollCandidate("recovery-key");
-            await store.protection.commitEnrollment(candidate.operationId);
-            if (candidate.recoverySecretB64) {
-              downloadOnce(
-                "opensesame-recovery-key.txt",
-                `${candidate.recoverySecretB64}\n`,
-              );
-              status(
-                "info",
-                "Recovery key",
-                "Enrolled. Secret downloaded once — store it offline.",
-              );
-            }
-            onDone();
-          }, "Could not enroll recovery key.").finally(() => setBusy(false));
-        },
+        onClick: () =>
+          enroll(
+            "recovery-key",
+            [
+              "Recovery key",
+              "Enrolled. Secret downloaded once — store it offline.",
+            ],
+            "Could not enroll recovery key.",
+          ),
       }}
       secondary={{
-        label: "age passkey (advanced)",
+        label: "Passkey / security key",
         disabled: busy,
-        onClick: onOpenAgeWebauthn,
+        onClick: () =>
+          enroll(
+            "webauthn-prf",
+            ["Passkey / security key", "Passkey enrolled."],
+            "Could not enroll a passkey protector.",
+          ),
       }}
-    >
-      <label>
-        <input
-          type="checkbox"
-          checked={unlockWithPasskey}
-          disabled={busy}
-          onChange={(event) => setUnlockWithPasskey(event.target.checked)}
-        />
-        Use this passkey to unlock this vault
-      </label>
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={busy}
-          onClick={() => {
-            if (!unlockWithPasskey) {
-              status(
-                "info",
-                "Passkey / security key",
-                "Unchecked leaves vault protection unchanged. Enroll a sign-in passkey under Identity.",
-              );
-              return;
-            }
-            setBusy(true);
-            void runCaught(async () => {
-              const candidate =
-                await store.protection.enrollCandidate("webauthn-prf");
-              await store.protection.commitEnrollment(candidate.operationId);
-              status(
-                "info",
-                "Passkey / security key",
-                "This passkey can unlock the vault.",
-              );
-              onDone();
-            }, "Could not enroll a passkey protector.").finally(() =>
-              setBusy(false),
-            );
-          }}
-        >
-          Passkey / security key
-        </button>
-      </div>
-    </CeremonyShell>
-  );
-}
-
-function AgeWebauthnCeremony({ onDone }: { onDone: () => void }): ReactNode {
-  const store = useVaultStore();
-  const [busy, setBusy] = useState(false);
-  return (
-    <CeremonyShell
-      ok
-      name="age passkey (advanced)"
-      facts={[
+      alts={[
         {
-          key: "Runtime",
-          value:
-            "typage age.webauthn — prefer Unlock methods › Passkey (WebAuthn PRF) for vault unlock",
+          id: "age-recipient",
+          label: "age recipient",
+          icon: <IconSecret size={18} />,
+          render: () => <AgeRecipientBody onDone={onDone} />,
+        },
+        {
+          id: "age-webauthn",
+          label: "age passkey (advanced)",
+          icon: <IconPasskey size={18} />,
+          render: () => (
+            <FormCommit
+              label="Add age passkey"
+              busy={busy}
+              disabled={busy}
+              onClick={() =>
+                enroll(
+                  "age-webauthn",
+                  ["Age WebAuthn", "Protector enrolled and proven."],
+                  "Could not enroll Age WebAuthn.",
+                )
+              }
+            />
+          ),
+        },
+        {
+          id: "aws-kms",
+          label: "AWS KMS",
+          icon: <IconShield size={18} />,
+          render: () => <AwsKmsBody onDone={onDone} />,
+        },
+        {
+          id: "gcp-kms",
+          label: "Google Cloud KMS",
+          icon: <IconShield size={18} />,
+          render: () => <GcpKmsBody onDone={onDone} />,
         },
       ]}
-      primary={{
-        label: "Enroll",
-        busy,
-        disabled: busy,
-        onClick: () => {
-          setBusy(true);
-          void runCaught(async () => {
-            const candidate =
-              await store.protection.enrollCandidate("age-webauthn");
-            await store.protection.commitEnrollment(candidate.operationId);
-            status("info", "Age WebAuthn", "Protector enrolled and proven.");
-            onDone();
-          }, "Could not enroll Age WebAuthn.").finally(() => setBusy(false));
-        },
-      }}
     />
   );
 }
@@ -252,24 +221,23 @@ const TITLE = {
   add: "Add",
   rotate: "Rotate",
   "test-recovery": "Test",
-  "age-webauthn": "Age WebAuthn",
+  "test-age": "Test",
 } as const satisfies Record<ProtectionSheetKind, string>;
 
 function sheetIcon(kind: ProtectionSheetKind, size: number): ReactNode {
   if (kind === "rotate") return <IconAlert size={size} />;
-  if (kind === "age-webauthn") return <IconPasskey size={size} />;
-  if (kind === "test-recovery") return <IconSecret size={size} />;
+  if (kind === "test-recovery" || kind === "test-age") {
+    return <IconSecret size={size} />;
+  }
   return <IconPlus size={size} />;
 }
 
 export function VaultKeyProtectionSheet({
   request,
   onClose,
-  onReplace,
 }: {
   request: ProtectionSheetRequest;
   onClose: () => void;
-  onReplace: (next: ProtectionSheetRequest) => void;
 }): ReactNode {
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -277,16 +245,16 @@ export function VaultKeyProtectionSheet({
 
   let body: ReactNode;
   if (request.kind === "add") {
-    body = (
-      <AddCeremony
-        onDone={onClose}
-        onOpenAgeWebauthn={() => onReplace({ kind: "age-webauthn" })}
-      />
-    );
-  } else if (request.kind === "age-webauthn") {
-    body = <AgeWebauthnCeremony onDone={onClose} />;
+    body = <AddKeyProtection onDone={onClose} />;
   } else if (request.kind === "rotate") {
     body = <RotateCeremony onDone={onClose} />;
+  } else if (request.kind === "test-age") {
+    body = (
+      <TestAgeCeremony
+        protectorId={request.protectorId ?? ""}
+        onDone={onClose}
+      />
+    );
   } else {
     body = (
       <TestRecoveryCeremony

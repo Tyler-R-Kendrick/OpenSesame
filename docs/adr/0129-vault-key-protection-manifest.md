@@ -53,7 +53,10 @@ with the root bytes also acting as the content key on some paths.
    key-groups are still preserved or refused — never silently flattened to
    any-of.
 8. **`capabilityConnectors.encryption`.** Legacy setup preference / migration
-   hint only. Never overrides cryptographic enrollment facts.
+   hint only. Never overrides cryptographic enrollment facts. *Amended by
+   [ADR 0152](0152-browser-key-protector-enrollment.md): no screen writes or
+   reads it any more, and the browser enrolls only the age recipient, AWS KMS
+   and Google Cloud KMS kinds beside those it already did.*
 
 ## Consequences
 

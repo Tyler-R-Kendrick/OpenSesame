@@ -1,0 +1,201 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        { "shot": "1280-security-before-add" },
+        { "press": "Add key protection method" },
+        {
+          "count": [
+            ".sheet .alt__btn",
+            ".sheet input[type=checkbox]",
+            ".sheet .found__do button"
+          ]
+        },
+        { "report": ".sheet .found__name, .sheet .alt__btn" },
+        { "shot": "1280-add-sheet" },
+        { "pressOptional": "age recipient" },
+        { "measure": ".sheet .f__input" },
+        { "shot": "1280-add-age" },
+        { "pressOptional": "AWS KMS" },
+        {
+          "count": [
+            ".sheet .f__input",
+            ".sheet input[type=password]",
+            ".sheet .go"
+          ]
+        },
+        { "shot": "1280-add-aws" },
+        { "escape": null },
+        { "press": "Add key protection method" },
+        { "pressOptional": "age recipient" },
+        { "pressOptional": "Make a new age key" },
+        { "shot": "1280-security-after-age" },
+        {
+          "count": [
+            "[data-protector-id]",
+            "[data-protector-id] button[aria-label^=Test]",
+            "[data-protector-id] button[aria-label^=Preferred]",
+            "[data-protector-id] button[aria-label^=Remove]"
+          ]
+        },
+        { "report": "[data-protector-id]" },
+        { "pressOptional": "Test age recipient" },
+        { "shot": "1280-test-age" },
+        { "escape": null }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "tab": "settings" },
+        { "open": "Capabilities" },
+        { "scrollToOptional": "Encryption" },
+        { "report": "#feature-encryption .conn-tile__name" },
+        { "count": ["#feature-encryption .conn-tile"] },
+        { "shot": "1280-encryption-tiles" },
+        { "visit": "settings/connections/aws-kms" },
+        { "count": ["button[aria-label^=Prefer]", "form .go"] },
+        { "shot": "1280-connections-aws" },
+        { "visit": "settings/connections/yubikey" },
+        { "count": ["form input", "form .go"] },
+        { "shot": "1280-connections-yubikey" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "press": "Key vault" },
+        {
+          "count": [
+            ".sheet .alt__btn",
+            ".sheet button:disabled",
+            ".sheet .found__do button"
+          ]
+        },
+        {
+          "report": ".sheet .found__name, .sheet .alt__btn, .sheet .picker__opt"
+        },
+        { "shot": "1280-key-vault-ceremony" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "seal": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        { "press": "Add key protection method" },
+        { "pressOptional": "age recipient" },
+        { "measure": ".sheet .f__input, .sheet .go, .sheet .icon-btn" },
+        { "shot": "390-add-age" },
+        { "pressOptional": "AWS KMS" },
+        { "measure": ".sheet .f__input, .sheet .go" },
+        { "shot": "390-add-aws" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-add-sheet",
+      "width": 1280,
+      "title": "Add key protection — desktop",
+      "caption": "The sheet is a list of the keys the browser can enroll, each expanding in place: recovery key, passkey, age recipient, age passkey, AWS KMS, Google Cloud KMS. The checkbox whose unchecked state made the passkey key do nothing, and the policy line that claimed every method unlocks alone, are gone.",
+      "before": "A card with a policy line, a checkbox that made the Passkey key do nothing when cleared, and three keys",
+      "after": "Recovery key and Passkey as the two front doors, then four rows that expand in place"
+    },
+    {
+      "shot": "1280-add-age",
+      "width": 1280,
+      "title": "age recipient — desktop",
+      "caption": "A recipient and, optionally, the identity that proves it; or a new key pair made here, whose identity is saved to an age-keygen file before the record commits.",
+      "before": "No way to enrol an age recipient",
+      "after": "Recipient, identity to prove it, add and new-key keys"
+    },
+    {
+      "shot": "1280-add-aws",
+      "width": 1280,
+      "title": "AWS KMS — desktop",
+      "caption": "The connection is saved sealed in the vault in the same step; the key is then wrapped, opened again through KMS and compared with the vault key before it is committed.",
+      "before": "No way to enrol a cloud key from Security",
+      "after": "Key, region and credential fields, one commit key"
+    },
+    {
+      "shot": "1280-security-after-age",
+      "width": 1280,
+      "title": "Security after making an age key — desktop",
+      "caption": "The new protector is listed and verified. It has Test and Remove; Preferred is drawn only for a wrap that opens the vault at the unlock screen, and the Password row lost the Remove that only removed its row.",
+      "before": "Nothing to enrol; the Password row carries Preferred and Remove",
+      "after": "Password (Preferred) and age recipient (Test, Remove)"
+    },
+    {
+      "shot": "1280-test-age",
+      "width": 1280,
+      "title": "Test an age recipient — desktop",
+      "caption": "Test asks for the identity, opens the capsule and compares the root with this session's.",
+      "before": "No such row to test",
+      "after": "Identity field and Test"
+    },
+    {
+      "shot": "1280-encryption-tiles",
+      "width": 1280,
+      "title": "Capabilities › Encryption — desktop",
+      "caption": "YubiKey and Azure Key Vault Keys are no longer offered: a browser cannot enrol either (ADR 0152). AWS KMS and Google Cloud KMS remain, because they can now be enrolled.",
+      "before": "YubiKey, AWS KMS, Azure Key Vault Keys, Google Cloud KMS",
+      "after": "AWS KMS, Google Cloud KMS"
+    },
+    {
+      "shot": "1280-connections-aws",
+      "width": 1280,
+      "title": "Connections › AWS KMS — desktop",
+      "caption": "The Prefer key and the preference marks are gone: the preference changed no protector. What remains configures the credential the Add sheet and Test use.",
+      "before": "Save, Prefer and Remove keys; \"Not the encryption preference\" mark",
+      "after": "Save and Remove; Remove is absent while a protector on the key is enrolled"
+    },
+    {
+      "shot": "1280-connections-yubikey",
+      "width": 1280,
+      "title": "Connections › YubiKey — desktop",
+      "caption": "A YubiKey recipient was sealed here for a preference nothing read, and an age-plugin recipient cannot be used by the browser at all. The page is gone.",
+      "before": "A recipient form with Save, Prefer and Remove",
+      "after": "No YubiKey connector"
+    },
+    {
+      "shot": "1280-key-vault-ceremony",
+      "width": 1280,
+      "title": "The key vault glyph — desktop",
+      "caption": "Its ceremony was a setup preference picker that told the person to enrol elsewhere, or asked a Host to authorize a cloud choice. It is now the Add sheet.",
+      "before": "Setup preference: four pickers and Keep this preference",
+      "after": "Add key protection, the same choices as Security"
+    },
+    {
+      "shot": "390-add-age",
+      "width": 390,
+      "title": "age recipient — phone",
+      "caption": "The same sheet at 390 wide: fields at the phone's 16px floor, keys at 44px.",
+      "before": "No age recipient",
+      "after": "Recipient, identity, add and new-key keys"
+    },
+    {
+      "shot": "390-add-aws",
+      "width": 390,
+      "title": "AWS KMS — phone",
+      "caption": "The cloud form at 390 wide.",
+      "before": "No cloud enrolment",
+      "after": "Key, region and credential fields"
+    }
+  ]
+}

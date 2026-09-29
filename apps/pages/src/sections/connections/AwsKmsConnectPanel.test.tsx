@@ -58,9 +58,6 @@ describe("AWS KMS connector", () => {
     Object.assign(awsKmsConnectDependencies, originalDeps);
     vaultHooksSeams.useVault = () =>
       vaultState({ status: "unlocked", guest: false, tomb: "personal" });
-    awsKmsConnectDependencies.loadSettings = () => ({
-      capabilityConnectors: { encryption: { providerId: "webcrypto" } },
-    });
     awsKmsConnectDependencies.readAwsKmsConfig = async () => ({
       keyArn: "",
       region: "",
@@ -80,9 +77,6 @@ describe("AWS KMS connector", () => {
       configVersion: "1",
     });
     awsKmsConnectDependencies.clearAwsKmsConfig = async () => undefined;
-    awsKmsConnectDependencies.bindCapabilityConnector = (_cap, providerId) => ({
-      providerId,
-    });
   });
 
   afterEach(() => {

@@ -17,10 +17,10 @@ import {
 } from "@opensesame/app-core/lib/transport-status.js";
 import { runTransportVerify } from "@opensesame/app-core/lib/transport-verify.js";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { IconRefresh, IconShield } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { TransportBrowserRow } from "./TransportBrowserRow.js";
+import { TransportHeadKeys } from "./TransportHeadKeys.js";
 import { TransportStatusRows } from "./TransportStatusRows.js";
 import { TransportTargetForm } from "./TransportTargetForm.js";
 import "./transport.css";
@@ -32,9 +32,11 @@ import { useTransportVerifierConfigured } from "../../../bindings/transport.js";
  * Desired policy on this device, then what the endpoint reports — credential,
  * runtime, observed authentication, enforcement — one row each. Status is
  * read when the panel opens and when its key is pressed, and only when an
- * endpoint is set; a fresh origin asks nothing and reports nothing failed.
- * Verification is the endpoint's own probe and is offered only where there is
- * one to ask. A stale answer is a glyph, never a wall.
+ * endpoint is set; a fresh origin asks nothing, reports nothing failed, and
+ * draws no status rows, refresh key or verification key — a row nobody can
+ * act on is not drawn (ADR 0150, amending ADR 0132's AT-STATIC-EMPTY).
+ * Verification is the endpoint's own probe, offered only where one is set.
+ * A stale answer is a glyph, never a wall.
  */
 export function TransportPanel() {
   useSyncExternalStore(
@@ -75,6 +77,8 @@ export function TransportPanel() {
     saveTransportSettings(withTransportTarget(block, target, next));
   };
 
+  // An endpoint, or an answer already read, is something to show and refresh.
+  const asked = configured || status !== null;
   const view = toTransportViewState(status, current.desiredPolicy);
 
   return (
@@ -95,30 +99,15 @@ export function TransportPanel() {
             />
           ) : null}
         </div>
-        <div className="actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Refresh transport status"
-            title="Refresh transport status"
-            disabled={busy}
-            onClick={() => void run(readTransportStatus)}
-          >
-            <IconRefresh size={16} />
-          </button>
-          {configured ? (
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
-              aria-label="Run enforcement verification at the endpoint"
-              title="Run enforcement verification at the endpoint"
-              disabled={busy}
-              onClick={() => void run(runTransportVerify)}
-            >
-              <IconShield size={16} />
-            </button>
-          ) : null}
-        </div>
+        {/* Status and its probes belong to an endpoint: with none there is
+            nothing to ask, so no refresh key and no row of "not checked". */}
+        {asked ? (
+          <TransportHeadKeys
+            busy={busy}
+            onRefresh={() => void run(readTransportStatus)}
+            onVerify={configured ? () => void run(runTransportVerify) : null}
+          />
+        ) : null}
       </div>
       <div className="panel__body">
         <TransportTargetForm
@@ -128,7 +117,7 @@ export function TransportPanel() {
           onTarget={setTarget}
           onChange={commit}
         />
-        <TransportStatusRows view={view} />
+        {asked ? <TransportStatusRows view={view} /> : null}
         {current.browserProfile ? (
           <TransportBrowserRow profile={current.browserProfile} />
         ) : null}

@@ -74,43 +74,55 @@ function CheckFacts({ check }: { check: TokenCheck }) {
   );
 }
 
+/**
+ * Each key is drawn only where it can act (ADR 0150): Authorize when the
+ * person may manage the connector and has an identity to authorize as, Prove
+ * when this page holds a relay to prove through. `wait` is the one transient
+ * reason to be disabled — a request in flight, or no network.
+ */
 function TokenKeys({
   busy,
-  authorizeOff,
-  proveOff,
+  wait,
+  authorize,
+  prove,
   onAuthorize,
   onProve,
 }: {
   busy: "authorize" | "check" | null;
-  authorizeOff: boolean;
-  proveOff: boolean;
+  wait: boolean;
+  authorize: boolean;
+  prove: boolean;
   onAuthorize: () => void;
   onProve: () => void;
 }) {
   return (
     <div className="actions">
-      <button
-        type="button"
-        className="icon-btn"
-        aria-label="Authorize as you"
-        title="Authorize as you"
-        aria-busy={busy === "authorize" || undefined}
-        disabled={authorizeOff}
-        onClick={onAuthorize}
-      >
-        <IconLogin size={16} />
-      </button>
-      <button
-        type="button"
-        className="icon-btn"
-        aria-label="Test user token"
-        title="Test user token"
-        aria-busy={busy === "check" || undefined}
-        disabled={proveOff}
-        onClick={onProve}
-      >
-        <IconCheck size={16} />
-      </button>
+      {authorize ? (
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Authorize as you"
+          title="Authorize as you"
+          aria-busy={busy === "authorize" || undefined}
+          disabled={wait}
+          onClick={onAuthorize}
+        >
+          <IconLogin size={16} />
+        </button>
+      ) : null}
+      {prove ? (
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Test user token"
+          title="Test user token"
+          aria-busy={busy === "check" || undefined}
+          disabled={wait}
+          onClick={onProve}
+        >
+          <IconCheck size={16} />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -177,15 +189,16 @@ export function UserTokenPanel({
     if (canProve) await prove();
   }
 
-  const off = !online || !subject || busy !== null;
+  const wait = !online || busy !== null;
   return (
     <section className="panel" id="user-token" aria-label="User token">
       <div className="panel__head">
         <h2>User token</h2>
         <TokenKeys
           busy={busy}
-          authorizeOff={off || !canManage}
-          proveOff={off || !canProve}
+          wait={wait}
+          authorize={subject !== null && canManage}
+          prove={subject !== null && canProve}
           onAuthorize={() => void authorize()}
           onProve={() => void prove()}
         />

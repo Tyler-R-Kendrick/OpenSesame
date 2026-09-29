@@ -37,6 +37,7 @@ import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
+import { useFlashNotice } from "./connections/useFlashNotice.js";
 import "./connections.css";
 
 import { useIdentitySession } from "../bindings/identity.js";
@@ -83,6 +84,13 @@ export function ConnectionsSection() {
     provider: Provider;
     connection: Connection;
   } | null>(null);
+
+  useFlashNotice(
+    flash,
+    providerId ?? "connections",
+    providers?.find((item) => item.id === providerId)?.displayName ??
+      "Connections",
+  );
 
   const catalogRun = useRef(0);
   const connectionRun = useRef(0);
