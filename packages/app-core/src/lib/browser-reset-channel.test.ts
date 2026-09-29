@@ -93,8 +93,9 @@ describe("browser-reset-channel", () => {
 
 describe("hearing another tab's reset", () => {
   it("stops writing at the start and reloads only when it is done", async () => {
+    const locks = heldLock();
     const hub = broadcastHub();
-    configureHost(createTestHost({ broadcast: hub.open }));
+    configureHost(createTestHost({ broadcast: hub.open, locks: locks.port }));
     const reload = vi.fn();
     const stop = onBrowserReset(reload);
 

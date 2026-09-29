@@ -213,9 +213,9 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
 
     on();
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Close" })[0] as HTMLElement,
-    );
+    const close = screen.getAllByRole("button", { name: "Close" })[0];
+    if (close === undefined) throw new Error("Close is missing");
+    fireEvent.click(close);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(origin.tombs.has(WORK)).toBe(true);
   });
@@ -273,8 +273,7 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    // TravelDeps is readonly. The fake origin's object is mutable; the pages
-    // build typechecks this file, so the seam is widened only here.
+    // SAFETY: the fixture owns this mutable seam; TravelDeps stays readonly at the type boundary and this assignment preserves duressActive.
     const seam = origin.deps as {
       duressActive: typeof origin.deps.duressActive;
     };
@@ -283,9 +282,9 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
       await gate;
       return duress();
     };
-    const seen: unknown[] = [];
-    const onUnhandled = (reason: unknown) => {
-      seen.push(reason);
+    const seen: boolean[] = [];
+    const onUnhandled = (): void => {
+      seen.push(true);
     };
     process.on("unhandledRejection", onUnhandled);
     const view = render(<TravelPanel />);

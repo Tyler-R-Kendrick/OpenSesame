@@ -18,6 +18,8 @@
     "verify:auth": "node scripts/verify-auth-flow.mjs",
     "verify:live-join": "node scripts/verify-live-join.mjs",
     "verify:live-netns": "node scripts/verify-live-netns.mjs",
+    "verify:browser-sessions": "node scripts/verify-browser-sessions.mjs",
+    "test:browser-sessions": "VITE_BASE=/OpenSesame/ pnpm run build && pnpm run verify:browser-sessions",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",

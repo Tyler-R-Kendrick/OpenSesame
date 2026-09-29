@@ -21,7 +21,7 @@ const original = { ...vaultHooksSeams };
 
 function ensureMemoryLocalStorage(): void {
   const existing = globalThis.localStorage;
-  if (existing && typeof existing.getItem === "function") return;
+  if (existing?.getItem !== undefined) return;
   const store = new Map<string, string>();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,

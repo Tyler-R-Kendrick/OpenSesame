@@ -9,11 +9,15 @@ import {
   assertOwnedStorageWrites,
   recordStorageWrite,
 } from "@opensesame/app-core/test-host-storage-writes.js";
-import { testAtRestKeys } from "@opensesame/app-core/test-host.js";
+import {
+  repairInertWebStorage,
+  testAtRestKeys,
+} from "@opensesame/app-core/test-host.js";
 import { afterEach } from "vitest";
 import { closeJsdomGaps } from "./jsdom-gaps.js";
 import { shellBuild } from "./shell-build.js";
 
+repairInertWebStorage();
 configureHost(
   composeHost(browserPorts(), {
     env: import.meta.env,

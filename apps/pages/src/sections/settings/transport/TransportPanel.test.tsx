@@ -90,8 +90,8 @@ describe("TransportPanel", () => {
     render(<TransportPanel />);
     await waitFor(() => expect(row("enforcement").dataset.tone).toBe("ok"));
     expect(
-      Array.from(document.querySelectorAll("[data-dimension]")).map(
-        (node) => (node as HTMLElement).dataset.dimension,
+      Array.from(document.querySelectorAll("[data-dimension]")).map((node) =>
+        node instanceof HTMLElement ? node.dataset.dimension : undefined,
       ),
     ).toEqual(DIMENSIONS);
     expect(
@@ -202,9 +202,11 @@ describe("TransportPanel", () => {
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText("Policy"), "mtls_required");
     expect(loadTransportSettings().remote?.desiredPolicy).toBe("mtls_required");
-    expect((screen.getByLabelText("Policy") as HTMLSelectElement).value).toBe(
-      "mtls_required",
-    );
+    const policy = screen.getByLabelText("Policy");
+    if (!(policy instanceof HTMLSelectElement)) {
+      throw new Error("Policy is not a select");
+    }
+    expect(policy.value).toBe("mtls_required");
 
     const identity = screen.getByLabelText("Identity");
     await user.type(identity, "/etc/ssl/private/host.key");

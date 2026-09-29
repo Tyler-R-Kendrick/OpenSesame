@@ -26,6 +26,7 @@ function openHostRoad() {
 }
 
 function unlockedVault() {
+  // SAFETY: the fixture owns this seam; the panel reads status from the same vault view.
   panelVault.current = {
     tomb: "personal",
     guest: false,

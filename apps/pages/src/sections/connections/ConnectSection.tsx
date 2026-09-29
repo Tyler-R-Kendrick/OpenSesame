@@ -13,10 +13,24 @@ import { GcpKmsConnectPanel } from "./GcpKmsConnectPanel.js";
 type Sealed = (onFlash: (flash: Flash) => void) => ReactNode;
 
 /** The panels that seal a device configuration in the unlocked vault. */
-const SEALED_PANELS: Record<string, Sealed> = {
-  "aws-kms": (onFlash) => <AwsKmsConnectPanel onFlash={onFlash} />,
-  "gcp-kms": (onFlash) => <GcpKmsConnectPanel onFlash={onFlash} />,
+const SEALED_PANELS = {
+  "aws-kms": (onFlash: (flash: Flash) => void) => (
+    <AwsKmsConnectPanel onFlash={onFlash} />
+  ),
+  "gcp-kms": (onFlash: (flash: Flash) => void) => (
+    <GcpKmsConnectPanel onFlash={onFlash} />
+  ),
 };
+
+function sealedPanel(id: string): Sealed | undefined {
+  switch (id) {
+    case "aws-kms":
+    case "gcp-kms":
+      return SEALED_PANELS[id];
+    default:
+      return undefined;
+  }
+}
 
 /**
  * A connector page's Connect panel. It is drawn only when it has something to
@@ -44,7 +58,7 @@ export function ConnectSection({
   onRememberOffer: (connection: Connection) => void;
 }) {
   const roads = useConnectorRoads();
-  const sealed = SEALED_PANELS[provider.id];
+  const sealed = sealedPanel(provider.id);
   let body: ReactNode = null;
   if (sealed) {
     body = roads.acts(provider) ? sealed(onFlash) : null;
