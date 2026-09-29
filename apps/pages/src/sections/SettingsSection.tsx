@@ -8,9 +8,7 @@ import {
   settingsCategoryFromLocation,
   settingsPath,
 } from "@opensesame/app-core/lib/crumbs.js";
-import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
-import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import {
@@ -29,6 +27,7 @@ import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
 import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
+import { DuressPanel } from "./settings/security/DuressPanel.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
@@ -187,8 +186,8 @@ function SecurityPanels({
   return (
     <>
       <VaultKeyProtectionPanel />
-      {resolveDuressMode({}) !== "off" ? <DuressEnrollmentPanel /> : null}
       <UnlockMethodsPanel />
+      <DuressPanel />
       {contributed.map(({ id, Panel }) => (
         <Panel key={id} />
       ))}

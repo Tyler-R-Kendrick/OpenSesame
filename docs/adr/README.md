@@ -191,3 +191,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0149](0149-nothing-stored-in-the-clear.md) | Nothing the client stores rests in the clear | Accepted |
 | [0150](0150-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor | Accepted |
 | [0150](0150-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |
+| [0150](0150-the-device-duress-code.md) | The device's duress code, in Settings | Accepted |

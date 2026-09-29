@@ -12,6 +12,7 @@ export const CAPABILITY_TUTORIALS = {
   "transport.identity.reference": "settings.transport",
   "vaults.switch": "vaults.switch",
   "vaults.travel": "vaults.switch",
+  "vaults.duress_code": "vaults.switch",
   "device.browser_reset": "vaults.switch",
   "host.health.pages": "host.health.check",
   "host.whoami": "identity.account.add",

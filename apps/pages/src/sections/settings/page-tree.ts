@@ -34,7 +34,7 @@ export type SettingsRailSnapshot = {
    * `SettingsSection` draws them: a tab lists exactly the active ones.
    */
   contributed?: readonly ContributedPanel[];
-  /** Security › Duress profiles draws (duress mode is not off). */
+  /** Security › Duress draws (the owner of an open vault; never a guest or a decoy). */
   duress?: boolean;
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
@@ -108,14 +108,14 @@ function sectionsFor(
       // the unlock methods and the account's own factors.
       return [
         panel("security", "vault-key-protection", "Vault key protection"),
-        ...(snapshot.duress
-          ? [panel("security", "duress-profiles", "Duress profiles")]
-          : []),
         panel("security", "unlock-methods", "Unlock methods"),
         panel("security", "second-step", "Second step"),
         panel("security", "recovery", "Recovery"),
         ...(snapshot.account
           ? [panel("security", "account-factors", "Your account")]
+          : []),
+        ...(snapshot.duress
+          ? [panel("security", "duress-profiles", "Duress")]
           : []),
         ...contributed,
         panel("security", "age-keys", "Age keys"),

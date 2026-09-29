@@ -1,4 +1,5 @@
 import type { Capability } from "./index.js";
+import { vaultDuressCapabilities } from "./vault-duress.js";
 import { vaultFileCapabilities } from "./vault-files.js";
 import { vaultInteropCapabilities } from "./vault-interop.js";
 import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
@@ -13,4 +14,5 @@ export const vaultCapabilities: readonly Capability[] = [
   ...vaultFileCapabilities,
   ...vaultInteropCapabilities,
   ...vaultTravelCapabilities,
+  ...vaultDuressCapabilities,
 ];

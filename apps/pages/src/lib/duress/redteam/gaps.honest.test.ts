@@ -71,33 +71,26 @@ describe("REDTEAM-F honest gaps (must not force-pass)", () => {
     expect(pathsBody).toMatch(/unlockSecondStepAfterDuressGate/);
   });
 
-  it("GAP-SETTINGS-NAV: Settings shell mounts enrollment when mode is non-off", async () => {
+  it("GAP-SETTINGS-NAV: Settings › Security mounts the device's duress code, for the owner only", async () => {
     const settingsSection = src("sections", "SettingsSection.tsx");
     const security = (...parts: string[]) =>
-      src("routes", "settings", "security", ...parts);
-    const enrollment = security("DuressEnrollmentPanel.tsx");
-    expect(existsSync(enrollment)).toBe(true);
-    expect(existsSync(settingsSection)).toBe(true);
-    // The one mounted surface: Settings › Security renders the enrollment
-    // panel, and only while the feature mode is not off.
+      src("sections", "settings", "security", ...parts);
+    expect(existsSync(security("DuressPanel.tsx"))).toBe(true);
+    expect(existsSync(security("DuressCeremony.tsx"))).toBe(true);
+    // The one mounted surface: a row in Settings › Security, reachable with
+    // no environment switch. It used to hide behind `resolveDuressMode`,
+    // which is off on every deployment, so no person could ever reach it.
     const section = readFileSync(settingsSection, "utf8");
-    expect(section).toMatch(
-      /import \{ DuressEnrollmentPanel \} from "\.\.\/routes\/settings\/security\/index\.js"/,
-    );
-    expect(section).toMatch(
-      /resolveDuressMode\(\{\}\) !== "off" \? <DuressEnrollmentPanel \/>/,
-    );
-    // It carries the whole profile ceremony: preset choice, the compiler's
-    // exposure summary, the arming checklist, and arm/disarm.
-    expect(
-      readFileSync(security("DuressEnrollmentModeSection.tsx"), "utf8"),
-    ).toMatch(/PRESET_CATALOG/);
-    expect(
-      readFileSync(security("DuressEnrollmentExposureSection.tsx"), "utf8"),
-    ).toMatch(/Compiler exposure summary/);
-    expect(
-      readFileSync(security("useDuressEnrollmentPanel.ts"), "utf8"),
-    ).toMatch(/armEnrollmentProfile[\s\S]*disarmEnrollmentProfile/);
+    expect(section).toMatch(/<DuressPanel \/>/);
+    expect(section).not.toMatch(/resolveDuressMode/);
+    // A guest session — a decoy is one — is drawn no row at all.
+    const panel = readFileSync(security("DuressPanel.tsx"), "utf8");
+    expect(panel).toMatch(/!guest && status === "unlocked"/);
+    // It arms through the runtime the unlock path reads, and names a real
+    // vault rather than a fixture id.
+    const ceremony = readFileSync(security("DuressCeremony.tsx"), "utf8");
+    expect(ceremony).toMatch(/enableDuressCode/);
+    expect(ceremony).toMatch(/activeProject\(\)\.id/);
 
     // Mode remains off by default (INV-01) even when UI lands.
     expect(resolveDuressMode({})).toBe("off");

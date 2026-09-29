@@ -11,11 +11,13 @@ import { walkJAppRecipe } from "./lib/j-app-recipe-journey.mjs";
 import { walkJApproval } from "./lib/j-approval-journey.mjs";
 import { walkJConfig } from "./lib/j-config-journey.mjs";
 import { walkJConflict } from "./lib/j-conflict-journey.mjs";
+import { walkJDuress } from "./lib/j-duress-journey.mjs";
 import { walkJExplain } from "./lib/j-explain-journey.mjs";
 import { walkJFile } from "./lib/j-file-journey.mjs";
 import { walkJNav } from "./lib/j-nav-journey.mjs";
 import { walkJRecovery } from "./lib/j-recovery-journey.mjs";
 import { walkJSupport } from "./lib/j-support-journey.mjs";
+import { walkJTravel } from "./lib/j-travel-journey.mjs";
 import { walkJTypes } from "./lib/j-types-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -79,6 +81,8 @@ try {
   await runWalk("J-APPROVAL", walkJApproval);
   await runWalk("J-RECOVERY", walkJRecovery);
   await runWalk("J-SUPPORT", walkJSupport);
+  await runWalk("J-DURESS", walkJDuress);
+  await runWalk("J-TRAVEL", walkJTravel);
 } finally {
   await browser.close();
 }
