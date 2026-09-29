@@ -232,8 +232,8 @@ member — decrypts it, under the oracle.
   and deleting it, after the master password, unless it is the only owner of
   an organization.
 - **Plain refusals** for what the server does not do: a password hint or a
-  deletion link (both go by mail), log in with a device, trusted-device
-  encryption, and a breach report on an address (that would disclose it to a
+  deletion link (both go by mail), trusted-device encryption, and a breach
+  report on an address (that would disclose it to a
   third party; the Host checks passwords by k-anonymity instead, ADR 0080 §5).
 
 ### 7. Live sync and the web vault
@@ -263,6 +263,28 @@ member — decrypts it, under the oracle.
 
 The pinned SignalR client (10.0.0, as `bitwarden/clients` pins it) hears
 "sync" and "log out" and is refused with a stale token, under the oracle.
+
+### 8. Log in with device
+
+A device that does not hold the master password asks to sign in
+(`POST /auth-requests`, unauthenticated, with a public key and an access code
+it keeps); the account's signed-in devices hear it on the hub and show the
+request's fingerprint phrase; one approves by wrapping the user key under
+the asking device's public key. The asking device hears the answer on the
+anonymous hub (`/notifications/anonymous-hub?Token=`), fetches the wrap with
+its access code, and signs in with the same code on the password grant
+(`authRequest`) — standing in for both steps, as on Bitwarden.
+
+- The server keeps the wrap and a SHA-256 digest of the access code, never
+  the code or the key. A request is open for fifteen minutes and is spent by
+  the one sign-in it allows; a denial deletes it.
+- An account has at most five unanswered requests at once; wrong codes are
+  limited per request, and requests per address by the sign-in limiter.
+- An address with no account gets a well-formed request that nothing will
+  ever answer, so asking reveals nothing about who has an account.
+- The pinned SignalR client, connected as `AnonymousHubService` connects,
+  hears the answer (`AuthRequestResponseRecieved`, Bitwarden's spelling)
+  under the oracle; the signed-in client hears the request and its answer.
 
 ## Consequences
 

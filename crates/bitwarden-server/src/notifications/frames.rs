@@ -11,6 +11,10 @@ pub enum Update {
     SyncVault = 5,
     /// The account's security stamp changed; sign out.
     LogOut = 11,
+    /// A new device asks to sign in; show the approval prompt.
+    AuthRequest = 15,
+    /// A device's request was answered.
+    AuthRequestResponse = 16,
 }
 
 /// The handshake reply: an empty JSON object and the record separator.
@@ -117,6 +121,52 @@ pub fn update(kind: Update, user_id: &str, at: DateTime<Utc>) -> Vec<u8> {
                     ("Date", Pack::Time(at)),
                 ]),
             ),
+        ])]),
+    ]))
+}
+
+/// An update about a sign-in request: `Payload` is `{Id, UserId}`.
+#[must_use]
+pub fn request_update(kind: Update, user_id: &str, request_id: &str) -> Vec<u8> {
+    framed(&Pack::Array(vec![
+        Pack::Int(1),
+        Pack::Map(Vec::new()),
+        Pack::Nil,
+        Pack::Str("ReceiveMessage"),
+        Pack::Array(vec![Pack::Map(vec![
+            ("ContextId", Pack::Nil),
+            ("Type", Pack::Int(kind as i64)),
+            (
+                "Payload",
+                Pack::Map(vec![
+                    ("Id", Pack::Str(request_id)),
+                    ("UserId", Pack::Str(user_id)),
+                ]),
+            ),
+        ])]),
+    ]))
+}
+
+/// What the asking device hears on the anonymous hub when its request is
+/// answered. The method name is misspelled as Bitwarden's own server and
+/// clients spell it.
+#[must_use]
+pub fn anonymous_response(user_id: &str, request_id: &str) -> Vec<u8> {
+    framed(&Pack::Array(vec![
+        Pack::Int(1),
+        Pack::Map(Vec::new()),
+        Pack::Nil,
+        Pack::Str("AuthRequestResponseRecieved"),
+        Pack::Array(vec![Pack::Map(vec![
+            ("Type", Pack::Int(Update::AuthRequestResponse as i64)),
+            (
+                "Payload",
+                Pack::Map(vec![
+                    ("Id", Pack::Str(request_id)),
+                    ("UserId", Pack::Str(user_id)),
+                ]),
+            ),
+            ("UserId", Pack::Str(user_id)),
         ])]),
     ]))
 }
