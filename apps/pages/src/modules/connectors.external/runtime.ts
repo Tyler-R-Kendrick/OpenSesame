@@ -34,7 +34,8 @@ import {
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
 import {
   type FeatureRequest,
-  currentUse,
+  dispatchFeatureCall,
+  dispatchedFeatureCall,
   rememberUses,
 } from "@opensesame/app-core/lib/feature-request.js";
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
@@ -115,13 +116,13 @@ export function startExternalConnectors(): FeatureRequest[] {
     [...managers, ...local].flatMap((operation) =>
       operation.ok
         ? [
-            {
-              ok: true as const,
+            dispatchFeatureCall({
+              ok: true,
               providerId: operation.providerId,
               operation: operation.operation,
-              fields: operation.action,
-              secret: operation.secrets,
-            },
+              fields: { ...operation.action },
+              secret: { ...operation.secrets },
+            }),
           ]
         : [],
     ),
@@ -130,10 +131,20 @@ export function startExternalConnectors(): FeatureRequest[] {
 }
 
 export function externalOperation(providerId: string): FeatureRequest {
-  if (!externalReady.some((use) => use.ok && use.providerId === providerId)) {
+  const call = dispatchedFeatureCall(providerId);
+  if (
+    !call ||
+    !externalReady.some((use) => use.ok && use.providerId === providerId)
+  ) {
     return { ok: false, providerId };
   }
-  return currentUse(providerId);
+  return {
+    ok: true,
+    providerId,
+    operation: call.operation,
+    fields: { ...call.fields },
+    secret: { ...call.secret },
+  };
 }
 
 export const capabilityRuntime: CapabilityRuntime = {

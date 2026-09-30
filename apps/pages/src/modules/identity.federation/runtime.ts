@@ -30,9 +30,9 @@ import {
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
   type FeatureRequest,
-  currentUse,
+  dispatchFeatureCall,
+  dispatchedFeatureCall,
   rememberUses,
-  savedFeatureRequests,
 } from "@opensesame/app-core/lib/feature-request.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
@@ -65,16 +65,37 @@ let identityReady: FeatureRequest[] = [];
 
 /** Arm every identity connector saved on this device. Nothing saved is omitted. */
 export function startIdentityConnectors(): FeatureRequest[] {
-  identityReady = rememberUses(savedFeatureRequests(["identity"]));
+  const requests = applySavedIdentityConnectors().map((operation) =>
+    operation.ok
+      ? dispatchFeatureCall({
+          ok: true,
+          providerId: operation.providerId,
+          operation: operation.operation,
+          fields: { ...operation.action },
+          secret: { ...operation.secrets },
+        })
+      : { ok: false as const, providerId: operation.providerId },
+  );
+  identityReady = rememberUses(requests);
   return identityReady.map((use) => identityOperation(use.providerId));
 }
 
 /** The identity request the feature sends. Fails closed when nothing is armed. */
 export function identityOperation(providerId: string): FeatureRequest {
-  if (!identityReady.some((use) => use.ok && use.providerId === providerId)) {
+  const call = dispatchedFeatureCall(providerId);
+  if (
+    !call ||
+    !identityReady.some((use) => use.ok && use.providerId === providerId)
+  ) {
     return { ok: false, providerId };
   }
-  return currentUse(providerId);
+  return {
+    ok: true,
+    providerId,
+    operation: call.operation,
+    fields: { ...call.fields },
+    secret: { ...call.secret },
+  };
 }
 
 /** The Identity tabs this capability puts on the page. */
