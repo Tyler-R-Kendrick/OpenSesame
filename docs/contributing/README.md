@@ -72,7 +72,7 @@ change through.
 
 | Page | Covers |
 |---|---|
-| [Agent routines](agent-routines.md) | Scheduled Claude Code sessions that run audits, fuzz batches and drift checks outside CI. |
+| [Agent routines](agent-routines.md) | Scheduled sessions that run audits, fuzz batches and drift checks outside CI, each in a copy-on-write worktree with a workflow swarm and stacked pull requests. |
 | [Linear workflow](linear-workflow.md) | Setting up and using the Linear workspace. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |
 | [AI automation roadmap](ai-automation-roadmap.md) | Where AI tooling is used in the development process and where it is going. |

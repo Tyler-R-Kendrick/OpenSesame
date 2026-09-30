@@ -6,7 +6,7 @@ session with no memory of prior runs** — everything you need is below.
 
 ## Who you are and where you are
 
-You are Claude Code, working alone in a fresh clone of
+You are Claude Code, in a copy-on-write worktree of
 `https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust (`crates/*`, Rust `apps/*`) + TypeScript (`apps/*`,
 `packages/*`) credential-broker / auth system. There is an existing,
@@ -22,6 +22,28 @@ concrete bug classes this series has already found — auth bypass, SSRF,
 injection, token/secret handling, boundary/fence violations, quota bounds, <!-- gitleaks:allow -- prose -->
 audit-chain integrity, and more, each item citing the audit doc it came
 from).
+
+## How this firing runs
+
+Follow AGENTS.md §9. Do the work in a copy-on-write git worktree
+`/home/codex/repos/opensesame-<routine>` branched from the latest `origin/main`
+(`git worktree add` shares the object database; do not full-clone). Share the
+pnpm store (`pnpm store path`) and set
+`CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target`. Do not copy
+`node_modules` or `target/` into the worktree.
+
+Independent findings run together through `.grok/workflows/task-swarm.rhai`:
+one agent per disjoint file set, parent integrates. Land each logical slice
+as its own GitHub-verified commit (`createCommitOnBranch`) on a stacked pull
+request. After each commit, run `df -h /` and delete only the scratch and
+build output that commit created. Leave `/tmp/os-wallet-ship`, the Host on
+`127.0.0.1:8787`, and unrelated worktrees in place.
+
+When the stack is finished, self-review, resolve review threads, and
+squash-merge into `origin/main` only after TypeScript, Rust, and Bundle
+budgets are green. Then `git worktree remove` the worktree and delete the
+merged branches. Copilot review requests on this repository return HTTP 422.
+CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 
 ## Hard rules (apply on every firing, no exceptions)
 
