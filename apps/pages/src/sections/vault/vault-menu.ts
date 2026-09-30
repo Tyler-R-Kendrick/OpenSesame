@@ -23,7 +23,13 @@ export type VaultTreeActions = {
   /** A trashed item's two ways out; absent, the menu offers neither. */
   restore?: (item: VaultItem) => void;
   purge?: (item: VaultItem) => void;
+  /** The menu already asked. Runs the delete without arming the path-strip key. */
+  commitPurge?: (item: VaultItem) => void;
+  /** The listing is the trash directory: no new item from a folder or the pane. */
+  inTrash?: boolean;
 };
+
+export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
 
 function trashedItemMenu(
   item: VaultItem,
@@ -40,16 +46,24 @@ function trashedItemMenu(
       },
     ],
     restore
-      ? [{ id: "restore", label: "Restore", run: () => restore(item) }]
+      ? [
+          {
+            id: "restore",
+            label: "Restore",
+            hint: "r",
+            run: () => restore(item),
+          },
+        ]
       : [],
     purge
       ? [
           {
             id: "purge",
             label: "Delete permanently",
+            hint: "X",
             danger: true,
-            confirm: "Really delete permanently? This cannot be undone",
-            run: () => purge(item),
+            confirm: PURGE_CONFIRM,
+            run: () => (actions.commitPurge ?? purge)(item),
           },
         ]
       : [],
@@ -115,18 +129,22 @@ export function vaultRowMenu(
     run: actions.create,
   };
   if (row?.type === "item") return vaultItemMenu(row.item, actions);
+  const searchItem: MenuItem = {
+    id: "search",
+    label: "Search",
+    hint: "/",
+    run: search,
+  };
   if (row?.type === "dir") {
-    return [
-      [
-        {
-          id: "toggle",
-          label: row.expanded ? "Collapse" : "Expand",
-          hint: row.expanded ? "←" : "→",
-          run: () => toggle(row),
-        },
-      ],
-      [create],
+    const folder = [
+      {
+        id: "toggle",
+        label: row.expanded ? "Collapse" : "Expand",
+        hint: row.expanded ? "←" : "→",
+        run: () => toggle(row),
+      },
     ];
+    return actions.inTrash ? [folder] : [folder, [create]];
   }
-  return [[create, { id: "search", label: "Search", hint: "/", run: search }]];
+  return actions.inTrash ? [[searchItem]] : [[create, searchItem]];
 }

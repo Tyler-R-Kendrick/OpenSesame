@@ -124,6 +124,8 @@ const VERBS: ReadonlyMap<string, (run: CommandRun) => void> = new Map<
   ["item.favorite", () => currentVaultTarget()?.favorite()],
   ["item.trash", () => currentVaultTarget()?.trash()],
   ["item.share", () => currentVaultTarget()?.share()],
+  ["item.restore", () => currentVaultTarget()?.restore?.()],
+  ["item.purge", () => currentVaultTarget()?.purge?.()],
 ]);
 
 /** Whether `id` moves a cursor: a motion keeps its meaning after a prefix. */

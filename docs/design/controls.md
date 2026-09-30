@@ -138,10 +138,11 @@ and a Claude Code `PostToolUse` hook:
    `max-width`: `var(--field-max)`, `var(--text-max)`, or `none` for an
    overlay.
 7. **Vault commands are persistent icon keys.** The top path strip retains
-   New item (`+`), Import, and Export in empty, filtered, trash, and populated
-   views. Each has an accessible name and tooltip. Text-button styles in
+   New item (`+`), Import, and Export in empty, filtered, and populated views.
+   The trash directory replaces that group with Restore and Delete permanently.
+   Each has an accessible name and tooltip. Text-button styles in
    `VaultSection` or `VaultPathbar` are a hard lint failure; render tests pin
-   all three commands and their location. Import opens the file picker;
+   the commands and their location. Import opens the file picker;
    Export opens the encrypted-backup sheet, never a plaintext dump.
    The path/count status row stays at the pane bottom in empty and populated
    views; only the item area scrolls, never the command or status strip.

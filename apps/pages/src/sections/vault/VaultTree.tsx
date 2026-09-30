@@ -107,8 +107,7 @@ export function VaultTree({
   const setAndSaveCollapsedRef = useRef<(next: ReadonlySet<string>) => void>(
     () => undefined,
   );
-  // One collapse-toggle implementation, shared by the once-registered keymap
-  // and pointer clicks. It reads only through stable refs.
+  // One collapse toggle for the keymap and clicks. It reads only stable refs.
   const toggleDirRef = useRef((row: DirRow) => {
     const next = new Set(collapsedRef.current);
     if (next.has(row.path)) next.delete(row.path);
@@ -150,8 +149,7 @@ export function VaultTree({
   };
   setAndSaveCollapsedRef.current = setAndSaveCollapsed;
 
-  // The open item owns the cursor; without one the cursor holds its row, and
-  // falls back to the first row when its row left the tree.
+  // The open item owns the cursor; otherwise the held row, else the first.
   useEffect(() => {
     if (activeItemId && rows.some((row) => row.key === activeItemId)) {
       setCursor(activeItemId);
@@ -268,6 +266,8 @@ export function VaultTree({
       copyUsername: withItem((item) => actionsRef.current.copyUsername(item)),
       edit: withItem((item) => actionsRef.current.edit(item)),
       trash: withItem((item) => actionsRef.current.trash(item)),
+      restore: withItem((item) => actionsRef.current.restore?.(item)),
+      purge: withItem((item) => actionsRef.current.purge?.(item)),
       create: () => actionsRef.current.create(),
       favorite: withItem((item) => actionsRef.current.favorite(item)),
       share: withItem((item) => actionsRef.current.share?.(item)),

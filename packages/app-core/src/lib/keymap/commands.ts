@@ -8,17 +8,10 @@
 import { contributionsSnapshot } from "../contributions.js";
 
 /**
- * What a command may touch, which decides where it may be bound:
- *
- * - `navigate` moves the cursor, opens a pane or a section. Anything may run it.
- * - `draft` opens an editor; `mutate` changes an item in place (favorite).
- * - `reveal` puts a value on the clipboard; `voice` opens the microphone.
- * - `authority` asks before it acts (trash, share once). Its row is locked: no
- *   key may be moved onto it and no macro may run it, so no remap can make a
- *   key that used to move the cursor quietly start a share.
- *
- * An event trigger (`on:` in a macro) runs `navigate` steps only: a page load
- * must never copy a secret or open a microphone by itself.
+ * What a command may touch. `navigate` moves, `draft` opens an editor,
+ * `mutate` changes an item, `reveal` copies, `voice` opens the microphone.
+ * `authority` (trash, share, delete) is locked: no remap onto it, and no
+ * macro may run it. An `on:` trigger runs `navigate` only.
  */
 export type CommandKind =
   | "navigate"
@@ -253,6 +246,20 @@ const COMMANDS: readonly KeymapCommand[] = [
     group: "item",
     kind: "authority",
     defaults: ["s"],
+  },
+  {
+    id: "item.restore",
+    label: "Restore",
+    group: "item",
+    kind: "mutate",
+    defaults: ["r"],
+  },
+  {
+    id: "item.purge",
+    label: "Delete permanently",
+    group: "item",
+    kind: "authority",
+    defaults: ["X"],
   },
   {
     id: REGISTER_RECORD,

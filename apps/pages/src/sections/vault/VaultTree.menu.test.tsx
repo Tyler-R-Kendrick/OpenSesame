@@ -15,7 +15,7 @@ import { closeContextMenu } from "../../components/context-menu/menu-model.js";
 import { gestureLimits } from "../../lib/gestures.js";
 import { VaultTree, vaultTreeSeams } from "./VaultTree.js";
 import { makeLogin, makeNote } from "./section-items.test-support.js";
-import type { VaultTreeActions } from "./vault-menu.js";
+import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 
 Object.assign(vaultTreeSeams, {
   activeTomb: () => "personal",
@@ -104,6 +104,38 @@ describe("the vault listing's context menu", () => {
       }),
     );
     expect(actions.purge).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer a new item from the trash directory", () => {
+    const trashed = { ...spies(), inTrash: true };
+    const labels = (row: Parameters<typeof vaultRowMenu>[0]) =>
+      vaultRowMenu(
+        row,
+        trashed,
+        () => undefined,
+        () => undefined,
+      )
+        .flat()
+        .map((entry) => entry.label);
+    expect(labels(null)).toEqual(["Search"]);
+    expect(
+      labels({
+        type: "dir",
+        key: "dir_fld",
+        path: "Work/",
+        name: "Work",
+        count: 1,
+        expanded: true,
+      }),
+    ).toEqual(["Collapse"]);
+    actions = trashed;
+    draw([makeLogin({ deletedAt: "2026-08-03T00:00:00Z" })]);
+    fireEvent.contextMenu(screen.getByRole("tree"));
+    const menu = screen.getByRole("menu", { name: "Vault items" });
+    expect(within(menu).getByRole("menuitem", { name: "Search" })).toBeTruthy();
+    expect(
+      within(menu).queryByRole("menuitem", { name: "New item" }),
+    ).toBeNull();
   });
 
   it("opens the same menu for a finger held on a row", () => {

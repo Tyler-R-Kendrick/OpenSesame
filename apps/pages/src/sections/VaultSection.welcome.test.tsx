@@ -44,5 +44,18 @@ describe("the buffer states what the list beside it holds", () => {
     vault.current = { items: [makeLogin()] };
     expect(welcome("/vault?f=trash")).toBe("trash is empty");
     expect(screen.queryByText("nothing sealed yet")).toBeNull();
+    expect(document.querySelector(".buffer__keys")?.textContent).toBe(
+      "r restore · X delete · ? keys",
+    );
+  });
+
+  it("hands a populated trash restore and delete", () => {
+    vault.current = {
+      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
+    };
+    expect(welcome("/vault?f=trash")).toBe("1 item · trash");
+    expect(document.querySelector(".buffer__keys")?.textContent).toBe(
+      "enter open · r restore · X delete · / search · ? keys",
+    );
   });
 });

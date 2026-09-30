@@ -37,12 +37,36 @@ export async function checkEditorRoutes(page, check) {
   await setShowHidden(page, true);
   for (const filter of ["all", "favorites", "trash", "login"]) {
     const query = filter === "all" ? "" : `?f=${filter}`;
+    const listing = page
+      .locator(`.railtree__kids a[href$="/vault${query}"]`)
+      .first();
+    // Trash replaces New item with Restore and Delete permanently. The link
+    // from the previous listing unmounts as those keys render.
+    if (filter === "trash") {
+      await listing.click();
+      const create = page.getByRole("link", { name: "New item", exact: true });
+      const restore = page.getByRole("button", {
+        name: "Restore",
+        exact: true,
+      });
+      const purge = page.getByRole("button", {
+        name: "Delete permanently",
+        exact: true,
+      });
+      await expect(create).toHaveCount(0);
+      await expect(restore).toBeVisible();
+      await expect(purge).toBeVisible();
+      check(
+        (await create.count()) === 0 &&
+          (await restore.count()) === 1 &&
+          (await purge.count()) === 1,
+        "trash: Restore and Delete permanently replace New item",
+      );
+      continue;
+    }
     const expected = filter === "login" ? `/vault/new/${filter}` : "/vault/new";
     for (const keyboard of [false, true]) {
-      await page
-        .locator(`.railtree__kids a[href$="/vault${query}"]`)
-        .first()
-        .click();
+      await listing.click();
       const create = page.getByRole("link", { name: "New item", exact: true });
       await expect(create).toHaveAttribute("href", new RegExp(`${expected}$`));
       check(
