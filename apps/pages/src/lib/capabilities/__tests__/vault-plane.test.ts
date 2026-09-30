@@ -253,13 +253,16 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
       vaultId: "personal",
     });
     expect(approved(base, "sharing.drops")).toBe(true);
+    expect(approved(base, "sharing.household")).toBe(true);
 
     // Naming an approved capability turns it off — the one direction there is.
+    // Drops are always on, so a vault scope cannot withdraw them.
     const narrowed = profilePlan("family-sharing-selected", {
       vaultId: "personal",
-      vault: vaultScope(["sharing.drops"]),
+      vault: vaultScope(["sharing.household"]),
     });
-    expect(approved(narrowed, "sharing.drops")).toBe(false);
+    expect(approved(narrowed, "sharing.drops")).toBe(true);
+    expect(approved(narrowed, "sharing.household")).toBe(false);
 
     // A record lifted from another tomb is not this vault's, and it does not
     // get to act as if it were. It denies rather than lapsing: a restriction
@@ -269,9 +272,9 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
       vaultId: "personal",
       vault: vaultScope(["sharing.drops"], { vaultId: "project-4f2a" }),
     });
-    expect(approved(foreign, "sharing.drops")).toBe(false);
+    expect(approved(foreign, "sharing.drops")).toBe(true);
     expect(approved(foreign, "sharing.household")).toBe(false);
-    expect(foreign.capabilities["sharing.drops"]?.reasons).toContain(
+    expect(foreign.capabilities["sharing.household"]?.reasons).toContain(
       "DISABLED_IN_VAULT",
     );
     // The same for one written against another installation or instance.
@@ -284,7 +287,8 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
         installationId: "another-installation",
         vault: vaultScope([], over),
       });
-      expect(approved(other, "sharing.drops")).toBe(false);
+      expect(approved(other, "sharing.household")).toBe(false);
+      expect(approved(other, "sharing.drops")).toBe(true);
     }
 
     // And nothing a tomb holds can turn a prohibited capability on, because
@@ -296,10 +300,9 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
 
 describe("VAULT-05 — records of an excluded kind survive without their surfaces", () => {
   it("round-trips a drop record while offering no way to create one", async () => {
-    // The minimal vault creates secrets only. A drop, a passkey and a
-    // certificate are kinds a family installation leaves out.
+    // The minimal vault creates secrets only. Drops are a share, not a kind.
     const plan = profilePlan("family-local");
-    expect(approved(plan, "sharing.drops")).toBe(false);
+    expect(approved(plan, "sharing.drops")).toBe(true);
     expect(approved(plan, "vault.passkey-records")).toBe(false);
     expect(plan.approvedItemKinds).toEqual(["secret"]);
 

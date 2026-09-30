@@ -1,0 +1,96 @@
+{
+  "out": ".",
+  "clock": "2026-09-29T15:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "fill": { "label": "Name", "text": "API key" } },
+        { "fill": { "label": "Secret value", "text": "s3cr3t" } },
+        { "press": "Save item" },
+        { "measure": "button[aria-label='Share once']" },
+        { "pressOptional": "Share once" },
+        { "scrollToOptional": "Share once" },
+        { "shot": "secret-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "fill": { "label": "Name", "text": "API key" } },
+        { "fill": { "label": "Secret value", "text": "s3cr3t" } },
+        { "press": "Save item" },
+        { "measure": "button[aria-label='Share once']" },
+        { "pressOptional": "Share once" },
+        { "scrollToOptional": "Share once" },
+        { "shot": "secret-390" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "enable": "Secret drops" },
+        { "visit": "vault/new/drop" },
+        { "report": "h2" },
+        { "measure": "textarea[aria-label='Text to drop']" },
+        { "shot": "new-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "seal": null },
+        { "enable": "Secret drops" },
+        { "visit": "vault/new/drop" },
+        { "report": "h2" },
+        { "measure": "textarea[aria-label='Text to drop']" },
+        { "shot": "new-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "secret-1280",
+      "width": 1280,
+      "title": "Share a secret — 1280 × 800",
+      "caption": "A minimal vault shares the secret it just saved. The share is on the item.",
+      "before": "Share once control absent",
+      "after": "Share once key 24×24 @612,409; the form opens"
+    },
+    {
+      "shot": "secret-390",
+      "width": 390,
+      "title": "Share a secret — 390 × 844",
+      "caption": "The same share on a phone. The key meets the 44px touch floor.",
+      "before": "Share once control absent",
+      "after": "Share once key 44×44 @16,576; the form opens"
+    },
+    {
+      "shot": "new-1280",
+      "width": 1280,
+      "title": "New item types — 1280 × 800",
+      "caption": "Turning on Secret drops used to open a Drop form. A drop is a share of an item, so that form is gone.",
+      "before": "Text to drop 478×125 @774,115",
+      "after": "Text to drop absent; Drops cannot be edited"
+    },
+    {
+      "shot": "new-390",
+      "width": 390,
+      "title": "New item types — 390 × 844",
+      "caption": "The phone does the same.",
+      "before": "Text to drop 358×140 @16,281",
+      "after": "Text to drop absent; Drops cannot be edited"
+    }
+  ]
+}

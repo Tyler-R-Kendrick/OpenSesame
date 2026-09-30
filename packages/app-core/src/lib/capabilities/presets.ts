@@ -58,7 +58,6 @@ const DENY: NetworkPolicy = {
  * preset names one only by offering it.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
-  "sharing.drops",
   "sharing.live",
   "support.local-ai",
 ];
@@ -99,11 +98,11 @@ export const PRESETS: readonly Preset[] = [
     version: 2,
     title: "Family",
     summary:
-      "A household sharing chosen items with each other. Local features and drops, and no automatic call to an external service.",
+      "A household sharing chosen items with each other. Drops are always on. No automatic call to an external service.",
     required: [],
     optional: [...LOCAL_FUNCTIONS, "sharing.household"],
-    defaultSelected: ["sharing.household", "sharing.drops"],
-    // Household sharing needs a transport; drops is the one Family offers.
+    defaultSelected: ["sharing.household"],
+    // Household sharing still names drops as its transport. Drops are always on.
     defaultAlternatives: { transport: "sharing.drops" },
     network: DENY,
   },

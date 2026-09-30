@@ -1,10 +1,10 @@
-import type { SecretItem, VaultItem } from "@opensesame/vault-core";
+import type { VaultItem } from "@opensesame/vault-core";
 import { useContributions } from "../../bindings/contributions.js";
 
 /**
  * What the vault's item pages draw from other capabilities: a contributed
- * kind's record view and creation form (a drop, `sharing.drops`), offers to
- * share a stored secret, and suggestions for a new item's labels (the
+ * kind's record view (a legacy drop, `sharing.drops`), offers to share any
+ * stored item, and suggestions for a new item's labels (the
  * on-device model, `support.local-ai`). Absent, the page draws none of them.
  */
 export function useEditorContributions(kind: string | undefined) {
@@ -24,12 +24,12 @@ export function KindRecord({ item }: { item: VaultItem }) {
   return Record ? <Record item={item} /> : null;
 }
 
-/** Every offer to share this secret, in contribution order. */
+/** Every offer to share this item, in contribution order. */
 export function SecretShares({
   item,
   initialOpen,
 }: {
-  item: SecretItem;
+  item: VaultItem;
   initialOpen?: boolean;
 }) {
   const shares = useContributions("secret-share");

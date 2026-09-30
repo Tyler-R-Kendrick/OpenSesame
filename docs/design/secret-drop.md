@@ -29,34 +29,37 @@ disposed on consumption.
   `#key=` fragment (fragment never leaves the browser).
 - Seam-wrapped (`dropSeams`), BoundaryValue guards, typed `DropError`.
 
-### 2. The `drop` vault kind
+### 2. A drop is not an item type
 
-- `lib/vault/model.ts`: add kind `drop` — label "Drop", plural "Drops".
-  A drop item is a **record**: `name`, `state: pending|consumed|expired`,
-  `claimId`, `expiresAt`, `createdAt`, optional `keptCopy` (the payload,
-  only when the user checked *Keep a copy*). No payload otherwise.
-- Icon (`IconUpload` or a new flame/hourglass glyph), filter row, crumbs
-  label, KIND_ORDER after secrets.
-- Disposal: when poll says `consumed` or the TTL lapses, the item is
-  purged (`purgeItem`) on next vault read — drops clean themselves up.
+Sending a drop does not create a vault item and does not appear in the
+new-item picker or the kind rail. `shareOnce` seals the text, opens a
+claim session, and returns the link, user code and expiry. The fragment
+key stays in the link that is shown. Nothing is written back onto the item.
 
-### 3. Share ceremony (on secrets)
+A `drop` record from an older vault still parses. Its kind is registered
+with `creatable: false`, so an existing record can be opened and the
+unlock sweep can purge it, and no creation surface offers the kind.
 
-- **Share** button on secret rows/detail → ceremony:
+### 3. Share, on every item that holds text
+
+The share sits on the item, for every type that has something to send:
+a secret's value, a login's password, a card's number, a certificate's
+key, a passkey's private key, a note's text, a typed item's secret field,
+or the notes when the item has no concealed value. An empty item and a
+legacy drop record offer no share.
+
+- Share key on the item → ceremony:
   1. TTL picker (10m / 1h / 1d).
-  2. *Keep a copy* checkbox (default off for drops created from +new;
-     default on when sharing an existing vault secret — the vault item
-     itself is untouched either way; this governs only the drop record).
-  3. Seal + create → **drop card**: link (copy), user code (copy), QR,
-     expiry. One line: whoever opens the link and enters the code sees it
-     once.
+  2. Seal and share → **drop card**: link (copy), user code (copy), QR,
+     expiry.
+- The item is not saved. There is no keep-a-copy checkbox and no drop
+  record to open.
 - The ceremony never shows the plaintext again after sealing.
 
-### 4. +new → Drop
+### 4. Minimal installation
 
-New item flow: name, text **or** file picker, TTL, keep-a-copy (default
-off) → seal → create → drop card. The payload never enters the vault body
-unless kept.
+`sharing.drops` is always on. The minimal vault, which creates secrets
+only, can still share one. Opening a link stays on `identity.ceremonies`.
 
 ### 5. Acceptance page (Pages `/claim`; was `apps/ceremonies` until [ADR 0140](../adr/0140-pages-hosts-every-ceremony.md))
 
@@ -80,9 +83,9 @@ Consumed state renders `This drop was already opened.`
   digest failure, manifest cap enforced, fragment key absent from every
   seam call body.
 - Model tests: `drop` kind create, state transitions, purge-on-terminal.
-- Section tests: share ceremony on a secret (TTL → seal → drop card with
-  link + code; keep-copy semantics), +new drop flow (file never written to
-  vault body when keep is off), poll-consumed purges the item.
+- Section tests: share ceremony on a secret and on a login (TTL → seal →
+  drop card with link + code; the item is not saved), poll-consumed purges
+  a legacy drop record.
 - Ceremonies: drop branch renders reveal after present; second visit shows
   the consumed line.
 

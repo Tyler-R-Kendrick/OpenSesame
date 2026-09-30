@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 442,
-    "violations": 699,
+    "files": 441,
+    "violations": 698,
     "oversizedLines": 229499
   },
   "files": {
@@ -216,9 +216,6 @@
       "complexity": 2,
       "max-lines": 913,
       "max-lines-per-function": 3
-    },
-    "apps/pages/src/sections/vault/DropCeremony.tsx": {
-      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/HealthPanel.tsx": {
       "max-lines-per-function": 1

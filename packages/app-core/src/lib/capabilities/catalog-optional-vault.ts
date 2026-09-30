@@ -15,31 +15,6 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     { itemKinds: [...DERIVED_ITEM_KINDS] },
   ),
   optional(
-    "sharing.drops",
-    "Secret drops",
-    "Send a secret or a small file exactly once through a sealed claim session, and keep track of it as a drop item. Opening a drop someone sent needs nothing switched on.",
-    {
-      egress: [
-        {
-          class: "external-service",
-          purpose:
-            "the configured Identity API's claim sessions, or this origin when Pages hosts the claim",
-          automatic: false,
-        },
-        {
-          class: "user-mediated-navigation",
-          purpose: "the drop link a person copies",
-          automatic: false,
-        },
-      ],
-      browserPermissions: ["clipboard-write"],
-      keyAccess: "item-plaintext",
-      itemKinds: ["drop"],
-      offlineLimits:
-        "Creating a drop needs the claim host; sealed drops already in the vault still list.",
-    },
-  ),
-  optional(
     "sharing.live",
     "Live sessions",
     "Share the whole vault or chosen items live with people who join from a link — browser to browser, paired by codes the two people pass each other, while this tab stays open — and join somebody else's session from the front door. No server is needed; routes the owner names (a tailnet address, STUN or TURN, a code carrier) are optional, and nothing of a session is stored on either side.",

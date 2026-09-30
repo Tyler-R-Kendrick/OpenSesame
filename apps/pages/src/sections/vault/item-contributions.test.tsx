@@ -29,7 +29,7 @@ function draw(node: React.ReactNode) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
 }
 
-const secret = createItem("secret", "API key");
+const secret = { ...createItem("secret", "API key"), value: "s3cr3t" };
 
 afterEach(() => {
   cleanup();
@@ -48,7 +48,7 @@ describe("what the vault's item pages draw from other capabilities", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("draws the share offer and the drop form once sharing.drops is on", async () => {
+  it("draws the share offer once sharing.drops is on, and no drop form", async () => {
     const revoke = await activateForTest(drops);
     draw(
       <>
@@ -57,7 +57,7 @@ describe("what the vault's item pages draw from other capabilities", () => {
       </>,
     );
     expect(screen.getByRole("button", { name: "Share once" })).toBeTruthy();
-    expect(screen.getByDisplayValue("Deploy token")).toBeTruthy();
+    expect(screen.queryByDisplayValue("Deploy token")).toBeNull();
     revoke();
   });
 

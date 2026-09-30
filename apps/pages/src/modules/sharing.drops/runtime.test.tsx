@@ -21,7 +21,7 @@ describe("sharing.drops runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the drop kind, the share offer and the sweep (LOAD-09)", async () => {
+  it("registers the legacy record, the share offer and the sweep (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.drops",
       kinds: ["item-kind", "secret-share", "unlock-effect"],
@@ -29,12 +29,13 @@ describe("sharing.drops runtime", () => {
     });
   });
 
-  it("owns every drop surface the vault draws, so a build without drops draws none", async () => {
+  it("shares any item and does not offer a drop to create", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const [kind] = t.entries("item-kind");
+    expect(kind?.creatable).toBe(false);
     expect(kind?.Record).toBeTypeOf("function");
-    expect(kind?.Create).toBeTypeOf("function");
+    expect(kind?.Create).toBeUndefined();
     expect(t.entries("secret-share").map((s) => s.id)).toEqual(["drop"]);
     expect(t.entries("unlock-effect").map((e) => e.id)).toEqual(["drop-sweep"]);
     await handle.dispose();
@@ -44,9 +45,9 @@ describe("sharing.drops runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(t.entries("route")).toEqual([]);
-    expect(
-      t.entries("item-kind").map((k) => [k.kind, k.label, k.segment, k.order]),
-    ).toEqual([["drop", "Drop", "drops", 50]]);
+    expect(t.entries("item-kind").map((k) => [k.kind, k.creatable])).toEqual([
+      ["drop", false],
+    ]);
     await handle.dispose();
   });
 

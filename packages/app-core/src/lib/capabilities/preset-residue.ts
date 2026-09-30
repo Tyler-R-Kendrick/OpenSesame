@@ -20,6 +20,7 @@ import type {
 const PROMOTED_TO_ALWAYS_ON: ReadonlySet<CapabilityId> = new Set([
   "identity.site-broker",
   "backup.git-remote",
+  "sharing.drops",
 ]);
 
 const PRESET_IDS: ReadonlySet<string> = new Set([

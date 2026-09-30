@@ -64,6 +64,26 @@ export function concealedValue(item: VaultItem): string | null {
   return isString(value) && value !== "" ? value : null;
 }
 
+/**
+ * The text a one-time share sends for this item. A drop record is not an
+ * item kind a person creates, so it has nothing to share.
+ */
+export function shareText(item: VaultItem): string | null {
+  if (item.kind === "drop") return null;
+  if (item.kind === "passkey") {
+    const key = item.privateKeyPkcs8B64?.trim() ?? "";
+    if (key !== "") return key;
+  }
+  if (item.kind === "note") {
+    const text = item.notes.trim();
+    return text === "" ? null : text;
+  }
+  const secret = concealedValue(item);
+  if (secret !== null && secret.trim() !== "") return secret;
+  const notes = item.notes.trim();
+  return notes === "" ? null : notes;
+}
+
 export function username(item: VaultItem): string | null {
   return item.kind === "login" || item.kind === "passkey"
     ? item.username

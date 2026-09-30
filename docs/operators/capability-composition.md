@@ -201,13 +201,15 @@ every optional capability the preset does **not** offer in `prohibited`.
 
 The two "local functions" — optional capabilities that run on this device
 with no connector, enterprise, agent, remote-AI or telemetry surface — are
-`sharing.drops` and `support.local-ai`. Browser-local IAM, SIOP, the site
-broker and git backup are always on (ADR 0142), so no preset names them.
+`sharing.live` and `support.local-ai`. Browser-local IAM, SIOP, the site
+broker and git backup are always on (ADR 0142). Secret drops are always on
+too, so no preset names `sharing.drops` as optional. Family still chooses
+it as Household sharing's transport.
 
 | Preset | Required | Offered | Pre-ticked | External services |
 |---|---|---|---|---|
 | **Personal** | none | the 2 local functions | nothing | allow |
-| **Family** | none | the 2 local functions + `sharing.household` | `sharing.household`, `sharing.drops` | **deny** |
+| **Family** | none | the 2 local functions + `sharing.household` | `sharing.household` | **deny** |
 | **Homelab** | none | every optional capability | nothing | allow |
 | **Organization** | none | every optional capability | nothing | allow |
 | **Custom** | none | every optional capability | nothing | allow |
@@ -272,9 +274,9 @@ capabilities:
   default: deny
   required: []
   optional:
-    - sharing.drops
+    - sharing.live
     - sharing.household
-    - vault.passkey-records
+    - support.local-ai
   prohibited:
     - connectors.external
     - telemetry.external

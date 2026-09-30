@@ -53,13 +53,11 @@ function selecting(selectedOptional: string[], transport?: string) {
 }
 
 describe("what a switch cannot say is said beside it", () => {
-  it("a capability another kept root needs offers no switch that cannot take", () => {
-    selecting(["sharing.drops", "sharing.household"], "sharing.drops");
+  it("offers no Shared drops switch; sending one is always on", () => {
+    selecting(["sharing.household"], "sharing.drops");
     renderPanel();
     expect(screen.queryByRole("switch", { name: "Shared drops" })).toBeNull();
-    expect(
-      screen.getByRole("img", { name: "needed by Household sharing" }),
-    ).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: "Secret drops" })).toBeNull();
     expect(
       screen
         .getByRole("switch", { name: "Household sharing" })
