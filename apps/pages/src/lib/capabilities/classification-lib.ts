@@ -127,6 +127,7 @@ const GIT_FILES = [
   "vault-backup-observer",
   "backup-egress-gate",
   "vault-backup-sync",
+  "saved-git-backup",
   "embedded-git",
 ];
 const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
@@ -182,6 +183,7 @@ const FEDERATION_FILES = [
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
+  "hosted-inference",
   "model-catalog",
   "model-slugs",
   "browser-inference",

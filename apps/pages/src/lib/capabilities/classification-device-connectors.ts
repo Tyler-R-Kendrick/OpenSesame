@@ -15,6 +15,7 @@ export const DEVICE_CONNECTOR_RULES = [
       "capability-feature-operation",
       "device-connectors",
       "feature-connector-operation",
+      "feature-request",
       "local-connector-features",
     ],
     (p) =>
