@@ -29,7 +29,7 @@ describe("activity.log runtime", () => {
         "tutorial-route",
         "tutorial-target",
       ],
-      count: 1 + 1 + 2 + 1 + 1 + 1,
+      count: 1 + 1 + 3 + 1 + 1 + 1,
     });
   });
 
@@ -41,6 +41,7 @@ describe("activity.log runtime", () => {
     ).toEqual([["activity", "/activity", "y", "clock", 60]]);
     expect(t.entries("route").map((r) => [r.id, r.path, r.framed])).toEqual([
       ["activity", "/activity", true],
+      ["activity-event", "/activity/:eventId", true],
       ["wallet-activity-alias", "/wallet/activity", false],
     ]);
     expect(t.entries("command-path")).toEqual([

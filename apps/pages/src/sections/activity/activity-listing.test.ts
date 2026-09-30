@@ -4,6 +4,7 @@ import { LISTING_PAGE_SIZE } from "../../lib/listing-page.js";
 import {
   activityHref,
   activityIdFromHash,
+  activityIdFromPath,
   activityListing,
   activityRowId,
   filterActivity,
@@ -62,8 +63,11 @@ describe("activity listing", () => {
     expect(filterActivity(events, "nothing")).toEqual([]);
   });
 
-  it("links a rail entry to the page row it names", () => {
-    expect(activityHref("a b")).toBe("/activity#activity-a%20b");
+  it("links a row to that event's details", () => {
+    expect(activityHref("a b")).toBe("/activity/a%20b");
+    expect(activityIdFromPath("/activity/a%20b")).toBe("a b");
+    expect(activityIdFromPath("/activity")).toBeNull();
+    expect(activityIdFromPath("/activity/a/b")).toBeNull();
     expect(activityRowId("a b")).toBe("activity-a b");
     expect(activityIdFromHash("#activity-a%20b")).toBe("a b");
     expect(activityIdFromHash("#activity-")).toBeNull();

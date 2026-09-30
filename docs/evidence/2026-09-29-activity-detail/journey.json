@@ -1,0 +1,76 @@
+{
+  "out": ".",
+  "clock": "2026-09-29T16:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "reloadUnlock": null },
+        { "tab": "Activity" },
+        { "expand": "Activity" },
+        { "waitFor": "Vault unlocked" },
+        { "rail": "Vault unlocked" },
+        {
+          "count": [
+            ".activity-log[data-pane='detail']",
+            ".activity-log__detail .frow",
+            "a.identity-row__main"
+          ]
+        },
+        { "measure": ".activity-log" },
+        { "measure": ".activity-log__detail" },
+        { "measure": ".detail .detail__backbtn" },
+        { "measure": ".activity-log__detail .frow" },
+        { "measure": ".activity-log[data-pane='detail'] .activity-log__list" },
+        { "report": "main h2, .activity-log__detail .frow" },
+        { "shot": "1280-activity-detail" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "seal": null },
+        { "reloadUnlock": null },
+        { "tab": "Activity" },
+        { "waitFor": "Vault unlocked" },
+        { "openInMain": "Vault unlocked" },
+        {
+          "count": [
+            ".activity-log[data-pane='detail']",
+            ".activity-log__detail .frow",
+            "a.identity-row__main"
+          ]
+        },
+        { "measure": ".activity-log" },
+        { "measure": ".activity-log__detail" },
+        { "measure": ".detail .detail__backbtn" },
+        { "measure": ".activity-log__detail .frow" },
+        { "measure": ".activity-log[data-pane='detail'] .activity-log__list" },
+        { "report": "main h2, .activity-log__detail .frow" },
+        { "shot": "390-activity-detail" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-activity-detail",
+      "width": 1280,
+      "title": "Activity event — 1280 × 800",
+      "caption": "Opening an event keeps the log beside its facts.",
+      "before": "no detail pane; the row is not a link",
+      "after": "list 446×147 beside detail 490×429; 4 facts; back key 0×0"
+    },
+    {
+      "shot": "390-activity-detail",
+      "width": 390,
+      "title": "Activity event — 390 × 844",
+      "caption": "A phone shows the event, and the back key returns to the log.",
+      "before": "list only; no detail pane",
+      "after": "list 0×0; back key 44×44; 4 facts"
+    }
+  ]
+}

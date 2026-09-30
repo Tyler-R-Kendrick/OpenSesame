@@ -9,11 +9,12 @@
 
 import type { ActivityEvent } from "@opensesame/app-core/lib/activity-log.js";
 import type { TreeProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { TreeRow } from "../../components/RailRows.js";
 import { nextPageCount } from "../../lib/listing-page.js";
 import {
   activityHref,
+  activityIdFromPath,
   filterActivity,
   showMoreActivity,
 } from "../../sections/activity/activity-listing.js";
@@ -66,28 +67,27 @@ function emptyNote(
 }
 
 export function ActivityTree(_props: TreeProps) {
-  const { hash } = useLocation();
-  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { tomb, events } = useActivityEvents();
   const { query, limit } = useActivityListing(tomb);
   const matches = filterActivity(events ?? [], query);
   const more = nextPageCount(matches.length, limit);
-  const current = `/activity${hash}`;
+  const openId = activityIdFromPath(pathname);
   return (
     <div className="railtree__kids" id="activity-tree">
       {matches.slice(0, limit).map((event) => (
-        <EventLeaf key={event.id} event={event} current={current} />
+        <EventLeaf
+          key={event.id}
+          event={event}
+          current={openId === event.id ? activityHref(event.id) : ""}
+        />
       ))}
       {more > 0 ? (
         <TreeRow
           to="/activity#activity-more"
           child
           level={2}
-          onToggle={() => {
-            showMoreActivity(tomb);
-            const first = matches[limit];
-            if (first) navigate(activityHref(first.id));
-          }}
+          onToggle={() => showMoreActivity(tomb)}
         >
           {`Load ${more} more`}
         </TreeRow>
