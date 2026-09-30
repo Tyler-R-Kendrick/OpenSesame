@@ -155,12 +155,15 @@ export async function addCapability(page, check, snap, title, rail = null) {
 export async function chooseInSetup(page, titles) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   await page.waitForTimeout(900);
-  // ADR 0154: Custom opens the ceremony. The customize road is inside it.
+  // ADR 0154: the configuration choice sits in front of the ceremony.
   await page.getByRole("button", { name: "Custom", exact: true }).click();
   await page.waitForTimeout(700);
   await page
     .getByRole("button", { name: /Customize this installation/ })
     .click();
+  await page.waitForTimeout(700);
+  // The Custom purpose is what puts every capability card on screen.
+  await page.getByRole("button", { name: /^Custom/ }).click();
   await page.waitForTimeout(900);
   for (const title of titles) {
     // An always-on capability has no card: it is in every plan already.
