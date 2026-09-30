@@ -69,13 +69,7 @@ describe("AppShell on a core-only plan", () => {
     const filters = [
       ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
     ].map((a) => a.getAttribute("href"));
-    expect(filters).toContain("/vault?f=login");
-    expect(filters).toContain("/vault?f=card");
-    expect(filters).toContain("/vault?f=secret");
-    expect(filters).toContain("/vault?f=note");
-    expect(filters).not.toContain("/vault?f=passkey");
-    expect(filters).not.toContain("/vault?f=certificate");
-    expect(filters).not.toContain("/vault?f=drop");
+    expect(filters).toEqual(["/vault?f=favorites", "/vault?f=secret"]);
   });
 });
 

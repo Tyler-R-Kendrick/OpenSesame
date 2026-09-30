@@ -5,6 +5,7 @@ import {
   ambientAuthSeams,
   ambientSeamTimers,
   installAmbientAuthSeams,
+  noteAmbientSsoApproved,
   resetAmbientAuthSeams,
 } from "./ambient-auth-seam.js";
 
@@ -17,6 +18,7 @@ function implementation(
     fenceLocalSignOut: () => {},
     cancelAllTransactions: () => {},
     applyAmbientReturn,
+    completeIfPresent: async () => null,
   };
 }
 
@@ -26,6 +28,7 @@ const COMPLETED = {} as AmbientCompleted;
 describe("an ambient return that lands before the capability is installed", () => {
   afterEach(() => {
     resetAmbientAuthSeams();
+    noteAmbientSsoApproved(false);
     vi.restoreAllMocks();
   });
 
@@ -51,5 +54,35 @@ describe("an ambient return that lands before the capability is installed", () =
     await expect(
       ambientAuthSeams.applyAmbientReturn(COMPLETED),
     ).resolves.toEqual({});
+  });
+});
+
+describe("an ambient callback that lands before the capability is installed", () => {
+  afterEach(() => {
+    resetAmbientAuthSeams();
+    noteAmbientSsoApproved(false);
+    vi.restoreAllMocks();
+  });
+
+  it("answers immediately when the plan did not approve ambient SSO", async () => {
+    const wait = vi
+      .spyOn(ambientSeamTimers, "wait")
+      .mockResolvedValue(undefined);
+    await expect(ambientAuthSeams.completeIfPresent("?code=1")).resolves.toBe(
+      null,
+    );
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it("waits for the capability once the plan approves it", async () => {
+    noteAmbientSsoApproved(true);
+    const complete = vi.fn(async () => null);
+    const pending = ambientAuthSeams.completeIfPresent("?code=1");
+    installAmbientAuthSeams({
+      ...implementation(async () => ({})),
+      completeIfPresent: complete,
+    });
+    await expect(pending).resolves.toBe(null);
+    expect(complete).toHaveBeenCalledWith("?code=1");
   });
 });

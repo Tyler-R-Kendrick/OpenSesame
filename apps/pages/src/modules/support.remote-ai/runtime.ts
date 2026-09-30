@@ -28,6 +28,7 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
@@ -74,6 +75,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("background-job", {
       id: "ag-ui-endpoint",
       start: startAgUiEndpointLoad,
+    });
+    // The bar stays a command parser until a model capability is on. This
+    // one does not interpret; it only opens the ask road. On-device
+    // interpretation sorts first (order 10).
+    activation.register("command-assist", {
+      id: "remote",
+      order: 30,
+      interpret: (utterance) => Promise.resolve(readCommand(utterance)),
     });
 
     return activation.handle();

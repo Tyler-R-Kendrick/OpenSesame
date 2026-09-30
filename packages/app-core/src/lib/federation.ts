@@ -882,13 +882,12 @@ function displayNameDefault(identity: UpstreamIdentity): string {
 }
 
 async function completeSignInWired(): Promise<CompletedSignIn | null> {
-  const { completeAmbientIfPresent } = await import(
-    "./ambient-auth/complete.js"
+  const ambient = await ambientAuthSeams.completeIfPresent(
+    page().location.search,
   );
-  const ambient = await completeAmbientIfPresent(page().location.search);
   if (ambient) {
     clearAuthResponseFromUrl();
-    return ambient.completed;
+    return ambient;
   }
   return completeSignInDefault();
 }

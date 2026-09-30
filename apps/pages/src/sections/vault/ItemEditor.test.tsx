@@ -1,4 +1,5 @@
 import type { IssuedCertificate } from "@opensesame/app-core/lib/certs.js";
+import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import {
   type CertificateItem,
   type Folder,
@@ -331,17 +332,21 @@ describe("ItemEditor", () => {
   });
 
   it("switches item kind and keeps the name", async () => {
-    renderEditor("/vault/new");
-    await userEvent.clear(screen.getByLabelText(/^Name$/i));
-    await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
-    await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
-    expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
-    expect(inputByLabel(/^Name$/i).value).toBe("My card");
-    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
-      "card",
-    );
+    const revoke = registerLegacyItemKinds();
+    try {
+      renderEditor("/vault/new");
+      await userEvent.clear(screen.getByLabelText(/^Name$/i));
+      await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
+      await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
+      expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
+      expect(inputByLabel(/^Name$/i).value).toBe("My card");
+      expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
+        "card",
+      );
+    } finally {
+      revoke();
+    }
   });
-
   it("strips non-digits from card numbers", async () => {
     renderEditor("/vault/new/card");
     await userEvent.type(
@@ -350,7 +355,6 @@ describe("ItemEditor", () => {
     );
     expect(inputByLabel(/^Number$/i).value).toBe("411111114242");
   });
-
   it("adds, edits, and removes website addresses", async () => {
     renderEditor("/vault/new/login?uri=https://old.example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
@@ -369,7 +373,6 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-
   it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
     renderEditor();
     expect(inputByLabel("Address 1").value).toBe("");
@@ -379,7 +382,6 @@ describe("ItemEditor", () => {
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedItem()).toMatchObject({ kind: "login", uris: [] });
   });
-
   it("reveals the password field and uses the generator", async () => {
     renderEditor();
     const password = inputByLabel(/^Password$/i);
@@ -392,7 +394,6 @@ describe("ItemEditor", () => {
       screen.getByRole("button", { name: /Hide password/i }),
     );
     expect(password.type).toBe("password");
-
     await userEvent.click(
       screen.getByRole("button", { name: /Password generator/i }),
     );
@@ -402,7 +403,6 @@ describe("ItemEditor", () => {
     expect(password.value.length).toBeGreaterThan(0);
     expect(password.type).toBe("text");
   });
-
   it("dismisses the generator without applying", async () => {
     renderEditor();
     await userEvent.click(

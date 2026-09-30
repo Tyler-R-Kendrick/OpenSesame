@@ -1,12 +1,14 @@
 import {
   type FormRoad,
+  connectRoadEpoch,
   connectorActs,
   formRoad,
+  subscribeConnectRoads,
 } from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { useSyncExternalStore } from "react";
 import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useVault } from "../lib/vault/hooks.js";
-import { useVercelConnectConfigured } from "./vercel-connect.js";
 
 export type ConnectorRoads = {
   /** The page has something a person can do here (ADR 0150). */
@@ -22,7 +24,11 @@ export type ConnectorRoads = {
  */
 export function useConnectorRoads(): ConnectorRoads {
   useSettingsEpoch();
-  useVercelConnectConfigured();
+  useSyncExternalStore(
+    subscribeConnectRoads,
+    connectRoadEpoch,
+    connectRoadEpoch,
+  );
   const { status, guest, tomb } = useVault();
   const sealedVault = status === "unlocked" && !guest && Boolean(tomb);
   return {

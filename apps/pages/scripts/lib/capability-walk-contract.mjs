@@ -17,19 +17,14 @@ import {
   capabilitySwitch,
 } from "./always-on.mjs";
 
-/** Rail rows an installation that has approved nothing must not have. */
-const GATED_RAIL_ROWS = ["wallet/"];
-
 /**
- * Rail rows of always-on capabilities (ADR 0135): there before any choice.
- * Identity is browser-local IAM's, always on since ADR 0142.
+ * Rail rows an installation that has approved nothing must not have.
+ * Connections, Access and Identity are optional extensions (ADR 0153).
  */
-const ALWAYS_ON_RAIL_ROWS = [
-  "identity/",
-  "connections/",
-  "access/",
-  "activity/",
-];
+const GATED_RAIL_ROWS = ["wallet/", "connections/", "access/", "identity/"];
+
+/** Rail rows of always-on capabilities: there before any choice. */
+const ALWAYS_ON_RAIL_ROWS = ["activity/"];
 
 /** A. Nothing optional is on the rail before anything is chosen. */
 export async function checkGatedSectionsAbsent(page, check) {
@@ -53,6 +48,27 @@ export async function checkGatedSectionsAbsent(page, check) {
       rows.some((text) => text.startsWith("settings/")),
     "the core sections are there regardless",
   );
+  // The minimal vault creates the base secret only (ADR 0153).
+  check(
+    (await page.locator('.railtree__kids a[href$="/vault?f=secret"]').count()) >
+      0,
+    "secret: the base kind is there with nothing chosen",
+  );
+  for (const kind of [
+    "login",
+    "note",
+    "card",
+    "passkey",
+    "certificate",
+    "drop",
+  ]) {
+    check(
+      (await page
+        .locator(`.railtree__kids a[href$="/vault?f=${kind}"]`)
+        .count()) === 0,
+      `${kind}: absent until its item type is chosen`,
+    );
+  }
   // Guided help is always on, so the statusline's Support key is there
   // before anything is chosen.
   check(

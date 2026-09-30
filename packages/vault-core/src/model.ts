@@ -55,8 +55,8 @@ export type LoginItem = BaseItem & {
   /** Base32 TOTP seed, or an otpauth:// URI. Empty when the login has no 2FA. */
   totp: string;
   uris: LoginUri[];
-  /** ISO date the password itself last changed — drives the health report. */
   passwordChangedAt: string;
+  resetEmailId?: string;
   supersededById?: string;
   retiredAt?: string | null;
   reenrollState?: ReenrollState;

@@ -1,15 +1,43 @@
-import {
-  MICROSOFT_PROVIDER_IDS,
-  MICROSOFT_TILES,
-  connectorMark,
-  monogram,
-} from "./connector-marks.js";
-
 /**
  * A connector's brand mark on a neutral tile. Falls back to a monogram when
  * no official mark is distributable, so unknown and custom connectors still
  * read as first-class.
+ *
+ * Brand paths live in `connector-marks.ts` (simple-icons) and install here
+ * only while Connections is on (ADR 0153). Microsoft's squares are data.
  */
+
+const MICROSOFT_TILES = [
+  { x: 1, y: 1, fill: "#F25022" },
+  { x: 13, y: 1, fill: "#7FBA00" },
+  { x: 1, y: 13, fill: "#00A4EF" },
+  { x: 13, y: 13, fill: "#FFB900" },
+];
+
+const MICROSOFT_PROVIDER_IDS = new Set([
+  "microsoft",
+  "azure-kms",
+  "azure-sm",
+  "azure-ac",
+  "azure-openai",
+]);
+
+type MarkPath = { path: string; hex: string | null };
+
+export const connectorMarkLookup: {
+  find: (providerId: string) => MarkPath | null;
+} = {
+  find: () => null,
+};
+
+export function resetConnectorMarkLookup(): void {
+  connectorMarkLookup.find = () => null;
+}
+
+function monogram(displayName: string): string {
+  const letter = displayName.trim().charAt(0);
+  return letter ? letter.toLocaleUpperCase() : "?";
+}
 export function ConnectorMark({
   providerId,
   displayName,
@@ -43,7 +71,7 @@ export function ConnectorMark({
     );
   }
 
-  const mark = connectorMark(providerId);
+  const mark = connectorMarkLookup.find(providerId);
   if (!mark) {
     return (
       <span

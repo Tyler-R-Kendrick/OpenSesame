@@ -36,8 +36,8 @@ describe("support.remote-ai runtime", () => {
   it("registers the endpoint job and disposes it (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "support.remote-ai",
-      kinds: ["background-job"],
-      count: 1,
+      kinds: ["background-job", "command-assist"],
+      count: 2,
     });
   });
 

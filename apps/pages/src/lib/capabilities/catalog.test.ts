@@ -55,21 +55,13 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         "vault.local-unlock",
         "vault.passwords",
         // Always-on: core in every plan, code delivered as a module.
-        "access.authority",
         "activity.log",
         "backup.cloud-secrets",
-        "connectors.external",
-        "identity.ambient-sso",
         "identity.ceremonies",
-        "identity.federation",
         "support.guided-help",
-        "vault.certificate-records",
         "vault.interop-formats",
-        "vault.passkey-records",
-        // Browser-local, always on (ADR 0142).
+        // Browser-local, always on (ADR 0142). Identity is optional (ADR 0153).
         "backup.git-remote",
-        "identity.local-iam",
-        "identity.siop",
         "identity.site-broker",
       ].sort(),
     );
@@ -164,9 +156,7 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
     expect(descriptor("identity.ambient-sso").dependencies).toContain(
       "identity.federation",
     );
-    expect(descriptor("backup.git-remote").dependencies).toContain(
-      "connectors.external",
-    );
+    expect(descriptor("backup.git-remote").dependencies).toEqual([]);
     const push = descriptor("notifications.web-push");
     expect(push.workerGraphConstraint).toBe("push");
     expect(push.environments).toContain("service-worker");
@@ -199,9 +189,9 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         owners.set(kind, entry.id);
       }
     }
-    expect(owners.get("login")).toBe("vault.passwords");
-    expect(owners.get("note")).toBe("vault.passwords");
-    expect(owners.get("card")).toBe("vault.passwords");
+    expect(owners.get("login")).toBe("vault.derived-records");
+    expect(owners.get("note")).toBe("vault.derived-records");
+    expect(owners.get("card")).toBe("vault.derived-records");
     expect(owners.get("secret")).toBe("vault.passwords");
     expect(owners.get("passkey")).toBe("vault.passkey-records");
     expect(owners.get("certificate")).toBe("vault.certificate-records");

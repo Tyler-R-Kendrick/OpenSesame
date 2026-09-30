@@ -5,9 +5,20 @@
  * ids' keys in sessionStorage are the app's (`storage-ownership-msal.ts`).
  */
 
-import { deployedAmbientProviders } from "./runtime.js";
-
 const instances = new Map<string, () => Promise<void>>();
+const deployed = new Set<string>();
+
+/** Client ids from the deployment policy, noted by ambient SSO when it is on. */
+export function noteDeployedEntraClients(clientIds: readonly string[]): void {
+  deployed.clear();
+  for (const id of clientIds) {
+    if (id) deployed.add(id);
+  }
+}
+
+export function forgetDeployedEntraClients(): void {
+  deployed.clear();
+}
 
 /** Remember an instance's cache-clearing entry point. */
 export function rememberEntraInstance(
@@ -28,12 +39,11 @@ export async function clearEntraInstances(): Promise<void> {
  * previous document made leaves keys behind too).
  */
 export function appEntraClientIds(): string[] {
-  const ids = new Set(instances.keys());
-  for (const provider of deployedAmbientProviders()) ids.add(provider.clientId);
-  return [...ids];
+  return [...new Set([...instances.keys(), ...deployed])];
 }
 
 /** Tests only. */
 export function forgetEntraInstancesForTest(): void {
   instances.clear();
+  deployed.clear();
 }

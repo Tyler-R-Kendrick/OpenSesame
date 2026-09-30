@@ -184,10 +184,10 @@ export const SHELL_RULES = [
     "src/components/QrCode",
     "QR renderer used by drops, pairing and second steps",
   ),
-  optional(
+  core(
     "src/components/IdentityCeremony",
-    "identity.federation",
-    "connect-identity ceremony",
+    "identity.ceremonies",
+    "connect-identity ceremony the shell draws; Identity stays optional",
   ),
   optional(
     "src/components/KeyVaultCeremony",
@@ -199,18 +199,18 @@ export const SHELL_RULES = [
   ),
   ...each(
     "src/components/",
-    [
-      "ConnectionsNavigation",
-      "ConnectionsTree",
-      "ConnectorDirectoryForm",
-      "connections-tree",
-    ],
+    ["ConnectionsNavigation", "ConnectionsTree", "ConnectorDirectoryForm"],
     (p) =>
       optional(
         p,
         "connectors.external",
         "Connections rail subtree and directory form",
       ),
+  ),
+  core(
+    "src/components/connections-tree",
+    "shell.navigation",
+    "stylesheet kept in the first bundle so cascade order holds",
   ),
 
   // --- screens ---------------------------------------------------------------
@@ -222,10 +222,10 @@ export const SHELL_RULES = [
   core("src/screens/unlock/CodeField", UNLOCK, "second-step code field"),
   core("src/screens/unlock/unlock-form-focus", UNLOCK, "unlock form focus"),
   core("src/screens/unlock/useCountdown", UNLOCK, "second-step countdown"),
-  optional(
+  core(
     "src/screens/unlock/ByoProviderSheet",
-    "identity.federation",
-    "BYO issuer sheet",
+    "identity.brokered-signin",
+    "BYO issuer sheet on the sign-in panel; the Identity section stays optional",
   ),
   core(
     "src/screens/unlock/SignInSocialBar",
@@ -288,4 +288,47 @@ export const SHELL_RULES = [
     "local application consent",
   ),
   optional("src/screens/SiopAuthorize", "identity.siop", "SIOPv2 authorize"),
+  core(
+    "src/lib/catalog-provider",
+    "settings.core",
+    "which bundled rows are catalog brokers; Settings tiles read this with Connections off",
+  ),
+  core(
+    "src/lib/field-guidance",
+    "settings.core",
+    "field help the vault-key sheets draw with Connections off",
+  ),
+  core(
+    "src/lib/connections-error",
+    "settings.core",
+    "connection error type Settings tiles read with Connections off",
+  ),
+  core(
+    "src/lib/embedded-catalog-data",
+    "settings.core",
+    "bundled catalog field labels the capabilities page draws",
+  ),
+  core(
+    "src/lib/bundled-provider-ids",
+    "settings.core",
+    "bundled catalog ids the capabilities page draws",
+  ),
+  shared(
+    "src/lib/connect-callback",
+    "operator callback base the git relay reads",
+  ),
+  shared(
+    "src/lib/managed-connectors",
+    "managed connector ids Settings skips when it draws provider tiles",
+  ),
+  core(
+    "src/lib/byo",
+    SIGNIN,
+    "bring-your-own issuer sheet on the sign-in panel",
+  ),
+  optional(
+    "src/lib/certs-issue",
+    "vault.certificate-records",
+    "self-signed issuance, loaded only with certificate records",
+  ),
 ];

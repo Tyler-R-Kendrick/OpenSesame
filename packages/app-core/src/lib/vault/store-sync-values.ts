@@ -91,7 +91,7 @@ export const LINE_ONE = {
  * (`lib/vault/import/merge.ts` resets it for the same reason).
  */
 const NAMED = {
-  login: { passwordChangedAt: text, ...ROTATION },
+  login: { passwordChangedAt: text, resetEmailId: text, ...ROTATION },
   passkey: {
     rpId: text,
     username: text,

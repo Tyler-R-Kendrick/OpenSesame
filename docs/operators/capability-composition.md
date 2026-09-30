@@ -40,36 +40,42 @@ Two more identifiers you will see in emitted files and never have to author:
   may fetch. Only compile-time-known modules exist.
 - **asset id** — a path in `dist/`. The build writes the mapping.
 
-The catalog has **21 core** capabilities and **11 optional** ones. Core is
-always present and cannot be prohibited. Seven are statically linked:
+Seven capabilities are statically linked:
 `shell.navigation`, `vault.passwords`, `vault.local-unlock`,
 `backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
-`install.pwa`. Fourteen are **always-on** (ADR 0135, ADR 0142): core in every
-plan, but their code still arrives as a module after boot —
-`vault.passkey-records`, `vault.certificate-records`, `vault.interop-formats`,
-`backup.cloud-secrets`, `connectors.external`, `access.authority`,
-`identity.federation`, `identity.ambient-sso`, `activity.log`,
-`support.guided-help`, and the four browser-local functions
-`identity.local-iam`, `identity.siop`, `identity.site-broker` and
-`backup.git-remote`. None of them is ever a switch, and none may be named in a
-selection. An older selection that still names one is read as though it did
-not, and so is a policy that *requires* one.
+`install.pwa`. Seven more are **always-on** (ADR 0135, ADR 0142): core in
+every plan, code still a module after boot — `vault.interop-formats`,
+`backup.cloud-secrets`, `identity.ceremonies`, `activity.log`,
+`support.guided-help`, `identity.site-broker` and `backup.git-remote`.
+None of those is a switch. An older selection that still names one is read
+as though it did not.
+
+Connections, Access and Identity are optional (ADR 0153). The minimal plan
+approves `vault.passwords`, `activity.log` and `settings.core` and no
+optional capability. `~/connections`, `~/access` and `~/identity` load only
+after their Settings › Capabilities switch is on (`capability.<id>` is the
+OpenFeature flag). The minimal vault's only creatable kind is `secret`.
+Login, note, card, passkey, certificate and the other built-in types
+project onto that secret and stay out until Item types is on. Password reset
+(`ai.password-reset`) is its own section, off until chosen, and it depends on
+the login item type (`vault.derived-records`).
 
 **Withdrawing an always-on capability.** A verified instance policy may list
 an always-on capability in `prohibited`. The capability is then withdrawn: it
 is not approved and its module is not loaded. Every always-on capability that
-depends on it goes with it; withdrawing `identity.local-iam` takes
-`identity.siop` too. An optional capability that depends on it sees a
+depends on it goes with it. An optional capability that depends on it sees a
 prohibited dependency. Statically linked core cannot be withdrawn, because it
 has no module to leave out. Settings › Capabilities says "withdrawn by
 operator" in a notice and on the section the capability backs.
 
 A policy a version-1 preset wrote (`presetProvenance.version: 1`) listed
-every optional id the preset did not offer, so it may name browser-local IAM,
-SIOP, the site broker or git backup in `prohibited` without anyone having
-chosen that. The store drops those four from such a policy when it reads it.
-To withdraw one of them, write it into a policy you author yourself, or apply
-a preset again (presets are version 2 now) and add it.
+every optional id the preset did not offer, so it may name the site broker
+or git backup in `prohibited` without anyone having chosen that. The store
+drops those two from such a policy when it reads it. Identity is optional
+again (ADR 0153), so a version-1 prohibition of browser-local IAM or SIOP
+stands. To withdraw the site broker or git backup, write it into a policy
+you author yourself, or apply a preset again (presets are version 2 now)
+and add it.
 
 Git backup's automatic calls are held while the plan does not allow external
 services, whichever surface starts them (`backup-egress-gate.ts`). They are
@@ -110,10 +116,10 @@ The operator guide for the routes is
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,
-Identity providers, Directory, Encryption, Certificate authority, Backups,
-Password managers, Cloud secret storage, Local storage, Browser autofill,
-Sharing, Payments, AI, Surrogate credentials, Networking, Notifications,
-Telemetry, and — for the operator — Instance policy. A section with optional
+Identity, Access, Connections, Directory, Encryption, Certificate authority,
+Backups, Password managers, Cloud secret storage, Local storage, Item types,
+Browser autofill, Sharing, Payments, AI, Password reset, Surrogate credentials, Networking,
+Notifications, Telemetry, and — for the operator — Instance policy. A section with optional
 capabilities carries one switch on its
 subheader over all of them; a section with more than one (Sharing, AI) also
 lists each as a tile with its own switch. A section of an always-on function
@@ -202,9 +208,9 @@ broker and git backup are always on (ADR 0142), so no preset names them.
 |---|---|---|---|---|
 | **Personal** | none | the 2 local functions | nothing | allow |
 | **Family** | none | the 2 local functions + `sharing.household` | `sharing.household`, `sharing.drops` | **deny** |
-| **Homelab** | none | all 11 optional | nothing | allow |
-| **Organization** | none (sign-in providers and access are always on) | all 11 optional | nothing | allow |
-| **Custom** | none | all 11 optional | nothing | allow |
+| **Homelab** | none | every optional capability | nothing | allow |
+| **Organization** | none | every optional capability | nothing | allow |
+| **Custom** | none | every optional capability | nothing | allow |
 
 Personal and Family never offer and never pre-select the
 `enterprise.*`, `agents.*` or `telemetry.*` families, nor `support.remote-ai`.

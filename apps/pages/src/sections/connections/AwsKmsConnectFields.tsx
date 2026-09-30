@@ -2,7 +2,7 @@
  * Form fields for Settings › Connections › AWS KMS.
  */
 
-import { fieldGuidance } from "@opensesame/app-core/lib/connector-guidance.js";
+import { fieldGuidance } from "@opensesame/app-core/lib/field-guidance.js";
 import { useId } from "react";
 
 export type AwsKmsFormState = {

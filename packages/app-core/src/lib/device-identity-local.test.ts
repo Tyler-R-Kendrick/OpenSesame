@@ -6,8 +6,12 @@
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
-import { deviceIdentityFetch } from "./device-identity-host.js";
-import { resetDeviceIdentitySessionsForTests } from "./device-identity-host.js";
+import {
+  deviceIdentityFetch,
+  deviceIdentitySeams,
+  resetDeviceIdentitySessionsForTests,
+} from "./device-identity-host.js";
+import { dispatchExtendedDeviceRoute } from "./device-identity-local.js";
 import { saveSettings } from "./settings.js";
 
 function emptyRemoteSettings(): void {
@@ -23,13 +27,17 @@ function emptyRemoteSettings(): void {
   });
 }
 
+const originalDispatch = deviceIdentitySeams.dispatchExtended;
+
 beforeEach(() => {
   emptyRemoteSettings();
   resetDeviceIdentitySessionsForTests();
+  deviceIdentitySeams.dispatchExtended = dispatchExtendedDeviceRoute;
 });
 
 afterEach(() => {
   resetDeviceIdentitySessionsForTests();
+  deviceIdentitySeams.dispatchExtended = originalDispatch;
 });
 
 describe("device identity local routes", () => {

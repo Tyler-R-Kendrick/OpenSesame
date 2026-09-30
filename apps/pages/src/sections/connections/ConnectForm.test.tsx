@@ -1,9 +1,18 @@
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
+import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
-import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
+import {
+  setVercelConnectAuth,
+  usesConnect,
+} from "@opensesame/app-core/lib/vercel-connect.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -53,6 +62,8 @@ afterEach(() => {
   applyConnectCallbackBase("");
   connectionSeams.listIntegrations = originalIntegrations;
   Object.assign(identitySeams, originalIdentity);
+  resetConnectRoadSeams();
+  notifyConnectRoads();
   vi.unstubAllGlobals();
 });
 
@@ -86,6 +97,9 @@ function githubProvider(): Provider {
 
 it("authorizes a Connect-managed provider through the relay", () => {
   applyConnectCallbackBase("http://127.0.0.1:8789");
+  connectRoadSeams.usesConnect = usesConnect;
+  connectRoadSeams.hasConnectRoute = hasConnectRoute;
+  notifyConnectRoads();
   render(
     <ConnectForm
       provider={slackProvider()}

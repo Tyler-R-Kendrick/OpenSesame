@@ -197,3 +197,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0150](0150-the-device-duress-code.md) | The device's duress code, in Settings | Accepted |
 | [0151](0151-connector-pages-act-on-the-roads-a-device-has.md) | A connector page acts on the roads a device has, or is not drawn | Accepted |
 | [0152](0152-browser-key-protector-enrollment.md) | Which key protectors the static browser client enrolls | Accepted |
+| [0153](0153-minimal-pwa-optional-sections.md) | Minimal PWA: vault, activity, settings | Accepted |

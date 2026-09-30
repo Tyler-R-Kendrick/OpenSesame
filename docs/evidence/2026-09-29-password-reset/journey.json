@@ -1,0 +1,55 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Capabilities" },
+        { "switchOptional": "Password reset" },
+        { "pressOptional": "Apply configuration" },
+        { "scrollToOptional": "Password reset" },
+        { "count": ["#feature-password-reset"] },
+        { "shot": "1280-password-reset" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Capabilities" },
+        { "switchOptional": "Password reset" },
+        { "pressOptional": "Apply configuration" },
+        { "scrollToOptional": "Password reset" },
+        { "measure": "#feature-password-reset input[type=email]" },
+        {
+          "measure": "#feature-password-reset button[aria-label='Add reset email']"
+        },
+        { "shot": "390-password-reset" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-password-reset",
+      "width": 1280,
+      "title": "Password reset — 1280 × 900",
+      "caption": "Settings › Capabilities. The section is off until chosen, then the mailbox field is on the section.",
+      "before": "no Password reset section",
+      "after": "section on, mailbox field shown"
+    },
+    {
+      "shot": "390-password-reset",
+      "width": 390,
+      "title": "Password reset — 390 × 844",
+      "caption": "The same section at phone width. The field and the add key use the touch floor.",
+      "before": "no Password reset section",
+      "after": "field 44px tall, add key 44×44"
+    }
+  ]
+}

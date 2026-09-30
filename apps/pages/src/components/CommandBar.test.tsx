@@ -1,3 +1,5 @@
+import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
 /** @vitest-environment jsdom */
 import {
@@ -25,6 +27,16 @@ import { CommandBar } from "./CommandBar.js";
 
 const originalVaultHooks = { ...vaultHooksSeams };
 const originalSessionSeams = { ...supportSessionSeams };
+let releaseAssist: (() => void) | null = null;
+
+/** The ask road exists only while a model capability has registered. */
+function enableAsk(): void {
+  releaseAssist = registerContributionForTest("command-assist", {
+    id: "test-model",
+    order: 0,
+    interpret: async (text) => readCommand(text),
+  });
+}
 
 Object.assign(vaultHooksSeams, {
   useVault: () => ({ items: [], status: "unlocked" }),
@@ -87,13 +99,42 @@ function renderBar(withSupport: boolean) {
 }
 
 afterEach(() => {
+  releaseAssist?.();
+  releaseAssist = null;
   cleanup();
   Object.assign(vaultHooksSeams, originalVaultHooks);
   Object.assign(supportSessionSeams, originalSessionSeams);
 });
 
 describe("CommandBar — command or ask", () => {
+  it("parses commands and does not ask while no model is on", async () => {
+    installEngine(fakeAgentAnswering("Connections live under the rail."));
+    const user = userEvent.setup();
+    renderBar(true);
+    const field = screen.getByRole("textbox", { name: "Command" });
+    expect(field.getAttribute("placeholder")).toBe(
+      "go to vault · search · copy password for …",
+    );
+    await user.type(field, "where are my connections?{Enter}");
+    expect((await screen.findByRole("status")).textContent).toContain(
+      "No match",
+    );
+    expect(screen.queryByRole("dialog", { name: "Support" })).toBeNull();
+    await user.clear(field);
+    await user.type(field, "go to vault{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain("Opened /vault"),
+    );
+    await user.type(field, "search router{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "Searching for “router”",
+      ),
+    );
+  });
+
   it("hands a sentence no verb claims to Support as a question", async () => {
+    enableAsk();
     installEngine(fakeAgentAnswering("Connections live under the rail."));
     const user = userEvent.setup();
     renderBar(true);
@@ -111,6 +152,7 @@ describe("CommandBar — command or ask", () => {
   });
 
   it("keeps the honest no-match where Support cannot answer", async () => {
+    enableAsk();
     installEngine(fakeAgentAlwaysUnavailable());
     const user = userEvent.setup();
     renderBar(true);

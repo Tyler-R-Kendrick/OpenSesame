@@ -97,9 +97,10 @@ function cxfWithPasskey() {
 
 describe("VAULT-06 — an import enables nothing", () => {
   it("keeps the record, explains it, and enables nothing", async () => {
-    // Passkeys and formats are always on; the plan is core-only otherwise.
+    // Formats stay on. Passkeys are an item-type extension, off until chosen,
+    // and importing a passkey record does not switch them on (ADR 0153).
     const plan = profilePlan("family-local");
-    expect(approved(plan, "vault.passkey-records")).toBe(true);
+    expect(approved(plan, "vault.passkey-records")).toBe(false);
     expect(approved(plan, "vault.interop-formats")).toBe(true);
 
     const result = fidoCxf.parse(cxfWithPasskey());

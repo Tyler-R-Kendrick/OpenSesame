@@ -25,6 +25,7 @@ import {
   type InstallationCapabilitySelection,
   resolveComposition,
 } from "@opensesame/capability-composition";
+import { noteAmbientSsoApproved } from "../ambient-auth-seam.js";
 import { postCapabilitiesChanged } from "./channel.js";
 import { compositionLockName } from "./keys.js";
 import { type MintedLease, mintLease } from "./lease.js";
@@ -379,6 +380,8 @@ export class CompositionStore {
   }
 
   #emit(): void {
+    const approved = this.#snapshot.plan?.approvedCapabilities;
+    noteAmbientSsoApproved(approved?.includes("identity.ambient-sso") === true);
     for (const listener of this.#listeners) listener();
   }
 

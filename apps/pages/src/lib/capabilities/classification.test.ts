@@ -78,7 +78,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/local-guest.ts": "core",
       "src/lib/local-directory.ts": "identity.local-iam",
       "src/lib/local-access-requests.ts": "access.authority",
-      "src/lib/capabilities.ts": "connectors.external",
+      "src/lib/capabilities.ts": "settings.core",
       "src/lib/capabilities/catalog.ts": "core",
       "src/modules/sharing.drops/runtime.ts": "sharing.drops",
     };

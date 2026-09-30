@@ -96,10 +96,12 @@ const browser = await launch();
   for (const [title, rail] of [
     // Always on: checked present, never offered a switch.
     ["Guided help", null],
+    // Optional extensions: absent until the switch, then present (ADR 0153).
     ["External connectors", "connections/"],
     ["Access authority", "access/"],
     ["Browser-local IAM", "identity/"],
-    // Optional: absent, then added.
+    ["Derived item types", null],
+    ["Passkey records", null],
     ["Wallet", "wallet/"],
   ]) {
     setStep(`E-add-${(rail ?? title).replace("/", "")}`);
@@ -288,9 +290,8 @@ const browser = await launch();
   const federation = "local:opensesame:federation:session";
   const leaks = ["pw_verify", "[Tt]est [Pp]erson"];
   await checkNothingInTheClear(page, check, leaks, [federation]);
-  // This is a fresh device: the identity section (browser-local IAM) and the
-  // provider directory are always on (ADR 0142), so there is nothing to add
-  // and the walk only checks they are there.
+  // This is a fresh device: Identity is off until chosen (ADR 0153). Add the
+  // browser-local IAM section and the provider directory, then walk them.
   setStep("C-add-identity");
   await addCapability(page, check, snap, "Browser-local IAM", "identity/");
   await addCapability(page, check, snap, "Operator identity providers");

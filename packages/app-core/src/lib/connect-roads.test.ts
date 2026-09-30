@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   VAULT_SEALED_PANELS,
   connectFormDraws,
+  connectRoadSeams,
   connectorActs,
   formRoad,
   hostRoadOpen,
+  resetConnectRoadSeams,
 } from "./connect-roads.js";
 import { identitySeams } from "./identity.js";
-import { setVercelConnectAuth } from "./vercel-connect.js";
+import { hasConnectRoute } from "./vercel-connect-catalog.js";
+import { setVercelConnectAuth, usesConnect } from "./vercel-connect.js";
 
 const original = { ...identitySeams };
 const host = { base: "", live: false };
@@ -17,10 +20,13 @@ beforeEach(() => {
   host.live = false;
   identitySeams.hostBase = () => host.base;
   identitySeams.hostLocalSessionEligible = () => host.live;
+  connectRoadSeams.usesConnect = usesConnect;
+  connectRoadSeams.hasConnectRoute = hasConnectRoute;
 });
 
 afterEach(() => {
   Object.assign(identitySeams, original);
+  resetConnectRoadSeams();
   setVercelConnectAuth(null);
 });
 
@@ -93,6 +99,12 @@ describe("a connector that has something to do", () => {
     for (const id of ["git", "gitlab", "github", "password-store"]) {
       expect(connectorActs({ id }, false)).toBe(true);
     }
+  });
+
+  it("hides Connect-only panels until Connections installs its roads", () => {
+    resetConnectRoadSeams();
+    expect(connectorActs({ id: "workos" }, false)).toBe(false);
+    expect(connectorActs({ id: "auth0" }, false)).toBe(false);
   });
 
   it("is drawn for Connect's own panels, which seal the credential first", () => {

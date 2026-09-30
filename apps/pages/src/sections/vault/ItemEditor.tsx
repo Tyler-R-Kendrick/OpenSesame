@@ -23,19 +23,13 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
-import {
-  IconEye,
-  IconEyeOff,
-  IconRefresh,
-  IconX,
-} from "../../components/Icons.js";
-import { PasswordGenerator } from "../../components/PasswordGenerator.js";
+import { IconEye, IconEyeOff, IconX } from "../../components/Icons.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
-import { LoginWebsites } from "./LoginWebsites.js";
+import { LoginFields } from "./LoginFields.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
 import { useEditorContributions } from "./item-contributions.js";
@@ -299,79 +293,14 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           />
         ) : null}
         {draft.kind === "login" ? (
-          <div className="editor__grid">
-            <LoginWebsites
-              uris={draft.uris}
-              onChange={(uris) => patch({ uris })}
-            />
-            <div className="field">
-              <label htmlFor="username">Username</label>
-              <input
-                id="username"
-                autoComplete="off"
-                value={draft.username}
-                onChange={(event) => patch({ username: event.target.value })}
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="password">Password</label>
-              <div className="editor__inline editor__inline--adorned">
-                <input
-                  id="password"
-                  type={reveal ? "text" : "password"}
-                  autoComplete="new-password"
-                  value={draft.password}
-                  onChange={(event) => patch({ password: event.target.value })}
-                />
-                <IconKey
-                  label={reveal ? "Hide password" : "Show password"}
-                  onClick={() => setReveal((value) => !value)}
-                >
-                  {reveal ? <IconEyeOff size={17} /> : <IconEye size={17} />}
-                </IconKey>
-                <button
-                  type="button"
-                  className={`icon-btn${showGenerator ? " is-on" : ""}`}
-                  onClick={() => setShowGenerator((value) => !value)}
-                  aria-expanded={showGenerator}
-                  aria-label="Password generator"
-                  title="Password generator"
-                >
-                  <IconRefresh size={17} />
-                </button>
-              </div>
-            </div>
-
-            {showGenerator ? (
-              <PasswordGenerator
-                onUse={(value) => {
-                  patch({ password: value });
-                  setShowGenerator(false);
-                  setReveal(true);
-                }}
-                onDismiss={() => setShowGenerator(false)}
-              />
-            ) : null}
-
-            <OptionalField
-              key={draft.id}
-              present={Boolean(draft.totp)}
-              command="Add authenticator secret"
-            >
-              <div className="field">
-                <label htmlFor="totp">Authenticator secret</label>
-                <input
-                  id="totp"
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder="Base32 seed or otpauth:// URI"
-                  value={draft.totp}
-                  onChange={(event) => patch({ totp: event.target.value })}
-                />
-              </div>
-            </OptionalField>
-          </div>
+          <LoginFields
+            draft={draft}
+            reveal={reveal}
+            showGenerator={showGenerator}
+            onPatch={patch}
+            onReveal={setReveal}
+            onShowGenerator={setShowGenerator}
+          />
         ) : null}
 
         {draft.kind === "secret" ? (

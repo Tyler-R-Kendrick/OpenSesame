@@ -11,10 +11,12 @@ import { configureHost } from "../host.js";
 import { createTestHost } from "../test-host.js";
 import {
   forgetEntraInstancesForTest,
+  noteDeployedEntraClients,
   rememberEntraInstance,
 } from "./ambient-auth/entra-instances.js";
 import {
   applyDeployedAmbientPolicy,
+  deployedAmbientProviders,
   resetDeployedAmbientPolicy,
 } from "./ambient-auth/runtime.js";
 import {
@@ -83,6 +85,9 @@ describe("resetBrowser: MSAL", () => {
         },
       ],
     });
+    noteDeployedEntraClients(
+      deployedAmbientProviders().map((provider) => provider.clientId),
+    );
     const session = memoryStorage(
       [`msal.${OURS}.request.params`, "{}"],
       [`msal.3.token.keys.${OURS}`, "{}"],

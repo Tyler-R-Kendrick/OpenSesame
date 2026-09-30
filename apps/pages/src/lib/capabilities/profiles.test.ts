@@ -117,8 +117,11 @@ const EXPECTED = {
   // Git backup is always on (ADR 0142): the provider path needs nothing optional.
   "single-provider-selected": [],
   "enterprise-selected": [
+    "access.authority",
     "enterprise.ca-administration",
     "enterprise.directory-provisioning",
+    "identity.federation",
+    "vault.certificate-records",
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
   "managed-prohibited": ["sharing.drops"],

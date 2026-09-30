@@ -296,11 +296,12 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
 
 describe("VAULT-05 — records of an excluded kind survive without their surfaces", () => {
   it("round-trips a drop record while offering no way to create one", async () => {
-    // Passkeys, certificates and formats are always on; a drop is the kind
-    // whose capability a family installation can still leave out.
+    // The minimal vault creates secrets only. A drop, a passkey and a
+    // certificate are kinds a family installation leaves out.
     const plan = profilePlan("family-local");
     expect(approved(plan, "sharing.drops")).toBe(false);
-    expect(approved(plan, "vault.passkey-records")).toBe(true);
+    expect(approved(plan, "vault.passkey-records")).toBe(false);
+    expect(plan.approvedItemKinds).toEqual(["secret"]);
 
     const store = new VaultStore();
     await store.create(PASSWORD);
@@ -321,7 +322,7 @@ describe("VAULT-05 — records of an excluded kind survive without their surface
     // core four — no drop row, no filter, no "+ new" for it — while the
     // label the stored record renders with is untouched.
     const kinds = itemKindsFrom([]).map((row) => row.id);
-    expect(kinds).toEqual(["login", "card", "secret", "note"]);
+    expect(kinds).toEqual(["secret"]);
     expect(kinds).not.toContain("drop");
     expect(KIND_LABEL.drop).toBeTruthy();
   });

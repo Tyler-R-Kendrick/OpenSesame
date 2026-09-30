@@ -26,6 +26,11 @@ import {
   resetAmbientAuthSeams,
 } from "@opensesame/app-core/lib/ambient-auth-seam.js";
 import { runAmbientAuthBoot } from "@opensesame/app-core/lib/ambient-auth/boot.js";
+import { completeAmbientIfPresent } from "@opensesame/app-core/lib/ambient-auth/complete.js";
+import {
+  forgetDeployedEntraClients,
+  noteDeployedEntraClients,
+} from "@opensesame/app-core/lib/ambient-auth/entra-instances.js";
 import {
   clearAutoAuthSuppression,
   fenceLocalSignOut,
@@ -34,6 +39,7 @@ import {
 import { applyAmbientReturn } from "@opensesame/app-core/lib/ambient-auth/return-path.js";
 import {
   applyDeployedAmbientPolicy,
+  deployedAmbientProviders,
   resetDeployedAmbientPolicy,
 } from "@opensesame/app-core/lib/ambient-auth/runtime.js";
 import { cancelAllTransactions } from "@opensesame/app-core/lib/ambient-auth/transactions.js";
@@ -103,13 +109,19 @@ export const capabilityRuntime: CapabilityRuntime = {
       fenceLocalSignOut,
       cancelAllTransactions,
       applyAmbientReturn,
+      completeIfPresent: async (search) =>
+        (await completeAmbientIfPresent(search))?.completed ?? null,
     });
     activation.onDispose(resetAmbientAuthSeams);
 
     // Deployment data the core parsed and deliberately did not apply.
     if (ctx.runtimeConfig.ambientAuth !== undefined) {
       applyDeployedAmbientPolicy(ctx.runtimeConfig.ambientAuth);
+      noteDeployedEntraClients(
+        deployedAmbientProviders().map((provider) => provider.clientId),
+      );
       activation.onDispose(resetDeployedAmbientPolicy);
+      activation.onDispose(forgetDeployedEntraClients);
     }
 
     activation.register("background-job", {

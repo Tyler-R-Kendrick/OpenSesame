@@ -1,13 +1,14 @@
 /**
  * Which item kinds a person may *create* here (SURFACE-08).
  *
- * The core vault owns logins, cards, secrets and notes. Every other kind —
- * passkey records, certificates, drops — is an `item-kind` contribution from
- * the capability that owns it, so its creation surfaces (the rail filter, the
+ * The minimal vault owns the base secret. Every other built-in kind —
+ * logins, cards, notes, passkeys, certificates, drops, and the typed
+ * projections onto that secret — is an `item-kind` contribution from the
+ * capability that owns it, so its creation surfaces (the rail filter, the
  * type picker, the filtered "+ new") exist only while that capability is in
- * the plan. Existing records of an excluded kind still render: the parsers
- * are untouched and the unknown-type fallback is the same one a community
- * type uses.
+ * the plan (ADR 0153). Existing records of an excluded kind still render:
+ * the parsers are untouched and the unknown-type fallback is the same one a
+ * community type uses.
  */
 
 import {
@@ -16,6 +17,7 @@ import {
   typeLabel,
 } from "@opensesame/vault-core";
 import {
+  BUILTIN_TYPE_IDS,
   RESERVED_DIRECTORIES,
   RESERVED_TYPE_IDS,
   directoryName,
@@ -33,15 +35,11 @@ export type ItemKindRow = Readonly<{
 }>;
 
 /**
- * The kinds the core vault ships. Orders leave the gaps the contributed
- * kinds fill (passkeys 20, drops 50, certificates 70), so the rail reads
- * logins, passkeys, cards, secrets, drops, notes, certs whatever is present.
+ * The kind the minimal vault ships. Contributed kinds fill the other orders
+ * (logins 0, passkeys 20, cards 30, drops 50, notes 60, certificates 70).
  */
 export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
-  { id: "login", segment: "logins", label: "Login", order: 0 },
-  { id: "card", segment: "cards", label: "Card", order: 30 },
   { id: "secret", segment: "secrets", label: "Secret", order: 40 },
-  { id: "note", segment: "notes", label: "Secure note", order: 60 },
 ];
 
 export function itemKindsFrom(
@@ -63,12 +61,15 @@ export function itemKindsFrom(
 }
 
 /**
- * The built-in kinds a capability owns. A community type (ADR 0087) is not
- * among them: it is the core vault's own plugin mechanism and stays creatable.
+ * Built-in kinds a capability owns. A community type (ADR 0087) is not among
+ * them: it is the core vault's own plugin mechanism and stays creatable.
+ * Every built-in id is gated, including the typed projections onto secret,
+ * so a minimal plan offers secret and nothing else.
  */
-const GATED_KINDS: ReadonlySet<string> = new Set(
-  Object.keys(KIND_LABEL).filter((kind) => kind !== "typed"),
-);
+const GATED_KINDS: ReadonlySet<string> = new Set([
+  ...Object.keys(KIND_LABEL).filter((kind) => kind !== "typed"),
+  ...BUILTIN_TYPE_IDS,
+]);
 
 /** Type directories sort after every platform kind (certs is 70). */
 const TYPE_DIRECTORY_ORDER = 100;

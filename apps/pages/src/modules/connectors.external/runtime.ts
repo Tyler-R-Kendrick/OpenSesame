@@ -1,6 +1,6 @@
 /**
  * `connectors.external` — provider connections by reference (ADR 0115),
- * always on: the Connections section and its rail entries, the connector
+ * optional and off until chosen: the Connections section and its rail entries, the connector
  * settings pages (whose tiles Settings › Capabilities draws under each
  * feature), the setup connectors tab, the
  * connection WebMCP tools, and the unlock effects that seal a parked
@@ -26,9 +26,16 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
+import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
+import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { disarmVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
+import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
 import {
   CONNECTIONS_ROUTES,
   CONNECTIONS_TARGETS,
@@ -42,6 +49,11 @@ import { resetConnectionsNavigation } from "../../components/ConnectionsNavigati
 import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
+import {
+  connectorMarkLookup,
+  resetConnectorMarkLookup,
+} from "../../sections/connections/ConnectorMark.js";
+import { connectorMark } from "../../sections/connections/connector-marks.js";
 import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
@@ -141,9 +153,16 @@ export const capabilityRuntime: CapabilityRuntime = {
     // the page's snapshot. A staged token or parked directory sync is data
     // waiting for a tomb, not running code, and the next activation's
     // unlock effect seals it — nothing here writes, fetches or ceremonies.
+    connectRoadSeams.usesConnect = usesConnect;
+    connectRoadSeams.hasConnectRoute = hasConnectRoute;
+    connectorMarkLookup.find = connectorMark;
+    notifyConnectRoads();
     activation.onDispose(() => {
       disarmVercelConnectAuth();
       resetConnectionsNavigation();
+      resetConnectRoadSeams();
+      resetConnectorMarkLookup();
+      notifyConnectRoads();
     });
 
     return activation.handle();

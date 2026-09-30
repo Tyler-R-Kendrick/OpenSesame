@@ -4,8 +4,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { planeHookSeams } from "../../../bindings/planes.js";
 
 import { defaultCapabilityConnectors } from "@opensesame/app-core/lib/capabilities.js";
+import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
-import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
+import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import {
+  setVercelConnectAuth,
+  usesConnect,
+} from "@opensesame/app-core/lib/vercel-connect.js";
 import { createSetupSeams } from "../test-seams.js";
 import { MfaStep } from "./MfaStep.js";
 
@@ -32,6 +41,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  resetConnectRoadSeams();
+  notifyConnectRoads();
 });
 
 describe("MfaStep", () => {
@@ -75,6 +86,9 @@ describe("MfaStep", () => {
 
   it("offers the connect key on a Connect-reachable connector once Connect is set up", () => {
     setVercelConnectAuth({ token: "vercel_token" });
+    connectRoadSeams.usesConnect = usesConnect;
+    connectRoadSeams.hasConnectRoute = hasConnectRoute;
+    notifyConnectRoads();
     try {
       render(<MfaStep />);
       for (const name of ["Resend", "SendGrid", "Twilio"]) {

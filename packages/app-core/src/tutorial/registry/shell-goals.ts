@@ -46,7 +46,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "client.command-bar"',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.command-bar" "Type a command here, or hold the mic to speak one. Voice language and freer phrasing are under Settings → Connections → AI models." side=bottom',
+      'focus "shell.command-bar" "Type a command: go to a section, search, or copy a field. Enter runs it." side=bottom',
       "end",
     ].join("\n"),
   },

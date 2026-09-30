@@ -43,6 +43,7 @@ import { useSupportRoute } from "../tutorial/session.js";
 import { CapabilitySetup } from "./capabilities/CapabilitySetup.js";
 import { KeepIt } from "./setup/KeepIt.js";
 import "./setup.css";
+import "./setup/steps/steps.css";
 
 import { useCompositionContributions } from "../bindings/capabilities.js";
 /** One tab: the fixed capabilities tab, or a `setup-panel` contribution. */

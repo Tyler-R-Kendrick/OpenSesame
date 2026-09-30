@@ -4,20 +4,13 @@
 // `catalog-always-on-local.ts`; `always-on.test.mjs` holds them equal.
 
 export const ALWAYS_ON_TITLES = new Set([
-  "Passkey records",
-  "Certificate records",
   "Import and export formats",
   "Cloud key services",
-  "External connectors",
-  "Access authority",
   "Ceremonies",
-  "Operator identity providers",
-  "Ambient single sign-on",
   "Activity log",
   "Guided help",
-  // Browser-local (ADR 0142).
-  "Browser-local IAM",
-  "Self-issued OpenID",
+  // Browser-local, and still always on (ADR 0142). Connections, Access,
+  // Identity and the extra item types are optional (ADR 0153).
   "Sign-in broker for sites",
   "Git remote backup",
 ]);

@@ -56,18 +56,16 @@ export async function checkFrontDoor(page, check, text, base) {
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onSetup = await snap(page, "A2-setup");
-  // Connectors and operator identity providers are always on (ADR 0135),
-  // so their tabs are here with nothing chosen; the AI and backup tabs still
-  // wait for their features.
+  // Connectors, identity and MFA panels register when those extensions are
+  // on (ADR 0153). A fresh device has only the capabilities step.
   const tabs = (await page.getByRole("tab").allTextContents())
     .map((text) => text.trim().toLowerCase())
     .sort();
   check(
     (await page
       .getByRole("tab", { name: "capabilities", selected: true })
-      .count()) === 1 &&
-      tabs.join(",") === "capabilities,connectors,identity,mfa",
-    `setup opens on the capabilities tab, beside only the always-on tabs (${tabs.join(", ")})`,
+      .count()) === 1 && tabs.join(",") === "capabilities",
+    `setup opens on the capabilities tab alone (${tabs.join(", ")})`,
   );
   check(
     (await page.getByLabel("Directory endpoint").count()) === 0,
@@ -109,11 +107,9 @@ export async function walkSetupCeremony(page, check, snap) {
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
   check(
-    // ADR 0142: the browser-local four are core. Fifteen optional
-    // capabilities since notifications.routing (ADR 0140 D9), sharing.live
-    // (ADR 0150), and the two runtime-installed plugins,
-    // agents.surrogate-credentials and vault.browser-autofill (ADR 0150 §7).
-    rows === 15,
+    // One card per optional capability. ADR 0153 moved Connections, Access,
+    // Identity and the derived item types onto that list; password reset is 25.
+    rows === 25,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

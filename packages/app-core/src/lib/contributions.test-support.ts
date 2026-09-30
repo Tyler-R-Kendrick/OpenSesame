@@ -6,12 +6,19 @@
  * the default, with nothing registered, is the core-only shell.
  */
 
+import { itemTypeRegistry, typeLabel } from "@opensesame/vault-core";
+import { directoryName } from "@opensesame/vault-item-types";
 import type { ComponentType } from "react";
 import type {
   SectionContribution,
   TreeProps,
 } from "./capabilities/runtime-contract.js";
 import { registerContributionForTest } from "./contributions.js";
+import {
+  DERIVED_ITEM_KINDS,
+  derivedKindOrder,
+  derivedKindSegment,
+} from "./derived-item-kinds.js";
 
 import {
   ACCESS_LABELS,
@@ -160,11 +167,25 @@ export function registerLegacyTabPaths(): () => void {
 }
 
 export function registerLegacyItemKinds(): () => void {
-  return revokeAll(
-    LEGACY_ITEM_KINDS.map((kind) =>
+  const registry = itemTypeRegistry();
+  const derived = DERIVED_ITEM_KINDS.flatMap((kind, index) => {
+    const definition = registry.get(kind);
+    if (definition === undefined) return [];
+    return [
+      registerContributionForTest("item-kind", {
+        kind,
+        label: typeLabel(kind),
+        segment: derivedKindSegment(kind, directoryName(definition)),
+        order: derivedKindOrder(kind, index),
+      }),
+    ];
+  });
+  return revokeAll([
+    ...LEGACY_ITEM_KINDS.map((kind) =>
       registerContributionForTest("item-kind", kind),
     ),
-  );
+    ...derived,
+  ]);
 }
 
 /**
