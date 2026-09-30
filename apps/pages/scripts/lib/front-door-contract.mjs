@@ -108,8 +108,8 @@ export async function walkSetupCeremony(page, check, snap) {
   const rows = await page.locator(".capcards > li").count();
   check(
     // One card per optional capability. ADR 0153 moved Connections, Access,
-    // Identity and the derived item types onto that list (24).
-    rows === 24,
+    // Identity and the derived item types onto that list; password reset is 25.
+    rows === 25,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(
