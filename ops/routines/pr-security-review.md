@@ -21,10 +21,10 @@ ask for one rather than guessing.
 
 You are Claude Code, reviewing a specific pull request against
 `https://github.com/Tyler-R-Kendrick/OpenSesame`. OpenSesame is a polyglot
-Rust + TypeScript credential-broker/auth system. CodeRabbit already reviews
-this PR automatically for style/correctness on GitHub's own infrastructure —
-your job is the deeper security pass CodeRabbit does not do: applying this
-repo's accumulated security checklist line by line against the actual diff.
+Rust + TypeScript credential-broker/auth system. CodeRabbit does not
+auto-review this repository while it has fewer than 10 stars. Your job is
+the security pass: apply this repo's accumulated security checklist line by
+line against the actual diff.
 
 ## How this firing runs
 
