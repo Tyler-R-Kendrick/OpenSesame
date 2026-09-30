@@ -78,7 +78,9 @@ describe("a connector page whose only road is closed on this device", () => {
   it("draws no Connect panel and no key, and its mark says nothing is here", () => {
     draw("linear");
     expect(
-      screen.queryByRole("heading", { name: "Connect", exact: true }),
+      screen.queryByRole("heading", {
+        name: (value: string) => value === "Connect",
+      }),
     ).toBeNull();
     expect(
       screen.queryByRole("button", { name: /Save configuration/ }),
@@ -94,7 +96,9 @@ describe("a key or a configuration seals on this device", () => {
   it("draws Better Auth's fields with no Host", () => {
     draw("better-auth");
     expect(
-      screen.getByRole("heading", { name: "Connect", exact: true }),
+      screen.getByRole("heading", {
+        name: (value: string) => value === "Connect",
+      }),
     ).toBeTruthy();
     expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
     expect(
@@ -109,7 +113,9 @@ describe("a key or a configuration seals on this device", () => {
     openHostRoad();
     draw("better-auth");
     expect(
-      screen.getByRole("heading", { name: "Connect", exact: true }),
+      screen.getByRole("heading", {
+        name: (value: string) => value === "Connect",
+      }),
     ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: /Save configuration/ }),

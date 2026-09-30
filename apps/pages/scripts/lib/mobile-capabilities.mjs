@@ -46,7 +46,10 @@ export async function chooseCapabilitiesHere(
       return;
     }
     if ((await capabilityOnSwitch(page, title).count()) !== 1) {
-      harness.check(false, `${title}: the switch did not turn the capability on`);
+      harness.check(
+        false,
+        `${title}: the switch did not turn the capability on`,
+      );
       return;
     }
   }

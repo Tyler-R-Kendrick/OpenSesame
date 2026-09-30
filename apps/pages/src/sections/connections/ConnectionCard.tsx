@@ -1,4 +1,3 @@
-import { publicConnectorFields } from "@opensesame/app-core/lib/device-connectors.js";
 import type {
   Connection,
   Provider,
@@ -9,6 +8,7 @@ import {
   openConsentPopup,
   revokeConnection,
 } from "@opensesame/app-core/lib/connections.js";
+import { publicConnectorFields } from "@opensesame/app-core/lib/device-connectors.js";
 import { isLocalGitRemoteId } from "@opensesame/app-core/lib/git-remote-local.js";
 import {
   type Flash,

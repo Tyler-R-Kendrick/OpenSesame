@@ -142,7 +142,9 @@ function expectedSecrets(provider: Provider): Record<string, string> {
     withoutApiKeyField(provider, values),
   );
   for (const [name, value] of Object.entries(payload)) {
-    if (secretNames(provider).has(name)) secrets[name] = value;
+    if (typeof value === "string" && secretNames(provider).has(name)) {
+      secrets[name] = value;
+    }
   }
   return secrets;
 }

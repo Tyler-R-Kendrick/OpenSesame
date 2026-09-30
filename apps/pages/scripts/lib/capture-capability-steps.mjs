@@ -41,7 +41,9 @@ export function capabilitySteps({ press, openSettings }) {
       await press(add.first());
       await page.waitForTimeout(400);
       if ((await page.getByTestId("capability-review").count()) !== 0) {
-        throw new Error(`capture-evidence propose("${title}"): a review opened`);
+        throw new Error(
+          `capture-evidence propose("${title}"): a review opened`,
+        );
       }
     },
     /**

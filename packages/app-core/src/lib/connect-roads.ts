@@ -18,8 +18,8 @@
  * seamed session state; the React shell subscribes and asks again.
  */
 
-import { catalogProvider } from "./connector-catalog.js";
 import type { AuthKind, Provider } from "./connections.js";
+import { catalogProvider } from "./connector-catalog.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import { HISTORY_BACKUP_GROUPS } from "./history-backups.js";
 import { hostBase, hostLocalSessionEligible } from "./identity.js";

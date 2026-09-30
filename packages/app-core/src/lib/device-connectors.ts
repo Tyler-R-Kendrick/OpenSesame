@@ -8,14 +8,14 @@
  */
 
 import { ConnectionsError } from "./connections-error.js";
-import { catalogProvider } from "./connector-catalog.js";
-import type { Connection, Provider } from "./connections.js";
-import type { GitRemoteConfiguration } from "./git-auth-modes.js";
-import { isGitBackupProvider } from "./git-backup-forges.js";
 import {
   localGitToConnection,
   mergeLocalGitConnections,
 } from "./connections-local-git.js";
+import type { Connection, Provider } from "./connections.js";
+import { catalogProvider } from "./connector-catalog.js";
+import type { GitRemoteConfiguration } from "./git-auth-modes.js";
+import { isGitBackupProvider } from "./git-backup-forges.js";
 import { rememberLocalGitRemote } from "./git-remote-local.js";
 import { isLocalGitRemoteId } from "./git-remote-local.js";
 import { bindHistoryConnection } from "./history-backups.js";
@@ -64,7 +64,9 @@ export function connectionCreateJson(body: SaveBody): string {
     ...(body.displayName ? { display_name: body.displayName } : undefined),
     ...(body.scopes ? { scopes: body.scopes } : undefined),
     ...(body.projectId ? { project_id: body.projectId } : undefined),
-    ...(body.integrationId ? { integration_id: body.integrationId } : undefined),
+    ...(body.integrationId
+      ? { integration_id: body.integrationId }
+      : undefined),
   });
 }
 
@@ -116,7 +118,8 @@ function readSecretMap(): Record<string, Record<string, string>> {
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {};
     return parsed as Record<string, Record<string, string>>;
   } catch {
     return {};
@@ -144,11 +147,18 @@ function latestFor(providerId: string): PublicRow | undefined {
     .at(-1);
 }
 
-const GIT_SECRET_KEYS = ["token", "password", "ssh_private_key", "ssh_passphrase"];
+const GIT_SECRET_KEYS = [
+  "token",
+  "password",
+  "ssh_private_key",
+  "ssh_passphrase",
+];
 
 function secretNames(providerId: string): Set<string> {
   const fields = catalogProvider(providerId)?.configurationFields ?? [];
-  const names = new Set(fields.filter((field) => field.secret).map((field) => field.name));
+  const names = new Set(
+    fields.filter((field) => field.secret).map((field) => field.name),
+  );
   if (isGitBackupProvider(providerId)) {
     for (const key of GIT_SECRET_KEYS) names.add(key);
   }
@@ -184,7 +194,9 @@ function toConnection(row: PublicRow): Connection {
 }
 
 function upsert(row: PublicRow, secrets: Record<string, string>): void {
-  const rows = readRows().filter((item) => item.connectionId !== row.connectionId);
+  const rows = readRows().filter(
+    (item) => item.connectionId !== row.connectionId,
+  );
   rows.push(row);
   writeRows(rows);
   const map = readSecretMap();
@@ -213,11 +225,15 @@ export function mergeOfflineConnections(rows: Connection[]): Connection[] {
   return [...withGit, ...local.filter((row) => !seen.has(row.connectionId))];
 }
 
-export function publicConnectorFields(connectionId: string): Record<string, string> {
+export function publicConnectorFields(
+  connectionId: string,
+): Record<string, string> {
   return { ...(findId(connectionId)?.fields ?? {}) };
 }
 
-export function renderedConnectorRecord(connection: Connection): RenderedConnector {
+export function renderedConnectorRecord(
+  connection: Connection,
+): RenderedConnector {
   return {
     connection,
     publicFields: publicConnectorFields(connection.connectionId),
@@ -258,7 +274,10 @@ export function createHostOrDevice(
   });
 }
 
-export function sealDeviceCredential(id: string, value: string): Connection | null {
+export function sealDeviceCredential(
+  id: string,
+  value: string,
+): Connection | null {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
   const secrets = { ...(readSecretMap()[id] ?? {}), credential: value };

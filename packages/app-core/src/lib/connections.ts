@@ -26,6 +26,7 @@ import {
   toIntegration,
 } from "./connections-integrations.js";
 import { revokeLocalGitConnection } from "./connections-local-git.js";
+import { providerFromView } from "./connector-catalog.js";
 import {
   connectionCreateJson,
   createHostOrDevice,
@@ -35,7 +36,6 @@ import {
   sealDeviceConfiguration,
   sealDeviceCredential,
 } from "./device-connectors.js";
-import { providerFromView } from "./connector-catalog.js";
 import {
   buildGithubAppRegistration,
   readLocalGithubApp,

@@ -1,7 +1,7 @@
 import { putBackupTarget } from "@opensesame/app-core/lib/backup.js";
-import {
-  type Connection,
-  type Provider,
+import type {
+  Connection,
+  Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { saveForgeConnector } from "@opensesame/app-core/lib/device-connectors.js";
 import {
@@ -50,7 +50,11 @@ async function persistGitRemote(
     displayName,
     configuration,
   });
-  await bindBackupRemote(input.provider.id, connection.connectionId, input.remoteUrl);
+  await bindBackupRemote(
+    input.provider.id,
+    connection.connectionId,
+    input.remoteUrl,
+  );
   return connection;
 }
 

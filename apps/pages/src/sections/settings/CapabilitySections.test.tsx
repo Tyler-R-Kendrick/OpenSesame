@@ -94,7 +94,9 @@ describe("sections — one list, one style, a switch only where something is opt
     expect(sharing.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(sharing);
     expect(screen.queryByTestId("capability-review")).toBeNull();
-    expect(screen.getByRole("list", { name: "Sharing capabilities" })).toBeTruthy();
+    expect(
+      screen.getByRole("list", { name: "Sharing capabilities" }),
+    ).toBeTruthy();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     const selected = double.commits[0]?.draft.selectedOptional ?? [];
     // Drops are always on, so the switch does not record them. Live
