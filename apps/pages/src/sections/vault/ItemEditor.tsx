@@ -26,7 +26,7 @@ import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff, IconX } from "../../components/Icons.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { EditorActions } from "./EditorActions.js";
-import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
+import { EditorExtras, GroupAdd } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { LoginFields } from "./LoginFields.js";
@@ -324,23 +324,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                 </IconKey>
               </div>
             </div>
-            <OptionalField
-              present={Boolean(draft.connectionRef)}
-              command="Add connection reference"
-            >
-              <div className="field">
-                <label htmlFor="connref">Connection reference</label>
-                <input
-                  id="connref"
-                  spellCheck={false}
-                  placeholder="conn_…"
-                  value={draft.connectionRef}
-                  onChange={(event) =>
-                    patch({ connectionRef: event.target.value })
-                  }
-                />
-              </div>
-            </OptionalField>
             <div className="field">
               <GroupAdd
                 label="Capability ceiling"

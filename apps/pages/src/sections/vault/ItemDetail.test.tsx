@@ -384,7 +384,7 @@ describe("ItemDetail", () => {
     expect(screen.getByText("4111 1111 1111 4242")).toBeTruthy();
   });
 
-  it("renders a secret with grantees, ceiling, and receipt line", async () => {
+  it("renders a secret value's grantees and ceiling", async () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Deploy hook"),
       value: "whsec_123",
@@ -405,15 +405,11 @@ describe("ItemDetail", () => {
     expect(
       screen.getByText("https://deploy.example.com/hooks/release"),
     ).toBeTruthy();
-    // Receipts lived on a server plane Pages no longer speaks (ed1d403d,
-    // ADR 0090/0128): the line says so and no lookup is attempted.
+    expect(screen.queryByText("Connection reference")).toBeNull();
     expect(
-      screen.getByText("Connection receipts are unavailable on this device."),
-    ).toBeTruthy();
+      screen.queryByRole("link", { name: /^Grant or invoke$/i }),
+    ).toBeNull();
     expect(listConnections).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("link", { name: /^Grant or invoke$/i }),
-    ).toBeTruthy();
     // The secret value stays concealed.
     expect(screen.queryByText("whsec_123")).toBeNull();
   });
@@ -430,12 +426,10 @@ describe("ItemDetail", () => {
     renderAt("itm_secret");
     expect(screen.getByText(/No ceiling set/)).toBeTruthy();
     expect(screen.getByText("None")).toBeTruthy();
+    expect(screen.queryByText("Connection reference")).toBeNull();
     expect(
-      await screen.findByText(/No ConnectionRef on this item/),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: /Authorize a connector first/i }),
-    ).toBeTruthy();
+      screen.queryByRole("link", { name: /Authorize a connector first/i }),
+    ).toBeNull();
   });
 
   it("never looks up receipts, whatever the Host or connection state", async () => {
@@ -470,11 +464,7 @@ describe("ItemDetail", () => {
         folders: [],
       };
       const view = renderAt("itm_secret");
-      expect(
-        await screen.findByText(
-          "Connection receipts are unavailable on this device.",
-        ),
-      ).toBeTruthy();
+      expect(screen.queryByText("Connection reference")).toBeNull();
       view.unmount();
     }
     expect(listConnections).not.toHaveBeenCalled();
@@ -638,7 +628,7 @@ describe("ItemDetail edge branches", () => {
     expect(screen.getByText("09/----")).toBeTruthy();
   });
 
-  it("falls back to the generic provider for a bare connection ref", () => {
+  it("does not turn a stored connection ref into a grant link", () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Hook"),
       value: "v",
@@ -648,8 +638,9 @@ describe("ItemDetail edge branches", () => {
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
+    expect(screen.queryByText("Connection reference")).toBeNull();
     expect(
-      screen.getByRole("link", { name: /^Grant or invoke$/i }),
-    ).toBeTruthy();
+      screen.queryByRole("link", { name: /^Grant or invoke$/i }),
+    ).toBeNull();
   });
 });

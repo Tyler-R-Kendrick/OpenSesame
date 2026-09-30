@@ -130,12 +130,13 @@ describe("identity graph", () => {
     expect(addPipe(provider({ authKind: "api_key" }))).toBe("key");
   });
 
-  it("builds a Host reminder that stores the ConnectionRef, not a token", () => {
+  it("builds a server reminder that stores the ConnectionRef, not a token", () => {
     const reminder = buildConnectorReminder(provider(), connection("active"));
-    expect(reminder.kind).toBe("secret");
-    if (reminder.kind === "secret") {
-      expect(reminder.connectionRef).toBe("conn://org/github/main");
-      expect(reminder.value).toBe("");
+    expect(reminder.kind).toBe("typed");
+    if (reminder.kind === "typed") {
+      expect(reminder.typeId).toBe("server");
+      expect(reminder.values.connectionRef).toBe("conn://org/github/main");
+      expect(reminder.values.password).toBe("");
     }
     expect(hasConnectorReminder([reminder], connection("active"))).toBe(true);
   });
@@ -167,7 +168,10 @@ describe("identity graph", () => {
       ["reminder", "Remember", "idle"],
     ]);
     expect(doors[1]?.href).toBe(`/vault/${login.id}`);
-    expect(doors[3]?.href).toContain("ref=conn%3A%2F%2Forg%2Fgithub%2Fmain");
+    expect(doors[3]?.href).toContain("/vault/new/server?");
+    expect(doors[3]?.href).toContain(
+      "field.connectionRef=conn%3A%2F%2Forg%2Fgithub%2Fmain",
+    );
   });
 
   it("prefills a vault login from the provider home", () => {
@@ -181,14 +185,17 @@ describe("identity graph", () => {
     expect(grantableAgentId("agt_release_bot")).toBe("agt_release_bot");
   });
 
-  it("adds an agent to a reminder without copying a token", () => {
-    const reminder = buildConnectorReminder(provider(), connection("active"));
+  it("adds an agent to a legacy secret reminder without copying a token", () => {
+    const reminder = createItem("secret", "GitHub connector");
+    if (reminder.kind === "secret") reminder.value = "";
     const granted = grantReminderToAgent(reminder, "agt_release_bot");
     expect(granted.kind).toBe("secret");
     if (granted.kind === "secret") {
       expect(granted.grantees).toEqual(["agt_release_bot"]);
       expect(granted.value).toBe("");
     }
+    const server = buildConnectorReminder(provider(), connection("active"));
+    expect(grantReminderToAgent(server, "agt_release_bot")).toBe(server);
   });
 });
 

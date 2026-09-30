@@ -36,6 +36,16 @@ export function acceptsDraftUsername(typeId: string): boolean {
   );
 }
 
+function acceptsConnectionRef(typeId: string): boolean {
+  const definition = itemTypeRegistry().get(typeId);
+  return (
+    definition !== undefined &&
+    definitionFields(definition).some(
+      (field) => field.id === "connectionRef" && field.type === "string",
+    )
+  );
+}
+
 /** An editable alias, not a claim about an existing account or real person. */
 export function generateDraftLabels(typeId: string): DraftLabels {
   const definition = itemTypeRegistry().get(typeId);
@@ -228,6 +238,8 @@ export function prefillNewDraft(
     if (acceptsDraftUsername(typeId))
       draft.values = { ...draft.values, username: prefill.username };
   }
-  if (draft.kind === "secret" && prefill.ref) draft.connectionRef = prefill.ref;
+  if (draft.kind === "typed" && prefill.ref && acceptsConnectionRef(typeId)) {
+    draft.values = { ...draft.values, connectionRef: prefill.ref };
+  }
   return draft;
 }

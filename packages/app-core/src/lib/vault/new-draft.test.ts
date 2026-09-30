@@ -138,16 +138,33 @@ describe("public link prefills", () => {
       prefillNewDraft(type, new URLSearchParams({ [`field.${field}`]: value })),
     ).toThrow("invalid_prefill");
   });
-  it("bounds the whole query and preserves compatible connection references", () => {
+  it("bounds the whole query and puts a connection reference on a server", () => {
     expect(() =>
       readDraftPrefill(new URLSearchParams({ name: "x".repeat(2049) })),
     ).toThrow("invalid_prefill");
+    const secret = prefillNewDraft(
+      "secret",
+      new URLSearchParams({ ref: "conn/github/pat" }),
+    );
+    expect(secret.kind === "secret" ? secret.connectionRef : "x").toBe("");
     expect(
       prefillNewDraft(
-        "secret",
+        "server",
         new URLSearchParams({ ref: "conn/github/pat" }),
       ),
-    ).toMatchObject({ connectionRef: "conn/github/pat" });
+    ).toMatchObject({
+      typeId: "server",
+      values: { connectionRef: "conn/github/pat" },
+    });
+    expect(
+      prefillNewDraft(
+        "database",
+        new URLSearchParams({ ref: "conn/github/pat" }),
+      ),
+    ).toMatchObject({
+      typeId: "database",
+      values: { connectionRef: "conn/github/pat" },
+    });
   });
   it("validates typed public fields against their manifest and rejects secret fields", () => {
     expect(

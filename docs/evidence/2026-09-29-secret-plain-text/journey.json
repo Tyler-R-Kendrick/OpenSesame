@@ -1,0 +1,83 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "measure": "button[aria-label='Add connection reference']" },
+        { "measure": "#secret-value" },
+        { "shot": "1280-secret" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "measure": "button[aria-label='Add connection reference']" },
+        { "measure": "#secret-value" },
+        { "shot": "390-secret" }
+      ]
+    },
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/server" },
+        { "measure": "button[aria-label='Add connection reference']" },
+        { "shot": "1280-server" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/server" },
+        { "measure": "button[aria-label='Add connection reference']" },
+        { "shot": "390-server" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-secret",
+      "width": 1280,
+      "title": "New secret — 1280 × 900",
+      "caption": "A secret is one concealed value. The connection reference control is not on this form.",
+      "before": "Add connection reference 199×30",
+      "after": "control absent; #secret-value stays 446×32"
+    },
+    {
+      "shot": "390-secret",
+      "width": 390,
+      "title": "New secret — 390 × 844",
+      "caption": "The same new-secret form at phone width.",
+      "before": "Add connection reference 199×44",
+      "after": "control absent; #secret-value stays 314×44"
+    },
+    {
+      "shot": "1280-server",
+      "width": 1280,
+      "title": "New server — 1280 × 900",
+      "caption": "A server item carries the connection reference.",
+      "before": "no connection reference control",
+      "after": "Add connection reference 199×30"
+    },
+    {
+      "shot": "390-server",
+      "width": 390,
+      "title": "New server — 390 × 844",
+      "caption": "The same new-server form at phone width.",
+      "before": "no connection reference control",
+      "after": "Add connection reference 199×44"
+    }
+  ]
+}
