@@ -35,6 +35,8 @@ export type VaultKeymapTarget = ListingMotion & {
   create: () => void;
   favorite: () => void;
   share: () => void;
+  restore?: () => void;
+  purge?: () => void;
 };
 
 export type RailKeymapTarget = ListingMotion;

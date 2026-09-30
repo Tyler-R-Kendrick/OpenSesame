@@ -268,7 +268,7 @@ than adding a second road. The `⋯` menu is the same list. A rail row offers
 open, expand/collapse, its directory's `config.yaml`, new item, copy link and
 **Show hidden items**; a Settings tab its directory's `config.yaml` too (the
 touch road, where the rail is a drawer of sections); a vault row its item verbs (`Enter e y u . s x`), or
-restore and delete in the trash; anywhere else the link, the selected text and
+restore (`r`) and delete (`X`) in the trash; anywhere else the link, the selected text and
 the page (back, forward, reload, command bar, keys, lock). A destructive entry
 asks twice, re-labelled in place, like the detail pane's delete key. While a
 menu is open it owns every key; Escape and Tab close it and hand focus back.
@@ -447,11 +447,12 @@ Pages copy never names a Host. A connector action that the browser can do
 itself — including creating a GitHub App — does not ask for a paired Host
 and does not tell the person to pair one.
 
-The vault pane always retains its top path-strip command group: **+**, import,
-export, each an icon key with an accessible name and tooltip. Empty, filtered,
-and trash views use the same group. Replacing it with text-labelled New item,
-Import, or Export buttons in an empty state is a hard design violation,
-enforced by `pnpm lint:design` and the vault render tests.
+The vault pane always retains its top path-strip command group, each an icon
+key with an accessible name and tooltip. Empty and filtered views use **+**,
+import, and export. The trash directory uses restore and delete. That listing
+does not add, import, or export. Replacing a group with text-labelled buttons
+is a hard design violation, enforced by `pnpm lint:design` and the vault
+render tests.
 
 ### Buttons
 Ink fill for the primary action (inverting to paper-on-ink in dark mode),
