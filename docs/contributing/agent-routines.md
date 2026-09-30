@@ -35,7 +35,7 @@ etiquette, fast turnaround, zero setup per PR. It does not run dependency
 scanners, does not maintain a security checklist grounded in this repo's own
 audit history, does not periodically re-scan surfaces nobody happens to be
 touching this week, and does not check whether root docs still match the
-tree. That is exactly the gap these four routine files close. The two layers
+tree. That is exactly the gap these routine files close. The two layers
 are complementary, not redundant: CodeRabbit is push-triggered and diff-only;
 these routines are time-triggered (three of them) or PR-triggered-on-request
 (the fourth) and read the whole repo, not just a diff.
@@ -53,7 +53,31 @@ to run, the same way this document restates context for you.
 | `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audits/YYYY-MM-DD-<topic>.md` + PR with any small fixes |
 | `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never an Actions workflow |
 | `ops/routines/weekly-docs-drift.md` | Weekly | Fix PR (`fix(docs): ...`) correcting stale references |
+| `ops/routines/weekly-agent-surface-drift.md` | Weekly | Fix PR for a capability that never gained a registry entry |
 | `ops/routines/pr-security-review.md` | On demand | One structured review comment on a named PR |
+
+## How a routine executes
+
+A firing follows `AGENTS.md` §9. The session does its editing in a
+copy-on-write git worktree `/home/codex/repos/opensesame-<routine>` branched
+from the latest `origin/main` (`git worktree add` shares the object
+database). It uses the existing pnpm store and
+`CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target`, and it does not copy
+`node_modules` or `target/` into that worktree.
+
+Independent findings run together through `.grok/workflows/task-swarm.rhai`:
+one agent per disjoint set of files, and the parent integrates. Each logical
+slice is its own GitHub-verified commit (`createCommitOnBranch`) on a stacked
+pull request. After each commit the session runs `df -h /` and deletes only
+the scratch and build output that commit created. `/tmp/os-wallet-ship`, the
+Host on `127.0.0.1:8787`, and unrelated worktrees stay in place.
+
+When the stack is finished the session self-reviews, resolves review threads,
+and squash-merges into `origin/main` only after TypeScript, Rust, and Bundle
+budgets are green. It then removes the worktree and deletes the merged
+branches. Copilot review requests on this repository return HTTP 422, and
+CodeRabbit does not auto-review while the repository has fewer than 10 stars,
+so the self-review is the review the firing waits on.
 
 ## Registering the three scheduled routines
 

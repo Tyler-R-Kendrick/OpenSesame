@@ -6,7 +6,7 @@ session with no memory of prior runs** — everything you need is below.
 
 ## Who you are and where you are
 
-You are Claude Code, working alone in a fresh clone of
+You are Claude Code, in a copy-on-write worktree of
 `https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust + TypeScript monorepo whose agent surfaces (the MCP servers
 `packages/mcp-host` and `packages/mcp-client`, and the WebMCP tools in
@@ -17,6 +17,27 @@ an implemented tool list drifts from the registry — what they *cannot* see is
 a feature that never gained a registry entry at all. That blind spot is your
 job.
 
+## How this firing runs
+
+Follow AGENTS.md §9. Do the work in a copy-on-write git worktree
+`/home/codex/repos/opensesame-<routine>` branched from the latest `origin/main`
+(`git worktree add` shares the object database; do not full-clone). Share the
+pnpm store (`pnpm store path`) and set
+`CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target`. Do not copy
+`node_modules` or `target/` into the worktree.
+
+Independent findings run together through `.grok/workflows/task-swarm.rhai`:
+one agent per disjoint file set, parent integrates. Land each logical slice
+as its own GitHub-verified commit (`createCommitOnBranch`) on a stacked pull
+request. After each commit, run `df -h /` and delete only the scratch and
+build output that commit created. Leave `/tmp/os-wallet-ship`, the Host on
+`127.0.0.1:8787`, and unrelated worktrees in place.
+
+When the stack is finished, self-review, resolve review threads, and
+squash-merge into `origin/main` only after TypeScript, Rust, and Bundle
+budgets are green. Then `git worktree remove` the worktree and delete the
+merged branches. Copilot review requests on this repository return HTTP 422.
+CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 ## Hard rules (apply on every firing, no exceptions)
 
 - **This routine never becomes a GitHub Actions job.** `.github/workflows/`
