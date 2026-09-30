@@ -25,6 +25,12 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  type FeatureRequest,
+  currentUse,
+  rememberUses,
+  savedFeatureRequests,
+} from "@opensesame/app-core/lib/feature-request.js";
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
 import { watchWalletAssignmentScope } from "@opensesame/app-core/lib/wallet-assignments.js";
@@ -53,6 +59,21 @@ export function applySavedWalletConnectors(): FeatureOperation[] {
   return applySavedConnectors(["wallet"], savedWalletOperation);
 }
 
+let walletReady: FeatureRequest[] = [];
+
+/** Arm wallet connectors saved on this device. Payment credentials are never stored. */
+export function startWalletConnectors(): FeatureRequest[] {
+  walletReady = rememberUses(savedFeatureRequests(["wallet"]));
+  return walletReady.map((use) => walletOperation(use.providerId));
+}
+
+export function walletOperation(providerId: string): FeatureRequest {
+  if (!walletReady.some((use) => use.ok && use.providerId === providerId)) {
+    return { ok: false, providerId };
+  }
+  return currentUse(providerId);
+}
+
 export const TUTORIAL = {
   targets: WALLET_TARGETS,
   routes: WALLET_ROUTES,
@@ -63,7 +84,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    applySavedWalletConnectors();
+    walletReady = startWalletConnectors();
 
     // The wallet's three tomb-scoped caches follow the active tomb only
     // while this capability is active; dispose unsubscribes all three.

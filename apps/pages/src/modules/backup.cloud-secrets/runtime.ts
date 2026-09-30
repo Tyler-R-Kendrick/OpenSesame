@@ -21,6 +21,12 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  type FeatureRequest,
+  currentUse,
+  rememberUses,
+  savedFeatureRequests,
+} from "@opensesame/app-core/lib/feature-request.js";
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { createActivation } from "../activation.js";
 
@@ -40,11 +46,27 @@ export function applySavedStorageConnectors(): FeatureOperation[] {
   );
 }
 
+let storageReady: FeatureRequest[] = [];
+
+export function startStorageConnectors(): FeatureRequest[] {
+  storageReady = rememberUses(
+    savedFeatureRequests(["cloud_secret_storage", "encryption"]),
+  );
+  return storageReady.map((use) => storageOperation(use.providerId));
+}
+
+export function storageOperation(providerId: string): FeatureRequest {
+  if (!storageReady.some((use) => use.ok && use.providerId === providerId)) {
+    return { ok: false, providerId };
+  }
+  return currentUse(providerId);
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
-    applySavedStorageConnectors();
+    storageReady = startStorageConnectors();
     return activation.handle();
   },
 };

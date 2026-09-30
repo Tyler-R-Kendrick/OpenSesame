@@ -28,6 +28,12 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  type FeatureRequest,
+  currentUse,
+  rememberUses,
+  savedFeatureRequests,
+} from "@opensesame/app-core/lib/feature-request.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { IDENTITY_READ_TOOL } from "@opensesame/app-core/webmcp/identity-tools.js";
@@ -55,6 +61,22 @@ export function applySavedIdentityConnectors(): FeatureOperation[] {
   return applySavedConnectors(["identity"], savedIdentityOperation);
 }
 
+let identityReady: FeatureRequest[] = [];
+
+/** Arm every identity connector saved on this device. Nothing saved is omitted. */
+export function startIdentityConnectors(): FeatureRequest[] {
+  identityReady = rememberUses(savedFeatureRequests(["identity"]));
+  return identityReady.map((use) => identityOperation(use.providerId));
+}
+
+/** The identity request the feature sends. Fails closed when nothing is armed. */
+export function identityOperation(providerId: string): FeatureRequest {
+  if (!identityReady.some((use) => use.ok && use.providerId === providerId)) {
+    return { ok: false, providerId };
+  }
+  return currentUse(providerId);
+}
+
 /** The Identity tabs this capability puts on the page. */
 export const IDENTITY_VIEWS_OWNED = ["providers"] as const;
 
@@ -77,7 +99,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    applySavedIdentityConnectors();
+    identityReady = startIdentityConnectors();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
     // The Identity API's organization directory: `lib/orgs.ts` declares the

@@ -27,6 +27,7 @@ import {
 import { getLocalGitRemote } from "./git-remote-local.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
+import { savedForgeCredentials } from "./saved-git-backup.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,
@@ -210,6 +211,13 @@ type ForgeCredentials = {
   username: string | null;
 };
 
+export {
+  type SavedGitBackup,
+  bindSavedGitBackup,
+  resetSavedGitBackupForTest,
+  savedGitBackupUse,
+} from "./saved-git-backup.js";
+
 function readSecretToken(value: string): string {
   try {
     const secrets: JsonObject = overlapCast(JSON.parse(value));
@@ -236,16 +244,23 @@ function resolveForgeId(
   return null;
 }
 
-function resolveForgeCredentialsDefault(
-  target: LocalBackupTarget,
-): ForgeCredentials | null {
-  const connectionId = target.connectionId;
+function httpsRemote(connectionId: string | null) {
   if (!connectionId) return null;
   const remote = getLocalGitRemote(connectionId);
-  if (!remote || !remote.secretItemId) return null;
+  if (!remote?.secretItemId) return null;
   if (remote.authMode !== "https_token" && remote.authMode !== "https_basic") {
     return null;
   }
+  return remote;
+}
+
+function resolveForgeCredentialsDefault(
+  target: LocalBackupTarget,
+): ForgeCredentials | null {
+  const fromSaved = savedForgeCredentials(target.providerId ?? "");
+  if (fromSaved) return fromSaved;
+  const remote = httpsRemote(target.connectionId);
+  if (!remote) return null;
   const { status, items } = vaultStore.getSnapshot();
   if (status !== "unlocked") return null;
   const item = items.find((row) => row.id === remote.secretItemId);

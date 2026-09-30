@@ -17,6 +17,7 @@ export function applySavedConnectors(
   for (const row of listDeviceConnections()) {
     const provider = catalogProvider(row.providerId);
     if (!provider || !wanted.has(provider.category)) continue;
+    if (provider.id !== row.providerId) provider.id = row.providerId;
     const operation = run(provider);
     if (operation.ok) applied.push(operation);
   }
