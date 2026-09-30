@@ -8,9 +8,9 @@ layers, described in `CONTRIBUTING.md` under "Gates":
 
 1. **Local git hooks** (`.githooks/` + `scripts/dev/setup-hooks.sh`) — run on
    every commit and push, on the contributor's own machine.
-2. **CodeRabbit** — already installed as a GitHub App, reviews every pull
-   request's diff for style and correctness on its own infrastructure, not
-   billed against Actions minutes.
+2. **CodeRabbit** — installed as a GitHub App. On this repository it skips
+   automatic review while the repo has fewer than 10 stars and posts a
+   manual-review notice. A firing does not wait on it.
 3. **This layer: standing autonomous agent routines** — Claude Code cloud
    scheduled sessions ("Routines") that run the deeper, periodic work no
    human or CodeRabbit pass covers: dependency/secret scanning triage, a
@@ -29,16 +29,14 @@ subscription, the same as a normal interactive session — no new billing
 relationship, no new paid service, no marketplace app to install beyond what
 `add_repo`/session access already requires.
 
-**Interplay with CodeRabbit:** CodeRabbit reviews the diff of every PR
-automatically, the moment it's opened — style, obvious bugs, review
-etiquette, fast turnaround, zero setup per PR. It does not run dependency
+**Interplay with CodeRabbit:** The app is installed. While this repository
+has fewer than 10 stars it skips the diff. It does not run dependency
 scanners, does not maintain a security checklist grounded in this repo's own
 audit history, does not periodically re-scan surfaces nobody happens to be
 touching this week, and does not check whether root docs still match the
-tree. That is exactly the gap these four routine files close. The two layers
-are complementary, not redundant: CodeRabbit is push-triggered and diff-only;
-these routines are time-triggered (three of them) or PR-triggered-on-request
-(the fourth) and read the whole repo, not just a diff.
+tree. That is the gap these routine files close. The scheduled routines are
+time-triggered, and `pr-security-review` is invoked on demand. Both read the
+repo beyond a single diff.
 
 ## The routine files
 
@@ -53,7 +51,31 @@ to run, the same way this document restates context for you.
 | `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audits/YYYY-MM-DD-<topic>.md` + PR with any small fixes |
 | `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never an Actions workflow |
 | `ops/routines/weekly-docs-drift.md` | Weekly | Fix PR (`fix(docs): ...`) correcting stale references |
+| `ops/routines/weekly-agent-surface-drift.md` | Weekly | Fix PR for a capability that never gained a registry entry |
 | `ops/routines/pr-security-review.md` | On demand | One structured review comment on a named PR |
+
+## How a routine executes
+
+A firing follows `AGENTS.md` §9. The session does its editing in a
+copy-on-write git worktree `/home/codex/repos/opensesame-<routine>` branched
+from the latest `origin/main` (`git worktree add` shares the object
+database). It uses the existing pnpm store and
+`CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target`, and it does not copy
+`node_modules` or `target/` into that worktree.
+
+Independent findings run together through `.grok/workflows/task-swarm.rhai`:
+one agent per disjoint set of files, and the parent integrates. Each logical
+slice is its own GitHub-verified commit (`createCommitOnBranch`) on a stacked
+pull request. After each commit the session runs `df -h /` and deletes only
+the scratch and build output that commit created. `/tmp/os-wallet-ship`, the
+Host on `127.0.0.1:8787`, and unrelated worktrees stay in place.
+
+When the stack is finished the session self-reviews, resolves review threads,
+and squash-merges into `origin/main` only after TypeScript, Rust, and Bundle
+budgets are green. It then removes the worktree and deletes the merged
+branches. Copilot review requests on this repository return HTTP 422, and
+CodeRabbit does not auto-review while the repository has fewer than 10 stars,
+so the self-review is the review the firing waits on.
 
 ## Registering the three scheduled routines
 
@@ -180,7 +202,7 @@ none was given, rather than guessing.
   Routine with `update_trigger(trigger_id: ..., prompt: <new file contents>)`
   rather than deleting and recreating — that keeps the Routine's id and run
   history intact.
-- **No secrets in the prompt.** None of the four routine files embed a
+- **No secrets in the prompt.** None of the routine files embed a
   credential — they authenticate as whatever the firing session's own
   environment/GitHub access already provides (the same `gh`/`git` access an
   interactive Claude Code session in this environment has). Do not paste an
