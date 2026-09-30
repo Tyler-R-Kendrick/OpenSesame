@@ -103,6 +103,7 @@ describe("clearDatabases", () => {
     expect(databases.deleted).toEqual([
       "opensesame-history-backups",
       "opensesame-at-rest",
+      "opensesame-password-history",
     ]);
     expect([...databases.live]).toEqual(["x"]);
   });

@@ -68,7 +68,7 @@ import {
   toggleFavorite,
 } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
-import { writeItem } from "./item-path.js";
+import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
 import {
   probePasskeyPrf,
@@ -1363,23 +1363,20 @@ export class VaultStore {
 
   // —— items ————————————————————————————————————————————————
 
-  async saveItem(item: VaultItem, folder?: Folder): Promise<void> {
-    await this.#mutate((body) => {
-      writeItem(body, item, folder);
-    });
+  saveItem(item: VaultItem, folder?: Folder): Promise<void> {
+    return writeSavedItems(this.#writes(), [item], folder);
   }
 
-  /**
-   * Write several items as one change: one seal, one file write, and one
-   * link in the write chain. An import must land whole or not at all — a
-   * loop of `saveItem` leaves half an import behind when the quota runs
-   * out, the write fails, or the tab loses its handle (ADR 0130, SB-069).
-   */
-  async saveItems(items: readonly VaultItem[]): Promise<void> {
-    if (items.length === 0) return;
-    await this.#mutate((body) => {
-      for (const item of items) writeItem(body, item);
-    });
+  saveItems(items: readonly VaultItem[]): Promise<void> {
+    return writeSavedItems(this.#writes(), items);
+  }
+
+  #writes(): ItemWriteHost {
+    return {
+      tomb: this.#scope.tomb,
+      items: this.#body.items,
+      mutate: (change) => this.#mutate(change),
+    };
   }
 
   async trashItem(id: string): Promise<void> {

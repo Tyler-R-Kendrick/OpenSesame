@@ -158,12 +158,21 @@ describe("SB-069 a vault import lands whole or not at all", () => {
   // (`sections/settings/sops/useVaultSecrets.boundary.test.ts`).
   it("the store's batch write is one change", () => {
     const store = readFileSync(join(coreSrc, "lib/vault/store.ts"), "utf8");
-    const batch = store.slice(
-      store.indexOf("async saveItems("),
-      store.indexOf("async trashItem("),
+    const saveStart = store.indexOf("saveItems(items:");
+    const saveItems = store.slice(
+      saveStart,
+      store.indexOf("#writes():", saveStart),
     );
-    expect(batch).toMatch(/#mutate/u);
-    expect(batch.match(/#mutate/gu)).toHaveLength(1);
+    expect(saveItems).toMatch(/return writeSavedItems\(/u);
+    expect(saveItems).not.toMatch(/#mutate/u);
+    const writes = readFileSync(
+      join(coreSrc, "lib/vault/item-writes.ts"),
+      "utf8",
+    );
+    const batch = writes.slice(
+      writes.indexOf("export async function writeSavedItems("),
+    );
+    expect(batch.match(/host\.mutate\(/gu)).toHaveLength(1);
   });
 
   it("a failed write restores the previous body rather than leaving memory ahead", () => {

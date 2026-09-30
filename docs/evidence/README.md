@@ -50,6 +50,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-29-trash-commands/`](2026-09-29-trash-commands/README.md) | Trash commands |
 | [`2026-09-29-secret-plain-text/`](2026-09-29-secret-plain-text/README.md) | Secret is one concealed value |
 | [`2026-09-29-password-reset/`](2026-09-29-password-reset/README.md) | Password reset mailboxes |
+| [`2026-09-29-password-history/`](2026-09-29-password-history/README.md) | Retired passwords stay retired |
 | [`2026-09-29-minimal-pwa-sections/`](2026-09-29-minimal-pwa-sections/README.md) | Minimal PWA sections |
 | [`2026-09-29-live-session-edit/`](2026-09-29-live-session-edit/README.md) | Authorized edit on a live session |
 | [`2026-09-29-item-shares/`](2026-09-29-item-shares/README.md) | A drop is a share of an item |
