@@ -779,25 +779,6 @@ function ItemFields({
               />
               <UpdateSecretPanel label="secret" onUpdate={onUpdateSecret} />
             </FieldRow>
-            {item.connectionRef ? (
-              <FieldRow
-                label="Connection reference"
-                actions={
-                  <CopyButton
-                    value={item.connectionRef}
-                    label="connection reference"
-                    fieldKey="connref"
-                    copied={copied}
-                    failed={failed}
-                    onCopy={copy}
-                  />
-                }
-              >
-                <span className="frow__value frow__value--mono">
-                  {item.connectionRef}
-                </span>
-              </FieldRow>
-            ) : null}
             <FieldRow label="Grantees">
               <span className="frow__value">
                 {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
@@ -824,35 +805,7 @@ function ItemFields({
             )}
           </section>
 
-          <section className="detail__group">
-            <h2 className="detail__grouphead">Last receipt</h2>
-            <LastReceipt connectionRef={item.connectionRef} />
-          </section>
-
-          <div className="actions">
-            {item.connectionRef ? (
-              <Link
-                className="btn btn--primary btn--sm"
-                to={`/connections/${providerIdFromRef(item.connectionRef)}`}
-              >
-                Grant or invoke
-              </Link>
-            ) : (
-              <Link className="btn btn--sm" to="/connections">
-                Authorize a connector first
-              </Link>
-            )}
-          </div>
-
           <SecretShares item={item} initialOpen={shareInitiallyOpen} />
-
-          <div className="note">
-            <span>
-              You can reveal this value; an agent never can. An agent receives a
-              ConnectionRef, invokes through OpenSesame, and returns a receipt.
-              There is no getSecret().
-            </span>
-          </div>
         </>
       );
 
@@ -969,17 +922,4 @@ function ItemFields({
   }
 }
 
-function providerIdFromRef(ref: string): string {
-  const parts = ref.split("/").filter(Boolean);
-  return parts.length >= 2 ? (parts[parts.length - 2] ?? "github") : "github";
-}
-
-function LastReceipt({ connectionRef }: { connectionRef: string }) {
-  // Pages is complete without a Host (ADR 0090) — ConnectionRef receipts
-  // lived on the Host plane and have no local substitute here.
-  const line = !connectionRef
-    ? "No ConnectionRef on this item."
-    : "Connection receipts are unavailable on this device.";
-  return <p className="frow__notes">{line}</p>;
-}
 import { loginWebsiteLink } from "@opensesame/app-core/lib/vault/website-pattern.js";

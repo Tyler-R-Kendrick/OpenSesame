@@ -735,7 +735,6 @@
       "type": "secret",
       "values": {
         "value": "a\nb",
-        "connectionRef": "",
         "grantees": []
       },
       "entry": {

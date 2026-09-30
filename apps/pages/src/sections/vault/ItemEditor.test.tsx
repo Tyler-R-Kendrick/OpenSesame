@@ -321,9 +321,17 @@ describe("ItemEditor", () => {
     expect(screen.getByDisplayValue("https://mail.example.com")).toBeTruthy();
   });
 
-  it("prefills a new secret connection reference from the query", () => {
+  it("does not offer a connection reference on a secret", () => {
     renderEditor("/vault/new/secret?name=Token&ref=conn/github/pat");
-    expect(inputByLabel(/Connection reference/i).value).toBe("conn/github/pat");
+    expect(screen.queryByLabelText(/Connection reference/i)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add connection reference" }),
+    ).toBeNull();
+  });
+
+  it("offers a connection reference on a server", () => {
+    renderEditor("/vault/new/server");
+    expect(screen.getByLabelText(/Connection reference/i)).toBeTruthy();
   });
 
   it("prefills a new passkey relying party from the query", () => {
@@ -478,28 +486,20 @@ describe("ItemEditor", () => {
     expect(saved.passwordChangedAt).toBe("2026-08-01T00:00:00Z");
   });
 
-  it("saves a secret's connection reference on this device alone", async () => {
-    // ADR 0128: the reference is sealed locally; nothing is compiled or sent.
+  it("saves a secret value and leaves the connection reference empty", async () => {
     const sent = vi.spyOn(globalThis, "fetch");
-    renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add connection reference" }),
-    );
+    renderEditor("/vault/new/secret?ref=conn/github/pat");
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
     await userEvent.clear(screen.getByLabelText(/Secret value/i));
     await userEvent.type(screen.getByLabelText(/Secret value/i), "whsec_1");
-    await userEvent.type(
-      screen.getByLabelText(/Connection reference/i),
-      "conn/github/pat",
-    );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     expect(await screen.findByText("navigated away")).toBeTruthy();
     const saved = savedItem();
     if (saved.kind !== "secret") throw new Error("expected saved secret");
     expect(saved.name).toBe("Deploy hook");
     expect(saved.value).toBe("whsec_1");
-    expect(saved.connectionRef).toBe("conn/github/pat");
+    expect(saved.connectionRef).toBe("");
     expect(sent).not.toHaveBeenCalled();
     sent.mockRestore();
   });
