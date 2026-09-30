@@ -47,6 +47,11 @@ import {
 } from "@opensesame/app-core/webmcp/connections-tools.js";
 import { resetConnectionsNavigation } from "../../components/ConnectionsNavigation.js";
 import { ConnectionsTreeEntries } from "../../components/ConnectionsTree.js";
+import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
+import {
+  savedLocalStorageOperation,
+  savedPasswordManagerOperation,
+} from "../../lib/local-connector-features.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
 import {
@@ -104,6 +109,8 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
+    applySavedConnectors(["password_managers"], savedPasswordManagerOperation);
+    applySavedConnectors(["local_storage"], savedLocalStorageOperation);
 
     activation.register("section", {
       id: "connections",

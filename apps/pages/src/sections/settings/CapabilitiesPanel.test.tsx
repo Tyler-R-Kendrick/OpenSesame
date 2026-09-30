@@ -49,15 +49,12 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     ).toBeNull();
   });
 
-  it("switching a capability off reviews, then commits with the root removed", async () => {
+  it("switching a capability off commits in place with the root removed", async () => {
     renderPanel();
     fireEvent.click(
       screen.getByRole("switch", { name: "Agent tools (WebMCP)" }),
     );
-    expect(screen.getByTestId("capability-review").textContent).toContain(
-      "Agent tools (WebMCP)",
-    );
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).toEqual([
       "vault.passkey-records",
@@ -65,13 +62,10 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     expect(double.disabled).toHaveLength(0);
   });
 
-  it("switching a capability on reviews, then commits with the root added — a choice is not one-way", async () => {
+  it("switching a capability on commits in place with the root added — a choice is not one-way", async () => {
     renderPanel();
     fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
-    expect(screen.getByTestId("capability-review").textContent).toContain(
-      "Household sharing",
-    );
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).toContain(
       "sharing.household",
@@ -93,15 +87,10 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     capabilitiesPanelSeams.now = () => "2026-09-10T00:00:00.000Z";
     renderPanel();
     fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
-    fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
-    // The double records a commit when it is asked, not when it settles, and
-    // the review stays up until Apply's commit has settled. Wait for the
-    // tiles to come back, not for the record.
     fireEvent.click(
       await screen.findByRole("switch", { name: "Agent tools (WebMCP)" }),
     );
-    fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(2));
     expect(double.commits[1]?.draft.revision).not.toEqual(
       double.commits[0]?.draft.revision,

@@ -128,7 +128,6 @@ async function visit(page, route) {
 async function networkingOn(page) {
   await visit(page, "settings/capabilities");
   await page.getByRole("switch", { name: "Networking", exact: true }).click();
-  await page.getByTestId("capability-apply").click();
   await page
     .getByTestId("capability-review")
     .waitFor({ state: "detached", timeout: 20_000 });

@@ -75,16 +75,16 @@ afterEach(() => {
 });
 
 describe("a connector page on a device with no Host", () => {
-  it("offers a key only where a road is open: a Host-only form is not drawn", async () => {
+  it("draws a configuration form on this device", async () => {
     renderAt("/connections/better-auth");
     await screen.findByRole("heading", { name: "Better Auth" });
     expect(
-      screen.queryByRole("button", { name: /Save configuration/ }),
-    ).toBeNull();
-    expect(screen.queryByLabelText(/Base URL/)).toBeNull();
-    expect(
-      screen.getByRole("img", { name: "Not available here" }),
+      screen.getByRole("button", { name: /Save configuration/ }),
     ).toBeTruthy();
+    expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
+    expect(
+      screen.queryByRole("img", { name: "Not available here" }),
+    ).toBeNull();
     expect(listNotices()).toEqual([]);
   });
 

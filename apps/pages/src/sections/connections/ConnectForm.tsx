@@ -141,6 +141,10 @@ export function ConnectForm({
       { name, scopes: scopes.length > 0 ? scopes : undefined },
       async (connection) => {
         await setConnectionCredential(connection.connectionId, apiKey.trim());
+        const payload = configurationPayload(provider, configuration);
+        if (Object.keys(payload).length > 0) {
+          await setConnectionConfiguration(connection.connectionId, payload);
+        }
       },
       provider.id === "github"
         ? "GitHub connected."
@@ -198,11 +202,15 @@ export function ConnectForm({
         provider={provider}
         name={name}
         apiKey={apiKey}
+        values={configuration}
         busy={busy}
         online={online}
         failure={sealing.failure}
         onName={setName}
         onApiKey={setApiKey}
+        onValue={(field, value) =>
+          setConfiguration((current) => ({ ...current, [field]: value }))
+        }
         onSubmit={(event) => void saveKey(event)}
       />
     );

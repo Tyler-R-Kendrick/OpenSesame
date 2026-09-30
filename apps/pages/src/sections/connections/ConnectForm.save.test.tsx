@@ -83,12 +83,12 @@ async function fillBetterAuth() {
 }
 
 describe("a configuration form with no road open", () => {
-  it("is not drawn: a Save that can only fail is not offered", () => {
+  it("is drawn on this device", () => {
     const { onFlash } = drawBetterAuth();
     expect(
-      screen.queryByRole("button", { name: /Save configuration/ }),
-    ).toBeNull();
-    expect(screen.queryByLabelText(/Base URL/)).toBeNull();
+      screen.getByRole("button", { name: /Save configuration/ }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
     expect(onFlash).not.toHaveBeenCalled();
   });
 
@@ -218,7 +218,7 @@ describe("an API key save that fails", () => {
     expect(onConnected).not.toHaveBeenCalled();
   });
 
-  it("is not drawn at all with no road open", () => {
+  it("is drawn on this device with no road open", () => {
     Object.assign(identitySeams, originalIdentity);
     render(
       <ConnectForm
@@ -228,7 +228,7 @@ describe("an API key save that fails", () => {
         onConnected={vi.fn()}
       />,
     );
-    expect(screen.queryByLabelText("API key")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Connect Lithic/ })).toBeNull();
+    expect(screen.getByLabelText("API key")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Connect Lithic/ })).toBeTruthy();
   });
 });

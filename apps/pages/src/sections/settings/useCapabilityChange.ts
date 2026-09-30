@@ -1,11 +1,10 @@
 /**
  * One change to what this installation runs, from switch to commit.
  *
- * A section's switch and a capability tile's switch both end here: they propose the
- * optional roots the installation should have, the store reviews that
- * selection, and only Apply commits it with a consent receipt — the same
- * ceremony whether one capability or a whole feature moves. Nothing is
- * fetched or activated before Apply (CONSENT-01).
+ * A section's switch and a capability tile's switch both end here: they
+ * commit the optional roots in place, with the consent receipt the plan
+ * earns. The page stays on its connector list. Nothing is fetched or
+ * activated before that commit (CONSENT-01).
  */
 
 import type { FeatureProposal } from "@opensesame/app-core/lib/capabilities/features.js";
@@ -78,23 +77,15 @@ export async function commitProposal(
 
 export function useCapabilityChange() {
   const snapshot = useComposition();
-  const [pending, setPending] = useState<FeatureProposal | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const review = pending
-    ? capabilityPorts.compositionStore.review(selectionFor(snapshot, pending))
-    : null;
 
-  /** Commit the roots the switch proposed — added or removed, one ceremony. */
-  async function apply(): Promise<void> {
-    if (!pending) return;
+  /** The switch commits in place. The page stays on its connector list. */
+  function propose(proposal: FeatureProposal): void {
     setBusy(true);
-    try {
-      setNotice(await commitProposal(snapshot, pending));
-    } finally {
-      setBusy(false);
-      setPending(null);
-    }
+    void commitProposal(snapshot, proposal)
+      .then((next) => setNotice(next))
+      .finally(() => setBusy(false));
   }
 
   const current: FeatureProposal = {
@@ -104,12 +95,12 @@ export function useCapabilityChange() {
   return {
     snapshot,
     current,
-    review,
+    review: null,
     busy,
     notice,
-    propose: (proposal: FeatureProposal) => setPending(proposal),
-    cancel: () => setPending(null),
-    apply,
+    propose,
+    cancel: () => setNotice(null),
+    apply: () => Promise.resolve(),
   };
 }
 

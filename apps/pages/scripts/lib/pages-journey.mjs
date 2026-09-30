@@ -4,6 +4,7 @@ import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
+  capabilityOnSwitch,
 } from "./always-on.mjs";
 import { passTheDoor } from "./front-door.mjs";
 export const PASSWORD = "correct horse battery staple 2026";
@@ -70,8 +71,8 @@ export async function openSection(page, label) {
 }
 
 /**
- * Choose capabilities the way a person does — Settings › Capabilities, the
- * capability's switch, Apply. A device that has approved nothing has no rail row for the sections
+ * Choose capabilities the way a person does — Settings › Capabilities and
+ * the capability's switch, which commits in place. A device that has approved nothing has no rail row for the sections
  * those capabilities contribute (ADR 0130), so a walk that needs one says
  * which it needs instead of pretending the row is there.
  */
@@ -84,10 +85,11 @@ export async function addCapabilities(page, titles) {
     const add = capabilityOffSwitch(page, title);
     await add.waitFor({ timeout: 15000 });
     await add.click();
-    const review = page.getByTestId("capability-review");
-    await review.waitFor({ timeout: 10000 });
-    await page.getByTestId("capability-apply").click();
-    await review.waitFor({ state: "detached", timeout: 15000 });
+    await page.getByTestId("capability-review").waitFor({
+      state: "detached",
+      timeout: 15000,
+    });
+    await capabilityOnSwitch(page, title).waitFor({ timeout: 15000 });
   }
 }
 

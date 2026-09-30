@@ -58,10 +58,9 @@ function tileNames(list: string): string[] {
 }
 
 describe("connector tiles on a device with no Host", () => {
-  it("draw only the connectors whose page has something to do", () => {
+  it("draws a key or a configuration with no Host and no Connect credential", () => {
     renderPanel();
-    // Connect-only panels wait for the Connections extension (ADR 0153).
-    for (const gone of [
+    for (const name of [
       "WorkOS",
       "Auth0",
       "Doppler",
@@ -71,26 +70,31 @@ describe("connector tiles on a device with no Host", () => {
       "Tailscale",
       "AWS Parameter Store",
     ]) {
-      expect(screen.queryByText(gone), gone).toBeNull();
+      expect(screen.getByText(name), name).toBeTruthy();
     }
+    // Vault-sealed panels still wait for an unlocked vault.
+    expect(screen.queryByText("AWS KMS")).toBeNull();
+    expect(screen.queryByText("Google Cloud KMS")).toBeNull();
   });
 
-  it("draws Connect's own panels once Connections installs its roads", () => {
+  it("keeps those connectors when Connections installs its roads", () => {
     installConnectRoads();
     renderPanel();
-    expect(tileNames("Identity providers")).toEqual(["WorkOS", "Auth0"]);
-    expect(tileNames("Cloud secret storage providers")).toEqual(["Doppler"]);
+    expect(tileNames("Identity providers")).toEqual(
+      expect.arrayContaining(["WorkOS", "Auth0", "Better Auth"]),
+    );
+    expect(tileNames("Cloud secret storage providers")).toContain("Doppler");
   });
 
-  it("leave out the section that has nothing left, rather than a subheader over nothing", () => {
+  it("leaves out a section that still has nothing to configure", () => {
     renderPanel();
+    expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
     for (const title of [
       "Password managers",
       "Local storage",
-      "Encryption",
       "Cloud secret storage",
     ]) {
-      expect(screen.queryByRole("heading", { name: title }), title).toBeNull();
+      expect(screen.getByRole("heading", { name: title }), title).toBeTruthy();
     }
     // A section with a switch keeps it even with no connector tiles.
     expect(screen.getByRole("switch", { name: "Sharing" })).toBeTruthy();

@@ -48,15 +48,15 @@ describe("the Host road", () => {
 });
 
 describe("the road a form saves through", () => {
-  it("has none on a device with no Host and no Connect credential", () => {
-    expect(formRoad("1password", "configuration")).toBeNull();
-    expect(formRoad("privacy", "api_key")).toBeNull();
+  it("seals a key or a configuration on the device when no Host is open", () => {
+    expect(formRoad("1password", "configuration")).toBe("local");
+    expect(formRoad("privacy", "api_key")).toBe("local");
     expect(formRoad("github", "oauth2_authorization_code")).toBeNull();
   });
 
-  it("seals a key or a configuration through the Host only", () => {
+  it("seals a key or a configuration through the Host when that road is open", () => {
     setVercelConnectAuth({ token: "t" });
-    expect(formRoad("doppler", "api_key")).toBeNull();
+    expect(formRoad("doppler", "api_key")).toBe("local");
     host.base = "https://host.example";
     host.live = true;
     expect(formRoad("doppler", "api_key")).toBe("host");
@@ -81,11 +81,11 @@ describe("the form a connector page draws", () => {
     ).toBe(true);
   });
 
-  it("is not drawn for a key or a configuration nothing can seal", () => {
+  it("is drawn for a key or a configuration the device can seal", () => {
     expect(
       connectFormDraws({ id: "1password", authKind: "configuration" }),
-    ).toBe(false);
-    expect(connectFormDraws({ id: "lithic", authKind: "api_key" })).toBe(false);
+    ).toBe(true);
+    expect(connectFormDraws({ id: "lithic", authKind: "api_key" })).toBe(true);
     host.base = "https://host.example";
     host.live = true;
     expect(
@@ -101,20 +101,28 @@ describe("a connector that has something to do", () => {
     }
   });
 
-  it("hides Connect-only panels until Connections installs its roads", () => {
+  it("hides an authorize-only connector until Connect or a Host can take it", () => {
     resetConnectRoadSeams();
-    expect(connectorActs({ id: "workos" }, false)).toBe(false);
-    expect(connectorActs({ id: "auth0" }, false)).toBe(false);
+    expect(connectorActs({ id: "slack" }, false)).toBe(false);
   });
 
-  it("is drawn for Connect's own panels, which seal the credential first", () => {
-    expect(connectorActs({ id: "workos" }, false)).toBe(true);
-    expect(connectorActs({ id: "auth0" }, false)).toBe(true);
+  it("draws that connector once Connect holds a route for it", () => {
+    resetConnectRoadSeams();
+    connectRoadSeams.hasConnectRoute = (id) => id === "slack";
+    expect(connectorActs({ id: "slack" }, false)).toBe(true);
   });
 
-  it("is not drawn when the Host is the only road and it is closed", () => {
-    for (const id of ["better-auth", "1password", "vault", "tailscale"]) {
-      expect(connectorActs({ id }, true)).toBe(false);
+  it("is drawn for a key or a configuration with no Host open", () => {
+    resetConnectRoadSeams();
+    for (const id of [
+      "better-auth",
+      "workos",
+      "auth0",
+      "1password",
+      "vault",
+      "tailscale",
+    ]) {
+      expect(connectorActs({ id }, false)).toBe(true);
     }
     host.base = "https://host.example";
     host.live = true;

@@ -14,6 +14,7 @@ import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
+  capabilityOnSwitch,
   capabilitySwitch,
 } from "./always-on.mjs";
 
@@ -112,23 +113,15 @@ export async function addCapability(page, check, snap, title, rail = null) {
   check((await add.count()) === 1, `Settings offers a way to add ${title}`);
   await add.click();
   await page.waitForTimeout(700);
-  const review = await page
-    .locator('[data-testid="capability-review"]')
-    .innerText();
   await snap(page, `add-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
   check(
-    review.includes(title),
-    `the review for ${title} names the capability it would start`,
+    (await page.locator('[data-testid="capability-review"]').count()) === 0,
+    `${title} commits in place and stays on the capabilities page`,
   );
-  const enableRow = review.split("enable")[1] ?? "";
   check(
-    enableRow.trimStart().startsWith(title),
-    `the review's enable row states ${title}, not "—"`,
+    (await capabilityOnSwitch(page, title).count()) === 1,
+    `${title} is running after its switch`,
   );
-  const apply = page.getByRole("button", { name: /Apply configuration/ });
-  check(!(await apply.isDisabled()), `Apply is offered for ${title}`);
-  await apply.click();
-  await page.waitForTimeout(2200);
   // Not every capability owns a section — some add a tab or a control to one
   // the plan already has — so a caller names a rail row only where there is
   // one to name, and the presence check is skipped rather than faked.

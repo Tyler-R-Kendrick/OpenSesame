@@ -18,7 +18,7 @@ export async function unlockVault(page, password = "Cedar-lantern-47-river!") {
 
 /**
  * Choose capabilities on a seeded installation, by URL and through the real
- * switch and Apply.
+ * switch. Settings commits that switch in place.
  *
  * The sections and the consent screen this suite drives belong to
  * capabilities, and a device that has not chosen one has no such route to
@@ -43,10 +43,8 @@ export async function chooseCapabilities(context, width, titles, base = BASE) {
     const add = capabilityOffSwitch(page, title);
     if ((await add.count()) > 0) {
       await add.click();
-      const apply = page.getByTestId("capability-apply");
-      await expect(apply).toBeEnabled();
-      await apply.click();
-      await expect(page.getByTestId("capability-review")).toHaveCount(0, {
+      await expect(page.getByTestId("capability-review")).toHaveCount(0);
+      await expect(capabilityOnSwitch(page, title)).toHaveCount(1, {
         timeout: 20_000,
       });
     }

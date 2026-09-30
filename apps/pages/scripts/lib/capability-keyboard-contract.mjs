@@ -5,7 +5,7 @@
 // capabilities, so a device that has approved nothing has no `g c`, no rail
 // row and no drawer link for them. That is the product requirement, not a
 // regression, and the way past it is the way a person goes: Settings ›
-// Capabilities, Add, Apply. Doing it here also holds the new surface to the
+// Capabilities and the capability's switch. Doing it here also holds the new surface to the
 // same contract as the rest of the app — every step below is a real key
 // press, with no click, no injected focus and no synthetic event.
 
@@ -14,6 +14,7 @@ import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
+  capabilityOnSwitch,
 } from "./always-on.mjs";
 
 /** Open Settings › Capabilities from wherever the walk is, by keyboard. */
@@ -45,13 +46,9 @@ export async function approveByKeyboard(page, tabTo, titles) {
     await expect(add).toHaveCount(1);
     await tabTo(page, add);
     await page.keyboard.press("Enter");
-    const review = page.getByTestId("capability-review");
-    await expect(review).toBeVisible();
-    await expect(review).toContainText(title);
-    const apply = page.getByTestId("capability-apply");
-    await expect(apply).toBeEnabled();
-    await tabTo(page, apply);
-    await page.keyboard.press("Enter");
-    await expect(review).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByTestId("capability-review")).toHaveCount(0);
+    await expect(capabilityOnSwitch(page, title)).toHaveCount(1, {
+      timeout: 15_000,
+    });
   }
 }

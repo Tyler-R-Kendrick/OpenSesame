@@ -20,6 +20,11 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
   startTailnetSync,
   stopTailnetSync,
@@ -32,6 +37,18 @@ export const CAPABILITY = "networking.tailnet";
 /** Every road out of it is fenced by a sealed pairing in the open vault. */
 export const TAILNET_SYNC_JOB = "tailnet-vault-sync";
 
+/** The tailnet configure action held while this capability is active. */
+export const tailnetFeature: { operation: FeatureOperation | null } = {
+  operation: null,
+};
+
+/** The tailnet feature's catalog operation, from the configuration saved on this device. */
+export function savedTailnetOperation(
+  provider: Provider | string = "tailscale",
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -42,6 +59,8 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: TAILNET_SYNC_JOB,
       start: (signal) => {
         if (signal.aborted) return;
+        const operation = savedTailnetOperation();
+        tailnetFeature.operation = operation.ok ? operation : null;
         startTailnetSync();
         signal.addEventListener("abort", stopTailnetSync, { once: true });
       },
