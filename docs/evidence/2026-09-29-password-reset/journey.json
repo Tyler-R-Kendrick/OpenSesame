@@ -27,7 +27,9 @@
         { "pressOptional": "Apply configuration" },
         { "scrollToOptional": "Password reset" },
         { "measure": "#feature-password-reset input[type=email]" },
-        { "measure": "#feature-password-reset button[aria-label='Add reset email']" },
+        {
+          "measure": "#feature-password-reset button[aria-label='Add reset email']"
+        },
         { "shot": "390-password-reset" }
       ]
     }
