@@ -29,6 +29,11 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
@@ -39,10 +44,24 @@ import { createActivation } from "../activation.js";
 export const CAPABILITY = "support.remote-ai";
 
 /** Test seam: the deploy-config read, swappable without a module mock. */
-export const remoteSupportSeams = { loadAgUiEndpoint };
+export const remoteSupportSeams: {
+  loadAgUiEndpoint: typeof loadAgUiEndpoint;
+  model: FeatureOperation | null;
+} = { loadAgUiEndpoint, model: null };
+
+/** The model operation for a saved api-key connector, with no Host required. */
+export function savedRemoteModel(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
 
 /** Read the configured endpoint once, unless the lease already aborted. */
 export function startAgUiEndpointLoad(signal: AbortSignal): void {
+  const model = savedRemoteModel("anthropic");
+  // The model request carries the saved non-secret fields. The key stays on
+  // the operation, never on the same-origin support endpoint.
+  remoteSupportSeams.model = model.ok ? model : null;
   if (signal.aborted) return;
   void remoteSupportSeams.loadAgUiEndpoint().then(
     (endpoint) => {

@@ -47,10 +47,11 @@ import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { ConnectPanels } from "./connect/ConnectPanels.js";
 
 /**
- * Connectors Vercel's registry lists get the plan-built pages alone (ADR
- * 0147); a bundled catalog row with a plan keeps its own road and gets the
- * Connect panels beside it, as do the Git forges' backup form. GitHub keeps
- * its App flow; a refused service (ADR 0086 §6) gets no Connect road.
+ * Where Vercel Connect's plan sits on this page (ADR 0147). A registry
+ * service gets the plan-built panels. A key or a configuration also seals
+ * on this device, and those panels stay beside that form. Git forges and
+ * other bundled rows keep their own road beside Connect. GitHub keeps its
+ * App flow. A refused service (ADR 0086 §6) gets no Connect road.
  */
 function connectOwned(providerId: string): "only" | "beside" | null {
   if (!hasConnectRoute(providerId)) return null;
@@ -161,6 +162,10 @@ export function ConnectorSettingsPage({
 
   const automatic = canConfigureAutomatically(provider);
   const onConnect = connectOwned(provider.id);
+  // A key or a configuration is collected on this page, including when
+  // Vercel lists the same service.
+  const deviceSeal =
+    provider.authKind === "api_key" || provider.authKind === "configuration";
   // GitHub App already on this device — no Connect chrome.
   const githubAppReady =
     provider.id === "github" &&
@@ -331,7 +336,7 @@ export function ConnectorSettingsPage({
             </details>
           ) : null}
         </section>
-      ) : githubAppReady || onConnect === "only" ? null : (
+      ) : githubAppReady || (onConnect === "only" && !deviceSeal) ? null : (
         <ConnectSection
           provider={provider}
           online={online}

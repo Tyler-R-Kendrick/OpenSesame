@@ -8,8 +8,8 @@
  * then, for the operator of this device, the instance policy
  * (`InstanceCapabilitiesPanel`, never shown to a member — SURFACE-06).
  *
- * A switch proposes roots; the review and Apply are one ceremony
- * (`useCapabilityChange`). The documents behind the page — the selection,
+ * A switch commits in place (`useCapabilityChange`). The documents behind
+ * the page — the selection,
  * the operator's policy, the effective plan — are files beside this
  * directory's `config.yaml` (`capability-files.ts`), opened from the key on
  * the heading or from the rail; there is no second view of the page.
@@ -20,8 +20,6 @@ import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabili
 import { SELECTION_FILE } from "@opensesame/app-core/sections/settings/capability-files.js";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { alternativesFor } from "../../screens/capabilities/CapabilityDraft.js";
-import { CapabilityReview } from "../../screens/capabilities/CapabilityReview.js";
 import { CapabilitySections } from "./CapabilitySections.js";
 import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
 import { OpenFileKey } from "./files/OpenFileKey.js";
@@ -82,25 +80,6 @@ function WithdrawnNotice({ change }: { change: CapabilityChange }) {
 }
 
 function Body({ change }: { change: CapabilityChange }) {
-  if (change.review) {
-    return (
-      <CapabilityReview
-        review={change.review}
-        catalog={capabilityPorts.CAPABILITY_CATALOG}
-        alternativesFor={(root) =>
-          alternativesFor(
-            root,
-            capabilityPorts.CAPABILITY_CATALOG,
-            change.snapshot.plan,
-          )
-        }
-        busy={change.busy}
-        onApply={() => void change.apply()}
-        onCancel={change.cancel}
-        onReplace={change.cancel}
-      />
-    );
-  }
   return (
     <>
       <CapabilitySections current={change.current} onPropose={change.propose} />

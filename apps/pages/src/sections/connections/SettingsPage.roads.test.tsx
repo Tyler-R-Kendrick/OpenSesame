@@ -76,27 +76,64 @@ function unlocked() {
 
 describe("a connector page whose only road is closed on this device", () => {
   it("draws no Connect panel and no key, and its mark says nothing is here", () => {
-    draw("better-auth");
-    expect(screen.queryByRole("heading", { name: "Connect" })).toBeNull();
+    draw("linear");
+    expect(
+      screen.queryByRole("heading", { name: "Connect", exact: true }),
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: /Save configuration/ }),
     ).toBeNull();
-    expect(screen.queryByLabelText(/Base URL/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Connect Linear/ })).toBeNull();
     expect(
       screen.getByRole("img", { name: "Not available here" }),
     ).toBeTruthy();
   });
+});
 
-  it("draws the form and the ordinary mark once a Host is open", () => {
-    openHostRoad();
+describe("a key or a configuration seals on this device", () => {
+  it("draws Better Auth's fields with no Host", () => {
     draw("better-auth");
-    expect(screen.getByRole("heading", { name: "Connect" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Connect", exact: true }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
     expect(
       screen.getByRole("button", { name: /Save configuration/ }),
     ).toBeTruthy();
     expect(
       screen.queryByRole("img", { name: "Not available here" }),
     ).toBeNull();
+  });
+
+  it("draws the same form once a Host is open", () => {
+    openHostRoad();
+    draw("better-auth");
+    expect(
+      screen.getByRole("heading", { name: "Connect", exact: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Save configuration/ }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("img", { name: "Not available here" }),
+    ).toBeNull();
+  });
+
+  it("asks for Anthropic's API key when Vercel also lists it", () => {
+    draw("anthropic");
+    expect(screen.getByLabelText("API key")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Connect Anthropic" }),
+    ).toBeTruthy();
+  });
+
+  it("asks for Tailscale's tailnet and auth key", () => {
+    draw("tailscale");
+    expect(screen.getByLabelText(/Tailnet/)).toBeTruthy();
+    expect(screen.getByLabelText(/Auth key/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Save configuration/ }),
+    ).toBeTruthy();
   });
 });
 

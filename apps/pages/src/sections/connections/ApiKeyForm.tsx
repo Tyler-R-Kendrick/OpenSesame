@@ -8,22 +8,26 @@ export function ApiKeyForm({
   provider,
   name,
   apiKey,
+  values,
   busy,
   online,
   failure,
   onName,
   onApiKey,
+  onValue,
   onSubmit,
 }: {
   provider: Provider;
   name: string;
   apiKey: string;
+  values: Record<string, string>;
   busy: boolean;
   online: boolean;
   /** The sentence for the last try that failed, drawn beside the key. */
   failure: string;
   onName: (value: string) => void;
   onApiKey: (value: string) => void;
+  onValue: (field: string, value: string) => void;
   onSubmit: (event: FormEvent) => void;
 }) {
   const nameId = useId();
@@ -44,6 +48,24 @@ export function ApiKeyForm({
           onChange={(event) => onApiKey(event.target.value)}
         />
       </div>
+      {(provider.configurationFields ?? [])
+        .filter((field) => field.name !== "api_key")
+        .map((field) => (
+          <div className="field" key={field.name}>
+            <label className="label" htmlFor={`${keyId}-${field.name}`}>
+              {field.label}
+            </label>
+            <input
+              id={`${keyId}-${field.name}`}
+              name={field.name}
+              type={field.secret ? "password" : "text"}
+              autoComplete="off"
+              required={field.required}
+              value={values[field.name] ?? ""}
+              onChange={(event) => onValue(field.name, event.target.value)}
+            />
+          </div>
+        ))}
       <details className="conn-client-alt">
         <summary>Optional settings</summary>
         <div className="field">

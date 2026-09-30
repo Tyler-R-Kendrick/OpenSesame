@@ -1,3 +1,4 @@
+import { publicConnectorFields } from "@opensesame/app-core/lib/device-connectors.js";
 import type {
   Connection,
   Provider,
@@ -119,6 +120,7 @@ export function ConnectionCard({
   const scopes = connection.grantedScopes.length
     ? connection.grantedScopes
     : connection.requestedScopes;
+  const savedFields = publicConnectorFields(connection.connectionId);
 
   return (
     <li
@@ -149,6 +151,15 @@ export function ConnectionCard({
       <p className="conn-card__status">
         {statusSentence(connection, provider)}
       </p>
+      {Object.entries(savedFields).map(([name, value]) => (
+        <p
+          key={name}
+          className="conn-card__status"
+          data-testid={`connector-field-${name}`}
+        >
+          {`${name}: ${value}`}
+        </p>
+      ))}
 
       {provider?.id === "github" ? (
         <GithubCardDetails connection={connection} />

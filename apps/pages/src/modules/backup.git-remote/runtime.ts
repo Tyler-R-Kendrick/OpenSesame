@@ -36,6 +36,12 @@
 
 import { backupEgressGate } from "@opensesame/app-core/lib/backup-egress-gate.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
@@ -60,6 +66,21 @@ export const CAPABILITY = "backup.git-remote";
  */
 export const BACKUP_OBSERVER_JOB = "vault-backup-observer";
 
+/** A forge or history connector's saved operation. Secrets stay on the operation. */
+export function savedGitBackupOperation(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+/** Operations for the history connectors that already have a saved configuration. */
+export function gitBackupOperations(): FeatureOperation[] {
+  const ids = HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds);
+  return ids
+    .map((id) => savedGitBackupOperation(id))
+    .filter((operation) => operation.ok);
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -73,6 +94,7 @@ export const capabilityRuntime: CapabilityRuntime = {
         // Always on is not a way round the operator's network envelope
         // (ADR 0135 §1, 0142): the one gate every caller shares.
         if (!backupEgressGate.allowed()) return;
+        gitBackupOperations();
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
           once: true,

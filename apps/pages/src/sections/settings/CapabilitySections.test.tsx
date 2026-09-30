@@ -29,17 +29,11 @@ installPanelFixture();
 
 /**
  * Sections that draw nothing on a device with no Host, no Connect credential
- * and no unlocked vault: their connectors need one of those, and a subheader
- * over no tile and no switch is not drawn (ADR 0150).
+ * and no unlocked vault. Encryption's panels seal a key in the vault, so a
+ * locked vault draws no tile and no switch (ADR 0150). A key or a
+ * configuration seals on this device, so those sections stay.
  */
-const NOTHING_TO_DO_HERE = new Set([
-  "encryption",
-  "password-managers",
-  "local-storage",
-  // Doppler is a Connect panel. It appears once Connections installs its
-  // roads; until then this section has no switch and no tile (ADR 0153).
-  "cloud-secret-storage",
-]);
+const NOTHING_TO_DO_HERE = new Set(["encryption"]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
   it("draws every section once, as a subheader, never as a card row", () => {
@@ -99,8 +93,8 @@ describe("sections — one list, one style, a switch only where something is opt
     const sharing = screen.getByRole("switch", { name: "Sharing" });
     expect(sharing.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(sharing);
-    expect(screen.getByTestId("capability-review")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
+    expect(screen.getByRole("list", { name: "Sharing capabilities" })).toBeTruthy();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     const selected = double.commits[0]?.draft.selectedOptional ?? [];
     // Drops are always on, so the switch does not record them. Live
@@ -116,7 +110,7 @@ describe("sections — one list, one style, a switch only where something is opt
     const ai = screen.getByRole("switch", { name: "AI" });
     expect(ai.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(ai);
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).not.toContain(
       "agents.webmcp",
@@ -156,7 +150,7 @@ describe("sections — one list, one style, a switch only where something is opt
         .getAttribute("aria-checked"),
     ).toBe("true");
     fireEvent.click(screen.getByRole("switch", { name: "Sharing" }));
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     const selected = double.commits[0]?.draft.selectedOptional ?? [];
     expect(selected).not.toContain("sharing.household");
@@ -180,9 +174,8 @@ describe("sections — one list, one style, a switch only where something is opt
     // password-store is a git history road: it is a Backups tile, and Local
     // storage no longer draws it a second time.
     expect(tiles.textContent).toContain("password-store");
-    expect(
-      screen.queryByRole("list", { name: "Local storage providers" }),
-    ).toBeNull();
+    const local = screen.getByRole("list", { name: "Local storage providers" });
+    expect(local.textContent).not.toContain("password-store");
     for (const group of ["Identity providers", "Password managers"]) {
       expect(screen.queryByRole("switch", { name: group })).toBeNull();
     }

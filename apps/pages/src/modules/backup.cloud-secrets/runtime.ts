@@ -16,13 +16,35 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "backup.cloud-secrets";
 
+/** Cloud secret storage and encryption connectors saved on this device. */
+export function savedStorageOperation(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+export function applySavedStorageConnectors(): FeatureOperation[] {
+  return applySavedConnectors(
+    ["cloud_secret_storage", "encryption"],
+    savedStorageOperation,
+  );
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
-    return createActivation(ctx, CAPABILITY).handle();
+    const activation = createActivation(ctx, CAPABILITY);
+    applySavedStorageConnectors();
+    return activation.handle();
   },
 };

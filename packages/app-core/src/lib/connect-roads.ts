@@ -18,6 +18,7 @@
  * seamed session state; the React shell subscribes and asks again.
  */
 
+import { catalogProvider } from "./connector-catalog.js";
 import type { AuthKind, Provider } from "./connections.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import { HISTORY_BACKUP_GROUPS } from "./history-backups.js";
@@ -64,7 +65,11 @@ export function notifyConnectRoads(): void {
  */
 export const VAULT_SEALED_PANELS: readonly string[] = ["aws-kms", "gcp-kms"];
 
-export type FormRoad = "connect" | "host";
+export type FormRoad = "connect" | "host" | "local";
+
+function deviceConfigurable(authKind: AuthKind): boolean {
+  return authKind === "api_key" || authKind === "configuration";
+}
 
 /** A Host is configured and this browser holds a live approved grant to it. */
 export function hostRoadOpen(): boolean {
@@ -73,9 +78,9 @@ export function hostRoadOpen(): boolean {
 
 /**
  * The road a provider's key, configuration or authorize form saves through,
- * or null when none is open. A key or a configuration is sealed by the Host
- * alone (`setConnectionCredential` / `setConnectionConfiguration` have no
- * Connect twin); authorizing can also run on Connect.
+ * or null when none is open. A key or a configuration seals on this device
+ * when no Host is open, and through the Host when that road is open.
+ * Authorizing can also run on Connect.
  */
 export function formRoad(
   providerId: string,
@@ -87,6 +92,7 @@ export function formRoad(
   ) {
     return "connect";
   }
+  if (deviceConfigurable(authKind)) return hostRoadOpen() ? "host" : "local";
   return hostRoadOpen() ? "host" : null;
 }
 
@@ -125,9 +131,11 @@ export function connectorActs(
   // These panels draw for an unlocked vault and for nothing else; no service
   // road changes that.
   if (VAULT_SEALED_PANELS.includes(provider.id)) return sealedVault;
+  const kind = catalogProvider(provider.id)?.authKind;
   return (
     actsLocally(provider.id) ||
     connectRoadSeams.hasConnectRoute(provider.id) ||
-    hostRoadOpen()
+    hostRoadOpen() ||
+    (kind !== undefined && deviceConfigurable(kind))
   );
 }
