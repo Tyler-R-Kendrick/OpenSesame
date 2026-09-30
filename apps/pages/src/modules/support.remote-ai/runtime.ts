@@ -35,6 +35,12 @@ import {
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
+  type DeliveredModel,
+  deliveredModels,
+} from "@opensesame/app-core/lib/hosted-inference.js";
+import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
+import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
+import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
 } from "@opensesame/app-core/tutorial/agents/ag-ui/endpoint.js";
@@ -46,8 +52,7 @@ export const CAPABILITY = "support.remote-ai";
 /** Test seam: the deploy-config read, swappable without a module mock. */
 export const remoteSupportSeams: {
   loadAgUiEndpoint: typeof loadAgUiEndpoint;
-  model: FeatureOperation | null;
-} = { loadAgUiEndpoint, model: null };
+} = { loadAgUiEndpoint };
 
 /** The model operation for a saved api-key connector, with no Host required. */
 export function savedRemoteModel(
@@ -56,12 +61,56 @@ export function savedRemoteModel(
   return runListedFeature(provider);
 }
 
+function exchangeFrom(sent: DeliveredModel): ModelExchange {
+  const body = JSON.parse(sent.body) as Record<string, string>;
+  return {
+    ok: true,
+    providerId: sent.providerId,
+    operation: sent.operation,
+    url: sent.url,
+    body,
+    headers: { ...sent.headers },
+  };
+}
+
+/** The inference request delivered for one saved provider. */
+export function remoteModelRequest(providerId: string): ModelExchange {
+  const sent = [...deliveredModels()]
+    .reverse()
+    .find((row) => row.providerId === providerId);
+  if (!sent) return { ok: false, providerId };
+  return exchangeFrom(sent);
+}
+
+/**
+ * Send every saved agent-harness request. The key is on those requests,
+ * never on the same-origin support endpoint and never on the model record.
+ */
+export function loadSavedRemoteModels(): ModelExchange[] {
+  const sent = savedModelRequests();
+  return sent.map((row) => (row.ok ? remoteModelRequest(row.providerId) : row));
+}
+
+let acceptedModels: ModelExchange[] = [];
+
+/** Inference requests this capability has accepted. Secrets stay on their headers. */
+export function acceptedRemoteModels(): readonly ModelExchange[] {
+  return acceptedModels;
+}
+
+function secretsStayOnHeaders(row: ModelExchange & { ok: true }): boolean {
+  const packed = JSON.stringify(row.body);
+  return Object.values(row.headers).every(
+    (value) => value === "" || !packed.includes(value),
+  );
+}
+
 /** Read the configured endpoint once, unless the lease already aborted. */
 export function startAgUiEndpointLoad(signal: AbortSignal): void {
-  const model = savedRemoteModel("anthropic");
-  // The model request carries the saved non-secret fields. The key stays on
-  // the operation, never on the same-origin support endpoint.
-  remoteSupportSeams.model = model.ok ? model : null;
+  acceptedModels = loadSavedRemoteModels().filter(
+    (row): row is ModelExchange & { ok: true } =>
+      row.ok && secretsStayOnHeaders(row),
+  );
   if (signal.aborted) return;
   void remoteSupportSeams.loadAgUiEndpoint().then(
     (endpoint) => {

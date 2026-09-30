@@ -22,7 +22,12 @@ export type FeatureOperation =
 
 function providerOf(provider: Provider | string): Provider | null {
   if (typeof provider !== "string") return provider;
-  return catalogProvider(provider) ?? null;
+  const row = catalogProvider(provider);
+  if (!row) return null;
+  // The page stores the id it listed. An alias such as `aws-parameter-store`
+  // must not be rewritten to the catalog row id before the device lookup.
+  if (row.id !== provider) row.id = provider;
+  return row;
 }
 
 /** Build the feature operation for one saved connector, or refuse when none is saved. */

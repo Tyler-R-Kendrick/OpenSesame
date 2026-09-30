@@ -41,11 +41,19 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  type FeatureRequest,
+  savedFeatureRequests,
+} from "@opensesame/app-core/lib/feature-request.js";
 import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
 } from "@opensesame/app-core/lib/vault-backup-observer.js";
+import {
+  bindSavedGitBackup,
+  savedGitBackupUse,
+} from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "backup.git-remote";
@@ -81,6 +89,52 @@ export function gitBackupOperations(): FeatureOperation[] {
     .filter((operation) => operation.ok);
 }
 
+function savedRow(operation: FeatureOperation & { ok: true }): FeatureRequest {
+  return {
+    ok: true,
+    providerId: operation.providerId,
+    operation: operation.operation,
+    fields: operation.action,
+    secret: operation.secrets,
+  };
+}
+
+/** Bind saved forge fields and tokens onto the backup sync. */
+export function performGitBackup(): FeatureRequest[] {
+  const merged = new Map<string, FeatureRequest & { ok: true }>();
+  for (const operation of gitBackupOperations()) {
+    if (operation.ok) {
+      const row = savedRow(operation);
+      if (row.ok) merged.set(row.providerId, row);
+    }
+  }
+  for (const row of savedFeatureRequests(["backup_recovery"])) {
+    if (row.ok) merged.set(row.providerId, row);
+  }
+  const uses = [...merged.values()];
+  bindSavedGitBackup(
+    uses.map((row) => ({
+      providerId: row.providerId,
+      operation: row.operation,
+      fields: row.fields,
+      secret: row.secret,
+    })),
+  );
+  return uses.flatMap((row) => {
+    const used = savedGitBackupUse(row.providerId);
+    if (!used) return [];
+    return [
+      {
+        ok: true as const,
+        providerId: used.providerId,
+        operation: used.operation,
+        fields: used.fields,
+        secret: used.secret,
+      },
+    ];
+  });
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -94,7 +148,21 @@ export const capabilityRuntime: CapabilityRuntime = {
         // Always on is not a way round the operator's network envelope
         // (ADR 0135 §1, 0142): the one gate every caller shares.
         if (!backupEgressGate.allowed()) return;
-        gitBackupOperations();
+        const uses = performGitBackup();
+        bindSavedGitBackup(
+          uses.flatMap((use) =>
+            use.ok
+              ? [
+                  {
+                    providerId: use.providerId,
+                    operation: use.operation,
+                    fields: use.fields,
+                    secret: use.secret,
+                  },
+                ]
+              : [],
+          ),
+        );
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
           once: true,

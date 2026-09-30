@@ -32,6 +32,11 @@ import {
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
+import {
+  type FeatureRequest,
+  currentUse,
+  rememberUses,
+} from "@opensesame/app-core/lib/feature-request.js";
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { disarmVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
@@ -94,6 +99,43 @@ export const WEBMCP_TOOLS = [
   OPEN_CONNECT_CEREMONY_TOOL,
 ] as const;
 
+let externalReady: FeatureRequest[] = [];
+
+/** Arm password-manager and local-storage connectors saved on this device. */
+export function startExternalConnectors(): FeatureRequest[] {
+  const managers = applySavedConnectors(
+    ["password_managers"],
+    savedPasswordManagerOperation,
+  );
+  const local = applySavedConnectors(
+    ["local_storage"],
+    savedLocalStorageOperation,
+  );
+  externalReady = rememberUses(
+    [...managers, ...local].flatMap((operation) =>
+      operation.ok
+        ? [
+            {
+              ok: true as const,
+              providerId: operation.providerId,
+              operation: operation.operation,
+              fields: operation.action,
+              secret: operation.secrets,
+            },
+          ]
+        : [],
+    ),
+  );
+  return externalReady.map((use) => externalOperation(use.providerId));
+}
+
+export function externalOperation(providerId: string): FeatureRequest {
+  if (!externalReady.some((use) => use.ok && use.providerId === providerId)) {
+    return { ok: false, providerId };
+  }
+  return currentUse(providerId);
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -109,8 +151,7 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
-    applySavedConnectors(["password_managers"], savedPasswordManagerOperation);
-    applySavedConnectors(["local_storage"], savedLocalStorageOperation);
+    externalReady = startExternalConnectors();
 
     activation.register("section", {
       id: "connections",

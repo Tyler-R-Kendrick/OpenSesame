@@ -26,9 +26,17 @@ import {
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
+  type FeatureRequest,
+  featureRequest,
+} from "@opensesame/app-core/lib/feature-request.js";
+import {
   startTailnetSync,
   stopTailnetSync,
 } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
+import {
+  bindTailnetConnector,
+  tailnetSyncHeaders,
+} from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import { createActivation } from "../activation.js";
 import { TailnetSyncPanel } from "./TailnetSyncPanel.js";
 
@@ -37,16 +45,45 @@ export const CAPABILITY = "networking.tailnet";
 /** Every road out of it is fenced by a sealed pairing in the open vault. */
 export const TAILNET_SYNC_JOB = "tailnet-vault-sync";
 
-/** The tailnet configure action held while this capability is active. */
-export const tailnetFeature: { operation: FeatureOperation | null } = {
-  operation: null,
-};
-
 /** The tailnet feature's catalog operation, from the configuration saved on this device. */
 export function savedTailnetOperation(
   provider: Provider | string = "tailscale",
 ): FeatureOperation {
   return runListedFeature(provider);
+}
+
+/**
+ * Bind the saved Tailscale fields and auth key onto the sync request.
+ * Nothing saved does not succeed.
+ */
+export function performTailnetSync(
+  provider: Provider | string = "tailscale",
+): FeatureRequest {
+  const request = featureRequest(provider);
+  bindTailnetConnector(
+    request.ok
+      ? {
+          providerId: request.providerId,
+          operation: request.operation,
+          fields: request.fields,
+          secret: request.secret,
+        }
+      : null,
+  );
+  const headers = tailnetSyncHeaders();
+  if (request.ok && request.secret.auth_key) {
+    if (headers["x-tailscale-auth-key"] !== request.secret.auth_key) {
+      return { ok: false, providerId: request.providerId };
+    }
+  }
+  for (const [name, value] of Object.entries(
+    request.ok ? request.fields : {},
+  )) {
+    if (headers[`x-tailnet-${name.replaceAll("_", "-")}`] !== value) {
+      return { ok: false, providerId: request.providerId };
+    }
+  }
+  return request;
 }
 
 export const capabilityRuntime: CapabilityRuntime = {
@@ -59,8 +96,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: TAILNET_SYNC_JOB,
       start: (signal) => {
         if (signal.aborted) return;
-        const operation = savedTailnetOperation();
-        tailnetFeature.operation = operation.ok ? operation : null;
+        performTailnetSync();
         startTailnetSync();
         signal.addEventListener("abort", stopTailnetSync, { once: true });
       },
