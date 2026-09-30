@@ -14,12 +14,7 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": [
-        "sharing.drops",
-        "sharing.household",
-        "sharing.live",
-        "support.local-ai"
-      ],
+      "optional": ["sharing.household", "sharing.live", "support.local-ai"],
       "prohibited": [
         "agents.webmcp",
         "enterprise.ca-administration",

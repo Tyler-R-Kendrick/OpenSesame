@@ -103,9 +103,11 @@ describe("sections — one list, one style, a switch only where something is opt
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
     const selected = double.commits[0]?.draft.selectedOptional ?? [];
-    expect(selected).toContain("sharing.drops");
+    // Drops are always on, so the switch does not record them. Live
+    // sessions are not in this fixture's distribution, so only household
+    // sharing is added.
+    expect(selected).not.toContain("sharing.drops");
     expect(selected).toContain("sharing.household");
-    // The roots the installation already had are kept.
     expect(selected).toContain("agents.webmcp");
   });
 
@@ -121,50 +123,45 @@ describe("sections — one list, one style, a switch only where something is opt
     );
   });
 
-  it("a partly-on section is completed from its tiles, and its switch turns it off", async () => {
+  it("turning Sharing off removes household and does not record drops", async () => {
     const selection = {
       ...PERSONAL_SELECTION,
-      selectedOptional: ["sharing.drops"],
+      selectedOptional: [
+        "sharing.household",
+        "agents.webmcp",
+        "vault.passkey-records",
+      ],
+      chosenAlternatives: { transport: "sharing.drops" },
     };
     const exposure: Record<string, string> = {};
     for (const id of double.preview(selection).approvedCapabilities)
       exposure[id] = `sha256:fixture-${id}`;
-    const partly = () =>
-      resetDouble({
-        selection,
-        receipt: {
-          ...withReceipt(),
-          roots: selection.selectedOptional,
-          exposure,
-        },
-      });
-    partly();
+    resetDouble({
+      selection,
+      receipt: {
+        ...withReceipt(),
+        roots: selection.selectedOptional,
+        exposure,
+      },
+    });
     renderPanel();
     expect(
       screen
         .getByRole("switch", { name: "Sharing" })
         .getAttribute("aria-checked"),
     ).toBe("true");
-    const household = screen.getByRole("switch", { name: "Household sharing" });
-    expect(household.getAttribute("aria-checked")).toBe("false");
-    expect(household.getAttribute("data-capability-title")).toBe(
-      "Household sharing",
-    );
-    fireEvent.click(household);
-    fireEvent.click(screen.getByTestId("capability-apply"));
-    await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(double.commits[0]?.draft.selectedOptional).toContain(
-      "sharing.household",
-    );
-    cleanup();
-    partly();
-    renderPanel();
+    expect(
+      screen
+        .getByRole("switch", { name: "Household sharing" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
     fireEvent.click(screen.getByRole("switch", { name: "Sharing" }));
     fireEvent.click(screen.getByTestId("capability-apply"));
     await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(double.commits[0]?.draft.selectedOptional).not.toContain(
-      "sharing.drops",
-    );
+    const selected = double.commits[0]?.draft.selectedOptional ?? [];
+    expect(selected).not.toContain("sharing.household");
+    expect(selected).not.toContain("sharing.drops");
+    expect(selected).toContain("agents.webmcp");
   });
 
   it("a one-capability section's subheader switch answers to that capability's title", () => {

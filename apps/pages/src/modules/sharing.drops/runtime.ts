@@ -1,7 +1,7 @@
 /**
- * `sharing.drops` — sending one-time sealed drops (ADR 0062 / ADR 0118): the
- * `drop` item kind in the vault, and the ceremony that seals a payload and
- * creates its claim session.
+ * `sharing.drops` — sending one-time sealed shares (ADR 0062 / ADR 0118).
+ * The ceremony seals an item's secret and creates its claim session. A drop
+ * is not an item kind. Legacy drop records still render and sweep.
  *
  * Opening a drop is not this module's (ADR 0140 D2): the recipient's side —
  * the `/claim` route, the opener and `claims/drop-open.ts` — is the always-on
@@ -27,7 +27,6 @@ import {
   DropRecord,
   ShareSecretDrop,
 } from "../../sections/vault/DropCeremony.js";
-import { NewDropCeremony } from "../../sections/vault/NewDropCeremony.js";
 import { createActivation } from "../activation.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
 
@@ -51,14 +50,12 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     activation.register("item-kind", {
       kind: "drop",
-      // The picker reads it beside the core kinds, so it is the same
-      // singular name the vault model already gives this kind.
       label: KIND_LABEL.drop,
       segment: "drops",
       Icon: IconDrop,
       order: 50,
+      creatable: false,
       Record: DropRecord,
-      Create: NewDropCeremony,
     });
     activation.register("secret-share", {
       id: "drop",

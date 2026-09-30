@@ -22,7 +22,6 @@
         "networking.tailnet",
         "notifications.routing",
         "notifications.web-push",
-        "sharing.drops",
         "sharing.household",
         "sharing.live",
         "support.local-ai",

@@ -2,7 +2,7 @@
  * Which item kinds a person may *create* here (SURFACE-08).
  *
  * The minimal vault owns the base secret. Every other built-in kind —
- * logins, cards, notes, passkeys, certificates, drops, and the typed
+ * logins, cards, notes, passkeys, certificates, and the typed
  * projections onto that secret — is an `item-kind` contribution from the
  * capability that owns it, so its creation surfaces (the rail filter, the
  * type picker, the filtered "+ new") exist only while that capability is in
@@ -36,7 +36,7 @@ export type ItemKindRow = Readonly<{
 
 /**
  * The kind the minimal vault ships. Contributed kinds fill the other orders
- * (logins 0, passkeys 20, cards 30, drops 50, notes 60, certificates 70).
+ * (logins 0, passkeys 20, cards 30, notes 60, certificates 70).
  */
 export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
   { id: "secret", segment: "secrets", label: "Secret", order: 40 },
@@ -46,6 +46,7 @@ export function itemKindsFrom(
   contributions: readonly ItemKindContribution[],
 ): readonly ItemKindRow[] {
   const contributed = contributions
+    .filter((entry) => entry.creatable !== false)
     .filter((entry) => !CORE_ITEM_KINDS.some((core) => core.id === entry.kind))
     .map((entry) => ({
       id: entry.kind,

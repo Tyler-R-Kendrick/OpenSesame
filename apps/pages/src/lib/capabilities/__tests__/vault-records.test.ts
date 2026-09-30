@@ -250,7 +250,7 @@ describe("VAULT-10 — household sharing runs only its chosen transport", () => 
         revision: "household-alone",
       },
     });
-    expect(approved(alone, "sharing.drops")).toBe(false);
+    expect(approved(alone, "sharing.drops")).toBe(true);
     expect(approved(alone, "sharing.household")).toBe(false);
     expect(alone.conflicts).toEqual([
       {

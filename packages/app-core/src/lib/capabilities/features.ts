@@ -134,8 +134,9 @@ export const FEATURES: readonly Feature[] = [
   section(
     "sharing",
     "Sharing",
-    ["sharing.drops", "sharing.live", "sharing.household"],
+    ["sharing.live", "sharing.household"],
     [],
+    ["sharing.drops"],
   ),
   section("payments", "Payments", ["wallet.spending"], ["wallet"]),
   {

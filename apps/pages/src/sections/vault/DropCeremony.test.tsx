@@ -1,17 +1,15 @@
-import { File as NodeFile } from "node:buffer";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DropItem, SecretItem, VaultItem } from "@opensesame/vault-core";
+import type {
+  DropItem,
+  LoginItem,
+  SecretItem,
+  VaultItem,
+} from "@opensesame/vault-core";
 
 const store = vi.hoisted(() => ({
   saveItem: vi.fn<(item: VaultItem) => Promise<void>>(),
@@ -62,7 +60,6 @@ Object.assign(vaultHooksSeams, {
 Object.assign(dropSeams, { createClaim, pollClaim });
 
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
-import { NewDropCeremony } from "./NewDropCeremony.js";
 
 function sessionFor(claimId = "clm_test") {
   return {
@@ -114,12 +111,24 @@ function makeDrop(overrides: Partial<DropItem> = {}): DropItem {
   };
 }
 
-function savedRecord(): DropItem {
-  const call = store.saveItem.mock.calls.at(-1);
-  if (!call) throw new Error("saveItem was not called");
-  const item: VaultItem = call[0];
-  if (item.kind !== "drop") throw new Error("saved item is not a drop");
-  return item;
+function makeLogin(): LoginItem {
+  return {
+    id: "itm_login",
+    kind: "login",
+    name: "GitHub",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    fields: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    deletedAt: null,
+    username: "octocat",
+    password: "hunter2-login",
+    totp: "",
+    uris: [],
+    passwordChangedAt: "2026-08-01T00:00:00Z",
+  };
 }
 
 beforeEach(() => {
@@ -155,8 +164,8 @@ afterEach(() => {
   Object.assign(dropSeams, { createClaim, pollClaim });
 });
 
-describe("share ceremony on a secret", () => {
-  it("seals with a TTL and shows the drop card with link, code, and QR", async () => {
+describe("share ceremony on an item", () => {
+  it("seals a secret with a TTL and shows the drop card, saving no item", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -165,13 +174,9 @@ describe("share ceremony on a secret", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /Share once/i }));
-    // TTL picker offers the three contract durations.
     const ttl = screen.getByLabelText("Opens for");
     expect(ttl.querySelectorAll("option")).toHaveLength(3);
-    // Keep-a-copy defaults ON when sharing an existing vault secret.
-    expect(
-      screen.getByRole("checkbox", { name: /Keep a copy/ }),
-    ).toHaveProperty("checked", true);
+    expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
@@ -179,142 +184,28 @@ describe("share ceremony on a secret", () => {
     expect(
       screen.getByText(/#token=osc_clm_clm_test\.secret&key=/),
     ).toBeTruthy();
-    // Once in the code row, once as the QR's shortcode caption.
     expect(screen.getAllByText("ABCD-EFGH").length).toBeGreaterThan(0);
-    // The plaintext is never shown again after sealing.
     expect(screen.queryByText("s3cr3t-value")).toBeNull();
+    expect(screen.queryByRole("link", { name: /drop record/i })).toBeNull();
+    expect(store.saveItem).not.toHaveBeenCalled();
 
-    const record = savedRecord();
-    expect(record.name).toBe("Deploy token");
-    expect(record.state).toBe("pending");
-    expect(record.claimId).toBe("clm_test");
-    expect(record.bearerToken).toBe("osc_clm_clm_test.secret");
-    expect(record.expiresAt).toBe("2026-08-30T10:00:00.000Z");
-    expect(record.keptCopy).toEqual({ kind: "text", text: "s3cr3t-value" });
-    // The vault secret itself is never modified: the only write is the record.
-    expect(store.saveItem).toHaveBeenCalledTimes(1);
-    expect(record.id).not.toBe("itm_secret");
-
-    // The manifest the claim carries holds neither plaintext nor the key.
     const [manifest] = createClaim.mock.calls[0] ?? [];
     expect(JSON.stringify(manifest)).not.toContain("s3cr3t-value");
-    expect(record.id).toBeTruthy();
   });
 
-  it("stores a bare record when keep-a-copy is unchecked", async () => {
+  it("seals a login password the same way", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
-        <ShareSecretDrop item={makeSecret()} />
+        <ShareSecretDrop item={makeLogin()} />
       </MemoryRouter>,
     );
     await user.click(screen.getByRole("button", { name: /Share once/i }));
-    await user.click(screen.getByRole("checkbox", { name: /Keep a copy/ }));
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
-
-    expect(savedRecord().keptCopy).toBeUndefined();
-  });
-});
-
-describe("+new drop flow", () => {
-  it("seals text and never writes the payload into the vault body", async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <NewDropCeremony />
-      </MemoryRouter>,
-    );
-
-    // Keep-a-copy defaults OFF for a burner drop.
-    expect(
-      screen.getByRole("checkbox", { name: /Keep a copy/ }),
-    ).toHaveProperty("checked", false);
-
-    await user.type(screen.getByLabelText("Name"), "Deploy token");
-    await user.type(screen.getByLabelText("Text to drop"), "payload text");
-    await user.click(
-      screen.getByRole("button", { name: /Seal and create drop/i }),
-    );
-    await screen.findByText("Drop created");
-
-    const record = savedRecord();
-    expect(record.keptCopy).toBeUndefined();
-    expect(JSON.stringify(record)).not.toContain("payload text");
-  });
-
-  it("names itself when the field is left untouched, and the name is never required", async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <NewDropCeremony />
-      </MemoryRouter>,
-    );
-
-    const nameInput: HTMLInputElement = screen.getByLabelText("Name");
-    const suggested = nameInput.placeholder;
-    expect(suggested).toMatch(/^[a-z]+(-[a-z]+){2,}$/);
-
-    await user.type(screen.getByLabelText("Text to drop"), "payload text");
-    await user.click(
-      screen.getByRole("button", { name: /Seal and create drop/i }),
-    );
-    await screen.findByText("Drop created");
-
-    expect(savedRecord().name).toBe(suggested);
-  });
-
-  it("keeps a copy only when asked", async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <NewDropCeremony />
-      </MemoryRouter>,
-    );
-    await user.type(screen.getByLabelText("Name"), "Deploy token");
-    await user.type(screen.getByLabelText("Text to drop"), "payload text");
-    await user.click(screen.getByRole("checkbox", { name: /Keep a copy/ }));
-    await user.click(
-      screen.getByRole("button", { name: /Seal and create drop/i }),
-    );
-    await screen.findByText("Drop created");
-
-    expect(savedRecord().keptCopy).toEqual({
-      kind: "text",
-      text: "payload text",
-    });
-  });
-
-  it("drops a file chunked, defaulting the name to the file name", async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <NewDropCeremony />
-      </MemoryRouter>,
-    );
-    await user.click(screen.getByRole("button", { name: "File" }));
-    const input: HTMLInputElement = screen.getByLabelText("File to drop");
-    fireEvent.change(input, {
-      target: {
-        // jsdom's File has no arrayBuffer(); Node's does. The component only
-        // reads name/type/arrayBuffer, which both implement.
-        files: [
-          new NodeFile([new Uint8Array([1, 2, 3, 4])], "w2.pdf", {
-            type: "application/pdf",
-          }),
-        ],
-      },
-    });
-    await user.click(
-      screen.getByRole("button", { name: /Seal and create drop/i }),
-    );
-    await screen.findByText("Drop created");
-
-    const record = savedRecord();
-    expect(record.name).toBe("w2.pdf");
+    expect(store.saveItem).not.toHaveBeenCalled();
     const [manifest] = createClaim.mock.calls[0] ?? [];
-    expect(manifest.chunks).toHaveLength(1);
-    expect(record.keptCopy).toBeUndefined();
+    expect(JSON.stringify(manifest)).not.toContain("hunter2-login");
   });
 });
 

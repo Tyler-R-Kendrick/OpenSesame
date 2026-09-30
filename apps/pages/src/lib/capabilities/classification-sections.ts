@@ -20,10 +20,8 @@ export const SECTION_RULES = [
     "vault.passwords",
     "items, editor, detail, health, filters",
   ),
-  ...each(
-    "src/sections/vault/",
-    ["DropCeremony", "DropTtl", "NewDropCeremony"],
-    (p) => optional(p, "sharing.drops", "drop ceremonies"),
+  ...each("src/sections/vault/", ["DropCeremony", "DropTtl"], (p) =>
+    optional(p, "sharing.drops", "drop ceremonies"),
   ),
   optional(
     "src/sections/vault/DraftSuggestions",

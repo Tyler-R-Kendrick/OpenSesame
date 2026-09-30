@@ -13,6 +13,7 @@ export const ALWAYS_ON_TITLES = new Set([
   // Identity and the extra item types are optional (ADR 0153).
   "Sign-in broker for sites",
   "Git remote backup",
+  "Secret drops",
 ]);
 
 /**
