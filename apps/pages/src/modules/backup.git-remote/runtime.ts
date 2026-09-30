@@ -101,9 +101,11 @@ function savedRow(operation: FeatureOperation & { ok: true }): FeatureRequest {
 }
 
 /** Bind saved forge fields and tokens onto the backup sync. */
-export function performGitBackup(): FeatureRequest[] {
+export function performGitBackup(
+  operations: readonly FeatureOperation[] = gitBackupOperations(),
+): FeatureRequest[] {
   const merged = new Map<string, FeatureRequest & { ok: true }>();
-  for (const operation of gitBackupOperations()) {
+  for (const operation of operations) {
     if (operation.ok) {
       const row = savedRow(operation);
       if (row.ok) merged.set(row.providerId, row);
@@ -149,24 +151,11 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {
         if (signal.aborted) return;
-        // Always on is not a way round the operator's network envelope
-        // (ADR 0135 §1, 0142): the one gate every caller shares.
+        // The saved operations are bound even when the network envelope
+        // holds the observer. The observer itself stays behind that gate
+        // (ADR 0135 §1, 0142).
+        performGitBackup(gitBackupOperations());
         if (!backupEgressGate.allowed()) return;
-        const uses = performGitBackup();
-        bindSavedGitBackup(
-          uses.flatMap((use) =>
-            use.ok
-              ? [
-                  {
-                    providerId: use.providerId,
-                    operation: use.operation,
-                    fields: use.fields,
-                    secret: use.secret,
-                  },
-                ]
-              : [],
-          ),
-        );
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
           once: true,
