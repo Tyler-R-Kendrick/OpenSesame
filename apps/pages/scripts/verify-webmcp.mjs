@@ -136,7 +136,6 @@ try {
     "card",
     "certificate",
     "passkey",
-    "drop",
   ]) {
     await native.invoke("opensesame_navigate", {
       section: "/vault/new",
@@ -158,6 +157,14 @@ try {
       );
     }
   }
+  // A drop is a share of an item, not a type with a name field.
+  await native.invoke("opensesame_navigate", {
+    section: "/vault/new",
+    itemType: "drop",
+  });
+  await page.waitForURL(`${origin}${base}vault/new/drop`);
+  await page.getByRole("heading", { name: "Drops cannot be edited" }).waitFor();
+  assert.equal(await page.getByLabel("Name", { exact: true }).count(), 0);
   await native.invoke("opensesame_navigate", { section: "/vault" });
   await page.waitForURL(`${origin}${base}vault`);
   await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
