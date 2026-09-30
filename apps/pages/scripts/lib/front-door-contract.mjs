@@ -46,15 +46,28 @@ export async function checkFrontDoor(page, check, text, base) {
 /**
  * A2. "Set up your own": the composition ceremony (ADR 0130).
  *
- * A device that has approved nothing opens on one tab, `capabilities`, and
- * on nothing else. The ceremonies for connectors, backups, AI, identity and
- * MFA are contributions their capabilities register, so a household that
- * never chose external connectors is never asked for a directory endpoint —
+ * A device that has approved nothing opens on the configuration choice
+ * (ADR 0154). Custom enters the one tab, `capabilities`, and nothing else.
+ * The ceremonies for connectors, backups, AI, identity and MFA are
+ * contributions their capabilities register, so a household that never
+ * chose external connectors is never asked for a directory endpoint —
  * which is the product requirement this walk exists to hold. Skip all still
  * retires the door: sign-in, then plain sign-in (setup behind unlock).
  */
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
+  const onChoice = await snap(page, "A2-setup-configuration");
+  for (const choice of ["Minimal", "Default", "Custom"]) {
+    check(
+      (await count(page, "button", choice, true)) === 1,
+      `setup offers "${choice}"`,
+    );
+  }
+  check(
+    !/How should this installation start\?/.test(onChoice),
+    "the configuration choice has no question-title",
+  );
+  await page.getByRole("button", { name: "Custom", exact: true }).click();
   const onSetup = await snap(page, "A2-setup");
   // Connectors, identity and MFA panels register when those extensions are
   // on (ADR 0153). A fresh device has only the capabilities step.
