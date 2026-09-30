@@ -91,4 +91,28 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "Snapshots queue locally and push when the remote is reachable.",
     },
   ),
+  alwaysOn(
+    "sharing.drops",
+    "Secret drops",
+    "Share any item's secret once, through a sealed claim. The share is part of that item. Opening a drop someone sent needs nothing else.",
+    {
+      egress: [
+        {
+          class: "external-service",
+          purpose:
+            "the configured Identity API's claim sessions, or this origin when Pages hosts the claim",
+          automatic: false,
+        },
+        {
+          class: "user-mediated-navigation",
+          purpose: "the drop link a person copies",
+          automatic: false,
+        },
+      ],
+      browserPermissions: ["clipboard-write"],
+      keyAccess: "item-plaintext",
+      offlineLimits:
+        "Creating a share needs the claim host. A share already sent still opens.",
+    },
+  ),
 ];

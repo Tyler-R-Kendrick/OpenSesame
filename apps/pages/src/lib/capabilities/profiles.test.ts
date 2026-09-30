@@ -113,7 +113,7 @@ const approvedOptional = (plan: EffectivePlan): string[] => {
 const EXPECTED = {
   "minimal-local": [],
   "family-local": [],
-  "family-sharing-selected": ["sharing.drops", "sharing.household"],
+  "family-sharing-selected": ["sharing.household"],
   // Git backup is always on (ADR 0142): the provider path needs nothing optional.
   "single-provider-selected": [],
   "enterprise-selected": [
@@ -124,7 +124,7 @@ const EXPECTED = {
     "vault.certificate-records",
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
-  "managed-prohibited": ["sharing.drops"],
+  "managed-prohibited": [],
 } satisfies Record<string, readonly string[]>;
 
 describe("capability profiles", () => {
@@ -149,13 +149,15 @@ describe("capability profiles", () => {
         ...(policy?.capabilities.prohibited ?? []),
         ...selection.acceptedRequired,
         ...selection.selectedOptional,
-        ...Object.values(selection.chosenAlternatives),
       ];
       const core = new Set(coreCapabilityIds());
       for (const id of listed) {
         expect(known.has(id), `${profile.name}: ${id}`).toBe(true);
         expect(core.has(id), `${profile.name}: core ${id}`).toBe(false);
         expect(id.includes("*"), `${profile.name}: wildcard ${id}`).toBe(false);
+      }
+      for (const id of Object.values(selection.chosenAlternatives)) {
+        expect(known.has(id), `${profile.name}: alternative ${id}`).toBe(true);
       }
       expect(selection.revision).toEqual(expect.any(String));
       if (policy) expect(policy.revision).toEqual(expect.any(String));
@@ -274,7 +276,7 @@ describe("capability profiles", () => {
     const plan = resolve("managed-invalid-signature");
     expect(approvedOptional(plan)).toEqual([]);
     expect(plan.policyValid).toBe(false);
-    expect(plan.capabilities["sharing.drops"]?.reasons).toContain(
+    expect(plan.capabilities["support.local-ai"]?.reasons).toContain(
       "POLICY_UNVERIFIED",
     );
     expect(plan.network.externalServices).toBe("deny");
@@ -283,7 +285,7 @@ describe("capability profiles", () => {
   it("managed-invalid-instance is a PROFILE_MISMATCH with nothing optional approved", () => {
     const plan = resolve("managed-invalid-instance");
     expect(approvedOptional(plan)).toEqual([]);
-    expect(plan.capabilities["sharing.drops"]?.reasons).toContain(
+    expect(plan.capabilities["support.local-ai"]?.reasons).toContain(
       "PROFILE_MISMATCH",
     );
   });

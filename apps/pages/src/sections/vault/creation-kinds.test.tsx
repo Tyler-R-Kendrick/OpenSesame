@@ -5,7 +5,8 @@
  *
  * The minimal vault offers the base secret. Passkey, certificate and the
  * other derived types belong to Item types, which the Personal preset does
- * not select. Drops belong to Sharing, also unselected.
+ * not select. Sending a drop is always on, and a drop is not a type the
+ * picker offers.
  * This walks the surfaces a person actually creates through — the type
  * picker in the new-item editor and the kind filters in the vault rail —
  * and proves the drop is not offered, while a drop already sealed in the
@@ -68,7 +69,6 @@ const PERSONAL_SELECTED = new Set(
 );
 const ITEM_KIND_OWNERS = {
   "vault.passkey-records": LEGACY_ITEM_KINDS[0],
-  "sharing.drops": LEGACY_ITEM_KINDS[1],
   "vault.certificate-records": LEGACY_ITEM_KINDS[2],
 } as const;
 const inPersonalPlan = (capability: string) =>
@@ -119,11 +119,11 @@ describe("what a Personal plan offers when an item is created", () => {
     cleanup();
   });
 
-  it("selects no passkeys, certificates or sharing", () => {
+  it("selects no passkeys or certificates; drops are always on", () => {
     expect(inPersonalPlan("vault.passkey-records")).toBe(false);
     expect(inPersonalPlan("vault.certificate-records")).toBe(false);
     expect(inPersonalPlan("vault.derived-records")).toBe(false);
-    expect(inPersonalPlan("sharing.drops")).toBe(false);
+    expect(inPersonalPlan("sharing.drops")).toBe(true);
     expect(PERSONAL_SELECTED.has("wallet.spending")).toBe(false);
   });
 
@@ -179,16 +179,6 @@ describe("what a Personal plan offers when an item is created", () => {
         .getAttribute("href"),
     ).toBe("/vault/itm_drop");
     expect(vault.current.items[0]?.kind).toBe("drop");
-  });
-
-  it("offers the drop type again once Sharing is switched on", () => {
-    const revoke = registerContributionForTest(
-      "item-kind",
-      ITEM_KIND_OWNERS["sharing.drops"],
-    );
-    renderEditor("/vault/new");
-    expect(typeOptions()).toContain("drop");
-    revoke();
   });
 });
 

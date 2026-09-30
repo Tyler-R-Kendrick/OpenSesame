@@ -269,12 +269,12 @@ describe("vault editor route types", () => {
     expect(saveItem).not.toHaveBeenCalled();
   });
 
-  it("preserves a staged folder when switching through Drop", async () => {
+  it("preserves a staged folder when switching through Secret", async () => {
     open("/vault/new");
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "./test/item");
     await userEvent.tab();
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "drop");
+    await userEvent.selectOptions(screen.getByLabelText("Type"), "secret");
     expect(
       screen.getByLabelText<HTMLSelectElement>("Folder").selectedOptions[0]
         ?.textContent,
@@ -288,20 +288,15 @@ describe("vault editor route types", () => {
     );
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("entry");
   });
-  it.each([
-    "login",
-    "card",
-    "note",
-    "secret",
-    "passkey",
-    "certificate",
-    "drop",
-  ])("locks the explicit %s route to its type", (kind) => {
-    const { container } = open(`/vault/new/${kind}`);
-    expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
-    expect(container.querySelector(".editor__ext")?.tagName).toBe("SPAN");
-    expect(screen.getByLabelText("Name")).toBeTruthy();
-  });
+  it.each(["login", "card", "note", "secret", "passkey", "certificate"])(
+    "locks the explicit %s route to its type",
+    (kind) => {
+      const { container } = open(`/vault/new/${kind}`);
+      expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
+      expect(container.querySelector(".editor__ext")?.tagName).toBe("SPAN");
+      expect(screen.getByLabelText("Name")).toBeTruthy();
+    },
+  );
 
   it.each(["widget", "Login", "%20", "login%2Fcard"])(
     "refuses invalid type %s without a saveable draft",
@@ -318,19 +313,19 @@ describe("vault editor route types", () => {
     },
   );
 
-  it("keeps an untyped drop selectable and preserves its name across type changes", async () => {
+  it("keeps an untyped secret selectable and preserves its name across type changes", async () => {
     open("/vault/new");
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Draft name");
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "drop");
+    await userEvent.selectOptions(screen.getByLabelText("Type"), "secret");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
       "Draft name",
     );
     await userEvent.clear(screen.getByLabelText("Name"));
-    await userEvent.type(screen.getByLabelText("Name"), "Renamed drop");
+    await userEvent.type(screen.getByLabelText("Name"), "Renamed secret");
     await userEvent.selectOptions(screen.getByLabelText("Type"), "note");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
-      "Renamed drop",
+      "Renamed secret",
     );
     expect(screen.getByLabelText<HTMLSelectElement>("Type").value).toBe("note");
   });
@@ -349,7 +344,8 @@ describe("vault editor route types", () => {
     expect(screen.getByLabelText("Type")).toBeTruthy();
     await userEvent.click(screen.getByRole("link", { name: "New drop" }));
     expect(screen.queryByLabelText("Type")).toBeNull();
-    expect(screen.getByLabelText("Text to drop")).toBeTruthy();
+    expect(screen.getByText("Drops cannot be edited")).toBeTruthy();
+    expect(screen.queryByLabelText("Text to drop")).toBeNull();
   });
 
   it("does not expose a picker when editing an existing item", () => {

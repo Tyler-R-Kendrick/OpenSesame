@@ -144,6 +144,7 @@ describe("the vault listing's context menu", () => {
       "Copy secret",
       "Copy username",
       "Favorite",
+      "Share once",
       "Trash",
     ]);
   });

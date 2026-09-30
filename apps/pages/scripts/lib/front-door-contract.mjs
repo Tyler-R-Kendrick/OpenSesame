@@ -107,9 +107,10 @@ export async function walkSetupCeremony(page, check, snap) {
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
   check(
-    // One card per optional capability. ADR 0153 moved Connections, Access,
-    // Identity and the derived item types onto that list; password reset is 25.
-    rows === 25,
+    // One card per optional capability. sharing.drops is always on, so it
+    // is not a card. ADR 0153 put Connections, Access, Identity and the
+    // derived item types on this list; the Family purpose draws 24.
+    rows === 24,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

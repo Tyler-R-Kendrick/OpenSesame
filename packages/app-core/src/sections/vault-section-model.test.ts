@@ -6,7 +6,7 @@ import {
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
-import { chipTypeIds } from "./vault-section-model.js";
+import { chipTypeIds, shareText } from "./vault-section-model.js";
 
 const BOAT = JSON.stringify({
   apiVersion: "opensesame.dev/v1alpha1",
@@ -59,5 +59,52 @@ describe("chipTypeIds", () => {
   it("offers an installed type before it holds an item", () => {
     installItemType(BOAT);
     expect(chipTypeIds([createItem("login")])).toEqual(["login", "boat"]);
+  });
+});
+
+describe("shareText", () => {
+  it("sends the concealed value of every item that has one", () => {
+    const wifi = itemTypeRegistry().get("wifi");
+    if (wifi === undefined) throw new Error("wifi is a built-in type");
+    expect(shareText({ ...createItem("secret", "API"), value: "s3cr3t" })).toBe(
+      "s3cr3t",
+    );
+    expect(
+      shareText({ ...createItem("login", "GitHub"), password: "hunter2" }),
+    ).toBe("hunter2");
+    expect(
+      shareText({ ...createItem("card", "Visa"), number: "4242424242424242" }),
+    ).toBe("4242424242424242");
+    expect(
+      shareText({
+        ...createItem("certificate", "local"),
+        privateKeyPem: "-----BEGIN KEY-----",
+      }),
+    ).toBe("-----BEGIN KEY-----");
+    expect(
+      shareText({
+        ...createItem("passkey", "GitHub"),
+        privateKeyPkcs8B64: "pkcs8",
+      }),
+    ).toBe("pkcs8");
+    expect(
+      shareText(createTypedItem(wifi, { passphrase: "network-secret" })),
+    ).toBe("network-secret");
+  });
+
+  it("sends a note's text, and notes when an item has no concealed value", () => {
+    expect(
+      shareText({ ...createItem("note", "Idea"), notes: "remember" }),
+    ).toBe("remember");
+    expect(
+      shareText({ ...createItem("secret", "Empty"), notes: "fallback" }),
+    ).toBe("fallback");
+  });
+
+  it("shares nothing for an empty item or a legacy drop record", () => {
+    expect(shareText(createItem("secret", "Empty"))).toBeNull();
+    expect(shareText(createItem("note", "Blank"))).toBeNull();
+    expect(shareText(createItem("passkey", "No key"))).toBeNull();
+    expect(shareText(createItem("drop", "Sent"))).toBeNull();
   });
 });

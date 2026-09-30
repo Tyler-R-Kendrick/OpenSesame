@@ -17,7 +17,7 @@ import type {
   RegistrationHandle,
   RuntimeHandle,
 } from "@opensesame/capability-composition";
-import type { Folder, SecretItem, VaultItem } from "@opensesame/vault-core";
+import type { Folder, VaultItem } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import type { ComponentType, ReactNode } from "react";
 import type { VirtualFileProvider } from "../../sections/settings/virtual-files.js";
@@ -149,17 +149,22 @@ export type ItemKindContribution = Readonly<{
   segment: string;
   Icon?: ComponentType;
   order: number;
+  /**
+   * Stored records of this kind still render when this is false, and no
+   * creation surface offers the kind.
+   */
+  creatable?: boolean;
   /** The record view for a stored item of this kind. */
   Record?: ComponentType<{ item: VaultItem }>;
   /** Creating one opens this form in place of the item editor. */
   Create?: ComponentType<ItemCreateProps>;
 }>;
 
-/** An offer to share a stored secret, drawn under its fields. */
+/** An offer to share a stored item once, drawn under its fields. */
 export type SecretShareContribution = Readonly<{
   id: string;
   order: number;
-  Panel: ComponentType<{ item: SecretItem; initialOpen?: boolean }>;
+  Panel: ComponentType<{ item: VaultItem; initialOpen?: boolean }>;
 }>;
 
 export type DraftAssistProps = Readonly<{

@@ -1,5 +1,6 @@
 import {
   concealedValue,
+  shareText,
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 import type { TreeRow, VaultItem } from "@opensesame/vault-core";
@@ -92,7 +93,7 @@ export function vaultItemMenu(
         ".",
         actions.favorite,
       ),
-      ...(item.kind === "secret" && actions.share
+      ...(actions.share && shareText(item)
         ? [verb("share", "Share once", "s", actions.share)]
         : []),
     ],

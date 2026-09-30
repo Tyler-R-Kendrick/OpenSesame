@@ -31,6 +31,7 @@ import "./vault.css";
 import {
   chipTypeIds,
   concealedValue,
+  shareText,
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 
@@ -138,8 +139,7 @@ export function VaultSection() {
       // Only a capability that contributes a way to share offers it.
       share: canShare
         ? (item: VaultItem) => {
-            if (item.kind === "secret")
-              navigate(`/vault/${item.id}?share=drop`);
+            if (shareText(item)) navigate(`/vault/${item.id}?share=drop`);
           }
         : undefined,
       create: () => navigate(createPath),

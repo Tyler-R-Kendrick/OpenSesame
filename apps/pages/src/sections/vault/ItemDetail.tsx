@@ -221,9 +221,6 @@ export function ItemDetail() {
         copied={copied}
         failed={failed}
         copy={copy}
-        shareInitiallyOpen={
-          new URLSearchParams(location.search).get("share") === "drop"
-        }
         onUpdateSecret={async (next) => {
           const updated = { ...item, updatedAt: new Date().toISOString() };
           if (updated.kind === "login") {
@@ -235,6 +232,14 @@ export function ItemDetail() {
           await store.saveItem(updated);
         }}
       />
+      {item.kind !== "drop" ? (
+        <SecretShares
+          item={item}
+          initialOpen={
+            new URLSearchParams(location.search).get("share") === "drop"
+          }
+        />
+      ) : null}
 
       {item.fields.length > 0 ? (
         <section className="detail__group">
@@ -303,8 +308,6 @@ type FieldsProps = {
   copied: string | null;
   failed: string | null;
   copy: (key: string, value: string) => Promise<void>;
-  /** A `?share=drop` deep link (e.g. from a list row) opens the ceremony. */
-  shareInitiallyOpen: boolean;
   onUpdateSecret: (next: string) => Promise<void>;
 };
 
@@ -429,7 +432,6 @@ function ItemFields({
   copied,
   failed,
   copy,
-  shareInitiallyOpen,
   onUpdateSecret,
 }: FieldsProps) {
   switch (item.kind) {
@@ -804,8 +806,6 @@ function ItemFields({
               ))
             )}
           </section>
-
-          <SecretShares item={item} initialOpen={shareInitiallyOpen} />
         </>
       );
 

@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 /**
  * Drop ceremonies (docs/design/secret-drop.md §3/§4/§5).
  *
- * - `ShareSecretDrop`: the share ceremony on an existing vault secret — TTL,
- *   *Keep a copy* (default on; it governs only the drop record — the secret
- *   item itself is never modified), seal + create, drop card.
- * - `NewDropCeremony`: the +new → Drop flow — text or a file, TTL, *Keep a
- *   copy* (default off). The payload never enters the vault body unless kept.
- * - `DropRecordFields`: the drop record's detail — state, countdown, the
+ * - `ShareSecretDrop`: the share ceremony on any stored item — TTL, seal,
+ *   drop card. The item itself is not modified and no drop item is saved.
+ * - `DropRecordFields`: a legacy drop record's detail — state, countdown, the
  *   kept copy if there is one — and the disposal poll that purges the record
  *   once nothing can open the drop again.
  *
@@ -17,13 +13,13 @@ import { Link } from "react-router";
  */
 
 import {
-  type CreatedDrop,
-  createDrop,
+  type SharedOnce,
+  shareOnce,
   sweepDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
+import { shareText } from "@opensesame/app-core/sections/vault-section-model.js";
 import {
   type DropItem,
-  type SecretItem,
   type VaultItem,
   b64ToBytes,
 } from "@opensesame/vault-core";
@@ -43,7 +39,7 @@ import { DROP_TTL_OPTIONS, TtlPicker } from "./DropTtl.js";
 import { formatExpiry } from "./expiry.js";
 
 /** What a finished ceremony shows: link, code, QR, expiry — never the payload. */
-export function DropCard({ drop }: { drop: CreatedDrop }) {
+export function DropCard({ drop }: { drop: SharedOnce }) {
   const { copied, failed, copy } = useCopyFeedback();
   return (
     <section className="detail__group" aria-label="Drop ready">
@@ -88,42 +84,33 @@ export function DropCard({ drop }: { drop: CreatedDrop }) {
           size={144}
         />
       </div>
-      <p className="hint">Expires {formatExpiry(drop.record.expiresAt)}.</p>
+      <p className="hint">Expires {formatExpiry(drop.expiresAt)}.</p>
     </section>
   );
 }
 
-/** Share ceremony on an existing vault secret. The secret item is untouched. */
+/** Share ceremony on a stored item. The item is untouched. */
 export function ShareSecretDrop({
   item,
   initialOpen = false,
 }: {
-  item: SecretItem;
+  item: VaultItem;
   initialOpen?: boolean;
 }) {
-  const store = useVaultStore();
+  const text = shareText(item);
   const [open, setOpen] = useState(initialOpen);
   const [ttlMs, setTtlMs] = useState<number>(DROP_TTL_OPTIONS[1].ms);
-  // Sharing an existing vault secret defaults to keeping a copy — the secret
-  // stays in the vault either way; this governs only the drop record.
-  const [keepCopy, setKeepCopy] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [drop, setDrop] = useState<CreatedDrop | null>(null);
+  const [drop, setDrop] = useState<SharedOnce | null>(null);
 
   async function share() {
+    if (text === null) return;
     setBusy(true);
     setError(null);
     try {
-      const name = item.name || "Shared secret";
-      const created = await createDrop({
-        name,
-        payload: { kind: "text", name, text: item.value },
-        ttlMs,
-        keepCopy,
-      });
-      await store.saveItem(created.record);
-      setDrop(created);
+      const name = item.name || "Shared item";
+      setDrop(await shareOnce({ name, text, ttlMs }));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -135,15 +122,12 @@ export function ShareSecretDrop({
     }
   }
 
+  if (text === null) return null;
+
   if (drop) {
     return (
       <section className="detail__group">
         <DropCard drop={drop} />
-        <div className="actions">
-          <Link className="btn btn--sm" to={`/vault/${drop.record.id}`}>
-            Open the drop record
-          </Link>
-        </div>
       </section>
     );
   }
@@ -157,23 +141,9 @@ export function ShareSecretDrop({
   }
 
   return (
-    <section className="detail__group" aria-label="Share this secret once">
-      <h2 className="detail__grouphead">Share this secret once</h2>
-      <p className="hint">
-        Sealed here with a fresh key. This device hosts the claim when no
-        sign-in service is connected.
-      </p>
+    <section className="detail__group" aria-label="Share this item once">
+      <h2 className="detail__grouphead">Share once</h2>
       <TtlPicker value={ttlMs} onChange={setTtlMs} />
-      <div className="field">
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={keepCopy}
-            onChange={(event) => setKeepCopy(event.target.checked)}
-          />
-          <span>Keep a copy on the drop record</span>
-        </label>
-      </div>
       {error ? (
         <p className="note note--err" role="alert">
           <span>{error}</span>

@@ -90,11 +90,13 @@ function checkIds(
         );
       } else if (
         d.tier === "core" &&
-        // An always-on capability may be withdrawn (ADR 0142); only
-        // statically linked core, which cannot be, is misplaced there.
+        // An always-on capability may be withdrawn (ADR 0142), and a slot
+        // may name one (Household sharing's transport is Secret drops).
+        // Only statically linked core, which cannot be either, is misplaced.
         !(
-          source.path === "instancePolicy.capabilities.prohibited" &&
-          d.moduleIds.length > 0
+          d.moduleIds.length > 0 &&
+          (source.path === "instancePolicy.capabilities.prohibited" ||
+            source.path === "installation.chosenAlternatives")
         )
       ) {
         pushDiagnostic(

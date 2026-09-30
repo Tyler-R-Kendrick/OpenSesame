@@ -14,7 +14,7 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": ["sharing.drops", "support.local-ai"],
+      "optional": ["support.local-ai"],
       "prohibited": [
         "agents.webmcp",
         "enterprise.ca-administration",
@@ -46,7 +46,7 @@
     "basePolicyRevision": "14",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["sharing.drops"],
+    "selectedOptional": [],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

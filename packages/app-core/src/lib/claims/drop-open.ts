@@ -3,10 +3,9 @@
  *
  * A drop link (`/claim#token=…&key=…`) opens on every installation: the
  * `/claim` route is the always-on `identity.ceremonies`, and so is this.
- * Sending a drop — sealing, creating and polling the claim session, the
- * vault's drop records — stays in the optional `sharing.drops`
- * (`vault/drop.ts`, `vault/drop-transport.ts`), which builds on the errors
- * defined here.
+ * Sending a drop — sealing and creating the claim session — is the
+ * always-on `sharing.drops` (`vault/drop.ts`). A legacy drop record still
+ * sweeps from there. Both build on the errors defined here.
  *
  * Opening is two steps: present the bearer with the user code the sender
  * shared out of band (`POST /v1/claims/present`, single-use on the server),

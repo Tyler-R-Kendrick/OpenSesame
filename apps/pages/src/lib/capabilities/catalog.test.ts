@@ -63,6 +63,7 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         // Browser-local, always on (ADR 0142). Identity is optional (ADR 0153).
         "backup.git-remote",
         "identity.site-broker",
+        "sharing.drops",
       ].sort(),
     );
   });
@@ -195,7 +196,9 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
     expect(owners.get("secret")).toBe("vault.passwords");
     expect(owners.get("passkey")).toBe("vault.passkey-records");
     expect(owners.get("certificate")).toBe("vault.certificate-records");
-    expect(owners.get("drop")).toBe("sharing.drops");
+    expect(owners.has("drop")).toBe(false);
+    expect(descriptor("sharing.drops").tier).toBe("core");
+    expect(descriptor("sharing.drops").itemKinds).toEqual([]);
   });
 
   it("descriptors are data: no functions anywhere", () => {
