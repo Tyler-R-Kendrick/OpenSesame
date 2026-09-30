@@ -28,6 +28,7 @@ import {
 import {
   AT_REST_DATABASE,
   HISTORY_BACKUP_DATABASE,
+  PASSWORD_HISTORY_DATABASE,
   ownsDatabase,
   ownsOriginFile,
   ownsServiceWorkerScope,
@@ -69,6 +70,7 @@ describe("ownership", () => {
     expect(ownsOriginFile("tomb")).toBe(false);
     expect(ownsDatabase(HISTORY_BACKUP_DATABASE)).toBe(true);
     expect(ownsDatabase(AT_REST_DATABASE)).toBe(true);
+    expect(ownsDatabase(PASSWORD_HISTORY_DATABASE)).toBe(true);
     expect(ownsDatabase("opensesame-history-backups-2")).toBe(false);
     expect(
       ownsServiceWorkerScope("https://a.test/x/", "https://a.test/x/"),

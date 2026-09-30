@@ -1,0 +1,93 @@
+{
+  "out": ".",
+  "clock": "2026-09-29T18:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/login" },
+        { "fill": { "label": "Name", "text": "Bank" } },
+        {
+          "fill": { "label": "Password", "text": "retired-fjord-lantern-9f3a" }
+        },
+        { "press": "Save item" },
+        { "press": "Update password" },
+        { "press": "Enter" },
+        {
+          "fill": {
+            "label": "New password",
+            "text": "marina-beacon-trellis-4c8e"
+          }
+        },
+        { "press": "Save new value" },
+        { "press": "Update password" },
+        { "press": "Enter" },
+        {
+          "fill": {
+            "label": "New password",
+            "text": "retired-fjord-lantern-9f3a"
+          }
+        },
+        { "press": "Save new value" },
+        { "report": ".note--err" },
+        { "measure": ".note--err" },
+        { "shot": "reuse-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/login" },
+        { "fill": { "label": "Name", "text": "Bank" } },
+        {
+          "fill": { "label": "Password", "text": "retired-fjord-lantern-9f3a" }
+        },
+        { "press": "Save item" },
+        { "press": "Update password" },
+        { "press": "Enter" },
+        {
+          "fill": {
+            "label": "New password",
+            "text": "marina-beacon-trellis-4c8e"
+          }
+        },
+        { "press": "Save new value" },
+        { "press": "Update password" },
+        { "press": "Enter" },
+        {
+          "fill": {
+            "label": "New password",
+            "text": "retired-fjord-lantern-9f3a"
+          }
+        },
+        { "press": "Save new value" },
+        { "report": ".note--err" },
+        { "measure": ".note--err" },
+        { "shot": "reuse-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "reuse-1280",
+      "width": 1280,
+      "title": "Retired password — 1280 × 800",
+      "caption": "Saving a login password that was retired a moment ago.",
+      "before": "error absent; the retired password is saved again",
+      "after": "alert 539×44 at 627,329: That password was used before."
+    },
+    {
+      "shot": "reuse-390",
+      "width": 390,
+      "title": "Retired password — 390 × 844",
+      "caption": "The same refusal on a phone.",
+      "before": "error absent; the retired password is saved again",
+      "after": "alert 233×44 at 31,520: That password was used before."
+    }
+  ]
+}
