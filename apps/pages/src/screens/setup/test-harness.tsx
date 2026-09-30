@@ -87,6 +87,7 @@ export function selectedTab(): string {
 
 export function openSetup(onDone: () => void = vi.fn()): () => void {
   render(<SetupScreen onDone={onDone} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Custom$/ }));
   return onDone;
 }
 

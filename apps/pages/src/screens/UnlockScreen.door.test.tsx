@@ -99,9 +99,11 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     fresh();
     render(<UnlockScreen />);
     fireEvent.click(screen.getByRole("button", { name: /^Set up your own/ }));
-    // The ceremony opens on its one fixed tab — what this installation is
-    // allowed to load is asked before anything optional is configured (ADR
-    // 0130) — with each capability's own tab behind it.
+    // The choice comes first (ADR 0154). Custom opens the ceremony, whose
+    // one fixed tab asks what this installation may load before anything
+    // optional is configured (ADR 0130).
+    expect(screen.getByRole("button", { name: /^Minimal$/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Custom$/ }));
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
     ).toBe("capabilities");
