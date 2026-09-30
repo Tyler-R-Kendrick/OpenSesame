@@ -281,33 +281,39 @@ export const vaultBackupSyncSeams = {
   resolveForgeCredentials: resolveForgeCredentialsDefault,
 };
 
+/** Push one forge remote with the token saved on Capabilities. */
+export async function pushSavedForgeBackup(
+  target: LocalBackupTarget,
+): Promise<string | null> {
+  const creds = vaultBackupSyncSeams.resolveForgeCredentials(target);
+  if (!creds) {
+    throw new Error("Unlock the vault and use an HTTPS token for this remote.");
+  }
+  const json = vaultBackupSyncSeams.sealedEnvelopeJson();
+  const result = await vaultBackupSyncSeams.putForgeContents({
+    forge: creds.forge,
+    token: creds.token,
+    username: creds.username,
+    owner: target.owner,
+    repo: target.repo,
+    branch: target.branch,
+    contentBase64: utf8ToBase64(json),
+  });
+  return result.commitSha;
+}
+
 async function syncOneTarget(
   target: LocalBackupTarget,
 ): Promise<LocalBackupTarget | null> {
   if (!target.enabled) return target;
   const providerKey = target.providerId ?? "github";
   try {
-    const json = vaultBackupSyncSeams.sealedEnvelopeJson();
-    const contentBase64 = utf8ToBase64(json);
     let commitSha: string | null = null;
     if (target.kind === "git_remote") {
-      const creds = vaultBackupSyncSeams.resolveForgeCredentials(target);
-      if (!creds) {
-        throw new Error(
-          "Unlock the vault and use an HTTPS token for this remote.",
-        );
-      }
-      const result = await vaultBackupSyncSeams.putForgeContents({
-        forge: creds.forge,
-        token: creds.token,
-        username: creds.username,
-        owner: target.owner,
-        repo: target.repo,
-        branch: target.branch,
-        contentBase64,
-      });
-      commitSha = result.commitSha;
+      commitSha = await pushSavedForgeBackup(target);
     } else {
+      const json = vaultBackupSyncSeams.sealedEnvelopeJson();
+      const contentBase64 = utf8ToBase64(json);
       const creds = vaultBackupSyncSeams.resolveCredentials();
       if (!creds) {
         throw new Error(

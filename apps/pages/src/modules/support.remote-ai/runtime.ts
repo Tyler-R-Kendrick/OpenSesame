@@ -40,6 +40,7 @@ import {
 } from "@opensesame/app-core/lib/hosted-inference.js";
 import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
 import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
+import { createSavedModelSupportAgent } from "@opensesame/app-core/lib/saved-model-agent.js";
 import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
@@ -105,6 +106,19 @@ function secretsStayOnHeaders(row: ModelExchange & { ok: true }): boolean {
   );
 }
 
+/** AG-UI when an endpoint is configured, otherwise the saved model connector. */
+export async function loadRemoteAgentModule(): Promise<{
+  createAgUiAgent: () => ReturnType<typeof createSavedModelSupportAgent>;
+}> {
+  const ag = await import(
+    "@opensesame/app-core/tutorial/agents/ag-ui/index.js"
+  );
+  return {
+    createAgUiAgent: () =>
+      ag.createAgUiAgent() ?? createSavedModelSupportAgent(),
+  };
+}
+
 /** Read the configured endpoint once, unless the lease already aborted. */
 export function startAgUiEndpointLoad(signal: AbortSignal): void {
   acceptedModels = loadSavedRemoteModels().filter(
@@ -134,8 +148,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       installSupportAgentLoaders({
         provider: () =>
           import("@opensesame/app-core/tutorial/agents/provider/index.js"),
-        agUi: () =>
-          import("@opensesame/app-core/tutorial/agents/ag-ui/index.js"),
+        agUi: () => loadRemoteAgentModule(),
       }),
     );
     activation.onDispose(() => applyAgUiEndpoint(null));

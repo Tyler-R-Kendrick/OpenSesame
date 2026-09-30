@@ -43,6 +43,7 @@ import {
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
   type FeatureRequest,
+  dispatchFeatureCall,
   savedFeatureRequests,
 } from "@opensesame/app-core/lib/feature-request.js";
 import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
@@ -111,7 +112,10 @@ export function performGitBackup(): FeatureRequest[] {
   for (const row of savedFeatureRequests(["backup_recovery"])) {
     if (row.ok) merged.set(row.providerId, row);
   }
-  const uses = [...merged.values()];
+  const uses = [...merged.values()].flatMap((row) => {
+    const sent = dispatchFeatureCall(row);
+    return sent.ok ? [sent] : [];
+  });
   bindSavedGitBackup(
     uses.map((row) => ({
       providerId: row.providerId,

@@ -27,9 +27,9 @@ import {
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
   type FeatureRequest,
-  currentUse,
+  dispatchFeatureCall,
+  dispatchedFeatureCall,
   rememberUses,
-  savedFeatureRequests,
 } from "@opensesame/app-core/lib/feature-request.js";
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
@@ -63,15 +63,36 @@ let walletReady: FeatureRequest[] = [];
 
 /** Arm wallet connectors saved on this device. Payment credentials are never stored. */
 export function startWalletConnectors(): FeatureRequest[] {
-  walletReady = rememberUses(savedFeatureRequests(["wallet"]));
+  const requests = applySavedWalletConnectors().map((operation) =>
+    operation.ok
+      ? dispatchFeatureCall({
+          ok: true,
+          providerId: operation.providerId,
+          operation: operation.operation,
+          fields: { ...operation.action },
+          secret: { ...operation.secrets },
+        })
+      : { ok: false as const, providerId: operation.providerId },
+  );
+  walletReady = rememberUses(requests);
   return walletReady.map((use) => walletOperation(use.providerId));
 }
 
 export function walletOperation(providerId: string): FeatureRequest {
-  if (!walletReady.some((use) => use.ok && use.providerId === providerId)) {
+  const call = dispatchedFeatureCall(providerId);
+  if (
+    !call ||
+    !walletReady.some((use) => use.ok && use.providerId === providerId)
+  ) {
     return { ok: false, providerId };
   }
-  return currentUse(providerId);
+  return {
+    ok: true,
+    providerId,
+    operation: call.operation,
+    fields: { ...call.fields },
+    secret: { ...call.secret },
+  };
 }
 
 export const TUTORIAL = {

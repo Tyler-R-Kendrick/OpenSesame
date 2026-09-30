@@ -20,6 +20,45 @@ export type FeatureRequest =
 
 const armed = new Map<string, FeatureRequest & { ok: true }>();
 
+export type DispatchedFeatureCall = {
+  providerId: string;
+  operation: string;
+  fields: Record<string, string>;
+  secret: Record<string, string>;
+};
+
+const dispatched: DispatchedFeatureCall[] = [];
+
+/** Record the operation a feature will send. Secrets stay on that call. */
+export function dispatchFeatureCall(request: FeatureRequest): FeatureRequest {
+  if (!request.ok) return request;
+  const call: DispatchedFeatureCall = {
+    providerId: request.providerId,
+    operation: request.operation,
+    fields: { ...request.fields },
+    secret: { ...request.secret },
+  };
+  dispatched.push(call);
+  return {
+    ok: true,
+    providerId: call.providerId,
+    operation: call.operation,
+    fields: { ...call.fields },
+    secret: { ...call.secret },
+  };
+}
+
+/** The call a feature dispatched for one provider, if it performed the operation. */
+export function dispatchedFeatureCall(
+  providerId: string,
+): DispatchedFeatureCall | undefined {
+  for (let index = dispatched.length - 1; index >= 0; index -= 1) {
+    const call = dispatched[index];
+    if (call?.providerId === providerId) return call;
+  }
+  return undefined;
+}
+
 function idOf(provider: Provider | string): string {
   return typeof provider === "string" ? provider : provider.id;
 }
@@ -95,4 +134,5 @@ export function currentUse(providerId: string): FeatureRequest {
 
 export function resetFeatureUsesForTest(): void {
   armed.clear();
+  dispatched.length = 0;
 }
