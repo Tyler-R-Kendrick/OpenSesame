@@ -146,17 +146,22 @@ describe("a live session, owner to joiner, paired by hand", () => {
     fireEvent.change(joiner.getByLabelText("Code"), {
       target: { value: (host?.code ?? "").toLowerCase() },
     });
-    const request = await ask(joiner, "Ada");
+    const request = await ask(joiner, "Ada Lovelace");
     expect(request).toMatch(/^osl-request\./);
-    expect(request).not.toContain("Ada");
+    // A space cannot appear in a base64url code by chance.
+    expect(request).not.toContain("Ada Lovelace");
 
     const created = net.created;
     paste(panel, "A request code", "Read the request", request);
-    const admit = await panel.findByRole("button", { name: "Let Ada in" });
+    const admit = await panel.findByRole("button", {
+      name: "Let Ada Lovelace in",
+    });
     // Asking made the owner no peer: nothing of the owner has left yet.
     expect(net.created).toBe(created);
     fireEvent.click(admit);
-    await panel.findByRole("button", { name: "Copy the reply code for Ada" });
+    await panel.findByRole("button", {
+      name: "Copy the reply code for Ada Lovelace",
+    });
     const reply = currentHost()?.state.guests[0]?.reply ?? "";
     expect(reply).toMatch(/^osl-reply\./);
 

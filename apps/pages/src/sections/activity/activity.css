@@ -1,0 +1,27 @@
+/* The log and the event it has open. A phone shows one of them. */
+
+.activity-log[data-pane="detail"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+a.identity-row__main {
+  color: inherit;
+  text-decoration: none;
+}
+
+.identity-row:has(a[aria-current="page"]) {
+  border-color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .activity-log[data-pane="detail"] {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-log[data-pane="detail"] .activity-log__list {
+    display: none;
+  }
+}

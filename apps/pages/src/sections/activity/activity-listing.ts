@@ -20,15 +20,28 @@ export type ActivityListing = Readonly<{
 }>;
 
 const ROW_PREFIX = "activity-";
+const PATH_PREFIX = "/activity/";
 
-/** The id a page row carries, which a rail entry's hash names. */
+/** The id a page row carries, so a deep link can still find it. */
 export function activityRowId(eventId: string): string {
   return `${ROW_PREFIX}${eventId}`;
 }
 
-/** Where a rail entry takes you: the row on the page. */
+/** Where a row takes you: that event's details. */
 export function activityHref(eventId: string): string {
-  return `/activity#${ROW_PREFIX}${encodeURIComponent(eventId)}`;
+  return `${PATH_PREFIX}${encodeURIComponent(eventId)}`;
+}
+
+/** The event a `/activity/…` path names, if it names one. */
+export function activityIdFromPath(pathname: string): string | null {
+  if (!pathname.startsWith(PATH_PREFIX)) return null;
+  const raw = pathname.slice(PATH_PREFIX.length);
+  if (raw === "" || raw.includes("/")) return null;
+  try {
+    return decodeURIComponent(raw) || null;
+  } catch {
+    return null;
+  }
 }
 
 /** The event a `#activity-…` hash names, if it names one. */

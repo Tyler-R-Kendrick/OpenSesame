@@ -29,7 +29,7 @@ export function extraSteps({ press }) {
     ...markSteps({ press }),
     ...memberSteps({ press }),
     ...placeSteps(),
-    ...railSteps(),
+    ...railSteps({ press }),
     ...routingSteps(),
     ...orgSignInSteps(),
     ...networkSteps(),

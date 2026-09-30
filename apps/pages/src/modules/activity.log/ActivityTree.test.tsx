@@ -11,7 +11,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { MemoryRouter, useNavigate } from "react-router";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setRailCursor } from "../../components/rail-cursor.js";
 import { LISTING_PAGE_SIZE } from "../../lib/listing-page.js";
@@ -71,10 +71,7 @@ afterEach(() => {
 function FollowLink() {
   const navigate = useNavigate();
   return (
-    <button
-      type="button"
-      onClick={() => navigate("/activity#activity-event-1")}
-    >
+    <button type="button" onClick={() => navigate("/activity/event-1")}>
       Follow link
     </button>
   );
@@ -90,7 +87,10 @@ function renderActivity(path = "/activity") {
         </div>
       </nav>
       <main>
-        <ActivitySection />
+        <Routes>
+          <Route path="/activity" element={<ActivitySection />} />
+          <Route path="/activity/:eventId" element={<ActivitySection />} />
+        </Routes>
       </main>
     </MemoryRouter>,
   );
@@ -161,10 +161,14 @@ it("searches the log with /, narrowing the rail with the page", async () => {
   ).toBeNull();
 });
 
-it("a deep link past the first page grows the listing to its row", async () => {
-  renderActivity("/activity#activity-event-28");
+it("a deep link past the first page grows the listing and opens the event", async () => {
+  renderActivity("/activity/event-28");
   await waitFor(() => expect(pageRows()).toHaveLength(30));
   expect(document.getElementById("activity-event-28")).not.toBeNull();
+  expect(
+    screen.getByRole("heading", { level: 2, name: "Vault unlocked 28" }),
+  ).toBeTruthy();
+  expect(screen.getByText("vault.unlocked")).toBeTruthy();
   const rail = screen.getByRole("navigation", { name: "Rail" });
   const row = within(rail).getByRole("treeitem", {
     name: "Vault unlocked 28",
@@ -172,8 +176,21 @@ it("a deep link past the first page grows the listing to its row", async () => {
   expect(row.getAttribute("aria-selected")).toBe("true");
 });
 
+it("a row opens that event's details", async () => {
+  renderActivity();
+  await waitFor(() => expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE));
+  fireEvent.click(screen.getByRole("link", { name: /Settings updated 00/ }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Settings updated 00" }),
+    ).toBeTruthy(),
+  );
+  expect(screen.getByText("settings.updated")).toBeTruthy();
+  expect(screen.getByText("info")).toBeTruthy();
+});
+
 it("a search typed on a selected row narrows the list and keeps the prompt", async () => {
-  renderActivity("/activity#activity-event-1");
+  renderActivity("/activity/event-1");
   await waitFor(() => expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE));
   fireEvent.click(screen.getByRole("button", { name: "Search activity" }));
   const field = screen.getByRole("textbox", {
@@ -205,6 +222,28 @@ it("a link to a row the search hides clears the search", async () => {
   );
   expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE);
   expect(document.getElementById("activity-event-1")).not.toBeNull();
+});
+
+it("an old hash link opens that event", async () => {
+  renderActivity("/activity#activity-event-1");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Vault unlocked 01" }),
+    ).toBeTruthy(),
+  );
+  expect(screen.getByText("vault.unlocked")).toBeTruthy();
+});
+
+it("an unknown event says it is not in this log", async () => {
+  renderActivity("/activity/missing");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "That event is not in this log",
+      }),
+    ).toBeTruthy(),
+  );
 });
 
 it("says so while locked, without reading the log", async () => {
