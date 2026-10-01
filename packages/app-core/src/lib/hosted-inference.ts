@@ -7,10 +7,10 @@
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import {
-  type FeatureRequest,
-  featureRequest,
-  savedFeatureRequests,
-} from "./feature-request.js";
+  type FeatureOperation,
+  runListedFeature,
+} from "./feature-connector-operation.js";
+import { type FeatureRequest, featureRequest } from "./feature-request.js";
 
 export type ModelExchange =
   | { ok: false; providerId: string }
@@ -82,6 +82,8 @@ export function modelExchange(provider: Provider | string): ModelExchange {
 }
 
 export const hostedInferenceSeams = {
+  fetch: (url: string, init: RequestInit): Promise<Response> =>
+    globalThis.fetch(url, init),
   deliver(exchange: ModelExchange & { ok: true }): DeliveredModel {
     const sent: DeliveredModel = {
       url: exchange.url,
@@ -91,6 +93,18 @@ export const hostedInferenceSeams = {
       operation: exchange.operation,
     };
     delivered.push(sent);
+    void hostedInferenceSeams
+      .fetch(sent.url, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          ...sent.headers,
+        },
+        body: sent.body,
+        credentials: "omit",
+      })
+      .catch(() => undefined);
     return sent;
   },
 };
@@ -103,10 +117,7 @@ export function resetDeliveredModels(): void {
   delivered.length = 0;
 }
 
-/** Send one saved provider's inference request. The key stays on that request. */
-export function performInference(provider: Provider | string): ModelExchange {
-  const exchange = modelExchange(provider);
-  if (!exchange.ok) return exchange;
+function posted(exchange: ModelExchange & { ok: true }): ModelExchange {
   const sent = hostedInferenceSeams.deliver(exchange);
   const body = JSON.parse(sent.body) as Record<string, string>;
   return {
@@ -119,9 +130,28 @@ export function performInference(provider: Provider | string): ModelExchange {
   };
 }
 
-/** Every saved agent harness, not a single hardcoded provider. */
-export function performSavedInferences(): ModelExchange[] {
-  return savedFeatureRequests(["agent_harnesses"]).map((row) =>
-    performInference(row.providerId),
-  );
+/**
+ * Post the operation `savedRemoteModel` returned. The key stays on the headers.
+ * Nothing saved does not succeed.
+ */
+export function sendModelOperation(operation: FeatureOperation): ModelExchange {
+  if (!operation.ok) return { ok: false, providerId: operation.providerId };
+  const drafted = modelExchange(operation.providerId);
+  if (!drafted.ok) return drafted;
+  if (!bodyHidesSecret(operation.action, operation.secrets)) {
+    return { ok: false, providerId: operation.providerId };
+  }
+  return posted({
+    ok: true,
+    providerId: operation.providerId,
+    operation: operation.operation,
+    url: drafted.url,
+    body: { ...operation.action },
+    headers: secretHeaders(operation.secrets),
+  });
+}
+
+/** Send one saved provider's inference request. The key stays on that request. */
+export function performInference(provider: Provider | string): ModelExchange {
+  return sendModelOperation(runListedFeature(provider));
 }

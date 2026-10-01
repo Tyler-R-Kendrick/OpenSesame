@@ -34,10 +34,7 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import {
-  type DeliveredModel,
-  deliveredModels,
-} from "@opensesame/app-core/lib/hosted-inference.js";
+import { savedFeatureRequests } from "@opensesame/app-core/lib/feature-request.js";
 import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
 import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
 import { createSavedModelSupportAgent } from "@opensesame/app-core/lib/saved-model-agent.js";
@@ -62,34 +59,16 @@ export function savedRemoteModel(
   return runListedFeature(provider);
 }
 
-function exchangeFrom(sent: DeliveredModel): ModelExchange {
-  const body = JSON.parse(sent.body) as Record<string, string>;
-  return {
-    ok: true,
-    providerId: sent.providerId,
-    operation: sent.operation,
-    url: sent.url,
-    body,
-    headers: { ...sent.headers },
-  };
-}
-
-/** The inference request delivered for one saved provider. */
-export function remoteModelRequest(providerId: string): ModelExchange {
-  const sent = [...deliveredModels()]
-    .reverse()
-    .find((row) => row.providerId === providerId);
-  if (!sent) return { ok: false, providerId };
-  return exchangeFrom(sent);
-}
-
 /**
  * Send every saved agent-harness request. The key is on those requests,
  * never on the same-origin support endpoint and never on the model record.
+ * Each request is the operation `savedRemoteModel` returned.
  */
 export function loadSavedRemoteModels(): ModelExchange[] {
-  const sent = savedModelRequests();
-  return sent.map((row) => (row.ok ? remoteModelRequest(row.providerId) : row));
+  const operations = savedFeatureRequests(["agent_harnesses"]).map((row) =>
+    savedRemoteModel(row.providerId),
+  );
+  return savedModelRequests(operations);
 }
 
 let acceptedModels: ModelExchange[] = [];
@@ -121,11 +100,11 @@ export async function loadRemoteAgentModule(): Promise<{
 
 /** Read the configured endpoint once, unless the lease already aborted. */
 export function startAgUiEndpointLoad(signal: AbortSignal): void {
+  if (signal.aborted) return;
   acceptedModels = loadSavedRemoteModels().filter(
     (row): row is ModelExchange & { ok: true } =>
       row.ok && secretsStayOnHeaders(row),
   );
-  if (signal.aborted) return;
   void remoteSupportSeams.loadAgUiEndpoint().then(
     (endpoint) => {
       // Disabled while the read was in flight: the address is not kept.

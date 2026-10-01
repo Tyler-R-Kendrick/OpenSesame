@@ -28,12 +28,8 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import {
-  type FeatureRequest,
-  dispatchFeatureCall,
-  dispatchedFeatureCall,
-  rememberUses,
-} from "@opensesame/app-core/lib/feature-request.js";
+import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { IDENTITY_READ_TOOL } from "@opensesame/app-core/webmcp/identity-tools.js";
@@ -63,32 +59,20 @@ export function applySavedIdentityConnectors(): FeatureOperation[] {
 
 let identityReady: FeatureRequest[] = [];
 
-/** Arm every identity connector saved on this device. Nothing saved is omitted. */
+/** Send every identity connector saved on this device. Nothing saved does not send. */
 export function startIdentityConnectors(): FeatureRequest[] {
-  const requests = applySavedIdentityConnectors().map((operation) =>
-    operation.ok
-      ? dispatchFeatureCall({
-          ok: true,
-          providerId: operation.providerId,
-          operation: operation.operation,
-          fields: { ...operation.action },
-          secret: { ...operation.secrets },
-        })
-      : { ok: false as const, providerId: operation.providerId },
+  identityReady = applySavedIdentityConnectors().map((operation) =>
+    sendFeatureOperation(operation),
   );
-  identityReady = rememberUses(requests);
-  return identityReady.map((use) => identityOperation(use.providerId));
+  return identityReady;
 }
 
-/** The identity request the feature sends. Fails closed when nothing is armed. */
+/** The identity request the feature sent. Fails closed when nothing was sent. */
 export function identityOperation(providerId: string): FeatureRequest {
-  const call = dispatchedFeatureCall(providerId);
-  if (
-    !call ||
-    !identityReady.some((use) => use.ok && use.providerId === providerId)
-  ) {
-    return { ok: false, providerId };
-  }
+  const call = identityReady.find(
+    (use) => use.ok && use.providerId === providerId,
+  );
+  if (!call?.ok) return { ok: false, providerId };
   return {
     ok: true,
     providerId,

@@ -50,10 +50,8 @@ import {
   type BrowserInferenceVerdict,
   planeIsReady,
 } from "./browser-inference.js";
-import {
-  performInference,
-  performSavedInferences,
-} from "./hosted-inference.js";
+import type { FeatureOperation } from "./feature-connector-operation.js";
+import { sendModelOperation } from "./hosted-inference.js";
 import { kvGet, kvSetDurable } from "./kv.js";
 
 export const MODEL_PROVIDER_KEY = "model-provider.v1";
@@ -386,11 +384,7 @@ export function browserInferenceForCommands(
   return kind === "browser" || kind === "none";
 }
 
-/** Inference uses a connector saved on Capabilities. The key is not stored on this record. */
-export function savedModelRequest(providerId: string) {
-  return performInference(providerId);
-}
-
-export function savedModelRequests() {
-  return performSavedInferences();
+/** Send each operation the feature built. The key stays on the request headers. */
+export function savedModelRequests(operations: readonly FeatureOperation[]) {
+  return operations.map((operation) => sendModelOperation(operation));
 }

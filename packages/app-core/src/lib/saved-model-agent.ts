@@ -11,34 +11,11 @@ import {
   sanitizeSupportRequest,
 } from "@opensesame/support-agent";
 import { savedFeatureRequests } from "./feature-request.js";
-import { type ModelExchange, modelExchange } from "./hosted-inference.js";
-
-export const savedModelSeams = {
-  fetch: (url: string, init: RequestInit): Promise<Response> =>
-    globalThis.fetch(url, init),
-};
+import { type ModelExchange, performInference } from "./hosted-inference.js";
 
 /** Post one saved provider's inference request. The key is only on the headers. */
-export async function runSavedModel(
-  providerId: string,
-): Promise<ModelExchange> {
-  const exchange = modelExchange(providerId);
-  if (!exchange.ok) return exchange;
-  try {
-    await savedModelSeams.fetch(exchange.url, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        ...exchange.headers,
-      },
-      body: JSON.stringify(exchange.body),
-      credentials: "omit",
-    });
-  } catch {
-    // The operation is the request handed to the network.
-  }
-  return exchange;
+export function runSavedModel(providerId: string): Promise<ModelExchange> {
+  return Promise.resolve(performInference(providerId));
 }
 
 async function askSaved(request: SupportRequest): Promise<void> {

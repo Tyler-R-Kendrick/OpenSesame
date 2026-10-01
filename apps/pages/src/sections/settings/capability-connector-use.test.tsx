@@ -1,43 +1,43 @@
+import { writeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-local.js";
 /** @vitest-environment jsdom */
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
-import {
-  dispatchedFeatureCall,
-  resetFeatureUsesForTest,
-} from "@opensesame/app-core/lib/feature-request.js";
+import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
 import { resetDeliveredModels } from "@opensesame/app-core/lib/hosted-inference.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
-import { MODEL_PROVIDER_KEY } from "@opensesame/app-core/lib/model-provider.js";
-import { runSavedModel } from "@opensesame/app-core/lib/saved-model-agent.js";
+import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
 import { driveClientSeams } from "@opensesame/app-core/lib/tailnet-sync/client.js";
 import { defaultTransport } from "@opensesame/app-core/lib/tailnet-sync/engine.js";
 import { stopTailnetSync } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
+import { resetTailnetConnectorForTest } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import {
-  boundTailnet,
-  resetTailnetConnectorForTest,
-  tailnetSyncHeaders,
-} from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
-import {
-  pushSavedForgeBackup,
   resetSavedGitBackupForTest,
   savedGitBackupUse,
+  syncVaultBackup,
   vaultBackupSyncSeams,
 } from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { fakeSupportPageContext } from "@opensesame/support-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { startStorageConnectors } from "../../modules/backup.cloud-secrets/runtime.js";
-import { performGitBackup } from "../../modules/backup.git-remote/runtime.js";
-import { startExternalConnectors } from "../../modules/connectors.external/runtime.js";
-import { startCertificateConnectors } from "../../modules/enterprise.ca-administration/runtime.js";
-import { startIdentityConnectors } from "../../modules/identity.federation/runtime.js";
-import { performTailnetSync } from "../../modules/networking.tailnet/runtime.js";
-import { loadRemoteAgentModule } from "../../modules/support.remote-ai/runtime.js";
-import { startWalletConnectors } from "../../modules/wallet.spending/runtime.js";
+import { capabilityRuntime as storageRuntime } from "../../modules/backup.cloud-secrets/runtime.js";
+import {
+  BACKUP_OBSERVER_JOB,
+  capabilityRuntime as gitRuntime,
+} from "../../modules/backup.git-remote/runtime.js";
+import { capabilityRuntime as externalRuntime } from "../../modules/connectors.external/runtime.js";
+import { capabilityRuntime as certificateRuntime } from "../../modules/enterprise.ca-administration/runtime.js";
+import { capabilityRuntime as identityRuntime } from "../../modules/identity.federation/runtime.js";
+import {
+  TAILNET_SYNC_JOB,
+  capabilityRuntime as tailnetRuntime,
+} from "../../modules/networking.tailnet/runtime.js";
+import { capabilityRuntime as remoteRuntime } from "../../modules/support.remote-ai/runtime.js";
+import type { TestContext } from "../../modules/test-context.js";
+import { createTestContext } from "../../modules/test-context.js";
+import { capabilityRuntime as walletRuntime } from "../../modules/wallet.spending/runtime.js";
 import {
   expectedPublic,
   expectedSecrets,
@@ -58,6 +58,10 @@ type Used = {
   secret: Record<string, string>;
 };
 
+type FeatureRuntime = {
+  activate(ctx: TestContext["ctx"]): Promise<unknown>;
+};
+
 function missed(providerId: string): Used {
   return { ok: false, fields: {}, secret: {} };
 }
@@ -71,91 +75,175 @@ function headerRecord(
   return headers;
 }
 
-/** The inference POST `runSavedModel` handed to fetch for this URL. */
-function modelSent(providerId: string, url: string): Used {
-  const calls = vi.mocked(globalThis.fetch).mock.calls;
-  for (let index = calls.length - 1; index >= 0; index -= 1) {
-    if (String(calls[index]?.[0]) !== url) continue;
-    const init = calls[index]?.[1];
-    const bodyText = typeof init?.body === "string" ? init.body : "";
-    try {
-      const fields = JSON.parse(bodyText) as Record<string, string>;
-      return { ok: true, fields, secret: headerRecord(init?.headers) };
-    } catch {
-      return missed(providerId);
+async function runJob(runtime: FeatureRuntime, id: string): Promise<void> {
+  const t = createTestContext();
+  await runtime.activate(t.ctx);
+  const job = t.entries("background-job").find((entry) => entry.id === id);
+  job?.start(new AbortController().signal);
+}
+
+async function sentCategory(
+  runtime: FeatureRuntime,
+  provider: Provider,
+): Promise<Used> {
+  const t = createTestContext();
+  await runtime.activate(t.ctx);
+  const call = [...vi.mocked(globalThis.fetch).mock.calls]
+    .reverse()
+    .find((row) => String(row[0]).includes(`/${provider.id}/`));
+  if (!call) return missed(provider.id);
+  const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+  try {
+    const fields = JSON.parse(bodyText) as Record<string, string>;
+    const headers = headerRecord(call[1]?.headers);
+    const secret: Record<string, string> = {};
+    for (const [name, value] of Object.entries(expectedSecrets(provider))) {
+      if (!Object.values(headers).includes(value)) return missed(provider.id);
+      secret[name] = value;
     }
+    for (const value of Object.values(secret)) {
+      if (JSON.stringify(fields).includes(value)) return missed(provider.id);
+    }
+    return { ok: true, fields, secret };
+  } catch {
+    return missed(provider.id);
   }
-  return missed(providerId);
 }
 
-function dispatchedUse(providerId: string): Used {
-  const call = dispatchedFeatureCall(providerId);
-  if (!call) return missed(providerId);
-  return { ok: true, fields: call.fields, secret: call.secret };
+async function sentModel(provider: Provider): Promise<Used> {
+  const requests = vi.spyOn(modelProvider, "savedModelRequests");
+  try {
+    await runJob(remoteRuntime, "ag-ui-endpoint");
+    const operation = requests.mock.calls
+      .flatMap((call) => call[0] ?? [])
+      .reverse()
+      .find((row) => row.providerId === provider.id);
+    if (!operation?.ok) return missed(provider.id);
+    const secret = Object.values(expectedSecrets(provider))[0] ?? "";
+    if (secret === "") return missed(provider.id);
+    const call = [...vi.mocked(globalThis.fetch).mock.calls]
+      .reverse()
+      .find((row) =>
+        Object.values(headerRecord(row[1]?.headers)).includes(secret),
+      );
+    if (!call) return missed(provider.id);
+    const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+    const fields = JSON.parse(bodyText) as Record<string, string>;
+    if (JSON.stringify(fields) !== JSON.stringify(operation.action)) {
+      return missed(provider.id);
+    }
+    const headers = headerRecord(call[1]?.headers);
+    for (const value of Object.values(operation.secrets)) {
+      if (!Object.values(headers).includes(value)) return missed(provider.id);
+    }
+    return { ok: true, fields, secret: headers };
+  } catch {
+    return missed(provider.id);
+  } finally {
+    requests.mockRestore();
+  }
 }
 
-function tailnetSent(provider: Provider): Used {
-  const request = performTailnetSync(provider);
-  if (!request.ok) return missed(provider.id);
-  const headers = tailnetSyncHeaders();
+function tailnetHeader(name: string, secret: boolean): string {
+  const normalized = name.replaceAll("_", "-");
+  if (secret && name === "auth_key") return "x-tailscale-auth-key";
+  return secret ? `x-tailscale-${normalized}` : `x-tailnet-${normalized}`;
+}
+
+function tailnetUsed(
+  provider: Provider,
+  headers: Record<string, string>,
+): Used {
   const fields: Record<string, string> = {};
-  for (const [name, value] of Object.entries(request.fields)) {
-    const header = headers[`x-tailnet-${name.replaceAll("_", "-")}`];
-    if (header !== value) return missed(provider.id);
-    fields[name] = header;
-  }
   const secret: Record<string, string> = {};
-  for (const [name, value] of Object.entries(request.secret)) {
-    const headerName =
-      name === "auth_key"
-        ? "x-tailscale-auth-key"
-        : `x-tailscale-${name.replaceAll("_", "-")}`;
-    if (headers[headerName] !== value) return missed(provider.id);
-    secret[name] = headers[headerName] ?? "";
+  for (const [name, value] of Object.entries(expectedPublic(provider))) {
+    if (headers[tailnetHeader(name, false)] !== value)
+      return missed(provider.id);
+    fields[name] = value;
+  }
+  for (const [name, value] of Object.entries(expectedSecrets(provider))) {
+    if (headers[tailnetHeader(name, true)] !== value)
+      return missed(provider.id);
+    secret[name] = value;
   }
   return { ok: true, fields, secret };
 }
 
-/** The request the owning feature sends for one listed connector. */
+async function sentTailnet(provider: Provider): Promise<Used> {
+  try {
+    await runJob(tailnetRuntime, TAILNET_SYNC_JOB);
+    driveClientSeams.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ generation: 1, snapshot: null }), {
+          status: 200,
+        }),
+    );
+    await defaultTransport.read({
+      url: "https://vault.example.ts.net",
+      slot: "abcdefgh",
+      key: "k".repeat(40),
+      label: "drive",
+    });
+    const init = vi.mocked(driveClientSeams.fetch).mock.calls[0]?.[1];
+    return tailnetUsed(provider, headerRecord(init?.headers));
+  } finally {
+    stopTailnetSync();
+  }
+}
+
+async function pushForge(provider: Provider, token: string): Promise<void> {
+  const forge = forgeForProvider(provider.id);
+  if (!forge || token === "") return;
+  const put = vi.fn(async () => ({ commitSha: "abc" }));
+  vaultBackupSyncSeams.sealedEnvelopeJson = () => "{}";
+  vaultBackupSyncSeams.putForgeContents = put;
+  writeLocalBackupTarget({
+    kind: "git_remote",
+    providerId: provider.id,
+    connectionId: `conn-${provider.id}`,
+    integrationId: "",
+    installationId: "",
+    owner: "owner",
+    repo: "repo",
+    branch: "main",
+    enabled: true,
+    status: "idle",
+    lastCommitSha: null,
+    lastSyncedAt: null,
+    lastError: null,
+    config: null,
+    pendingEvents: 0,
+  });
+  await syncVaultBackup(provider.id);
+  expect(put, provider.id).toHaveBeenCalledWith(
+    expect.objectContaining({ token, forge }),
+  );
+}
+
+async function sentGit(provider: Provider): Promise<Used> {
+  await runJob(gitRuntime, BACKUP_OBSERVER_JOB);
+  const used = savedGitBackupUse(provider.id);
+  if (!used) return missed(provider.id);
+  await pushForge(provider, used.secret.token ?? "");
+  return { ok: true, fields: used.fields, secret: used.secret };
+}
+
 async function featureUse(provider: Provider): Promise<Used> {
-  const id = provider.id;
-  if (provider.category === "agent_harnesses") {
-    const sent = await runSavedModel(id);
-    if (!sent.ok) return missed(id);
-    return modelSent(id, sent.url);
+  const category = provider.category;
+  if (category === "agent_harnesses") return sentModel(provider);
+  if (category === "networking") return sentTailnet(provider);
+  if (category === "backup_recovery") return sentGit(provider);
+  if (category === "identity") return sentCategory(identityRuntime, provider);
+  if (category === "wallet") return sentCategory(walletRuntime, provider);
+  if (category === "cloud_secret_storage" || category === "encryption") {
+    return sentCategory(storageRuntime, provider);
   }
-  if (provider.category === "networking") return tailnetSent(provider);
-  if (provider.category === "backup_recovery") {
-    performGitBackup();
-    return dispatchedUse(id);
+  if (category === "certificates")
+    return sentCategory(certificateRuntime, provider);
+  if (category === "password_managers" || category === "local_storage") {
+    return sentCategory(externalRuntime, provider);
   }
-  if (provider.category === "identity") {
-    startIdentityConnectors();
-    return dispatchedUse(id);
-  }
-  if (provider.category === "wallet") {
-    startWalletConnectors();
-    return dispatchedUse(id);
-  }
-  if (
-    provider.category === "cloud_secret_storage" ||
-    provider.category === "encryption"
-  ) {
-    startStorageConnectors();
-    return dispatchedUse(id);
-  }
-  if (provider.category === "certificates") {
-    startCertificateConnectors();
-    return dispatchedUse(id);
-  }
-  if (
-    provider.category === "password_managers" ||
-    provider.category === "local_storage"
-  ) {
-    startExternalConnectors();
-    return dispatchedUse(id);
-  }
-  return missed(id);
+  return missed(provider.id);
 }
 
 async function expectSavedUse(provider: Provider): Promise<void> {
@@ -174,108 +262,10 @@ async function expectSavedUse(provider: Provider): Promise<void> {
     expect(used.secret, provider.id).toEqual(secrets);
   }
   for (const value of Object.values(secrets)) {
-    expect(kvGet(MODEL_PROVIDER_KEY) ?? "", provider.id).not.toContain(value);
-  }
-}
-
-async function expectModels(listed: readonly Provider[]): Promise<void> {
-  const harnesses = listed.filter(
-    (provider) => provider.category === "agent_harnesses",
-  );
-  const before = vi.mocked(globalThis.fetch).mock.calls.length;
-  const agent = (await loadRemoteAgentModule()).createAgUiAgent();
-  expect(agent).not.toBeNull();
-  await agent?.run(
-    {
-      question: "ping",
-      history: [],
-      context: fakeSupportPageContext(),
-    },
-    { signal: new AbortController().signal },
-  );
-  const calls = vi.mocked(globalThis.fetch).mock.calls.slice(before);
-  for (const provider of harnesses) {
-    const secret = Object.values(expectedSecrets(provider))[0] ?? "";
-    const call = calls.find((row) =>
-      Object.values(headerRecord(row[1]?.headers)).includes(secret),
-    );
-    expect(call, provider.id).toBeTruthy();
-    const body = typeof call?.[1]?.body === "string" ? call[1].body : "";
-    expect(body, provider.id).not.toContain(secret);
-    const fields = JSON.parse(body || "{}") as Record<string, string>;
-    expect(fields, provider.id).toMatchObject(expectedPublic(provider));
-  }
-}
-
-async function expectTailnet(listed: readonly Provider[]): Promise<void> {
-  performTailnetSync("tailscale");
-  const tailscale = listed.find((provider) => provider.id === "tailscale");
-  expect(tailscale).toBeTruthy();
-  if (!tailscale) return;
-  const secret = expectedSecrets(tailscale).auth_key ?? "";
-  const headers = tailnetSyncHeaders();
-  expect(headers["x-tailscale-auth-key"]).toBe(secret);
-  expect(boundTailnet()?.fields).toMatchObject(expectedPublic(tailscale));
-  expect(JSON.stringify(boundTailnet()?.fields)).not.toContain(secret);
-  driveClientSeams.fetch = vi.fn(async () => {
-    return new Response(JSON.stringify({ generation: 1, snapshot: null }), {
-      status: 200,
-    });
-  });
-  await defaultTransport.read({
-    url: "https://vault.example.ts.net",
-    slot: "abcdefgh",
-    key: "k".repeat(40),
-    label: "drive",
-  });
-  const init = vi.mocked(driveClientSeams.fetch).mock.calls[0]?.[1];
-  const sent = init?.headers as Record<string, string>;
-  expect(sent["x-tailscale-auth-key"]).toBe(secret);
-  expect(sent.Authorization).toBe(`Bearer ${"k".repeat(40)}`);
-  expect(sent["x-tailnet-tailnet"]).toBe(expectedPublic(tailscale).tailnet);
-}
-
-async function expectForgePush(
-  provider: Provider,
-  token: string,
-): Promise<void> {
-  const forge = forgeForProvider(provider.id);
-  if (!forge) return;
-  const put = vi.fn(async () => ({ commitSha: "abc" }));
-  vaultBackupSyncSeams.sealedEnvelopeJson = () => "{}";
-  vaultBackupSyncSeams.putForgeContents = put;
-  await pushSavedForgeBackup({
-    kind: "git_remote",
-    providerId: provider.id,
-    connectionId: null,
-    integrationId: "",
-    installationId: "",
-    owner: "owner",
-    repo: "repo",
-    branch: "main",
-    enabled: true,
-    status: "idle",
-    lastCommitSha: null,
-    lastSyncedAt: null,
-    lastError: null,
-    config: null,
-    pendingEvents: 0,
-  });
-  expect(put, provider.id).toHaveBeenCalledWith(
-    expect.objectContaining({ token, forge }),
-  );
-}
-
-async function expectGitBackups(listed: readonly Provider[]): Promise<void> {
-  performGitBackup();
-  for (const provider of listed) {
-    if (provider.category !== "backup_recovery") continue;
-    const used = savedGitBackupUse(provider.id);
-    expect(used?.fields, provider.id).toMatchObject(expectedPublic(provider));
-    expect(used?.secret, provider.id).toEqual(expectedSecrets(provider));
-    const token = used?.secret.token;
-    if (!token || !used) continue;
-    await expectForgePush(provider, token);
+    expect(
+      kvGet(modelProvider.MODEL_PROVIDER_KEY) ?? "",
+      provider.id,
+    ).not.toContain(value);
   }
 }
 
@@ -311,8 +301,5 @@ describe("capability features use the saved connector", () => {
       expect((await featureUse(provider)).ok, provider.id).toBe(false);
     }
     for (const provider of listed) await expectSavedUse(provider);
-    await expectModels(listed);
-    await expectTailnet(listed);
-    await expectGitBackups(listed);
   });
 });
