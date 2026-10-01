@@ -81,15 +81,19 @@ function commit(vaultId: string, next: EnvironmentSnapshot): void {
   emit();
 }
 
-/** Turn environments on for one vault. Refuses while the capability is off. */
+/**
+ * Turn environments on for one vault. Refuses while the capability is off.
+ * When the vault's items are passed, the `.env.schema` is generated too.
+ */
 export function enableVaultEnvironments(
   plan: EnvironmentPlan,
   vaultId: string,
+  items?: readonly EnvironmentItem[],
 ): boolean {
   if (!approved(plan)) return false;
   const current = environmentSnapshot(vaultId);
-  if (current.enabled) return true;
-  commit(vaultId, { ...current, enabled: true });
+  if (!current.enabled) commit(vaultId, { ...current, enabled: true });
+  if (items) renderEnvSchema(plan, vaultId, items);
   return true;
 }
 
@@ -198,14 +202,12 @@ export function renderEnvSchema(
 ): string | null {
   const state = gate(plan, vaultId);
   if (!state) return null;
+  const required = state.required[state.active ?? ""];
   return items
-    .map((item) => {
-      const required =
-        state.active !== null &&
-        state.required[state.active]?.[item.id] === true;
-      const notes = required ? "# @type=string\n# @required" : "# @type=string";
-      return `${notes}\n${item.key}=`;
-    })
+    .map(
+      (item) =>
+        `# @type=string${required?.[item.id] ? "\n# @required" : ""}\n${item.key}=`,
+    )
     .join("\n\n");
 }
 
@@ -251,9 +253,9 @@ export function notifyMissingEnvironmentValues(
 export function environmentKey(name: string): string {
   const cleaned = name
     .trim()
-    .replace(/[^A-Za-z0-9]+/g, "_")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
-  if (cleaned.length === 0) return "";
-  const keyed = /^[0-9]/.test(cleaned) ? `_${cleaned}` : cleaned;
-  return keyed.toUpperCase();
+  if (cleaned === "") return "";
+  return /^\d/.test(cleaned) ? `_${cleaned}` : cleaned;
 }

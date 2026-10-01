@@ -1,5 +1,18 @@
 /** @vitest-environment jsdom */
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import {
+  ENVIRONMENTS_CAPABILITY,
+  enableVaultEnvironments,
+  markEnvironmentRequired,
+  notifyMissingEnvironmentValues,
+  resetVaultEnvironments,
+  switchEnvironment,
+} from "@opensesame/app-core/lib/vault/environments.js";
 import { describe, expect, it } from "vitest";
+import {
+  profilePlan,
+  profileSelection,
+} from "../../lib/capabilities/__tests__/vault-profiles.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -38,5 +51,33 @@ describe("vault.environments runtime", () => {
       }),
     ]);
     await handle.dispose();
+  });
+
+  it("clears the missing-value notice when the capability is disposed", async () => {
+    resetVaultEnvironments();
+    clearNotices();
+    const plan = profilePlan("minimal-local", {
+      installation: {
+        ...profileSelection("minimal-local"),
+        selectedOptional: [ENVIRONMENTS_CAPABILITY],
+      },
+    });
+    enableVaultEnvironments(plan, "personal");
+    switchEnvironment(plan, "personal", "production");
+    markEnvironmentRequired(plan, "personal", "production", "item-token", true);
+    notifyMissingEnvironmentValues(plan, "personal", [
+      { id: "item-token", key: "API_TOKEN" },
+    ]);
+    expect(listNotices().map((notice) => notice.id)).toContain(
+      "vault.environments.missing",
+    );
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    await handle.dispose();
+    expect(listNotices().map((notice) => notice.id)).not.toContain(
+      "vault.environments.missing",
+    );
+    resetVaultEnvironments();
+    clearNotices();
   });
 });
