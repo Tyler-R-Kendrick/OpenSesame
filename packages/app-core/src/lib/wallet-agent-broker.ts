@@ -9,6 +9,7 @@
 import { reserveTransferAndFee } from "@opensesame/wallet-budget";
 import { redactWalletExport } from "@opensesame/wallet-consent/redact";
 import { performSavedCategory } from "./feature-request-send.js";
+import { runFeatureUse } from "./feature-use-binding.js";
 import {
   type DigestBoundPaymentProof,
   type LocalPaymentApprovalIntent,
@@ -65,6 +66,7 @@ export function resetWalletAgentBroker(): void {
 }
 
 function attachSavedWallet(): void {
+  if (runFeatureUse("wallet")) return;
   performSavedCategory(["wallet"]);
 }
 

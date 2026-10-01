@@ -15,6 +15,8 @@
  * `caCertificate` is always empty rather than a copy of the leaf presented
  * as a CA — the record's "Issuing CA" stays blank, which is the truth.
  */
+import { runFeatureUse } from "./feature-use-binding.js";
+
 /** A certificate freshly issued on this device. */
 export type IssuedCertificate = {
   /** The self-signed certificate, PEM. */
@@ -77,6 +79,7 @@ export function installCertificateIssuance(
 export function issueCertificate(
   request: CertificateRequest,
 ): Promise<IssuedCertificate> {
+  runFeatureUse("certificates");
   return certsSeams.issueCertificate(request);
 }
 

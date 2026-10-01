@@ -32,6 +32,7 @@ import {
   createHostOrDevice,
   deviceConnection,
   mergeOfflineConnections,
+  noteExternalConnectorUse,
   revokeDeviceConnection,
   sealDeviceConfiguration,
   sealDeviceCredential,
@@ -163,8 +164,6 @@ export type Connection = {
   updatedAt: string;
 };
 
-/* ------------------------------------------------------------- transport */
-
 function base(): string {
   return hostBase();
 }
@@ -203,8 +202,6 @@ async function call<T>(
   if (res.status === 204) return map(null);
   return map(await res.json());
 }
-
-/* ----------------------------------------------------------- wire mapping */
 
 function obj(value: BoundaryValue): JsonObject {
   return value && isTypeofObject(value) ? overlapCast(value) : {};
@@ -686,6 +683,7 @@ export function listProviders(): Promise<Provider[]> {
   return connectionSeams.listProviders();
 }
 export function listConnections(): Promise<Connection[]> {
+  noteExternalConnectorUse();
   return connectionSeams.listConnections();
 }
 export async function createConnection(

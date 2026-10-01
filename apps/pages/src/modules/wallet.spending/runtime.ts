@@ -27,6 +27,7 @@ import {
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
+import { bindFeatureUse } from "@opensesame/app-core/lib/feature-use-binding.js";
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
 import { watchWalletAssignmentScope } from "@opensesame/app-core/lib/wallet-assignments.js";
@@ -76,6 +77,11 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    activation.onDispose(
+      bindFeatureUse("wallet", () => {
+        startWalletConnectors();
+      }),
+    );
     startWalletConnectors();
 
     // The wallet's three tomb-scoped caches follow the active tomb only

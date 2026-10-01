@@ -30,6 +30,7 @@ import {
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
+import { bindFeatureUse } from "@opensesame/app-core/lib/feature-use-binding.js";
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { createActivation } from "../activation.js";
 
@@ -60,6 +61,11 @@ export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
+    activation.onDispose(
+      bindFeatureUse("certificates", () => {
+        startCertificateConnectors();
+      }),
+    );
     startCertificateConnectors();
     return activation.handle();
   },

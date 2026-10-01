@@ -23,6 +23,7 @@ import {
   writeDeviceRows,
   writeDeviceSecrets,
 } from "./device-connector-records.js";
+import { runFeatureUse } from "./feature-use-binding.js";
 import type { GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import {
@@ -164,6 +165,11 @@ export function listDeviceConnections(): Connection[] {
   return readDeviceRows()
     .filter((row) => !isLocalGitRemoteId(row.connectionId))
     .map(toConnection);
+}
+
+/** The connections list is using saved password-manager and local-storage connectors. */
+export function noteExternalConnectorUse(): void {
+  runFeatureUse("external");
 }
 
 export function mergeOfflineConnections(rows: Connection[]): Connection[] {

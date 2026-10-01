@@ -20,6 +20,7 @@ import {
 } from "./backup-target-local.js";
 import { readBoundedObject } from "./bounded-response.js";
 import { performSavedConnector } from "./feature-request-send.js";
+import { runFeatureUse } from "./feature-use-binding.js";
 import {
   type GitBackupForge,
   forgeForProvider,
@@ -366,6 +367,7 @@ async function syncOneTarget(
 export async function syncVaultBackup(
   providerId?: string | null,
 ): Promise<LocalBackupTarget | null> {
+  runFeatureUse("storage");
   if (providerId) {
     const target = readLocalBackupTarget(providerId);
     if (!target || !target.enabled) return target;
