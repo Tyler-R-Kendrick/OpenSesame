@@ -15,7 +15,9 @@
         { "pressOptional": "Add environment" },
         { "checkOptional": "API_TOKEN required" },
         { "scrollToOptional": "Environments" },
-        { "count": ["#vault-environments", "[aria-label='API_TOKEN required']"] },
+        {
+          "count": ["#vault-environments", "[aria-label='API_TOKEN required']"]
+        },
         { "measure": "#vault-environments" },
         { "shot": "1280-vaults" },
         { "pressOptional": "Notifications" },
@@ -36,7 +38,9 @@
         { "pressOptional": "Add environment" },
         { "checkOptional": "API_TOKEN required" },
         { "scrollToOptional": "Environments" },
-        { "count": ["#vault-environments", "[aria-label='API_TOKEN required']"] },
+        {
+          "count": ["#vault-environments", "[aria-label='API_TOKEN required']"]
+        },
         { "measure": "#vault-environments" },
         { "shot": "390-vaults" },
         { "pressOptional": "Notifications" },
