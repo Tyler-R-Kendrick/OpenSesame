@@ -177,12 +177,13 @@
         "live-nostr (nostr-tools, 14 / 4, plus its @noble curves). Activating Live",
         "sessions loads about 52 KiB (25 + 27), none of the clients; a device without it",
         "never fetches any (the worker caches per approved plan). Measured",
-        "5348/1617 KiB after merging main at d97827a9, ~2% headroom."
+        "5348/1617 KiB after merging main at d97827a9, ~2% headroom.",
+        "2026-10-01: javascriptGzip 1650->1654 because a saved capability connector parses its device record and the owning feature sends those fields. CI on 49ca647f measured 1651 KiB. The ceiling keeps 3 KiB of headroom."
       ],
       "budgets": {
         "total": 17900,
         "javascript": 5460,
-        "javascriptGzip": 1650,
+        "javascriptGzip": 1654,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",
