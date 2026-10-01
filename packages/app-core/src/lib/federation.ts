@@ -15,7 +15,6 @@ import { env } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
-import { performSavedCategory } from "./feature-request-send.js";
 import { parseAuthCallback } from "./federation-callback.js";
 import {
   type PendingAuth,
@@ -385,6 +384,7 @@ async function beginSignInDefault(
   upstream: TrustedUpstream,
   options: BeginSignInOptions = {},
 ): Promise<void> {
+  const { performSavedCategory } = await import("./feature-request-send.js");
   performSavedCategory(["identity"]);
   // A brokered upstream built from an unconfigured Identity API carries an
   // empty issuer. Refusing here, before any navigation, is what keeps the
