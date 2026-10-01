@@ -25,12 +25,8 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import {
-  type FeatureRequest,
-  dispatchFeatureCall,
-  dispatchedFeatureCall,
-  rememberUses,
-} from "@opensesame/app-core/lib/feature-request.js";
+import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
 import { watchWalletAssignmentScope } from "@opensesame/app-core/lib/wallet-assignments.js";
@@ -61,31 +57,19 @@ export function applySavedWalletConnectors(): FeatureOperation[] {
 
 let walletReady: FeatureRequest[] = [];
 
-/** Arm wallet connectors saved on this device. Payment credentials are never stored. */
+/** Send wallet connectors saved on this device. Payment credentials are refused. */
 export function startWalletConnectors(): FeatureRequest[] {
-  const requests = applySavedWalletConnectors().map((operation) =>
-    operation.ok
-      ? dispatchFeatureCall({
-          ok: true,
-          providerId: operation.providerId,
-          operation: operation.operation,
-          fields: { ...operation.action },
-          secret: { ...operation.secrets },
-        })
-      : { ok: false as const, providerId: operation.providerId },
+  walletReady = applySavedWalletConnectors().map((operation) =>
+    sendFeatureOperation(operation),
   );
-  walletReady = rememberUses(requests);
-  return walletReady.map((use) => walletOperation(use.providerId));
+  return walletReady;
 }
 
 export function walletOperation(providerId: string): FeatureRequest {
-  const call = dispatchedFeatureCall(providerId);
-  if (
-    !call ||
-    !walletReady.some((use) => use.ok && use.providerId === providerId)
-  ) {
-    return { ok: false, providerId };
-  }
+  const call = walletReady.find(
+    (use) => use.ok && use.providerId === providerId,
+  );
+  if (!call?.ok) return { ok: false, providerId };
   return {
     ok: true,
     providerId,

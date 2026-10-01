@@ -21,12 +21,8 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import {
-  type FeatureRequest,
-  dispatchFeatureCall,
-  dispatchedFeatureCall,
-  rememberUses,
-} from "@opensesame/app-core/lib/feature-request.js";
+import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { createActivation } from "../activation.js";
 
@@ -49,29 +45,17 @@ export function applySavedStorageConnectors(): FeatureOperation[] {
 let storageReady: FeatureRequest[] = [];
 
 export function startStorageConnectors(): FeatureRequest[] {
-  const requests = applySavedStorageConnectors().map((operation) =>
-    operation.ok
-      ? dispatchFeatureCall({
-          ok: true,
-          providerId: operation.providerId,
-          operation: operation.operation,
-          fields: { ...operation.action },
-          secret: { ...operation.secrets },
-        })
-      : { ok: false as const, providerId: operation.providerId },
+  storageReady = applySavedStorageConnectors().map((operation) =>
+    sendFeatureOperation(operation),
   );
-  storageReady = rememberUses(requests);
-  return storageReady.map((use) => storageOperation(use.providerId));
+  return storageReady;
 }
 
 export function storageOperation(providerId: string): FeatureRequest {
-  const call = dispatchedFeatureCall(providerId);
-  if (
-    !call ||
-    !storageReady.some((use) => use.ok && use.providerId === providerId)
-  ) {
-    return { ok: false, providerId };
-  }
+  const call = storageReady.find(
+    (use) => use.ok && use.providerId === providerId,
+  );
+  if (!call?.ok) return { ok: false, providerId };
   return {
     ok: true,
     providerId,

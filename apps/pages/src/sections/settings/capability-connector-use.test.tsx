@@ -3,7 +3,6 @@ import { writeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-l
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
-import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
@@ -24,17 +23,13 @@ import {
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { capabilityRuntime as storageRuntime } from "../../modules/backup.cloud-secrets/runtime.js";
-import { storageOperation } from "../../modules/backup.cloud-secrets/runtime.js";
 import {
   BACKUP_OBSERVER_JOB,
   capabilityRuntime as gitRuntime,
 } from "../../modules/backup.git-remote/runtime.js";
 import { capabilityRuntime as externalRuntime } from "../../modules/connectors.external/runtime.js";
-import { externalOperation } from "../../modules/connectors.external/runtime.js";
 import { capabilityRuntime as certificateRuntime } from "../../modules/enterprise.ca-administration/runtime.js";
-import { certificateOperation } from "../../modules/enterprise.ca-administration/runtime.js";
 import { capabilityRuntime as identityRuntime } from "../../modules/identity.federation/runtime.js";
-import { identityOperation } from "../../modules/identity.federation/runtime.js";
 import {
   TAILNET_SYNC_JOB,
   capabilityRuntime as tailnetRuntime,
@@ -43,7 +38,6 @@ import { capabilityRuntime as remoteRuntime } from "../../modules/support.remote
 import type { TestContext } from "../../modules/test-context.js";
 import { createTestContext } from "../../modules/test-context.js";
 import { capabilityRuntime as walletRuntime } from "../../modules/wallet.spending/runtime.js";
-import { walletOperation } from "../../modules/wallet.spending/runtime.js";
 import {
   expectedPublic,
   expectedSecrets,
@@ -88,20 +82,32 @@ async function runJob(runtime: FeatureRuntime, id: string): Promise<void> {
   job?.start(new AbortController().signal);
 }
 
-async function armed(
+async function sentCategory(
   runtime: FeatureRuntime,
-  read: (providerId: string) => FeatureRequest,
-  providerId: string,
+  provider: Provider,
 ): Promise<Used> {
   const t = createTestContext();
   await runtime.activate(t.ctx);
-  const request = read(providerId);
-  if (!request.ok) return missed(providerId);
-  return {
-    ok: true,
-    fields: request.fields,
-    secret: request.secret,
-  };
+  const call = [...vi.mocked(globalThis.fetch).mock.calls]
+    .reverse()
+    .find((row) => String(row[0]).includes(`/${provider.id}/`));
+  if (!call) return missed(provider.id);
+  const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+  try {
+    const fields = JSON.parse(bodyText) as Record<string, string>;
+    const headers = headerRecord(call[1]?.headers);
+    const secret: Record<string, string> = {};
+    for (const [name, value] of Object.entries(expectedSecrets(provider))) {
+      if (!Object.values(headers).includes(value)) return missed(provider.id);
+      secret[name] = value;
+    }
+    for (const value of Object.values(secret)) {
+      if (JSON.stringify(fields).includes(value)) return missed(provider.id);
+    }
+    return { ok: true, fields, secret };
+  } catch {
+    return missed(provider.id);
+  }
 }
 
 async function sentModel(provider: Provider): Promise<Used> {
@@ -227,20 +233,15 @@ async function featureUse(provider: Provider): Promise<Used> {
   if (category === "agent_harnesses") return sentModel(provider);
   if (category === "networking") return sentTailnet(provider);
   if (category === "backup_recovery") return sentGit(provider);
-  if (category === "identity") {
-    return armed(identityRuntime, identityOperation, provider.id);
-  }
-  if (category === "wallet") {
-    return armed(walletRuntime, walletOperation, provider.id);
-  }
+  if (category === "identity") return sentCategory(identityRuntime, provider);
+  if (category === "wallet") return sentCategory(walletRuntime, provider);
   if (category === "cloud_secret_storage" || category === "encryption") {
-    return armed(storageRuntime, storageOperation, provider.id);
+    return sentCategory(storageRuntime, provider);
   }
-  if (category === "certificates") {
-    return armed(certificateRuntime, certificateOperation, provider.id);
-  }
+  if (category === "certificates")
+    return sentCategory(certificateRuntime, provider);
   if (category === "password_managers" || category === "local_storage") {
-    return armed(externalRuntime, externalOperation, provider.id);
+    return sentCategory(externalRuntime, provider);
   }
   return missed(provider.id);
 }

@@ -32,12 +32,8 @@ import {
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
-import {
-  type FeatureRequest,
-  dispatchFeatureCall,
-  dispatchedFeatureCall,
-  rememberUses,
-} from "@opensesame/app-core/lib/feature-request.js";
+import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { disarmVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
@@ -112,32 +108,17 @@ export function startExternalConnectors(): FeatureRequest[] {
     ["local_storage"],
     savedLocalStorageOperation,
   );
-  externalReady = rememberUses(
-    [...managers, ...local].flatMap((operation) =>
-      operation.ok
-        ? [
-            dispatchFeatureCall({
-              ok: true,
-              providerId: operation.providerId,
-              operation: operation.operation,
-              fields: { ...operation.action },
-              secret: { ...operation.secrets },
-            }),
-          ]
-        : [],
-    ),
+  externalReady = [...managers, ...local].map((operation) =>
+    sendFeatureOperation(operation),
   );
-  return externalReady.map((use) => externalOperation(use.providerId));
+  return externalReady;
 }
 
 export function externalOperation(providerId: string): FeatureRequest {
-  const call = dispatchedFeatureCall(providerId);
-  if (
-    !call ||
-    !externalReady.some((use) => use.ok && use.providerId === providerId)
-  ) {
-    return { ok: false, providerId };
-  }
+  const call = externalReady.find(
+    (use) => use.ok && use.providerId === providerId,
+  );
+  if (!call?.ok) return { ok: false, providerId };
   return {
     ok: true,
     providerId,
