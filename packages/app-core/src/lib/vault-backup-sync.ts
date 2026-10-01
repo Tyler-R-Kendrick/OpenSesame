@@ -19,6 +19,7 @@ import {
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
 import { readBoundedObject } from "./bounded-response.js";
+import { performSavedConnector } from "./feature-request-send.js";
 import {
   type GitBackupForge,
   forgeForProvider,
@@ -122,6 +123,7 @@ async function putForgeContentsDefault(input: {
   repo: string;
   branch: string;
   contentBase64: string;
+  fields?: Record<string, string>;
 }): Promise<PutContentsResult> {
   const base = githubAppRelayBase();
   if (base === "") throw new Error("Connect relay is not configured.");
@@ -133,6 +135,7 @@ async function putForgeContentsDefault(input: {
     branch: input.branch,
     contentBase64: input.contentBase64,
   };
+  if (input.fields) body.fields = { ...input.fields };
   if (input.username) body.username = input.username;
   refuseUnlessAllowed(base);
   const response = await fetch(`${base}/api/git-backup/put`, {
@@ -209,6 +212,7 @@ type ForgeCredentials = {
   forge: GitBackupForge;
   token: string;
   username: string | null;
+  fields?: Record<string, string>;
 };
 
 export {
@@ -290,7 +294,7 @@ export async function pushSavedForgeBackup(
     throw new Error("Unlock the vault and use an HTTPS token for this remote.");
   }
   const json = vaultBackupSyncSeams.sealedEnvelopeJson();
-  const result = await vaultBackupSyncSeams.putForgeContents({
+  const put = {
     forge: creds.forge,
     token: creds.token,
     username: creds.username,
@@ -298,7 +302,10 @@ export async function pushSavedForgeBackup(
     repo: target.repo,
     branch: target.branch,
     contentBase64: utf8ToBase64(json),
-  });
+  };
+  const result = await vaultBackupSyncSeams.putForgeContents(
+    creds.fields ? { ...put, fields: creds.fields } : put,
+  );
   return result.commitSha;
 }
 
@@ -306,6 +313,7 @@ async function syncOneTarget(
   target: LocalBackupTarget,
 ): Promise<LocalBackupTarget | null> {
   if (!target.enabled) return target;
+  if (target.providerId) performSavedConnector(target.providerId);
   const providerKey = target.providerId ?? "github";
   try {
     let commitSha: string | null = null;

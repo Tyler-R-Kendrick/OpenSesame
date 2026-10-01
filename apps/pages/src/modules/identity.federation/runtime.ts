@@ -28,7 +28,7 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
@@ -57,29 +57,16 @@ export function applySavedIdentityConnectors(): FeatureOperation[] {
   return applySavedConnectors(["identity"], savedIdentityOperation);
 }
 
-let identityReady: FeatureRequest[] = [];
-
 /** Send every identity connector saved on this device. Nothing saved does not send. */
 export function startIdentityConnectors(): FeatureRequest[] {
-  identityReady = applySavedIdentityConnectors().map((operation) =>
-    sendFeatureOperation(operation),
+  return applySavedIdentityConnectors().map((operation) =>
+    identityOperation(operation.providerId),
   );
-  return identityReady;
 }
 
-/** The identity request the feature sent. Fails closed when nothing was sent. */
+/** Read the saved identity connector and send it. Nothing saved does not send. */
 export function identityOperation(providerId: string): FeatureRequest {
-  const call = identityReady.find(
-    (use) => use.ok && use.providerId === providerId,
-  );
-  if (!call?.ok) return { ok: false, providerId };
-  return {
-    ok: true,
-    providerId,
-    operation: call.operation,
-    fields: { ...call.fields },
-    secret: { ...call.secret },
-  };
+  return performSavedConnector(providerId);
 }
 
 /** The Identity tabs this capability puts on the page. */
@@ -104,7 +91,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    identityReady = startIdentityConnectors();
+    startIdentityConnectors();
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
     // The Identity API's organization directory: `lib/orgs.ts` declares the

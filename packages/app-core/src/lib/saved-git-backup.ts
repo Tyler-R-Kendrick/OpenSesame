@@ -3,6 +3,7 @@
  * from here when a Capabilities configuration is present.
  */
 
+import { runListedFeature } from "./feature-connector-operation.js";
 import {
   type GitBackupForge,
   forgeForProvider,
@@ -20,6 +21,7 @@ export type SavedForgeCredentials = {
   forge: GitBackupForge;
   token: string;
   username: null;
+  fields: Record<string, string>;
 };
 
 let savedGit: SavedGitBackup[] = [];
@@ -49,16 +51,22 @@ export function resetSavedGitBackupForTest(): void {
   savedGit = [];
 }
 
-/** Token from a saved forge connector, when the remote URL names a forge. */
+/** Token from the forge connector saved on this device, read when a sync runs. */
 export function savedForgeCredentials(
   providerId: string,
 ): SavedForgeCredentials | null {
-  const saved = savedGitBackupUse(providerId);
-  const remoteUrl = saved?.fields.remote_url ?? "";
-  const token = saved?.secret.token;
-  if (!token || remoteUrl === "") return null;
+  const live = runListedFeature(providerId);
+  if (!live.ok) return null;
+  const remoteUrl = live.action.remote_url ?? "";
+  const token = live.secrets.token || live.secrets.credential || "";
+  if (token === "" || remoteUrl === "") return null;
   const forge =
-    forgeForProvider(saved.providerId) ?? forgeFromRemoteUrl(remoteUrl);
+    forgeForProvider(live.providerId) ?? forgeFromRemoteUrl(remoteUrl);
   if (!forge) return null;
-  return { forge, token, username: null };
+  return {
+    forge,
+    token,
+    username: null,
+    fields: { ...live.action },
+  };
 }

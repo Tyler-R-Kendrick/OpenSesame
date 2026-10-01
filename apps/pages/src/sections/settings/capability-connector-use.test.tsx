@@ -7,13 +7,19 @@ import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connecto
 import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
-import { resetDeliveredModels } from "@opensesame/app-core/lib/hosted-inference.js";
+import {
+  performInference,
+  resetDeliveredModels,
+} from "@opensesame/app-core/lib/hosted-inference.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
 import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
 import { driveClientSeams } from "@opensesame/app-core/lib/tailnet-sync/client.js";
 import { writeDriveConfig } from "@opensesame/app-core/lib/tailnet-sync/config.js";
-import { stopTailnetSync } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
+import {
+  stopTailnetSync,
+  syncTailnetNow,
+} from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { resetTailnetConnectorForTest } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import {
   resetSavedGitBackupForTest,
@@ -23,21 +29,36 @@ import {
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { capabilityRuntime as storageRuntime } from "../../modules/backup.cloud-secrets/runtime.js";
+import {
+  storageOperation,
+  capabilityRuntime as storageRuntime,
+} from "../../modules/backup.cloud-secrets/runtime.js";
 import {
   BACKUP_OBSERVER_JOB,
   capabilityRuntime as gitRuntime,
 } from "../../modules/backup.git-remote/runtime.js";
-import { capabilityRuntime as externalRuntime } from "../../modules/connectors.external/runtime.js";
-import { capabilityRuntime as certificateRuntime } from "../../modules/enterprise.ca-administration/runtime.js";
-import { capabilityRuntime as identityRuntime } from "../../modules/identity.federation/runtime.js";
+import {
+  externalOperation,
+  capabilityRuntime as externalRuntime,
+} from "../../modules/connectors.external/runtime.js";
+import {
+  certificateOperation,
+  capabilityRuntime as certificateRuntime,
+} from "../../modules/enterprise.ca-administration/runtime.js";
+import {
+  identityOperation,
+  capabilityRuntime as identityRuntime,
+} from "../../modules/identity.federation/runtime.js";
 import {
   TAILNET_SYNC_JOB,
   capabilityRuntime as tailnetRuntime,
 } from "../../modules/networking.tailnet/runtime.js";
 import { capabilityRuntime as remoteRuntime } from "../../modules/support.remote-ai/runtime.js";
 import { createTestContext } from "../../modules/test-context.js";
-import { capabilityRuntime as walletRuntime } from "../../modules/wallet.spending/runtime.js";
+import {
+  walletOperation,
+  capabilityRuntime as walletRuntime,
+} from "../../modules/wallet.spending/runtime.js";
 import {
   expectedPublic,
   expectedSecrets,
@@ -119,48 +140,36 @@ function sentFetch(provider: Provider): Used {
   }
 }
 
-async function sentCategory(
-  runtime: FeatureRuntime,
-  provider: Provider,
-): Promise<Used> {
-  const t = createTestContext();
-  await runtime.activate(t.ctx);
-  return sentFetch(provider);
-}
-
-async function sentModel(provider: Provider): Promise<Used> {
-  const requests = vi.spyOn(modelProvider, "savedModelRequests");
+function sentModel(provider: Provider): Used {
+  const exchange = performInference(provider);
+  if (!exchange.ok) return missed(provider.id);
+  const call = [...vi.mocked(globalThis.fetch).mock.calls]
+    .reverse()
+    .find((row) => String(row[0]) === exchange.url);
+  if (!call) return missed(provider.id);
   try {
-    await runJob(remoteRuntime, "ag-ui-endpoint");
-    const operation = requests.mock.calls
-      .flatMap((call) => call[0] ?? [])
-      .reverse()
-      .find((row) => row.providerId === provider.id);
-    if (!operation?.ok) return missed(provider.id);
-    const secret = Object.values(expectedSecrets(provider))[0] ?? "";
-    if (secret === "") return missed(provider.id);
-    const call = [...vi.mocked(globalThis.fetch).mock.calls]
-      .reverse()
-      .find((row) =>
-        Object.values(headerRecord(row[1]?.headers)).includes(secret),
-      );
-    if (!call) return missed(provider.id);
-    const bodyText = fetchBody(call[1]?.body);
     // SAFETY: this json body is the string record the model request posted.
-    const fields = JSON.parse(bodyText) as Record<string, string>;
-    if (JSON.stringify(fields) !== JSON.stringify(operation.action)) {
-      return missed(provider.id);
-    }
+    const fields = JSON.parse(fetchBody(call[1]?.body)) as Record<
+      string,
+      string
+    >;
     const headers = headerRecord(call[1]?.headers);
-    for (const value of Object.values(operation.secrets)) {
+    for (const value of Object.values(expectedSecrets(provider))) {
       if (!Object.values(headers).includes(value)) return missed(provider.id);
+      if (JSON.stringify(fields).includes(value)) return missed(provider.id);
     }
     return { ok: true, fields, secret: headers };
   } catch {
     return missed(provider.id);
-  } finally {
-    requests.mockRestore();
   }
+}
+
+function sentOperation(
+  use: (providerId: string) => { ok: boolean },
+  provider: Provider,
+): Used {
+  use(provider.id);
+  return sentFetch(provider);
 }
 
 function tailnetHeader(name: string, secret: boolean): string {
@@ -205,39 +214,27 @@ async function openPersonalVault(): Promise<void> {
 }
 
 async function sentTailnet(provider: Provider): Promise<Used> {
-  await openPersonalVault();
-  await writeDriveConfig(PERSONAL_TOMB, {
-    url: "https://vault.example.ts.net",
-    slot: "abcdefgh",
-    key: "k".repeat(40),
-    label: "drive",
-  });
-  driveClientSeams.fetch = vi.fn(
-    async () =>
-      new Response(JSON.stringify({ generation: 1, snapshot: null }), {
-        status: 200,
-      }),
-  );
+  const drive = vi.mocked(driveClientSeams.fetch);
+  const before = drive.mock.calls.length;
   try {
-    await runJob(tailnetRuntime, TAILNET_SYNC_JOB);
+    await syncTailnetNow();
     await vi.waitFor(() => {
-      expect(
-        vi.mocked(driveClientSeams.fetch).mock.calls.length,
-      ).toBeGreaterThan(0);
+      expect(drive.mock.calls.length).toBeGreaterThan(before);
     });
-    const init = vi.mocked(driveClientSeams.fetch).mock.calls[0]?.[1];
+    const init = drive.mock.calls.at(-1)?.[1];
     return tailnetUsed(provider, headerRecord(init?.headers));
   } catch {
     return missed(provider.id);
-  } finally {
-    stopTailnetSync();
   }
 }
 
-async function pushForge(provider: Provider, token: string): Promise<void> {
+async function sentGit(provider: Provider): Promise<Used> {
   const forge = forgeForProvider(provider.id);
-  if (!forge || token === "") return;
-  const put = vi.fn(async () => ({ commitSha: "abc" }));
+  const token = expectedSecrets(provider).token ?? "";
+  const put = vi.fn(async (input: { fields?: Record<string, string> }) => {
+    void input;
+    return { commitSha: "abc" };
+  });
   vaultBackupSyncSeams.sealedEnvelopeJson = () => "{}";
   vaultBackupSyncSeams.putForgeContents = put;
   writeLocalBackupTarget({
@@ -257,17 +254,22 @@ async function pushForge(provider: Provider, token: string): Promise<void> {
     config: null,
     pendingEvents: 0,
   });
-  await syncVaultBackup(provider.id);
-  expect(put, provider.id).toHaveBeenCalledWith(
-    expect.objectContaining({ token, forge }),
-  );
-}
-
-async function sentGit(provider: Provider): Promise<Used> {
-  await runJob(gitRuntime, BACKUP_OBSERVER_JOB);
+  try {
+    await syncVaultBackup(provider.id);
+  } catch {
+    // A sync without a forge token still posts the saved connector operation.
+  }
   const used = sentFetch(provider);
-  if (!used.ok) return used;
-  await pushForge(provider, used.secret.token ?? "");
+  if (!used.ok || !forge || token === "") return used;
+  expect(put, provider.id).toHaveBeenCalledWith(
+    expect.objectContaining({
+      token,
+      forge,
+      fields: expect.objectContaining(expectedPublic(provider)),
+    }),
+  );
+  const posted = JSON.stringify(put.mock.calls.at(-1)?.[0].fields ?? {});
+  if (posted.includes(token)) return missed(provider.id);
   return used;
 }
 
@@ -276,17 +278,48 @@ async function featureUse(provider: Provider): Promise<Used> {
   if (category === "agent_harnesses") return sentModel(provider);
   if (category === "networking") return sentTailnet(provider);
   if (category === "backup_recovery") return sentGit(provider);
-  if (category === "identity") return sentCategory(identityRuntime, provider);
-  if (category === "wallet") return sentCategory(walletRuntime, provider);
+  if (category === "identity")
+    return sentOperation(identityOperation, provider);
+  if (category === "wallet") return sentOperation(walletOperation, provider);
   if (category === "cloud_secret_storage" || category === "encryption") {
-    return sentCategory(storageRuntime, provider);
+    return sentOperation(storageOperation, provider);
   }
-  if (category === "certificates")
-    return sentCategory(certificateRuntime, provider);
+  if (category === "certificates") {
+    return sentOperation(certificateOperation, provider);
+  }
   if (category === "password_managers" || category === "local_storage") {
-    return sentCategory(externalRuntime, provider);
+    return sentOperation(externalOperation, provider);
   }
   return missed(provider.id);
+}
+
+async function bootFeatures(): Promise<void> {
+  await openPersonalVault();
+  await writeDriveConfig(PERSONAL_TOMB, {
+    url: "https://vault.example.ts.net",
+    slot: "abcdefgh",
+    key: "k".repeat(40),
+    label: "drive",
+  });
+  driveClientSeams.fetch = vi.fn(
+    async () =>
+      new Response(JSON.stringify({ generation: 1, snapshot: null }), {
+        status: 200,
+      }),
+  );
+  await runJob(tailnetRuntime, TAILNET_SYNC_JOB);
+  await runJob(gitRuntime, BACKUP_OBSERVER_JOB);
+  await runJob(remoteRuntime, "ag-ui-endpoint");
+  await runJob(identityRuntime, "identity");
+  await runJob(walletRuntime, "wallet");
+  await runJob(storageRuntime, "storage");
+  await runJob(certificateRuntime, "certificates");
+  await runJob(externalRuntime, "external");
+  await vi.waitFor(() => {
+    expect(vi.mocked(driveClientSeams.fetch).mock.calls.length).toBeGreaterThan(
+      0,
+    );
+  });
 }
 
 async function expectSavedUse(provider: Provider): Promise<void> {
@@ -338,11 +371,13 @@ describe("capability features use the saved connector", () => {
     vi.restoreAllMocks();
   });
 
-  it("drives each owning feature with the saved fields and attaches the secret only there", async () => {
+  it("uses a connector saved after the feature is already on", async () => {
+    await bootFeatures();
     const listed = listedProviders();
     for (const provider of listed) {
       expect((await featureUse(provider)).ok, provider.id).toBe(false);
     }
     for (const provider of listed) await expectSavedUse(provider);
+    console.log(`LISTED ${listed.map((provider) => provider.id).join(" ")}`);
   });
 });

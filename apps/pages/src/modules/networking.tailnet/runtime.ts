@@ -111,7 +111,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: TAILNET_SYNC_JOB,
       start: (signal) => {
         if (signal.aborted) return;
-        applySavedTailnet(savedTailnetOperation());
         startTailnetSync();
         signal.addEventListener("abort", stopTailnetSync, { once: true });
       },

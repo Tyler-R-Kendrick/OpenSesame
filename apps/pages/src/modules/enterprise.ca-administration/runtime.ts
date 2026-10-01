@@ -28,7 +28,7 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { createActivation } from "../activation.js";
@@ -46,34 +46,21 @@ export function applySavedCertificateConnectors(): FeatureOperation[] {
   return applySavedConnectors(["certificates"], savedCertificateOperation);
 }
 
-let certificateReady: FeatureRequest[] = [];
-
 export function startCertificateConnectors(): FeatureRequest[] {
-  certificateReady = applySavedCertificateConnectors().map((operation) =>
-    sendFeatureOperation(operation),
+  return applySavedCertificateConnectors().map((operation) =>
+    certificateOperation(operation.providerId),
   );
-  return certificateReady;
 }
 
 export function certificateOperation(providerId: string): FeatureRequest {
-  const call = certificateReady.find(
-    (use) => use.ok && use.providerId === providerId,
-  );
-  if (!call?.ok) return { ok: false, providerId };
-  return {
-    ok: true,
-    providerId,
-    operation: call.operation,
-    fields: { ...call.fields },
-    secret: { ...call.secret },
-  };
+  return performSavedConnector(providerId);
 }
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
-    certificateReady = startCertificateConnectors();
+    startCertificateConnectors();
     return activation.handle();
   },
 };
