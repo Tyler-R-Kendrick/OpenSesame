@@ -1,10 +1,15 @@
 import { writeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-local.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { issueCertificate } from "@opensesame/app-core/lib/certs.js";
 /** @vitest-environment jsdom */
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
-import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type Provider,
+  listConnections,
+} from "@opensesame/app-core/lib/connections.js";
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
+import { resetFeatureUsesBindingForTest } from "@opensesame/app-core/lib/feature-use-binding.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
 import {
@@ -28,23 +33,15 @@ import {
 } from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
+import { proposeWalletPayment } from "@opensesame/app-core/lib/wallet-agent-broker.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  storageOperation,
-  capabilityRuntime as storageRuntime,
-} from "../../modules/backup.cloud-secrets/runtime.js";
+import { capabilityRuntime as storageRuntime } from "../../modules/backup.cloud-secrets/runtime.js";
 import {
   BACKUP_OBSERVER_JOB,
   capabilityRuntime as gitRuntime,
 } from "../../modules/backup.git-remote/runtime.js";
-import {
-  externalOperation,
-  capabilityRuntime as externalRuntime,
-} from "../../modules/connectors.external/runtime.js";
-import {
-  certificateOperation,
-  capabilityRuntime as certificateRuntime,
-} from "../../modules/enterprise.ca-administration/runtime.js";
+import { capabilityRuntime as externalRuntime } from "../../modules/connectors.external/runtime.js";
+import { capabilityRuntime as certificateRuntime } from "../../modules/enterprise.ca-administration/runtime.js";
 import {
   identityOperation,
   capabilityRuntime as identityRuntime,
@@ -55,10 +52,7 @@ import {
 } from "../../modules/networking.tailnet/runtime.js";
 import { capabilityRuntime as remoteRuntime } from "../../modules/support.remote-ai/runtime.js";
 import { createTestContext } from "../../modules/test-context.js";
-import {
-  walletOperation,
-  capabilityRuntime as walletRuntime,
-} from "../../modules/wallet.spending/runtime.js";
+import { capabilityRuntime as walletRuntime } from "../../modules/wallet.spending/runtime.js";
 import {
   expectedPublic,
   expectedSecrets,
@@ -280,15 +274,28 @@ async function featureUse(provider: Provider): Promise<Used> {
   if (category === "backup_recovery") return sentGit(provider);
   if (category === "identity")
     return sentOperation(identityOperation, provider);
-  if (category === "wallet") return sentOperation(walletOperation, provider);
+  if (category === "wallet") {
+    proposeWalletPayment({
+      caller: { principalRef: "principal" },
+      nodeId: "node",
+      amount: "1",
+      destination: "dest",
+    });
+    return sentFetch(provider);
+  }
   if (category === "cloud_secret_storage" || category === "encryption") {
-    return sentOperation(storageOperation, provider);
+    await syncVaultBackup(provider.id);
+    return sentFetch(provider);
   }
   if (category === "certificates") {
-    return sentOperation(certificateOperation, provider);
+    await issueCertificate({ commonName: "connector.example" }).catch(
+      () => undefined,
+    );
+    return sentFetch(provider);
   }
   if (category === "password_managers" || category === "local_storage") {
-    return sentOperation(externalOperation, provider);
+    await listConnections().catch(() => undefined);
+    return sentFetch(provider);
   }
   return missed(provider.id);
 }
@@ -356,6 +363,7 @@ describe("capability features use the saved connector", () => {
     await forgetAllLocalGitRemotes();
     forgetDeviceConnectors();
     resetFeatureUsesForTest();
+    resetFeatureUsesBindingForTest();
     resetDeliveredModels();
     resetTailnetConnectorForTest();
     resetSavedGitBackupForTest();
