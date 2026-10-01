@@ -8,9 +8,13 @@ import {
   type JsonValue,
   assertNoPaymentCredentials,
 } from "@opensesame/os-domain";
+import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
-import type { FeatureOperation } from "./feature-connector-operation.js";
-import type { FeatureRequest } from "./feature-request.js";
+import { runListedFeature } from "./feature-connector-operation.js";
+import {
+  type FeatureRequest,
+  savedFeatureRequests,
+} from "./feature-request.js";
 
 export const featureRequestSeams = {
   fetch: (url: string, init: RequestInit): Promise<Response> =>
@@ -59,7 +63,7 @@ function refusesPayment(value: JsonValue): boolean {
 
 /** Send one saved operation. The key stays on the headers. */
 export function sendFeatureOperation(
-  operation: FeatureOperation,
+  operation: ReturnType<typeof runListedFeature>,
 ): FeatureRequest {
   if (!operation.ok) return { ok: false, providerId: operation.providerId };
   const fields: StringFields = {};
@@ -96,4 +100,23 @@ export function sendFeatureOperation(
     fields,
     secret,
   };
+}
+
+/** Read the device record and send that connector's operation. */
+export function performSavedConnector(
+  provider: Provider | string,
+): FeatureRequest {
+  return sendFeatureOperation(runListedFeature(provider));
+}
+
+/** Send every saved connector in these categories. Nothing saved does not send. */
+export function performSavedCategory(
+  categories: readonly string[],
+): FeatureRequest[] {
+  const sent: FeatureRequest[] = [];
+  for (const row of savedFeatureRequests(categories)) {
+    if (!row.ok) continue;
+    sent.push(performSavedConnector(row.providerId));
+  }
+  return sent;
 }

@@ -25,7 +25,7 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
@@ -55,28 +55,15 @@ export function applySavedWalletConnectors(): FeatureOperation[] {
   return applySavedConnectors(["wallet"], savedWalletOperation);
 }
 
-let walletReady: FeatureRequest[] = [];
-
 /** Send wallet connectors saved on this device. Payment credentials are refused. */
 export function startWalletConnectors(): FeatureRequest[] {
-  walletReady = applySavedWalletConnectors().map((operation) =>
-    sendFeatureOperation(operation),
+  return applySavedWalletConnectors().map((operation) =>
+    walletOperation(operation.providerId),
   );
-  return walletReady;
 }
 
 export function walletOperation(providerId: string): FeatureRequest {
-  const call = walletReady.find(
-    (use) => use.ok && use.providerId === providerId,
-  );
-  if (!call?.ok) return { ok: false, providerId };
-  return {
-    ok: true,
-    providerId,
-    operation: call.operation,
-    fields: { ...call.fields },
-    secret: { ...call.secret },
-  };
+  return performSavedConnector(providerId);
 }
 
 export const TUTORIAL = {
@@ -89,7 +76,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    walletReady = startWalletConnectors();
+    startWalletConnectors();
 
     // The wallet's three tomb-scoped caches follow the active tomb only
     // while this capability is active; dispose unsubscribes all three.

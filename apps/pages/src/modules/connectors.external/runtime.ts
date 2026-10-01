@@ -32,7 +32,7 @@ import {
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
-import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
+import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
@@ -96,8 +96,6 @@ export const WEBMCP_TOOLS = [
   OPEN_CONNECT_CEREMONY_TOOL,
 ] as const;
 
-let externalReady: FeatureRequest[] = [];
-
 /** Arm password-manager and local-storage connectors saved on this device. */
 export function startExternalConnectors(): FeatureRequest[] {
   const managers = applySavedConnectors(
@@ -108,24 +106,13 @@ export function startExternalConnectors(): FeatureRequest[] {
     ["local_storage"],
     savedLocalStorageOperation,
   );
-  externalReady = [...managers, ...local].map((operation) =>
-    sendFeatureOperation(operation),
+  return [...managers, ...local].map((operation) =>
+    externalOperation(operation.providerId),
   );
-  return externalReady;
 }
 
 export function externalOperation(providerId: string): FeatureRequest {
-  const call = externalReady.find(
-    (use) => use.ok && use.providerId === providerId,
-  );
-  if (!call?.ok) return { ok: false, providerId };
-  return {
-    ok: true,
-    providerId,
-    operation: call.operation,
-    fields: { ...call.fields },
-    secret: { ...call.secret },
-  };
+  return performSavedConnector(providerId);
 }
 
 export const capabilityRuntime: CapabilityRuntime = {
@@ -143,7 +130,7 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
-    externalReady = startExternalConnectors();
+    startExternalConnectors();
 
     activation.register("section", {
       id: "connections",
