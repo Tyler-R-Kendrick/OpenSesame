@@ -1,5 +1,5 @@
-import type { SecretItem, VaultItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
+import type { SecretItem, VaultItem } from "@opensesame/vault-core";
 import {
   act,
   cleanup,
@@ -36,6 +36,25 @@ function spies(): VaultTreeActions {
     create: vi.fn(),
     restore: vi.fn(),
     purge: vi.fn(),
+  };
+}
+
+function makeSecret(): SecretItem {
+  return {
+    id: "itm_secret",
+    kind: "secret",
+    name: "Deploy key",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    fields: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    deletedAt: null,
+    value: "canary-secret-value",
+    ceiling: [],
+    grantees: [],
+    connectionRef: "",
   };
 }
 
@@ -158,6 +177,33 @@ describe("the vault listing's context menu", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("offers a secret one clipboard action", () => {
+    draw([makeSecret()]);
+    fireEvent.contextMenu(screen.getByText("Deploy key"));
+    const menu = screen.getByRole("menu", { name: "Actions for Deploy key" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual([
+      "Open",
+      "Edit",
+      "Copy to Clipboard",
+      "Favorite",
+      "Share once",
+      "Trash",
+    ]);
+    const copy = within(menu).getByRole("menuitem", {
+      name: "Copy to Clipboard",
+    });
+    expect(copy.getAttribute("aria-keyshortcuts")).toBe("y");
+    fireEvent.click(copy);
+    expect(actions.copySecret).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Deploy key" }),
+    );
+    expect(actions.copyUsername).not.toHaveBeenCalled();
   });
 
   it("shares one list with the row's ⋯ key", () => {
