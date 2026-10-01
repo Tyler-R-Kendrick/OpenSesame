@@ -28,7 +28,10 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
@@ -69,6 +72,11 @@ export function identityOperation(providerId: string): FeatureRequest {
   return performSavedConnector(providerId);
 }
 
+/** Send identity connectors saved on this device when sign-in runs. */
+export function runSavedIdentityConnectors(): FeatureRequest[] {
+  return startIdentityConnectors();
+}
+
 /** The Identity tabs this capability puts on the page. */
 export const IDENTITY_VIEWS_OWNED = ["providers"] as const;
 
@@ -91,7 +99,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    startIdentityConnectors();
+    activation.onDispose(
+      registerCategorySend("identity", runSavedIdentityConnectors),
+    );
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
     // The Identity API's organization directory: `lib/orgs.ts` declares the

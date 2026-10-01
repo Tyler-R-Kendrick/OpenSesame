@@ -4,7 +4,27 @@
  * `tailnetSyncHeaders` loads the device record on that drive read or write.
  */
 
-import { runListedFeature } from "../feature-connector-operation.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "../feature-connector-operation.js";
+
+let readTailnet = (): FeatureOperation => runListedFeature("tailscale");
+
+/** The drive read calls this on every sync, after Networking is on. */
+export function registerTailnetReader(
+  reader: () => FeatureOperation,
+): () => void {
+  const previous = readTailnet;
+  readTailnet = reader;
+  return () => {
+    if (readTailnet === reader) readTailnet = previous;
+  };
+}
+
+export function currentTailnet(): FeatureOperation {
+  return readTailnet();
+}
 
 export type BoundTailnet = {
   providerId: string;
@@ -58,4 +78,5 @@ export function tailnetSyncHeaders(
 
 export function resetTailnetConnectorForTest(): void {
   bound = null;
+  readTailnet = () => runListedFeature("tailscale");
 }

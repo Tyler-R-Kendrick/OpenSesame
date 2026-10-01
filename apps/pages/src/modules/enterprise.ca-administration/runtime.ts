@@ -28,7 +28,10 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
@@ -57,11 +60,18 @@ export function certificateOperation(providerId: string): FeatureRequest {
   return performSavedConnector(providerId);
 }
 
+/** Send saved certificate connectors when a certificate is issued. */
+export function runSavedCertificateConnectors(): FeatureRequest[] {
+  return startCertificateConnectors();
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
-    startCertificateConnectors();
+    activation.onDispose(
+      registerCategorySend("certificates", runSavedCertificateConnectors),
+    );
     return activation.handle();
   },
 };

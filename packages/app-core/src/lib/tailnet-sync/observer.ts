@@ -4,7 +4,6 @@
  * stays open. Runs only while `networking.tailnet` is active, only for a
  * vault paired with a drive, and never for a guest.
  */
-import { runListedFeature } from "../feature-connector-operation.js";
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
 import { PERSONAL_TOMB } from "../vfs.js";
 import { adoptFromDrive } from "./adopt.js";
@@ -98,10 +97,9 @@ function describe(drive: DrivePairing | null) {
 async function pass(): Promise<void> {
   const drive = pairing;
   if (!drive || !syncable() || vaultStore.activeTomb() !== pairedTomb) return;
-  const savedTailnet = runListedFeature("tailscale");
   set({ phase: "syncing" });
   try {
-    await syncOnce(vaultStore, drive, tailnetSyncSeams.transport, savedTailnet);
+    await syncOnce(vaultStore, drive, tailnetSyncSeams.transport);
     set({ phase: "idle", lastSyncedAt: tailnetSyncSeams.now(), error: null });
   } catch (error) {
     set({

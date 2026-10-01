@@ -111,6 +111,10 @@ async function configureBadRemote(page, step = "badremote-configure") {
   // Connections is always on and folded into Settings › Capabilities
   // (ADR 0135): the endpoints are in that directory's config.yaml now.
   await addCapability(page, check, snap, "External connectors", "connections/");
+  // The capability snapshot names its own step and leaves it current. The
+  // endpoint write and the status probe belong to this journey, so Chromium's
+  // connection-refused line stays on the step the allowlist already names.
+  setStep(step);
   await openConfigFile(page, "capabilities");
   await page
     .getByLabel("settings/capabilities/config.yaml", { exact: true })
