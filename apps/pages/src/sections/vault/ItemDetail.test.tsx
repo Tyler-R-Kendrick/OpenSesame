@@ -388,28 +388,28 @@ describe("ItemDetail", () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Deploy hook"),
       value: "whsec_123",
-      ceiling: [
-        {
-          id: "g1",
-          action: "http.post",
-          resource: "https://deploy.example.com/hooks/release",
-        },
-      ],
+      ceiling: [{ id: "g1", action: "http.post", resource: "hook/x" }],
       grantees: ["agt_release_bot"],
       connectionRef: "conn/github/pat",
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
+    expect(screen.getByRole("heading", { name: "Value" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Grantees" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Secret" })).toBeNull();
+    const row = screen.getByRole("button", {
+      name: "Reveal secret value",
+    }).parentElement;
+    expect(row?.querySelectorAll("button").length).toBe(3);
     expect(screen.getByText("agt_release_bot")).toBeTruthy();
     expect(
-      screen.queryByText(/Capability ceiling|http\.post|hooks\/release/),
+      screen.queryByText(/Capability ceiling|http\.post|hook\/x/),
     ).toBeNull();
     expect(screen.queryByText("Connection reference")).toBeNull();
     expect(
       screen.queryByRole("link", { name: /^Grant or invoke$/i }),
     ).toBeNull();
     expect(listConnections).not.toHaveBeenCalled();
-    // The secret value stays concealed.
     expect(screen.queryByText("whsec_123")).toBeNull();
   });
 

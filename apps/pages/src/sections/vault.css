@@ -475,6 +475,18 @@
   border-top: 1px dashed var(--line);
 }
 
+.secret-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  padding: 0.6rem 0.7rem 0.6rem 0.95rem;
+}
+
+.secret-value > .detail__update {
+  grid-column: 1 / -1;
+}
+
 .detail__update .actions {
   display: flex;
   flex-wrap: wrap;

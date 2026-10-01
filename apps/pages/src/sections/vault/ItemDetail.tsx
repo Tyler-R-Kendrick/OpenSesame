@@ -1,4 +1,3 @@
-import { generate } from "@opensesame/app-core/lib/vault/password.js";
 import {
   type VaultItem,
   definitionFor,
@@ -36,6 +35,7 @@ import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
 import { KindRecord, SecretShares } from "./item-contributions.js";
@@ -310,120 +310,6 @@ type FieldsProps = {
   copy: (key: string, value: string) => Promise<void>;
   onUpdateSecret: (next: string) => Promise<void>;
 };
-
-function UpdateSecretPanel({
-  label,
-  onUpdate,
-}: {
-  label: string;
-  onUpdate: (next: string) => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"generate" | "provide">("generate");
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function apply() {
-    setError(null);
-    setBusy(true);
-    try {
-      const next =
-        mode === "generate"
-          ? generate({
-              mode: "characters",
-              length: 32,
-              lower: true,
-              upper: true,
-              digits: true,
-              symbols: true,
-              avoidAmbiguous: true,
-            })
-          : value;
-      if (!next) throw new Error("Enter a new value.");
-      await onUpdate(next);
-      setOpen(false);
-      setValue("");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Update failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!open) {
-    return (
-      <IconKey label={`Update ${label}`} onClick={() => setOpen(true)}>
-        <IconRefresh size={17} />
-      </IconKey>
-    );
-  }
-
-  return (
-    <div className="detail__update">
-      <fieldset className="sites-effect-toggle" aria-label="Update mode">
-        <button
-          type="button"
-          className={
-            mode === "generate" ? "sites-effect is-on is-allow" : "sites-effect"
-          }
-          aria-pressed={mode === "generate"}
-          onClick={() => setMode("generate")}
-        >
-          Generate
-        </button>
-        <button
-          type="button"
-          className={
-            mode === "provide" ? "sites-effect is-on is-allow" : "sites-effect"
-          }
-          aria-pressed={mode === "provide"}
-          onClick={() => setMode("provide")}
-        >
-          Enter
-        </button>
-      </fieldset>
-      {mode === "provide" ? (
-        <input
-          type="password"
-          className="input"
-          autoComplete="new-password"
-          placeholder={`New ${label}`}
-          aria-label={`New ${label}`}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-      ) : null}
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : null}
-      <div className="actions">
-        <button
-          type="button"
-          className="icon-btn is-on"
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => void apply()}
-          aria-label={busy ? "Saving…" : "Save new value"}
-          title={busy ? "Saving…" : "Save new value"}
-        >
-          <IconCheck size={17} />
-        </button>
-        <IconKey
-          label="Cancel"
-          onClick={() => {
-            setOpen(false);
-            setError(null);
-          }}
-        >
-          <IconX size={17} />
-        </IconKey>
-      </div>
-    </div>
-  );
-}
 
 function ItemFields({
   item,
@@ -751,41 +637,49 @@ function ItemFields({
 
     case "secret":
       return (
-        <section className="detail__group">
-          <h2 className="detail__grouphead">Secret</h2>
-          <FieldRow
-            label="Value"
-            actions={
-              <>
-                <RevealButton
-                  revealed={revealed.has("value")}
-                  label="secret value"
-                  onToggle={() => toggle("value")}
-                />
-                <CopyButton
+        <>
+          <section className="detail__group">
+            <h2 className="detail__grouphead">Value</h2>
+            <div className="secret-value">
+              <div className="frow__text">
+                <ConcealedValue
                   value={item.value}
-                  label="secret"
-                  fieldKey="value"
-                  copied={copied}
-                  failed={failed}
-                  onCopy={copy}
+                  label="secret value"
+                  revealed={revealed.has("value")}
                 />
-              </>
-            }
-          >
-            <ConcealedValue
-              value={item.value}
-              label="secret value"
-              revealed={revealed.has("value")}
-            />
-            <UpdateSecretPanel label="secret" onUpdate={onUpdateSecret} />
-          </FieldRow>
-          <FieldRow label="Grantees">
-            <span className="frow__value">
-              {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
-            </span>
-          </FieldRow>
-        </section>
+              </div>
+              <UpdateSecretPanel
+                label="secret"
+                onUpdate={onUpdateSecret}
+                leading={
+                  <>
+                    <RevealButton
+                      revealed={revealed.has("value")}
+                      label="secret value"
+                      onToggle={() => toggle("value")}
+                    />
+                    <CopyButton
+                      value={item.value}
+                      label="secret"
+                      fieldKey="value"
+                      copied={copied}
+                      failed={failed}
+                      onCopy={copy}
+                    />
+                  </>
+                }
+              />
+            </div>
+          </section>
+          <section className="detail__group">
+            <h2 className="detail__grouphead">Grantees</h2>
+            <div className="frow">
+              <span className="frow__value">
+                {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
+              </span>
+            </div>
+          </section>
+        </>
       );
 
     case "drop":
