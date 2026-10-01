@@ -9,15 +9,14 @@ import {
   ENVIRONMENTS_CAPABILITY,
   type EnvironmentItem,
   type EnvironmentPlan,
-  activeEnvironment,
+  type EnvironmentSnapshot,
   assignEnvironmentValue,
   enableVaultEnvironments,
   environmentKey,
-  environmentRequires,
   environmentSnapshot,
   markEnvironmentRequired,
   notifyMissingEnvironmentValues,
-  readEnvironmentValue,
+  renderEnvSchema,
   subscribeVaultEnvironments,
   switchEnvironment,
   vaultEnvironmentsEnabled,
@@ -66,20 +65,24 @@ export function EnvironmentsPanel({ plan, vaultId, items }: PanelProps) {
   const state = useSyncExternalStore(subscribeVaultEnvironments, () =>
     environmentSnapshot(vaultId),
   );
+  // The snapshot readers close over the record, so `state` retriggers them.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: state retriggers schema and notice
   useLayoutEffect(() => {
-    if (!plan?.approvedCapabilities.includes(ENVIRONMENTS_CAPABILITY)) return;
-    enableVaultEnvironments(plan, vaultId);
+    if (plan?.approvedCapabilities.includes(ENVIRONMENTS_CAPABILITY)) {
+      enableVaultEnvironments(plan, vaultId, items);
+      renderEnvSchema(plan, vaultId, items);
+    }
     notifyMissingEnvironmentValues(plan, vaultId, items);
-  }, [plan, vaultId, items]);
+  }, [plan, vaultId, items, state]);
   if (!vaultEnvironmentsEnabled(plan, vaultId)) return null;
   return (
     <section
-      className="panel"
       id="vault-environments"
-      aria-labelledby="vault-environments-title"
+      className="panel"
+      aria-label="Environments"
     >
       <div className="panel__head">
-        <h2 id="vault-environments-title">Environments</h2>
+        <h2>Environments</h2>
       </div>
       <div className="panel__body">
         <EnvironmentSwitch
@@ -87,7 +90,6 @@ export function EnvironmentsPanel({ plan, vaultId, items }: PanelProps) {
           vaultId={vaultId}
           names={state.names}
           active={state.active}
-          items={items}
         />
         <ul>
           {items.map((item) => (
@@ -96,8 +98,7 @@ export function EnvironmentsPanel({ plan, vaultId, items }: PanelProps) {
               plan={plan}
               vaultId={vaultId}
               item={item}
-              items={items}
-              active={activeEnvironment(plan, vaultId)}
+              state={state}
             />
           ))}
         </ul>
@@ -111,15 +112,14 @@ function EnvironmentSwitch({
   vaultId,
   names,
   active,
-  items,
-}: PanelProps & Readonly<{ names: readonly string[]; active: string | null }>) {
+}: Omit<PanelProps, "items"> &
+  Readonly<{ names: readonly string[]; active: string | null }>) {
   const [draft, setDraft] = useState("");
   const add = () => {
     const name = draft.trim();
     if (name.length === 0) return;
     switchEnvironment(plan, vaultId, name);
     setDraft("");
-    notifyMissingEnvironmentValues(plan, vaultId, items);
   };
   return (
     <div className="field">
@@ -129,7 +129,6 @@ function EnvironmentSwitch({
         value={active ?? ""}
         onChange={(event) => {
           switchEnvironment(plan, vaultId, event.target.value);
-          notifyMissingEnvironmentValues(plan, vaultId, items);
         }}
       >
         {active === null ? <option value="" /> : null}
@@ -158,16 +157,13 @@ function EnvironmentItemRow({
   plan,
   vaultId,
   item,
-  items,
-  active,
-}: PanelProps & Readonly<{ item: EnvironmentItem; active: string | null }>) {
+  state,
+}: Omit<PanelProps, "items"> &
+  Readonly<{ item: EnvironmentItem; state: EnvironmentSnapshot }>) {
+  const active = state.active;
   const required =
-    active !== null && environmentRequires(plan, vaultId, active, item.id);
-  const value =
-    active === null
-      ? ""
-      : (readEnvironmentValue(plan, vaultId, active, item.id) ?? "");
-  const refresh = () => notifyMissingEnvironmentValues(plan, vaultId, items);
+    active !== null && state.required[active]?.[item.id] === true;
+  const value = active === null ? "" : (state.values[active]?.[item.id] ?? "");
   return (
     <li>
       <label>
@@ -185,7 +181,6 @@ function EnvironmentItemRow({
               item.id,
               event.target.checked,
             );
-            refresh();
           }}
         />
         {item.key}
@@ -203,7 +198,6 @@ function EnvironmentItemRow({
             item.id,
             event.target.value,
           );
-          refresh();
         }}
       />
     </li>

@@ -101,7 +101,10 @@ describe("vault environments", () => {
 
   it("renders .env.schema with @required only on marked keys", () => {
     const plan = approvedPlan();
-    expect(enableVaultEnvironments(plan, VAULT)).toBe(true);
+    expect(enableVaultEnvironments(plan, VAULT, ITEMS)).toBe(true);
+    expect(renderEnvSchema(plan, VAULT, ITEMS)).toBe(
+      "# @type=string\nAPI_TOKEN=\n\n# @type=string\nAPI_URL=",
+    );
     expect(switchEnvironment(plan, VAULT, "production").ok).toBe(true);
     expect(
       markEnvironmentRequired(plan, VAULT, "production", ITEMS[0].id, true).ok,
