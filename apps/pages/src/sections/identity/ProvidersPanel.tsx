@@ -4,7 +4,6 @@
  * removal on a row.
  */
 
-import { savedFeatureRequests } from "@opensesame/app-core/lib/feature-request.js";
 import {
   beginSignIn,
   upstreamByIssuer,
@@ -39,7 +38,7 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
-import { identityOperation } from "../../modules/identity.federation/runtime.js";
+import { startIdentityConnectors } from "../../modules/identity.federation/runtime.js";
 import { brandFor } from "../../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { monogram } from "../connections/connector-marks.js";
@@ -181,9 +180,7 @@ function ProviderMark({
 }
 
 function attachSavedIdentity(): void {
-  for (const row of savedFeatureRequests(["identity"])) {
-    if (row.ok) identityOperation(row.providerId);
-  }
+  startIdentityConnectors();
 }
 
 /** Start the sign-in leg a registered provider's row offers. */

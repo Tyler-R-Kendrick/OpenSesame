@@ -41,21 +41,10 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
-import {
-  type FeatureRequest,
-  dispatchFeatureCall,
-  savedFeatureRequests,
-} from "@opensesame/app-core/lib/feature-request.js";
-import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
 } from "@opensesame/app-core/lib/vault-backup-observer.js";
-import {
-  bindSavedGitBackup,
-  savedGitBackupUse,
-} from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "backup.git-remote";
@@ -83,73 +72,6 @@ export function savedGitBackupOperation(
   return runListedFeature(provider);
 }
 
-/** Operations for the history connectors that already have a saved configuration. */
-export function gitBackupOperations(): FeatureOperation[] {
-  const ids = HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds);
-  return ids
-    .map((id) => savedGitBackupOperation(id))
-    .filter((operation) => operation.ok);
-}
-
-function savedRow(operation: FeatureOperation & { ok: true }): FeatureRequest {
-  return {
-    ok: true,
-    providerId: operation.providerId,
-    operation: operation.operation,
-    fields: operation.action,
-    secret: operation.secrets,
-  };
-}
-
-/** Bind saved forge fields and tokens onto the backup sync. */
-export function performGitBackup(
-  operations: readonly FeatureOperation[] = gitBackupOperations(),
-): FeatureRequest[] {
-  const merged = new Map<string, FeatureRequest & { ok: true }>();
-  for (const operation of operations) {
-    if (operation.ok) {
-      const row = savedRow(operation);
-      if (row.ok) merged.set(row.providerId, row);
-    }
-  }
-  for (const row of savedFeatureRequests(["backup_recovery"])) {
-    if (row.ok) merged.set(row.providerId, row);
-  }
-  const uses = [...merged.values()].flatMap((row) => {
-    const sent = dispatchFeatureCall(row);
-    if (!sent.ok) return [];
-    const posted = sendFeatureOperation({
-      ok: true,
-      providerId: sent.providerId,
-      operation: sent.operation,
-      action: { ...sent.fields },
-      secrets: { ...sent.secret },
-    });
-    return posted.ok ? [posted] : [];
-  });
-  bindSavedGitBackup(
-    uses.map((row) => ({
-      providerId: row.providerId,
-      operation: row.operation,
-      fields: row.fields,
-      secret: row.secret,
-    })),
-  );
-  return uses.flatMap((row) => {
-    const used = savedGitBackupUse(row.providerId);
-    if (!used) return [];
-    return [
-      {
-        ok: true as const,
-        providerId: used.providerId,
-        operation: used.operation,
-        fields: used.fields,
-        secret: used.secret,
-      },
-    ];
-  });
-}
-
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -160,10 +82,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {
         if (signal.aborted) return;
-        // The saved operations are bound even when the network envelope
-        // holds the observer. The observer itself stays behind that gate
-        // (ADR 0135 §1, 0142).
-        performGitBackup(gitBackupOperations());
+        // The observer stays behind the egress gate (ADR 0135 §1, 0142).
         if (!backupEgressGate.allowed()) return;
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {
