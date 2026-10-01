@@ -751,62 +751,41 @@ function ItemFields({
 
     case "secret":
       return (
-        <>
-          <section className="detail__group">
-            <h2 className="detail__grouphead">Secret</h2>
-            <FieldRow
-              label="Value"
-              actions={
-                <>
-                  <RevealButton
-                    revealed={revealed.has("value")}
-                    label="secret value"
-                    onToggle={() => toggle("value")}
-                  />
-                  <CopyButton
-                    value={item.value}
-                    label="secret"
-                    fieldKey="value"
-                    copied={copied}
-                    failed={failed}
-                    onCopy={copy}
-                  />
-                </>
-              }
-            >
-              <ConcealedValue
-                value={item.value}
-                label="secret value"
-                revealed={revealed.has("value")}
-              />
-              <UpdateSecretPanel label="secret" onUpdate={onUpdateSecret} />
-            </FieldRow>
-            <FieldRow label="Grantees">
-              <span className="frow__value">
-                {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
-              </span>
-            </FieldRow>
-          </section>
-
-          <section className="detail__group">
-            <h2 className="detail__grouphead">Capability ceiling</h2>
-            {item.ceiling.length === 0 ? (
-              <div className="frow">
-                <p className="frow__notes">
-                  No ceiling set. Optional grant metadata — it only matters when
-                  granting this secret to an agent.
-                </p>
-              </div>
-            ) : (
-              item.ceiling.map((grant, index) => (
-                <div className="ceil" key={`${grant.action}-${index}`}>
-                  <span className="ceil__action">{grant.action}</span>
-                  <span className="ceil__resource">{grant.resource}</span>
-                </div>
-              ))
-            )}
-          </section>
-        </>
+        <section className="detail__group">
+          <h2 className="detail__grouphead">Secret</h2>
+          <FieldRow
+            label="Value"
+            actions={
+              <>
+                <RevealButton
+                  revealed={revealed.has("value")}
+                  label="secret value"
+                  onToggle={() => toggle("value")}
+                />
+                <CopyButton
+                  value={item.value}
+                  label="secret"
+                  fieldKey="value"
+                  copied={copied}
+                  failed={failed}
+                  onCopy={copy}
+                />
+              </>
+            }
+          >
+            <ConcealedValue
+              value={item.value}
+              label="secret value"
+              revealed={revealed.has("value")}
+            />
+            <UpdateSecretPanel label="secret" onUpdate={onUpdateSecret} />
+          </FieldRow>
+          <FieldRow label="Grantees">
+            <span className="frow__value">
+              {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
+            </span>
+          </FieldRow>
+        </section>
       );
 
     case "drop":

@@ -598,32 +598,6 @@
   max-width: 14rem;
 }
 
-/* Capability rows keep their literal identifiers — no uppercasing. */
-.ceil {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: baseline;
-  gap: 0.35rem 0.75rem;
-  padding: 0.6rem 0.95rem;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-}
-
-.ceil:last-child {
-  border-bottom: none;
-}
-
-.ceil__action {
-  font-weight: 550;
-  color: var(--ink);
-}
-
-.ceil__resource {
-  color: var(--ink-2);
-  overflow-wrap: anywhere;
-}
-
 .sbar__track {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

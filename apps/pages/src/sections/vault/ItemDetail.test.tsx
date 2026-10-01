@@ -384,7 +384,7 @@ describe("ItemDetail", () => {
     expect(screen.getByText("4111 1111 1111 4242")).toBeTruthy();
   });
 
-  it("renders a secret value's grantees and ceiling", async () => {
+  it("renders a secret value and its grantees", async () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Deploy hook"),
       value: "whsec_123",
@@ -401,10 +401,9 @@ describe("ItemDetail", () => {
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
     expect(screen.getByText("agt_release_bot")).toBeTruthy();
-    expect(screen.getByText("http.post")).toBeTruthy();
     expect(
-      screen.getByText("https://deploy.example.com/hooks/release"),
-    ).toBeTruthy();
+      screen.queryByText(/Capability ceiling|http\.post|hooks\/release/),
+    ).toBeNull();
     expect(screen.queryByText("Connection reference")).toBeNull();
     expect(
       screen.queryByRole("link", { name: /^Grant or invoke$/i }),
@@ -414,7 +413,7 @@ describe("ItemDetail", () => {
     expect(screen.queryByText("whsec_123")).toBeNull();
   });
 
-  it("shows empty ceiling and no-receipt states for secrets", async () => {
+  it("shows an empty grantee list and no receipt lookup for secrets", async () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Loose secret"),
       value: "whsec_123",
@@ -424,7 +423,7 @@ describe("ItemDetail", () => {
     };
     vault.current = { items: [secret], folders: [] };
     renderAt("itm_secret");
-    expect(screen.getByText(/No ceiling set/)).toBeTruthy();
+    expect(screen.queryByText(/Capability ceiling|No ceiling set/)).toBeNull();
     expect(screen.getByText("None")).toBeTruthy();
     expect(screen.queryByText("Connection reference")).toBeNull();
     expect(
