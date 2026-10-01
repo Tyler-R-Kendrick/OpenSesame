@@ -11,16 +11,16 @@ import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
 import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
 import { driveClientSeams } from "@opensesame/app-core/lib/tailnet-sync/client.js";
-import { defaultTransport } from "@opensesame/app-core/lib/tailnet-sync/engine.js";
+import { writeDriveConfig } from "@opensesame/app-core/lib/tailnet-sync/config.js";
 import { stopTailnetSync } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { resetTailnetConnectorForTest } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import {
   resetSavedGitBackupForTest,
-  savedGitBackupUse,
   syncVaultBackup,
   vaultBackupSyncSeams,
 } from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { capabilityRuntime as storageRuntime } from "../../modules/backup.cloud-secrets/runtime.js";
 import {
@@ -82,12 +82,7 @@ async function runJob(runtime: FeatureRuntime, id: string): Promise<void> {
   job?.start(new AbortController().signal);
 }
 
-async function sentCategory(
-  runtime: FeatureRuntime,
-  provider: Provider,
-): Promise<Used> {
-  const t = createTestContext();
-  await runtime.activate(t.ctx);
+function sentFetch(provider: Provider): Used {
   const call = [...vi.mocked(globalThis.fetch).mock.calls]
     .reverse()
     .find((row) => String(row[0]).includes(`/${provider.id}/`));
@@ -108,6 +103,15 @@ async function sentCategory(
   } catch {
     return missed(provider.id);
   }
+}
+
+async function sentCategory(
+  runtime: FeatureRuntime,
+  provider: Provider,
+): Promise<Used> {
+  const t = createTestContext();
+  await runtime.activate(t.ctx);
+  return sentFetch(provider);
 }
 
 async function sentModel(provider: Provider): Promise<Used> {
@@ -169,23 +173,47 @@ function tailnetUsed(
   return { ok: true, fields, secret };
 }
 
+async function openPersonalVault(): Promise<void> {
+  const snap = vaultStore.getSnapshot();
+  if (
+    snap.status === "unlocked" &&
+    !snap.guest &&
+    snap.tomb === PERSONAL_TOMB
+  ) {
+    return;
+  }
+  if (snap.status === "locked") {
+    await vaultStore.unlockWithPin("48291037");
+    return;
+  }
+  await vaultStore.createWithPin("48291037");
+}
+
 async function sentTailnet(provider: Provider): Promise<Used> {
+  await openPersonalVault();
+  await writeDriveConfig(PERSONAL_TOMB, {
+    url: "https://vault.example.ts.net",
+    slot: "abcdefgh",
+    key: "k".repeat(40),
+    label: "drive",
+  });
+  driveClientSeams.fetch = vi.fn(
+    async () =>
+      new Response(JSON.stringify({ generation: 1, snapshot: null }), {
+        status: 200,
+      }),
+  );
   try {
     await runJob(tailnetRuntime, TAILNET_SYNC_JOB);
-    driveClientSeams.fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ generation: 1, snapshot: null }), {
-          status: 200,
-        }),
-    );
-    await defaultTransport.read({
-      url: "https://vault.example.ts.net",
-      slot: "abcdefgh",
-      key: "k".repeat(40),
-      label: "drive",
+    await vi.waitFor(() => {
+      expect(
+        vi.mocked(driveClientSeams.fetch).mock.calls.length,
+      ).toBeGreaterThan(0);
     });
     const init = vi.mocked(driveClientSeams.fetch).mock.calls[0]?.[1];
     return tailnetUsed(provider, headerRecord(init?.headers));
+  } catch {
+    return missed(provider.id);
   } finally {
     stopTailnetSync();
   }
@@ -222,10 +250,10 @@ async function pushForge(provider: Provider, token: string): Promise<void> {
 
 async function sentGit(provider: Provider): Promise<Used> {
   await runJob(gitRuntime, BACKUP_OBSERVER_JOB);
-  const used = savedGitBackupUse(provider.id);
-  if (!used) return missed(provider.id);
+  const used = sentFetch(provider);
+  if (!used.ok) return used;
   await pushForge(provider, used.secret.token ?? "");
-  return { ok: true, fields: used.fields, secret: used.secret };
+  return used;
 }
 
 async function featureUse(provider: Provider): Promise<Used> {

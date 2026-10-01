@@ -41,6 +41,7 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
+import { sendFeatureOperation } from "@opensesame/app-core/lib/feature-request-send.js";
 import {
   type FeatureRequest,
   dispatchFeatureCall,
@@ -116,7 +117,15 @@ export function performGitBackup(
   }
   const uses = [...merged.values()].flatMap((row) => {
     const sent = dispatchFeatureCall(row);
-    return sent.ok ? [sent] : [];
+    if (!sent.ok) return [];
+    const posted = sendFeatureOperation({
+      ok: true,
+      providerId: sent.providerId,
+      operation: sent.operation,
+      action: { ...sent.fields },
+      secrets: { ...sent.secret },
+    });
+    return posted.ok ? [posted] : [];
   });
   bindSavedGitBackup(
     uses.map((row) => ({
