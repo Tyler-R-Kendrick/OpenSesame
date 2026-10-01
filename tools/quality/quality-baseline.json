@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 441,
-    "violations": 698,
-    "oversizedLines": 229493
+    "violations": 696,
+    "oversizedLines": 228941
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -221,19 +221,18 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemDetail.test.tsx": {
-      "max-lines": 646
+      "max-lines": 645
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
-      "max-lines": 925,
-      "max-lines-per-function": 3
+      "max-lines": 798,
+      "max-lines-per-function": 2
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 651
+      "max-lines": 643
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
-      "max-lines": 416,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {

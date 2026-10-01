@@ -15,7 +15,6 @@ import {
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
-  newGrant,
 } from "@opensesame/vault-core";
 import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
@@ -23,10 +22,10 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconEye, IconEyeOff, IconX } from "../../components/Icons.js";
+import { IconEye, IconEyeOff } from "../../components/Icons.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { EditorActions } from "./EditorActions.js";
-import { EditorExtras, GroupAdd } from "./EditorExtras.js";
+import { EditorExtras } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { LoginFields } from "./LoginFields.js";
@@ -323,59 +322,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                   {reveal ? <IconEyeOff size={17} /> : <IconEye size={17} />}
                 </IconKey>
               </div>
-            </div>
-            <div className="field">
-              <GroupAdd
-                label="Capability ceiling"
-                action="Add capability"
-                onAdd={() => patch({ ceiling: [...draft.ceiling, newGrant()] })}
-              />
-              {draft.ceiling.map((grant, index) => (
-                <div className="editor__ceiling" key={grant.id}>
-                  <input
-                    value={grant.action}
-                    placeholder="http.post"
-                    aria-label={`Action ${index + 1}`}
-                    onChange={(event) =>
-                      patch({
-                        ceiling: draft.ceiling.map((candidate) =>
-                          candidate.id === grant.id
-                            ? { ...candidate, action: event.target.value }
-                            : candidate,
-                        ),
-                      })
-                    }
-                  />
-                  <input
-                    value={grant.resource}
-                    placeholder="https://deploy.example.com/hooks/release"
-                    aria-label={`Resource ${index + 1}`}
-                    onChange={(event) =>
-                      patch({
-                        ceiling: draft.ceiling.map((candidate) =>
-                          candidate.id === grant.id
-                            ? { ...candidate, resource: event.target.value }
-                            : candidate,
-                        ),
-                      })
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={`Remove capability ${index + 1}`}
-                    onClick={() =>
-                      patch({
-                        ceiling: draft.ceiling.filter(
-                          (candidate) => candidate.id !== grant.id,
-                        ),
-                      })
-                    }
-                  >
-                    <IconX size={17} />
-                  </button>
-                </div>
-              ))}
             </div>
           </div>
         ) : null}

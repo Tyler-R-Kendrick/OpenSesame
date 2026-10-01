@@ -1,0 +1,46 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "measure": "form.editor" },
+        { "measure": ".editor__grouplabel" },
+        { "shot": "1280-secret" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "measure": "form.editor" },
+        { "measure": ".editor__grouplabel" },
+        { "shot": "390-secret" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-secret",
+      "width": 1280,
+      "title": "New secret — 1280 × 800",
+      "caption": "The capability ceiling leaves the new secret form. The name and the secret value stay.",
+      "before": "form 640×277, capability ceiling 144×41",
+      "after": "form 640×206, no capability ceiling"
+    },
+    {
+      "shot": "390-secret",
+      "width": 390,
+      "title": "New secret — 390 × 844",
+      "caption": "On a phone the new secret form is the name and the secret value.",
+      "before": "form 358×364, capability ceiling 358×49",
+      "after": "form 358×286, no capability ceiling"
+    }
+  ]
+}
