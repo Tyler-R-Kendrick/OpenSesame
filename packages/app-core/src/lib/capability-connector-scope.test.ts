@@ -97,6 +97,7 @@ describe("capability bindings per vault", () => {
       "https://github.com/other/store.git",
     );
 
+    // SAFETY: the settings json this test wrote keeps the vault connector map.
     const stored = JSON.parse(kvGet("settings.v1") ?? "{}") as {
       capabilityConnectorsByVault: Record<
         string,

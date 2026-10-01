@@ -47,7 +47,7 @@ const GIT_SECRET_KEYS = new Set([
   "ssh_passphrase",
 ]);
 
-function catalogValues(provider: Provider): Record<string, string> {
+function catalogValues(provider: Provider) {
   const values: Record<string, string> = {};
   for (const field of provider.configurationFields ?? []) {
     values[field.name] = fieldValue(provider, field.name, field.secret);
@@ -106,21 +106,18 @@ function gitConfiguration(
   return configuration;
 }
 
-export function expectedSecrets(provider: Provider): Record<string, string> {
+export function expectedSecrets(provider: Provider) {
   const values = catalogValues(provider);
   if (isGitBackupProvider(provider.id))
     return publicSplit(provider, values).secrets;
   const secrets: Record<string, string> = {};
   if (provider.authKind === "api_key")
     secrets.credential = `sek-${provider.id}-credential`;
-  const payload = configurationPayload(
-    provider,
+  const hidden = secretNames(provider);
+  for (const [name, value] of Object.entries(
     withoutApiKeyField(provider, values),
-  );
-  for (const [name, value] of Object.entries(payload)) {
-    if (typeof value === "string" && secretNames(provider).has(name)) {
-      secrets[name] = value;
-    }
+  )) {
+    if (hidden.has(name) && value.trim() !== "") secrets[name] = value.trim();
   }
   return secrets;
 }
@@ -135,10 +132,15 @@ function withoutApiKeyField(
   );
 }
 
+interface FieldSplit {
+  readonly fields: Record<string, string>;
+  readonly secrets: Record<string, string>;
+}
+
 function publicSplit(
   provider: Provider,
   values: Record<string, string>,
-): { fields: Record<string, string>; secrets: Record<string, string> } {
+): FieldSplit {
   const fields: Record<string, string> = {};
   const secrets: Record<string, string> = {};
   for (const [name, value] of Object.entries(values)) {

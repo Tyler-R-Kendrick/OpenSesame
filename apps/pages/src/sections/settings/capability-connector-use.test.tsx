@@ -1,4 +1,5 @@
 import { writeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-local.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 /** @vitest-environment jsdom */
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
@@ -35,7 +36,6 @@ import {
   capabilityRuntime as tailnetRuntime,
 } from "../../modules/networking.tailnet/runtime.js";
 import { capabilityRuntime as remoteRuntime } from "../../modules/support.remote-ai/runtime.js";
-import type { TestContext } from "../../modules/test-context.js";
 import { createTestContext } from "../../modules/test-context.js";
 import { capabilityRuntime as walletRuntime } from "../../modules/wallet.spending/runtime.js";
 import {
@@ -58,9 +58,7 @@ type Used = {
   secret: Record<string, string>;
 };
 
-type FeatureRuntime = {
-  activate(ctx: TestContext["ctx"]): Promise<unknown>;
-};
+type FeatureRuntime = Pick<CapabilityRuntime, "activate">;
 
 function missed(providerId: string): Used {
   return { ok: false, fields: {}, secret: {} };
@@ -82,13 +80,29 @@ async function runJob(runtime: FeatureRuntime, id: string): Promise<void> {
   job?.start(new AbortController().signal);
 }
 
+function fetchBody(body: BodyInit | null | undefined): string {
+  if (
+    body == null ||
+    body instanceof Blob ||
+    body instanceof FormData ||
+    body instanceof URLSearchParams ||
+    body instanceof ReadableStream ||
+    body instanceof ArrayBuffer ||
+    ArrayBuffer.isView(body)
+  ) {
+    return "";
+  }
+  return body;
+}
+
 function sentFetch(provider: Provider): Used {
   const call = [...vi.mocked(globalThis.fetch).mock.calls]
     .reverse()
     .find((row) => String(row[0]).includes(`/${provider.id}/`));
   if (!call) return missed(provider.id);
-  const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+  const bodyText = fetchBody(call[1]?.body);
   try {
+    // SAFETY: this json body is the string record the feature request posted.
     const fields = JSON.parse(bodyText) as Record<string, string>;
     const headers = headerRecord(call[1]?.headers);
     const secret: Record<string, string> = {};
@@ -131,7 +145,8 @@ async function sentModel(provider: Provider): Promise<Used> {
         Object.values(headerRecord(row[1]?.headers)).includes(secret),
       );
     if (!call) return missed(provider.id);
-    const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+    const bodyText = fetchBody(call[1]?.body);
+    // SAFETY: this json body is the string record the model request posted.
     const fields = JSON.parse(bodyText) as Record<string, string>;
     if (JSON.stringify(fields) !== JSON.stringify(operation.action)) {
       return missed(provider.id);

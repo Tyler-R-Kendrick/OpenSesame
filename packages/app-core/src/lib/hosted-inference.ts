@@ -4,10 +4,12 @@
  * only to the request headers.
  */
 
+import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import {
   type FeatureOperation,
+  isListedProvider,
   runListedFeature,
 } from "./feature-connector-operation.js";
 import { type FeatureRequest, featureRequest } from "./feature-request.js";
@@ -33,7 +35,7 @@ export type DeliveredModel = {
 
 const delivered: DeliveredModel[] = [];
 
-function secretHeaders(secret: Record<string, string>): Record<string, string> {
+function secretHeaders(secret: Record<string, string>) {
   const headers: Record<string, string> = {};
   if (secret.credential) headers.authorization = secret.credential;
   for (const [name, value] of Object.entries(secret)) {
@@ -62,9 +64,8 @@ function bodyHidesSecret(
 
 /** The inference request for one saved provider. Nothing saved does not succeed. */
 export function modelExchange(provider: Provider | string): ModelExchange {
-  const asked = typeof provider === "string" ? provider : provider.id;
-  const row =
-    typeof provider === "string" ? catalogProvider(provider) : provider;
+  const asked = isListedProvider(provider) ? provider.id : provider;
+  const row = isListedProvider(provider) ? provider : catalogProvider(provider);
   if (row && row.id !== asked) row.id = asked;
   const request: FeatureRequest = featureRequest(row ?? asked);
   if (!request.ok || !row) return { ok: false, providerId: asked };
@@ -117,9 +118,19 @@ export function resetDeliveredModels(): void {
   delivered.length = 0;
 }
 
+function stringRecord(text: string) {
+  const parsed = overlapCast(JSON.parse(text));
+  const body: Record<string, string> = {};
+  if (!isJsonObject(parsed)) return body;
+  for (const [name, value] of Object.entries(parsed)) {
+    if (isString(value)) body[name] = value;
+  }
+  return body;
+}
+
 function posted(exchange: ModelExchange & { ok: true }): ModelExchange {
   const sent = hostedInferenceSeams.deliver(exchange);
-  const body = JSON.parse(sent.body) as Record<string, string>;
+  const body = stringRecord(sent.body);
   return {
     ok: true,
     providerId: sent.providerId,

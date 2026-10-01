@@ -14,26 +14,24 @@ import {
 } from "./connections-local-git.js";
 import type { Connection, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
+import {
+  type PublicRow,
+  type StringFields,
+  clearDeviceConnectorStore,
+  readDeviceRows,
+  readDeviceSecrets,
+  writeDeviceRows,
+  writeDeviceSecrets,
+} from "./device-connector-records.js";
 import type { GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
-import { rememberLocalGitRemote } from "./git-remote-local.js";
-import { isLocalGitRemoteId } from "./git-remote-local.js";
+import {
+  isLocalGitRemoteId,
+  rememberLocalGitRemote,
+} from "./git-remote-local.js";
 import { bindHistoryConnection } from "./history-backups.js";
-import { kvDelete, kvGet, kvSet } from "./kv.js";
 
-const PUBLIC_KEY = "opensesame.device-connectors.v1";
-const SECRET_KEY = "opensesame.device-connector-secrets.v1";
 const ID_PREFIX = "conn_local_";
-
-type PublicRow = {
-  connectionId: string;
-  providerId: string;
-  displayName: string;
-  scopes: string[];
-  fields: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
-};
 
 export type RenderedConnector = {
   connection: Connection;
@@ -83,65 +81,16 @@ export function isDeviceConnectorId(id: string): boolean {
   return id.startsWith(ID_PREFIX);
 }
 
-function readRows(): PublicRow[] {
-  const raw = kvGet(PUBLIC_KEY);
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isRow);
-  } catch {
-    return [];
-  }
-}
-
-function isRow(value: unknown): value is PublicRow {
-  if (!value || typeof value !== "object") return false;
-  const row = value as PublicRow;
-  return (
-    typeof row.connectionId === "string" &&
-    typeof row.providerId === "string" &&
-    typeof row.displayName === "string" &&
-    Array.isArray(row.scopes) &&
-    row.fields !== null &&
-    typeof row.fields === "object"
-  );
-}
-
-function writeRows(rows: PublicRow[]): void {
-  if (rows.length === 0) kvDelete(PUBLIC_KEY);
-  else kvSet(PUBLIC_KEY, JSON.stringify(rows));
-}
-
-function readSecretMap(): Record<string, Record<string, string>> {
-  const raw = kvGet(SECRET_KEY);
-  if (!raw) return {};
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-      return {};
-    return parsed as Record<string, Record<string, string>>;
-  } catch {
-    return {};
-  }
-}
-
-function writeSecretMap(map: Record<string, Record<string, string>>): void {
-  if (Object.keys(map).length === 0) kvDelete(SECRET_KEY);
-  else kvSet(SECRET_KEY, JSON.stringify(map));
-}
-
 export function forgetDeviceConnectors(): void {
-  kvDelete(PUBLIC_KEY);
-  kvDelete(SECRET_KEY);
+  clearDeviceConnectorStore();
 }
 
 function findId(id: string): PublicRow | undefined {
-  return readRows().find((row) => row.connectionId === id);
+  return readDeviceRows().find((row) => row.connectionId === id);
 }
 
 function latestFor(providerId: string): PublicRow | undefined {
-  return readRows()
+  return readDeviceRows()
     .filter((row) => row.providerId === providerId)
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     .at(-1);
@@ -193,16 +142,16 @@ function toConnection(row: PublicRow): Connection {
   };
 }
 
-function upsert(row: PublicRow, secrets: Record<string, string>): void {
-  const rows = readRows().filter(
+function upsert(row: PublicRow, secrets: StringFields): void {
+  const rows = readDeviceRows().filter(
     (item) => item.connectionId !== row.connectionId,
   );
   rows.push(row);
-  writeRows(rows);
-  const map = readSecretMap();
+  writeDeviceRows(rows);
+  const map = readDeviceSecrets();
   if (Object.keys(secrets).length === 0) delete map[row.connectionId];
   else map[row.connectionId] = secrets;
-  writeSecretMap(map);
+  writeDeviceSecrets(map);
 }
 
 export function deviceConnection(id: string): Connection | null {
@@ -212,7 +161,7 @@ export function deviceConnection(id: string): Connection | null {
 }
 
 export function listDeviceConnections(): Connection[] {
-  return readRows()
+  return readDeviceRows()
     .filter((row) => !isLocalGitRemoteId(row.connectionId))
     .map(toConnection);
 }
@@ -225,10 +174,14 @@ export function mergeOfflineConnections(rows: Connection[]): Connection[] {
   return [...withGit, ...local.filter((row) => !seen.has(row.connectionId))];
 }
 
-export function publicConnectorFields(
-  connectionId: string,
-): Record<string, string> {
-  return { ...(findId(connectionId)?.fields ?? {}) };
+export function publicConnectorFields(connectionId: string): StringFields {
+  const fields: StringFields = {};
+  for (const [name, value] of Object.entries(
+    findId(connectionId)?.fields ?? {},
+  )) {
+    fields[name] = value;
+  }
+  return fields;
 }
 
 export function renderedConnectorRecord(
@@ -255,11 +208,8 @@ export function createDeviceConnection(body: SaveBody): Connection {
   return toConnection(row);
 }
 
-function unreachable(error: unknown): boolean {
-  return (
-    error instanceof ConnectionsError &&
-    (error.code === "unreachable" || error.status === 0)
-  );
+function unreachable(error: ConnectionsError): boolean {
+  return error.code === "unreachable" || error.status === 0;
 }
 
 /** Host create when it answers; a device record when it cannot be reached. */
@@ -268,8 +218,9 @@ export function createHostOrDevice(
   host: () => Promise<Connection>,
 ): Promise<Connection> {
   if (isGitBackupProvider(body.providerId)) return host();
-  return host().catch((error: unknown) => {
-    if (!unreachable(error)) throw error;
+  return host().catch((error) => {
+    if (!(error instanceof ConnectionsError) || !unreachable(error))
+      throw error;
     return createDeviceConnection(body);
   });
 }
@@ -280,7 +231,8 @@ export function sealDeviceCredential(
 ): Connection | null {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
-  const secrets = { ...(readSecretMap()[id] ?? {}), credential: value };
+  const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
+  secrets.credential = value;
   upsert({ ...row, updatedAt: nowIso() }, secrets);
   return toConnection({ ...row, updatedAt: nowIso() });
 }
@@ -292,8 +244,8 @@ export function sealDeviceConfiguration(
   const row = findId(id);
   if (!row) return null;
   const hidden = secretNames(row.providerId);
-  const fields = { ...row.fields };
-  const secrets = { ...(readSecretMap()[id] ?? {}) };
+  const fields: StringFields = { ...row.fields };
+  const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
   for (const [key, value] of Object.entries(values)) {
     if (hidden.has(key)) secrets[key] = value;
     else fields[key] = value;
@@ -308,22 +260,27 @@ export function revokeDeviceConnection(id: string): {
   providerRevocation: "ok";
 } | null {
   if (!findId(id) || isLocalGitRemoteId(id)) return null;
-  writeRows(readRows().filter((row) => row.connectionId !== id));
-  const map = readSecretMap();
+  writeDeviceRows(readDeviceRows().filter((row) => row.connectionId !== id));
+  const map = readDeviceSecrets();
   delete map[id];
-  writeSecretMap(map);
+  writeDeviceSecrets(map);
   return { revoked: true, providerRevocation: "ok" };
+}
+
+interface SplitFields {
+  readonly fields: StringFields;
+  readonly secrets: StringFields;
 }
 
 function splitValues(
   providerId: string,
-  values: Record<string, string>,
-): { fields: Record<string, string>; secrets: Record<string, string> } {
+  values: GitRemoteConfiguration,
+): SplitFields {
   const hidden = secretNames(providerId);
-  const fields: Record<string, string> = {};
-  const secrets: Record<string, string> = {};
+  const fields: StringFields = {};
+  const secrets: StringFields = {};
   for (const [key, value] of Object.entries(values)) {
-    if (value.trim() === "") continue;
+    if (value === undefined || value.trim() === "") continue;
     if (hidden.has(key)) secrets[key] = value;
     else fields[key] = value;
   }
@@ -341,10 +298,7 @@ export async function saveForgeConnector(
     configuration: input.configuration,
   });
   bindHistoryConnection(provider.id, remote.id, input.configuration.remote_url);
-  const split = splitValues(
-    provider.id,
-    input.configuration as unknown as Record<string, string>,
-  );
+  const split = splitValues(provider.id, input.configuration);
   const stamp = nowIso();
   upsert(
     {
@@ -365,13 +319,16 @@ export async function saveForgeConnector(
 export function runFeatureConnector(provider: Provider): ConnectorRun {
   const row = latestFor(provider.id);
   if (!row) return { ok: false, providerId: provider.id };
-  const fields = { ...row.fields };
+  const fields: StringFields = { ...row.fields };
   if (row.scopes.length > 0) fields.scopes = row.scopes.join(" ");
+  const secrets: StringFields = {
+    ...(readDeviceSecrets()[row.connectionId] ?? {}),
+  };
   return {
     ok: true,
     providerId: provider.id,
     operation: provider.operations[0] ?? "configure",
     fields,
-    secrets: { ...(readSecretMap()[row.connectionId] ?? {}) },
+    secrets,
   };
 }

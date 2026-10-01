@@ -48,9 +48,11 @@ import { createActivation } from "../activation.js";
 export const CAPABILITY = "support.remote-ai";
 
 /** Test seam: the deploy-config read, swappable without a module mock. */
-export const remoteSupportSeams: {
+interface RemoteSupportSeams {
   loadAgUiEndpoint: typeof loadAgUiEndpoint;
-} = { loadAgUiEndpoint };
+}
+
+export const remoteSupportSeams: RemoteSupportSeams = { loadAgUiEndpoint };
 
 /** The model operation for a saved api-key connector, with no Host required. */
 export function savedRemoteModel(
@@ -86,9 +88,13 @@ function secretsStayOnHeaders(row: ModelExchange & { ok: true }): boolean {
 }
 
 /** AG-UI when an endpoint is configured, otherwise the saved model connector. */
-export async function loadRemoteAgentModule(): Promise<{
-  createAgUiAgent: () => ReturnType<typeof createSavedModelSupportAgent>;
-}> {
+interface RemoteAgentModule {
+  readonly createAgUiAgent: () => ReturnType<
+    typeof createSavedModelSupportAgent
+  >;
+}
+
+export async function loadRemoteAgentModule(): Promise<RemoteAgentModule> {
   const ag = await import(
     "@opensesame/app-core/tutorial/agents/ag-ui/index.js"
   );

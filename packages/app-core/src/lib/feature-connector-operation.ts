@@ -20,8 +20,14 @@ export type FeatureOperation =
       secrets: Record<string, string>;
     };
 
+export function isListedProvider(
+  provider: Provider | string,
+): provider is Provider {
+  return Object(provider) === provider;
+}
+
 function providerOf(provider: Provider | string): Provider | null {
-  if (typeof provider !== "string") return provider;
+  if (isListedProvider(provider)) return provider;
   const row = catalogProvider(provider);
   if (!row) return null;
   // The page stores the id it listed. An alias such as `aws-parameter-store`
@@ -35,7 +41,7 @@ export function runListedFeature(
   provider: Provider | string,
 ): FeatureOperation {
   const row = providerOf(provider);
-  const providerId = typeof provider === "string" ? provider : provider.id;
+  const providerId = isListedProvider(provider) ? provider.id : provider;
   if (!row) return { ok: false, providerId };
   const run = runFeatureConnector(row);
   if (!run.ok) return { ok: false, providerId: row.id };

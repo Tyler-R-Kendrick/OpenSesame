@@ -82,6 +82,7 @@ describe("savedModelRequests", () => {
           ),
         );
       expect(call, operation.providerId).toBeTruthy();
+      // SAFETY: this json body is the string record the model request posted.
       const body = JSON.parse(String(call?.[1]?.body)) as Record<
         string,
         string

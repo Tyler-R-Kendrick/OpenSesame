@@ -17,8 +17,12 @@ export const featureRequestSeams = {
     globalThis.fetch(url, init),
 };
 
-function secretHeaders(secret: Record<string, string>): Record<string, string> {
-  const headers: Record<string, string> = {};
+interface StringFields {
+  [key: string]: string;
+}
+
+function secretHeaders(secret: StringFields): StringFields {
+  const headers: StringFields = {};
   if (secret.credential) headers.authorization = secret.credential;
   for (const [name, value] of Object.entries(secret)) {
     if (name === "credential") continue;
@@ -27,10 +31,7 @@ function secretHeaders(secret: Record<string, string>): Record<string, string> {
   return headers;
 }
 
-function bodyHidesSecret(
-  body: Record<string, string>,
-  secret: Record<string, string>,
-): boolean {
+function bodyHidesSecret(body: StringFields, secret: StringFields): boolean {
   const packed = JSON.stringify(body);
   return Object.values(secret).every(
     (value) => value === "" || !packed.includes(value),
@@ -61,8 +62,14 @@ export function sendFeatureOperation(
   operation: FeatureOperation,
 ): FeatureRequest {
   if (!operation.ok) return { ok: false, providerId: operation.providerId };
-  const fields = { ...operation.action };
-  const secret = { ...operation.secrets };
+  const fields: StringFields = {};
+  const secret: StringFields = {};
+  for (const [name, value] of Object.entries(operation.action)) {
+    fields[name] = value;
+  }
+  for (const [name, value] of Object.entries(operation.secrets)) {
+    secret[name] = value;
+  }
   if (refusesPayment({ ...fields, ...secret })) {
     return { ok: false, providerId: operation.providerId };
   }
