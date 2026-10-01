@@ -35,10 +35,14 @@ export function activeCapabilityVaultId(): string {
   return lastVaultIsGuest() ? GUEST_TOMB : readBootActiveId();
 }
 
-export function bindingsFromStored(parsed: JsonObject): {
-  capabilityConnectors: CapabilityConnectorMap;
-  capabilityConnectorsByVault: Record<string, CapabilityConnectorMap>;
-} {
+interface ScopedCapabilityConnectors {
+  readonly capabilityConnectors: CapabilityConnectorMap;
+  readonly capabilityConnectorsByVault: Record<string, CapabilityConnectorMap>;
+}
+
+export function bindingsFromStored(
+  parsed: JsonObject,
+): ScopedCapabilityConnectors {
   const byVault = parsed.capabilityConnectorsByVault;
   return {
     capabilityConnectors: connectorsForActiveVault(parsed),
@@ -50,10 +54,7 @@ export function bindingsFromStored(parsed: JsonObject): {
 
 export function scopeCapabilityConnectorsForSave(
   activeMap: CapabilityConnectorMap | undefined,
-): {
-  capabilityConnectors: CapabilityConnectorMap;
-  capabilityConnectorsByVault: Record<string, CapabilityConnectorMap>;
-} {
+): ScopedCapabilityConnectors {
   const mine = normalizeCapabilityConnectors(activeMap);
   const maps = mapsForSave(readRawSettings());
   maps[activeCapabilityVaultId()] = mine;
@@ -73,14 +74,12 @@ function connectorsForActiveVault(parsed: JsonObject): CapabilityConnectorMap {
     : defaultCapabilityConnectors();
 }
 
-function mapsForSave(
-  parsed: JsonObject | undefined,
-): Record<string, CapabilityConnectorMap> {
+function mapsForSave(parsed: JsonObject | undefined) {
   const byVault = parsed?.capabilityConnectorsByVault;
   if (isJsonObject(byVault)) return storedVaultMaps(byVault);
-  return {
-    [PERSONAL_PROJECT_ID]: normalizedSlot(parsed?.capabilityConnectors),
-  };
+  const maps: Record<string, CapabilityConnectorMap> = {};
+  maps[PERSONAL_PROJECT_ID] = normalizedSlot(parsed?.capabilityConnectors);
+  return maps;
 }
 
 function storedVaultMaps(
@@ -121,9 +120,7 @@ function readRawSettings(): JsonObject | undefined {
   }
 }
 
-function readCapabilityConnectors(
-  value: JsonObject,
-): Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>> {
+function readCapabilityConnectors(value: JsonObject) {
   const connectors: Partial<
     Record<CapabilityId, Partial<CapabilityConnectorBinding>>
   > = {};

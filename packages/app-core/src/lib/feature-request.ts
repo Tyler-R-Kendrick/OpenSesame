@@ -6,7 +6,10 @@
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import { listDeviceConnections } from "./device-connectors.js";
-import { runListedFeature } from "./feature-connector-operation.js";
+import {
+  isListedProvider,
+  runListedFeature,
+} from "./feature-connector-operation.js";
 
 export type FeatureRequest =
   | { ok: false; providerId: string }
@@ -60,7 +63,7 @@ export function dispatchedFeatureCall(
 }
 
 function idOf(provider: Provider | string): string {
-  return typeof provider === "string" ? provider : provider.id;
+  return isListedProvider(provider) ? provider.id : provider;
 }
 
 /** Build the feature request from the saved device record, or refuse. */

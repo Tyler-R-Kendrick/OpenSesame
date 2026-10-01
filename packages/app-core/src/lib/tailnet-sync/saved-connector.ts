@@ -35,9 +35,7 @@ export function boundTailnet(): BoundTailnet | null {
 }
 
 /** Headers a drive read or write sends, including the saved tailnet configuration. */
-export function tailnetSyncHeaders(
-  base: Record<string, string> = {},
-): Record<string, string> {
+export function tailnetSyncHeaders(base: Record<string, string> = {}) {
   const headers = { ...base };
   if (!bound) return headers;
   for (const [name, value] of Object.entries(bound.fields)) {

@@ -1,4 +1,5 @@
 import { writeLocalBackupTarget } from "@opensesame/app-core/lib/backup-target-local.js";
+import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 /** @vitest-environment jsdom */
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
@@ -11,16 +12,16 @@ import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
 import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
 import { driveClientSeams } from "@opensesame/app-core/lib/tailnet-sync/client.js";
-import { defaultTransport } from "@opensesame/app-core/lib/tailnet-sync/engine.js";
+import { writeDriveConfig } from "@opensesame/app-core/lib/tailnet-sync/config.js";
 import { stopTailnetSync } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { resetTailnetConnectorForTest } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import {
   resetSavedGitBackupForTest,
-  savedGitBackupUse,
   syncVaultBackup,
   vaultBackupSyncSeams,
 } from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { PERSONAL_TOMB } from "@opensesame/app-core/lib/vfs.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { capabilityRuntime as storageRuntime } from "../../modules/backup.cloud-secrets/runtime.js";
 import {
@@ -35,7 +36,6 @@ import {
   capabilityRuntime as tailnetRuntime,
 } from "../../modules/networking.tailnet/runtime.js";
 import { capabilityRuntime as remoteRuntime } from "../../modules/support.remote-ai/runtime.js";
-import type { TestContext } from "../../modules/test-context.js";
 import { createTestContext } from "../../modules/test-context.js";
 import { capabilityRuntime as walletRuntime } from "../../modules/wallet.spending/runtime.js";
 import {
@@ -58,9 +58,7 @@ type Used = {
   secret: Record<string, string>;
 };
 
-type FeatureRuntime = {
-  activate(ctx: TestContext["ctx"]): Promise<unknown>;
-};
+type FeatureRuntime = Pick<CapabilityRuntime, "activate">;
 
 function missed(providerId: string): Used {
   return { ok: false, fields: {}, secret: {} };
@@ -82,18 +80,29 @@ async function runJob(runtime: FeatureRuntime, id: string): Promise<void> {
   job?.start(new AbortController().signal);
 }
 
-async function sentCategory(
-  runtime: FeatureRuntime,
-  provider: Provider,
-): Promise<Used> {
-  const t = createTestContext();
-  await runtime.activate(t.ctx);
+function fetchBody(body: BodyInit | null | undefined): string {
+  if (
+    body == null ||
+    body instanceof Blob ||
+    body instanceof FormData ||
+    body instanceof URLSearchParams ||
+    body instanceof ReadableStream ||
+    body instanceof ArrayBuffer ||
+    ArrayBuffer.isView(body)
+  ) {
+    return "";
+  }
+  return body;
+}
+
+function sentFetch(provider: Provider): Used {
   const call = [...vi.mocked(globalThis.fetch).mock.calls]
     .reverse()
     .find((row) => String(row[0]).includes(`/${provider.id}/`));
   if (!call) return missed(provider.id);
-  const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+  const bodyText = fetchBody(call[1]?.body);
   try {
+    // SAFETY: this json body is the string record the feature request posted.
     const fields = JSON.parse(bodyText) as Record<string, string>;
     const headers = headerRecord(call[1]?.headers);
     const secret: Record<string, string> = {};
@@ -108,6 +117,15 @@ async function sentCategory(
   } catch {
     return missed(provider.id);
   }
+}
+
+async function sentCategory(
+  runtime: FeatureRuntime,
+  provider: Provider,
+): Promise<Used> {
+  const t = createTestContext();
+  await runtime.activate(t.ctx);
+  return sentFetch(provider);
 }
 
 async function sentModel(provider: Provider): Promise<Used> {
@@ -127,7 +145,8 @@ async function sentModel(provider: Provider): Promise<Used> {
         Object.values(headerRecord(row[1]?.headers)).includes(secret),
       );
     if (!call) return missed(provider.id);
-    const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+    const bodyText = fetchBody(call[1]?.body);
+    // SAFETY: this json body is the string record the model request posted.
     const fields = JSON.parse(bodyText) as Record<string, string>;
     if (JSON.stringify(fields) !== JSON.stringify(operation.action)) {
       return missed(provider.id);
@@ -169,23 +188,47 @@ function tailnetUsed(
   return { ok: true, fields, secret };
 }
 
+async function openPersonalVault(): Promise<void> {
+  const snap = vaultStore.getSnapshot();
+  if (
+    snap.status === "unlocked" &&
+    !snap.guest &&
+    snap.tomb === PERSONAL_TOMB
+  ) {
+    return;
+  }
+  if (snap.status === "locked") {
+    await vaultStore.unlockWithPin("48291037");
+    return;
+  }
+  await vaultStore.createWithPin("48291037");
+}
+
 async function sentTailnet(provider: Provider): Promise<Used> {
+  await openPersonalVault();
+  await writeDriveConfig(PERSONAL_TOMB, {
+    url: "https://vault.example.ts.net",
+    slot: "abcdefgh",
+    key: "k".repeat(40),
+    label: "drive",
+  });
+  driveClientSeams.fetch = vi.fn(
+    async () =>
+      new Response(JSON.stringify({ generation: 1, snapshot: null }), {
+        status: 200,
+      }),
+  );
   try {
     await runJob(tailnetRuntime, TAILNET_SYNC_JOB);
-    driveClientSeams.fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ generation: 1, snapshot: null }), {
-          status: 200,
-        }),
-    );
-    await defaultTransport.read({
-      url: "https://vault.example.ts.net",
-      slot: "abcdefgh",
-      key: "k".repeat(40),
-      label: "drive",
+    await vi.waitFor(() => {
+      expect(
+        vi.mocked(driveClientSeams.fetch).mock.calls.length,
+      ).toBeGreaterThan(0);
     });
     const init = vi.mocked(driveClientSeams.fetch).mock.calls[0]?.[1];
     return tailnetUsed(provider, headerRecord(init?.headers));
+  } catch {
+    return missed(provider.id);
   } finally {
     stopTailnetSync();
   }
@@ -222,10 +265,10 @@ async function pushForge(provider: Provider, token: string): Promise<void> {
 
 async function sentGit(provider: Provider): Promise<Used> {
   await runJob(gitRuntime, BACKUP_OBSERVER_JOB);
-  const used = savedGitBackupUse(provider.id);
-  if (!used) return missed(provider.id);
+  const used = sentFetch(provider);
+  if (!used.ok) return used;
   await pushForge(provider, used.secret.token ?? "");
-  return { ok: true, fields: used.fields, secret: used.secret };
+  return used;
 }
 
 async function featureUse(provider: Provider): Promise<Used> {
