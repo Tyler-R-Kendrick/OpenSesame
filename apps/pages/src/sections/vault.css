@@ -854,13 +854,6 @@ select.editor__ext:hover {
   align-items: center;
 }
 
-.editor__ceiling {
-  display: grid;
-  grid-template-columns: 1fr 1.4fr auto;
-  gap: 0.35rem;
-  align-items: center;
-}
-
 /* —— Generator ————————————————————————————————————————————— */
 
 .gen {
@@ -1075,21 +1068,18 @@ select.editor__ext:hover {
      value, resource) under it, and the row's keys beside both. Collapsed to
      one column, the remove key fell onto a line of its own under a
      full-width three-word select, far from the address it removes. */
-  .editor__uri,
-  .editor__ceiling {
+  .editor__uri {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .editor__uri > :nth-child(2),
-  .editor__ceiling > :nth-child(2) {
+  .editor__uri > :nth-child(2) {
     grid-column: 1;
     grid-row: 2;
   }
 
   /* The × ends the address it removes; centred across the address and its
      rule it sat on neither. */
-  .editor__uri > :last-child,
-  .editor__ceiling > :last-child {
+  .editor__uri > :last-child {
     grid-column: 2;
     grid-row: 1;
   }

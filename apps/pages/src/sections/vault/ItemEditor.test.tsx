@@ -519,38 +519,30 @@ describe("ItemEditor", () => {
     expect(savedItem()).toHaveProperty("grantees", secret.grantees);
   });
 
-  it("adds, edits, and removes capability ceiling grants", async () => {
+  it("keeps the capability ceiling off the secret form and preserves one", async () => {
     renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Add capability/i }),
-    );
-    await userEvent.type(screen.getByLabelText("Action 1"), "http.post");
-    await userEvent.type(
-      screen.getByLabelText("Resource 1"),
-      "https://deploy.example.com",
-    );
+    expect(screen.queryByText("Capability ceiling")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Add capability/i }),
+    ).toBeNull();
+    cleanup();
+    const secret = createItem("secret");
+    secret.ceiling = [
+      {
+        id: "g1",
+        action: "http.post",
+        resource: "https://deploy.example.com",
+      },
+    ];
+    vault.current.items = [secret];
+    renderEditor(`/vault/${secret.id}/edit`);
+    expect(screen.queryByText("Capability ceiling")).toBeNull();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const saved = savedItem();
     if (saved.kind !== "secret") throw new Error("expected saved secret");
-    expect(saved.ceiling).toHaveLength(1);
-    expect(saved.ceiling[0]).toMatchObject({
-      action: "http.post",
-      resource: "https://deploy.example.com",
-    });
-  });
-
-  it("removes capability ceiling grants", async () => {
-    renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Add capability/i }),
-    );
-    expect(screen.getByLabelText("Action 1")).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remove capability 1/i }),
-    );
-    expect(screen.queryByLabelText("Action 1")).toBeNull();
+    expect(saved.ceiling).toEqual(secret.ceiling);
   });
 
   it("manages custom fields with conceal toggles", async () => {

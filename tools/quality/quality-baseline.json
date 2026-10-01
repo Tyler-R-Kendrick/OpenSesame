@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 441,
-    "violations": 698,
-    "oversizedLines": 229493
+    "violations": 697,
+    "oversizedLines": 229069
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -229,11 +229,10 @@
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 651
+      "max-lines": 643
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
-      "max-lines": 416,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
