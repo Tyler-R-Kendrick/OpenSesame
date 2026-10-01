@@ -78,6 +78,11 @@ export const VAULT_LIB_RULES = [
     "draft labels from the on-device model",
   ),
   optional(
+    `${V}environments`,
+    "vault.environments",
+    "named environments, schema text, and the missing-value notice",
+  ),
+  optional(
     `${V}import/`,
     "vault.interop-formats",
     "import pipeline and manager formats",
