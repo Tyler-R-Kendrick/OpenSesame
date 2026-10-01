@@ -372,13 +372,10 @@ export type BeginSignInOptions = {
    */
   loginHint?: string;
   /**
-   * Standard OIDC `prompt=login` (Core §3.1.2.1): the issuer must ask the
-   * person to authenticate again instead of reusing the session it still
-   * holds. This is what "switch account" needs, or a second sign-in would
-   * silently come back as the same person. Every OIDC issuer supports it.
-   * Shoo does not read `prompt` at all (docs.shoo.dev), so on that dialect
-   * it is not sent: shoo.dev answers with the Google account it remembers,
-   * and a different one means signing out at shoo.dev/me first.
+   * Standard OIDC `prompt=login` (Core §3.1.2.1). The issuer asks the
+   * person to authenticate again, which is what switching accounts needs.
+   * Shoo does not read `prompt` (docs.shoo.dev); a different Google account
+   * means signing out at shoo.dev/me first.
    */
   prompt?: "login";
 };
@@ -387,6 +384,8 @@ async function beginSignInDefault(
   upstream: TrustedUpstream,
   options: BeginSignInOptions = {},
 ): Promise<void> {
+  const { performSavedCategory } = await import("./feature-request-send.js");
+  performSavedCategory(["identity"]);
   // A brokered upstream built from an unconfigured Identity API carries an
   // empty issuer. Refusing here, before any navigation, is what keeps the
   // failure on-screen instead of a blank-issuer discovery 404 after the fact.

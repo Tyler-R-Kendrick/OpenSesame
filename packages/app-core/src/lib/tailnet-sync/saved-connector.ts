@@ -38,16 +38,18 @@ export function boundTailnet(): BoundTailnet | null {
 }
 
 /** Headers a drive read or write sends, including the saved tailnet configuration. */
-export function tailnetSyncHeaders(base: Record<string, string> = {}) {
+export function tailnetSyncHeaders(
+  base: Record<string, string> = {},
+  saved = runListedFeature("tailscale"),
+) {
   const headers = { ...base };
-  const live = runListedFeature("tailscale");
-  if (!live.ok) return headers;
-  for (const [name, value] of Object.entries(live.action)) {
+  if (!saved.ok) return headers;
+  for (const [name, value] of Object.entries(saved.action)) {
     headers[`x-tailnet-${name.replaceAll("_", "-")}`] = value;
   }
-  const authKey = live.secrets.auth_key;
+  const authKey = saved.secrets.auth_key;
   if (authKey) headers["x-tailscale-auth-key"] = authKey;
-  for (const [name, value] of Object.entries(live.secrets)) {
+  for (const [name, value] of Object.entries(saved.secrets)) {
     if (name === "auth_key") continue;
     headers[`x-tailscale-${name.replaceAll("_", "-")}`] = value;
   }

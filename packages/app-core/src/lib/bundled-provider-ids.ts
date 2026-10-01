@@ -3,7 +3,9 @@
  * providers (`embedded-catalog.ts`) and the Connect catalog read, so a row
  * Pages already draws keeps its own road and Connect sits beside it.
  */
-import parity from "../../../../spec/connectors/fnox-parity.json";
+import parity from "../../../../spec/connectors/fnox-parity.json" with {
+  type: "json",
+};
 import {
   BROWSER_UNENROLLABLE_PROTECTORS,
   DEVICE_KEY_PROTECTORS,

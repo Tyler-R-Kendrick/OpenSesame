@@ -17,6 +17,7 @@ import {
   isJsonObject,
   isNumber,
 } from "@opensesame/os-domain";
+import { runListedFeature } from "../feature-connector-operation.js";
 import { localNetworkFetch } from "../local-network-fetch.js";
 import type { DrivePairing } from "./pairing.js";
 import { tailnetSyncHeaders } from "./saved-connector.js";
@@ -52,11 +53,17 @@ function slotUrl(pairing: DrivePairing): string {
   return `${pairing.url}/v1/vault-drive/slots/${encodeURIComponent(pairing.slot)}/snapshot`;
 }
 
-function headers(pairing: DrivePairing): HeadersInit {
-  return tailnetSyncHeaders({
-    Authorization: `Bearer ${pairing.key}`,
-    "Content-Type": "application/json",
-  });
+function headers(
+  pairing: DrivePairing,
+  saved = runListedFeature("tailscale"),
+): HeadersInit {
+  return tailnetSyncHeaders(
+    {
+      Authorization: `Bearer ${pairing.key}`,
+      "Content-Type": "application/json",
+    },
+    saved,
+  );
 }
 
 function generationOf(json: BoundaryValue): number {
@@ -90,10 +97,13 @@ function refused(response: Response): DriveError {
   );
 }
 
-export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
+export async function readDrive(
+  pairing: DrivePairing,
+  saved = runListedFeature("tailscale"),
+): Promise<DriveRead> {
   const response = await driveClientSeams.fetch(slotUrl(pairing), {
     method: "GET",
-    headers: headers(pairing),
+    headers: headers(pairing, saved),
     credentials: "omit",
     cache: "no-store",
   });
@@ -112,10 +122,11 @@ export async function writeDrive(
   pairing: DrivePairing,
   expectedGeneration: number,
   snapshot: DriveSnapshot,
+  saved = runListedFeature("tailscale"),
 ): Promise<DriveWrite> {
   const response = await driveClientSeams.fetch(slotUrl(pairing), {
     method: "PUT",
-    headers: headers(pairing),
+    headers: headers(pairing, saved),
     credentials: "omit",
     body: JSON.stringify({ expected_generation: expectedGeneration, snapshot }),
   });
