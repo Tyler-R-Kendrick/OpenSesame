@@ -1,0 +1,73 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "guest": null },
+        { "open": "New item" },
+        { "fill": { "label": "Name", "text": "API_TOKEN" } },
+        { "press": "Save item" },
+        { "featureOptional": "Environments" },
+        { "open": "Vaults" },
+        { "fillOptional": { "label": "Environment name", "text": "staging" } },
+        { "pressOptional": "Add environment" },
+        { "checkOptional": "API_TOKEN required" },
+        { "scrollToOptional": "Environments" },
+        { "count": ["#vault-environments", "[aria-label='API_TOKEN required']"] },
+        { "measure": "#vault-environments" },
+        { "shot": "1280-vaults" },
+        { "pressOptional": "Notifications" },
+        { "shot": "1280-notice" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "open": "New item" },
+        { "fill": { "label": "Name", "text": "API_TOKEN" } },
+        { "press": "Save item" },
+        { "featureOptional": "Environments" },
+        { "open": "Vaults" },
+        { "fillOptional": { "label": "Environment name", "text": "staging" } },
+        { "pressOptional": "Add environment" },
+        { "checkOptional": "API_TOKEN required" },
+        { "scrollToOptional": "Environments" },
+        { "count": ["#vault-environments", "[aria-label='API_TOKEN required']"] },
+        { "measure": "#vault-environments" },
+        { "shot": "390-vaults" },
+        { "pressOptional": "Notifications" },
+        { "shot": "390-notice" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-vaults",
+      "width": 1280,
+      "title": "Settings › Vaults — 1280 × 800",
+      "caption": "Settings › Vaults after a guest adds API_TOKEN and, on this branch, turns Environments on.",
+      "before": "#vault-environments 0, API_TOKEN required 0. Vaults ends at Item types.",
+      "after": "#vault-environments 1, 960×300 at 280,380. Select reads staging. API_TOKEN is checked."
+    },
+    {
+      "shot": "390-vaults",
+      "width": 390,
+      "title": "Settings › Vaults — 390 × 844",
+      "caption": "The same Vaults page at phone width.",
+      "before": "#vault-environments 0. Tabs are Travel, Item types, Sealed store.",
+      "after": "#vault-environments 1, 358×352 at 16,404. Select reads staging. API_TOKEN is checked."
+    },
+    {
+      "shot": "1280-notice",
+      "width": 1280,
+      "title": "Missing required value — 1280 × 800",
+      "caption": "The notifications sheet after API_TOKEN is required in staging and its value is empty.",
+      "before": "Password health only. No Environment card.",
+      "after": "Password health, and Environment with body API_TOKEN."
+    }
+  ]
+}
