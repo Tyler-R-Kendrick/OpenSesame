@@ -9,6 +9,7 @@ import {
 } from "@opensesame/app-core/lib/connections.js";
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
+import { beginSignIn } from "@opensesame/app-core/lib/federation.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
 import {
@@ -41,10 +42,7 @@ import {
 } from "../../modules/backup.git-remote/runtime.js";
 import { capabilityRuntime as externalRuntime } from "../../modules/connectors.external/runtime.js";
 import { capabilityRuntime as certificateRuntime } from "../../modules/enterprise.ca-administration/runtime.js";
-import {
-  identityOperation,
-  capabilityRuntime as identityRuntime,
-} from "../../modules/identity.federation/runtime.js";
+import { capabilityRuntime as identityRuntime } from "../../modules/identity.federation/runtime.js";
 import {
   TAILNET_SYNC_JOB,
   capabilityRuntime as tailnetRuntime,
@@ -157,14 +155,6 @@ function sentModel(provider: Provider): Used {
   }
 }
 
-function sentOperation(
-  use: (providerId: string) => { ok: boolean },
-  provider: Provider,
-): Used {
-  use(provider.id);
-  return sentFetch(provider);
-}
-
 function tailnetHeader(name: string, secret: boolean): string {
   const normalized = name.replaceAll("_", "-");
   if (secret && name === "auth_key") return "x-tailscale-auth-key";
@@ -271,8 +261,15 @@ async function featureUse(provider: Provider): Promise<Used> {
   if (category === "agent_harnesses") return sentModel(provider);
   if (category === "networking") return sentTailnet(provider);
   if (category === "backup_recovery") return sentGit(provider);
-  if (category === "identity")
-    return sentOperation(identityOperation, provider);
+  if (category === "identity") {
+    await beginSignIn({
+      id: provider.id,
+      displayName: provider.id,
+      issuer: "",
+      accountKind: "account",
+    }).catch(() => undefined);
+    return sentFetch(provider);
+  }
   if (category === "wallet") {
     proposeWalletPayment({
       caller: { principalRef: "principal" },
@@ -328,9 +325,7 @@ async function bootFeatures(): Promise<void> {
   });
 }
 
-async function expectSavedUse(provider: Provider): Promise<void> {
-  await saveListed(provider);
-  const used = await featureUse(provider);
+function assertSavedOperation(provider: Provider, used: Used): void {
   const secrets = expectedSecrets(provider);
   expect(used.ok, provider.id).toBe(true);
   expect(used.fields, provider.id).toMatchObject(expectedPublic(provider));
@@ -380,10 +375,11 @@ describe("capability features use the saved connector", () => {
   it("uses a connector saved after the feature is already on", async () => {
     await bootFeatures();
     const listed = listedProviders();
+    console.log(`LISTED ${listed.map((provider) => provider.id).join(" ")}`);
     for (const provider of listed) {
       expect((await featureUse(provider)).ok, provider.id).toBe(false);
+      await saveListed(provider);
+      assertSavedOperation(provider, await featureUse(provider));
     }
-    for (const provider of listed) await expectSavedUse(provider);
-    console.log(`LISTED ${listed.map((provider) => provider.id).join(" ")}`);
   });
 });
