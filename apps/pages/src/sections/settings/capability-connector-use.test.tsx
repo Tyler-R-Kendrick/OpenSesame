@@ -9,7 +9,6 @@ import {
 } from "@opensesame/app-core/lib/connections.js";
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
-import { resetFeatureUsesBindingForTest } from "@opensesame/app-core/lib/feature-use-binding.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
 import {
@@ -363,7 +362,6 @@ describe("capability features use the saved connector", () => {
     await forgetAllLocalGitRemotes();
     forgetDeviceConnectors();
     resetFeatureUsesForTest();
-    resetFeatureUsesBindingForTest();
     resetDeliveredModels();
     resetTailnetConnectorForTest();
     resetSavedGitBackupForTest();

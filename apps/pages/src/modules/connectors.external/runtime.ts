@@ -34,7 +34,7 @@ import {
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
 import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
-import { bindFeatureUse } from "@opensesame/app-core/lib/feature-use-binding.js";
+
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { disarmVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect-session.js";
@@ -131,11 +131,6 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
-    activation.onDispose(
-      bindFeatureUse("external", () => {
-        startExternalConnectors();
-      }),
-    );
     startExternalConnectors();
 
     activation.register("section", {

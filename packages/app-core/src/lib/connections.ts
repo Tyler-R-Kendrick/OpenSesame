@@ -32,11 +32,11 @@ import {
   createHostOrDevice,
   deviceConnection,
   mergeOfflineConnections,
-  noteExternalConnectorUse,
   revokeDeviceConnection,
   sealDeviceConfiguration,
   sealDeviceCredential,
 } from "./device-connectors.js";
+import { performSavedCategory } from "./feature-request-send.js";
 import {
   buildGithubAppRegistration,
   readLocalGithubApp,
@@ -683,7 +683,7 @@ export function listProviders(): Promise<Provider[]> {
   return connectionSeams.listProviders();
 }
 export function listConnections(): Promise<Connection[]> {
-  noteExternalConnectorUse();
+  performSavedCategory(["password_managers", "local_storage"]);
   return connectionSeams.listConnections();
 }
 export async function createConnection(

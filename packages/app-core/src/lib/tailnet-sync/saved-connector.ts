@@ -1,7 +1,7 @@
 /**
  * Tailscale configuration saved on this device, attached to tailnet sync.
  * The auth key is a request header. It is not part of the public fields.
- * Each drive read or write loads the device record again.
+ * `tailnetSyncHeaders` loads the device record on that drive read or write.
  */
 
 import { runListedFeature } from "../feature-connector-operation.js";
@@ -37,31 +37,17 @@ export function boundTailnet(): BoundTailnet | null {
     : null;
 }
 
-function refreshTailnet(): void {
-  const live = runListedFeature("tailscale");
-  if (!live.ok) {
-    bound = null;
-    return;
-  }
-  bound = {
-    providerId: live.providerId,
-    operation: live.operation,
-    fields: { ...live.action },
-    secret: { ...live.secrets },
-  };
-}
-
 /** Headers a drive read or write sends, including the saved tailnet configuration. */
 export function tailnetSyncHeaders(base: Record<string, string> = {}) {
-  refreshTailnet();
   const headers = { ...base };
-  if (!bound) return headers;
-  for (const [name, value] of Object.entries(bound.fields)) {
+  const live = runListedFeature("tailscale");
+  if (!live.ok) return headers;
+  for (const [name, value] of Object.entries(live.action)) {
     headers[`x-tailnet-${name.replaceAll("_", "-")}`] = value;
   }
-  if (bound.secret.auth_key)
-    headers["x-tailscale-auth-key"] = bound.secret.auth_key;
-  for (const [name, value] of Object.entries(bound.secret)) {
+  const authKey = live.secrets.auth_key;
+  if (authKey) headers["x-tailscale-auth-key"] = authKey;
+  for (const [name, value] of Object.entries(live.secrets)) {
     if (name === "auth_key") continue;
     headers[`x-tailscale-${name.replaceAll("_", "-")}`] = value;
   }
