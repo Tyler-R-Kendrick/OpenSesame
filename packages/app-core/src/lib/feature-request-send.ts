@@ -21,6 +21,25 @@ export const featureRequestSeams = {
     globalThis.fetch(url, init),
 };
 
+type CategorySend = () => FeatureRequest[];
+
+const categorySends = new Map<string, CategorySend>();
+
+/** Run this category's saved connectors when the feature performs the operation. */
+export function registerCategorySend(
+  category: string,
+  send: CategorySend,
+): () => void {
+  categorySends.set(category, send);
+  return () => {
+    if (categorySends.get(category) === send) categorySends.delete(category);
+  };
+}
+
+export function resetCategorySendsForTest(): void {
+  categorySends.clear();
+}
+
 interface StringFields {
   [key: string]: string;
 }
@@ -109,14 +128,32 @@ export function performSavedConnector(
   return sendFeatureOperation(runListedFeature(provider));
 }
 
+function sendCategory(category: string): FeatureRequest[] {
+  const send = categorySends.get(category);
+  if (send) return send();
+  const sent: FeatureRequest[] = [];
+  for (const row of savedFeatureRequests([category])) {
+    if (!row.ok) continue;
+    sent.push(performSavedConnector(row.providerId));
+  }
+  return sent;
+}
+
 /** Send every saved connector in these categories. Nothing saved does not send. */
 export function performSavedCategory(
   categories: readonly string[],
 ): FeatureRequest[] {
   const sent: FeatureRequest[] = [];
-  for (const row of savedFeatureRequests(categories)) {
-    if (!row.ok) continue;
-    sent.push(performSavedConnector(row.providerId));
+  const seen = new Set<CategorySend>();
+  for (const category of categories) {
+    const send = categorySends.get(category);
+    if (send) {
+      if (seen.has(send)) continue;
+      seen.add(send);
+      sent.push(...send());
+      continue;
+    }
+    sent.push(...sendCategory(category));
   }
   return sent;
 }

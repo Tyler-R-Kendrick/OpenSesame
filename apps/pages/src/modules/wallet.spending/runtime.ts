@@ -25,7 +25,10 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
@@ -67,6 +70,11 @@ export function walletOperation(providerId: string): FeatureRequest {
   return performSavedConnector(providerId);
 }
 
+/** Send wallet connectors saved on this device when a payment runs. */
+export function runSavedWalletConnectors(): FeatureRequest[] {
+  return startWalletConnectors();
+}
+
 export const TUTORIAL = {
   targets: WALLET_TARGETS,
   routes: WALLET_ROUTES,
@@ -77,7 +85,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    startWalletConnectors();
+    activation.onDispose(
+      registerCategorySend("wallet", runSavedWalletConnectors),
+    );
 
     // The wallet's three tomb-scoped caches follow the active tomb only
     // while this capability is active; dispose unsubscribes all three.

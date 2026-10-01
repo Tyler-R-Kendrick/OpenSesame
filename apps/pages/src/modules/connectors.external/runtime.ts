@@ -32,7 +32,10 @@ import {
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
 import { DIRECTORY_KEY } from "@opensesame/app-core/lib/connector-directory.js";
-import { performSavedConnector } from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 
 import { FIRST_RUN_KEY } from "@opensesame/app-core/lib/identity-graph.js";
@@ -116,6 +119,11 @@ export function externalOperation(providerId: string): FeatureRequest {
   return performSavedConnector(providerId);
 }
 
+/** Send saved password-manager and local-storage connectors when connections load. */
+export function runSavedExternalConnectors(): FeatureRequest[] {
+  return startExternalConnectors();
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -131,7 +139,16 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
-    startExternalConnectors();
+    const releaseManagers = registerCategorySend(
+      "password_managers",
+      runSavedExternalConnectors,
+    );
+    const releaseLocal = registerCategorySend(
+      "local_storage",
+      runSavedExternalConnectors,
+    );
+    activation.onDispose(releaseManagers);
+    activation.onDispose(releaseLocal);
 
     activation.register("section", {
       id: "connections",

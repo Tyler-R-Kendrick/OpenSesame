@@ -32,6 +32,7 @@ import {
 } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import {
   bindTailnetConnector,
+  registerTailnetReader,
   tailnetSyncHeaders,
 } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import { createActivation } from "../activation.js";
@@ -101,11 +102,19 @@ export function performTailnetSync(
   return applySavedTailnet(savedTailnetOperation(provider));
 }
 
+/** Re-read the saved Tailscale record for this drive request. */
+export function readSavedTailnet(): FeatureOperation {
+  const operation = savedTailnetOperation();
+  applySavedTailnet(operation);
+  return operation;
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    activation.onDispose(registerTailnetReader(readSavedTailnet));
 
     activation.register("background-job", {
       id: TAILNET_SYNC_JOB,

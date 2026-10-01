@@ -42,6 +42,15 @@ import {
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  type FeatureRequest,
+  savedFeatureRequests,
+} from "@opensesame/app-core/lib/feature-request.js";
+import { savedForgeCredentials } from "@opensesame/app-core/lib/saved-git-backup.js";
+import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
 } from "@opensesame/app-core/lib/vault-backup-observer.js";
@@ -72,11 +81,25 @@ export function savedGitBackupOperation(
   return runListedFeature(provider);
 }
 
+/** Re-read saved forge credentials and send them when a backup sync runs. */
+export function performGitBackup(): FeatureRequest[] {
+  const sent: FeatureRequest[] = [];
+  for (const row of savedFeatureRequests(["backup_recovery"])) {
+    if (!row.ok) continue;
+    savedForgeCredentials(row.providerId);
+    sent.push(performSavedConnector(row.providerId));
+  }
+  return sent;
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    activation.onDispose(
+      registerCategorySend("backup_recovery", performGitBackup),
+    );
 
     activation.register("background-job", {
       id: BACKUP_OBSERVER_JOB,

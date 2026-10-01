@@ -17,10 +17,9 @@ import {
   isJsonObject,
   isNumber,
 } from "@opensesame/os-domain";
-import { runListedFeature } from "../feature-connector-operation.js";
 import { localNetworkFetch } from "../local-network-fetch.js";
 import type { DrivePairing } from "./pairing.js";
-import { tailnetSyncHeaders } from "./saved-connector.js";
+import { currentTailnet, tailnetSyncHeaders } from "./saved-connector.js";
 import { type DriveSnapshot, parseDriveSnapshot } from "./snapshot.js";
 
 export type DriveRead = { generation: number; snapshot: DriveSnapshot | null };
@@ -53,16 +52,13 @@ function slotUrl(pairing: DrivePairing): string {
   return `${pairing.url}/v1/vault-drive/slots/${encodeURIComponent(pairing.slot)}/snapshot`;
 }
 
-function headers(
-  pairing: DrivePairing,
-  saved = runListedFeature("tailscale"),
-): HeadersInit {
+function headers(pairing: DrivePairing): HeadersInit {
   return tailnetSyncHeaders(
     {
       Authorization: `Bearer ${pairing.key}`,
       "Content-Type": "application/json",
     },
-    saved,
+    currentTailnet(),
   );
 }
 
@@ -97,13 +93,10 @@ function refused(response: Response): DriveError {
   );
 }
 
-export async function readDrive(
-  pairing: DrivePairing,
-  saved = runListedFeature("tailscale"),
-): Promise<DriveRead> {
+export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
   const response = await driveClientSeams.fetch(slotUrl(pairing), {
     method: "GET",
-    headers: headers(pairing, saved),
+    headers: headers(pairing),
     credentials: "omit",
     cache: "no-store",
   });
@@ -122,11 +115,10 @@ export async function writeDrive(
   pairing: DrivePairing,
   expectedGeneration: number,
   snapshot: DriveSnapshot,
-  saved = runListedFeature("tailscale"),
 ): Promise<DriveWrite> {
   const response = await driveClientSeams.fetch(slotUrl(pairing), {
     method: "PUT",
-    headers: headers(pairing, saved),
+    headers: headers(pairing),
     credentials: "omit",
     body: JSON.stringify({ expected_generation: expectedGeneration, snapshot }),
   });

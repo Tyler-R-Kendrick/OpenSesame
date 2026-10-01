@@ -11,10 +11,7 @@
  * another vault, or something that fails its seal, stops the pass with an
  * error instead of being replaced.
  */
-import {
-  type FeatureOperation,
-  runListedFeature,
-} from "../feature-connector-operation.js";
+import type { FeatureOperation } from "../feature-connector-operation.js";
 import type {
   DriveSnapshotInput,
   SealedSnapshot,
@@ -69,11 +66,10 @@ export async function syncOnce(
   vault: SyncableVault,
   pairing: DrivePairing,
   transport: DriveTransport = defaultTransport,
-  savedTailnet = runListedFeature("tailscale"),
 ): Promise<SyncOutcome> {
   let pulled = false;
   for (let attempt = 0; attempt < MAX_SYNC_ATTEMPTS; attempt += 1) {
-    const remote = await transport.read(pairing, savedTailnet);
+    const remote = await transport.read(pairing);
     if (remote.snapshot) {
       const merge = await vault.mergeSnapshot(snapshotInput(remote.snapshot));
       pulled = pulled || merge.localChanged;
@@ -82,12 +78,7 @@ export async function syncOnce(
       }
     }
     const local = buildDriveSnapshot(await vault.sealedSnapshot());
-    const written = await transport.write(
-      pairing,
-      remote.generation,
-      local,
-      savedTailnet,
-    );
+    const written = await transport.write(pairing, remote.generation, local);
     if (written.ok) {
       return { pulled, pushed: true, generation: written.generation };
     }
