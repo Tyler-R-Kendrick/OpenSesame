@@ -10,11 +10,7 @@ import {
   type FeatureOperation,
   runListedFeature,
 } from "./feature-connector-operation.js";
-import {
-  type FeatureRequest,
-  featureRequest,
-  savedFeatureRequests,
-} from "./feature-request.js";
+import { type FeatureRequest, featureRequest } from "./feature-request.js";
 
 export type ModelExchange =
   | { ok: false; providerId: string }
@@ -158,11 +154,4 @@ export function sendModelOperation(operation: FeatureOperation): ModelExchange {
 /** Send one saved provider's inference request. The key stays on that request. */
 export function performInference(provider: Provider | string): ModelExchange {
   return sendModelOperation(runListedFeature(provider));
-}
-
-/** Every saved agent harness, not a single hardcoded provider. */
-export function performSavedInferences(): ModelExchange[] {
-  return savedFeatureRequests(["agent_harnesses"]).map((row) =>
-    performInference(row.providerId),
-  );
 }

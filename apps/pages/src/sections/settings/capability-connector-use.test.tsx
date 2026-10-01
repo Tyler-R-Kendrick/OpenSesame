@@ -10,7 +10,7 @@ import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-lo
 import { resetDeliveredModels } from "@opensesame/app-core/lib/hosted-inference.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
-import { MODEL_PROVIDER_KEY } from "@opensesame/app-core/lib/model-provider.js";
+import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
 import { driveClientSeams } from "@opensesame/app-core/lib/tailnet-sync/client.js";
 import { defaultTransport } from "@opensesame/app-core/lib/tailnet-sync/engine.js";
 import { stopTailnetSync } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
@@ -105,24 +105,36 @@ async function armed(
 }
 
 async function sentModel(provider: Provider): Promise<Used> {
-  await runJob(remoteRuntime, "ag-ui-endpoint");
-  const secret = Object.values(expectedSecrets(provider))[0] ?? "";
-  if (secret === "") return missed(provider.id);
-  const call = [...vi.mocked(globalThis.fetch).mock.calls]
-    .reverse()
-    .find((row) =>
-      Object.values(headerRecord(row[1]?.headers)).includes(secret),
-    );
-  if (!call) return missed(provider.id);
-  const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+  const requests = vi.spyOn(modelProvider, "savedModelRequests");
   try {
-    return {
-      ok: true,
-      fields: JSON.parse(bodyText) as Record<string, string>,
-      secret: headerRecord(call[1]?.headers),
-    };
+    await runJob(remoteRuntime, "ag-ui-endpoint");
+    const operation = requests.mock.calls
+      .flatMap((call) => call[0] ?? [])
+      .reverse()
+      .find((row) => row.providerId === provider.id);
+    if (!operation?.ok) return missed(provider.id);
+    const secret = Object.values(expectedSecrets(provider))[0] ?? "";
+    if (secret === "") return missed(provider.id);
+    const call = [...vi.mocked(globalThis.fetch).mock.calls]
+      .reverse()
+      .find((row) =>
+        Object.values(headerRecord(row[1]?.headers)).includes(secret),
+      );
+    if (!call) return missed(provider.id);
+    const bodyText = typeof call[1]?.body === "string" ? call[1].body : "";
+    const fields = JSON.parse(bodyText) as Record<string, string>;
+    if (JSON.stringify(fields) !== JSON.stringify(operation.action)) {
+      return missed(provider.id);
+    }
+    const headers = headerRecord(call[1]?.headers);
+    for (const value of Object.values(operation.secrets)) {
+      if (!Object.values(headers).includes(value)) return missed(provider.id);
+    }
+    return { ok: true, fields, secret: headers };
   } catch {
     return missed(provider.id);
+  } finally {
+    requests.mockRestore();
   }
 }
 
@@ -249,7 +261,10 @@ async function expectSavedUse(provider: Provider): Promise<void> {
     expect(used.secret, provider.id).toEqual(secrets);
   }
   for (const value of Object.values(secrets)) {
-    expect(kvGet(MODEL_PROVIDER_KEY) ?? "", provider.id).not.toContain(value);
+    expect(
+      kvGet(modelProvider.MODEL_PROVIDER_KEY) ?? "",
+      provider.id,
+    ).not.toContain(value);
   }
 }
 

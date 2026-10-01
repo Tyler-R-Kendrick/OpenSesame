@@ -35,10 +35,8 @@ import {
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import { savedFeatureRequests } from "@opensesame/app-core/lib/feature-request.js";
-import {
-  type ModelExchange,
-  sendModelOperation,
-} from "@opensesame/app-core/lib/hosted-inference.js";
+import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
+import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
 import { createSavedModelSupportAgent } from "@opensesame/app-core/lib/saved-model-agent.js";
 import {
   applyAgUiEndpoint,
@@ -67,9 +65,10 @@ export function savedRemoteModel(
  * Each request is the operation `savedRemoteModel` returned.
  */
 export function loadSavedRemoteModels(): ModelExchange[] {
-  return savedFeatureRequests(["agent_harnesses"]).map((row) =>
-    sendModelOperation(savedRemoteModel(row.providerId)),
+  const operations = savedFeatureRequests(["agent_harnesses"]).map((row) =>
+    savedRemoteModel(row.providerId),
   );
+  return savedModelRequests(operations);
 }
 
 let acceptedModels: ModelExchange[] = [];
