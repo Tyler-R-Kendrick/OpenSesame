@@ -4,7 +4,7 @@
  * The capability is optional and off until a plan approves it and the vault
  * is enabled. Marking an item required and switching the active environment
  * both refuse until then, and a refusal stores nothing. The schema text is
- * returned to the caller; this module never writes a file.
+ * kept on the vault snapshot; this module never writes a file.
  */
 
 import { dismissNotice, setStatusNotice } from "../notices.js";
@@ -32,6 +32,7 @@ export type EnvironmentSnapshot = Readonly<{
   names: readonly string[];
   values: Bag;
   required: Flags;
+  schema: string | null;
 }>;
 
 const EMPTY: EnvironmentSnapshot = {
@@ -40,6 +41,7 @@ const EMPTY: EnvironmentSnapshot = {
   names: [],
   values: {},
   required: {},
+  schema: null,
 };
 
 const records = new Map<string, EnvironmentSnapshot>();
@@ -203,12 +205,14 @@ export function renderEnvSchema(
   const state = gate(plan, vaultId);
   if (!state) return null;
   const required = state.required[state.active ?? ""];
-  return items
+  const schema = items
     .map(
       (item) =>
         `# @type=string${required?.[item.id] ? "\n# @required" : ""}\n${item.key}=`,
     )
     .join("\n\n");
+  if (state.schema !== schema) commit(vaultId, { ...state, schema });
+  return schema;
 }
 
 function missingKeys(

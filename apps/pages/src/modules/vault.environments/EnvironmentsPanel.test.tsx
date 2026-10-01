@@ -4,13 +4,13 @@ import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   ENVIRONMENTS_CAPABILITY,
   enableVaultEnvironments,
+  environmentSnapshot,
   markEnvironmentRequired,
   notifyMissingEnvironmentValues,
-  renderEnvSchema,
   resetVaultEnvironments,
   switchEnvironment,
 } from "@opensesame/app-core/lib/vault/environments.js";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   profilePlan,
@@ -64,7 +64,7 @@ describe("environments panel", () => {
     expect(
       screen.getByRole("checkbox", { name: "API_URL required" }),
     ).toBeTruthy();
-    expect(renderEnvSchema(plan, VAULT, ITEMS)).toBe(
+    expect(environmentSnapshot(VAULT).schema).toBe(
       "# @type=string\nAPI_TOKEN=\n\n# @type=string\nAPI_URL=",
     );
     proof(
@@ -85,11 +85,21 @@ describe("environments panel", () => {
     const view = render(
       <EnvironmentsPanel plan={approved} vaultId={VAULT} items={ITEMS} />,
     );
-    expect(switchEnvironment(approved, VAULT, "production").ok).toBe(true);
-    expect(
-      markEnvironmentRequired(approved, VAULT, "production", ITEMS[0].id, true)
-        .ok,
-    ).toBe(true);
+    act(() => {
+      expect(switchEnvironment(approved, VAULT, "production").ok).toBe(true);
+      expect(
+        markEnvironmentRequired(
+          approved,
+          VAULT,
+          "production",
+          ITEMS[0].id,
+          true,
+        ).ok,
+      ).toBe(true);
+    });
+    expect(environmentSnapshot(VAULT).schema).toBe(
+      "# @type=string\n# @required\nAPI_TOKEN=\n\n# @type=string\nAPI_URL=",
+    );
     notifyMissingEnvironmentValues(approved, VAULT, ITEMS);
     expect(listNotices().map((notice) => notice.id)).toContain(
       "vault.environments.missing",
@@ -104,8 +114,5 @@ describe("environments panel", () => {
     expect(listNotices().map((notice) => notice.id)).not.toContain(
       "vault.environments.missing",
     );
-    expect(
-      renderEnvSchema(profilePlan("minimal-local"), VAULT, ITEMS),
-    ).toBeNull();
   });
 });

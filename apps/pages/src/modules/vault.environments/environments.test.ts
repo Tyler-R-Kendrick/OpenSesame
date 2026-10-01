@@ -12,10 +12,10 @@ import {
   assignEnvironmentValue,
   enableVaultEnvironments,
   environmentRequires,
+  environmentSnapshot,
   markEnvironmentRequired,
   notifyMissingEnvironmentValues,
   readEnvironmentValue,
-  renderEnvSchema,
   resetVaultEnvironments,
   switchEnvironment,
 } from "@opensesame/app-core/lib/vault/environments.js";
@@ -102,14 +102,15 @@ describe("vault environments", () => {
   it("renders .env.schema with @required only on marked keys", () => {
     const plan = approvedPlan();
     expect(enableVaultEnvironments(plan, VAULT, ITEMS)).toBe(true);
-    expect(renderEnvSchema(plan, VAULT, ITEMS)).toBe(
+    expect(environmentSnapshot(VAULT).schema).toBe(
       "# @type=string\nAPI_TOKEN=\n\n# @type=string\nAPI_URL=",
     );
     expect(switchEnvironment(plan, VAULT, "production").ok).toBe(true);
     expect(
       markEnvironmentRequired(plan, VAULT, "production", ITEMS[0].id, true).ok,
     ).toBe(true);
-    const schema = renderEnvSchema(plan, VAULT, ITEMS);
+    expect(enableVaultEnvironments(plan, VAULT, ITEMS)).toBe(true);
+    const schema = environmentSnapshot(VAULT).schema;
     expect(schema).toBe(
       "# @type=string\n# @required\nAPI_TOKEN=\n\n# @type=string\nAPI_URL=",
     );
