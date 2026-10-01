@@ -100,13 +100,9 @@ function partitionable(id) {
 }
 
 /**
- * Leaves a capability's runtime reaches only through `import()` on first use
- * — the support agents and the WebMCP SDK. Each gets its own chunk: left to
- * Rollup, the four were merged into one, so loading the WebMCP SDK evaluated
- * both AI agents' code too. A module is named only when its classification
- * is the leaf's capability, so a core file that happens to sit in the
- * directory (the consent store in `ag-ui/`), or a package the leaf shares
- * with the core, stays where it was.
+ * Optional import() leaves, one chunk each. Rollup otherwise fused the
+ * agent SDKs, so loading one evaluated the others. A row applies only
+ * when classification matches that capability.
  */
 const LAZY_LEAVES = [
   ["/src/tutorial/agents/prompt-api/", "support.local-ai", "agent-prompt-api"],
@@ -123,6 +119,11 @@ const LAZY_LEAVES = [
   ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
   ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
   ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
+  [
+    "/packages/app-core/src/lib/vault/environments",
+    "vault.environments",
+    "cap-vault.environments",
+  ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
 ];

@@ -23,6 +23,7 @@ const SECTION_FLAGS = [
   "vault.derived-records",
   "vault.passkey-records",
   "vault.certificate-records",
+  "vault.environments",
 ] as const satisfies readonly CapabilityId[];
 
 describe("minimal surface", () => {

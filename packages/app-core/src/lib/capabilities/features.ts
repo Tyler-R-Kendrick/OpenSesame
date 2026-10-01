@@ -29,6 +29,7 @@ export type FeatureId =
   | "access"
   | "connections"
   | "item-types"
+  | "environments"
   | "directory"
   | "encryption"
   | "certificates"
@@ -127,6 +128,7 @@ export const FEATURES: readonly Feature[] = [
     ],
     [],
   ),
+  section("environments", "Environments", ["vault.environments"], []),
   // Runtime-installed plugins (ADR 0150 §7): advanced, default off, and
   // nothing of the plugin itself is in the bundle — the section shows what
   // the paired daemon has installed and switches it there.
