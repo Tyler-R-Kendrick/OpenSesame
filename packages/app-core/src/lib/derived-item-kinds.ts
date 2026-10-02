@@ -1,17 +1,18 @@
 /**
  * Built-in item types other than the base secret (ADR 0153).
  *
- * `secret` is the only kind the minimal vault creates. Every other built-in
- * type projects onto that same native secret (`spec.native` in the corpus,
- * ADR 0087). Passkey, certificate and drop keep their own capabilities; the
- * rest belong to `vault.derived-records` and stay out of a plan until that
- * capability is on.
+ * `secret` and `file` are the kinds the minimal vault creates. Every other
+ * built-in type projects onto that same native secret (`spec.native` in the
+ * corpus, ADR 0087). Passkey, certificate and drop keep their own
+ * capabilities; the rest belong to `vault.derived-records` and stay out of
+ * a plan until that capability is on.
  */
 
 import { BUILTIN_TYPE_IDS } from "@opensesame/vault-item-types";
 
 const OWNED_ELSEWHERE: ReadonlySet<string> = new Set([
   "secret",
+  "file",
   "passkey",
   "certificate",
   "drop",

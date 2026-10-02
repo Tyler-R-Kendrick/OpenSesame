@@ -32,6 +32,7 @@ import {
   FieldRow,
   RevealButton,
 } from "../../components/FieldRow.js";
+import { BlobInput, BlobRow } from "./BlobField.js";
 import { OptionalField } from "./EditorExtras.js";
 import {
   Hint,
@@ -40,6 +41,60 @@ import {
   ScalarInput,
 } from "./TypedFieldInputs.js";
 type ChangeField = (fieldId: string, value: FieldValue) => void;
+
+function FieldControl({
+  field,
+  value,
+  revealed,
+  toggle,
+  onChange,
+}: {
+  field: FieldDefinition;
+  value: FieldValue | undefined;
+  revealed: ReadonlySet<string>;
+  toggle: (key: string) => void;
+  onChange: ChangeField;
+}) {
+  const spec = FIELD_TYPES[field.type];
+  if (spec.valueKind === "record") {
+    return (
+      <RecordInput
+        field={field}
+        parts={asParts(value)}
+        revealedParts={revealed}
+        onToggle={toggle}
+        onChange={(next) => onChange(field.id, next)}
+      />
+    );
+  }
+  if (field.type === "blob") {
+    return (
+      <BlobInput
+        id={field.id}
+        value={asText(value)}
+        onChange={(next) => onChange(field.id, next)}
+      />
+    );
+  }
+  if (field.multiple === true) {
+    return (
+      <RepeatingInput
+        field={field}
+        values={asList(value)}
+        onChange={(next) => onChange(field.id, next)}
+      />
+    );
+  }
+  return (
+    <ScalarInput
+      field={field}
+      value={asText(value)}
+      revealed={revealed.has(field.id)}
+      onToggle={() => toggle(field.id)}
+      onChange={(next) => onChange(field.id, next)}
+    />
+  );
+}
 
 /** The editor for every plugin-defined type, drawn from its definition. */
 export function TypedFieldInputs({
@@ -66,7 +121,6 @@ export function TypedFieldInputs({
         <div className="editor__grid" key={section.id}>
           <span className="label editor__grouplabel">{section.title}</span>
           {section.fields.map((field) => {
-            const spec = FIELD_TYPES[field.type];
             const value = values[field.id];
             return (
               <OptionalField
@@ -86,29 +140,13 @@ export function TypedFieldInputs({
                     {field.label}
                     {field.required === true ? " *" : ""}
                   </label>
-                  {spec.valueKind === "record" ? (
-                    <RecordInput
-                      field={field}
-                      parts={asParts(value)}
-                      revealedParts={revealed}
-                      onToggle={toggle}
-                      onChange={(next) => onChange(field.id, next)}
-                    />
-                  ) : field.multiple === true ? (
-                    <RepeatingInput
-                      field={field}
-                      values={asList(value)}
-                      onChange={(next) => onChange(field.id, next)}
-                    />
-                  ) : (
-                    <ScalarInput
-                      field={field}
-                      value={asText(value)}
-                      revealed={revealed.has(field.id)}
-                      onToggle={() => toggle(field.id)}
-                      onChange={(next) => onChange(field.id, next)}
-                    />
-                  )}
+                  <FieldControl
+                    field={field}
+                    value={value}
+                    revealed={revealed}
+                    toggle={toggle}
+                    onChange={onChange}
+                  />
                   <Hint field={field} />
                 </div>
               </OptionalField>
@@ -225,18 +263,26 @@ export function TypedFieldRows({
         return (
           <section className="detail__group" key={section.id}>
             <h2 className="detail__grouphead">{section.title}</h2>
-            {rows.map((row) => (
-              <ValueRow
-                key={row.field.id}
-                field={row.field}
-                text={row.text}
-                revealed={revealed}
-                toggle={toggle}
-                copied={copied}
-                failed={failed}
-                copy={copy}
-              />
-            ))}
+            {rows.map((row) =>
+              row.field.type === "blob" ? (
+                <BlobRow
+                  key={row.field.id}
+                  manifest={row.text}
+                  label={row.field.label}
+                />
+              ) : (
+                <ValueRow
+                  key={row.field.id}
+                  field={row.field}
+                  text={row.text}
+                  revealed={revealed}
+                  toggle={toggle}
+                  copied={copied}
+                  failed={failed}
+                  copy={copy}
+                />
+              ),
+            )}
           </section>
         );
       })}

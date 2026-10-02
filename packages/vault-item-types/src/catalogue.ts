@@ -56,7 +56,8 @@ export type FieldTypeId =
   | "host-port"
   | "security-question"
   | "payment-card"
-  | "key-pair";
+  | "key-pair"
+  | "blob";
 
 function scalar(
   id: FieldTypeId,
@@ -127,6 +128,7 @@ export const FIELD_TYPES = {
     part("publicKey", "Public key"),
     part("privateKey", "Private key", true),
   ]),
+  blob: scalar("blob", true),
 } satisfies Readonly<Record<FieldTypeId, FieldTypeSpec>>;
 
 /** Written out rather than derived so the union and the table cannot drift
@@ -154,6 +156,7 @@ export const FIELD_TYPE_IDS: readonly FieldTypeId[] = [
   "security-question",
   "payment-card",
   "key-pair",
+  "blob",
 ];
 
 export function isFieldTypeId(value: string): value is FieldTypeId {

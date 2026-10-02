@@ -1,0 +1,34 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "file",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "File",
+    "plural": "Files",
+    "extension": ".file",
+    "summary": "Any file, sealed in parts. Other item types can name this same file field.",
+    "categories": ["documents"],
+    "sections": [
+      {
+        "id": "file",
+        "title": "File",
+        "fields": [
+          {
+            "id": "bytes",
+            "type": "blob",
+            "label": "File",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "native": { "secret": "bytes", "trailer": [] },
+    "cxf": { "credential": "file" },
+    "subtitle": [],
+    "search": []
+  }
+}

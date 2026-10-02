@@ -1,5 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
+import { gcmOpen, gcmSeal } from "./gcm.js";
 
 /**
  * Vault cryptography — WebCrypto only, no dependencies, no dev-only stand-ins.
@@ -19,6 +20,7 @@ export const PBKDF2_ITERATIONS = 600_000;
 export const MAX_PBKDF2_ITERATIONS = 10_000_000;
 export const SALT_BYTES = 16;
 const IV_BYTES = 12;
+
 const VAULT_KEY_BYTES = 32;
 
 export class WrongPasswordError extends Error {
@@ -117,24 +119,14 @@ function encodeBinding(binding: string): Uint8Array {
   return new TextEncoder().encode(binding);
 }
 
-function aesParams(iv: Uint8Array, aad?: Uint8Array): AesGcmParams {
-  const params: AesGcmParams = { name: "AES-GCM", iv: overlapCast(iv) };
-  if (aad) params.additionalData = overlapCast(aad);
-  return params;
-}
-
 async function encrypt(
   key: CryptoKey,
   plaintext: Uint8Array,
   aad?: Uint8Array,
 ): Promise<SealedBlob> {
   const iv = randomBytes(IV_BYTES);
-  const ct = await crypto.subtle.encrypt(
-    aesParams(iv, aad),
-    key,
-    overlapCast(plaintext),
-  );
-  return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
+  const body = await gcmSeal(key, plaintext, iv, aad);
+  return { ivB64: bytesToB64(iv), ctB64: bytesToB64(body) };
 }
 
 async function decrypt(
@@ -142,12 +134,7 @@ async function decrypt(
   blob: SealedBlob,
   aad?: Uint8Array,
 ): Promise<Uint8Array> {
-  const plain = await crypto.subtle.decrypt(
-    aesParams(b64ToBytes(blob.ivB64), aad),
-    key,
-    overlapCast(b64ToBytes(blob.ctB64)),
-  );
-  return new Uint8Array(plain);
+  return gcmOpen(key, b64ToBytes(blob.ivB64), b64ToBytes(blob.ctB64), aad);
 }
 
 export function assertKdfParams(kdf: KdfParams): void {

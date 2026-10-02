@@ -1,7 +1,7 @@
 /**
  * ADR 0153 — the minimal plan is vault, activity and settings. Connections,
  * Access and Identity are absent until their capability flags are selected.
- * The vault's approved item kinds are the base secret only.
+ * The vault's approved item kinds are the base secret and the file.
  */
 
 import { capabilityFlagKey } from "@opensesame/app-core/lib/capabilities/openfeature.js";
@@ -33,7 +33,7 @@ describe("minimal surface", () => {
       expect(plan.capabilities[id]?.approved, id).toBe(true);
     }
     expect(plan.approvedModules).toContain("activity.log/runtime");
-    expect(plan.approvedItemKinds).toEqual(["secret"]);
+    expect(plan.approvedItemKinds).toEqual(["file", "secret"]);
     for (const id of [
       ...SECTION_FLAGS,
       "support.local-ai",

@@ -1,0 +1,62 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "open": "New item" },
+        { "report": "select[aria-label='Type'] option" },
+        { "measure": "[aria-label='Choose file']" },
+        { "shot": "desktop-new-item" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "open": "New item" },
+        { "report": "select[aria-label='Type'] option" },
+        { "measure": "[aria-label='Choose file']" },
+        { "shot": "phone-new-item" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-new-item",
+      "width": 1280,
+      "title": "New item — 1280 × 800",
+      "caption": "The minimal install adds a file beside the base secret. The vault list gains a files row.",
+      "before": "type options .secret",
+      "after": "type options .file, .secret; files row"
+    },
+    {
+      "shot": "phone-new-item",
+      "width": 390,
+      "title": "New item — 390 × 844",
+      "caption": "The same type list on a phone.",
+      "before": "type options .secret",
+      "after": "type options .file, .secret"
+    },
+    {
+      "shot": "desktop-file",
+      "width": 1280,
+      "title": "File field — 1280 × 800",
+      "caption": "Choosing .file shows the file field with the chosen name.",
+      "before": "Choose file absent",
+      "after": "Choose file 32×32, lease.txt"
+    },
+    {
+      "shot": "phone-file",
+      "width": 390,
+      "title": "File field — 390 × 844",
+      "caption": "The file field on a phone meets the 44px touch floor.",
+      "before": "Choose file absent",
+      "after": "Choose file 44×44, lease.txt"
+    }
+  ]
+}
