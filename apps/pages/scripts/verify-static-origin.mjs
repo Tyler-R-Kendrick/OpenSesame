@@ -79,7 +79,11 @@ const browser = await launch();
   // the local seal. The full-size guest button is not on that screen.
   await sealLocalOnly(page);
   const inApp = await snap(page, "B-sealed-in-app");
-  check(/Lock vault/.test(inApp), "the local seal landed inside the app");
+  // The lock is an icon key. Its name is the accessible name, not innerText.
+  check(
+    (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
+    "the local seal landed inside the app",
+  );
   check(!/Claim this guest session/.test(inApp), "no claim notice");
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
