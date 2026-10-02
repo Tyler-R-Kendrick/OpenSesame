@@ -109,5 +109,12 @@ export function extraSteps({ press }) {
       for (const key of keys) await page.keyboard.press(key);
       await page.waitForTimeout(wait);
     },
+    /** Type a slash into the status-line command field. */
+    async slash(page) {
+      const field = page.locator("#command-bar-input");
+      await field.click();
+      await field.fill("/");
+      await page.waitForTimeout(400);
+    },
   };
 }

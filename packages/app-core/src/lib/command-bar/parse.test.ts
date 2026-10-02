@@ -93,6 +93,49 @@ describe("parseCommand", () => {
       query: "bank",
     });
   });
+
+  it("reads slash commands the same way as the sentence forms", () => {
+    expect(parseCommand("/vault")).toEqual({
+      action: "navigate",
+      path: "/vault",
+    });
+    expect(parseCommand("/settings")).toEqual({
+      action: "navigate",
+      path: "/settings",
+    });
+    expect(parseCommand("/passwords")).toEqual({
+      action: "navigate",
+      path: "/vault",
+    });
+    expect(parseCommand("/search router")).toEqual({
+      action: "search",
+      query: "router",
+    });
+    expect(parseCommand("/open amazon")).toEqual({
+      action: "open_item",
+      query: "amazon",
+    });
+    expect(parseCommand("/open settings/security/config.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings/security?file=config.yaml",
+      label: "settings/security/config.yaml",
+    });
+    expect(parseCommand("/open settings")).toEqual({
+      action: "navigate",
+      path: "/settings",
+    });
+    expect(parseCommand("/copy password for GitHub")).toEqual({
+      action: "copy_field",
+      field: "password",
+      query: "GitHub",
+    });
+    expect(parseCommand("/help")).toEqual({ action: "help" });
+    expect(parseCommand("/settings/security/config.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings/security?file=config.yaml",
+      label: "settings/security/config.yaml",
+    });
+  });
 });
 
 describe("executeCommand copy_field", () => {
@@ -153,6 +196,16 @@ describe("executeCommand navigate", () => {
       vaultLocked: () => false,
     };
   }
+
+  it("refuses a slash destination no capability registered, and never navigates", async () => {
+    const navigated: string[] = [];
+    const command = parseCommand("/connections");
+    expect(command).toEqual({ action: "navigate", path: "/connections" });
+    if (command === null) return;
+    const outcome = await executeCommand(command, ports(navigated));
+    expect(outcome).toEqual({ ok: false, message: NOT_AVAILABLE_MESSAGE });
+    expect(navigated).toEqual([]);
+  });
 
   it("refuses a section no capability registered, and never navigates", async () => {
     const navigated: string[] = [];

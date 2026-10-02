@@ -48,6 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-01-vault-environments/`](2026-10-01-vault-environments/README.md) | Vault environments |
+| [`2026-10-01-slash-commands/`](2026-10-01-slash-commands/README.md) | Slash completions in the status line |
 | [`2026-10-01-secret-ceiling/`](2026-10-01-secret-ceiling/README.md) | Secret without the capability ceiling |
 | [`2026-09-30-setup-configuration/`](2026-09-30-setup-configuration/README.md) | Setup configuration choice |
 | [`2026-09-29-trash-commands/`](2026-09-29-trash-commands/README.md) | Trash commands |
