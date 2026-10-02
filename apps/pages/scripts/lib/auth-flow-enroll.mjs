@@ -37,6 +37,9 @@ export async function enterEnrollmentCode(page, code) {
 
 /** Trash the vault's self-supplied authenticator: an item in the vault. */
 export async function withdrawSelfAuthenticator(page, check) {
+  // Enrollment happens under Settings, which replaces the vault tree.
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if (await back.isVisible().catch(() => false)) await back.click();
   await page.getByRole("treeitem", { name: "Vault", exact: true }).click();
   await page.waitForTimeout(1000);
   const entry = page.getByRole("treeitem", {
