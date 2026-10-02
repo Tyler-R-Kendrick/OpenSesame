@@ -23,11 +23,11 @@ describe("vault.interop-formats runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("vault.interop-formats");
   });
 
-  it("registers its Import key and Settings panels and disposes them (LOAD-09)", async () => {
+  it("registers its Import key and disposes it (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.interop-formats",
-      kinds: ["settings-panel", "vault-command"],
-      count: 3,
+      kinds: ["vault-command"],
+      count: 1,
     });
   });
 
@@ -44,41 +44,15 @@ describe("vault.interop-formats runtime", () => {
     expect(record?.revokeCalls).toBe(1);
   });
 
-  it("offers the Formats panel under Security and revokes it on dispose", async () => {
+  it("draws no Settings panel: the Formats and Sealed store rows are gone", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    const record = t.registered.find(
-      (entry) => entry.kind === "settings-panel",
-    );
-    expect(record?.entry).toMatchObject({
-      id: "formats-interoperability",
-      category: "security",
-    });
+    expect(
+      t.registered.filter((entry) => entry.kind === "settings-panel"),
+    ).toEqual([]);
     // Nothing is fetched and no Wasm is pulled by activating: KDBX and
     // Argon2 are import()ed from `parse()`, not from the module graph.
     expect(t.egressCalls).toEqual([]);
-    expect(t.liveKinds()).toContain("settings-panel");
     await handle.dispose();
-    expect(t.liveKinds()).not.toContain("settings-panel");
-    await handle.dispose();
-    expect(record?.revokeCalls).toBe(1);
-  });
-
-  it("offers the Sealed store panel under Vaults, never on the Export key", async () => {
-    const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    const panels = t.registered
-      .filter((entry) => entry.kind === "settings-panel")
-      .map((entry) => entry.entry);
-    expect(panels).toContainEqual(
-      expect.objectContaining({ id: "sealed-store", category: "vaults" }),
-    );
-    // The manifest is plain text: only the Import key is a vault command.
-    expect(
-      t.registered.filter((entry) => entry.kind === "vault-command"),
-    ).toHaveLength(1);
-    expect(t.egressCalls).toEqual([]);
-    await handle.dispose();
-    expect(t.liveKinds()).not.toContain("settings-panel");
   });
 });

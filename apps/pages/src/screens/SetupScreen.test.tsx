@@ -329,4 +329,34 @@ describe("where the keyboard lands", () => {
     openSetup();
     expect(document.activeElement).toBe(commit());
   });
+
+  it("walks the step tabs with the arrow keys", () => {
+    openSetup();
+    const tabs = screen.getAllByRole("tab");
+    // The current step is the one Tab reaches; the others wait.
+    expect(tabs[0].getAttribute("aria-selected")).toBe("true");
+    expect(tabs[0].getAttribute("tabindex")).toBe("0");
+    expect(tabs[1].getAttribute("tabindex")).toBe("-1");
+    // Right selects the next step and lands on it.
+    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("connectors");
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: "connectors" }),
+    );
+    // End jumps to the last step, Home back to the first.
+    fireEvent.keyDown(screen.getByRole("tab", { name: "connectors" }), {
+      key: "End",
+    });
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("mfa");
+    fireEvent.keyDown(screen.getByRole("tab", { name: "mfa" }), {
+      key: "Home",
+    });
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("capabilities");
+  });
 });

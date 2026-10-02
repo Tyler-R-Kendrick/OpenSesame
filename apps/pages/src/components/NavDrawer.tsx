@@ -13,10 +13,14 @@
  * content would cover the thing it was floating above, which is the clutter
  * this removes.
  *
- * The rail is still the desktop's navigation, unchanged. This is the same
- * section list it draws — the core directories plus every registered
- * `section` contribution — so a section is never named twice in two places,
- * and an excluded capability has no row here either.
+ * The rail is the desktop's navigation. This drawer keeps the
+ * two session-level directories the rail leaves out — settings
+ * and the activity log — because a phone has no right-click on
+ * the session prompt to root the tree in them, so the drawer is
+ * where a phone reaches them. Every other section is drawn here
+ * exactly as the rail draws it, so a section is never named
+ * twice in two places, and an excluded capability has no row
+ * here either.
  */
 
 import { useCallback, useRef, useState } from "react";

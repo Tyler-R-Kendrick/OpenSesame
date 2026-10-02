@@ -7,9 +7,6 @@ import { AUTHORITY_TUTORIALS } from "./authority-help.js";
  */
 export const CAPABILITY_TUTORIALS = {
   ...AUTHORITY_TUTORIALS,
-  "transport.status.view": "settings.transport",
-  "transport.verify.run": "settings.transport",
-  "transport.identity.reference": "settings.transport",
   "vaults.switch": "vaults.switch",
   "vaults.travel": "vaults.switch",
   "vaults.duress_code": "vaults.switch",

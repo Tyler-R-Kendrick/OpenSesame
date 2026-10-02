@@ -4,14 +4,6 @@ import type { GuideTargetDescriptor } from "./targets.js";
 export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
   ...SETUP_TARGETS,
   {
-    id: "settings.transport",
-    description:
-      "The Transport panel under Security: the target this device asks about, its policy and identity by reference, and one mark each for the desired policy, the credential, the runtime, what a peer observed and whether anything is enforced. Optional \u2014 with no endpoint set it draws only the settings and asks nothing.",
-    role: "surface",
-    routes: ["/settings"],
-    capabilityId: "transport.status.view",
-  },
-  {
     id: "settings.tailnet-sync",
     description:
       "The Tailnet sync panel under Vaults, while Networking is on: pair this vault with a drive on the tailnet (the pair key opens a sheet where the code goes), see whether it is in step, sync now, or stop. The drive holds only the sealed vault.",

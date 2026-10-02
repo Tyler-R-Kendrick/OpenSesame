@@ -52,6 +52,7 @@ import {
   type AppliedConfiguration,
   applySetupConfiguration,
 } from "./setup/apply-configuration.js";
+import { useRovingTabs } from "./use-roving-tabs.js";
 import "./setup.css";
 import "./setup/steps/steps.css";
 
@@ -134,6 +135,11 @@ export function SetupScreen({
   );
   const [pending, setPending] = useState<ConfigurationChoice | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const { tabProps } = useRovingTabs({
+    count: STEPS.length,
+    index,
+    select: setIndex,
+  });
 
   // The choice screen lands on Minimal, so Tab reaches Skip all. The
   // ceremony lands on Finish: a step body's first control can be a Remove.
@@ -199,7 +205,6 @@ export function SetupScreen({
       })
       .catch(() => setPending(null));
   }
-
   function stepBack() {
     if (index <= 0) return;
     setIndex(index - 1);
@@ -300,6 +305,7 @@ export function SetupScreen({
             {STEPS.map((entry, at) => (
               <button
                 key={entry.id}
+                {...tabProps(at)}
                 type="button"
                 role="tab"
                 aria-selected={at === index}

@@ -47,11 +47,6 @@ export const MIXED_SCREENS_AND_SECTIONS: readonly MixedModule[] = [
     path: "src/sections/SettingsSection.tsx",
     keeps: "category routing, raw editor",
     extract: [
-      { capability: "backup.cloud-secrets", what: "AgeKeysPanel" },
-      {
-        capability: "vault.interop-formats",
-        what: "FormatsInteroperabilityPanel",
-      },
       { capability: "connectors.external", what: "FeatureBindingsPanel" },
     ],
   },

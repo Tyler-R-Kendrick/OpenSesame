@@ -229,16 +229,8 @@ export const SECTION_RULES = [
     "identity.federation",
     "Identity account factors model (ADR 0140 D10)",
   ),
-  ...each(
-    "src/sections/settings/",
-    [
-      "AgeInteropSheet",
-      "AgeKeysPanel",
-      "SopsDocumentSheet",
-      "VaultKeyProtectionCeremonies",
-    ],
-    (p) =>
-      optional(p, CLOUD, "age, SOPS and cloud KMS sheets; ceremonies MIXED"),
+  ...each("src/sections/settings/", ["VaultKeyProtectionCeremonies"], (p) =>
+    optional(p, CLOUD, "cloud KMS sheets; ceremonies MIXED"),
   ),
   ...each(
     "src/sections/settings/",
@@ -254,16 +246,6 @@ export const SECTION_RULES = [
     "src/sections/settings/AmbientAuthPanel",
     "identity.ambient-sso",
     "ambient SSO panel",
-  ),
-  optional(
-    "src/sections/settings/FormatsInteroperabilityPanel",
-    "vault.interop-formats",
-    "formats panel",
-  ),
-  optional(
-    "src/sections/settings/StoreManifestPanel",
-    "vault.interop-formats",
-    "the sealed-store path manifest (ADR 0037 §6)",
   ),
   optional(
     "src/sections/settings/notification-routing-files",

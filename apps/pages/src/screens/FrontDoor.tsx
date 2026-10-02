@@ -33,7 +33,6 @@ import { JoinRoadButton } from "./join/JoinRoad.js";
 import { GuestSkip } from "./unlock/GuestRoad.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
-import { ResetBrowser } from "./unlock/ResetBrowser.js";
 import "./unlock.css";
 import "./door.css";
 
@@ -118,10 +117,6 @@ export function FrontDoor({
         </div>
 
         {guestFailed ? <StatusMark tone="err" label={guestFailed} /> : null}
-
-        <div className="unlock__foot">
-          <ResetBrowser />
-        </div>
       </div>
       <ReleaseNotes />
     </div>

@@ -107,6 +107,46 @@
   color: var(--ink);
 }
 
+/* The trash: one row per deleted item — its name and the
+   date it left — with the two keys that answer it. */
+.set__trash-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px dashed var(--line);
+}
+
+.set__trash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.2rem 0;
+}
+
+.set__trash-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.set__trash-when {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.set__trash-keys {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .cap-pat {
   margin-top: 0.35rem;
   padding-top: 0.75rem;

@@ -498,14 +498,15 @@ Do not add new top-level directories or loose root files — find the group.
   a guest; ADR 0135). Every placement reads it through
   `apps/pages/src/screens/unlock/GuestRoad.tsx`, `openGuestVault` refuses a
   guest session while it is off, and the last-vault pointer and vault list
-  stop offering the guest tomb. It lives in four places and all four are
+  stop offering the guest tomb. It lives in two places and both are
   required: the front door's corner "Skip" (`screens/FrontDoor.tsx`, the
-  door's one guest road, where a `/guest` link lands), the "Continue as
-  guest" button in `apps/pages/src/screens/unlock/SignInPanel.tsx` on
-  **both** placements (first-run sign-in once setup is answered *and* the
-  sign-in panel opened from the user menu beside an existing vault), the
-  "Skip" corner link on first-run sign-in, and the "Continue as guest" link
-  in the unlock form's footer in `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
+  door's one guest road, where a `/guest` link lands) and the "Continue as
+  guest" link in the unlock form's footer in
+  `apps/pages/src/screens/UnlockScreen.tsx`. The sign-in panel
+  (`screens/unlock/SignInPanel.tsx`) carries no guest road of its own: its
+  single no-account road is "Use without an account", the local-only seal
+  offered on first run (a full-size guest button and a corner guest Skip were
+  removed as duplication, 2026-10). This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
   legitimate. `continueAsGuest` (`packages/app-core/src/lib/guest-auth.ts`) seals a
@@ -520,7 +521,7 @@ Do not add new top-level directories or loose root files — find the group.
   allowlists, or vault status. The only road that is legitimately withheld
   beside an existing vault is "Use without an account" (a local-only seal in
   place). Any change that drops a guest entry is a regression, not a cleanup —
-  the tests in `FrontDoor.test.tsx`, `SignInPanel.test.tsx`,
+  the tests in `FrontDoor.test.tsx`,
   `UnlockScreen.test.tsx`, and `store.test.ts` asserting guest exists and
   stays isolated are load-bearing
   and must not be deleted or inverted.

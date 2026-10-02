@@ -23,6 +23,7 @@ export {
   IconArrowRight,
   IconTrash,
   IconPlus,
+  IconLayers,
   IconCopy,
   IconEye,
   IconEyeOff,

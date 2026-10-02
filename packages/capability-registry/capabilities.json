@@ -1804,12 +1804,16 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-status.ts:readTransportStatus",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so Pages carries no transport surface: status, probe and identity reference are Host-plane operator work",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1885,12 +1889,16 @@
     "kind": "act",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-verify.ts:runTransportVerify",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1912,12 +1920,16 @@
     "kind": "admin",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-settings.ts:withTransportTarget",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1946,7 +1958,7 @@
     },
     "excluded": {
       "pwa": {
-        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so there is nothing for it to discover; the Transport panel reports per-target status instead",
+        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so Pages carries no transport surface: status, probe and identity reference are Host-plane operator work",
         "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_host": {
