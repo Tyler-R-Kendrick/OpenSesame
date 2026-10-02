@@ -90,8 +90,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "host.health.check"',
-      'focus "shell.connectivity" "Connectivity lives here: the statusline reports whether identity on this device is ready." side=top',
-      'say "For the vault contents themselves, Vault health lists weak, reused and aging items."',
+      'say "Vault health lists weak, reused and aging items."',
       'navigate "/vault/health"',
       'wait route "/vault/health" timeout=15000',
       'success "This is Vault health."',
@@ -308,7 +307,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.health",
     title: "How do I tell whether OpenSesame is healthy?",
     answer:
-      "Two different questions, two places. The statusline reports whether identity on this device is ready. Vault health, under Vault, reports on the items themselves — weak, reused and aging credentials.",
+      "Vault health, under Vault, lists weak, reused and aging credentials.",
     routes: [],
     goal: "host.health.check",
     keywords: [

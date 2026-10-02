@@ -1126,8 +1126,8 @@ body {
 }
 
 /* ——— Top bar ————————————————————————————————————————————
-   Phone chrome: where the rail is gone it carries identity, the connectivity
-   bar and Lock. On a desktop the rail and the statusline carry all of it. */
+   Phone chrome: where the rail is gone it carries the account and the overflow.
+   On a desktop the rail and the statusline carry the account and commands. */
 .topbar {
   display: flex;
   align-items: center;
@@ -1799,8 +1799,8 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* One column: main + statusline. Plane glyphs/bell sit behind the top bar
-     overflow key; CommandBar stays in the statusline on every unlocked screen.
+  /* One column: main + statusline. The bell sits behind the top bar overflow
+     key; CommandBar stays in the statusline on every unlocked screen.
      Sections stay behind the bar's menu key — no tab bar. */
   .app {
     grid-template-columns: 1fr;
@@ -1838,8 +1838,7 @@ body {
      copy of this. */
   .set__nav,
   .access-tabs,
-  .identity-tabs,
-  .statusline .cx {
+  .identity-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
@@ -1849,8 +1848,7 @@ body {
 
   .set__nav::-webkit-scrollbar,
   .access-tabs::-webkit-scrollbar,
-  .identity-tabs::-webkit-scrollbar,
-  .statusline .cx::-webkit-scrollbar {
+  .identity-tabs::-webkit-scrollbar {
     display: none;
   }
 

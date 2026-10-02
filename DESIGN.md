@@ -186,16 +186,16 @@ scanning.
 ## Layout
 
 Desktop is a 15.5rem rail plus content over a full-width statusline — the
-terminal frame: tree on the left, buffer in the middle, one mono strip of
-plane truth (support, connectivity, notifications) at the foot. The strip is
+terminal frame: tree on the left, buffer in the middle, one mono strip
+(support, the command, notifications) at the foot. The strip is
 keys only. The command bar under the crumbs is the chrome's one typed field:
 a command runs, and a sentence it cannot parse goes to Support as a question,
 so nothing else in the frame asks to be typed into. The vault adds
 a 21rem list column between rail and detail, giving ranger's three panes;
 the other sections read as a single 60rem flowing document of chapters.
 
-Below 900px the rail gives way to a slim top bar (identity and the lock),
-the statusline keeps carrying plane truth, a section drawer key closes the
+Below 900px the rail gives way to a slim top bar (the account and the lock),
+the statusline keeps the command, a section drawer key closes the
 frame, and the vault collapses to one pane at a time with a back key and a
 back swipe. Because the rail carries the vault's
 filters, the list header grows a scrolling chip row at that breakpoint —
@@ -342,9 +342,8 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   home indicator.
 - **The chrome earns its height.** Below 900px the phone keeps the top bar and
   one statusline row and nothing else: the sections are a drawer behind one
-  top-bar key, and what the wide statusline carries (the planes, help,
-  notifications, the keymap, the connectors) are named rows behind the top
-  bar's overflow key. The statusline runs edge to edge, one row of 44px keys,
+  top-bar key, and notifications, help, the keymap and the connection rows
+  are named rows behind the top bar's overflow key. The statusline runs edge to edge, one row of 44px keys,
   and may never fold onto a second row, which costs a 568px screen a sixth of
   itself. The top bar and the statusline together stay under a third of the
   screen, rotated included.
@@ -355,7 +354,7 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   Clipping a control to avoid an overlay is not a fix.
 - **Scrollers contain their own overscroll** and never hand a flick to the
   page behind them. A strip that scrolls (Access tabs, settings categories,
-  vault chips, the plane glyphs) keeps its selected item in view — by
+  vault chips) keeps its selected item in view — by
   scrolling the strip itself (`lib/strip.ts`), never `scrollIntoView`, which
   also scrolls every ancestor and dragged a whole section sideways.
 - **One tab strip.** Access, Identity, Settings and Wallet draw the same flat

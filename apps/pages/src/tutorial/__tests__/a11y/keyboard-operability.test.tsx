@@ -126,10 +126,9 @@ describe("keyboard operability", () => {
 
   it("searches the written help and starts a walkthrough with keys only", async () => {
     const user = userEvent.setup();
-    const harness = mountSupport({
+    mountSupport({
       agent: fakeAgentAlwaysUnavailable("no_local_model"),
       transport: "none",
-      targets: ["shell.connectivity"],
     });
     const sheet = await openPanel(user);
 
@@ -146,12 +145,10 @@ describe("keyboard operability", () => {
     await tabTo(user, start);
     await user.keyboard("{Enter}");
 
-    await waitFor(() => {
-      const step = harness.driver.records()[0]?.steps[0];
-      expect(step?.element).toBe(
-        harness.fixtures.element("shell.connectivity"),
-      );
-    });
+    const mark = await screen.findByRole("button", { name: "Support" });
+    await tabTo(user, mark);
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("This is Vault health.")).toBeTruthy();
   });
 
   it("offers nothing that only a pointer can use", async () => {
