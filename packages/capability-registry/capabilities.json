@@ -5292,7 +5292,7 @@
     "plane": "client_local",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault list",
       "pwa": "lib/vault/store.ts:vaultStore",
       "mcp_host": null,
       "mcp_client": null,
@@ -5468,12 +5468,93 @@
     }
   },
   {
+    "id": "vault.item.create",
+    "title": "Create a vault item",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id vault new",
+      "pwa": "route:/vault/new/:kind",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.item.set",
+    "title": "Edit a vault item's name, username, or secret",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id vault set",
+      "pwa": "route:/vault/:id",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.item.share",
+    "title": "Share a secret once",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id vault share",
+      "pwa": "lib/vault/drop.ts:createDrop",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
     "id": "vault.import",
     "title": "Import another manager's export, or restore an encrypted backup, into the vault",
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault import",
       "pwa": "lib/vault/import/merge.ts:planMerge",
       "mcp_host": null,
       "mcp_client": null,
@@ -5500,7 +5581,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault export",
       "pwa": "lib/vault/offline-backup-file.ts:offlineBackupFile",
       "mcp_host": null,
       "mcp_client": null,
@@ -5842,7 +5923,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault copy",
       "pwa": "route:/vault",
       "mcp_host": null,
       "mcp_client": null,

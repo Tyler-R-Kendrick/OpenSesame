@@ -616,6 +616,30 @@
     }
   },
   {
+    "id": "vault.item.create",
+    "title": "Create a vault item",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/vault/new/:kind"
+    }
+  },
+  {
+    "id": "vault.item.set",
+    "title": "Edit a vault item's name, username, or secret",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/vault/:id"
+    }
+  },
+  {
+    "id": "vault.item.share",
+    "title": "Share a secret once",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/drop.ts:createDrop"
+    }
+  },
+  {
     "id": "vault.import",
     "title": "Import another manager's export, or restore an encrypted backup, into the vault",
     "plane": "client_local",

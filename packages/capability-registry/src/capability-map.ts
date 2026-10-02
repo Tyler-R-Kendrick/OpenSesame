@@ -22,6 +22,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.command_bar": "shell.navigation",
 
     // --- core: vault items -----------------------------------------------
+    "vault.item.create": "vault.passwords",
+    "vault.item.set": "vault.passwords",
+    "vault.item.share": "vault.passwords",
     "vault.items.search": "vault.passwords",
     "vault.items.read_meta": "vault.passwords",
     "vault.items.write_meta": "vault.passwords",

@@ -42,7 +42,32 @@ export type ParsedCommand =
   | { name: "host-health"; hostUrl: string; flags: GlobalFlags }
   | { name: "host-discover"; hostUrl: string; flags: GlobalFlags }
   | { name: "vault-verify"; file: string; flags: GlobalFlags }
-  | { name: "vault-ls"; file: string; flags: GlobalFlags };
+  | { name: "vault-ls"; file: string; flags: GlobalFlags }
+  | { name: "vault-list"; flags: GlobalFlags }
+  | {
+      name: "vault-new";
+      kind: string;
+      itemName: string;
+      username?: string;
+      flags: GlobalFlags;
+    }
+  | { name: "vault-import"; file: string; flags: GlobalFlags }
+  | { name: "vault-export"; out?: string; flags: GlobalFlags }
+  | {
+      name: "vault-set";
+      query: string;
+      itemName?: string;
+      username?: string;
+      secret: boolean;
+      flags: GlobalFlags;
+    }
+  | {
+      name: "vault-copy";
+      query: string;
+      field: "secret" | "username";
+      flags: GlobalFlags;
+    }
+  | { name: "vault-share"; query: string; flags: GlobalFlags };
 
 function takeFlag(args: string[], name: string): boolean {
   const idx = args.indexOf(name);
@@ -155,15 +180,138 @@ export function parseArgs(argv: string[]): ParsedCommand {
     return { name: "host-discover", hostUrl, flags };
   }
 
-  if (cmd === "vault" && (args[0] === "verify" || args[0] === "ls")) {
-    const verb = args.shift();
-    const file = args.shift();
-    if (!file) throw new Error(`vault ${verb} requires a vault file`);
-    const name = verb === "verify" ? "vault-verify" : "vault-ls";
-    return { name, file, flags };
-  }
+  if (cmd === "vault") return parseVault(args, flags);
 
   throw new Error(`Unknown command: ${cmd}`);
+}
+
+const ITEM_KINDS = new Set(["login", "secret", "note", "card"]);
+
+function leftover(args: readonly string[], verb: string): void {
+  const extra = args[0];
+  if (extra !== undefined) {
+    throw new Error(`vault ${verb} does not take ${extra}`);
+  }
+}
+
+function parseVaultFile(
+  verb: "verify" | "ls",
+  args: string[],
+  flags: GlobalFlags,
+): ParsedCommand {
+  const file = args.shift();
+  if (!file) throw new Error(`vault ${verb} requires a vault file`);
+  leftover(args, verb);
+  const name = verb === "verify" ? "vault-verify" : "vault-ls";
+  return { name, file, flags };
+}
+
+function parseVaultImport(args: string[], flags: GlobalFlags): ParsedCommand {
+  const file = args.shift();
+  if (!file) throw new Error("vault import requires a file");
+  leftover(args, "import");
+  return { name: "vault-import", file, flags };
+}
+
+function parseVaultExport(args: string[], flags: GlobalFlags): ParsedCommand {
+  const out = takeOption(args, "--out");
+  leftover(args, "export");
+  if (out === undefined) return { name: "vault-export", flags };
+  return { name: "vault-export", out, flags };
+}
+
+function parseVaultShare(args: string[], flags: GlobalFlags): ParsedCommand {
+  const query = args.shift();
+  if (!query) throw new Error("vault share requires an item name or id");
+  leftover(args, "share");
+  return { name: "vault-share", query, flags };
+}
+
+function parseVaultList(args: string[], flags: GlobalFlags): ParsedCommand {
+  leftover(args, "list");
+  return { name: "vault-list", flags };
+}
+
+function parseVault(args: string[], flags: GlobalFlags): ParsedCommand {
+  const verb = args.shift() ?? "";
+  switch (verb) {
+    case "verify":
+      return parseVaultFile("verify", args, flags);
+    case "ls":
+      return parseVaultFile("ls", args, flags);
+    case "list":
+      return parseVaultList(args, flags);
+    case "new":
+      return parseVaultNew(args, flags);
+    case "import":
+      return parseVaultImport(args, flags);
+    case "export":
+      return parseVaultExport(args, flags);
+    case "set":
+      return parseVaultSet("set", args, flags);
+    case "edit":
+      return parseVaultSet("edit", args, flags);
+    case "copy":
+      return parseVaultCopy(args, flags);
+    case "share":
+      return parseVaultShare(args, flags);
+    default:
+      throw new Error(`Unknown command: vault ${verb}`);
+  }
+}
+
+function parseVaultNew(args: string[], flags: GlobalFlags): ParsedCommand {
+  const kind = args.shift();
+  const itemName = takeOption(args, "--name");
+  const username = takeOption(args, "--username");
+  if (!kind || !itemName) {
+    throw new Error("vault new requires <kind> and --name");
+  }
+  if (!ITEM_KINDS.has(kind)) {
+    throw new Error("vault new kind must be login, secret, note, or card");
+  }
+  leftover(args, "new");
+  if (username === undefined) {
+    return { name: "vault-new", kind, itemName, flags };
+  }
+  return { name: "vault-new", kind, itemName, username, flags };
+}
+
+function parseVaultSet(
+  verb: string,
+  args: string[],
+  flags: GlobalFlags,
+): ParsedCommand {
+  const query = args.shift();
+  const itemName = takeOption(args, "--name");
+  const username = takeOption(args, "--username");
+  const secret = takeFlag(args, "--secret");
+  if (!query) throw new Error(`vault ${verb} requires an item name or id`);
+  if (itemName === undefined && username === undefined && !secret) {
+    throw new Error(`vault ${verb} needs --name, --username, or --secret`);
+  }
+  leftover(args, verb);
+  if (itemName !== undefined && username !== undefined) {
+    return { name: "vault-set", query, itemName, username, secret, flags };
+  }
+  if (itemName !== undefined) {
+    return { name: "vault-set", query, itemName, secret, flags };
+  }
+  if (username !== undefined) {
+    return { name: "vault-set", query, username, secret, flags };
+  }
+  return { name: "vault-set", query, secret, flags };
+}
+
+function parseVaultCopy(args: string[], flags: GlobalFlags): ParsedCommand {
+  const query = args.shift();
+  const fieldWord = takeOption(args, "--field") ?? "secret";
+  if (!query) throw new Error("vault copy requires an item name or id");
+  if (fieldWord !== "secret" && fieldWord !== "username") {
+    throw new Error("vault copy --field must be secret or username");
+  }
+  leftover(args, "copy");
+  return { name: "vault-copy", query, field: fieldWord, flags };
 }
 
 export const SessionFileSchema = z.object({
@@ -196,7 +344,15 @@ Commands:
   host discover [--host <url>] Host PRM / readiness discovery
   vault verify <file>          Open a vault export or offline backup
                                (master password from the terminal only)
-  vault ls <file>              List its items: path and kind, never values
+  vault ls <file>              List that file: path and kind, never values
+  vault new <kind> --name <n>  Create a login, secret, note, or card
+  vault list                   List the local vault: id, kind, and name
+  vault import <file>          Merge a sealed export into the local vault
+  vault export [--out <file>]  Write a sealed export of the local vault
+  vault set|edit <item>        Change --name, --username, or --secret
+  vault copy <item> [--field secret|username]
+                               Copy a field to the clipboard, never print it
+  vault share <item>           Share a secret once; prints the link and code
   mcp host|client              Serve the host- or client-facing MCP tools
                                (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
 
