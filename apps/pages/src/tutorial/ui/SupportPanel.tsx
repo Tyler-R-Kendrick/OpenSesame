@@ -9,7 +9,6 @@ import { guideRouteWithin } from "@opensesame/app-core/tutorial/registry/routes.
 import {
   type ReactElement,
   useCallback,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -22,11 +21,7 @@ import { useSupport } from "../session.js";
 import { SupportComposer } from "./SupportComposer.js";
 import "../support.css";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
-import {
-  Availability,
-  GuideStatus,
-  WebMcpStatus,
-} from "./SupportPanelChrome.js";
+import { Availability, GuideStatus } from "./SupportPanelChrome.js";
 import {
   SupportQuestions,
   questionsFromGoals,
@@ -81,7 +76,6 @@ export function SupportPanel(): ReactElement {
   const close = useCallback(() => support.close(), [support]);
   useModalFocus(true, sheetRef, closeRef, close);
 
-  const searchId = useId();
   const [query, setQuery] = useState("");
 
   const topics = useMemo(
@@ -143,7 +137,6 @@ export function SupportPanel(): ReactElement {
           <RemoteSupportPreview warning={view.warning} />
           <Availability
             availability={availability}
-            ready={view.ready}
             onAcquire={() => void support.acquireModel()}
           />
           <GuideStatus />
@@ -252,23 +245,10 @@ export function SupportPanel(): ReactElement {
             </div>
           ) : null}
 
-          {view.error ? (
-            <p className="note note--err" role="alert">
-              {view.error}
-            </p>
-          ) : null}
-
-          <SupportQuestions
-            query={query}
-            searchId={searchId}
-            onQueryChange={setQuery}
-            questions={questions}
-          />
-
-          <WebMcpStatus />
+          <SupportQuestions questions={questions} />
         </div>
         <div className="sheet__foot">
-          <SupportComposer />
+          <SupportComposer query={query} onQueryChange={setQuery} />
         </div>
       </section>
     </div>

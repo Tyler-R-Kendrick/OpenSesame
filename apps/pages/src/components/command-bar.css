@@ -94,6 +94,68 @@
   text-wrap: pretty;
 }
 
+/* ——— The slash list ————————————————————————————————————
+   Suggestions sit above the field, the way the notice does, so the strip
+   never grows a row and the list never covers the input being typed in. */
+.command-bar__list {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  /* Capped: the vocabulary is a list a person reads past, not a panel that
+     takes the screen it is floating over. */
+  max-height: 40vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+
+.command-bar__option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.command-bar__option.is-active {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.command-bar__slash {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.command-bar__usage {
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.command-bar__hint {
+  flex: 1;
+  min-width: 0;
+  margin-left: auto;
+  padding-left: 0.5rem;
+  color: var(--ink-3);
+  font-family: var(--ui);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ——— Seated in the statusline —————————————————————————————
    The strip stays one row, so the bar goes borderless and the notice
    floats above it instead of stacking under the input. */

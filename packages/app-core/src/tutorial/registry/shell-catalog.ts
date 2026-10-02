@@ -64,7 +64,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "shell.connectivity",
     description:
-      "Connections list behind the overflow key, reporting whether identity on this device is ready.",
+      "The connection rows behind the overflow key. Each row names a connector and what it is doing.",
     role: "status",
     routes: [],
     capabilityId: "host.health.pages",

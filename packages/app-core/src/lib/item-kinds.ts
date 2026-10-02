@@ -150,3 +150,15 @@ export function isCreatableItemKind(kind: string): boolean {
   if (!GATED_KINDS.has(kind)) return true;
   return itemKindsSnapshot().some((row) => row.id === kind);
 }
+
+/**
+ * The kind a creation surface opens on when nothing named one.
+ *
+ * The first kind this installation may create, in the rail's own order — so a
+ * device without the login capability opens on the first type it does have,
+ * rather than on a type it cannot create and a name generated for it. Falls
+ * back to `secret` only if the registry somehow offers nothing at all.
+ */
+export function defaultCreatableKind(): string {
+  return itemKindsSnapshot()[0]?.id ?? "secret";
+}

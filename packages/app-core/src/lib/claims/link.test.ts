@@ -20,7 +20,7 @@ describe("claim arrival", () => {
     expect(captureClaimLink()).toEqual({
       kind: "drop",
       token: "osc_clm_a.b",
-      key: "a2V5LW1hdGVyaWFs",
+      key: "a2V5LW1hdGVyaWFs", // gitleaks:allow -- synthetic security test vector
     });
     // Fragment discipline: the bearer and key leave the URL immediately.
     expect(window.location.hash).toBe("");

@@ -14,17 +14,13 @@ import {
 } from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
-import {
-  IconChevronRight,
-  IconClock,
-  IconStar,
-} from "../../components/Icons.js";
+import { IconChevronRight } from "../../components/Icons.js";
 import { SlashSearchField } from "../../components/SlashSearch.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { VaultPathbar } from "./VaultPathbar.js";
-import { formatExpiry } from "./expiry.js";
+import { Decorations } from "./VaultRowDecorations.js";
 import { useMenuFlip } from "./use-menu-flip.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
@@ -57,22 +53,6 @@ function Highlight({ text, query }: { text: string; query: string }) {
       <mark>{text.slice(at, at + query.length)}</mark>
       {text.slice(at + query.length)}
     </>
-  );
-}
-
-function Decorations({ item }: { item: VaultItem }) {
-  return (
-    <span className="vtree__side">
-      {item.kind === "drop" ? (
-        <IconClock
-          size={13}
-          title={`Expires ${formatExpiry(item.expiresAt)}`}
-        />
-      ) : null}
-      {item.favorite ? (
-        <IconStar size={13} filled title="Favorite" className="vtree__fav" />
-      ) : null}
-    </span>
   );
 }
 

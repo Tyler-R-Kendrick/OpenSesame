@@ -1,0 +1,153 @@
+{
+  "out": ".",
+  "clock": "2026-10-02T15:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "measure": "footer.statusline" },
+        { "visit": "vault/new/secret" },
+        { "fill": { "label": "Name", "text": "API key" } },
+        { "fill": { "label": "Secret value", "text": "s3cr3t" } },
+        { "press": "Save item" },
+        { "pressOptional": "Actions for API key" },
+        {
+          "count": [
+            "[role=menuitem][aria-label='Share']",
+            "[role=menuitem][aria-label='Share once']",
+            "[role=menuitem][aria-label='Temporary drop']"
+          ]
+        },
+        { "shot": "secret-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "measure": "footer.statusline" },
+        { "visit": "vault/new/secret" },
+        { "fill": { "label": "Name", "text": "API key" } },
+        { "fill": { "label": "Secret value", "text": "s3cr3t" } },
+        { "press": "Save item" },
+        { "pressOptional": "Actions for API key" },
+        {
+          "count": [
+            "[role=menuitem][aria-label='Share']",
+            "[role=menuitem][aria-label='Share once']",
+            "[role=menuitem][aria-label='Temporary drop']"
+          ]
+        },
+        { "shot": "secret-390" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "press": "Support" },
+        {
+          "count": [
+            ".support__webmcp",
+            "[placeholder='Search the written help']",
+            "[placeholder='Ask about this screen']"
+          ]
+        },
+        { "measure": "[role=dialog]" },
+        { "shot": "support-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "press": "Support" },
+        {
+          "count": [
+            ".support__webmcp",
+            "[placeholder='Search the written help']",
+            "[placeholder='Ask about this screen']"
+          ]
+        },
+        { "measure": "[role=dialog]" },
+        { "shot": "support-390" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new" },
+        { "shot": "draft-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new" },
+        { "shot": "draft-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "secret-1280",
+      "width": 1280,
+      "title": "Share a saved secret — 1280 × 800",
+      "caption": "The row menu for a secret just saved in a guest vault. Share once is now Share, with a submenu mark.",
+      "before": "statusline 1280×53 @0,747; menuitem Share once 1, Share 0",
+      "after": "statusline 1280×53 @0,747; menuitem Share 1, Share once 0"
+    },
+    {
+      "shot": "secret-390",
+      "width": 390,
+      "title": "Share a saved secret — 390 × 844",
+      "caption": "The same saved secret on a phone. The row menu is not in this layout, so the pair is the item and the statusline.",
+      "before": "statusline 390×56 @0,788; Share once 0, Share 0",
+      "after": "statusline 390×56 @0,788; Share once 0, Share 0"
+    },
+    {
+      "shot": "support-1280",
+      "width": 1280,
+      "title": "Support with no model — 1280 × 800",
+      "caption": "Support with nothing to answer. The sheet drops the status paragraph and searches the written help.",
+      "before": "dialog 480×800 @800,0; WebMCP status 1; placeholder Ask about this screen",
+      "after": "dialog 480×800 @800,0; WebMCP status 0; placeholder Search the written help"
+    },
+    {
+      "shot": "support-390",
+      "width": 390,
+      "title": "Support with no model — 390 × 844",
+      "caption": "The same support sheet on a phone. The field and the key sit on the bottom row.",
+      "before": "dialog 390×743 @0,101; WebMCP status 1; placeholder Ask about this screen",
+      "after": "dialog 390×743 @0,101; WebMCP status 0; placeholder Search the written help"
+    },
+    {
+      "shot": "draft-1280",
+      "width": 1280,
+      "title": "A new item — 1280 × 800",
+      "caption": "A new item with no type chosen takes the type that can be created.",
+      "before": "heading Login 749f3f73, with website, username, and password",
+      "after": "heading Secret 0e04540b, with a secret value"
+    },
+    {
+      "shot": "draft-390",
+      "width": 390,
+      "title": "A new item — 390 × 844",
+      "caption": "The same new item on a phone.",
+      "before": "heading Login 27ae37e, website, username, and password",
+      "after": "heading Secret 85a1, secret value"
+    }
+  ]
+}

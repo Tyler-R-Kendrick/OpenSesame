@@ -136,6 +136,7 @@ export const TUTORIAL_RULES = [
       "__tests__/",
       "session",
       "ask-guard",
+      "choose-agent",
       "support-access",
       "support-context",
       "support.css",

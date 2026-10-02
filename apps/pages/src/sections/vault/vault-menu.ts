@@ -1,6 +1,6 @@
+import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   concealedValue,
-  shareText,
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 import type { TreeRow, VaultItem } from "@opensesame/vault-core";
@@ -17,8 +17,10 @@ export type VaultTreeActions = {
   edit: (item: VaultItem) => void;
   trash: (item: VaultItem) => void;
   favorite: (item: VaultItem) => void;
-  /** Absent when no capability contributes a way to share a secret. */
-  share?: (item: VaultItem) => void;
+  /** Seal a one-time drop of this secret: a link, a code, and an expiry. */
+  share: (item: VaultItem) => void;
+  /** Grant this secret to a person or an agent on the local share ledger. */
+  shareGrant: (item: VaultItem) => void;
   create: () => void;
   /** A trashed item's two ways out; absent, the menu offers neither. */
   restore?: (item: VaultItem) => void;
@@ -30,6 +32,32 @@ export type VaultTreeActions = {
 };
 
 export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
+
+function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
+  const ways: MenuItem[] = [
+    {
+      id: "share-drop",
+      label: "Temporary drop",
+      hint: "s",
+      run: () => actions.share(item),
+    },
+  ];
+  if (isCommandSection("/access")) {
+    ways.push({
+      id: "share-grant",
+      label: "Person or agent",
+      run: () => actions.shareGrant(item),
+    });
+  }
+  return [
+    {
+      id: "share",
+      label: "Share",
+      submenu: [ways],
+      run: () => undefined,
+    },
+  ];
+}
 
 function trashedItemMenu(
   item: VaultItem,
@@ -133,10 +161,10 @@ export function vaultItemMenu(
         ".",
         actions.favorite,
       ),
-      ...(actions.share && shareText(item)
-        ? [verb("share", "Share once", "s", actions.share)]
-        : []),
     ],
+    // Share opens the ways out. A sealed drop expires; a standing grant is a
+    // person or an agent, and only when Access is part of this installation.
+    ...(item.kind === "secret" ? [secretShare(item, actions)] : []),
     [verb("trash", "Trash", "x", actions.trash, { danger: true })],
   ];
 }

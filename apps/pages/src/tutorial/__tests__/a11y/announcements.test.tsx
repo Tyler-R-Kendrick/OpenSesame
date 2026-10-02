@@ -10,6 +10,7 @@
  * does not exist for the person who most needs the support panel to work.
  */
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   fakeAgentAlwaysUnavailable,
   fakeAgentAnswering,
@@ -39,7 +40,10 @@ async function ask(user: TestUser, question: string): Promise<void> {
   await user.click(screen.getByRole("button", { name: "Ask" }));
 }
 
-afterEach(disposeSupport);
+afterEach(() => {
+  disposeSupport();
+  clearNotices();
+});
 
 describe("states an assistive technology has to hear", () => {
   it("says it is thinking in words, in a live status, beside a way out", async () => {
@@ -88,7 +92,7 @@ describe("states an assistive technology has to hear", () => {
     expect(within(sheet).queryByRole("progressbar")).toBeNull();
   });
 
-  it("labels the unavailable state in prose, and disables the field that cannot work", async () => {
+  it("names the field by what it now does, and never disables the written help", async () => {
     const user = userEvent.setup();
     mountSupport({
       agent: fakeAgentAlwaysUnavailable("no_local_model"),
@@ -96,25 +100,34 @@ describe("states an assistive technology has to hear", () => {
     });
     const sheet = await openPanel(user);
 
-    expect(await within(sheet).findByText(/no on-device model/i)).toBeTruthy();
+    // No prose narrating why nothing can answer. The field's own name says
+    // what it does instead, and it stays usable: searching the written help
+    // needs no model.
+    expect(within(sheet).queryByText(/no on-device model/i)).toBeNull();
     const field = within(sheet).getByLabelText<HTMLInputElement>(
-      "Ask about this screen",
+      "Search the written help",
     );
-    // `disabled` is exposed to assistive technology. Prose above names why.
-    await waitFor(() => expect(field.disabled).toBe(true));
-    expect(field.getAttribute("placeholder")).toBe("Ask about this screen");
+    expect(field.disabled).toBe(false);
+    expect(field.getAttribute("placeholder")).toBe("Search the written help");
   });
 
-  it("raises a failure as an alert, in a sentence, with no code in it", async () => {
+  it("raises a failure as a notice, in a sentence, with no code in it", async () => {
     const user = userEvent.setup();
     mountSupport({ agent: fakeAgentFailing("AGENT_PROTOCOL_ERROR") });
     const sheet = await openPanel(user);
     await ask(user, "anything");
 
-    const alert = await within(sheet).findByRole("alert");
-    expect(alert.textContent).toContain("did not arrive in one piece");
-    expect(alert.textContent).not.toContain("AGENT_PROTOCOL_ERROR");
-    expect(alert.textContent).not.toContain("_");
+    // The sheet carries no alert of its own: a failure is a notice in the tray.
+    await waitFor(() =>
+      expect(
+        listNotices().find((n) => n.id === "support.failure"),
+      ).toBeTruthy(),
+    );
+    const body = listNotices().find((n) => n.id === "support.failure")?.body;
+    expect(body).toContain("did not arrive in one piece");
+    expect(body).not.toContain("AGENT_PROTOCOL_ERROR");
+    expect(body).not.toContain("_");
+    expect(within(sheet).queryByRole("alert")).toBeNull();
   });
 
   it("puts an answer into a named, polite live region", async () => {

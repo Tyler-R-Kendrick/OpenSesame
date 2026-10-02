@@ -22,6 +22,8 @@ export type MenuItem = {
    * arm-then-fire the detail pane's delete key uses.
    */
   confirm?: string;
+  /** Nested choices. Activating the row opens them beside it. */
+  submenu?: readonly MenuGroup[];
   run: () => void;
 };
 

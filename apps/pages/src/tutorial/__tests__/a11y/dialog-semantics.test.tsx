@@ -79,13 +79,10 @@ describe("support dialog semantics", () => {
     const sheet = await openPanel(user);
 
     const ask = within(sheet).getByLabelText("Ask about this screen");
-    const search = within(sheet).getByLabelText("Search questions");
     expect(ask.tagName).toBe("INPUT");
-    expect(search.tagName).toBe("INPUT");
-    // A placeholder is not a name: both fields keep a real <label> even where
+    // A placeholder is not a name: the field keeps a real <label> even where
     // the placeholder happens to repeat it.
     expect(ask.getAttribute("id")).toBeTruthy();
-    expect(search.getAttribute("id")).toBeTruthy();
   });
 
   it("names each region of the sheet so it can be navigated by landmark", async () => {

@@ -24,11 +24,10 @@ type FixtureItem = {
 };
 
 /** The vault the seams read, mutable so a case can empty or refill it. */
-export const vault: {
-  items: FixtureItem[];
-  folders: Array<{ id: string; name: string }>;
-  lock: ReturnType<typeof vi.fn>;
-} = { items: [], folders: [], lock: vi.fn() };
+const items: FixtureItem[] = [];
+const folders: { id: string; name: string }[] = [];
+const lock = vi.fn();
+export const vault = { items, folders, lock };
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 Object.assign(vaultHooksSeams, {
@@ -46,10 +45,6 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ lock: vault.lock }),
 });
 
-import { connectivityBarSeams } from "./ConnectivityBar.js";
-Object.assign(connectivityBarSeams, {
-  ConnectivityBar: () => <span data-testid="connectivity-bar" />,
-});
 import { notificationsBarSeams } from "./NotificationsBar.js";
 Object.assign(notificationsBarSeams, {
   NotificationsBar: () => <span data-testid="notifications-bar" />,

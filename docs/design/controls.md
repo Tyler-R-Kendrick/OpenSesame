@@ -19,6 +19,41 @@ box is rejected the same way: a failure is a `StatusMark`, never a paragraph.
 Pages copy never names a Host, and a browser-local action never tells the
 person to pair one.
 
+## 0. Explainer prose and in-page errors are both failures
+
+Two things a screen must not carry, because both are text about the screen
+rather than the thing the person came for:
+
+**Explainer prose.** A sentence that narrates what a panel is, why it is in the
+state it is in, or what the device can and cannot do. "This browser has no
+on-device model, and this deployment has no support endpoint configured." "No
+repositories returned." "Nothing has reported yet." The screen already shows
+its state — the rows, the fields, the `StatusMark`, the control that acts on
+it — and a sentence restating that state is a caption on a picture the person
+is already looking at. Where a state genuinely changes what the person can do,
+show the control that changes it (`Download the on-device model`) and name it
+as its own accessible name; the control is the explanation. Where it does not,
+say nothing.
+
+The one exception is a sentence that is itself the content: the answer support
+returns, the prose of a help topic, the `say` line a walkthrough speaks while
+it points at something. That is not explainer prose, it is the thing asked for.
+
+**In-page error boxes.** A `note--err` paragraph banner rendered inside a
+screen. A failure belongs on the object that failed — a `StatusMark` beside
+the row, the field, the receipt — or, where there is no such object on screen,
+a notice in the tray (`setStatusNotice`), which already carries every other
+page condition and survives the screen that produced it being navigated away
+from. An error box in the middle of a screen is explainer prose wearing an
+alert role: it interrupts the whole screen to narrate one failed thing, and it
+is gone the moment the person moves.
+
+`pnpm lint:design` holds both. Explainer sentences are matched by content in
+the connector panels; in-page error boxes are ratcheted per file in
+`tools/quality/design-note-baseline.json`, which only falls — a file that
+removes one lowers its recorded number in the same commit, and a new file is
+recorded at zero, so new code meets the budget outright.
+
 ## 1. The terminal commit — `.go`
 
 **The one action that ends the screen you are on.** Unlocking a vault. Sealing

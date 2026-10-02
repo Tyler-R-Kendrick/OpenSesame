@@ -1,12 +1,17 @@
 /**
- * The three vault records `VaultSection`'s suites build on — one login, one
- * note, one drop — each with every field the model requires and an override
+ * The vault records `VaultSection`'s suites build on — one login, one note, one
+ * secret, one drop — each with every field the model requires and an override
  * hook for the one a test cares about. Test support: never imported by the
  * app. Lifted out of `VaultSection.test.tsx` to keep that file inside the
  * module-size budget (ADR 0093).
  */
 
-import type { DropItem, LoginItem, NoteItem } from "@opensesame/vault-core";
+import type {
+  DropItem,
+  LoginItem,
+  NoteItem,
+  SecretItem,
+} from "@opensesame/vault-core";
 
 export function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   return {
@@ -41,6 +46,26 @@ export function makeNote(overrides: Partial<NoteItem> = {}): NoteItem {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     deletedAt: null,
+    ...overrides,
+  };
+}
+
+export function makeSecret(overrides: Partial<SecretItem> = {}): SecretItem {
+  return {
+    id: "itm_secret",
+    kind: "secret",
+    name: "Deploy token",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    fields: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    deletedAt: null,
+    value: "sk_live_not_a_real_token",
+    ceiling: [],
+    grantees: [],
+    connectionRef: "",
     ...overrides,
   };
 }

@@ -4,8 +4,8 @@ import {
 } from "@opensesame/app-core/lib/certs.js";
 import {
   acceptsDraftUsername,
+  isGeneratedDraftName,
   newItemDraft,
-  prefillNewDraft,
 } from "@opensesame/app-core/lib/vault/new-draft.js";
 import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { overlapCast } from "@opensesame/os-domain";
@@ -32,6 +32,7 @@ import { LoginFields } from "./LoginFields.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
 import { useEditorContributions } from "./item-contributions.js";
+import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -51,21 +52,10 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const { items, folders } = useVault();
   const store = useVaultStore();
   const existing = items.find((candidate) => candidate.id === itemId);
-  const initial = useMemo(() => {
-    if (mode === "edit") return { item: existing ?? null, error: null };
-    try {
-      return {
-        item: prefillNewDraft(kindParam ?? "login", search),
-        error: null,
-      };
-    } catch {
-      return {
-        item: newItemDraft(kindParam ?? "login"),
-        error:
-          "Link values were refused. Use public metadata parameters or supported field.<id> values; never put secrets in links.",
-      };
-    }
-  }, [mode, existing, kindParam, search]);
+  const initial = useMemo(
+    () => seedDraft(mode, existing, kindParam, search),
+    [mode, existing, kindParam, search],
+  );
 
   const [draft, setDraft] = useState<VaultItem | null>(initial.item);
   const [showGenerator, setShowGenerator] = useState(false);
@@ -116,12 +106,20 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   );
   const changeType = (
     typeId: string,
-    name = draft.name,
+    name?: string,
     folder: Folder | null = selectedFolder ?? null,
   ) => {
     path.stage(folder ?? undefined);
+    // A name the previous type generated belongs to that type, so it is
+    // replaced with this type's own; a name the person typed is theirs and
+    // travels with the draft.
+    const carried =
+      name ??
+      (isGeneratedDraftName(draft.name, itemTypeId(draft))
+        ? undefined
+        : draft.name);
     setDraft({
-      ...newItemDraft(typeId, name),
+      ...newItemDraft(typeId, carried),
       folderId: folder?.id ?? null,
       notes: draft.notes,
     });

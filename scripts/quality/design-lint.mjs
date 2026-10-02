@@ -18,9 +18,10 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkCopy } from "./design-lint-copy.mjs";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
 import { wordVerbHits } from "./design-lint-verbs.mjs";
-import { checkProse, checkStatusPills } from "./prose-lint.mjs";
+import { checkProse } from "./prose-lint.mjs";
 
 /**
  * `--root <dir>` re-points the lint at another tree. Only the contract test
@@ -174,40 +175,9 @@ function checkTsx(file, source) {
       );
     }
   }
-  checkExplainers(file, source);
+  checkCopy(root, file, source, report, lineOf);
   checkCommitKeys(file, source, report, lineOf);
   checkWordVerbs(file, source);
-  checkStatusPills(file, source, report, lineOf);
-}
-
-/** Captions that narrate a connector panel instead of showing the row. */
-const EXPLAINER =
-  /this app is installed|permissions it was granted|repositories it can reach|saved in this app|already saved in this app|no permissions recorded|no repositories returned|no github user or organization|loading github app access|mirrored as a revocable/i;
-
-function checkExplainers(file, source) {
-  const path = relative(root, file).replaceAll("\\", "/");
-  if (!path.includes("/sections/connections/")) return;
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const match of code.matchAll(
-    /<div className="panel__head">([\s\S]*?)<\/div>/g,
-  )) {
-    if (!match[1].includes("hint")) continue;
-    report(
-      file,
-      lineOf(source, match.index ?? 0),
-      "no-explainer",
-      "A panel head is a title. Do not add a caption that explains the section.",
-    );
-  }
-  for (const match of code.matchAll(/["'`]([^"'`\n]+)["'`]/g)) {
-    if (!EXPLAINER.test(match[1])) continue;
-    report(
-      file,
-      lineOf(source, match.index ?? 0),
-      "no-explainer",
-      "Explainer copy is a design smell. Show the account, grant, or repo. Do not describe the panel.",
-    );
-  }
 }
 
 const BUTTON_BASELINE = join(
@@ -226,9 +196,9 @@ function isCountRecord(value) {
   );
 }
 
-function readButtonBaseline() {
+function readCountBaseline(location) {
   try {
-    const parsed = JSON.parse(readFileSync(BUTTON_BASELINE, "utf8"));
+    const parsed = JSON.parse(readFileSync(location, "utf8"));
     if (!isCountRecord(parsed)) return {};
     return parsed;
   } catch {
@@ -236,7 +206,7 @@ function readButtonBaseline() {
   }
 }
 
-const buttonBaseline = readButtonBaseline();
+const buttonBaseline = readCountBaseline(BUTTON_BASELINE);
 
 function checkWordVerbs(file, source) {
   const path = relative(root, file).replaceAll("\\", "/");

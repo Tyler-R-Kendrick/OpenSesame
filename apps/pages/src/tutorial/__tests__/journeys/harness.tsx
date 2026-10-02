@@ -61,7 +61,6 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeAll } from "vitest";
 import { accountSwitcherSeams } from "../../../components/AccountSwitcher.js";
 import { AppShell } from "../../../components/AppShell.js";
-import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
 import { crumbsSeams } from "../../../components/Crumbs.js";
 import { notificationsBarSeams } from "../../../components/NotificationsBar.js";
 import { projectSwitcherSeams } from "../../../components/ProjectSwitcher.js";
@@ -114,9 +113,6 @@ Object.assign(vaultHooksSeams, {
     status: "unlocked",
   }),
   useVaultStore: () => ({ lock: pressLock }),
-});
-Object.assign(connectivityBarSeams, {
-  ConnectivityBar: () => <span>Host and Identity</span>,
 });
 Object.assign(notificationsBarSeams, {
   NotificationsBar: () => <span>Notices</span>,

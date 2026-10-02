@@ -22,7 +22,7 @@ export const KEYMAP_HELP_CORE = [
   ["y / u", "Copy secret or username"],
   ["e / x", "Edit or trash"],
   ["n / .", "New or favorite"],
-  ["s", "Share once"],
+  ["s", "Share"],
   ["qa … q  @a  @@", "Record or replay a macro"],
   ["Shift-F10 / Shift-Enter", "Actions for the focused row"],
 ] as const;

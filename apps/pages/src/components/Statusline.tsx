@@ -12,6 +12,7 @@ import "./statusline.css";
  * A model capability, when it is on, also reads a question. The support
  * sheet keeps its own composer.
  * Beside it, the keys half-typed and what may follow them (`PendingKeys`).
+ * Connection state is not a glyph on this row.
  */
 export function Statusline() {
   const notificationsRef = useGuideTarget<HTMLDivElement>(

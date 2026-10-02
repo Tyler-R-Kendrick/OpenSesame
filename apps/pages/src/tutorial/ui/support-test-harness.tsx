@@ -99,9 +99,19 @@ export async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   return { affordance, panel };
 }
 
-/** The composer, typed, so `disabled` can be read without a cast. */
+/**
+ * The composer field, typed so `disabled` can be read without a cast.
+ *
+ * Its accessible name is the verb it carries: "Ask about this screen" with a
+ * model ready, "Search the written help" with nothing to answer. One field,
+ * two verbs — a suite that wants it regardless asks for either.
+ */
 export function composer(): Promise<HTMLInputElement> {
-  return screen.findByLabelText<HTMLInputElement>("Ask about this screen");
+  return screen
+    .findByLabelText<HTMLInputElement>("Ask about this screen")
+    .catch(() =>
+      screen.findByLabelText<HTMLInputElement>("Search the written help"),
+    );
 }
 
 export async function ask(
