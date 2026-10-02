@@ -35,11 +35,13 @@ export type ItemKindRow = Readonly<{
 }>;
 
 /**
- * The kind the minimal vault ships. Contributed kinds fill the other orders
- * (logins 0, passkeys 20, cards 30, notes 60, certificates 70).
+ * The kinds the minimal vault ships: the base secret, and the file that
+ * projects onto it. Contributed kinds fill the other orders (logins 0,
+ * passkeys 20, cards 30, notes 60, certificates 70).
  */
 export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
   { id: "secret", segment: "secrets", label: "Secret", order: 40 },
+  { id: "file", segment: "files", label: "File", order: 45 },
 ];
 
 export function itemKindsFrom(
@@ -65,7 +67,7 @@ export function itemKindsFrom(
  * Built-in kinds a capability owns. A community type (ADR 0087) is not among
  * them: it is the core vault's own plugin mechanism and stays creatable.
  * Every built-in id is gated, including the typed projections onto secret,
- * so a minimal plan offers secret and nothing else.
+ * so a minimal plan offers the secret and the file.
  */
 const GATED_KINDS: ReadonlySet<string> = new Set([
   ...Object.keys(KIND_LABEL).filter((kind) => kind !== "typed"),

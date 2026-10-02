@@ -78,7 +78,11 @@ describe("AppShell on a core-only plan", () => {
     const filters = [
       ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
     ].map((a) => a.getAttribute("href"));
-    expect(filters).toEqual(["/vault?f=favorites", "/vault?f=secret"]);
+    expect(filters).toEqual([
+      "/vault?f=favorites",
+      "/vault?f=secret",
+      "/vault?f=file",
+    ]);
   });
 });
 

@@ -39,6 +39,9 @@ export const AT_REST_DATABASE = "opensesame-at-rest";
 /** Sealed retired-password digests when no backup is configured. */
 export const PASSWORD_HISTORY_DATABASE = "opensesame-password-history";
 
+/** Directory of encrypted file parts in origin private storage. */
+export const FILE_PARTS_DIRECTORY = "opensesame-pages-file-parts";
+
 /** Every IndexedDB database the app opens. */
 export const APP_DATABASES: readonly string[] = [
   HISTORY_BACKUP_DATABASE,

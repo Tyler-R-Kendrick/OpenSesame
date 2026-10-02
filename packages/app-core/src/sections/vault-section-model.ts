@@ -59,7 +59,7 @@ export function concealedValue(item: VaultItem): string | null {
   const field = definition.spec.sections
     .flatMap((section) => section.fields)
     .find((candidate) => candidate.id === secretField);
-  if (field === undefined) return null;
+  if (field === undefined || field.type === "blob") return null;
   const value = readItemField(item, field);
   return isString(value) && value !== "" ? value : null;
 }
