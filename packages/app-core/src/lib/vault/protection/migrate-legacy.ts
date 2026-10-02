@@ -14,6 +14,7 @@ import {
   type VaultUnlocks,
   listPasskeyUnlockRecords,
 } from "../unlock-methods.js";
+import { webauthnRpId } from "../webauthn-host.js";
 import { newProtectorId, newRootKeyId, newVaultId } from "./ids.js";
 
 export type LegacyMigrationInput = {
@@ -22,6 +23,12 @@ export type LegacyMigrationInput = {
   vaultId?: string;
   rootKeyId?: string;
   rootEpoch?: number;
+  /**
+   * RP id the legacy passkey wraps were enrolled under. Legacy records never
+   * stored one — pre-migration ceremonies always used this origin's hostname —
+   * so it defaults to the current ceremony origin.
+   */
+  passkeyRpId?: string;
 };
 
 export type LegacyMigrationResult = {
@@ -78,13 +85,14 @@ export function migrateLegacyHeaderToManifest(
   }
 
   const passkeys = listPasskeyUnlockRecords(header.unlocks);
+  const passkeyRpId = input.passkeyRpId ?? webauthnRpId();
   for (const passkey of passkeys) {
     records.push({
       kind: "webauthn-prf",
       protectorId: newProtectorId("webauthn-prf"),
       legacy: true,
       credentialIdB64: passkey.credentialIdB64,
-      rpId: "localhost",
+      rpId: passkeyRpId,
       saltB64: passkey.prfSaltB64,
       wrap: {
         ivB64: passkey.wrap.ivB64,

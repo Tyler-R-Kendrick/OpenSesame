@@ -17,6 +17,7 @@ export {
 
 export type {
   ApprovalOutcome,
+  ApproverRegistry,
   QuorumConfig,
   RecoveryApproval,
   RecoveryRequest,

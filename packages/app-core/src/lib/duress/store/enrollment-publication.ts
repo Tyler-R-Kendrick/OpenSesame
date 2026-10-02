@@ -8,11 +8,12 @@ import {
   EnrollmentManifestSchema,
 } from "@opensesame/contracts/duress";
 import {
+  COMPARTMENT_REGISTRY_KEY,
   type CompartmentRegistry,
+  clearCompartmentRegistry,
   publishCompartmentRegistry,
 } from "./compartment-registry.js";
 import {
-  type JournalWriteResult,
   clearJournal,
   readJournalPayload,
   recoverJournal,
@@ -108,8 +109,36 @@ export async function publishEnrollment(input: {
     input.manifest.policyId,
   );
 
-  const registryResult = await publishCompartmentRegistry(input.registry, {
+  const published = await commitEnrollmentJournals({
+    manifest: checked.data,
+    registry: input.registry,
     requireDurable: input.requireDurable ?? true,
+  });
+  if (!published.ok) return published;
+
+  return {
+    ok: true,
+    revision: published.revision,
+    wrapperWarnings,
+  };
+}
+
+async function commitEnrollmentJournals(input: {
+  manifest: EnrollmentManifest;
+  registry: CompartmentRegistry;
+  requireDurable: boolean;
+}): Promise<
+  { ok: true; revision: number } | { ok: false; code: string; message: string }
+> {
+  const priorRegistry = recoverJournal<CompartmentRegistry>(
+    COMPARTMENT_REGISTRY_KEY,
+  );
+  const priorManifestRevision =
+    recoverJournal<EnrollmentManifest>(ENROLLMENT_MANIFEST_KEY)?.revision ?? 0;
+
+  const registryResult = await publishCompartmentRegistry(input.registry, {
+    requireDurable: input.requireDurable,
+    expectedRevision: priorRegistry?.revision ?? 0,
   });
   if (!registryResult.ok) {
     return {
@@ -119,24 +148,43 @@ export async function publishEnrollment(input: {
     };
   }
 
-  const manifestResult: JournalWriteResult = await writeJournal(
+  const manifestResult = await writeJournal(
     ENROLLMENT_MANIFEST_KEY,
-    checked.data,
-    { requireDurable: input.requireDurable ?? true },
+    input.manifest,
+    {
+      requireDurable: input.requireDurable,
+      expectedRevision: priorManifestRevision,
+    },
   );
   if (!manifestResult.ok) {
+    await restoreCompartmentRegistry(
+      priorRegistry?.payload ?? null,
+      registryResult.revision,
+      input.requireDurable,
+    );
     return {
       ok: false,
       code: manifestResult.code,
       message: manifestResult.message,
     };
   }
+  return { ok: true, revision: manifestResult.revision };
+}
 
-  return {
-    ok: true,
-    revision: manifestResult.revision,
-    wrapperWarnings,
-  };
+/** Best-effort compensation when the manifest half of a publish fails. */
+async function restoreCompartmentRegistry(
+  prior: CompartmentRegistry | null,
+  publishedRevision: number,
+  requireDurable: boolean,
+): Promise<void> {
+  if (prior === null) {
+    clearCompartmentRegistry();
+    return;
+  }
+  await publishCompartmentRegistry(prior, {
+    requireDurable,
+    expectedRevision: publishedRevision,
+  }).catch(() => undefined);
 }
 
 export function recoverEnrollmentPublication(): EnrollmentManifest | null {

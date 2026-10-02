@@ -51,6 +51,9 @@ import {
   normaliseTotp,
   passwordRequired,
 } from "../types.js";
+import { KdbxImportError, cappedArgon2Impl } from "./kdbx-argon2.js";
+
+export { KdbxImportError };
 
 /** `0x9AA2D903 0xB54BFB67`, little-endian, at the head of every KDBX file. */
 const MAGIC = [0x03, 0xd9, 0xa2, 0x9a, 0x67, 0xfb, 0x4b, 0xb5];
@@ -67,13 +70,6 @@ const SEPARATOR_OR_CONTROL = /[/\\\p{Cc}]/u;
 
 const PASSKEY_PREFIX = "KPEX_PASSKEY_";
 const TIME_OTP_PREFIX = "TimeOtp-";
-
-export class KdbxImportError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "KdbxImportError";
-  }
-}
 
 export function hasKdbxMagic(bytes: Uint8Array | null): boolean {
   if (bytes === null || bytes.length < MAGIC.length) return false;
@@ -126,38 +122,7 @@ async function loadCodec(): Promise<KdbxwebModule> {
       })),
     ]);
     module.CryptoEngine.setArgon2Impl(
-      async (
-        password,
-        salt,
-        memory,
-        iterations,
-        length,
-        parallelism,
-        type,
-        version,
-      ) => {
-        if (version !== 0x13) {
-          throw new KdbxImportError(
-            "This database uses Argon2 version 1.0, which this importer cannot compute. Open it in KeePassXC and save it again to upgrade the key derivation.",
-          );
-        }
-        const argon2 =
-          type === module.CryptoEngine.Argon2TypeArgon2id
-            ? hashWasm.argon2id
-            : hashWasm.argon2d;
-        // kdbxweb has already converted the header's byte count to KiB, which
-        // is the unit hash-wasm takes.
-        const hash = await argon2({
-          password: new Uint8Array(password),
-          salt: new Uint8Array(salt),
-          parallelism,
-          iterations,
-          memorySize: memory,
-          hashLength: length,
-          outputType: "binary",
-        });
-        return new Uint8Array(hash).buffer;
-      },
+      cappedArgon2Impl(hashWasm, module.CryptoEngine.Argon2TypeArgon2id),
     );
     return module;
   })();
@@ -386,9 +351,13 @@ export const keepassKdbx: BinaryImportAdapter = {
     let attachments = 0;
     let passkeys = 0;
 
-    const walk = (node: KdbxGroup, path: string[]): void => {
-      if (recycleBin !== null && node.uuid?.id === recycleBin) {
-        for (const entry of node.entries) {
+    const walk = (node: KdbxGroup, path: string[], trashed: boolean): void => {
+      const inBin =
+        trashed || (recycleBin !== null && node.uuid?.id === recycleBin);
+      const folder = path.join("/");
+
+      for (const entry of node.entries) {
+        if (inBin) {
           const title = entry.fields.get("Title");
           skipped.push({
             name:
@@ -397,12 +366,8 @@ export const keepassKdbx: BinaryImportAdapter = {
                 : (title ?? "Untitled"),
             reason: "In the database's recycle bin.",
           });
+          continue;
         }
-        return;
-      }
-      const folder = path.join("/");
-
-      for (const entry of node.entries) {
         const fields = readFields(entry.fields, isProtected);
         const title = sanitiseSegment(fields.get("Title")?.text ?? "");
         const name = uniqueName(taken, folder, title);
@@ -423,13 +388,13 @@ export const keepassKdbx: BinaryImportAdapter = {
       }
 
       for (const child of node.groups) {
-        walk(child, [...path, sanitiseSegment(child.name ?? "")]);
+        walk(child, [...path, sanitiseSegment(child.name ?? "")], inBin);
       }
     };
 
     // The top-level group is the database itself, so it contributes no folder.
     for (const root of db.groups) {
-      walk(root, []);
+      walk(root, [], false);
     }
 
     if (attachments > 0) {

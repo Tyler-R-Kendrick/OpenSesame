@@ -13,11 +13,14 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { VfsError, readFile, writeFile } from "./vfs.js";
+import { lockManager } from "../ports.js";
+import { kvDurability, kvRefresh } from "./kv.js";
+import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 export const ACTIVITY_LOG_PATH = "config/activity-log";
 
 const MAX_EVENTS = 500;
+const MAX_LOG_BYTES = 1_048_576;
 
 export const ACTIVITY_CATEGORIES = [
   "settings",
@@ -136,6 +139,33 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
+const chains = new Map<string, Promise<unknown>>();
+
+function withActivityLogLock<T>(
+  tomb: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  const name = `opensesame:activity-log:${tomb}`;
+  const run = (chains.get(name) ?? Promise.resolve()).then(async () => {
+    const key = tombFileKey(tomb, ACTIVITY_LOG_PATH);
+    const locks = lockManager();
+    if (locks)
+      return locks.request(name, async () => {
+        await kvRefresh(key, MAX_LOG_BYTES);
+        return action();
+      });
+    await kvRefresh(key, MAX_LOG_BYTES);
+    if (kvDurability() === "persistent")
+      throw new Error("Web Locks are required for shared activity writes.");
+    return action();
+  });
+  chains.set(
+    name,
+    run.catch(() => undefined),
+  );
+  return run;
+}
+
 export function subscribeActivity(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
@@ -185,13 +215,18 @@ export async function recordActivityEvent(
     targetId: input.targetId ?? null,
     metadata,
   };
-  const current = await readAll(tomb);
-  // A burst of the same event (an invalidation fired once per store it
-  // touched, a ledger written on every render) is one line, not fifteen.
-  if (repeats(current[0], event)) return current;
-  const next = [event, ...current].slice(0, MAX_EVENTS);
-  await writeAll(tomb, next);
-  notify();
+  let wrote = false;
+  const next = await withActivityLogLock(tomb, async () => {
+    const current = await readAll(tomb);
+    // A burst of the same event (an invalidation fired once per store it
+    // touched, a ledger written on every render) is one line, not fifteen.
+    if (repeats(current[0], event)) return current;
+    const merged = [event, ...current].slice(0, MAX_EVENTS);
+    await writeAll(tomb, merged);
+    wrote = true;
+    return merged;
+  });
+  if (wrote) notify();
   return next;
 }
 

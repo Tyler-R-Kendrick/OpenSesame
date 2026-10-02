@@ -89,12 +89,14 @@ export function ApplicationRecipePanel(props: {
               tomb: props.tomb,
               revision,
               fallback: recipe,
-            }).then((applied) => {
-              setResult(applied.message);
-              if (applied.revision === undefined) return;
-              setRevision(applied.revision);
-              props.onApplied?.();
-            });
+            })
+              .then((applied) => {
+                setResult(applied.message);
+                if (applied.revision === undefined) return;
+                setRevision(applied.revision);
+                props.onApplied?.();
+              })
+              .catch(() => setResult("Recipe failed to apply."));
           }}
         />
         {result ? <p className="hint">{result}</p> : null}

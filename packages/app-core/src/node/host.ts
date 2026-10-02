@@ -4,6 +4,7 @@
  * as the process. There is no page, no authenticator, no worker and no
  * service worker, so anything that needs one fails closed.
  */
+import { lookup } from "node:dns/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Host, RuntimeEnv } from "../host.js";
@@ -24,6 +25,11 @@ export function defaultStateDir(): string {
   );
 }
 
+async function lookupPeerHost(hostname: string): Promise<readonly string[]> {
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  return records.map((record) => record.address);
+}
+
 export function createNodeHost(options: NodeHostOptions = {}): Host {
   const stateDir = options.stateDir ?? defaultStateDir();
   return {
@@ -40,5 +46,6 @@ export function createNodeHost(options: NodeHostOptions = {}): Host {
       userActivated: false,
       workers: { dedicated: false, shared: false, service: false },
     },
+    peerDns: { lookup: lookupPeerHost },
   };
 }

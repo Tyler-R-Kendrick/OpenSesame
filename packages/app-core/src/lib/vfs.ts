@@ -412,16 +412,16 @@ export async function listDir(tomb: string, prefix: string): Promise<string[]> {
     .sort();
 }
 
-/**
- * Remove a file and its index entry. Deleting the plaintext header needs no
- * key; anything sealed does (the index must be updated).
- */
+/** Remove a sealed file and its index entry. Locked ciphertext stays. */
 export async function deleteFile(tomb: string, path: string): Promise<void> {
   assertSealedPath(path);
   await enqueueTombWrite(tomb, async () => {
-    await vfsSeams.deleteRaw(tombFileKey(tomb, path));
+    const storageKey = tombFileKey(tomb, path);
     const key = tombKeys.get(tomb);
-    if (key) await reviseIndex(tomb, key, path, false);
+    if (!key && vfsSeams.readRaw(storageKey) !== null) requireTombKey(tomb);
+    if (!key) return;
+    await vfsSeams.deleteRaw(storageKey);
+    await reviseIndex(tomb, key, path, false);
   });
 }
 

@@ -228,7 +228,9 @@ export function ownerRepoFromRemote(remote: string): {
     .trim()
     .replace(/\.git$/u, "")
     .replace(/\/$/u, "");
-  const https = trimmed.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)$/iu);
+  const https = trimmed.match(
+    /^https:\/\/github\.com\/([^/\s?#]+)\/([^/\s?#]+)$/iu,
+  );
   if (https?.[1] && https[2]) {
     return { owner: https[1], repo: https[2] };
   }

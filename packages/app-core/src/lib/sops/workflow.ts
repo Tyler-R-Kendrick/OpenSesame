@@ -95,15 +95,22 @@ export class SopsWorkflow {
     if (this.#handle) this.#session.runner.dispose(this.#handle);
     this.#handle = null;
     this.#source = "";
+    this.#documentGeneration = this.#session.nextDocument();
     this.#state = EMPTY;
     for (const listener of this.#listeners) listener();
+  }
+
+  /** True while work started under `generation` still names the live document. */
+  #isCurrent(generation: number): boolean {
+    return generation === this.#documentGeneration;
   }
 
   /** Bounded, inert inspection of a file the person selected. */
   async selectDocument(fileName: string, text: string): Promise<void> {
     this.close();
     const format = detectFormat(fileName, text);
-    this.#documentGeneration = this.#session.nextDocument();
+    const generation = this.#session.nextDocument();
+    this.#documentGeneration = generation;
     this.#source = text;
     this.#set({
       phase: "inspected",
@@ -115,8 +122,10 @@ export class SopsWorkflow {
     });
     try {
       const inspection = await this.#session.runner.inspect(text, format);
+      if (!this.#isCurrent(generation)) return;
       this.#set({ inspection, busy: false });
     } catch (caught) {
+      if (!this.#isCurrent(generation)) return;
       this.#fail(caught);
     }
   }
@@ -133,6 +142,7 @@ export class SopsWorkflow {
     vaultScope: string | null,
   ): Promise<void> {
     if (this.#state.phase === "empty") return;
+    const generation = this.#documentGeneration;
     this.#set({ busy: true, failure: null });
     try {
       const result = await this.#session.runner.open(
@@ -141,6 +151,10 @@ export class SopsWorkflow {
         identities,
         this.#permit(vaultScope),
       );
+      if (!this.#isCurrent(generation)) {
+        this.#session.runner.dispose(result.handle);
+        return;
+      }
       this.#handle = result.handle;
       this.#set({
         phase: "open",
@@ -152,6 +166,7 @@ export class SopsWorkflow {
         inspection: result.inspection,
       });
     } catch (caught) {
+      if (!this.#isCurrent(generation)) return;
       this.#fail(caught);
     }
   }
@@ -165,6 +180,7 @@ export class SopsWorkflow {
   async saveEncrypted(vaultScope: string | null): Promise<string | null> {
     const handle = this.#handle;
     if (!handle || this.#state.phase !== "open") return null;
+    const generation = this.#documentGeneration;
     this.#set({ busy: true, failure: null });
     try {
       const output = await this.#session.runner.saveEdited(
@@ -172,9 +188,11 @@ export class SopsWorkflow {
         this.#state.edited,
         this.#permit(vaultScope),
       );
+      if (!this.#isCurrent(generation)) return null;
       this.#set({ busy: false, plaintext: this.#state.edited, dirty: false });
       return output;
     } catch (caught) {
+      if (!this.#isCurrent(generation)) return null;
       this.#fail(caught);
       return null;
     }
@@ -194,6 +212,7 @@ export class SopsWorkflow {
     plan: EncryptionPlan,
     vaultScope: string | null,
   ): Promise<string | null> {
+    const generation = this.#documentGeneration;
     this.#set({ busy: true, failure: null });
     try {
       const digest = await planDigest(plan);
@@ -202,9 +221,11 @@ export class SopsWorkflow {
         plan,
         this.#permit(vaultScope, digest),
       );
+      if (!this.#isCurrent(generation)) return output;
       this.#set({ busy: false });
       return output;
     } catch (caught) {
+      if (!this.#isCurrent(generation)) return null;
       this.#fail(caught);
       return null;
     }
@@ -217,6 +238,7 @@ export class SopsWorkflow {
   ): Promise<string | null> {
     const handle = this.#handle;
     if (!handle || this.#state.phase !== "open") return null;
+    const generation = this.#documentGeneration;
     this.#set({ busy: true, failure: null });
     try {
       const digest = await planDigest(plan);
@@ -226,9 +248,11 @@ export class SopsWorkflow {
         plan,
         this.#permit(vaultScope, digest),
       );
+      if (!this.#isCurrent(generation)) return null;
       this.#set({ busy: false, plaintext: this.#state.edited, dirty: false });
       return output;
     } catch (caught) {
+      if (!this.#isCurrent(generation)) return null;
       this.#fail(caught);
       return null;
     }

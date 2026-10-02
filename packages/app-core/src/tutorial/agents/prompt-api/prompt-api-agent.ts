@@ -31,7 +31,7 @@ import {
 } from "./detect.js";
 import {
   obtainLocalModelSession,
-  releaseLocalModelSession,
+  releaseLocalModelSessionIfCurrent,
 } from "./shared-session.js";
 
 export {
@@ -333,12 +333,15 @@ export function createPromptApiSupportAgent(
       const sanitized = sanitizeSupportRequest(request);
       const instructions = buildSupportInstructions(sanitized.context);
       const text = renderTurn(sanitized);
+      const session = await useSession(api, instructions, runOptions.signal);
       try {
-        return await ask(api, instructions, text, runOptions.signal);
+        return toTurn(await promptOnce(session, text, runOptions.signal));
       } catch (cause) {
         rethrowAbort(cause);
         if (!isContextExhausted(cause)) throw protocolError(cause);
-        releaseLocalModelSession();
+        // Release only if the shared session is still the one this run used.
+        // Another caller may have replaced it while this prompt was failing.
+        releaseLocalModelSessionIfCurrent(session);
         try {
           return await ask(api, instructions, text, runOptions.signal);
         } catch (retryCause) {

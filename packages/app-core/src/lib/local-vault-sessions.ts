@@ -270,10 +270,28 @@ export async function startVaultSession(
     expiresAt: startedAt + session.durationSeconds * 1000,
     issuedShareIds: [],
   };
-  const issued = await issueSessionGrants(tomb, session);
-  session = { ...session, issuedShareIds: issued };
-  current[index] = session;
-  await writeAll(tomb, current);
+  try {
+    const issued = await issueSessionGrants(tomb, session);
+    session = { ...session, issuedShareIds: issued };
+    current[index] = session;
+    await writeAll(tomb, current);
+  } catch (error) {
+    await revokeSharesForSession(tomb, session.id, {
+      bypassAccessCheck: true,
+    });
+    const previous = current[index];
+    if (previous?.status === "running") {
+      current[index] = {
+        ...previous,
+        status: "stopped",
+        startedAt: null,
+        expiresAt: null,
+        issuedShareIds: [],
+      };
+      await writeAll(tomb, current);
+    }
+    throw error;
+  }
   return session;
 }
 

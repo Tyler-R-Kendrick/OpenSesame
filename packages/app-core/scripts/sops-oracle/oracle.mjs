@@ -218,6 +218,13 @@ export function runTreedump(bin, format, input, inputName = "doc.yaml") {
       timeout: 20_000,
       maxBuffer: 16 * 1024 * 1024,
     });
+    if (result.error || result.status !== 0) {
+      const timedOut = result.error?.code === "ETIMEDOUT";
+      const stderr = (result.stderr ?? "").slice(0, 4000);
+      throw new Error(
+        `treedump failed (status: ${result.status}, timedOut: ${timedOut}): ${stderr}`,
+      );
+    }
     return JSON.parse(result.stdout);
   } finally {
     rmSync(work, { recursive: true, force: true });

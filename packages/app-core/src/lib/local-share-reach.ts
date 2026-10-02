@@ -19,11 +19,9 @@ export const shareReachSeams = {
 };
 
 function principalsToMatch(explicit?: string): string[] {
-  const out = new Set<string>();
-  if (explicit) out.add(explicit);
+  if (explicit) return [explicit];
   const session = shareReachSeams.currentSession();
-  if (session?.principalId) out.add(session.principalId);
-  return [...out];
+  return session?.principalId ? [session.principalId] : [];
 }
 
 function policyCovers(policy: string, wanted: ShareReachRole): boolean {
@@ -44,7 +42,8 @@ export async function shareAllows(
   principalId?: string,
 ): Promise<boolean> {
   const role: AccessRole = await shareReachSeams.resolveCurrentAccessRole(tomb);
-  if (shareReachSeams.canAccess(role, "manage_grants")) return true;
+  if (!principalId && shareReachSeams.canAccess(role, "manage_grants"))
+    return true;
 
   const principals = principalsToMatch(principalId);
   if (principals.length === 0) return false;

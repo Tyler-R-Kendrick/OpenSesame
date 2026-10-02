@@ -1,6 +1,7 @@
 import {
   type BoundaryValue,
   type JsonObject,
+  type JsonValue,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -41,10 +42,17 @@ const STRIP = new Set([
 ]);
 
 function isAuthorityKey(key: string): boolean {
+  const lower = key.toLowerCase();
   return (
     STRIP.has(key) ||
-    key.toLowerCase().includes("secret") ||
-    key.toLowerCase().includes("password")
+    lower.includes("secret") ||
+    lower.includes("password") ||
+    lower.includes("token") ||
+    lower.includes("apikey") ||
+    lower.includes("api_key") ||
+    lower.includes("privatekey") ||
+    lower.includes("private_key") ||
+    lower.includes("credential")
   );
 }
 
@@ -53,20 +61,35 @@ function containsAuthority(body: JsonObject): boolean {
     if (isAuthorityKey(key)) return true;
     if (isJsonObject(value)) {
       if (containsAuthority(value)) return true;
+    } else if (Array.isArray(value) && arrayContainsAuthority(value)) {
+      return true;
     }
   }
   return false;
+}
+
+function arrayContainsAuthority(values: readonly JsonValue[]): boolean {
+  for (const item of values) {
+    if (isJsonObject(item)) {
+      if (containsAuthority(item)) return true;
+    } else if (Array.isArray(item) && arrayContainsAuthority(item)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function allowlistedValue(value: JsonValue): JsonValue {
+  if (isJsonObject(value)) return allowlisted(value);
+  if (Array.isArray(value)) return value.map(allowlistedValue);
+  return value;
 }
 
 function allowlisted(body: JsonObject): JsonObject {
   const next: JsonObject = {};
   for (const [key, value] of Object.entries(body)) {
     if (isAuthorityKey(key)) continue;
-    if (isJsonObject(value)) {
-      next[key] = allowlisted(value);
-    } else {
-      next[key] = value;
-    }
+    next[key] = value === undefined ? value : allowlistedValue(value);
   }
   return next;
 }
@@ -100,12 +123,30 @@ export function previewRecipe(manifest: RecipeManifest): RecipePreview {
   };
 }
 
+function isRecipeManifestShape(manifest: RecipeManifest): boolean {
+  return (
+    Array.isArray(manifest.requiredInputs) &&
+    manifest.requiredInputs.every(isString) &&
+    Array.isArray(manifest.resources) &&
+    manifest.resources.every(
+      (resource) =>
+        isJsonObject(resource) &&
+        isString(resource.kind) &&
+        isString(resource.logicalId) &&
+        isJsonObject(resource.body),
+    )
+  );
+}
+
 export function importRecipe(
   manifest: RecipeManifest,
   bindings: Record<string, string>,
 ): { ok: true; bound: RecipeManifest } | { ok: false; message: string } {
   if (manifest.schema !== "opensesame.recipe.v1") {
     return { ok: false, message: "Unsupported recipe schema." };
+  }
+  if (!isRecipeManifestShape(manifest)) {
+    return { ok: false, message: "Malformed recipe manifest." };
   }
   for (const required of manifest.requiredInputs) {
     if (!bindings[required]) {
@@ -159,12 +200,27 @@ export async function applyBoundRecipe(
         message: `Recipe resource ${resource.logicalId} is missing redirectUris or scopes.`,
       };
     }
-    await port.applyLocalApplication({
-      logicalId: resource.logicalId,
-      organizationId,
-      redirectUris,
-      scopes,
-    });
+    try {
+      await port.applyLocalApplication({
+        logicalId: resource.logicalId,
+        organizationId,
+        redirectUris,
+        scopes,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "LocalDirectoryError") {
+        throw error;
+      }
+      const detail = error instanceof Error ? `: ${error.message}` : "";
+      const partial =
+        applied.length > 0
+          ? ` Partial application: ${applied.join(", ")} already applied.`
+          : "";
+      return {
+        ok: false,
+        message: `Recipe resource ${resource.logicalId} failed to apply${detail}.${partial}`,
+      };
+    }
     applied.push(resource.logicalId);
   }
   return { ok: true, applied };

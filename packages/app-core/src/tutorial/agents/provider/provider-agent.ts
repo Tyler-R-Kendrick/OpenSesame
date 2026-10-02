@@ -144,7 +144,7 @@ export function createProviderSupportAgent(
   );
   if (record === null) return null;
   const fetchImpl = options.fetch ?? fetch.bind(globalThis);
-  let active: AbortController | null = null;
+  const controllers = new Set<AbortController>();
 
   return {
     async availability(): Promise<SupportAgentAvailability> {
@@ -171,7 +171,7 @@ export function createProviderSupportAgent(
       ] as const satisfies readonly ChatMessage[];
 
       const controller = new AbortController();
-      active = controller;
+      controllers.add(controller);
       const forward = (): void => controller.abort();
       if (runOptions.signal.aborted) controller.abort();
       else runOptions.signal.addEventListener("abort", forward, { once: true });
@@ -186,6 +186,7 @@ export function createProviderSupportAgent(
           body: chatBody(record, messages, route.usesChatCompletions),
           signal: controller.signal,
           credentials: "omit",
+          redirect: "error",
         });
         if (!response.ok) {
           throw new SupportError(
@@ -209,13 +210,13 @@ export function createProviderSupportAgent(
         );
       } finally {
         runOptions.signal.removeEventListener("abort", forward);
-        if (active === controller) active = null;
+        controllers.delete(controller);
       }
     },
 
     destroy(): void {
-      active?.abort();
-      active = null;
+      for (const controller of controllers) controller.abort();
+      controllers.clear();
     },
   };
 }

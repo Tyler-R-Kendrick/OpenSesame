@@ -132,6 +132,22 @@ describe("item types as files", () => {
     ).toBe(true);
   });
 
+  it("never resolves a prototype name through the object chain", async () => {
+    expect(await files().read(`${BUILTIN_DIR}/constructor.json`)).toBe("");
+    expect(await files().read(`${BUILTIN_DIR}/toString.json`)).toBe("");
+    expect(await files().read(`${BUILTIN_DIR}/__proto__.json`)).toBe("");
+    expect(await files().read(installedPath("valueOf"))).toBe("");
+  });
+
+  it("installs a type whose id collides with a prototype name", async () => {
+    const text = manifest("constructor");
+    expect(await files().write(NEW_TYPE_PATH, text)).toEqual({
+      ok: true,
+      path: installedPath("constructor"),
+    });
+    expect(await files().read(installedPath("constructor"))).toBe(text);
+  });
+
   it("reports a removal that removed nothing", async () => {
     expect(await files().remove(installedPath("absent"))).toEqual({
       ok: false,

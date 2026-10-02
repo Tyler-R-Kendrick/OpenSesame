@@ -153,6 +153,7 @@ export async function openPrfAndCode(input: {
   envelope: PrfAndCodeEnvelope;
 }): Promise<Uint8Array | null> {
   if (!input.prfOutput || !input.code) return null;
+  if (input.envelope.version !== 1) return null;
   if (input.prfOutput.length < 32) return null;
   assertDuressKdfParams({
     iterations: input.envelope.iterations,

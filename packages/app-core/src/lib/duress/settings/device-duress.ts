@@ -118,6 +118,7 @@ export async function enableDuressCode(input: {
       presentation: PRESENTATION[input.outcome],
       previous: loadEnrollmentStateForUnlock(),
       ownerConsent: true,
+      capabilities: { durableLocalStorage: true, offlineReady: true },
     });
     const armed = await armPersistedUnlockEnrollment(sealed, {
       requireDurable: input.requireDurable ?? true,

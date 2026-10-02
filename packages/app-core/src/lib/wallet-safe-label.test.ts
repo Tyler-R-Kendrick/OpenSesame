@@ -22,4 +22,19 @@ describe("safeMerchantLabel (WAL-B06)", () => {
     expect(safeMerchantLabel("   ")).toBe("(unnamed merchant)");
     expect(safeMerchantLabel("\u202E\u202C")).toBe("(unnamed merchant)");
   });
+
+  it("truncates by code point — no lone surrogate from astral chars", () => {
+    const label = `${"😀".repeat(80)} padded past the limit with plain text`;
+    const safe = safeMerchantLabel(label, 40);
+    expect(safe.endsWith("…")).toBe(true);
+    expect(safe).not.toMatch(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u,
+    );
+  });
+
+  it("strips ALM, deprecated format marks, and C1 controls", () => {
+    expect(safeMerchantLabel("Cafe\u061C")).toBe("Cafe");
+    expect(safeMerchantLabel("Cafe\u206A\u206F")).toBe("Cafe");
+    expect(safeMerchantLabel("Cafe\u0085Pay")).toBe("CafePay");
+  });
 });

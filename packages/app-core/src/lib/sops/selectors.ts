@@ -30,7 +30,12 @@ export const DEFAULT_POLICY: SopsPolicy = {
   macOnlyEncrypted: false,
 };
 
+const CACHE_LIMIT = 512;
 const cache = new Map<string, CompiledRe2>();
+
+export function compiledRe2CacheSizeForTests(): number {
+  return cache.size;
+}
 
 /** Compile a selector pattern or refuse it. Cached per pattern. */
 export function compileRe2(pattern: string): CompiledRe2 {
@@ -43,6 +48,10 @@ export function compileRe2(pattern: string): CompiledRe2 {
     );
   }
   const compiled = compile(pattern);
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   cache.set(pattern, compiled);
   return compiled;
 }

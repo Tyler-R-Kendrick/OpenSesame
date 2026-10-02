@@ -296,6 +296,35 @@ describe("what a KeePass database becomes", () => {
     expect(await parse(bytes)).toMatchSnapshot();
   }, 60_000);
 
+  it("reports entries nested in the recycle bin's subgroups as skipped", async () => {
+    const bytes = await build({
+      name: "Snapshot",
+      groups: [
+        {
+          name: "Recycle Bin",
+          recycleBin: true,
+          entries: [{ fields: [["Title", "Directly deleted"]] }],
+          groups: [
+            {
+              name: "Old folder",
+              entries: [
+                { fields: [["Title", "Deleted with its folder"]] },
+                { fields: [["Title", "Also deleted"]] },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const result = await parse(bytes);
+    expect(result.items).toEqual([]);
+    expect(result.skipped).toEqual(
+      ["Directly deleted", "Deleted with its folder", "Also deleted"].map(
+        (name) => ({ name, reason: "In the database's recycle bin." }),
+      ),
+    );
+  }, 60_000);
+
   it("maps a KeePassXC passkey and reports what it left behind", async () => {
     const bytes = await build({
       name: "Snapshot",

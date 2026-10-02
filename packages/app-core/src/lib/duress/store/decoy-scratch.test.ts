@@ -47,6 +47,8 @@ async function armDecoyTrigger(): Promise<void> {
     deviceBindingRef: "device-1",
     presentation: "decoy",
     opensOrdinaryUnlock: async () => false,
+    ownerConsent: true,
+    capabilities: { durableLocalStorage: true, offlineReady: true },
   });
   const armed = await armPersistedUnlockEnrollment(sealed, {
     requireDurable: false,

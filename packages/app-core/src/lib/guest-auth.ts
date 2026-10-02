@@ -22,7 +22,7 @@ import {
   isRemoteIdentityConfigured,
 } from "./identity.js";
 import {
-  mintGuestSessionPerson,
+  mintGuestSessionPersonLocked,
   readGuestSessionPerson,
 } from "./local-guest.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
@@ -174,9 +174,9 @@ async function seedGuestAccess(): Promise<void> {
 async function openGuestVault(mode: "fresh" | "resume"): Promise<void> {
   // Both guest roads end here, so the operator's switch is enforced here too.
   assertGuestsAllowed();
-  // A fresh guest always mints a new principal (`guest-N`); a resume mints
-  // one only when no principal survived the lock.
-  if (mode === "fresh" || !readGuestSessionPerson()) mintGuestSessionPerson();
+  // Fresh mints a new principal (`guest-N`); resume only when none survived.
+  if (mode === "fresh" || !readGuestSessionPerson())
+    await mintGuestSessionPersonLocked();
   await guestAuthDependencies.createGuest({ resume: mode === "resume" });
   await seedGuestAccess();
 }

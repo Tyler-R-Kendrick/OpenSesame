@@ -288,4 +288,42 @@ describe("idp registry through the VFS seam", () => {
     expect(listIdpRegistrations()).toEqual(withDevice());
     expect(ceremonyDismissed()).toBe(false);
   });
+
+  it("never clobbers the sealed registry when a write lands mid-hydrate", async () => {
+    useVfsBackedSeams();
+    await unlockedPersonalTomb();
+    await hydrateIdpRegistryFromVfs(PERSONAL_TOMB);
+    registerIdp(makeRecord());
+    await vfsFlush();
+
+    // The vault-switch carry window: the tomb key stays in memory while the
+    // registry cache is discarded and re-hydrated. A registration landing
+    // before the sealed read resolves sees the locked empty posture.
+    discardIdpRegistry();
+    const hydrate = hydrateIdpRegistryFromVfs(PERSONAL_TOMB);
+    registerIdp(makeRecord({ id: "okta", label: "Okta", kind: "byo" }));
+    await hydrate;
+    await vfsFlush();
+
+    discardIdpRegistry();
+    await hydrateIdpRegistryFromVfs(PERSONAL_TOMB);
+    expect(listIdpRegistrations()).toEqual(withDevice(makeRecord()));
+  });
+
+  it("refuses a registration while locked, for cache and disk alike", async () => {
+    useVfsBackedSeams();
+    await unlockedPersonalTomb();
+    await hydrateIdpRegistryFromVfs(PERSONAL_TOMB);
+    registerIdp(makeRecord());
+    await vfsFlush();
+
+    discardIdpRegistry();
+    registerIdp(makeRecord({ id: "okta", label: "Okta", kind: "byo" }));
+    await vfsFlush();
+    expect(listIdpRegistrations()).toEqual(withDevice());
+
+    discardIdpRegistry();
+    await hydrateIdpRegistryFromVfs(PERSONAL_TOMB);
+    expect(listIdpRegistrations()).toEqual(withDevice(makeRecord()));
+  });
 });

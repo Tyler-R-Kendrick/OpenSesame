@@ -112,6 +112,26 @@ describe("browser-local backup target", () => {
     expect(branchForEnvironment("development")).toBe("env/development");
   });
 
+  it("rejects remotes with query, fragment, or whitespace", () => {
+    expect(ownerRepoFromRemote("https://github.com/acme/repo")).toEqual({
+      owner: "acme",
+      repo: "repo",
+    });
+    expect(ownerRepoFromRemote("https://github.com/acme/repo.git")).toEqual({
+      owner: "acme",
+      repo: "repo",
+    });
+    expect(
+      ownerRepoFromRemote("https://github.com/acme/repo?tab=readme"),
+    ).toBeNull();
+    expect(
+      ownerRepoFromRemote("https://github.com/acme/repo#readme"),
+    ).toBeNull();
+    expect(ownerRepoFromRemote("https://github.com/acme/re po")).toBeNull();
+    expect(ownerRepoFromRemote("https://github.com/ac me/repo")).toBeNull();
+    expect(branchForEnvironment("development")).toBe("env/development");
+  });
+
   it("lists only active GitHub connections for recoverability", () => {
     expect(
       filterGithubBackupConnections([

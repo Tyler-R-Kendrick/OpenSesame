@@ -109,4 +109,23 @@ describe("Vercel Connect session handoff", () => {
     expect(pendingVercelConnectAuth()).toBeNull();
     expect(vercelConnectConfigured()).toBe(true);
   });
+
+  it("never stages an ephemeral arm for a later seal", async () => {
+    const write = vi.spyOn(vfs, "writeFile").mockResolvedValue(undefined);
+    vi.spyOn(vfs, "readFile").mockRejectedValue(
+      new vfs.VfsError("not-found", "config/vercel-connect-auth"),
+    );
+
+    await armVercelConnectAuth({ token: "guest_token" }, tomb, {
+      ephemeral: true,
+    });
+    expect(vercelConnectConfigured()).toBe(true);
+    expect(pendingVercelConnectAuth()).toBeNull();
+    expect(write).not.toHaveBeenCalled();
+
+    // A later non-ephemeral unlock must not seal the guest-staged credential.
+    await expect(hydrateVercelConnectAuth(tomb)).resolves.toBe(false);
+    expect(write).not.toHaveBeenCalled();
+    expect(vercelConnectConfigured()).toBe(false);
+  });
 });

@@ -168,23 +168,26 @@ describe("PEER-F sender bound fetch", () => {
     );
 
     const fetchMock = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          schemaVersion: 1,
+      const receipt = await signPeerReceipt(
+        {
           requestNonce: env.nonce,
           recipientDeviceBinding: "d",
           status: "accepted",
           at: new Date().toISOString(),
-          signatureB64: "x",
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
+        },
+        kp.privateKey,
       );
+      return new Response(JSON.stringify(receipt), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await sendPeerEnvelope(env, {
       registeredOrigin: "http://127.0.0.1:8787",
       audience: "recv",
+      recipientPublicKey: kp.publicKey,
     });
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();

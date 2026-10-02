@@ -113,7 +113,10 @@ export async function admitSensitiveOperation(
   operation: OperationId,
   lease: ActivationLease,
 ): Promise<void> {
-  const decision = await admitOperation(operation, lease);
+  const outcome = await admitOperation(operation, lease, () => {
+    assertCurrentOperationAuthority(operation, lease);
+  });
+  const decision = outcome.decision;
   if (decision.reason !== "current" || !decision.admitted) {
     const code =
       decision.reason === "current"

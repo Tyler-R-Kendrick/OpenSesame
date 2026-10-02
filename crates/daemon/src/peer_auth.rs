@@ -1,9 +1,10 @@
 //! Peer-credential attestation for daemon UDS callers (ADR 0048 §8, D5).
 //!
-//! Over the Unix socket the kernel attests the caller, so operator routes
-//! authenticate with [`opensesame_uds_authn`] instead of the operator bearer
-//! token — identity from the platform, not from a presented secret. Over TCP
-//! nothing changes: the bearer token remains the break-glass path.
+//! Over the Unix socket the kernel attests the caller, so
+//! [`opensesame_uds_authn`] peer credentials gate operator routes as an
+//! additional transport restriction on top of the operator bearer token,
+//! which is required on every transport — identity from the platform, never
+//! a substitute for the presented secret.
 //!
 //! The attestation is captured per connection by [`UdsConnectInfo`], wired in
 //! via `Router::into_make_service_with_connect_info` on the UDS listener

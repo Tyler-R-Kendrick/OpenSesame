@@ -5,6 +5,7 @@ export * from "./bounds.js";
 export * from "./origin.js";
 export * from "./pairing.js";
 export * from "./envelope.js";
+export * from "./receipt.js";
 export * from "./sender.js";
 export * from "./export.js";
 export * from "./tailscale.js";

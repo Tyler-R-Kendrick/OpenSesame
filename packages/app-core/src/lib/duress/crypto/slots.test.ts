@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { overlapCast } from "../json-boundary.js";
 import { DuressKdfError } from "../keys/pin-floors.js";
 import {
+  type PrfAndCodeEnvelope,
   type SealedSlot,
   createIndependentCompartmentKey,
   openPrfAndCode,
@@ -162,6 +163,29 @@ describe("KEYS-C PRF-and-code envelopes", () => {
     });
     expect(both).not.toBeNull();
     expect([...defined(both, "both")]).toEqual([...key]);
+  });
+
+  it("rejects an envelope with an unsupported version", async () => {
+    const key = createIndependentCompartmentKey();
+    const prf = crypto.getRandomValues(new Uint8Array(32));
+    const env = await sealPrfAndCode({
+      prfOutput: prf,
+      code: "87654321",
+      compartmentKey: key,
+      profileId: "p1",
+      vaultRef: "v1",
+      policyRevision: 1,
+      keyEpoch: 1,
+    });
+    const mutated = { ...env, version: 2 };
+    const badVersion = overlapCast<typeof mutated, PrfAndCodeEnvelope>(mutated);
+    expect(
+      await openPrfAndCode({
+        prfOutput: prf,
+        code: "87654321",
+        envelope: badVersion,
+      }),
+    ).toBeNull();
   });
 
   it("rejects malformed envelopes and short PRF", async () => {

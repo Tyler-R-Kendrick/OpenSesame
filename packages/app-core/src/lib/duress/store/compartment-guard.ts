@@ -48,12 +48,12 @@ export function assertCompartmentSwitchAllowed(
   const registry = loadCompartmentRegistry();
   const fenceActive = fence.activeIncidentIds.length > 0;
 
-  // No enrollment registry and no fence ⇒ legacy shared-root projects (INV-01).
-  if (!registry && !fenceActive) return;
-
   if (fence.retiredDevice) {
     throw new Error("retired_device");
   }
+
+  // No enrollment registry and no fence ⇒ legacy shared-root projects (INV-01).
+  if (!registry && !fenceActive) return;
 
   if (fenceActive) {
     assertFenceAdmitsTarget(fence.admittedCompartmentRefs, request.targetTomb);

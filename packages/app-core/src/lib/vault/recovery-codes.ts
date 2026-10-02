@@ -12,11 +12,12 @@ import {
 } from "./unlock-methods.js";
 
 /**
- * A recovery code stands in for the second step once. Its hash is looked up
- * in the ledger sealed under the parked key, marked used, and the ledger is
- * written back before the session opens — a code spent twice is a code
- * someone copied. Returns the ledger's new wrap for the caller to persist;
- * `onMismatch` records a failed unlock attempt.
+ * A recovery code stands in for the second step once. The typed code is
+ * matched against the unspent codes in the ledger (sealed whole under the
+ * vault key), the match is marked used, and the ledger is re-sealed before
+ * the session opens — a code spent twice is a code someone copied. Returns
+ * the ledger's new wrap for the caller to persist; `onMismatch` records a
+ * failed unlock attempt.
  */
 export async function spendRecoveryCode(
   vaultKey: CryptoKey,

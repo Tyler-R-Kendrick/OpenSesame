@@ -5,16 +5,17 @@ import type { BoundaryValue } from "../json-boundary.js";
  */
 
 import {
+  DURESS_BOUNDS,
   type IncidentRecord,
   IncidentRecordSchema,
   type IncidentState,
 } from "@opensesame/contracts/duress";
+import { z } from "zod";
 import { duressSessionFence } from "../session/fence.js";
 import {
   type JournalWriteResult,
   clearJournal,
   readJournalPayload,
-  recoverJournal,
   writeJournal,
 } from "../store/journal.js";
 import { parseIncidentRecord } from "../store/storage-resilience.js";
@@ -37,8 +38,65 @@ export type IncidentIntent = Readonly<{
   fenceApplied: boolean;
 }>;
 
+const IntentRefSchema = z
+  .string()
+  .min(DURESS_BOUNDS.refMin)
+  .max(DURESS_BOUNDS.refMax)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/);
+
+const IntentRevisionSchema = z
+  .number()
+  .int()
+  .positive()
+  .max(DURESS_BOUNDS.revisionMax);
+
+export const IncidentIntentSchema = z
+  .object({
+    incidentId: IntentRefSchema,
+    profileId: IntentRefSchema,
+    policyRevision: IntentRevisionSchema,
+    keyEpoch: IntentRevisionSchema,
+    state: z.enum(["active", "recovery_requested", "resolved", "superseded"]),
+    presentation: z.enum([
+      "normal",
+      "restricted",
+      "decoy",
+      "locked",
+      "unchanged",
+    ]),
+    admittedCompartmentRefs: z
+      .array(IntentRefSchema)
+      .max(DURESS_BOUNDS.compartmentRefsMax),
+    denyOperations: z
+      .array(z.string().min(1).max(DURESS_BOUNDS.refMax))
+      .max(DURESS_BOUNDS.compartmentRefsMax),
+    scopeSnapshot: z
+      .object({
+        vaultRef: IntentRefSchema,
+        deviceBindingRef: IntentRefSchema,
+        compartmentRefs: z
+          .array(IntentRefSchema)
+          .min(1)
+          .max(DURESS_BOUNDS.compartmentRefsMax),
+      })
+      .strict(),
+    activationEvidenceDigest: z
+      .string()
+      .min(DURESS_BOUNDS.digestMin)
+      .max(DURESS_BOUNDS.digestMax),
+    fenceApplied: z.boolean(),
+  })
+  .strict();
+
 export function loadIncidentIntent(): IncidentIntent | null {
-  return readJournalPayload<IncidentIntent>(INCIDENT_INTENT_KEY);
+  return readValidatedIntent();
+}
+
+function readValidatedIntent(): IncidentIntent | null {
+  const payload = readJournalPayload<BoundaryValue>(INCIDENT_INTENT_KEY);
+  if (!payload) return null;
+  const parsed = IncidentIntentSchema.safeParse(payload);
+  return parsed.success ? parsed.data : null;
 }
 
 type IntentWriteOptions = Readonly<{
@@ -94,11 +152,10 @@ export type IncidentFenceRecovery = Readonly<{
 }>;
 
 export function recoverIncidentFenceAfterRestart(): IncidentFenceRecovery {
-  const journal = recoverJournal<IncidentIntent>(INCIDENT_INTENT_KEY);
-  if (!journal) {
+  const intent = readValidatedIntent();
+  if (!intent) {
     return { recovered: false, intent: null } satisfies IncidentFenceRecovery;
   }
-  const intent = journal.payload;
   if (intent.state !== "active" && intent.state !== "recovery_requested") {
     return { recovered: true, intent } satisfies IncidentFenceRecovery;
   }
