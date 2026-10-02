@@ -1002,15 +1002,22 @@ pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
 
 CI lives in `.github/workflows/`:
 
-- `ci.yml` — runs on `pull_request`: TypeScript job
-  (verified-commit signature preflight + frozen install + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
-  `pnpm test`) and
-  Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
-  Bundle budgets job that builds `apps/pages`/`pwa` and checks
-  `tools/quality/bundle-budgets.json`. The default-branch ruleset requires all three checks
-  and an up-to-date PR, with squash auto-merge; this personal-account repository
-  does not support merge queues. Verify actual settings with
-  `node ops/github/governance.mjs --verify`.
+- `ci.yml` — runs on `pull_request`. The required checks stay
+  TypeScript, Bundle budgets, and Rust, and each name reports on every
+  pull request (a skipped required check does not satisfy the ruleset).
+  The suite behind a check runs only when the diff touches that area
+  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
+  `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
+  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
+  for that set, and Rust runs `cargo test --all-targets -p` for that set on
+  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  The TypeScript job also runs the signature preflight, changed-file lint,
+  and `pnpm quality`. A docs-only diff passes the three checks without those
+  suites. An unrecognized path runs every suite.
+  The ruleset also requires an up-to-date PR and squash auto-merge; this
+  personal-account repository does not support merge queues. Verify
+  actual settings with `node ops/github/governance.mjs --verify`.
 - `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check

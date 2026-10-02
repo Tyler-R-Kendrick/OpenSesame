@@ -13,7 +13,7 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
    is staged, scans for secrets and checks the design contract.
 3. **Push.** The pre-push hook runs `pnpm typecheck && pnpm test` by default
    (`OPENSESAME_PREPUSH=off|fast|full`).
-4. **Open a pull request.** CI runs three required checks. A user-visible
+4. **Open a pull request.** CI reports three required checks. A user-visible
    change carries before/after evidence
    ([visual-evidence skill](../../skills/visual-evidence/SKILL.md)).
 5. **Merge.** Squash only, signed commits, up to date with `main`, review
@@ -22,14 +22,22 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request. All three jobs are
-required.
+`.github/workflows/ci.yml` runs on every pull request. The required check
+names are still TypeScript, Bundle budgets, and Rust, and each one reports
+on every pull request. The suite behind a check runs only when
+[`scripts/lib/ci-changed-areas.mjs`](../../scripts/lib/ci-changed-areas.mjs)
+says the diff can affect it. A docs-only change runs the signature check
+and passes the three required checks without those suites. A path the
+classifier does not recognize runs every suite.
 
-| Job | Runs |
+| Check | Suite, when the diff touches that area |
 |---|---|
-| **TypeScript** | Commit-signature check, frozen install, `pnpm lint`, `pnpm quality`, `pnpm typecheck`, `pnpm test`, and the product-experience contracts (`pnpm verify:experience`). |
-| **Rust** | `cargo +1.88.0 test --workspace --all-targets`. |
-| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. |
+| **TypeScript** | Commit-signature check (every pull request), then frozen install, changed-file lint, and `pnpm quality`. `pnpm typecheck` and `pnpm test` run only for the workspace packages the diff changes and the packages that depend on them ([`scripts/lib/ci-affected-tests.mjs`](../../scripts/lib/ci-affected-tests.mjs)). A root manifest, lockfile, or `turbo.json` still tests every package. Product-experience contracts run when that set includes one of their packages. A workflow or script change runs lint and quality and skips package tests. |
+| **Rust** | `cargo test --all-targets -p` for the crates the diff changes and the crates that depend on them. The whole workspace runs when a root Cargo file, the lockfile, the toolchain, or `spec/` changes. Skipped when no Rust, Cargo, or embedded host input changed. |
+| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. Skipped when Pages and its production dependencies did not change. |
+
+mTLS is not a required check. It runs when the diff touches the transport
+crates, the gateway, ingress or NATS config, or the Pages transport scripts.
 
 `.github/workflows/deploy-pages.yml` publishes `apps/pages` on every push to
 `main`. Branch protection is kept as code in [`ops/github`](../../ops/github).
@@ -49,7 +57,7 @@ schedule through [agent routines](agent-routines.md).
 | Design | `pnpm lint:design` | No verb painted on a button, no status pills, no explainer captions. | [DESIGN.md](../../DESIGN.md), [controls](../design/controls.md). |
 | Docs index | part of `pnpm quality` | The ADR and audit indexes match the files. | So the indexes can be trusted. Fix with `pnpm docs:index`. |
 | Types | `pnpm typecheck` | Strict TypeScript everywhere. | — |
-| Tests | `pnpm test`, `cargo test` | Every suite in both languages. | — |
+| Tests | `pnpm test`, `cargo test` | Every suite locally. CI runs the affected packages and crates, plus their dependents. | — |
 | Rust lint | `pnpm audit:clippy` | rustfmt, and Clippy pedantic with the complexity limits in `clippy.toml`. | Same budgets as TypeScript. |
 | Browser | `pnpm --filter @opensesame/pages verify:<journey>` | Keyboard access, touch layout, local IAM, static boot, auth flow — in real Chromium against a real build. | Unit tests cannot prove a person can use it. |
 | Security | `pnpm audit:*` | CVEs, SAST, secrets, dependency budgets, fuzzing, proofs. | [Tooling evaluation](../security/tooling-evaluation.md). |
