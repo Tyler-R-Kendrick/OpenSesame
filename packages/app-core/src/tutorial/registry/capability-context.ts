@@ -35,7 +35,6 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "connection.repair": ["/connections"],
     "vault.item.create": ["/vault"],
     "settings.model-provider": ["/settings/capabilities"],
-    "settings.transport": ["/settings"],
     "settings.tailnet-sync": ["/settings/vaults"],
     "settings.notifications": ["/settings/notifications"],
     "settings.backup": ["/settings/capabilities"],

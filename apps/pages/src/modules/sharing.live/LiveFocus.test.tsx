@@ -131,6 +131,11 @@ function type(field: HTMLElement, value: string) {
 
 const held = () => document.activeElement;
 
+/** The keyboard is on `element` now, or lands on it a beat after the swap. */
+async function landsOn(element: Element | null | undefined) {
+  await waitFor(() => expect(held()).toBe(element));
+}
+
 async function host(admission: "invite" | "open" = "invite") {
   const rendered = render(<LiveHostPanel />);
   const panel = within(rendered.container);
@@ -190,10 +195,10 @@ describe("the keyboard after the host's swaps", () => {
     const panel = await host();
     press(panel.getByRole("button", { name: "Start the live session" }));
     const copy = await panel.findByRole("button", { name: "Copy the link" });
-    expect(held()).toBe(copy);
+    await landsOn(copy);
     press(panel.getByRole("button", { name: "End the session for everyone" }));
     const name = await panel.findByLabelText("Session name");
-    expect(held()).toBe(name);
+    await landsOn(name);
   });
 
   it("leaves a mouse user where they are when the session starts", async () => {
@@ -205,7 +210,7 @@ describe("the keyboard after the host's swaps", () => {
       panel.getByRole("button", { name: "Start the live session" }),
     );
     await panel.findByRole("img", { name: "Live" });
-    expect(held()).toBe(elsewhere);
+    await landsOn(elsewhere);
     elsewhere.remove();
   });
 
@@ -217,12 +222,12 @@ describe("the keyboard after the host's swaps", () => {
     type(field, request);
     enter(field);
     const letIn = await panel.findByRole("button", { name: "Let Ada in" });
-    expect(held()).toBe(panel.getByLabelText("A request code"));
+    await landsOn(panel.getByLabelText("A request code"));
     press(letIn);
     const reply = await panel.findByRole("button", {
       name: "Copy the reply code for Ada",
     });
-    expect(held()).toBe(reply);
+    await landsOn(reply);
   });
 
   it("returns to the request field after Turn away, and after a code it cannot read", async () => {
@@ -233,12 +238,12 @@ describe("the keyboard after the host's swaps", () => {
     type(field, "not a code");
     enter(field);
     await panel.findByRole("img", { name: "Not a request code" });
-    expect(held()).toBe(panel.getByLabelText("A request code"));
+    await landsOn(panel.getByLabelText("A request code"));
     type(panel.getByLabelText("A request code"), request);
     enter(panel.getByLabelText("A request code"));
     press(await panel.findByRole("button", { name: "Turn Ada away" }));
     await panel.findByRole("img", { name: "Turned away" });
-    expect(held()).toBe(panel.getByLabelText("A request code"));
+    await landsOn(panel.getByLabelText("A request code"));
   });
 
   it("does not move a mouse user's focus when a guest is turned away", async () => {
@@ -253,7 +258,7 @@ describe("the keyboard after the host's swaps", () => {
     act(() => other.focus());
     fireEvent.click(away);
     await panel.findByRole("img", { name: "Turned away" });
-    expect(held()).toBe(other);
+    await landsOn(other);
     other.remove();
   });
 });
@@ -268,7 +273,7 @@ describe("the keyboard after the joiner's swaps", () => {
     const copy = await joiner.findByRole("button", {
       name: "Copy your request code",
     });
-    expect(held()).toBe(copy);
+    await landsOn(copy);
   });
 
   it("does not move a mouse user's focus when asking", async () => {
@@ -280,7 +285,7 @@ describe("the keyboard after the joiner's swaps", () => {
     act(() => close.focus());
     submit(joiner.getByLabelText("Your name"));
     await joiner.findByRole("button", { name: "Copy your request code" });
-    expect(held()).toBe(close);
+    await landsOn(close);
   });
 
   it("lands on the joined status after Connect, so the next Tab is the first shared field", async () => {
@@ -297,7 +302,7 @@ describe("the keyboard after the joiner's swaps", () => {
     enter(field);
     await joiner.findByRole("img", { name: "Joined Team" });
     const status = joiner.getByRole("img", { name: "Joined Team" });
-    expect(held()).toBe(status.closest(".live-status"));
+    await landsOn(status.closest(".live-status"));
     expect(document.body.contains(held())).toBe(true);
   });
 
@@ -319,7 +324,7 @@ describe("the keyboard after the joiner's swaps", () => {
     await joiner.findByRole("img", {
       name: "That reply is not for this request",
     });
-    expect(held()).toBe(joiner.getByLabelText("The owner's reply code"));
+    await landsOn(joiner.getByLabelText("The owner's reply code"));
   });
 
   it("lands on Start over when the session ends under a removed control, and on the form after it", async () => {
@@ -330,10 +335,10 @@ describe("the keyboard after the joiner's swaps", () => {
     act(() => endHosting());
     await joiner.findByRole("img", { name: "The session ended" });
     const again = joiner.getByRole("button", { name: "Start over" });
-    expect(held()).toBe(again);
+    await landsOn(again);
     press(again);
     await joiner.findByLabelText("Your name");
-    expect(held()).toBe(joiner.getByLabelText("Code"));
+    await landsOn(joiner.getByLabelText("Code"));
   });
 
   it("leaves a focus the person chose when the session ends", async () => {
@@ -342,7 +347,7 @@ describe("the keyboard after the joiner's swaps", () => {
     act(() => leave.focus());
     act(() => endHosting());
     await joiner.findByRole("img", { name: "The session ended" });
-    expect(held()).toBe(leave);
+    await landsOn(leave);
   });
 
   it("returns the keyboard to the form when this browser cannot make a request", async () => {

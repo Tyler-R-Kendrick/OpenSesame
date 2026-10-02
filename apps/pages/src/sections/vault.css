@@ -328,6 +328,13 @@
   z-index: 30;
 }
 
+/* The bottom row's menu would hang past the scrollport's bottom
+   edge and clip its border there: seat it above the row instead. */
+.vtree__menu--above {
+  top: auto;
+  bottom: 100%;
+}
+
 .vtree__cmd {
   flex: none;
   display: flex;

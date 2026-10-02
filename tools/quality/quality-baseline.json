@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 441,
-    "violations": 695,
-    "oversizedLines": 228875
+    "files": 440,
+    "violations": 693,
+    "oversizedLines": 228454
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -131,7 +131,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/SignInPanel.tsx": {
-      "max-lines": 404,
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/UnlockUserMenu.tsx": {
@@ -199,9 +198,6 @@
     "apps/pages/src/sections/identity/LocalMemberships.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/settings/AgeKeysPanel.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
       "max-lines": 428
     },
@@ -236,7 +232,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines": 431,
+      "max-lines": 415,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
@@ -764,7 +760,7 @@
       "max-lines": 451
     },
     "packages/app-core/src/tutorial/registry/goals.ts": {
-      "max-lines": 510
+      "max-lines": 509
     },
     "packages/audit/src/__tests__/chain.test.ts": {
       "max-lines": 419

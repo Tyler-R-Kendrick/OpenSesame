@@ -1,6 +1,7 @@
 /**
- * Commit Minimal or Default. Custom never comes through here: it opens
- * the tabbed ceremony, whose Apply is the only other store commit.
+ * Commit Minimal, Default or Full. Custom never comes through
+ * here: it opens the tabbed ceremony, whose Apply is the only
+ * other store commit.
  */
 
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
@@ -9,11 +10,12 @@ import {
   EMPTY_DRAFT,
   baseFromSnapshot,
   draftToSelection,
+  fullDraft,
   minimalDraft,
 } from "../capabilities/CapabilityDraft.js";
 import { DEFAULT_EXTENSIONS } from "./default-extensions.js";
 
-export type AppliedConfiguration = "minimal" | "default";
+export type AppliedConfiguration = "minimal" | "default" | "full";
 
 const SELECTED_DELIVERY: InstallationCapabilitySelection["delivery"] = {
   prefetch: "selected",
@@ -27,13 +29,17 @@ export async function applySetupConfiguration(
   const draft =
     id === "minimal"
       ? minimalDraft()
-      : { ...EMPTY_DRAFT, roots: DEFAULT_EXTENSIONS };
+      : id === "full"
+        ? fullDraft(capabilityPorts.CAPABILITY_CATALOG, snapshot.plan)
+        : { ...EMPTY_DRAFT, roots: DEFAULT_EXTENSIONS };
   const base = draftToSelection(
     draft,
     baseFromSnapshot(snapshot, new Date().toISOString()),
   );
+  // Only Minimal keeps the shell's own delivery: everything that
+  // installs a capability prefetches and caches what it selected.
   const selection =
-    id === "default" ? { ...base, delivery: SELECTED_DELIVERY } : base;
+    id === "minimal" ? base : { ...base, delivery: SELECTED_DELIVERY };
   const receipt = capabilityPorts.buildConsentReceipt(
     capabilityPorts.previewPlan(selection),
     capabilityPorts.CAPABILITY_CATALOG,

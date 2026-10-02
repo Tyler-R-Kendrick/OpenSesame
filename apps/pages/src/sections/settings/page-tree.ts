@@ -127,11 +127,12 @@ function sectionsFor(
           ? [panel("security", "account-factors", "Your account")]
           : []),
         ...(snapshot.duress
-          ? [panel("security", "duress-profiles", "Duress")]
+          ? [
+              panel("security", "duress-profiles", "Duress"),
+              panel("security", "travel", "Travel"),
+            ]
           : []),
         ...contributed,
-        panel("security", "age-keys", "Age keys"),
-        panel("security", "transport", "Transport"),
       ];
     case "vaults":
       return [
@@ -141,7 +142,6 @@ function sectionsFor(
           href: settingsPath("vaults"),
           keepEmpty: true,
         })),
-        panel("vaults", "travel", "Travel"),
         panel("vaults", "item-types", "Item types"),
         ...contributed,
       ];
@@ -158,6 +158,7 @@ function sectionsFor(
       return [
         ...contributed,
         panel("danger", "settings-delete-vault", "Delete this vault"),
+        panel("danger", "settings-trash", "Trash"),
       ];
     default:
       // A contributed tab: the panels its module says it always draws.

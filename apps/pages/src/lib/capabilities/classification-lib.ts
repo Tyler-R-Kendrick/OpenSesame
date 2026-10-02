@@ -347,9 +347,6 @@ export const LIB_RULES = [
     "vault.local-unlock",
     "travel mode: departure bundle and return",
   ),
-  ...each(L, ["transport-"], (p) =>
-    core(p, "settings.core", "transport status and probe, drawn in Settings"),
-  ),
   shared(`${L}local-iam-events`, "change fanout the tomb and identity share"),
   core(
     `${L}ambient-auth/entra-instances`,

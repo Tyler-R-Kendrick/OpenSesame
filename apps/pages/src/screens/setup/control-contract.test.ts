@@ -228,6 +228,46 @@ describe("explainer copy fails design lint", () => {
   });
 });
 
+describe("status explainer copy fails design lint", () => {
+  it("rejects a consolation tail in a `.ts` status module", () => {
+    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
+    const file = join(dir, "apps/pages/src/tutorial/ui/Broken.ts");
+    execFileSync("mkdir", ["-p", dirname(file)]);
+    writeFileSync(
+      file,
+      `export const TEXT =\n  "This browser has no on-device model. The written help below still works.";\n`,
+    );
+    const result = runLint("--root", dir, file);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("no-status-explainer");
+  });
+
+  it("rejects a walk through the browser's own settings", () => {
+    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
+    const file = join(dir, "apps/pages/src/tutorial/ui/Broken.ts");
+    execFileSync("mkdir", ["-p", dirname(file)]);
+    writeFileSync(
+      file,
+      `export const TEXT =\n  "Enable Experimental Web Platform features at chrome://flags, relaunch, and reload this page.";\n`,
+    );
+    const result = runLint("--root", dir, file);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("no-status-explainer");
+  });
+
+  it("accepts a status that states the fact and stops", () => {
+    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
+    const file = join(dir, "apps/pages/src/tutorial/ui/Ok.ts");
+    execFileSync("mkdir", ["-p", dirname(file)]);
+    writeFileSync(
+      file,
+      `export const TEXT = "No on-device model and no support endpoint on this deployment.";\n`,
+    );
+    const result = runLint("--root", dir, file);
+    expect(result.code).toBe(0);
+  });
+});
+
 describe("keys have a home", () => {
   // Verbatim the shape Settings shipped: a form's save key alone on the row
   // under its field, a screen-width from the value it saves.

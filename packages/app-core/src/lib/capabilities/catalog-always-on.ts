@@ -129,9 +129,6 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.local.requests.manage",
         "receipts.read",
         "shared_sessions.join_request",
-        "transport.identity.reference",
-        "transport.status.view",
-        "transport.verify.run",
       ],
       egress: [
         {

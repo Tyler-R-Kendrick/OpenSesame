@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, useState } from "react";
+import { Fragment, type ReactNode, type RefObject, useState } from "react";
 
 import { IconAlert, IconCheck, IconChevronRight } from "./Icons.js";
 
@@ -46,6 +46,12 @@ export type CeremonyPrimary = {
   tone?: "danger";
   /** Submit a surrounding form instead of clicking, so Enter in a field commits. */
   submit?: boolean;
+  /**
+   * A ref to the drawn button. A confirmation sheet lands the keyboard on
+   * the safe key, not the danger one beside it, so the caller passes the
+   * safe key's ref and the sheet that hosts the shell focuses it on open.
+   */
+  keyRef?: RefObject<HTMLButtonElement | null>;
 };
 
 export function CeremonyShell({
@@ -108,6 +114,7 @@ export function CeremonyShell({
           <div className="found__do">
             {primary ? (
               <button
+                ref={primary.keyRef}
                 type={primary.submit ? "submit" : "button"}
                 className={
                   primary.tone === "danger"
@@ -123,6 +130,7 @@ export function CeremonyShell({
             ) : null}
             {secondary ? (
               <button
+                ref={secondary.keyRef}
                 type="button"
                 className="btn"
                 disabled={secondary.disabled || secondary.busy}

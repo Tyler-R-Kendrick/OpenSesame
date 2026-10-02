@@ -4,6 +4,7 @@ import {
   capabilityOffSwitch,
   capabilityOnSwitch,
 } from "./always-on.mjs";
+import { openSessionSection } from "./session-section.mjs";
 
 /**
  * Choose capabilities from Settings › Capabilities, at whatever width this
@@ -21,7 +22,7 @@ export async function chooseCapabilitiesHere(
       await openTab(page, "Settings");
       return;
     }
-    await page.locator(".railtree__row", { hasText: "settings" }).first().tap();
+    await openSessionSection(page, "Settings");
     await page.waitForTimeout(700);
   };
   for (const title of titles) {

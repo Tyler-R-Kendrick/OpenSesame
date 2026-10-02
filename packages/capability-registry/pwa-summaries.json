@@ -96,30 +96,6 @@
     }
   },
   {
-    "id": "transport.status.view",
-    "title": "Read desired policy, credential, runtime, observation and enforcement status per target",
-    "plane": "host",
-    "surfaces": {
-      "pwa": "lib/transport-status.ts:readTransportStatus"
-    }
-  },
-  {
-    "id": "transport.verify.run",
-    "title": "Run the positive/negative enforcement probe against a target",
-    "plane": "host",
-    "surfaces": {
-      "pwa": "lib/transport-verify.ts:runTransportVerify"
-    }
-  },
-  {
-    "id": "transport.identity.reference",
-    "title": "Select a registered identity source by public reference (never a path or socket)",
-    "plane": "host",
-    "surfaces": {
-      "pwa": "lib/transport-settings.ts:withTransportTarget"
-    }
-  },
-  {
     "id": "delegations.claim",
     "title": "Claim a delegation offer",
     "plane": "host",

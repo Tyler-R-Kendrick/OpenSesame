@@ -9,6 +9,12 @@
  * these away is the operator's own "Allow guests" switch in Settings ›
  * Capabilities (`guest-access.ts`), which is on unless somebody turned it
  * off. Every placement reads that switch here, so none can drift from it.
+ *
+ * The guest road lives in two places now — the front door's corner "Skip"
+ * and the unlock form's footer "Continue as guest" — and both read the switch.
+ * The sign-in panel used to carry a third and fourth copy (a full-size button
+ * and a corner Skip); those are gone, so the panel's only no-account road is
+ * the local seal ("Use without an account").
  */
 
 import {
@@ -18,7 +24,6 @@ import {
 import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
 import { type RefObject, useEffect, useRef } from "react";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
-import { IconUser } from "../../components/Icons.js";
 import { landFocus } from "../../lib/focus.js";
 
 /**
@@ -42,35 +47,10 @@ function useGuestArrivalFocus(
   return ref;
 }
 
-/** The full-size button beside the social bar, on both sign-in placements. */
-export function GuestButton({
-  busy,
-  onGuest,
-}: {
-  busy: boolean;
-  onGuest: () => void;
-}) {
-  const ref = useGuestArrivalFocus();
-  if (!useGuestsAllowed()) return null;
-  return (
-    <button
-      ref={ref}
-      type="button"
-      className="btn btn--block signin__provider"
-      disabled={busy}
-      onClick={onGuest}
-    >
-      <IconUser size={18} />
-      Continue as guest
-    </button>
-  );
-}
-
 /**
  * First run only: the "Skip" in the card's corner where a skip lives. On the
  * front door it is the one guest placement (ADR 0150 §1), so a `/guest` link
- * `lands` on it there; beside the sign-in panel's full-size button it does
- * not.
+ * `lands` on it there.
  */
 export function GuestSkip({
   busy,

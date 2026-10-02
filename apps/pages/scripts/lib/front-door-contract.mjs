@@ -57,7 +57,7 @@ export async function checkFrontDoor(page, check, text, base) {
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onChoice = await snap(page, "A2-setup-configuration");
-  for (const choice of ["Minimal", "Default", "Custom"]) {
+  for (const choice of ["Minimal", "Default", "Full", "Custom"]) {
     check(
       (await count(page, "button", choice, true)) === 1,
       `setup offers "${choice}"`,

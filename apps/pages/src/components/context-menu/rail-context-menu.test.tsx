@@ -49,6 +49,13 @@ describe("the rail's context menu", () => {
     expect(
       filterLink(container, "/vault?f=trash", "trash").textContent,
     ).toContain("1");
+    // The settings directory is session-level: the session
+    // prompt's menu roots the tree in it, and its own row
+    // opens it, before the tab's hidden config.yaml shows.
+    const prompt = container.querySelector<HTMLElement>(".rail .rail__prompt");
+    if (!prompt) throw new Error("the rail has no session prompt");
+    fireEvent.contextMenu(prompt);
+    fireEvent.click(within(menu()).getByRole("menuitem", { name: "Settings" }));
     fireEvent.click(screen.getByRole("treeitem", { name: "Settings" }));
     fireEvent.click(screen.getByRole("treeitem", { name: "General" }));
     const config = screen.getByRole("treeitem", { name: "config.yaml" });
@@ -128,6 +135,44 @@ describe("the rail's context menu", () => {
         name: "Really empty trash? This cannot be undone",
       }),
     ).toBeTruthy();
+  });
+
+  it("roots the tree in a session directory from the session prompt's menu", () => {
+    const { container } = renderShell("/vault", <ContextMenuLayer />);
+    // The two session-level directories are not rail rows.
+    expect(screen.queryByRole("treeitem", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("treeitem", { name: "Activity" })).toBeNull();
+    // The session prompt is the home of the two the rail leaves
+    // out: a right-click roots the tree in either one.
+    const prompt = container.querySelector<HTMLElement>(".rail .rail__prompt");
+    if (!prompt) throw new Error("the rail has no session prompt");
+    fireEvent.contextMenu(prompt);
+    // Both session directories are offered.
+    const settings = within(menu()).getByRole("menuitem", {
+      name: "Settings",
+    });
+    within(menu()).getByRole("menuitem", { name: "Activity" });
+    fireEvent.click(settings);
+    expect(screen.queryByRole("menu")).toBeNull();
+    // The tree is rooted in settings: a back key to the vault and
+    // the settings directory, with no vault directory beside them.
+    expect(
+      screen.getByRole("treeitem", { name: "Back to vault" }),
+    ).toBeTruthy();
+    const settingsRow = screen.getByRole("treeitem", { name: "Settings" });
+    expect(settingsRow).toBeTruthy();
+    expect(screen.queryByRole("treeitem", { name: "Vault" })).toBeNull();
+    // Opening the rooted directory lists its categories.
+    fireEvent.click(settingsRow);
+    expect(
+      container.querySelector('a[href="/settings/security"]'),
+    ).toBeTruthy();
+    // The back key returns the tree to the vault view.
+    fireEvent.click(screen.getByRole("treeitem", { name: "Back to vault" }));
+    expect(screen.getByRole("treeitem", { name: "Vault" })).toBeTruthy();
+    expect(
+      screen.queryByRole("treeitem", { name: "Back to vault" }),
+    ).toBeNull();
   });
 });
 

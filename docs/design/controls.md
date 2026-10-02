@@ -117,6 +117,27 @@ Locked. Authorized.
 - The word is `aria-label` and `title` only.
 - A provider, a role, a person, or a platform is a name. Those may stay text. A status may not.
 
+## 4. Status copy — states the fact
+
+**A sentence that explains itself is not a status.** A status says
+what is, and stops.
+
+- No consolation tail (`The written help below still works.`). The
+  help is the panel; it does not need an advertisement.
+- No walk through the browser's own settings (`enable … at
+  chrome://flags`, `relaunch`, `reload this page`). How to turn a
+  browser API on is the browser's documentation, not this app's
+  prose — the app cannot enable a browser API itself, and saying so
+  is a disclaimer, not a status.
+- No apology for what cannot be turned on. `No on-device model and
+  no support endpoint on this deployment.` is the fact; the tail
+  that follows it is not.
+
+The rule lives in strings as much as in JSX: the support pane's
+every sentence is a string in a `.ts` module, so the lint reads
+string literals — comments skipped, a `//` inside a URL string read
+as the address it is — not only JSX text.
+
 ## What is enforced
 
 `scripts/quality/design-lint.mjs`, run by `pnpm lint:design`, the `pre-commit` hook,
@@ -146,6 +167,12 @@ and a Claude Code `PostToolUse` hook:
    Export opens the encrypted-backup sheet, never a plaintext dump.
    The path/count status row stays at the pane bottom in empty and populated
    views; only the item area scrolls, never the command or status strip.
+ 8. **A status states the fact and stops** (`no-status-explainer`). A
+    string that consoles (`still works`), walks the browser's own
+    settings (`chrome://flags`, `relaunch`, `reload this page`), or
+    disclaims what the app cannot enable (`cannot enable … itself`)
+    is a failure — in a `.tsx` screen or a `.ts` module alike, since
+    the copy lives in strings. Specs are not UI and are not swept.
 
 The workspace statusline also uses one control geometry: 28px keys with 17px
 glyphs and 8px between groups, growing to 44px touch targets on small/coarse

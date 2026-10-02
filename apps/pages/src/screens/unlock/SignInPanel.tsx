@@ -4,11 +4,15 @@
  * One decision per screen, literally: the panel is a stage machine. The hub
  * leads with a single-row social bar — one icon button per provider (official
  * brand marks, no text), a globe for bring-your-own OIDC, and a ⋯ that opens
- * the remaining roads (overflow providers, magic link) as a dropdown. Guest
- * stays a full-size button of its own (the most common road in, first run
- * only). Below the bar sits the one "Email or organization" field, focused on
- * arrival so typing starts immediately. Nothing renders beside the step being
- * taken.
+ * the remaining roads (overflow providers, magic link) as a dropdown. Below
+ * the bar sits the one "Email or organization" field, focused on arrival so
+ * typing starts immediately. Nothing renders beside the step being taken.
+ *
+ * The no-account road is a single one, "Use without an account" — the local
+ * seal — and it is offered on first run only. It used to sit beside a
+ * full-size "Continue as guest" button and a corner "Skip", three controls
+ * for one intent; guest has its own placements (the front door's Skip and the
+ * unlock form's footer) and is not duplicated here.
  *
  * Two placements, because a returning visitor is not a new one:
  *
@@ -20,10 +24,10 @@
  *    the passkey, PIN, or password on the unlock form, so signing in here
  *    attaches an account rather than opening anything —
  *    `adoptFederatedIdentity` says exactly that when it comes back to a locked
- *    vault. "Use without an account" is not offered (it would seal a second
- *    vault in place); guest IS — the store runs it in an isolated tomb beside
- *    the sealed vault, which stays untouched and comes back on lock. Who is
- *    signed in, and the way out of it, is the user menu — not this panel's.
+ *    vault. Neither the local seal nor guest is offered here: the guest road
+ *    beside a sealed vault is the unlock form's own footer, which stays
+ *    untouched. Who is signed in, and the way out of it, is the user menu —
+ *    not this panel's.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
@@ -43,7 +47,6 @@ import {
   defaultUpstream,
   operatorUpstream,
 } from "@opensesame/app-core/lib/federation.js";
-import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
 import { readLastSignIn } from "@opensesame/app-core/lib/last-sign-in.js";
 import {
@@ -69,7 +72,6 @@ import {
 } from "react";
 import { landFocus } from "../../lib/focus.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
-import { GuestButton, GuestSkip } from "./GuestRoad.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { MagicLinkStage } from "./MagicLinkStage.js";
 import { brandFor } from "./ProviderBrand.js";
@@ -94,8 +96,7 @@ type Props =
 type Stage = "hub" | "magic-link" | "byo";
 
 export function SignInPanel(props: Props) {
-  const { placement, providers } = props;
-  const firstRun = placement === "primary";
+  const { providers } = props;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("hub");
@@ -134,25 +135,20 @@ export function SignInPanel(props: Props) {
    */
   const methods = signInMethods();
   /**
-   * The service roads — org SSO, SAML, magic link, BYO — need one. Guest does
-   * NOT: `continueAsGuest` seals a local vault and merely *offers* a claim
-   * once Identity is reachable, so the guest road is never gated on this (see
-   * AGENTS.md §5 — the guest/anonymous flow must not be removed or gated).
+   * The service roads — org SSO, SAML, magic link, BYO — need an Identity
+   * API. The local-only seal does not, so it is offered regardless.
    */
   const hasIdentityService = isRemoteIdentityConfigured();
   const fallbackUpstream =
     methods.builtin && upstream.id !== "mock" ? upstream : null;
 
   // On arrival the keyboard is on the first road in: the first brand mark in
-  // the social bar, else the guest button. Where an Identity API exists the
-  // identifier field takes the caret itself (it is the one typed step), so
-  // this yields to it. Without one there was nowhere for a key to go.
+  // the social bar. Where an Identity API exists the identifier field takes
+  // the caret itself (it is the one typed step), so this yields to it.
   useEffect(() => {
     if (stage !== "hub" || identifierEngaged || hasIdentityService) return;
     landFocus(
-      hubRef.current?.querySelector(
-        ".signin__bar button:not([disabled]), .signin__provider:not([disabled])",
-      ),
+      hubRef.current?.querySelector(".signin__bar button:not([disabled])"),
     );
   }, [stage, identifierEngaged, hasIdentityService]);
 
@@ -259,19 +255,6 @@ export function SignInPanel(props: Props) {
     );
   }
 
-  function startGuest(): void {
-    setError(null);
-    setBusy(true);
-    clearAuthOutcome();
-    void continueAsGuest()
-      .catch((caught) => {
-        setError(
-          caught instanceof Error ? caught.message : "Guest login failed.",
-        );
-      })
-      .finally(() => setBusy(false));
-  }
-
   function backButton(label: string, to: Stage): ReactElement {
     return (
       <button
@@ -318,11 +301,6 @@ export function SignInPanel(props: Props) {
     <div className="signin" ref={hubRef}>
       {identifierEngaged ? null : (
         <>
-          {/* The anonymous road out of this screen, in the card's top-right
-              corner where a "skip" always lives. First run only — beside an
-              existing vault a guest principal would seal a second one. Never
-              gated on an Identity API: guest works fully offline. */}
-          {firstRun ? <GuestSkip busy={busy} onGuest={startGuest} /> : null}
           <div className="signin__providers">
             <SignInSocialBar
               busy={busy}
@@ -347,14 +325,6 @@ export function SignInPanel(props: Props) {
               onByo={() => setStage("byo")}
               onMagicLink={() => setStage("magic-link")}
             />
-            {/* Guest is the most common road in, so it is a full-size button
-                beside the social bar — never a footnote, on BOTH placements.
-                Never gated on an Identity API (`continueAsGuest` seals a local
-                vault and works with no service at all) and never withheld
-                beside an existing vault (the store isolates it in its own
-                tomb); only the operator's "Allow guests" switch removes it.
-                AGENTS.md §5: removing this button otherwise is a regression. */}
-            <GuestButton busy={busy} onGuest={startGuest} />
             {brokerNotes.map((note) => (
               <p className="hint signin__provider-note" key={note}>
                 {note}

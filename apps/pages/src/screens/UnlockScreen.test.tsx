@@ -250,25 +250,26 @@ describe("UnlockScreen — first run", () => {
     expect(master.type).toBe("password");
   });
 
-  it("continues as a guest without a passkey or password", async () => {
+  it("offers the no-key road on first run as the local seal", () => {
     render(<UnlockScreen />);
-    // Guest is the most common road in, so it sits on the hub itself.
-    fireEvent.click(screen.getByRole("button", { name: /Continue as guest/ }));
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+    // The one no-account road here is the local seal.
+    goLocalOnly();
+    chooseSealMethod("Password");
+    expect(masterInput()).toBeTruthy();
     expect(v.store.create).not.toHaveBeenCalled();
     expect(v.store.createWithPasskey).not.toHaveBeenCalled();
     expect(v.store.createWithPin).not.toHaveBeenCalled();
   });
 
-  it("offers a skip link in the top corner that starts the same guest flow", async () => {
+  it("offers one no-account road, the local seal, on first run", () => {
     render(<UnlockScreen />);
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Skip sign-in and continue as guest",
-      }),
-    );
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
-    expect(v.store.create).not.toHaveBeenCalled();
+    // Guest lives on the front door and the unlock form, not here.
+    expect(
+      screen.getByRole("button", { name: "Use without an account" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /continue as guest/i }),
+    ).toBeNull();
   });
 
   it("drops the skip link on the local-only road and beside an existing vault", () => {
@@ -624,7 +625,7 @@ describe("UnlockScreen — first run", () => {
     expect(await screen.findByText(/not available/)).toBeTruthy();
   });
 
-  it("offers the sign-in entries on an existing vault too, guest included", async () => {
+  it("offers the sign-in entries on an existing vault too", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
     // Sign-in lives in the user menu — nothing of it crowds the form.
@@ -641,14 +642,13 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.getByRole("button", { name: /Email me a sign-in link/ }),
     ).toBeTruthy();
-    // Sealing a local-only vault beside the existing one is not a road out of
-    // this screen. Guest IS: the store isolates it beside the sealed vault
-    // (AGENTS.md §5 — never withheld because a vault exists).
+    // No no-account road sits in this panel.
     expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Continue as guest/ }));
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
   });
 
   it("offers guest on the unlock form of an existing vault (AGENTS.md §5)", async () => {

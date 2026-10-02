@@ -58,6 +58,31 @@ export function minimalDraft(): CapabilityDraft {
   return { ...EMPTY_DRAFT, road: "minimal" };
 }
 
+/**
+ * The full configuration: every optional root this plan permits and
+ * distributes, each alternative slot answered with its first
+ * permitted option, so nothing a person could enable is left off.
+ * An unanswered slot would resolve its root out of the plan
+ * (`ALTERNATIVE_NOT_CHOSEN`), so the slots are filled here rather
+ * than left for the ceremony.
+ */
+export function fullDraft(
+  catalog: CapabilityCatalog,
+  plan: EffectivePlan | null,
+): CapabilityDraft {
+  const roots: CapabilityId[] = [];
+  const alternatives: Record<string, CapabilityId> = {};
+  for (const entry of catalog.capabilities) {
+    if (entry.tier !== "optional" || !permitted(plan, entry.id)) continue;
+    roots.push(entry.id);
+    for (const slot of entry.alternatives) {
+      const option = slot.oneOf.find((candidate) => permitted(plan, candidate));
+      if (option !== undefined) alternatives[slot.slot] = option;
+    }
+  }
+  return { ...EMPTY_DRAFT, road: "customize", roots, alternatives };
+}
+
 function permitted(plan: EffectivePlan | null, id: CapabilityId): boolean {
   const state = plan?.capabilities[id];
   return state ? state.permitted && state.distributed : true;

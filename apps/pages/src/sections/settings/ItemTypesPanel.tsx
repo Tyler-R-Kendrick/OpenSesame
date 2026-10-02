@@ -1,11 +1,10 @@
 /**
- * The Vaults category of Settings: the vault switcher, travel (ADR 0143),
- * then the item types those vaults can hold (`item-types/`, ADR 0087 §7 and
- * ADR 0134).
+ * The Vaults category of Settings: the vault switcher, then the item types
+ * those vaults can hold (`item-types/`, ADR 0087 §7 and ADR 0134). Travel
+ * lives with the duress feature under Security (ADR 0143).
  */
 import type { ComponentType } from "react";
 import { ItemTypesPanel } from "./item-types/ItemTypesPanel.js";
-import { TravelPanel } from "./travel/TravelPanel.js";
 
 export { ItemTypesPanel };
 
@@ -16,7 +15,6 @@ export function VaultsAndTypes({
   return (
     <>
       <VaultsPanel />
-      <TravelPanel />
       <ItemTypesPanel />
     </>
   );

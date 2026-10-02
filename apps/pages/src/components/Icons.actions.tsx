@@ -225,6 +225,16 @@ export function IconShield(props: IconProps) {
   );
 }
 
+export function IconLayers(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5 21 8l-9 4.5L3 8z" />
+      <path d="m3 12.5 9 4.5 9-4.5" />
+      <path d="m3 16.8 9 4.5 9-4.5" />
+    </Svg>
+  );
+}
+
 export function IconAlert(props: IconProps) {
   return (
     <Svg {...props}>

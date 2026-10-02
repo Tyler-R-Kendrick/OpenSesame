@@ -18,11 +18,18 @@ import {
  * approved (ADR 0130).
  */
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
+import {
+  NavLink,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router";
 import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useVault } from "../lib/vault/hooks.js";
+import { IconChevronLeft } from "./Icons.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
+  SESSION_SECTIONS,
   SectionRow,
   type SectionRowModel,
   railRowId,
@@ -197,6 +204,35 @@ function SectionBranch({
 }
 
 /**
+ * The `<` key that returns the tree to the vault view. It carries
+ * the vault directory's own row identity — the same id and
+ * `data-rail-to` — so a `g v` typed while the tree is rooted
+ * elsewhere still lands the keyboard on the vault: the cursor set
+ * here is the one the vault's own row wears once the tree returns.
+ */
+function NavBack() {
+  return (
+    <NavLink
+      to="/vault"
+      id={railRowId("/vault")}
+      role="treeitem"
+      tabIndex={-1}
+      aria-level={1}
+      aria-label="Back to vault"
+      data-rail-move=""
+      data-rail-to="/vault"
+      data-rail-open="/vault"
+      className="railtree__row railtree__back"
+    >
+      <IconChevronLeft size={12} className="railtree__caret" />
+      <span className="railtree__name">
+        vault<span className="railtree__dim">/</span>
+      </span>
+    </NavLink>
+  );
+}
+
+/**
  * The rail is the filesystem: sections are directories off the tomb root, the
  * active section is the open one, and its views hang under it as entries. The
  * `g`-jump key for each section is advertised on its row. Which directories
@@ -237,6 +273,15 @@ export function NavTree() {
           activeFolder ? uniqueFolderKind(items, activeFolder, kinds) : null,
         );
   const section = sectionForPath(location.pathname, sections);
+  // Settings and the activity log are session-level: the session
+  // prompt's menu roots the tree in either one, so neither is a
+  // rail directory — the vault view is, and a `<` key returns to it.
+  const rerooted =
+    section !== undefined && SESSION_SECTIONS.includes(section.to);
+  const railSections = useMemo(
+    () => sections.filter((entry) => !SESSION_SECTIONS.includes(entry.to)),
+    [sections],
+  );
   const sectionOpen = Boolean(
     section && isBranch(section) && expandFor(section.to).expanded,
   );
@@ -250,7 +295,7 @@ export function NavTree() {
   );
   const cursorId = useRailCursor();
 
-  return (
+  const tree = (
     <nav
       ref={treeRef}
       className="railtree"
@@ -271,7 +316,8 @@ export function NavTree() {
         );
       }}
     >
-      {sections.map((entry) => (
+      {rerooted && section ? <NavBack /> : null}
+      {(rerooted && section ? [section] : railSections).map((entry) => (
         <SectionBranch
           key={entry.to}
           section={entry}
@@ -287,4 +333,5 @@ export function NavTree() {
       ))}
     </nav>
   );
+  return tree;
 }

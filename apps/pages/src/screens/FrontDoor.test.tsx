@@ -126,7 +126,7 @@ describe("the front door", () => {
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label") ?? button.textContent);
     // Document order is Tab order: the corner skip, then the two roads.
-    expect(names.filter((name) => name !== "Reset this browser")).toEqual(
+    expect(names).toEqual(
       expect.arrayContaining([
         "Skip sign-in and continue as guest",
         "Set up your own",
