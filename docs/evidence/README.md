@@ -48,6 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-01-vault-environments/`](2026-10-01-vault-environments/README.md) | Vault environments |
+| [`2026-10-01-statusline-icons/`](2026-10-01-statusline-icons/README.md) | Status line without the identity and key vault glyphs |
 | [`2026-10-01-slash-commands/`](2026-10-01-slash-commands/README.md) | Slash completions in the status line |
 | [`2026-10-01-secret-ceiling/`](2026-10-01-secret-ceiling/README.md) | Secret without the capability ceiling |
 | [`2026-10-01-activity-item-log/`](2026-10-01-activity-item-log/README.md) | A secret save names what happened |

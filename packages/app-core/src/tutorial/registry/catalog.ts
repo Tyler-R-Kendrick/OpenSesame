@@ -175,15 +175,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
 
-  // ── Statusline detail: the identity plane and the health notice ───────
-  {
-    id: "connectivity.identity",
-    description:
-      "The sign-in glyph on the statusline. Pressing it opens the ceremony that signs in or reports the session already held.",
-    role: "ceremony",
-    routes: [],
-    capabilityId: "identity.whoami",
-  },
+  // ── Statusline detail: the health notice ──────────────────────────────
   {
     id: "notifications.health",
     description:

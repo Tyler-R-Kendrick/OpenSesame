@@ -121,7 +121,7 @@ describe("AppShell", () => {
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
+    expect(screen.queryByTestId("connectivity-bar")).toBeNull();
     expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
   });

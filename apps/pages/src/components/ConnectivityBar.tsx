@@ -14,7 +14,6 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { failureSentence } from "@opensesame/app-core/lib/probe-failure.js";
 import { useModalFocus } from "../lib/modal-focus.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconKey } from "./IconKey.js";
 import { IconLogin, IconRefresh, IconVault, IconX } from "./Icons.js";
 import { IdentityCeremony } from "./IdentityCeremony.js";
@@ -54,9 +53,6 @@ export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
 
 function ConnectivityBarDefault() {
   const connectors = connectivityBarDependencies.useConnectors();
-  const identityRef = useGuideTarget<HTMLButtonElement>(
-    "connectivity.identity",
-  );
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
   const offline = isOfflineSet(connectors);
@@ -83,7 +79,6 @@ function ConnectivityBarDefault() {
           <ConnectorGlyph
             key={connector.id}
             connector={connector}
-            guideRef={connector.id === "identity" ? identityRef : null}
             onOpen={() => {
               // Opening a ceremony is a person asking, so refresh rather than
               // showing them whatever the last sweep happened to find.
@@ -124,11 +119,9 @@ export function ConnectivityBar() {
 function ConnectorGlyph({
   connector,
   onOpen,
-  guideRef,
 }: {
   connector: ConnectorStatus;
   onOpen: () => void;
-  guideRef: ((element: HTMLButtonElement | null) => void) | null;
 }) {
   const previousTone = useRef(connector.tone);
   const [recovered, setRecovered] = useState(false);
@@ -145,7 +138,6 @@ function ConnectorGlyph({
   const label = `${connector.name} — ${connector.detail}`;
   return (
     <button
-      ref={guideRef}
       type="button"
       className={[
         "cx__btn",
