@@ -136,6 +136,18 @@ describe("vfs sealed files", () => {
     lockTomb("other-tomb");
   });
 
+  it("refuses to delete a sealed file while the tomb is locked", async () => {
+    const key = await unlockedTomb();
+    await writeFile(TOMB, "config/prefs", utf8.encode("x"));
+    lockTomb(TOMB);
+    await expect(deleteFile(TOMB, "config/prefs")).rejects.toMatchObject({
+      code: "locked",
+    });
+    expect(kvGet(tombFileKey(TOMB, "config/prefs"))).toBeTruthy();
+    unlockTomb(TOMB, key);
+    expect(await listDir(TOMB, "config/")).toEqual(["config/prefs"]);
+  });
+
   it("deletes a file and its index entry", async () => {
     await unlockedTomb();
     await writeFile(TOMB, "config/prefs", utf8.encode("x"));

@@ -12,6 +12,7 @@ import {
 } from "./aws-kms.js";
 import {
   assertAllowedCloudEndpoint,
+  encryptionContextFromProtection,
   mintWrappingSecret,
 } from "./cloud-wrapping-secret.js";
 
@@ -138,6 +139,27 @@ describe("aws-kms protector (fake transport)", () => {
     });
     await expect(
       protector.unwrap({ context: CONTEXT, record }),
+    ).rejects.toMatchObject({ code: "provider_denied" });
+  });
+
+  it("rejects a decrypt KeyId that merely contains the expected key id (KP-33)", async () => {
+    const transport = createAwsKmsHttpsTransport({
+      credentials: { accessKeyId: "AKID", secretAccessKey: "secret" },
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            Plaintext: btoa(String.fromCharCode(...new Uint8Array(32))),
+            KeyId: "prefix12345678-1234-1234-1234-1234567890ab",
+          }),
+          { status: 200 },
+        ),
+    });
+    await expect(
+      transport.decrypt({
+        ciphertext: new Uint8Array(64),
+        encryptionContext: encryptionContextFromProtection(CONTEXT),
+        expectedKeyArn: KEY_ARN,
+      }),
     ).rejects.toMatchObject({ code: "provider_denied" });
   });
 

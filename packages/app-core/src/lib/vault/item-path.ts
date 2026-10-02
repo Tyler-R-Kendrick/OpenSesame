@@ -64,9 +64,9 @@ export function writeItem(body: VaultBody, item: VaultItem, folder?: Folder) {
   if (folder) {
     if (folder.id !== folderId)
       throw new Error("Item folder does not match its path.");
-    const existing = body.folders.find(
-      (entry) => entry.id === folder.id || entry.name === folder.name,
-    );
+    const existing =
+      body.folders.find((entry) => entry.id === folder.id) ??
+      body.folders.find((entry) => entry.name === folder.name);
     if (!existing) body.folders = [...body.folders, folder];
     folderId = existing?.id ?? folder.id;
   }

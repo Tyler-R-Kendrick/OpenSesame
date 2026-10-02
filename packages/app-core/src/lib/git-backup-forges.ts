@@ -73,12 +73,13 @@ export function ownerRepoFromGitRemote(remote: string): {
 
 /** Infer forge from a remote URL when the catalog id is generic `git`. */
 export function forgeFromRemoteUrl(remote: string): GitBackupForge | null {
-  const lower = remote.toLowerCase();
-  if (lower.includes("gitlab.com")) return "gitlab";
-  if (lower.includes("bitbucket.org")) return "bitbucket";
-  if (lower.includes("codeberg.org")) return "codeberg";
-  if (lower.includes("origin.cursor.com") || lower.includes("cursor.com")) {
-    return "origin";
-  }
+  const lower = remote.trim().toLowerCase();
+  const https = lower.match(/^https?:\/\/(?:[^/@\s]*@)?([^/:?#\s]+)/u);
+  const scp = https ? null : lower.match(/^(?:[^/@\s]*@)?([^:/\s]+):[^/]/u);
+  const host = (https?.[1] ?? scp?.[1] ?? "").replace(/^www\./u, "");
+  if (host === "gitlab.com") return "gitlab";
+  if (host === "bitbucket.org") return "bitbucket";
+  if (host === "codeberg.org") return "codeberg";
+  if (host === "origin.cursor.com" || host === "cursor.com") return "origin";
   return null;
 }

@@ -42,6 +42,17 @@ function fromB64(s: string): Uint8Array {
   return out;
 }
 
+function exportAad(issuedAt: string, expiresAt: string): Uint8Array {
+  return new TextEncoder().encode(
+    JSON.stringify({
+      schemaVersion: 1,
+      kind: "duress_peer_pairing",
+      issuedAt,
+      expiresAt,
+    }),
+  );
+}
+
 export async function exportPeerPairing(
   pairing: PeerPairing,
   wrapKey: CryptoKey,
@@ -59,8 +70,14 @@ export async function exportPeerPairing(
     }),
   );
   const iv = crypto.getRandomValues(new Uint8Array(12));
+  const issuedAt = new Date(now).toISOString();
+  const expiresAt = new Date(now + ttlMs).toISOString();
   const ct = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, wrapKey, plaintext),
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: exportAad(issuedAt, expiresAt) },
+      wrapKey,
+      plaintext,
+    ),
   );
   const packed = new Uint8Array(iv.length + ct.length);
   packed.set(iv, 0);
@@ -69,8 +86,8 @@ export async function exportPeerPairing(
     schemaVersion: 1,
     kind: "duress_peer_pairing",
     ciphertextB64: b64(packed),
-    issuedAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + ttlMs).toISOString(),
+    issuedAt,
+    expiresAt,
   };
   const serialized = JSON.stringify(blob);
   if (serialized.length > MAX_EXPORT_CHARS) {
@@ -87,13 +104,31 @@ export async function importPeerPairing(
   if (blob.schemaVersion !== 1 || blob.kind !== "duress_peer_pairing") {
     throw new Error("unsupported_profile_version");
   }
-  if (Date.parse(blob.expiresAt) < now) throw new Error("stale_session");
-  const packed = fromB64(blob.ciphertextB64);
-  const iv = packed.slice(0, 12);
-  const ct = packed.slice(12);
-  const plain = new TextDecoder().decode(
-    await crypto.subtle.decrypt({ name: "AES-GCM", iv }, wrapKey, ct),
-  );
+  const expires = Date.parse(blob.expiresAt);
+  if (
+    !Number.isFinite(expires) ||
+    !Number.isFinite(Date.parse(blob.issuedAt))
+  ) {
+    throw new Error("stale_session");
+  }
+  if (expires < now) throw new Error("stale_session");
+  let plain: string;
+  try {
+    const packed = fromB64(blob.ciphertextB64);
+    plain = new TextDecoder().decode(
+      await crypto.subtle.decrypt(
+        {
+          name: "AES-GCM",
+          iv: packed.slice(0, 12),
+          additionalData: exportAad(blob.issuedAt, blob.expiresAt),
+        },
+        wrapKey,
+        packed.slice(12),
+      ),
+    );
+  } catch {
+    throw new Error("unavailable_authority");
+  }
   const wire = JSON.parse(plain);
   if (!isJsonObject(wire)) throw new Error("unsupported_factor");
   const parsed = overlapCast<JsonObject, ExportedPeerPairingWire>(wire);

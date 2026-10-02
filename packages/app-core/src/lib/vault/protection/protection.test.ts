@@ -218,6 +218,26 @@ describe("vault root protection MODEL", () => {
     ).toThrow(/Duplicate JSON key/);
   });
 
+  it("KP-20 rejects duplicate JSON keys hidden behind string escapes", () => {
+    expect(() =>
+      parseRootProtectionManifest(
+        '{"schemaVersion":1,"vaultId":"v","\\u0076aultId":"w","rootKeyId":"r","rootEpoch":0,"revision":0,"purpose":"human-vault-root","records":[]}',
+      ),
+    ).toThrow(/Duplicate JSON key/);
+    expect(() =>
+      parseRootProtectionManifest(
+        '{"schemaVersion":1,"vaultId":"v","vault\\u0049d":"w","rootKeyId":"r","rootEpoch":0,"revision":0,"purpose":"human-vault-root","records":[]}',
+      ),
+    ).toThrow(/Duplicate JSON key/);
+  });
+
+  it("KP-20 accepts escaped keys that decode to distinct names", () => {
+    const manifest = parseRootProtectionManifest(
+      '{"schemaVersion":1,"vaultId":"v","rootKeyId":"r","rootEpoch":0,"revision":0,"purpose":"human-vault-root","records":[],"note":"a","\\u006Eote2":"b"}',
+    );
+    expect(manifest.vaultId).toBe("v");
+  });
+
   it("KP-04 encryption preference alone is not enrollment", async () => {
     const { migrateLegacyHeaderToManifest } = await import(
       "./migrate-legacy.js"
@@ -229,5 +249,35 @@ describe("vault root protection MODEL", () => {
       },
     });
     expect(migrated.manifest.records).toEqual([]);
+  });
+
+  it("migrated passkey records carry the ceremony RP id, not a hardcoded localhost", async () => {
+    const { migrateLegacyHeaderToManifest } = await import(
+      "./migrate-legacy.js"
+    );
+    const migrated = migrateLegacyHeaderToManifest({
+      header: {
+        v: 1,
+        createdAt: new Date().toISOString(),
+        unlocks: {
+          passkeys: [
+            {
+              credentialIdB64: "Y3JlZA",
+              userIdB64: "dXNlcg",
+              prfSaltB64: "c2FsdA",
+              wrap: { ivB64: "aXY", ctB64: "Y3Q" },
+            },
+          ],
+        },
+      },
+      passkeyRpId: "vault.example.com",
+    });
+    const record = migrated.manifest.records.find(
+      (entry) => entry.kind === "webauthn-prf",
+    );
+    expect(record).toMatchObject({
+      kind: "webauthn-prf",
+      rpId: "vault.example.com",
+    });
   });
 });

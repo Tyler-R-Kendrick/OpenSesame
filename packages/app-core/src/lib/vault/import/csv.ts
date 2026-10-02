@@ -106,7 +106,7 @@ export function parseCsv(input: string) {
   for (const line of cells.slice(1)) {
     // A row of nothing but empty cells is padding, not a record.
     if (line.every((value) => value.trim() === "")) continue;
-    const row: CsvRow = {};
+    const row: CsvRow = Object.create(null);
     headers.forEach((header, index) => {
       if (header === "") return;
       row[header] = line[index] ?? "";
@@ -157,7 +157,7 @@ export function readHeaderRow(input: string): string[] | null {
 export function pick(row: CsvRow, ...names: string[]): string {
   for (const name of names) {
     const value = row[name];
-    if (value !== undefined && value.trim() !== "") return value;
+    if (typeof value === "string" && value.trim() !== "") return value;
   }
   return "";
 }

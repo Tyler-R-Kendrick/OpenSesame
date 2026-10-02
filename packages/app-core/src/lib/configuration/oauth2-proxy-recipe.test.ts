@@ -45,4 +45,95 @@ describe("oauth2-proxy recipe", () => {
       }),
     ).toThrow(/S256/);
   });
+
+  it("rejects values that would inject config directives", () => {
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: {
+          ...DISCOVERY,
+          issuer:
+            'https://id.example"\ninsecure_oidc_allow_unverified_email = true',
+        },
+        clientId: "app",
+        redirectUrl: "https://app.example/cb",
+      }),
+    ).toThrow(/quotes, backslashes, or line breaks/);
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: 'app"\nskip_provider_button = false',
+        redirectUrl: "https://app.example/cb",
+      }),
+    ).toThrow(/quotes, backslashes, or line breaks/);
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: "app",
+        redirectUrl: 'https://app.example/cb"\r\nset_cookie = false',
+      }),
+    ).toThrow(/quotes, backslashes, or line breaks/);
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: "app",
+        redirectUrl: "https://app.example/cb",
+        emailDomains: ['example.com"\ninsecure = true'],
+      }),
+    ).toThrow(/quotes, backslashes, or line breaks/);
+  });
+
+  it("requires https URLs, allowing loopback http for dev", () => {
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: { ...DISCOVERY, issuer: "http://id.example" },
+        clientId: "app",
+        redirectUrl: "https://app.example/cb",
+      }),
+    ).toThrow(/https/);
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: "app",
+        redirectUrl: "http://app.example/cb",
+      }),
+    ).toThrow(/https/);
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: "app",
+        redirectUrl: "not a url",
+      }),
+    ).toThrow(/absolute URL/);
+    const dev = oauth2ProxyConfig({
+      discovery: { ...DISCOVERY, issuer: "http://127.0.0.1:8788" },
+      clientId: "app",
+      redirectUrl: "http://localhost:4180/oauth2/callback",
+    });
+    expect(dev).toContain('oidc_issuer_url = "http://127.0.0.1:8788"');
+  });
+
+  it("rejects clientIds and email domains outside their allowlists", () => {
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: "app name;comment",
+        redirectUrl: "https://app.example/cb",
+      }),
+    ).toThrow(/allowlist/);
+    expect(() =>
+      oauth2ProxyConfig({
+        discovery: DISCOVERY,
+        clientId: "app",
+        redirectUrl: "https://app.example/cb",
+        emailDomains: ["example.com,other.example"],
+      }),
+    ).toThrow(/not a valid domain/);
+    const cfg = oauth2ProxyConfig({
+      discovery: DISCOVERY,
+      clientId: "app",
+      redirectUrl: "https://app.example/cb",
+      emailDomains: ["example.com", "sub.example.co"],
+    });
+    expect(cfg).toContain('email_domains = "example.com,sub.example.co"');
+  });
 });

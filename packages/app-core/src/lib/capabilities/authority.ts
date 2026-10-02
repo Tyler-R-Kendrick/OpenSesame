@@ -12,7 +12,10 @@
  *   with every other tab: under the instance's Web Lock it re-reads the
  *   durable generation counter and refuses when another context committed a
  *   newer plan — or when no cross-context serialization can be established.
- *   It fails closed on both.
+ *   It fails closed on both. The lock is held through the operation itself,
+ *   so a commit in another context (which takes the same lock) cannot land
+ *   between admission and execution. The operation must not take the
+ *   instance lock again — Web Locks are not reentrant.
  */
 
 import type {
@@ -97,19 +100,46 @@ async function admitLocked(
   return decision(true, durable, "current");
 }
 
-export async function admitOperation(
+export type AdmissionOutcome<T> = Readonly<{
+  decision: AdmissionDecision;
+  /** The operation's return value; it ran under the lock, only when admitted. */
+  result: T | undefined;
+}>;
+
+export async function admitOperation<T>(
   op: OperationId,
   lease: ActivationLease,
-): Promise<AdmissionDecision> {
+  operation: () => T | Promise<T>,
+): Promise<AdmissionOutcome<T>> {
   const known = compositionStore.committedGeneration();
   const locks = storeSeams.locks();
-  if (!locks) return decision(false, known, "no-serialization");
+  if (!locks) {
+    return {
+      decision: decision(false, known, "no-serialization"),
+      result: undefined,
+    };
+  }
+  let operationThrew = false;
   try {
     return await locks.request(
       compositionLockName(compositionStore.instanceId()),
-      () => admitLocked(op, lease),
+      async (): Promise<AdmissionOutcome<T>> => {
+        const admission = await admitLocked(op, lease);
+        if (!admission.admitted)
+          return { decision: admission, result: undefined };
+        try {
+          return { decision: admission, result: await operation() };
+        } catch (error) {
+          operationThrew = true;
+          throw error;
+        }
+      },
     );
-  } catch {
-    return decision(false, known, "no-serialization");
+  } catch (error) {
+    if (operationThrew) throw error;
+    return {
+      decision: decision(false, known, "no-serialization"),
+      result: undefined,
+    };
   }
 }

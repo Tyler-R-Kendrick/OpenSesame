@@ -120,7 +120,9 @@ export async function forgetVercelConnectAuth(
 
 /**
  * Arm Connect for this session. With an open tomb, seal it; otherwise hold
- * the credential in memory until unlock can write the sealed record.
+ * the credential in memory until unlock can write the sealed record. An
+ * ephemeral arm is live-only — never sealed, never staged for a later seal,
+ * so a guest credential cannot leak into a later non-guest session.
  */
 type VercelConnectAuthOpts = {
   ephemeral?: boolean;
@@ -140,6 +142,7 @@ export async function armVercelConnectAuth(
     await writeVercelConnectAuth(tomb, next);
     return;
   }
+  if (opts.ephemeral) return;
   pending = next;
 }
 

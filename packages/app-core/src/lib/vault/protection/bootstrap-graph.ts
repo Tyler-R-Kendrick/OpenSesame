@@ -61,7 +61,11 @@ export function findBootstrapCycles(
       if (visiting.has(id)) {
         const start = stack.indexOf(id);
         if (start >= 0) {
-          cycles.push({ path: [...stack.slice(start), id] });
+          const path = [...stack.slice(start), id];
+          const sealedOnly = path.every(
+            (nodeId) => byId.get(nodeId)?.availability === "vault-sealed",
+          );
+          if (sealedOnly) cycles.push({ path });
         }
       }
       return;

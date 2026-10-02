@@ -104,25 +104,29 @@ export async function proveTotpEnrollment(input: {
 
 /**
  * The registration entry for a gate: adopt the live entry with the shared
- * title when one exists (a second device may have sealed it already), else
- * build a fresh one from the gate's seed.
+ * title when one holds the gate's own seed (a second device may have sealed
+ * it already) — a same-titled entry with another seed is the person's own
+ * and is left alone — else build a fresh one from the gate's seed.
  */
 export async function selfAuthenticatorRegistration(
   vaultKey: CryptoKey,
   gate: TotpGateRecord,
   body: VaultBody,
 ): Promise<SelfAuthenticatorRegistrationResult> {
+  const secret = await openTotpSecret(vaultKey, gate);
+  const canon = (value: string) =>
+    value.normalize("NFKC").replace(/\s+/g, "").toUpperCase();
   const existing = body.items.find(
     (item): item is LoginItem =>
       item.kind === "login" &&
       item.deletedAt === null &&
       item.name === SELF_AUTHENTICATOR_TITLE &&
-      item.totp.length > 0,
+      item.totp.length > 0 &&
+      canon(item.totp) === canon(secret),
   );
   if (existing) {
     return { gate: { ...gate, selfItemId: existing.id }, item: null };
   }
-  const secret = await openTotpSecret(vaultKey, gate);
   const item: LoginItem = {
     ...createItem("login", SELF_AUTHENTICATOR_TITLE),
     totp: secret,

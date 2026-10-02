@@ -142,6 +142,13 @@ export type Ports = {
   /** The origin-private file system root (`navigator.storage.getDirectory`). */
   readonly originFiles?: () => Promise<FileSystemDirectoryHandle>;
   readonly indexedDB?: IDBFactory;
+  /**
+   * Resolves a peer hostname before a duress peer request. A host that
+   * cannot resolve leaves this unset, and a name is then refused.
+   */
+  readonly peerDns?: {
+    lookup(hostname: string): Promise<readonly string[]>;
+  };
   /** The Cache API (`caches`): where the service worker keeps the offline shell. */
   readonly cacheStorage?: CacheStorage;
   /**

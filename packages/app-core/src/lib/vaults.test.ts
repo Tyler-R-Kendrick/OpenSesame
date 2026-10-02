@@ -1,5 +1,5 @@
 import { createVault } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setGuestsAllowed } from "./guest-access.js";
 import { guestAuthSeams } from "./guest-auth.js";
 import { kvDelete, kvSet } from "./kv.js";
@@ -15,6 +15,7 @@ import {
 import { GUEST_TOMB, vaultStore } from "./vault/store.js";
 import {
   describeSealedAt,
+  enterActiveProjectScope,
   listDeviceVaults,
   removeVault,
   switchVault,
@@ -170,6 +171,57 @@ describe("switchVault", () => {
 
   it("refuses a vault that is not on this device", async () => {
     await expect(switchVault("prj_ghost")).rejects.toThrow(/no longer exists/);
+  });
+
+  it("runs a second switch only after the first settles", async () => {
+    let activeId = PERSONAL_PROJECT_ID;
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let held = true;
+    Object.assign(projectSeams, {
+      activeProject: () =>
+        state.projects.find((project) => project.id === activeId) ??
+        state.projects[0],
+      setActiveProject: async (id: string) => {
+        order.push(`begin:${id}`);
+        if (held) {
+          held = false;
+          await firstGate;
+        }
+        activeId = id;
+        order.push(`end:${id}`);
+      },
+    });
+    const first = switchVault("prj_named");
+    await vi.waitFor(() => expect(order).toEqual(["begin:prj_named"]));
+    const second = switchVault(PERSONAL_PROJECT_ID);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(order).toEqual(["begin:prj_named"]);
+    releaseFirst();
+    await expect(first).resolves.toBe("locked");
+    await expect(second).resolves.toBe("locked");
+    expect(order).toEqual([
+      "begin:prj_named",
+      "end:prj_named",
+      "begin:personal",
+      "end:personal",
+    ]);
+  });
+
+  it("enterActiveProjectScope throws when the active vault moved mid-flight", async () => {
+    let activeId = PERSONAL_PROJECT_ID;
+    Object.assign(projectSeams, {
+      activeProject: () =>
+        state.projects.find((project) => project.id === activeId) ??
+        state.projects[0],
+    });
+    const pending = enterActiveProjectScope(false);
+    activeId = "prj_named";
+    await expect(pending).rejects.toThrow(/changed while switching/);
   });
 });
 

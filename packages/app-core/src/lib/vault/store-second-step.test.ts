@@ -1,4 +1,8 @@
-import { WrongPasswordError } from "@opensesame/vault-core";
+import {
+  type LoginItem,
+  WrongPasswordError,
+  createItem,
+} from "@opensesame/vault-core";
 import { parseTotp, totpCode } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
@@ -14,6 +18,7 @@ import {
 import { type SentCode, remoteCodeSeams } from "./remote-code.js";
 import { SELF_AUTHENTICATOR_TITLE } from "./self-authenticator.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
+import { randomTotpSecret } from "./unlock-methods.js";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -238,6 +243,28 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     await expect(totpCode(parseTotp(item?.totp ?? ""))).resolves.toBe(
       await totpCode(parseTotp(secret)),
     );
+  });
+
+  it("does not adopt a same-titled entry whose seed differs", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const own: LoginItem = {
+      ...createItem("login", SELF_AUTHENTICATOR_TITLE),
+      totp: randomTotpSecret(),
+    };
+    await store.saveItem(own);
+    await enrollTotp(store);
+    const marker = selfItemId(store);
+    expect(marker).not.toBe(own.id);
+    const registered = store.getSnapshot().items.find((c) => c.id === marker);
+    expect(registered?.name).toBe(SELF_AUTHENTICATOR_TITLE);
+    expect(registered?.deletedAt).toBeNull();
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
   });
 
   it("supplies the code itself at unlock, asking nothing", async () => {

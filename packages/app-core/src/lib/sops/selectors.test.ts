@@ -4,6 +4,8 @@ import { SopsError } from "./errors.js";
 import {
   DEFAULT_POLICY,
   assertPolicyValid,
+  compileRe2,
+  compiledRe2CacheSizeForTests,
   matchRe2,
   shouldBeEncrypted,
 } from "./selectors.js";
@@ -74,6 +76,15 @@ describe("SB-046 the selector regex engine is a bounded Go/RE2 subset", () => {
     expect(() => matchRe2("*", "a")).toThrow(/nothing to repeat/u);
     expect(() => matchRe2("[z-a]", "a")).toThrow(/inverted/u);
     expect(() => matchRe2("[abc", "a")).toThrow(/unterminated/u);
+  });
+
+  it("bounds the compiled-pattern cache with FIFO eviction", () => {
+    for (let i = 0; i < 600; i += 1) {
+      compileRe2(`^cacheprobe${i}$`);
+    }
+    expect(compiledRe2CacheSizeForTests()).toBe(512);
+    expect(matchRe2("^cacheprobe0$", "cacheprobe0")).toBe(true);
+    expect(compiledRe2CacheSizeForTests()).toBe(512);
   });
 });
 

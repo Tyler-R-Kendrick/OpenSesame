@@ -9,6 +9,7 @@ import type { OperatorIdp } from "../settings.js";
 import { runSilentIframeAttempt } from "./controller-silent.js";
 import {
   attemptOnCooldown,
+  clearAttemptRecord,
   currentAuthGeneration,
   isAutoAuthSuppressed,
   writeAttemptRecord,
@@ -199,39 +200,44 @@ export async function runAutomaticAttempt(
   if (eligibility.connection.protocol === "shoo") {
     return { kind: "unsupported", reason: "unsupported" };
   }
+  if (eligibility.policy.allowedTransport === "interactive-continue") {
+    return { kind: "interaction-required", reason: "interaction_required" };
+  }
   if (!claimAttempt(eligibility)) {
     return { kind: "rejected", reason: "attempt_budget" };
   }
   const generation = currentAuthGeneration();
-  if (eligibility.policy.allowedTransport === "interactive-continue") {
-    return { kind: "interaction-required", reason: "interaction_required" };
-  }
-  if (eligibility.policy.allowedTransport === "silent-iframe") {
-    return runSilentIframeAttempt(eligibility, redirectUri, generation);
-  }
-  const discovery = await ambientControllerSeams.discover(
-    eligibility.connection.issuer,
-  );
-  const { url } = await beginAmbientOidc({
-    connection: eligibility.connection,
-    authorizationEndpoint: discovery.authorization_endpoint,
-    tokenEndpoint: discovery.token_endpoint,
-    jwksUri: discovery.jwks_uri,
-    redirectUri,
-    intent: {
-      kind: "ambient",
+  try {
+    if (eligibility.policy.allowedTransport === "silent-iframe") {
+      return await runSilentIframeAttempt(eligibility, redirectUri, generation);
+    }
+    const discovery = await ambientControllerSeams.discover(
+      eligibility.connection.issuer,
+    );
+    const { url } = await beginAmbientOidc({
+      connection: eligibility.connection,
+      authorizationEndpoint: discovery.authorization_endpoint,
+      tokenEndpoint: discovery.token_endpoint,
+      jwksUri: discovery.jwks_uri,
+      redirectUri,
+      intent: {
+        kind: "ambient",
+        policyRevision: eligibility.policy.policyRevision,
+        selectedProviderKey: eligibility.connection.key,
+      },
+      transport: eligibility.policy.allowedTransport,
       policyRevision: eligibility.policy.policyRevision,
-      selectedProviderKey: eligibility.connection.key,
-    },
-    transport: eligibility.policy.allowedTransport,
-    policyRevision: eligibility.policy.policyRevision,
-    now: ambientControllerSeams.clock.now(),
-  });
-  if (generation !== currentAuthGeneration()) {
-    return { kind: "rejected", reason: "stale_generation" };
+      now: ambientControllerSeams.clock.now(),
+    });
+    if (generation !== currentAuthGeneration()) {
+      return { kind: "rejected", reason: "stale_generation" };
+    }
+    ambientControllerSeams.navigate(url);
+    return { kind: "interaction-required", reason: "login_required" };
+  } catch {
+    clearAttemptRecord();
+    return { kind: "unavailable", reason: "unavailable" };
   }
-  ambientControllerSeams.navigate(url);
-  return { kind: "interaction-required", reason: "login_required" };
 }
 
 let inFlight: Promise<PassiveOutcome> | null = null;

@@ -26,7 +26,7 @@ export async function carryOpenActiveScopeWithCurrentKey(input: {
   ephemeral: boolean;
   scope: VaultScope;
   body: VaultBody;
-  sessionRootDigest: () => string | null;
+  sessionRootDigest: () => Promise<string | null>;
   lockHandlers: readonly (() => void)[];
   activateSession: (vaultKey: CryptoKey) => Promise<void>;
   assignScope: (scope: VaultScope) => void;
@@ -49,7 +49,7 @@ export async function carryOpenActiveScopeWithCurrentKey(input: {
     sourceTomb: input.scope.tomb,
     targetTomb: next.tomb,
     mode: "open",
-    sessionRootDigest: input.sessionRootDigest(),
+    sessionRootDigest: await input.sessionRootDigest(),
     ephemeral: input.ephemeral,
   });
   const header = readTombHeader(next.tomb);

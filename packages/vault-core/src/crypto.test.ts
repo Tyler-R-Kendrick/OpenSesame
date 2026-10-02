@@ -167,4 +167,15 @@ describe("password-optional headers", () => {
     );
     expect(next.unlocks?.pin).toEqual(withUnlocks.unlocks.pin);
   });
+
+  it("preserves the root-protection manifest when re-wrapping the password", async () => {
+    const { header } = await createVault(PASSWORD);
+    const protection = overlapCast({ schemaVersion: 1, protectors: [] });
+    const next = await rewrapVaultKey(
+      { ...header, protection },
+      PASSWORD,
+      "a whole new passphrase here",
+    );
+    expect(next.protection).toEqual(protection);
+  });
 });

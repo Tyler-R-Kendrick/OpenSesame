@@ -1,6 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { createVault, sealJson } from "@opensesame/vault-core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvSet } from "../kv.js";
 import {
   type OfflineBackupEnvelope,
@@ -207,6 +207,30 @@ describe("offline mutation queue", () => {
     dequeueOfflineMutation(a.id);
     const remaining = listOfflineMutations();
     expect(remaining).toHaveLength(1);
+  });
+
+  it("keeps fallback ids distinct within one millisecond", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    vi.stubGlobal("crypto", {});
+    try {
+      const a = enqueueOfflineMutation({
+        kind: "push_sync_blobs",
+        blobs: [{ id: "a", epoch: 1, ciphertextB64: btoa("a") }],
+      });
+      const b = enqueueOfflineMutation({
+        kind: "push_sync_blobs",
+        blobs: [{ id: "b", epoch: 1, ciphertextB64: btoa("b") }],
+      });
+      expect(a.id).not.toBe(b.id);
+      dequeueOfflineMutation(a.id);
+      const remaining = listOfflineMutations();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]?.id).toBe(b.id);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
   });
 
   it("recovers an empty queue from corrupted storage", () => {

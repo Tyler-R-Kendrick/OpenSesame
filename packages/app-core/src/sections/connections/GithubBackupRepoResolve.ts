@@ -114,7 +114,6 @@ function pushNamedRepos(
   names: Array<{ fullName: string }>,
   accounts: AppInstallAccount[],
 ): void {
-  const defaultAccount = accounts[0] ?? null;
   for (const item of names) {
     const key = item.fullName.toLowerCase();
     if (
@@ -124,10 +123,9 @@ function pushNamedRepos(
       continue;
     }
     const owner = item.fullName.split("/")[0] ?? "";
-    const account =
-      accounts.find(
-        (row) => row.accountLogin.toLowerCase() === owner.toLowerCase(),
-      ) ?? defaultAccount;
+    const account = accounts.find(
+      (row) => row.accountLogin.toLowerCase() === owner.toLowerCase(),
+    );
     if (!account) continue;
     rows.push({
       fullName: item.fullName,

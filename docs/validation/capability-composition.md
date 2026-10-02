@@ -70,7 +70,8 @@ Observed 2026-09-22: **10 test files, 60 tests, all passing.**
   fails; an invalid managed policy is `managed-invalid` and core-only.
 - **Authority (LIFE-04)** — `admitOperation` refuses on a newer durable
   generation, a stale lease, an unapproved operation, and the absence of Web
-  Locks. Four of its five cases are refusals; that ratio is the point. The
+  Locks. When it admits, the operation runs while that lock is still held.
+  Four of its five cases are refusals; that ratio is the point. The
   checks are enforced where they are used (`dispatch.ts`): the WebMCP execute
   wrapper (`agents.webmcp/authority.test.ts` — a tool the browser still holds
   after its capability is disabled, a locked realm, an unapproved or untagged

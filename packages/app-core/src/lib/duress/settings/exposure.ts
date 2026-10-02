@@ -40,6 +40,10 @@ export function formatExposureSummary(
       text: `Alternate wrapper warning: ${warning}`,
     });
   }
+  lines.push({
+    kind: "disclosure",
+    text: "Residual risk: a duress code is a short numeric code (8–12 digits). A stolen sealed slot can be attacked offline, so choose the longest code.",
+  });
   if (exposure.historicalCopyDisclosure) {
     lines.push({
       kind: "disclosure",

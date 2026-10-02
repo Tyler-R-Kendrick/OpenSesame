@@ -297,6 +297,7 @@ export async function rewrapVaultKey(
     wrap,
     createdAt: header.createdAt,
     ...(header.unlocks ? { unlocks: header.unlocks } : undefined),
+    ...(header.protection ? { protection: header.protection } : undefined),
     ...(nextHint ? { hint: nextHint } : undefined),
     // The body is untouched by a re-key, so how far it has got carries over. A
     // fresh header would forget it and take the rollback check with it.

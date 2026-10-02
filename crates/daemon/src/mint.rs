@@ -7,9 +7,9 @@
 //! fence (`remote_host_api` denies a non-local `OPENSESAME_HOST_API`) — and
 //! passes the gateway's status and body through untouched.
 //!
-//! Auth is `require_operator` exactly like `/v1/discover`: over the UDS the
-//! kernel-attested peer UID is the credential (the helpers run as the same
-//! user, so they need no token), over TCP the operator bearer remains.
+//! Auth is `require_operator` exactly like `/v1/discover`: the operator
+//! bearer token is required on every transport, and over the UDS the
+//! kernel-attested peer UID is an additional transport restriction.
 //!
 //! The mint response carries `derived_token` bytes — permitted only because
 //! it is a provider-minted, short-lived, revocable derived token on a

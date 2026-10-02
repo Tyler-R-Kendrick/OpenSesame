@@ -15,6 +15,7 @@ import {
   isMap,
   isScalar,
   isSeq,
+  parseAllDocuments,
   parseDocument,
   visit,
 } from "yaml";
@@ -62,12 +63,6 @@ function pushError(
 ): void {
   if (diagnostics.length > MAX_DIAGNOSTICS) return;
   diagnostics.push({ severity: "error", code, message });
-}
-
-function isMultiDocument(source: string): boolean {
-  const trimmed = source.trimStart();
-  if (trimmed.startsWith("---") && trimmed.includes("\n---")) return true;
-  return /\n---\s*\n/.test(source);
 }
 
 function countEntries(node: BoundaryValue, depth: number): number {
@@ -174,7 +169,16 @@ export function parseConfigYaml(source: string): YamlParseResult {
     );
     return { ok: false, diagnostics: tooMany(diagnostics) };
   }
-  if (isMultiDocument(source)) {
+  const parseOptions = {
+    prettyErrors: true,
+    uniqueKeys: true,
+    schema: "core",
+    logLevel: "silent",
+    strict: true,
+    merge: false,
+  } as const;
+  const documents = parseAllDocuments(source, parseOptions);
+  if (documents.length > 1) {
     pushError(
       diagnostics,
       "multi_document",
@@ -182,15 +186,8 @@ export function parseConfigYaml(source: string): YamlParseResult {
     );
     return { ok: false, diagnostics: tooMany(diagnostics) };
   }
-
-  const document = parseDocument(source, {
-    prettyErrors: true,
-    uniqueKeys: true,
-    schema: "core",
-    logLevel: "silent",
-    strict: true,
-    merge: false,
-  });
+  const document: Document.Parsed =
+    documents.length === 1 ? documents[0] : parseDocument(source, parseOptions);
 
   for (const error of document.errors) {
     pushError(diagnostics, "yaml_error", error.message);

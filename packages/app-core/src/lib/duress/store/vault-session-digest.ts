@@ -1,26 +1,26 @@
 /**
  * Opaque session-root digest for compartment admission (never raw key material).
+ * Key commitment over the session root: a fixed domain-separated plaintext
+ * sealed once under a fixed nonce, hashed. Only the holder of the root key can
+ * compute it, and plaintext header metadata cannot forge it.
  */
 
-import type { VaultHeader } from "@opensesame/vault-core";
+const COMMITMENT_NONCE = new Uint8Array(12);
+const COMMITMENT_LABEL = "opensesame.session-root-digest.v1";
 
-export function sessionRootDigestFromHeader(
-  header: VaultHeader | null,
-  unlocked: boolean,
+export async function sessionRootDigestFromKey(
+  vaultKey: CryptoKey | null,
   ephemeral: boolean,
-): string | null {
-  if (!unlocked || !header || ephemeral) return null;
-  const parts = [
-    header.wrap ? JSON.stringify(header.wrap) : "",
-    header.kdf ? JSON.stringify(header.kdf) : "",
-    header.unlocks?.pin ? JSON.stringify(header.unlocks.pin) : "",
-    header.unlocks?.passkey ? JSON.stringify(header.unlocks.passkey) : "",
-  ];
-  const material = parts.join("|");
-  if (!material.replace(/\|/g, "")) return null;
-  let hash = 0;
-  for (let i = 0; i < material.length; i++) {
-    hash = (hash * 31 + material.charCodeAt(i)) >>> 0;
-  }
-  return `wrap:${hash.toString(16)}`;
+): Promise<string | null> {
+  if (!vaultKey || ephemeral) return null;
+  const sealed = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: COMMITMENT_NONCE },
+    vaultKey,
+    new TextEncoder().encode(COMMITMENT_LABEL),
+  );
+  const digest = await crypto.subtle.digest("SHA-256", sealed);
+  const hex = [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `root:${hex}`;
 }

@@ -69,21 +69,57 @@ type DupKeyState = {
   keyBuf: string;
 };
 
-function consumeStringChar(state: DupKeyState, ch: string): void {
-  if (state.escaping) {
-    state.escaping = false;
-    if (state.pendingKey) state.keyBuf += ch;
-    return;
+const SIMPLE_ESCAPES: Record<string, string> = {
+  '"': '"',
+  "\\": "\\",
+  "/": "/",
+  b: "\b",
+  f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "\t",
+};
+
+/**
+ * Decode one escape so keys compare the way JSON.parse decodes them —
+ * `"\u0076aultId"` and `"vaultId"` are the same key. Returns the index of
+ * the last consumed char (`\uXXXX` eats four more).
+ */
+function consumeEscape(state: DupKeyState, raw: string, index: number): number {
+  state.escaping = false;
+  const ch = raw.charAt(index);
+  if (ch !== "u") {
+    if (state.pendingKey) state.keyBuf += SIMPLE_ESCAPES[ch] ?? ch;
+    return index;
   }
+  const hex = raw.slice(index + 1, index + 5);
+  if (/^[0-9A-Fa-f]{4}$/.test(hex)) {
+    if (state.pendingKey) {
+      state.keyBuf += String.fromCharCode(Number.parseInt(hex, 16));
+    }
+    return index + 4;
+  }
+  if (state.pendingKey) state.keyBuf += ch;
+  return index;
+}
+
+function consumeStringChar(
+  state: DupKeyState,
+  raw: string,
+  index: number,
+): number {
+  const ch = raw.charAt(index);
+  if (state.escaping) return consumeEscape(state, raw, index);
   if (ch === "\\") {
     state.escaping = true;
-    return;
+    return index;
   }
   if (ch === '"') {
     state.inString = false;
-    return;
+    return index;
   }
   if (state.pendingKey) state.keyBuf += ch;
+  return index;
 }
 
 function commitPendingKey(state: DupKeyState): void {
@@ -143,9 +179,8 @@ function detectDuplicateJsonKeys(raw: string): void {
     keyBuf: "",
   };
   for (let i = 0; i < raw.length; i += 1) {
-    const ch = raw.charAt(i);
-    if (state.inString) consumeStringChar(state, ch);
-    else consumeStructureChar(state, ch);
+    if (state.inString) i = consumeStringChar(state, raw, i);
+    else consumeStructureChar(state, raw.charAt(i));
   }
 }
 

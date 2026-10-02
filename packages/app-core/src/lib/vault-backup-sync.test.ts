@@ -111,4 +111,62 @@ describe("syncVaultBackup", () => {
     expect(result?.lastCommitSha).toBe("gl-1");
     expect(readLocalBackupTarget("gitlab")?.providerId).toBe("gitlab");
   });
+
+  it("syncs remaining targets when one fails and rejects with the first error", async () => {
+    writeLocalBackupTarget({
+      kind: "github_app",
+      providerId: "github",
+      connectionId: null,
+      integrationId: "",
+      installationId: "9",
+      owner: "acme",
+      repo: "vault",
+      branch: "main",
+      enabled: true,
+      status: "pending",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+      config: null,
+      pendingEvents: 0,
+    });
+    writeLocalBackupTarget({
+      kind: "git_remote",
+      providerId: "gitlab",
+      connectionId: "git_local_abc",
+      integrationId: "",
+      installationId: "",
+      owner: "acme",
+      repo: "vault",
+      branch: "main",
+      enabled: true,
+      status: "pending",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+      config: { remoteUrl: "https://gitlab.com/acme/vault.git" },
+      pendingEvents: 0,
+    });
+    const putContents = vi.fn(async () => {
+      throw new Error("relay down");
+    });
+    const putForgeContents = vi.fn(async () => ({ commitSha: "gl-2" }));
+    Object.assign(vaultBackupSyncSeams, {
+      putContents,
+      putForgeContents,
+      sealedEnvelopeJson: () => '{"v":1}',
+      resolveCredentials: () => ({ appId: "1", pem: "PEM" }),
+      resolveForgeCredentials: () => ({
+        forge: "gitlab" as const,
+        token: "glpat-x",
+        username: null,
+      }),
+    });
+    await expect(syncVaultBackup()).rejects.toThrow("relay down");
+    expect(putForgeContents).toHaveBeenCalled();
+    expect(readLocalBackupTarget("gitlab")?.status).toBe("ok");
+    expect(readLocalBackupTarget("gitlab")?.lastCommitSha).toBe("gl-2");
+    expect(readLocalBackupTarget("github")?.status).toBe("error");
+    expect(readLocalBackupTarget("github")?.lastError).toBe("relay down");
+  });
 });

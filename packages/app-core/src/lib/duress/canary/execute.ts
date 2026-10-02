@@ -51,6 +51,27 @@ export function resetCanaryExecutorState(): void {
   hitBuckets.clear();
 }
 
+function evictOldest<V>(map: Map<string, V>): void {
+  while (map.size > CANARY_BOUNDS.stateMaxEntries) {
+    const oldest = map.keys().next();
+    if (oldest.done) return;
+    map.delete(oldest.value);
+  }
+}
+
+function sweepCanaryExecutorState(now: number): void {
+  for (const [id, ts] of recentDedup) {
+    if (now - ts >= CANARY_BOUNDS.dedupWindowMs) recentDedup.delete(id);
+  }
+  for (const [id, bucket] of hitBuckets) {
+    if (now - bucket.windowStart >= CANARY_BOUNDS.falsePositiveWindowMs) {
+      hitBuckets.delete(id);
+    }
+  }
+  evictOldest(recentDedup);
+  evictOldest(hitBuckets);
+}
+
 function assertNoDestructiveInjection(input: BoundaryValue): void {
   if (!isJsonObject(input)) return;
   assertNoForbiddenCanaryKeys(input, "executor");
@@ -71,6 +92,7 @@ function assertNoDestructiveInjection(input: BoundaryValue): void {
 type CanaryHitNote = Readonly<{ deduped: boolean; suppressAlert: boolean }>;
 
 function noteHit(canaryId: string, now: number): CanaryHitNote {
+  sweepCanaryExecutorState(now);
   const last = recentDedup.get(canaryId) ?? 0;
   const deduped = now - last < CANARY_BOUNDS.dedupWindowMs;
   if (!deduped) recentDedup.set(canaryId, now);
@@ -88,20 +110,25 @@ function noteHit(canaryId: string, now: number): CanaryHitNote {
   return { deduped, suppressAlert } satisfies CanaryHitNote;
 }
 
+function fingerprintEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 function fingerprintsMatch(
   enrollment: CanaryEnrollment,
   activation: CanaryActivation,
 ): boolean {
-  if (activation.tokenFingerprint.startsWith("legacy-route:")) {
-    // Legacy parseCanaryActivation path: match by canaryId enrollment only.
-    return activation.canaryId === enrollment.canaryId;
-  }
   if (activation.tokenFingerprint.length < CANARY_BOUNDS.fingerprintMin) {
     return false;
   }
   return (
     activation.canaryId === enrollment.canaryId &&
-    activation.tokenFingerprint === enrollment.tokenFingerprint
+    fingerprintEquals(activation.tokenFingerprint, enrollment.tokenFingerprint)
   );
 }
 
@@ -114,6 +141,7 @@ export function recordCanaryHit(
   windowMs = CANARY_BOUNDS.dedupWindowMs,
 ): CanaryResult {
   const now = Date.now();
+  sweepCanaryExecutorState(now);
   const last = recentDedup.get(event.canaryId) ?? 0;
   const deduped = now - last < windowMs;
   if (!deduped) recentDedup.set(event.canaryId, now);

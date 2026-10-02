@@ -47,6 +47,7 @@ import {
   rehydrateProjects,
   scopedKey,
 } from "../projects.js";
+import { enqueueTombWrite } from "../vfs-shared-write.js";
 import {
   BODY_PATH,
   HEADER_PATH,
@@ -242,6 +243,13 @@ export function discardTombCaches(): void {
  * fresh vault created in the same tomb (its key cannot open the old index).
  * The migration marker goes too, so the next vault starts from a clean slate.
  */
+/** Drop a vault body whose key is already gone. The index is not revised. */
+export async function discardVaultBody(tomb: string): Promise<void> {
+  await enqueueTombWrite(tomb, tombFileKey(tomb, INDEX_PATH), async () => {
+    await vfsSeams.deleteRaw(tombFileKey(tomb, BODY_PATH));
+  });
+}
+
 export async function wipeTombOnDestroy(tomb: string): Promise<void> {
   await Promise.all(
     [

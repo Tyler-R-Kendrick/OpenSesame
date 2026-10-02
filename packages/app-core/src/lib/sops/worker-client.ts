@@ -3,8 +3,9 @@
  *
  * One worker per session. Every reply is validated before it reaches the
  * UI, replies for operations that are no longer live are dropped, and
- * `invalidate` both tells the worker to zero its handles and terminates it
- * when the session ends, so no unabortable call can deliver later.
+ * `invalidate` tells the worker to zero its handles, waits briefly for its
+ * acknowledgement, and then terminates it when the session ends, so no
+ * unabortable call can deliver later.
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
@@ -24,6 +25,9 @@ type Pending = {
   resolve: (value: SopsResponse) => void;
   reject: (reason: SopsError) => void;
 };
+
+/** How long `invalidate` waits for the worker's zeroing reply. */
+const INVALIDATE_GRACE_MS = 100;
 
 /** True when this runtime can host a same-origin module worker. */
 export function workerSupported(): boolean {
@@ -164,8 +168,22 @@ export class SopsWorkerClient implements SopsRunner {
     this.#pending.clear();
     const worker = this.#worker;
     if (!worker) return;
-    worker.postMessage({ id: "invalidate", kind: "invalidate", generation });
-    worker.terminate();
     this.#worker = null;
+    const timer: ReturnType<typeof setTimeout> = setTimeout(
+      () => worker.terminate(),
+      INVALIDATE_GRACE_MS,
+    );
+    const onDone = (event: MessageEvent<BoundaryValue>) => {
+      try {
+        if (parseResponse(event.data).id !== "invalidate") return;
+      } catch {
+        return;
+      }
+      worker.removeEventListener("message", onDone);
+      clearTimeout(timer);
+      worker.terminate();
+    };
+    worker.addEventListener("message", onDone);
+    worker.postMessage({ id: "invalidate", kind: "invalidate", generation });
   }
 }

@@ -90,9 +90,16 @@ export async function reconstructAfterQuorum(input: {
   macKey: Uint8Array;
   requireQuorum: boolean;
   registry: GenerationRegistry;
+  nowMs?: number;
 }): Promise<CeremonyResult> {
   try {
     assertGenerationLive(input.registry, input.request.recoveryGeneration);
+    if (Date.parse(input.request.expiresAt) < (input.nowMs ?? Date.now())) {
+      return {
+        kind: "failed",
+        reason: "expired: recovery request",
+      };
+    }
     if (input.requireQuorum && !input.ledger.quorumMet(input.request.digest)) {
       return {
         kind: "failed",
@@ -173,8 +180,7 @@ export async function authorizeReenrollment(input: {
       reason: "authority_mismatch: affected owner required for re-enrollment",
     };
   }
-  input.localGuard.clear();
-  const newGeneration = rotateGeneration(input.registry);
+  const newGeneration = input.registry.current + 1;
   const newShares = await splitRecoverySecret({
     secret: input.secret,
     threshold: input.threshold,
@@ -186,6 +192,8 @@ export async function authorizeReenrollment(input: {
     keyEpoch: input.keyEpoch,
     macKey: input.macKey,
   });
+  input.localGuard.clear();
+  rotateGeneration(input.registry);
   wipe(input.secret);
   return { kind: "reenroll_authorized", newGeneration, newShares };
 }

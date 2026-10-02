@@ -123,4 +123,59 @@ describe("bootstrap-graph (KP-26 / KP-37)", () => {
       false,
     );
   });
+
+  it("ignores cycles that never enter vault-sealed material", () => {
+    const nodes: BootstrapDependencyNode[] = [
+      {
+        id: "protector:password",
+        kind: "protector",
+        availability: "independent",
+        dependsOn: [],
+      },
+      {
+        id: "hardware:a",
+        kind: "hardware",
+        availability: "independent",
+        dependsOn: ["hardware:b"],
+      },
+      {
+        id: "hardware:b",
+        kind: "hardware",
+        availability: "independent",
+        dependsOn: ["hardware:a"],
+      },
+    ];
+    expect(findBootstrapCycles(nodes)).toEqual([]);
+    expect(() =>
+      assertBootstrapFeasible(nodes, ["protector:password"]),
+    ).not.toThrow();
+  });
+
+  it("still reports a cycle mixing in a vault-sealed node only when fully sealed", () => {
+    const nodes: BootstrapDependencyNode[] = [
+      {
+        id: "protector:password",
+        kind: "protector",
+        availability: "independent",
+        dependsOn: [],
+      },
+      {
+        id: "vault-secret:a",
+        kind: "vault-secret",
+        availability: "vault-sealed",
+        dependsOn: ["vault-secret:b"],
+      },
+      {
+        id: "vault-secret:b",
+        kind: "vault-secret",
+        availability: "vault-sealed",
+        dependsOn: ["vault-secret:a"],
+      },
+    ];
+    const cycles = findBootstrapCycles(nodes);
+    expect(cycles.length).toBeGreaterThan(0);
+    expect(() =>
+      assertBootstrapFeasible(nodes, ["protector:password"]),
+    ).toThrow(/vault-sealed/);
+  });
 });

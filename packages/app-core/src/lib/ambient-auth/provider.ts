@@ -26,6 +26,15 @@ export type ProviderConnection = {
 
 const KEY_PART = 256;
 
+function validKeyPart(value: string): boolean {
+  if (value.includes("|")) return false;
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return false;
+  }
+  return true;
+}
+
 export function providerConnectionKey(input: {
   protocol: ProviderProtocol;
   issuer: string;
@@ -39,7 +48,11 @@ export function providerConnectionKey(input: {
     !issuer ||
     !clientId ||
     issuer.length > KEY_PART ||
-    clientId.length > KEY_PART
+    clientId.length > KEY_PART ||
+    org.length > KEY_PART ||
+    !validKeyPart(issuer) ||
+    !validKeyPart(clientId) ||
+    !validKeyPart(org)
   ) {
     throw new Error("invalid provider connection");
   }
@@ -111,6 +124,21 @@ export function supportsCapability(
   return connection.capabilities.includes(capability);
 }
 
+const ENTRA_ISSUER_HOSTS: ReadonlySet<string> = new Set([
+  "login.microsoftonline.com",
+  "login.windows.net",
+  "login.microsoftonline.us",
+  "login.partner.microsoftonline.cn",
+]);
+
+function hasEntraHost(issuer: string): boolean {
+  try {
+    return ENTRA_ISSUER_HOSTS.has(new URL(issuer).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function protocolForIssuer(
   issuer: string,
   providerId?: string,
@@ -118,12 +146,7 @@ export function protocolForIssuer(
   const trimmed = trimSlashes(issuer).toLowerCase();
   const id = (providerId ?? "").toLowerCase();
   if (trimmed === "https://shoo.dev" || id === "shoo") return "shoo";
-  if (
-    id === "microsoft" ||
-    id === "entra" ||
-    trimmed.includes("login.microsoftonline.com") ||
-    trimmed.includes("login.windows.net")
-  ) {
+  if (id === "microsoft" || id === "entra" || hasEntraHost(trimmed)) {
     return "entra";
   }
   return "oidc";

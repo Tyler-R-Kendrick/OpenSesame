@@ -13,7 +13,7 @@ export async function carryForkUnlockedIntoActiveScope(input: {
   header: VaultHeader | null;
   ephemeral: boolean;
   scope: VaultScope;
-  sessionRootDigest: () => string | null;
+  sessionRootDigest: () => Promise<string | null>;
   assignScope: (scope: VaultScope) => void;
   assignHeader: (header: VaultHeader) => void;
   assignBody: () => void;
@@ -39,7 +39,7 @@ export async function carryForkUnlockedIntoActiveScope(input: {
     sourceTomb: input.scope.tomb,
     targetTomb: nextScope.tomb,
     mode: "fork",
-    sessionRootDigest: input.sessionRootDigest(),
+    sessionRootDigest: await input.sessionRootDigest(),
     ephemeral: input.ephemeral,
   });
   input.assignScope(nextScope);

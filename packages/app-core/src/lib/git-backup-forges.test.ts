@@ -41,5 +41,16 @@ describe("git-backup-forges", () => {
     expect(forgeFromRemoteUrl("https://origin.cursor.com/a/b.git")).toBe(
       "origin",
     );
+    expect(forgeFromRemoteUrl("https://gitlab.com/a/b.git")).toBe("gitlab");
+    expect(forgeFromRemoteUrl("git@gitlab.com:a/b.git")).toBe("gitlab");
+    expect(forgeFromRemoteUrl("https://gitlab.com.evil.com/a/b.git")).toBe(
+      null,
+    );
+    expect(forgeFromRemoteUrl("https://notgitlab.com/a/b.git")).toBe(null);
+    expect(forgeFromRemoteUrl("https://gitlab.company.com/a/b.git")).toBe(null);
+    expect(forgeFromRemoteUrl("https://gitlab.com@evil.com/a/b.git")).toBe(
+      null,
+    );
+    expect(forgeFromRemoteUrl("https://evil.com/?q=bitbucket.org")).toBe(null);
   });
 });

@@ -50,6 +50,26 @@ function contextFor(manifest: RootProtectionManifest, protectorId: string) {
   };
 }
 
+/**
+ * Commit a sealed manifest only when the persisted manifest still sits at the
+ * revision this mutation started from; a concurrent commit bumps it.
+ */
+async function persistSealedManifest(
+  host: LifecycleHost,
+  sealed: RootProtectionManifest,
+  expectedRevision: number,
+): Promise<void> {
+  const current = host.getHeader();
+  if (!current) {
+    throw new ProtectionError(
+      "unavailable",
+      "There is no vault header on this device.",
+    );
+  }
+  assertExpectedRevision(requireManifest(current), expectedRevision);
+  await host.persistHeader({ ...current, protection: sealed });
+}
+
 export async function setPreferredProtector(
   host: LifecycleHost,
   protectorId: string,
@@ -62,7 +82,6 @@ export async function setPreferredProtector(
     );
   }
   const base = requireManifest(header);
-  assertExpectedRevision(base, base.revision);
   const target = base.records.find((r) => r.protectorId === protectorId);
   if (!target) {
     throw new ProtectionError(
@@ -86,7 +105,7 @@ export async function setPreferredProtector(
     host.requireRawRoot(),
     nextBody,
   );
-  await host.persistHeader({ ...header, protection: sealed });
+  await persistSealedManifest(host, sealed, base.revision);
 }
 
 export async function removeProtector(
@@ -109,7 +128,6 @@ export async function removeProtector(
     );
   }
   assertCanRemoveProtector(base, protectorId);
-  assertExpectedRevision(base, base.revision);
   const { authB64: _drop, preferredProtectorId: _pref, ...rest } = base;
   const nextBody: Omit<RootProtectionManifest, "authB64"> = {
     ...rest,
@@ -126,7 +144,7 @@ export async function removeProtector(
     host.requireRawRoot(),
     nextBody,
   );
-  await host.persistHeader({ ...header, protection: sealed });
+  await persistSealedManifest(host, sealed, base.revision);
 }
 
 /**
@@ -183,7 +201,7 @@ export async function testProtector(
     host.requireRawRoot(),
     nextBody,
   );
-  await host.persistHeader({ ...header, protection: sealed });
+  await persistSealedManifest(host, sealed, base.revision);
   return updated;
 }
 

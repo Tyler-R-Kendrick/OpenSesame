@@ -46,7 +46,7 @@ export function assertProtectedOperation(input: ProtectCheckInput): void {
   if (input.retiredDevice) {
     throw new Error("retired_device");
   }
-  if (!isProtectedOperation(input.operation) && !input.operation) {
+  if (!isProtectedOperation(input.operation)) {
     throw new Error("unsupported_operation");
   }
   if (!isAccessContext(input.ctx)) {
@@ -58,6 +58,8 @@ export function assertProtectedOperation(input: ProtectCheckInput): void {
 /**
  * Run a protected thunk only after the live context admits the operation.
  * Generation is rechecked after the thunk to catch revoke-during-use (AUTH-F).
+ * The recheck is post-hoc: it cannot roll back side effects of the thunk, so
+ * protected operations should be idempotent or defer their effects.
  */
 export async function withProtectedOperation<T>(
   input: ProtectCheckInput & {
@@ -66,7 +68,10 @@ export async function withProtectedOperation<T>(
   run: () => Promise<T> | T,
 ): Promise<T> {
   assertProtectedOperation(input);
-  const genAtStart = input.expected.sessionGeneration;
+  if (!isAccessContext(input.ctx)) {
+    throw new Error("stale_session: forged or deserialized access context");
+  }
+  const genAtStart = input.ctx.claims.sessionGeneration;
   const result = await run();
   if (input.currentGeneration() !== genAtStart) {
     throw new Error("stale_session: generation changed during protected op");

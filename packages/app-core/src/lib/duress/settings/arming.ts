@@ -10,6 +10,7 @@ import {
 import type { PolicyDocument } from "@opensesame/contracts/duress";
 import {
   type JsonObject,
+  type JsonValue,
   type MutableJsonObject,
   isJsonObject,
   isString,
@@ -90,13 +91,25 @@ export function redactSecrets(value: JsonObject): JsonObject {
     if (SECRET_KEY.test(key)) {
       clone[key] = "[redacted]";
     } else {
-      const nested = clone[key];
-      if (isJsonObject(nested)) {
-        clone[key] = redactSecrets(nested);
-      }
+      clone[key] = redactValue(clone[key]);
     }
   }
   return clone;
+}
+
+function redactValue(value: JsonValue | undefined): JsonValue | undefined {
+  if (value === undefined) return undefined;
+  return redactJson(value);
+}
+
+function redactJson(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactJson(entry));
+  }
+  if (isJsonObject(value)) {
+    return redactSecrets(value);
+  }
+  return value;
 }
 
 export type CodeLeakScan = { ok: true } | { ok: false; leakedKeys: string[] };
@@ -106,16 +119,22 @@ export function assertNoEnrolledCodeDisplay(
   viewModel: JsonObject | CodeSlotStatus,
 ): CodeLeakScan {
   const leaked: string[] = [];
-  const walk = (obj: JsonObject, path: string) => {
+  const walkValue = (v: JsonValue | undefined, path: string): void => {
+    if (Array.isArray(v)) {
+      v.forEach((entry, index) => walkValue(entry, `${path}[${index}]`));
+      return;
+    }
+    if (isJsonObject(v)) {
+      walk(v, path);
+    }
+  };
+  const walk = (obj: JsonObject, path: string): void => {
     for (const [k, v] of Object.entries(obj)) {
       const here = path ? `${path}.${k}` : k;
       if (SECRET_KEY.test(k) && isString(v) && v !== "[redacted]") {
-        if (k === "materialDigest" || k.endsWith("Digest")) continue;
         if (v.length >= 4) leaked.push(here);
       }
-      if (isJsonObject(v)) {
-        walk(v, here);
-      }
+      walkValue(v, here);
     }
   };
   walk(viewModel, "");

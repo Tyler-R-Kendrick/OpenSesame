@@ -55,6 +55,12 @@ export type QuorumConfig = Readonly<{
   proofMaxAgeMs: number;
 }>;
 
+/** Live grants and per-approver MAC keys. One key must not mint a quorum. */
+export type ApproverRegistry = Readonly<{
+  grants(request: RecoveryRequest): readonly CustodyGrant[];
+  approvalMacKey(approverRef: string): Uint8Array | undefined;
+}>;
+
 export type ApprovalOutcome =
   | {
       kind: "approval_accepted";
@@ -242,11 +248,46 @@ export class ApprovalQuorumLedger {
   private readonly usedChallengeIds = new Set<string>();
   private readonly acceptedByDigest = new Map<string, RecoveryApproval[]>();
 
+  private readonly registry: ApproverRegistry | null;
+  private readonly sharedMacKey: Uint8Array | null;
+
   constructor(
-    private readonly approvalMacKey: Uint8Array,
+    approvalMacKeyOrRegistry: Uint8Array | ApproverRegistry,
     private readonly deviceMacKey: Uint8Array,
     private readonly config: QuorumConfig,
-  ) {}
+  ) {
+    if (approvalMacKeyOrRegistry instanceof Uint8Array) {
+      this.registry = null;
+      this.sharedMacKey = approvalMacKeyOrRegistry;
+    } else {
+      this.registry = approvalMacKeyOrRegistry;
+      this.sharedMacKey = null;
+    }
+  }
+
+  private approverKeyFor(
+    approval: RecoveryApproval,
+    request: RecoveryRequest,
+  ): Uint8Array {
+    if (this.sharedMacKey) return this.sharedMacKey;
+    const registry = this.registry;
+    if (!registry) throw new Error("authority_mismatch: approver grant");
+    const grant = registry
+      .grants(request)
+      .find(
+        (g) =>
+          (g.principalRef === approval.approverRef &&
+            g.custodyDomain === approval.custodyDomain &&
+            g.generation === request.recoveryGeneration &&
+            g.scopeRef === request.vaultRef) ||
+          request.compartmentRefs.includes(g.scopeRef),
+      );
+    if (!grant || !roleAllows(grant, "approve_recovery"))
+      throw new Error("authority_mismatch: approver grant");
+    const key = registry.approvalMacKey(approval.approverRef);
+    if (!key) throw new Error("authority_mismatch: unknown approver key");
+    return key;
+  }
 
   async submit(input: {
     approval: RecoveryApproval;
@@ -301,6 +342,7 @@ export class ApprovalQuorumLedger {
         maxAgeMs: this.config.proofMaxAgeMs,
       } satisfies VerifyTargetDeviceProofInput);
 
+      const approvalMacKey = this.approverKeyFor(approval, request);
       const body = {
         approvalId: approval.approvalId,
         requestDigest: approval.requestDigest,
@@ -311,22 +353,21 @@ export class ApprovalQuorumLedger {
         issuedAt: approval.issuedAt,
       };
       const expectedMac = await hmacB64(
-        this.approvalMacKey,
+        approvalMacKey,
         new TextEncoder().encode(JSON.stringify(body)),
       );
       if (!timingSafeEqual(fromB64(expectedMac), fromB64(approval.macB64))) {
         throw new Error("tampered_approval");
       }
 
-      this.usedApprovalIds.add(approval.approvalId);
-      this.usedNonces.add(approval.nonce);
-      this.usedChallengeIds.add(approval.targetDeviceProof.challengeId);
-
       const list = this.acceptedByDigest.get(request.digest) ?? [];
       // One approval per custody domain per request
       if (list.some((a) => a.custodyDomain === approval.custodyDomain)) {
         throw new Error("duplicate_custody_domain: approval already counted");
       }
+      this.usedApprovalIds.add(approval.approvalId);
+      this.usedNonces.add(approval.nonce);
+      this.usedChallengeIds.add(approval.targetDeviceProof.challengeId);
       list.push(approval);
       this.acceptedByDigest.set(request.digest, list);
 

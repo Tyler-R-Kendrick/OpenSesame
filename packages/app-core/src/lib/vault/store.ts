@@ -41,7 +41,7 @@ import {
   presentedTomb,
 } from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
-import { sessionRootDigestFromHeader } from "../duress/store/vault-session-digest.js";
+import { sessionRootDigestFromKey } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
 import { kvDelete, kvDeleteDurable, kvDurability, kvSet } from "../kv.js";
@@ -94,6 +94,7 @@ import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
 import { openJsonForRebind, rebindTombSeals } from "./seal-rebind.js";
+import { CodeSendGuard, PendingChallenge } from "./second-step-guard.js";
 import {
   UnguardedTotpEnrollment,
   heldTotpCode,
@@ -115,6 +116,7 @@ import {
 } from "./store-merge.js";
 import {
   discardTombCaches,
+  discardVaultBody,
   hydrateAndMigrateTombOnUnlock,
   wipeTombOnDestroy,
 } from "./tomb-migration.js";
@@ -140,6 +142,10 @@ import {
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
+import {
+  withBodyWriteLock,
+  withExclusiveOpenLease,
+} from "./vault-shared-locks.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
@@ -189,7 +195,7 @@ type Listener = () => void;
 
 export class VaultStore {
   #vaultKey: CryptoKey | null = null;
-  /** Raw VK for enroll-only wrapKey substitutes; wiped on lock. */
+  /** Raw VK for enroll-only wrapKey substitutes; wiped on lock and cancel. */
   #rawVaultKey: Uint8Array | null = null;
   /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
   #pendingVaultKey: CryptoKey | null = null;
@@ -206,6 +212,10 @@ export class VaultStore {
   #snapshot: VaultState;
   #idleTimer: ReturnType<typeof setTimeout> | null = null;
   #lastActivity = Date.now();
+  /** Expiry for a parked second step; cleared when the challenge ends. */
+  #pendingChallenge = new PendingChallenge();
+  /** Per-challenge throttle for email/text code sends. */
+  #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeChain: Promise<unknown> = Promise.resolve();
   #lockHandlers = new Set<() => void>();
@@ -250,8 +260,7 @@ export class VaultStore {
 
   /** Drop the previous project session and read the active project's header. */
   loadActiveProjectScope(): void {
-    // Explicit project swap — do not let lock()'s guest keep overwrite the
-    // destination tomb as last-vault, then write the project tomb below.
+    // Explicit project swap — lock() must not keep the destination tomb as last-vault.
     this.lock({ recordLastVault: false });
     this.#scope = scopedVaultScope();
     this.#header = this.#readHeader();
@@ -298,12 +307,8 @@ export class VaultStore {
     await this.#writeChain.catch(() => undefined);
   }
 
-  #sessionRootDigest(): string | null {
-    return sessionRootDigestFromHeader(
-      this.#header,
-      this.#vaultKey !== null,
-      this.#ephemeral,
-    );
+  #sessionRootDigest(): Promise<string | null> {
+    return sessionRootDigestFromKey(this.#vaultKey, this.#ephemeral);
   }
 
   /** Host surface for duress activation coordination (STORE-E). */
@@ -359,9 +364,27 @@ export class VaultStore {
     return readTombHeader(this.#scope.tomb);
   }
 
+  #readAttempts(): { fails: number; until: number } {
+    return readJson(this.#scope.attempts, { fails: 0, until: 0 });
+  }
+
   #persistPrefs(): void {
     if (!this.#vaultKey) return;
-    void writePrefsJson(this.#scope.tomb, this.#prefs).catch(() => undefined);
+    const { tomb } = this.#scope;
+    const prefs = this.#prefs;
+    this.#writeChain = this.#writeChain.then(() =>
+      writePrefsJson(tomb, prefs).catch(() => this.#restorePrefs(prefs)),
+    );
+  }
+
+  async #restorePrefs(prefs: VaultPrefs): Promise<void> {
+    if (this.#prefs !== prefs) return;
+    const durable: Partial<VaultPrefs> = overlapCast(
+      await readPrefsJson(this.#scope.tomb).catch(() => ({})),
+    );
+    this.#prefs = normalizeVaultPrefs(durable);
+    this.#armIdleTimer();
+    this.#emit();
   }
 
   async #loadPrefsFromVfs(): Promise<void> {
@@ -381,13 +404,7 @@ export class VaultStore {
   }
 
   #build(): VaultState {
-    const attempts = readJson<{ fails: number; until: number }>(
-      this.#scope.attempts,
-      {
-        fails: 0,
-        until: 0,
-      },
-    );
+    const attempts = this.#readAttempts();
     return {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
       tomb: presentedTomb(this.#scope.tomb),
@@ -482,10 +499,10 @@ export class VaultStore {
     }
   }
 
-  /** Guest sessions use `GUEST_TOMB` only. `lock()` keeps the unlock screen on guest when that was the last account. */
   /**
    * Point the unlock screen at the guest tomb without opening a session.
    * Guests have no passkey or password — Unlock is the only challenge.
+   * Guest sessions use `GUEST_TOMB` only; `lock()` keeps the last guest.
    */
   prepareGuestUnlock(): void {
     if (this.#vaultKey || this.#pendingVaultKey) {
@@ -515,15 +532,13 @@ export class VaultStore {
     // wipes a guest tomb that holds its own key: it runs in a scratch tomb.
     const scratch = options?.decoy === true && guestTombIsSealed();
     this.#scope = scratch ? decoyScratchScope() : guestVaultScope();
-    // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them
-    // (GitHub App install return must not wipe the registrant).
+    // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them (GitHub App return).
     if (!options?.resume && !scratch) clearGuestConnections();
     forgetDecoyScratch(this.#scope.tomb);
-    // Whatever a previous guest left behind is ciphertext under a key that
-    // died with its tab — unreadable, and in the way of a fresh session.
+    // A previous guest's leftovers are ciphertext under a dead tab's key — unreadable, in the way.
     lockTomb(this.#scope.tomb);
     await wipeTombOnDestroy(this.#scope.tomb);
-    await deleteFile(this.#scope.tomb, BODY_PATH);
+    await discardVaultBody(this.#scope.tomb);
     const { vaultKey, rawVaultKey } = await mintVaultKey();
     this.#header = {
       v: 1,
@@ -603,13 +618,7 @@ export class VaultStore {
   }
 
   #assertNotLockedOut(): void {
-    const attempts = readJson<{ fails: number; until: number }>(
-      this.#scope.attempts,
-      {
-        fails: 0,
-        until: 0,
-      },
-    );
+    const attempts = this.#readAttempts();
     if (attempts.until > Date.now()) {
       const seconds = Math.ceil((attempts.until - Date.now()) / 1000);
       throw new Error(`Too many attempts. Try again in ${seconds}s.`);
@@ -617,22 +626,12 @@ export class VaultStore {
   }
 
   #recordFailedUnlock(): void {
-    const attempts = readJson<{ fails: number; until: number }>(
-      this.#scope.attempts,
-      {
-        fails: 0,
-        until: 0,
-      },
+    const fails = this.#readAttempts().fails + 1;
+    const backoff = Math.min(
+      BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS),
+      MAX_LOCKOUT_MS,
     );
-    const fails = attempts.fails + 1;
-    const until =
-      fails >= LOCK_AFTER_FAILS
-        ? Date.now() +
-          Math.min(
-            BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS),
-            MAX_LOCKOUT_MS,
-          )
-        : 0;
+    const until = fails >= LOCK_AFTER_FAILS ? Date.now() + backoff : 0;
     kvSet(this.#scope.attempts, JSON.stringify({ fails, until }));
     this.#emit();
   }
@@ -644,11 +643,11 @@ export class VaultStore {
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
+    this.#pendingChallenge.clear();
     unlockTomb(this.#scope.tomb, vaultKey);
     try {
       await rebindTombSeals(this.#scope.tomb, vaultKey);
-      // Phase C: seal any legacy plaintext config into this tomb and hydrate
-      // every module's view of it, then this session's prefs and body.
+      // Phase C: seal legacy plaintext config into this tomb, hydrate modules, then prefs and body.
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
       await this.#loadPrefsFromVfs();
       this.#body = await this.#loadBody(vaultKey);
@@ -674,8 +673,7 @@ export class VaultStore {
       this.#pendingVaultKey = vaultKey;
       const gate = this.#header?.unlocks?.totp;
       // The vault is its own registered authenticator: supply the code from
-      // the sealed seed instead of asking (ADR 0113); on anything unusual,
-      // fall back to asking.
+      // the sealed seed instead of asking (ADR 0113); failure falls back.
       if (gate?.selfItemId) {
         const code = await heldTotpCode(gate, await this.#loadBody(vaultKey));
         if (code !== null) {
@@ -687,6 +685,10 @@ export class VaultStore {
           }
         }
       }
+      this.#sendGuard.reset();
+      this.#pendingChallenge.arm(() => {
+        if (this.#pendingVaultKey === vaultKey) this.cancelTotpChallenge();
+      });
       this.#emit();
       return;
     }
@@ -697,8 +699,7 @@ export class VaultStore {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
     // A challenge this vault never enrolled must fail exactly like a wrong
-    // secret — same error, same lockout count — or the unlock screen would
-    // enumerate which methods this vault uses.
+    // secret — same error, same lockout count — or the screen enumerates methods.
     if (!this.#header.wrap || !this.#header.kdf) {
       this.#recordFailedUnlock();
       throw new WrongPasswordError();
@@ -782,8 +783,10 @@ export class VaultStore {
   }
 
   cancelTotpChallenge(): void {
+    this.#pendingChallenge.clear();
     this.#pendingVaultKey = null;
     this.#pendingCode = null;
+    this.#zeroRaw();
     this.#emit();
   }
 
@@ -795,8 +798,10 @@ export class VaultStore {
     if (!pending || !record) {
       throw new Error("Enter a primary unlock method first.");
     }
+    this.#sendGuard.assertCanSend();
     const to = await openText(pending, record.toWrap);
     const sent = await sendCode(channel, to);
+    this.#sendGuard.noteSent();
     this.#pendingCode = sent;
     this.#emit();
     return sent;
@@ -884,10 +889,7 @@ export class VaultStore {
       ceremony.credential.rawId,
       ceremony.userId,
     );
-    const unlocks: VaultUnlocks = {
-      ...header.unlocks,
-      passkey: record,
-    };
+    const unlocks: VaultUnlocks = { ...header.unlocks, passkey: record };
     await this.#persistHeader({ ...header, unlocks });
   }
 
@@ -905,10 +907,7 @@ export class VaultStore {
     const { header } = this.#requireUnlocked();
     await assertNewPin(pin);
     const record = await wrapVaultKeyWithPin(this.#requireRaw(), pin);
-    const unlocks: VaultUnlocks = {
-      ...header.unlocks,
-      pin: record,
-    };
+    const unlocks: VaultUnlocks = { ...header.unlocks, pin: record };
     await this.#persistHeader({ ...header, unlocks });
   }
 
@@ -1162,8 +1161,7 @@ export class VaultStore {
     this.#pendingCodeAddress = null;
     this.#body = emptyBody();
     syncInstalledTypes(undefined);
-    // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock
-    // screen on guest when that was the last authorized account.
+    // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock screen on the last guest.
     const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
     const guestBesideVault = isGuestSessionTomb(ephemeralTomb);
     const lockedTomb = this.#scope.tomb;
@@ -1185,6 +1183,7 @@ export class VaultStore {
     if (ephemeralTomb) void endEphemeralTomb(ephemeralTomb);
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
+    this.#pendingChallenge.clear();
     for (const handler of this.#lockHandlers) handler();
     emitVaultLock();
     if (wasUnlocked && !wasGuest) {
@@ -1555,8 +1554,7 @@ export class VaultStore {
     const mergedFolders = (incoming.folders ?? []).filter(
       (folder) => !folderIds.has(folder.id),
     );
-    // The export carried the definitions its items were written against.
-    // Leaving them behind would import a pile of items nothing here can read.
+    // Carry the export's definitions too, or the import lands items nothing here can read.
     const incomingTypes = incoming.itemTypes ?? {};
     await this.#mutate((body) => {
       body.items = [...body.items, ...merged];
@@ -1595,15 +1593,17 @@ export class VaultStore {
     const done = this.#writeChain
       .catch(() => undefined)
       .then(async () => {
-        // Awaited, so this resolves only once the files are actually gone.
-        // The sealed area goes with the key: unreadable ciphertext that
-        // would otherwise break a fresh vault in this tomb.
-        await Promise.all([
-          deletePlaintextFile(scope.tomb, HEADER_PATH),
-          deleteFile(scope.tomb, BODY_PATH),
-          kvDeleteDurable(scope.attempts),
-          wipeTombOnDestroy(scope.tomb),
-        ]);
+        // Awaited — resolves once the files are gone; leftover ciphertext would break a fresh vault.
+        await withExclusiveOpenLease(scope.tomb, () =>
+          withBodyWriteLock(scope.tomb, async () => {
+            await Promise.all([
+              deletePlaintextFile(scope.tomb, HEADER_PATH),
+              discardVaultBody(scope.tomb),
+              kvDeleteDurable(scope.attempts),
+              wipeTombOnDestroy(scope.tomb),
+            ]);
+          }),
+        );
       });
     this.#writeChain = done;
     await done;

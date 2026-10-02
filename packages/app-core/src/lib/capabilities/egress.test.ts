@@ -108,6 +108,37 @@ describe("createEgressPort (S18)", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("NET-02: the external-service class cannot reach local addresses without local authority", async () => {
+    const plan = approvedPlan([CONNECTORS]);
+    expect(plan.network).toEqual({
+      externalServices: "allow",
+      allowedServiceOrigins: [],
+    });
+    const meta = { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE };
+    const refused = port(CONNECTORS, plan, fetchOk(), () => false);
+    for (const target of [
+      "http://127.0.0.1:8787/api/v1/status",
+      "http://localhost:18790/status",
+      "https://192.168.1.1/admin",
+      "https://100.64.0.1/",
+    ]) {
+      expect(await denial(refused.port.fetch(target, undefined, meta))).toBe(
+        "local-authority-not-permitted",
+      );
+    }
+    expect(refused.fetchImpl).not.toHaveBeenCalled();
+    const open = port(CONNECTORS, plan, fetchOk(), () => false);
+    await open.port.fetch("https://id.example.test/v1", undefined, meta);
+    expect(open.fetchImpl).toHaveBeenCalledTimes(1);
+    const eligible = port(CONNECTORS, plan, fetchOk(), () => true);
+    await eligible.port.fetch(
+      "http://127.0.0.1:8787/api/v1/status",
+      undefined,
+      meta,
+    );
+    expect(eligible.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("NET-02: a plan that denies external services refuses even a declared purpose", async () => {
     const plan = approvedPlan([CONNECTORS], MANAGED_POLICY);
     expect(plan.capabilities[CONNECTORS]?.approved).toBe(true);
