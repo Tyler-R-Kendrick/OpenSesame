@@ -85,22 +85,27 @@ fn pass_kdbx_verbs_parse_without_colliding_with_the_global_output_option() {
 
     let cli = Cli::parse_from([
         "opensesame",
+        "vault",
         "pass",
         "export-kdbx",
         "/tmp/vault.kdbx",
         "--reveal",
     ]);
-    let Commands::Pass {
-        cmd: PassCmd::ExportKdbx { dest, reveal, .. },
+    let Commands::Vault {
+        cmd:
+            vault_area::VaultArea::Pass {
+                cmd: PassCmd::ExportKdbx { dest, reveal, .. },
+            },
     } = cli.command
     else {
-        panic!("expected pass export-kdbx");
+        panic!("expected vault pass export-kdbx");
     };
     assert_eq!(dest, PathBuf::from("/tmp/vault.kdbx"));
     assert!(reveal);
 
     let cli = Cli::parse_from([
         "opensesame",
+        "vault",
         "pass",
         "import-kdbx",
         "/tmp/vault.kdbx",
@@ -110,18 +115,21 @@ fn pass_kdbx_verbs_parse_without_colliding_with_the_global_output_option() {
         "Imported",
         "--replace",
     ]);
-    let Commands::Pass {
+    let Commands::Vault {
         cmd:
-            PassCmd::ImportKdbx {
-                file,
-                keyfile,
-                prefix,
-                replace,
-                ..
+            vault_area::VaultArea::Pass {
+                cmd:
+                    PassCmd::ImportKdbx {
+                        file,
+                        keyfile,
+                        prefix,
+                        replace,
+                        ..
+                    },
             },
     } = cli.command
     else {
-        panic!("expected pass import-kdbx");
+        panic!("expected vault pass import-kdbx");
     };
     assert_eq!(file, PathBuf::from("/tmp/vault.kdbx"));
     assert_eq!(keyfile, Some(PathBuf::from("/tmp/vault.key")));

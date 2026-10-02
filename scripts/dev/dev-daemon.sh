@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# npm run dev-daemon — local agent daemon in this process (logs stay attached).
+# npm run dev:daemon — local agent daemon in this process (logs stay attached).
 # `daemon start` detaches; this session uses `daemon run` so a crash is visible.
 # Default listen is 127.0.0.1:18790. Extra args pass through:
-#   npm run dev-daemon -- --listen 127.0.0.1:18790
+#   npm run dev:daemon -- --listen 127.0.0.1:18790
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 # shellcheck disable=SC1091

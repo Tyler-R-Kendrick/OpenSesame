@@ -19,7 +19,7 @@ export const accessPortalCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame task start",
+      cli: "opensesame access grants task start",
       pwa: null,
       mcp_host: "task_start",
       mcp_client: null,

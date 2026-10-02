@@ -16,7 +16,7 @@ for that gate.
 ## Attach
 
 1. Start the HMR server as a long-lived attached process. Keep it running.
-   - Pages UI, no backend (ADR 0090): `pnpm --filter @opensesame/pages dev:web`
+   - Pages UI, no backend (ADR 0090): `pnpm dev:pwa`
      (`http://localhost:5180` — localhost, not `127.0.0.1`, for passkeys).
    - Pages plus Host/Identity/mock IdPs: `pnpm --filter @opensesame/pages dev`
      (`scripts/dev/pages-dev.sh`).
