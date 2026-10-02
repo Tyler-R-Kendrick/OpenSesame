@@ -111,7 +111,7 @@ describe("CommandBar — command or ask", () => {
     installEngine(fakeAgentAnswering("Connections live under the rail."));
     const user = userEvent.setup();
     renderBar(true);
-    const field = screen.getByRole("textbox", { name: "Command" });
+    const field = screen.getByRole("combobox", { name: "Command" });
     expect(field.getAttribute("placeholder")).toBe(
       "go to vault · search · copy password for …",
     );
@@ -138,7 +138,7 @@ describe("CommandBar — command or ask", () => {
     installEngine(fakeAgentAnswering("Connections live under the rail."));
     const user = userEvent.setup();
     renderBar(true);
-    const field = screen.getByRole("textbox", { name: "Command" });
+    const field = screen.getByRole("combobox", { name: "Command" });
     await user.type(field, "where are my connections?{Enter}");
     const sheet = await screen.findByRole("dialog", { name: "Support" });
     // The question lands in the transcript, the field is spent, and the bar
@@ -156,7 +156,7 @@ describe("CommandBar — command or ask", () => {
     installEngine(fakeAgentAlwaysUnavailable());
     const user = userEvent.setup();
     renderBar(true);
-    const field = screen.getByRole("textbox", { name: "Command" });
+    const field = screen.getByRole("combobox", { name: "Command" });
     // Support reports its absence once opened; a closed sheet has not yet.
     await user.click(screen.getByRole("button", { name: "Support" }));
     await screen.findByRole("dialog", { name: "Support" });
@@ -168,10 +168,40 @@ describe("CommandBar — command or ask", () => {
     );
   });
 
+  it("completes slash commands and item names from the status field", async () => {
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({
+        items: [{ name: "GitHub", password: "s3cret-value", deletedAt: null }],
+        status: "unlocked",
+      }),
+    });
+    const user = userEvent.setup();
+    renderBar(false);
+    const field = screen.getByRole("combobox", { name: "Command" });
+    await user.type(field, "/");
+    const list = await screen.findByRole("listbox", { name: "Commands" });
+    expect(list.textContent).toContain("/vault");
+    expect(list.textContent).not.toContain("s3cret-value");
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain("Opened /vault"),
+    );
+    await user.type(field, "/search gi");
+    const names = screen.getByRole("listbox", { name: "Commands" });
+    expect(names.textContent).toContain("GitHub");
+    expect(names.textContent).not.toContain("s3cret-value");
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "Searching for “GitHub”",
+      ),
+    );
+  });
+
   it("still runs commands, and still shrugs, with no Support mounted", async () => {
     const user = userEvent.setup();
     renderBar(false);
-    const field = screen.getByRole("textbox", { name: "Command" });
+    const field = screen.getByRole("combobox", { name: "Command" });
     await user.type(field, "where are my connections?{Enter}");
     expect((await screen.findByRole("status")).textContent).toContain(
       "No match",

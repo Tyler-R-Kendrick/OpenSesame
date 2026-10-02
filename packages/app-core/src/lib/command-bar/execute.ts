@@ -169,7 +169,7 @@ export async function executeCommand(
     case "help":
       return {
         ok: true,
-        message: "Try: go to vault · copy password for … · open … · search …",
+        message: "Try: /vault · /search … · /open … · copy password for …",
       };
     case "navigate":
       return openSection(command, ports);
