@@ -104,10 +104,9 @@ function contiguous(run) {
 }
 
 /**
- * The arrangement at one width. On a phone: no plane keys drawn — they are
- * behind one key in the top bar — while Support and the command cluster stay.
- * With room: four keys (Support with the plane keys and the bell) and the
- * command cluster beside them, and everything that must hold of the keys.
+ * The arrangement at one width. On a phone: Support and the command cluster,
+ * with the bell behind the top bar's overflow key. With room: Support and the
+ * bell, and the command cluster beside them.
  */
 function checkArrangement(geometry, width, check) {
   const command = geometry.commandButtons;
@@ -119,15 +118,15 @@ function checkArrangement(geometry, width, check) {
     `the command cluster holds Run alone, no mic without the on-device model, at ${width}px`,
   );
   if (width < 900) {
-    // Support and the command cluster, and nothing else: the plane keys and
-    // the bell roll up into the top bar's one overflow key.
+    // Support and the command cluster, and nothing else: the bell rolls up
+    // into the top bar's one overflow key.
     check(
       geometry.keys.length === 1 && geometry.planesVisible === 0,
-      `no plane keys are drawn at ${width}px; they are behind one key`,
+      `the bell is not drawn at ${width}px; it is behind one key`,
     );
     check(
       geometry.overflowKey === 1,
-      "the top bar carries the overflow the plane keys rolled up into",
+      "the top bar carries the overflow the bell rolled up into",
     );
     check(
       onOneAxis([...geometry.keys, ...command]),
@@ -146,12 +145,12 @@ function checkArrangement(geometry, width, check) {
   }
   const size = 28;
   check(
-    geometry.keys.length === 4,
-    `footer has 4 visible keys at ${width}px; Support with the plane keys and the bell`,
+    geometry.keys.length === 2,
+    `footer has 2 visible keys at ${width}px; Support and the bell`,
   );
   check(
-    geometry.overflowKey === 0 && geometry.planesVisible === 1,
-    "the plane glyphs are the strip where there is room for them",
+    geometry.overflowKey === 0 && geometry.planesVisible === 0,
+    "Support and the bell are the strip where there is room for them",
   );
   check(
     geometry.keys.every((key) => key.width === size && key.height === size),
@@ -174,10 +173,7 @@ function checkArrangement(geometry, width, check) {
     Math.abs(geometry.keys[0].left - geometry.start) < 0.6,
     "the support mark sits at the strip's start",
   );
-  check(
-    contiguous(geometry.keys.slice(1)),
-    "the plane keys and the bell close the row as one contiguous run",
-  );
+  check(contiguous(geometry.keys.slice(1)), "the bell closes the row");
   check(
     new Set(
       geometry.keys.map(

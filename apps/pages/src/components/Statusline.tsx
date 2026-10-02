@@ -1,13 +1,12 @@
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { SupportSlot } from "../tutorial/ui/SupportLauncher.js";
 import { CommandBar } from "./CommandBar.js";
-import { ConnectivityBar } from "./ConnectivityBar.js";
 import { NotificationsBar } from "./NotificationsBar.js";
 import { PendingKeys } from "./PendingKeys.js";
 import "./statusline.css";
 
 /**
- * One strip for command, support, plane truth, and notifications.
+ * One strip for command, support, and notifications.
  *
  * CommandBar lives here — typed commands on every unlocked screen.
  * A model capability, when it is on, also reads a question. The support
@@ -15,7 +14,6 @@ import "./statusline.css";
  * Beside it, the keys half-typed and what may follow them (`PendingKeys`).
  */
 export function Statusline() {
-  const connectivityRef = useGuideTarget<HTMLDivElement>("shell.connectivity");
   const notificationsRef = useGuideTarget<HTMLDivElement>(
     "shell.notifications",
   );
@@ -26,9 +24,6 @@ export function Statusline() {
         <CommandBar />
       </div>
       <PendingKeys />
-      <div className="statusline__planes" ref={connectivityRef}>
-        <ConnectivityBar />
-      </div>
       <div className="statusline__tools">
         <div ref={notificationsRef}>
           <NotificationsBar />

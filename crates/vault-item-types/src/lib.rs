@@ -71,16 +71,16 @@ pub const BUILTIN_DEFINITIONS: &[(&str, &str)] = &[
         include_str!("../../../marketplace/item-types/builtin/database.json"),
     ),
     (
-        "document",
-        include_str!("../../../marketplace/item-types/builtin/document.json"),
-    ),
-    (
         "drivers-license",
         include_str!("../../../marketplace/item-types/builtin/drivers-license.json"),
     ),
     (
         "drop",
         include_str!("../../../marketplace/item-types/builtin/drop.json"),
+    ),
+    (
+        "file",
+        include_str!("../../../marketplace/item-types/builtin/file.json"),
     ),
     (
         "health-insurance",

@@ -457,17 +457,6 @@ describe("VaultStore multi-method unlock", () => {
     await reopened.unlockWithPin("48291037");
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
-
-  it("rejects sealed imports that have no password wrap", async () => {
-    const store = new VaultStore();
-    await store.create(PASSWORD);
-    await store.enrollPin("48291037");
-    await store.removePassword();
-    const sealed = store.exportSealed();
-    await expect(store.importSealed(sealed, PASSWORD)).rejects.toThrow(
-      /no master-password unlock/,
-    );
-  });
 });
 
 describe("vault prefs locking defaults", () => {

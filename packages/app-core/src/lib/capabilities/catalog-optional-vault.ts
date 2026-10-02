@@ -11,7 +11,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.derived-records",
     "Derived item types",
-    "Login, note, card and the other built-in item types. Each projects onto the base secret. The minimal vault creates secrets only.",
+    "Login, note, card and the other built-in item types. Each projects onto the base secret. The minimal vault creates secrets and files.",
     { itemKinds: [...DERIVED_ITEM_KINDS] },
   ),
   optional(

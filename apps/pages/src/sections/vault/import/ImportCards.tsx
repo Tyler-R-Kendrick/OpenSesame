@@ -115,6 +115,7 @@ export function PasswordCard({
   fileName,
   facts,
   commit,
+  fieldLabel = "Master password",
   busy,
   error,
   onSubmit,
@@ -123,6 +124,7 @@ export function PasswordCard({
   fileName: string;
   facts: Fact[];
   commit: string;
+  fieldLabel?: string;
   busy: boolean;
   error: string | null;
   onSubmit: (password: string) => void;
@@ -151,7 +153,7 @@ export function PasswordCard({
         }}
       >
         <FieldShell
-          label="Master password"
+          label={fieldLabel}
           type="password"
           value={password}
           onValueChange={setPassword}
@@ -188,21 +190,56 @@ export function LockedCard(props: {
   );
 }
 
+function sealedFacts(opener: "password" | "passkey" | "pin" | null): Fact[] {
+  const opens =
+    opener === "passkey"
+      ? "the passkey"
+      : opener === "pin"
+        ? "the PIN"
+        : "the master password";
+  return [
+    { key: "Format", value: "OpenSesame encrypted backup" },
+    { key: "Brings in", value: "items this vault does not hold" },
+    { key: "Opens with", value: opens },
+  ];
+}
+
 export function SealedCard(props: {
   fileName: string;
+  opener: "password" | "passkey" | "pin" | null;
   busy: boolean;
   error: string | null;
-  onRestore: (password: string) => void;
+  onRestore: (secret: string) => void;
+  onPasskey: () => void;
 }) {
+  const facts = sealedFacts(props.opener);
+  if (props.opener === "passkey") {
+    return (
+      <CeremonyShell
+        ok={props.error === null}
+        name={props.fileName}
+        facts={facts}
+        primary={{
+          label: "Restore with passkey",
+          busy: props.busy,
+          onClick: props.onPasskey,
+        }}
+      >
+        {props.error ? (
+          <p className="imp__marks">
+            <ErrorMark error={props.error} />
+          </p>
+        ) : null}
+      </CeremonyShell>
+    );
+  }
   return (
     <PasswordCard
       formLabel="Restore the encrypted backup"
       fileName={props.fileName}
-      facts={[
-        { key: "Format", value: "OpenSesame encrypted backup" },
-        { key: "Brings in", value: "items this vault does not hold" },
-      ]}
+      facts={facts}
       commit="Restore items"
+      fieldLabel={props.opener === "pin" ? "PIN" : "Master password"}
       busy={props.busy}
       error={props.error}
       onSubmit={props.onRestore}

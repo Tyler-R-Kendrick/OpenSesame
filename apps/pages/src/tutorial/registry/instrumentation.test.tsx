@@ -244,13 +244,9 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("vault.health.findings")).toBe(false);
   });
 
-  // The statusline carried five glyphs, the Host among them; the Host glyph
-  // left it with the Host plane (ed1d403d, ADR 0090 — Pages never names a
-  // Host). Identity is the one authority plane left there to point at; the
-  // key vault glyph stays reachable but is not a support target. The Host's
-  // target went with its glyph: a model is never offered an id that cannot
-  // mount (ADR 0088).
-  it("binds only the identity plane on the statusline", () => {
+  // Identity and key vault left the statusline. A model is never offered an
+  // id that cannot mount (ADR 0088), so those glyphs are not support targets.
+  it("does not bind a support target on the connectivity glyphs", () => {
     connectors.current = [
       connectorStatus({ detail: "signed in" }),
       connectorStatus({
@@ -266,17 +262,10 @@ describe("instrumented screens", () => {
     );
 
     expect(screen.getAllByRole("button", { name: / — / })).toHaveLength(2);
-    expect(isMountedGuideTarget("connectivity.identity")).toBe(true);
-    expect(
-      resolveGuideTargetElement("connectivity.identity")?.getAttribute(
-        "aria-label",
-      ),
-    ).toBe("Identity — signed in");
+    expect(isKnownGuideTarget("connectivity.identity")).toBe(false);
+    expect(isMountedGuideTarget("connectivity.identity")).toBe(false);
     expect(isKnownGuideTarget("connectivity.host")).toBe(false);
     expect(isMountedGuideTarget("connectivity.host")).toBe(false);
-    expect(resolveGuideTargetElement("connectivity.identity")).toBe(
-      screen.getByRole("button", { name: "Identity — signed in" }),
-    );
   });
 
   /**

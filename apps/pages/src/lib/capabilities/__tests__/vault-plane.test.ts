@@ -300,11 +300,11 @@ describe("VAULT-04 — pre-unlock metadata cannot broaden the plan", () => {
 
 describe("VAULT-05 — records of an excluded kind survive without their surfaces", () => {
   it("round-trips a drop record while offering no way to create one", async () => {
-    // The minimal vault creates secrets only. Drops are a share, not a kind.
+    // The minimal vault creates secrets and files. Drops are a share.
     const plan = profilePlan("family-local");
     expect(approved(plan, "sharing.drops")).toBe(true);
     expect(approved(plan, "vault.passkey-records")).toBe(false);
-    expect(plan.approvedItemKinds).toEqual(["secret"]);
+    expect(plan.approvedItemKinds).toEqual(["file", "secret"]);
 
     const store = new VaultStore();
     await store.create(PASSWORD);
@@ -322,10 +322,9 @@ describe("VAULT-05 — records of an excluded kind survive without their surface
     expect(kept?.name).toBe("shared wifi");
 
     // With nothing contributed, the kinds a person may create here are the
-    // core four — no drop row, no filter, no "+ new" for it — while the
-    // label the stored record renders with is untouched.
+    // secret and the file. The stored drop record still renders.
     const kinds = itemKindsFrom([]).map((row) => row.id);
-    expect(kinds).toEqual(["secret"]);
+    expect(kinds).toEqual(["secret", "file"]);
     expect(kinds).not.toContain("drop");
     expect(KIND_LABEL.drop).toBeTruthy();
   });

@@ -70,6 +70,7 @@ import {
 import { headerCarriesGate } from "./header-gate.js";
 import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
+import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import {
   probePasskeyPrf,
   unlockVaultWithHeldPrf,
@@ -1508,8 +1509,11 @@ export class VaultStore {
     );
   }
 
-  /** Import a sealed export using the master password it was sealed under. */
-  async importSealed(fileText: string, password: string): Promise<number> {
+  /** Import a sealed export with its password, its PIN, or an unwrapped key. */
+  async importSealed(
+    fileText: string,
+    secret: string | Uint8Array,
+  ): Promise<number> {
     let parsed: {
       format?: string;
       tomb?: string;
@@ -1528,12 +1532,7 @@ export class VaultStore {
     ) {
       throw new Error("That file is not an OpenSesame vault export.");
     }
-    if (!parsed.header.wrap || !parsed.header.kdf) {
-      throw new Error(
-        "That export has no master-password unlock. Re-export from a vault that still has a password enrolled, or unlock the source vault and merge items another way.",
-      );
-    }
-    const raw = await unwrapRawVaultKeyFromPassword(parsed.header, password);
+    const raw = await unwrapExportedVaultKey(parsed.header, secret);
     const key = await importVaultKey(raw);
     raw.fill(0);
     const named = parsed.tomb ?? "";

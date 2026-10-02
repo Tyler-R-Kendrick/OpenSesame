@@ -102,9 +102,11 @@ These wrap the same VK. Listing several methods is any-of, not MFA
 | `email`, `sms` | `{ toWrap: AES-GCM(VK, address), since }`. |
 | `recovery` | `{ codesWrap: AES-GCM(VK, {codes, used}), total, since }`. |
 
-PIN and passkey wraps belong to the device that enrolled them. Only the
-password wrap is portable, which is why `importSealed` refuses an export
-that has no `wrap`/`kdf`.
+A tailnet snapshot omits the PIN wrap (`portableHeader`). The older
+vault-export format still requires `wrap` and `kdf`. An offline backup
+keeps the unlock the vault has: the password when `wrap` and `kdf` are
+set, otherwise the passkey, otherwise the PIN. That same unlock opens
+the file.
 
 ## 6. Body
 

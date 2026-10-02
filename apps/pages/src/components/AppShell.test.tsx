@@ -78,7 +78,11 @@ describe("AppShell on a core-only plan", () => {
     const filters = [
       ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
     ].map((a) => a.getAttribute("href"));
-    expect(filters).toEqual(["/vault?f=favorites", "/vault?f=secret"]);
+    expect(filters).toEqual([
+      "/vault?f=favorites",
+      "/vault?f=secret",
+      "/vault?f=file",
+    ]);
   });
 });
 
@@ -121,7 +125,7 @@ describe("AppShell", () => {
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
+    expect(screen.queryByTestId("connectivity-bar")).toBeNull();
     expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
   });

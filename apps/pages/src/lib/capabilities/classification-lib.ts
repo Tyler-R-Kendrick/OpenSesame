@@ -1,7 +1,4 @@
-/**
- * `src/lib/*` (root files). No directory default: every family is named,
- * so a new file with no rule fails the classification test and gets one.
- */
+/** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
 import { core, each, optional, shared } from "./classification-rule.js";
 
@@ -200,6 +197,11 @@ export const LIB_RULES = [
     `${L}item-type-marketplace/`,
     "vault.passwords",
     "item-type marketplaces read from a git repository (ADR 0134)",
+  ),
+  core(
+    `${L}file-parts-store`,
+    "vault.passwords",
+    "sealed parts of a file item",
   ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),

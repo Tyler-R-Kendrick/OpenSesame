@@ -123,10 +123,6 @@ describe(
           await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
         );
         await waitFor(
-          () => expect(journey.focused()).toEqual(["shell.connectivity"]),
-          { timeout: 10_000 },
-        );
-        await waitFor(
           () => expect(journey.navigations()).toEqual(["/vault/health"]),
           { timeout: 10_000 },
         );

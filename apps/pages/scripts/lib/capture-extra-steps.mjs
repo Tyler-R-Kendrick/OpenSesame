@@ -16,7 +16,11 @@ import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
-import { unlockWithPassword } from "./pages-journey.mjs";
+import { sealWithPin, unlockWithPassword } from "./pages-journey.mjs";
+
+async function sealPin(page) {
+  await sealWithPin(page);
+}
 
 export function extraSteps({ press }) {
   return {
@@ -33,10 +37,8 @@ export function extraSteps({ press }) {
     ...routingSteps(),
     ...orgSignInSteps(),
     ...networkSteps(),
-    /**
-     * Reload the page and open the sealed password vault again, for a change
-     * a device only picks up on a cold load (a section a capability adds).
-     */
+    sealPin,
+    /** Reload and unlock, for a change a device only picks up on a cold load. */
     async reloadUnlock(page) {
       await page.reload({ waitUntil: "networkidle" });
       await page.waitForTimeout(5200);

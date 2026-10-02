@@ -64,7 +64,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "shell.connectivity",
     description:
-      "Statusline strip reporting whether identity on this device is ready right now.",
+      "Connections list behind the overflow key, reporting whether identity on this device is ready.",
     role: "status",
     routes: [],
     capabilityId: "host.health.pages",

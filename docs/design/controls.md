@@ -176,7 +176,7 @@ and a Claude Code `PostToolUse` hook:
 
 The workspace statusline also uses one control geometry: 28px keys with 17px
 glyphs and 8px between groups, growing to 44px touch targets on small/coarse
-screens. Support, connection indicators, notifications, and lock share borders,
+screens. Support and the notifications bell share borders,
 surfaces, and hover treatment. Status dots are positioned badges, never a
 second layout row that shifts one icon above another. All controls form one
 left-aligned strip; no utility group is pushed to the opposite edge. Static-origin

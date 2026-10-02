@@ -76,7 +76,6 @@
     "relay.decide",
     "relay.inbox",
     "rotations.read",
-    "setup.first_run",
     "shared_sessions.activity",
     "shared_sessions.close",
     "shared_sessions.decide_join_request",

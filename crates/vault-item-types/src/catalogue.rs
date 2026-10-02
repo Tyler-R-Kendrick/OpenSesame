@@ -63,10 +63,11 @@ pub enum FieldTypeId {
     SecurityQuestion,
     PaymentCard,
     KeyPair,
+    Blob,
 }
 
 /// Every catalogue entry, in the same order as the TypeScript table.
-pub const FIELD_TYPE_IDS: [FieldTypeId; 22] = [
+pub const FIELD_TYPE_IDS: [FieldTypeId; 23] = [
     FieldTypeId::String,
     FieldTypeId::Multiline,
     FieldTypeId::Email,
@@ -89,6 +90,7 @@ pub const FIELD_TYPE_IDS: [FieldTypeId; 22] = [
     FieldTypeId::SecurityQuestion,
     FieldTypeId::PaymentCard,
     FieldTypeId::KeyPair,
+    FieldTypeId::Blob,
 ];
 
 const ADDRESS_PARTS: [FieldPart; 6] = [
@@ -151,6 +153,7 @@ impl FieldTypeId {
             Self::SecurityQuestion => "security-question",
             Self::PaymentCard => "payment-card",
             Self::KeyPair => "key-pair",
+            Self::Blob => "blob",
         }
     }
 
@@ -195,6 +198,7 @@ impl FieldTypeId {
                 | Self::SecurityQuestion
                 | Self::PaymentCard
                 | Self::KeyPair
+                | Self::Blob
         )
     }
 
