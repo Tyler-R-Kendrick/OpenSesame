@@ -33,6 +33,19 @@ export async function sealLocalOnly(page) {
   await waitOpen(page);
 }
 
+/** First-run PIN seal. The same recovery acknowledgement as the password road. */
+export async function sealWithPin(page) {
+  await passTheDoor(page);
+  await page.getByRole("button", { name: "Use without an account" }).click();
+  await page.getByRole("tab", { name: "PIN" }).click();
+  await page.getByLabel("Device PIN").fill("48291037");
+  await page.getByLabel("Confirm PIN").fill("48291037");
+  await page.getByLabel("I understand this vault cannot be recovered.").check();
+  await page.getByRole("button", { name: "Seal with PIN" }).click();
+  await waitOpen(page);
+  await page.waitForTimeout(400);
+}
+
 export async function sealWithPassword(page) {
   // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
   await passTheDoor(page);

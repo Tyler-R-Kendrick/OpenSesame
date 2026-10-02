@@ -3,6 +3,7 @@ import {
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import {
+  exportOpener,
   exportRefusal,
   offlineBackupFile,
 } from "@opensesame/app-core/lib/vault/offline-backup-file.js";
@@ -28,8 +29,8 @@ function messageOf<Thrown>(caught: Thrown): string {
 /**
  * The encrypted backup (`backup.local-encrypted`): the vault's sealed body
  * and wrapping header in one file, the master password still its key.
- * Never a plaintext dump — nothing here decrypts an item — and a vault no
- * password opens is refused rather than written into a file nobody can read.
+ * Never a plaintext dump — nothing here decrypts an item — and a vault with
+ * no enrolled unlock is refused rather than written into a file nobody can read.
  */
 function ExportSheet({ onClose }: { onClose: () => void }) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -64,7 +65,10 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   const facts: CeremonyFact[] = [
     { key: "Vault", value: vaultLabel({ id: vault.tomb, name: vault.tomb }) },
     { key: "Items", value: String(live) },
-    { key: "Opens with", value: "the master password" },
+    {
+      key: "Opens with",
+      value: exportOpener(vault.header) ?? "the master password",
+    },
     { key: "Holds", value: "ciphertext only" },
   ];
   if (saved) facts.push({ key: "File", value: saved });

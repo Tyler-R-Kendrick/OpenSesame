@@ -243,6 +243,19 @@ async function appendActivityEvent(
   return next;
 }
 
+/** Settle notes already fired. A note that starts afterwards is a new call. */
+export async function flushActivityLog(): Promise<void> {
+  const pending = [...chains.values(), ...activityWrites.values()];
+  await Promise.all(
+    pending.map((job) =>
+      job.then(
+        () => undefined,
+        () => undefined,
+      ),
+    ),
+  );
+}
+
 export function recordActivityEvent(
   tomb: string,
   input: RecordActivityInput,
