@@ -58,8 +58,12 @@ All scripts below are defined in the root `package.json` unless noted.
 
 ```bash
 pnpm bootstrap           # install + db:generate + db:migrate
-pnpm dev                 # turbo dev (control-plane, worker,
-                          #   mock-upstream-idp, example-rp-alpha/beta), parallel
+pnpm dev                 # turbo dev (control-plane, identity-worker,
+                          #   mock-upstream-idp, example-rp-alpha/beta/static-rp)
+pnpm dev:pwa             # Pages vite on :5180, no backend
+pnpm dev:cli             # native opensesame CLI; verb after --
+pnpm dev:host            # host on 127.0.0.1:8787
+pnpm dev:daemon          # daemon on 127.0.0.1:18790
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
@@ -182,7 +186,7 @@ When the human says run the app locally, attach a live debug session. Do
 not hand off a URL, a `preview` of `dist/`, or a headless `verify:*` run.
 
 ```bash
-pnpm --filter @opensesame/pages dev:web   # vite --port 5180 --strictPort --host localhost
+pnpm dev:pwa             # vite --port 5180 --strictPort --host localhost
 # Keep this process attached. Open http://localhost:5180 (localhost, not
 # 127.0.0.1, for passkeys). Watch console, pageerror, and failed requests.
 # Patch source so Vite HMR updates the same session; do not restart from
@@ -385,7 +389,7 @@ Do not add new top-level directories or loose root files — find the group.
   requests with full stacks. Fix against the hot-reloaded session; do not
   kill it to run a production `dist/` or a headless `verify:*` harness
   unless that gate was the request. Pages UI without a backend is
-  `pnpm --filter @opensesame/pages dev:web` on `:5180`. Procedure:
+  `pnpm dev:pwa` on `:5180`. Procedure:
   `skills/local-debug-session/SKILL.md`.
 - **Keyboard access is a core product contract, not optional polish.** Every
   arrival (cold load, reload, guest/unlock, deep link, route change and modal

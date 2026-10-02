@@ -1,3 +1,4 @@
+mod access_area;
 mod agent_runs;
 mod attach;
 mod bridge;
@@ -12,6 +13,7 @@ mod dev_surrogate;
 mod entry;
 mod github;
 mod hooks;
+mod identity_area;
 mod init_schema;
 mod lifecycle;
 mod local_authority;
@@ -22,14 +24,15 @@ mod plugins_install;
 mod providers_native;
 mod security;
 mod serve;
+mod session;
 mod store;
 mod sync_commands;
 mod sync_export;
 mod sync_import;
 mod sync_migration;
+mod vault_area;
 mod vault_file;
 mod vault_migration;
-
 use clap::{Parser, Subcommand, ValueEnum};
 use dev_run::{dev_cmd, DevCmd};
 use init_schema::init_schema;
@@ -45,7 +48,6 @@ use opensesame_host_core::endpoints::{self, HOST};
 use serde::Deserialize;
 use serde_json::json;
 use std::{env, path::PathBuf, time::Duration};
-use sync_commands::{sync_cmd, SyncCmd};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -53,7 +55,7 @@ use sync_commands::{sync_cmd, SyncCmd};
     about = "OpenSesame CLI — credentials as capabilities",
     version
 )]
-struct Cli {
+pub(crate) struct Cli {
     #[arg(long, env = endpoints::env(HOST), global = true, default_value_t = endpoints::fallback(HOST))]
     server: String,
     #[arg(long, global = true, default_value = "json")]
@@ -64,31 +66,22 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Inspect password-wrapper KDF metadata without deriving a key.
-    #[command(name = "vault-inspect")]
-    VaultInspect {
-        input: PathBuf,
-    },
-    /// Interactively rewrap a local password wrapper into the portable KDF policy.
-    #[command(name = "vault-migrate")]
-    VaultMigrate {
-        input: PathBuf,
-        output: PathBuf,
-        #[arg(long)]
-        memory_kib: u32,
-        #[arg(long)]
-        passes: u32,
-    },
-    /// Open a vault export or offline backup the Pages PWA wrote (names and paths, never values).
+    /// Interactive session and the first-run setup ceremony.
+    Session,
+    /// Vault: items, exports, and the sealed store.
     Vault {
         #[command(subcommand)]
-        cmd: vault_file::VaultCmd,
+        cmd: vault_area::VaultArea,
     },
-    /// Approve a paired browser or launch a narrowly scoped local agent.
-    #[command(name = "local-authority")]
-    LocalAuthority {
+    /// Access: grants, sessions, connectors, and resources.
+    Access {
         #[command(subcommand)]
-        cmd: local_authority::LocalAuthorityCommand,
+        cmd: access_area::AccessArea,
+    },
+    /// Identity: the signed-in account and its providers.
+    Identity {
+        #[command(subcommand)]
+        cmd: identity_area::IdentityArea,
     },
     Login {
         #[arg(long, value_enum, default_value = "auto")]
@@ -105,73 +98,7 @@ enum Commands {
         no_qr: bool,
     },
     Logout,
-    Status,
-    Whoami,
-    #[command(name = "auth")]
-    Auth {
-        #[command(subcommand)]
-        cmd: AuthCmd,
-    },
-    Invoke {
-        /// `ConnectionRef` URI (conn://...) or logical name — never a `SecretRef`.
-        #[arg(long = "connection-ref", alias = "connection")]
-        connection_ref: String,
-        #[arg(long)]
-        operation: String,
-        #[arg(long)]
-        resource: String,
-        #[arg(long)]
-        input: Option<PathBuf>,
-        #[arg(long, default_value = "1")]
-        invoke_level: u8,
-    },
-    Receipt {
-        #[command(subcommand)]
-        cmd: ReceiptCmd,
-    },
     Doctor,
-    /// Provider catalog and live/readiness probes.
-    Provider {
-        #[command(subcommand)]
-        cmd: ProviderCmd,
-    },
-    /// Create, attach, and invoke connectors by `service/name`.
-    Connect(connect::ConnectArgs),
-    /// First-class connection configuration (alias: connector).
-    #[command(alias = "connector")]
-    Connection {
-        #[command(subcommand)]
-        cmd: ConnectionCmd,
-    },
-    /// Explicit human-only provider reads. Never exposed through MCP or agent APIs.
-    Secret {
-        #[command(subcommand)]
-        cmd: SecretCmd,
-    },
-    /// Acquire or revoke a short-lived credential lease (human CLI only).
-    Lease {
-        #[command(subcommand)]
-        cmd: LeaseCmd,
-    },
-    /// Encrypt or decrypt files without placing plaintext in argv or stdout.
-    Crypto {
-        #[command(subcommand)]
-        cmd: CryptoCmd,
-    },
-    /// Push or pull server-blind encrypted blobs.
-    Sync {
-        #[command(subcommand)]
-        cmd: SyncCmd,
-    },
-    /// Export non-secret native connection configuration.
-    Export {
-        #[arg(long)]
-        output: Option<PathBuf>,
-    },
-    /// Import non-secret native connection configuration.
-    Import {
-        input: PathBuf,
-    },
     /// Print native project configuration files.
     ConfigFiles {
         #[arg(long, default_value = ".env.schema")]
@@ -191,12 +118,6 @@ enum Commands {
     Config {
         #[command(subcommand)]
         cmd: configs::ConfigCmd,
-    },
-    /// Password-store management (`pass` parity): init, insert, show, ls, …
-    #[command(name = "pass")]
-    Pass {
-        #[command(subcommand)]
-        cmd: PassCmd,
     },
     /// Local-IPC bridges for foreign password-manager clients (ADR 0053).
     Bridge {
@@ -235,36 +156,6 @@ enum Commands {
         #[command(subcommand)]
         cmd: entry::HelpersCmd,
     },
-    /// Task-scoped authority (immutable ceiling + trust ratchet).
-    Task {
-        #[command(subcommand)]
-        cmd: TaskCmd,
-    },
-    /// Freeze a task-bound intent via Host API.
-    Intent {
-        #[command(subcommand)]
-        cmd: IntentCmd,
-    },
-    /// Expiry lifecycle: what is due, who is subscribed, and what was delivered.
-    Lifecycle {
-        #[command(subcommand)]
-        cmd: LifecycleCmd,
-    },
-    /// Sandboxed rotation runs: what is running, what it did, and taking over.
-    Rotate {
-        #[command(subcommand)]
-        cmd: RotateCmd,
-    },
-    /// Connector registration ceremonies: what this build can set up for you.
-    Ceremony {
-        #[command(subcommand)]
-        cmd: CeremonyCmd,
-    },
-    /// Issue TLS certificates with an automatically selected Host-owned issuer.
-    Cert {
-        #[command(subcommand)]
-        cmd: CertCmd,
-    },
     /// Breach exposure: what has turned up publicly, and vetting a new secret.
     Security {
         #[command(subcommand)]
@@ -283,7 +174,7 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
-enum CeremonyCmd {
+pub(crate) enum CeremonyCmd {
     /// Every provider a ceremony covers, and how far each one gets.
     List,
     /// One provider in full: the plan, what it may capture, and its proof.
@@ -294,7 +185,7 @@ enum CeremonyCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum RotateCmd {
+pub(crate) enum RotateCmd {
     /// Sandboxed runs and where each one is (metadata only).
     Runs,
     /// Read a run's observation log. Sealed: sizes and lanes, never content.
@@ -316,7 +207,7 @@ enum RotateCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum LifecycleCmd {
+pub(crate) enum LifecycleCmd {
     /// Every tracked deadline and how close it is (metadata only).
     Expiring,
     /// List registered lifecycle hook subscriptions.
@@ -336,7 +227,7 @@ enum LifecycleCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum LifecycleHookCmd {
+pub(crate) enum LifecycleHookCmd {
     /// Register a subscription. Prints the signing secret once.
     Add {
         #[arg(long)]
@@ -356,7 +247,7 @@ enum LifecycleHookCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum CertCmd {
+pub(crate) enum CertCmd {
     /// Print the Host dev CA certificate (trust this for local TLS).
     Ca {
         #[arg(long)]
@@ -393,23 +284,23 @@ enum CertCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum AuthCmd {
+pub(crate) enum AuthCmd {
     Doctor,
 }
 
 #[derive(Subcommand, Debug)]
-enum ReceiptCmd {
+pub(crate) enum ReceiptCmd {
     Verify { id: String },
 }
 
 #[derive(Subcommand, Debug)]
-enum ProviderCmd {
+pub(crate) enum ProviderCmd {
     List,
     Test { id: String },
 }
 
 #[derive(Subcommand, Debug)]
-enum ConnectionCmd {
+pub(crate) enum ConnectionCmd {
     List,
     Add {
         #[arg(long)]
@@ -444,7 +335,7 @@ enum ConnectionCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum SecretCmd {
+pub(crate) enum SecretCmd {
     Get {
         #[arg(long)]
         connection: String,
@@ -463,7 +354,7 @@ enum SecretCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum LeaseCmd {
+pub(crate) enum LeaseCmd {
     Acquire {
         #[arg(long)]
         connection: String,
@@ -482,7 +373,7 @@ enum LeaseCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum CryptoCmd {
+pub(crate) enum CryptoCmd {
     Encrypt {
         #[arg(long)]
         connection: String,
@@ -503,7 +394,7 @@ enum CryptoCmd {
 
 /// Sealed password-store verbs under `opensesame pass` (`pass` CLI parity).
 #[derive(Subcommand, Debug)]
-enum PassCmd {
+pub(crate) enum PassCmd {
     /// Initialize a git-native sealed secret store.
     Init {
         #[arg(long)]
@@ -759,7 +650,7 @@ enum PassCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum PassAttachCmd {
+pub(crate) enum PassAttachCmd {
     /// Seal a file into the store as chunked ciphertext.
     Add {
         /// Logical store path to file the attachment under.
@@ -835,7 +726,7 @@ enum PassAttachCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum PassTombCmd {
+pub(crate) enum PassTombCmd {
     List,
     Add {
         name: String,
@@ -880,7 +771,7 @@ struct PortableConnection {
 }
 
 #[derive(Subcommand, Debug)]
-enum TaskCmd {
+pub(crate) enum TaskCmd {
     Start {
         #[arg(long)]
         principal: String,
@@ -907,7 +798,7 @@ enum TaskCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum IntentCmd {
+pub(crate) enum IntentCmd {
     Create {
         #[arg(long)]
         task: String,
@@ -963,26 +854,17 @@ enum CompletionShell {
 }
 
 #[tokio::main]
-#[expect(
-    clippy::too_many_lines,
-    reason = "this match is the stable declarative top-level Clap command dispatch catalog"
-)]
 async fn main() -> anyhow::Result<()> {
     if let Some(code) = entry::by_program_name() {
         std::process::exit(code);
     }
-    let cli = Cli::parse();
+    let cli = session::verb()?;
     serve::init_tracing(&cli.command);
     match cli.command {
-        Commands::VaultInspect { input } => vault_migration::inspect(&input)?,
-        Commands::VaultMigrate {
-            input,
-            output,
-            memory_kib,
-            passes,
-        } => vault_migration::migrate(&input, &output, memory_kib, passes)?,
-        Commands::Vault { cmd } => vault_file::run(&cli.output, &cmd)?,
-        Commands::LocalAuthority { cmd } => local_authority::run(&cli.server, cmd).await?,
+        Commands::Session => session::enter()?,
+        Commands::Vault { cmd } => vault_area::run(&cli.server, &cli.output, cmd).await?,
+        Commands::Access { cmd } => access_area::run(&cli.server, &cli.output, cmd).await?,
+        Commands::Identity { cmd } => identity_area::run(&cli.server, &cli.output, cmd).await?,
         Commands::Login {
             flow,
             no_browser,
@@ -995,41 +877,7 @@ async fn main() -> anyhow::Result<()> {
             let _ = std::fs::remove_file(path);
             println!("{}", json!({"status":"logged_out"}));
         }
-        Commands::Status => status(&cli.server).await?,
-        Commands::Whoami => whoami(&cli.server).await?,
-        Commands::Auth {
-            cmd: AuthCmd::Doctor,
-        } => doctor(&cli.server).await?,
-        Commands::Invoke {
-            connection_ref,
-            operation,
-            resource,
-            input,
-            invoke_level,
-        } => {
-            invoke(
-                &cli.server,
-                &connection_ref,
-                &operation,
-                &resource,
-                input,
-                invoke_level,
-            )
-            .await?;
-        }
-        Commands::Receipt {
-            cmd: ReceiptCmd::Verify { id },
-        } => verify_receipt(&cli.server, &id).await?,
         Commands::Doctor => doctor(&cli.server).await?,
-        Commands::Provider { cmd } => provider_cmd(&cli.server, &cli.output, cmd).await?,
-        Commands::Connect(args) => connect::run(&cli.server, args).await?,
-        Commands::Connection { cmd } => connection_cmd(&cli.server, &cli.output, cmd).await?,
-        Commands::Secret { cmd } => secret_cmd(&cli.server, cmd).await?,
-        Commands::Lease { cmd } => lease_cmd(&cli.server, cmd).await?,
-        Commands::Crypto { cmd } => crypto_cmd(&cli.server, cmd).await?,
-        Commands::Sync { cmd } => sync_cmd(&cli.server, cmd).await?,
-        Commands::Export { output } => export_connections(&cli.server, output).await?,
-        Commands::Import { input } => import_connections(&cli.server, input).await?,
         Commands::ConfigFiles { schema } => {
             println!(
                 "{}",
@@ -1042,234 +890,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Init { schema } => init_schema(&schema)?,
         Commands::Config { cmd } => configs::run(&cli.server, &cli.output, cmd).await?,
         Commands::Bridge { cmd } => bridge::run(cmd).await?,
-        Commands::Pass { cmd } => match cmd {
-            PassCmd::Init {
-                path,
-                recipients,
-                git,
-                remote,
-            } => store::cmd_init(path.as_deref(), &recipients, git, remote.as_deref())?,
-            PassCmd::Insert {
-                name,
-                echo,
-                path,
-                tomb,
-            } => store::cmd_insert(&name, echo, path.as_deref(), tomb.as_deref())?,
-            PassCmd::Generate {
-                name,
-                length,
-                no_symbols,
-                path,
-                tomb,
-            } => store::cmd_generate(&name, length, no_symbols, path.as_deref(), tomb.as_deref())?,
-            PassCmd::Show {
-                name,
-                reveal,
-                path,
-                tomb,
-            } => store::cmd_show(&name, reveal, path.as_deref(), tomb.as_deref())?,
-            PassCmd::Ls { prefix, path, tomb } => {
-                store::cmd_ls(prefix.as_deref(), path.as_deref(), tomb.as_deref())?;
-            }
-            PassCmd::Find { query, path, tomb } => {
-                store::cmd_find(&query, path.as_deref(), tomb.as_deref())?;
-            }
-            PassCmd::Rm { name, path, tomb } => {
-                store::cmd_rm(&name, path.as_deref(), tomb.as_deref())?;
-            }
-            PassCmd::Cp {
-                from,
-                to,
-                path,
-                tomb,
-            } => store::cmd_cp(&from, &to, path.as_deref(), tomb.as_deref())?,
-            PassCmd::Mv {
-                from,
-                to,
-                path,
-                tomb,
-            } => store::cmd_mv(&from, &to, path.as_deref(), tomb.as_deref())?,
-            PassCmd::Git { args, path, tomb } => {
-                let code = store::cmd_git(&args, path.as_deref(), tomb.as_deref())?;
-                if code != 0 {
-                    std::process::exit(code);
-                }
-            }
-            PassCmd::Seal {
-                manifest,
-                replace,
-                shred,
-                path,
-                tomb,
-            } => store::cmd_seal(&manifest, replace, shred, path.as_deref(), tomb.as_deref())?,
-            PassCmd::ImportKdbx {
-                file,
-                keyfile,
-                prefix,
-                replace,
-                path,
-                tomb,
-            } => store::cmd_import_kdbx(
-                &file,
-                keyfile,
-                prefix,
-                replace,
-                path.as_deref(),
-                tomb.as_deref(),
-            )?,
-            PassCmd::ExportKdbx {
-                dest,
-                prefix,
-                reveal,
-                path,
-                tomb,
-            } => store::cmd_export_kdbx(
-                &dest,
-                prefix.as_deref(),
-                reveal,
-                path.as_deref(),
-                tomb.as_deref(),
-            )?,
-            PassCmd::Backup {
-                remote,
-                auto_push,
-                path,
-                tomb,
-            } => {
-                store::cmd_backup(remote, auto_push, path.as_deref(), tomb.as_deref()).await?;
-            }
-            PassCmd::Attach { cmd } => match cmd {
-                PassAttachCmd::Add {
-                    name,
-                    file,
-                    mime,
-                    force,
-                    shred,
-                    path,
-                    tomb,
-                } => attach::cmd_attach_add(
-                    &name,
-                    &file,
-                    mime,
-                    force,
-                    shred,
-                    path.as_deref(),
-                    tomb.as_deref(),
-                )?,
-                PassAttachCmd::Get {
-                    name,
-                    out,
-                    reveal,
-                    path,
-                    tomb,
-                } => attach::cmd_attach_get(
-                    &name,
-                    out.as_deref(),
-                    reveal,
-                    path.as_deref(),
-                    tomb.as_deref(),
-                )?,
-                PassAttachCmd::Ls { prefix, path, tomb } => {
-                    attach::cmd_attach_ls(prefix.as_deref(), path.as_deref(), tomb.as_deref())?;
-                }
-                PassAttachCmd::Rm { name, path, tomb } => {
-                    attach::cmd_attach_rm(&name, path.as_deref(), tomb.as_deref())?;
-                }
-                PassAttachCmd::Gc { path, tomb } => {
-                    attach::cmd_attach_gc(path.as_deref(), tomb.as_deref())?;
-                }
-                PassAttachCmd::Sync { to_dir, path, tomb } => {
-                    attach::cmd_attach_sync(
-                        to_dir.as_deref(),
-                        &cli.server,
-                        path.as_deref(),
-                        tomb.as_deref(),
-                    )
-                    .await?;
-                }
-            },
-            PassCmd::Protect { cmd } => pass_protect::run(cmd)?,
-            PassCmd::Otp { cmd } => pass_otp::run(cmd)?,
-            PassCmd::Update {
-                names,
-                length,
-                auto_length,
-                no_symbols,
-                provide,
-                multiline,
-                include,
-                exclude,
-                force,
-                path,
-                tomb,
-            } => store::cmd_update(
-                &names,
-                &store::UpdateCliOpts {
-                    length,
-                    auto_length,
-                    no_symbols,
-                    provide,
-                    multiline,
-                    include,
-                    exclude,
-                    force,
-                },
-                path.as_deref(),
-                tomb.as_deref(),
-            )?,
-            PassCmd::Rotate {
-                names,
-                length,
-                auto_length,
-                no_symbols,
-                provide,
-                multiline,
-                include,
-                exclude,
-                force,
-                reveal,
-                path,
-                tomb,
-            } => store::cmd_rotate(
-                &names,
-                &store::UpdateCliOpts {
-                    length,
-                    auto_length,
-                    no_symbols,
-                    provide,
-                    multiline,
-                    include,
-                    exclude,
-                    force,
-                },
-                reveal,
-                path.as_deref(),
-                tomb.as_deref(),
-            )?,
-            PassCmd::History { name, path, tomb } => {
-                store::cmd_history(&name, path.as_deref(), tomb.as_deref())?;
-            }
-            PassCmd::Restore {
-                name,
-                rev,
-                path,
-                tomb,
-            } => store::cmd_restore(&name, &rev, path.as_deref(), tomb.as_deref())?,
-            PassCmd::Tomb { cmd } => match cmd {
-                PassTombCmd::List => store::cmd_tomb_list()?,
-                PassTombCmd::Add {
-                    name,
-                    store: store_path,
-                    key,
-                    volume,
-                    linux,
-                } => store::cmd_tomb_add(&name, store_path, key, volume, linux)?,
-                PassTombCmd::Rm { name } => store::cmd_tomb_rm(&name)?,
-                PassTombCmd::Use { name } => store::cmd_tomb_use(&name)?,
-            },
-            PassCmd::Open { name } => store::cmd_open(name.as_deref())?,
-            PassCmd::Close { name } => store::cmd_close(name.as_deref())?,
-        },
         Commands::Tui => tui(&cli.server).await?,
         Commands::Dev {
             cmd,
@@ -1288,86 +908,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Host { cmd } => serve::host(cmd).await?,
         Commands::Worker { cmd } => serve::worker(cmd).await?,
         Commands::Helpers { cmd } => entry::helpers(cmd)?,
-        Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Plugins { cmd } => plugins::run(&cli.output, cmd).await?,
-        Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
-        Commands::Rotate { cmd } => match cmd {
-            RotateCmd::Runs => agent_runs::cmd_runs(&cli.server, &cli.output).await?,
-            RotateCmd::Watch { run, after, follow } => {
-                agent_runs::cmd_watch(&cli.server, &cli.output, &run, after, follow).await?;
-            }
-            RotateCmd::Attach { run } => {
-                agent_runs::cmd_attach(&cli.server, &cli.output, &run).await?;
-            }
-        },
-        // No `&cli.server`: the catalog is compiled in, and this verb is read
-        // before a Host exists. See `ceremony`'s module docs.
-        Commands::Ceremony { cmd } => match cmd {
-            CeremonyCmd::List => ceremony::cmd_list(&cli.output)?,
-            CeremonyCmd::Show { provider } => ceremony::cmd_show(&cli.output, &provider)?,
-        },
-        Commands::Lifecycle { cmd } => match cmd {
-            LifecycleCmd::Expiring => lifecycle::cmd_expiring(&cli.server, &cli.output).await?,
-            LifecycleCmd::Hooks => lifecycle::cmd_hooks(&cli.server, &cli.output).await?,
-            LifecycleCmd::Hook { cmd } => match cmd {
-                LifecycleHookCmd::Add {
-                    name,
-                    url,
-                    events,
-                    subject_kinds,
-                } => {
-                    lifecycle::cmd_hook_add(
-                        &cli.server,
-                        &cli.output,
-                        lifecycle::HookOptions {
-                            name,
-                            url,
-                            events,
-                            subject_kinds,
-                        },
-                    )
-                    .await?;
-                }
-                LifecycleHookCmd::Rm { id } => {
-                    lifecycle::cmd_hook_rm(&cli.server, &cli.output, &id).await?;
-                }
-            },
-            LifecycleCmd::Deliveries { limit } => {
-                lifecycle::cmd_deliveries(&cli.server, &cli.output, limit).await?;
-            }
-            LifecycleCmd::Scan => lifecycle::cmd_scan(&cli.server, &cli.output).await?,
-        },
         Commands::Security { cmd } => security::run(&cli.server, &cli.output, cmd).await?,
         Commands::Hooks { cmd } => hooks::run(&cli.server, cmd).await?,
-        Commands::Cert { cmd } => match cmd {
-            CertCmd::Ca { out } => certs::cmd_ca(&cli.server, &cli.output, out).await?,
-            CertCmd::Issue {
-                common_name,
-                dns,
-                ips,
-                ttl_hours,
-                out_dir,
-                reveal,
-            } => {
-                certs::cmd_issue(
-                    &cli.server,
-                    &cli.output,
-                    certs::IssueOptions {
-                        common_name,
-                        dns,
-                        ips,
-                        ttl_hours,
-                        out_dir,
-                        reveal,
-                    },
-                )
-                .await?;
-            }
-            CertCmd::Ls => certs::cmd_ls(&cli.server, &cli.output).await?,
-            CertCmd::Key { id, reveal, out } => {
-                certs::cmd_key(&cli.server, &cli.output, &id, reveal, out).await?;
-            }
-        },
     }
     Ok(())
 }

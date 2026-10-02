@@ -121,7 +121,7 @@ export const nativeHostCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame auth doctor",
+      cli: "opensesame identity auth doctor",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -135,7 +135,7 @@ export const nativeHostCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame lease",
+      cli: "opensesame access grants lease",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -153,7 +153,7 @@ export const nativeHostCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame import",
+      cli: "opensesame access connectors import",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -167,7 +167,7 @@ export const nativeHostCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "act",
     surfaces: {
-      cli: "opensesame crypto",
+      cli: "opensesame vault crypto",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
