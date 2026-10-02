@@ -15,6 +15,7 @@ import {
   readStage,
   reparseStage,
   restoreStage,
+  restoreWithPasskey,
   stageFor,
   unlockStage,
 } from "./model.js";
@@ -235,6 +236,29 @@ describe("import model", () => {
       restored: true,
     });
     expect((await restoreStage(sealed, "", port)).stage).toBe(sealed);
+  });
+
+  it("restores a passkey backup with the key the ceremony unwraps", async () => {
+    const raw = new Uint8Array([9, 8, 7]);
+    importModelSeams.getPasskeyUnlockCeremony = async () => new ArrayBuffer(32);
+    importModelSeams.unwrapVaultKeyWithPrf = async () => raw;
+    const sealed = JSON.stringify({
+      header: { unlocks: { passkey: { credentialIdB64: "YQ==" } } },
+    });
+    const stage: ImportStage = { step: "sealed", fileName: "b.json", sealed };
+    const port = store({
+      importSealed: vi.fn(async (_text, secret) => {
+        expect(secret).toEqual(raw);
+        return 2;
+      }),
+    });
+    const outcome = await restoreWithPasskey(stage, port);
+    expect(outcome.stage).toMatchObject({
+      step: "done",
+      added: 2,
+      restored: true,
+    });
+    expect(raw.every((byte) => byte === 0)).toBe(true);
   });
 
   it("words an empty or foreign failure", () => {

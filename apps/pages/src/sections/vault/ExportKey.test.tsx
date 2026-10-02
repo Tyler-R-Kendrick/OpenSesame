@@ -84,6 +84,7 @@ describe("Export key", () => {
       screen.getByRole("dialog", { name: "Export encrypted vault" }),
     ).toBeTruthy();
     expect(screen.getByText("ciphertext only")).toBeTruthy();
+    expect(screen.getByText("the master password")).toBeTruthy();
     // Only live items are counted; the trashed one still rides in the body.
     expect(screen.getByText("Items").nextElementSibling?.textContent).toBe("1");
     // Opening the sheet writes nothing.
@@ -144,6 +145,55 @@ describe("Export key", () => {
     expect(
       screen.getByRole("img", { name: "Nothing sealed to export yet" }),
     ).toBeTruthy();
+  });
+
+  it("offers a backup when the vault opens with a passkey or a PIN", async () => {
+    const wrap = { ivB64: "YQ==", ctB64: "YQ==" };
+    const passkey = {
+      v: 1 as const,
+      createdAt: "2026-09-01T00:00:00Z",
+      unlocks: {
+        passkey: {
+          credentialIdB64: "YQ==",
+          userIdB64: "YQ==",
+          prfSaltB64: "YQ==",
+          wrap,
+        },
+      },
+    };
+    const pin = {
+      v: 1 as const,
+      createdAt: "2026-09-01T00:00:00Z",
+      unlocks: {
+        pin: {
+          kdf: {
+            alg: "PBKDF2-SHA256" as const,
+            saltB64: "YQ==",
+            iterations: 600000,
+          },
+          wrap,
+        },
+      },
+    };
+    for (const [header, opener] of [
+      [passkey, "the passkey"],
+      [pin, "the PIN"],
+    ] as const) {
+      cleanup();
+      vault.current = {
+        status: "unlocked",
+        guest: false,
+        tomb: "personal",
+        header,
+        items: [{ deletedAt: null }],
+      };
+      render(<ExportKey />);
+      await userEvent.click(
+        screen.getByRole("button", { name: "Export items" }),
+      );
+      expect(screen.getByText(opener)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Save backup" })).toBeTruthy();
+    }
   });
 
   it("closes and hands focus back to the key", async () => {

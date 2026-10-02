@@ -12,6 +12,7 @@ import {
   readStage,
   reparseStage,
   restoreStage,
+  restoreWithPasskey,
   unlockStage,
 } from "@opensesame/app-core/sections/vault/import/model.js";
 import {
@@ -40,6 +41,7 @@ export type ImportFlow = Readonly<{
   reparse: (source: SourceId) => void;
   unlock: (password: string) => void;
   restore: (password: string) => void;
+  restorePasskey: () => void;
   confirm: () => void;
 }>;
 
@@ -134,6 +136,7 @@ export function useImportFlow(file: File): ImportFlow {
     unlock: (password) => run(() => unlockStage(current.current, password)),
     restore: (password) =>
       run(() => restoreStage(current.current, password, store)),
+    restorePasskey: () => run(() => restoreWithPasskey(current.current, store)),
     confirm: () => {
       if (plan) run(() => confirmStage(current.current, plan, store));
       if (manifestPlan) {

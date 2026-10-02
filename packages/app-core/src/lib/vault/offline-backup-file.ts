@@ -1,17 +1,18 @@
 /**
  * The encrypted offline backup as a file a person keeps (`backup.local-
  * encrypted`): the vault's wrapping header and its sealed body in vault-
- * core's offline-backup envelope — ciphertext only, the master password
- * still the key. `opensesame-id vault verify <file>` opens what this writes,
- * and the vault's Import key reads it back (`sealedVaultText`).
+ * core's offline-backup envelope — ciphertext only. The enrolled unlock
+ * still opens it: the master password, the passkey, or the PIN.
+ * `opensesame-id vault verify <file>` opens a password backup, and the
+ * vault's Import key reads any of the three back (`sealedVaultText`).
  *
- * Nothing here decrypts. The body is read from storage as it was sealed, so
- * an export never holds a plaintext item, and a restore is the store's own
- * `importSealed` with the password the person types.
+ * The body is read from storage as it was sealed, so an export never holds
+ * a plaintext item. A restore is the store's own `importSealed`.
  */
 import {
   type BoundaryValue,
   isJsonObject,
+  overlapCast,
   readString,
 } from "@opensesame/os-domain";
 import {
@@ -20,12 +21,20 @@ import {
   VAULT_EXPORT_FORMAT,
   type VaultHeader,
   readVaultFile,
+  unwrapRawVaultKeyFromPassword,
 } from "@opensesame/vault-core";
 import { BODY_PATH, PERSONAL_TOMB, readSealedFile } from "../vfs.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,
 } from "./offline-backup.js";
+import { unwrapVaultKeyWithPin } from "./unlock-methods.js";
+
+const NO_MASTER_PASSWORD =
+  "That export has no master-password unlock. Re-export from a vault that still has a password enrolled, or unlock the source vault and merge items another way.";
+
+/** Which enrolled unlock opens an exported header. Password wins when present. */
+export type ExportUnlock = "password" | "passkey" | "pin";
 
 /** What the export reads of the vault's state. */
 export type BackupSource = Readonly<{
@@ -43,17 +52,75 @@ export const offlineBackupFileSeams = {
   now: (): Date => new Date(),
 };
 
+/** The unlock an export can be opened with, or null when nothing enrolled can. */
+export function exportUnlockKind(
+  header: VaultHeader | null | undefined,
+): ExportUnlock | null {
+  if (!header) return null;
+  if (header.wrap && header.kdf) return "password";
+  const unlocks = header.unlocks;
+  if (unlocks?.passkey || (unlocks?.passkeys?.length ?? 0) > 0) {
+    return "passkey";
+  }
+  if (unlocks?.pin) return "pin";
+  return null;
+}
+
+/** The sheet's "Opens with" fact for an enrolled unlock. */
+export function exportOpener(
+  header: VaultHeader | null | undefined,
+): string | null {
+  const kind = exportUnlockKind(header);
+  if (kind === "password") return "the master password";
+  if (kind === "passkey") return "the passkey";
+  if (kind === "pin") return "the PIN";
+  return null;
+}
+
+/** The unlock named by a sealed export's header, for the import sheet. */
+export function sealedExportUnlock(text: string): ExportUnlock | null {
+  try {
+    const parsed = overlapCast<unknown, { header?: VaultHeader }>(
+      JSON.parse(text),
+    );
+    return exportUnlockKind(parsed.header);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Unwrap a sealed export. A string is the password, or the PIN when that is
+ * the only wrap. A passkey file needs the ceremony's raw vault key instead.
+ */
+export async function unwrapExportedVaultKey(
+  header: VaultHeader,
+  secret: string | Uint8Array,
+): Promise<Uint8Array> {
+  if (secret instanceof Uint8Array) return secret;
+  const kind = exportUnlockKind(header);
+  if (kind === "password") {
+    return unwrapRawVaultKeyFromPassword(header, secret);
+  }
+  if (kind === "pin" && header.unlocks?.pin) {
+    return unwrapVaultKeyWithPin(header.unlocks.pin, secret);
+  }
+  if (kind === "passkey") {
+    throw new Error("This backup opens with its passkey.");
+  }
+  throw new Error(NO_MASTER_PASSWORD);
+}
+
 /**
  * Why this vault cannot be exported now, or null when it can. A backup
- * nobody could open is not offered: the restore and `vault verify` both
- * unwrap with the master password, so a vault without one has no backup to
- * give yet.
+ * nobody could open is not offered: password, passkey, or PIN, whichever
+ * is enrolled.
  */
 export function exportRefusal(vault: BackupSource): string | null {
   if (vault.status !== "unlocked") return "Unlock to export";
   if (vault.guest) return "A guest vault is not exported";
   if (!vault.header) return "Nothing sealed to export yet";
-  if (!vault.header.wrap || !vault.header.kdf) {
+  if (exportUnlockKind(vault.header) === null) {
     return "Export needs a master password";
   }
   return null;
