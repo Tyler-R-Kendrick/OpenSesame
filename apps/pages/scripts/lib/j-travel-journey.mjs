@@ -1,5 +1,5 @@
 /**
- * J-TRAVEL: travel mode from Settings › Vaults, end to end (ADR 0143, 0150)
+ * J-TRAVEL: travel mode from Settings › Security, end to end (ADR 0143, 0150)
  * — in the built app, real storage, a real bundle file.
  *
  * Two extra vaults, one marked safe. The mark survives a reload. The rest
@@ -24,7 +24,7 @@ async function openPersonal(page) {
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
-  await openSettingsCategory(page, "Vaults");
+  await openSettingsCategory(page, "Security");
   await page.locator("#travel").waitFor({ timeout: 15000 });
 }
 
@@ -51,6 +51,9 @@ async function sealNamed(page, name) {
 }
 
 async function openLeave(page) {
+  // Travel draws beside Duress, on Security, once a vault is open.
+  await openSettingsCategory(page, "Security");
+  await page.locator("#travel").waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Turn on travel mode" }).click();
   await page
     .getByRole("dialog", { name: "Turn on travel mode" })
