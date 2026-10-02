@@ -1,7 +1,11 @@
 import { searchPalette } from "../configuration/palette.js";
 import { lookupConfigResource } from "../configuration/registry.js";
 import { isSettingsCategory, settingsConfigRoute } from "../crumbs.js";
-import type { AppCommand, InterpretResult } from "./types.js";
+import {
+  type AppCommand,
+  type InterpretResult,
+  commandSections,
+} from "./types.js";
 
 const SECTION_ALIASES: ReadonlyArray<{
   path: Extract<AppCommand, { action: "navigate" }>["path"];
@@ -112,6 +116,9 @@ function parseOpenOrSearch(text: string): AppCommand | null {
 export function parseCommand(raw: string): AppCommand | null {
   const text = raw.trim().replace(/\s+/g, " ");
   if (text === "") return null;
+  if (text.startsWith("/")) {
+    return parseSlash(text) ?? parseResourcePath(text) ?? parsePalette(text);
+  }
   const lower = text.toLowerCase();
   if (/^(help|\?|what can you do)\b/.test(lower)) return { action: "help" };
   return (
@@ -121,6 +128,53 @@ export function parseCommand(raw: string): AppCommand | null {
     parseResourcePath(text) ??
     parsePalette(text)
   );
+}
+
+const SLASH_DESTINATION = /^\/[a-z0-9-]+(?:\?[a-z0-9._=&%-]+)?$/i;
+
+/** `/vault`, `/search …`, `/copy password …`. Sentences stay on the other parsers. */
+function parseSlash(text: string): AppCommand | null {
+  const body = text.slice(1).trim();
+  if (body === "") return null;
+  if (body.toLowerCase() === "help" || body === "?") return { action: "help" };
+  return (
+    parseCopy(body) ??
+    parseSlashSearch(body) ??
+    parseSlashOpen(body) ??
+    parseSlashDestination(body)
+  );
+}
+
+function parseSlashSearch(body: string): AppCommand | null {
+  const query = /^search\s+(.+)$/i.exec(body)?.[1]?.trim() ?? "";
+  if (query === "") return null;
+  return { action: "search", query };
+}
+
+function parseSlashOpen(body: string): AppCommand | null {
+  const query = /^open\s+(.+)$/i.exec(body)?.[1]?.trim() ?? "";
+  if (query === "") return null;
+  const pathCommand = parseResourcePath(query);
+  if (pathCommand) return pathCommand;
+  const section = SECTION_ALIASES.find((entry) =>
+    entry.words.includes(query.toLowerCase()),
+  );
+  if (section) return { action: "navigate", path: section.path };
+  return { action: "open_item", query };
+}
+
+function parseSlashDestination(body: string): AppCommand | null {
+  const path = `/${body}`;
+  if (!SLASH_DESTINATION.test(path)) return null;
+  const exact = commandSections().find(
+    (section) => section.toLowerCase() === path.toLowerCase(),
+  );
+  if (exact) return { action: "navigate", path: exact };
+  const alias = SECTION_ALIASES.find((entry) =>
+    entry.words.includes(body.toLowerCase()),
+  );
+  if (alias) return { action: "navigate", path: alias.path };
+  return { action: "navigate", path };
 }
 
 function parsePalette(text: string): AppCommand | null {
