@@ -5,6 +5,7 @@
  */
 
 import type { Folder, VaultBody, VaultItem } from "@opensesame/vault-core";
+import { noteSavedItems } from "./item-activity.js";
 import { writeItem } from "./item-path.js";
 import {
   preparePasswordRetirement,
@@ -23,9 +24,11 @@ export async function writeSavedItems(
   folder?: Folder,
 ): Promise<void> {
   if (items.length === 0) return;
+  const priorIds = new Set(host.items.map((item) => item.id));
   const retired = await preparePasswordRetirement(host.tomb, host.items, items);
   await host.mutate((body) => {
     for (const item of items) writeItem(body, item, folder);
   });
+  noteSavedItems(priorIds, items);
   await rememberRetiredDigests(retired);
 }

@@ -182,11 +182,17 @@ export async function listActivityEvents(
 /** How close together two identical events fold into the first. */
 const REPEAT_WINDOW_MS = 60_000;
 
+/**
+ * One save is one fact. `vault.login.created` qualifies; `vault.body.persisted`
+ * and `vault.unlocked` do not, and those still fold.
+ */
+const ITEM_SAVE_TYPE = /^vault\.[^.]+\.(?:created|updated)$/u;
+
 function repeats(
   last: ActivityEvent | undefined,
   next: ActivityEvent,
 ): boolean {
-  if (!last) return false;
+  if (!last || ITEM_SAVE_TYPE.test(next.type)) return false;
   if (
     last.type !== next.type ||
     last.summary !== next.summary ||
@@ -199,7 +205,14 @@ function repeats(
   return gap >= 0 && gap < REPEAT_WINDOW_MS;
 }
 
-export async function recordActivityEvent(
+/**
+ * Per tomb, so a body-saved note and the item note that follows it both
+ * read the log the other one just wrote. Unchained, each reads the old
+ * file and one write replaces the other.
+ */
+const activityWrites = new Map<string, Promise<void>>();
+
+async function appendActivityEvent(
   tomb: string,
   input: RecordActivityInput,
 ): Promise<ActivityEvent[]> {
@@ -228,6 +241,25 @@ export async function recordActivityEvent(
   });
   if (wrote) notify();
   return next;
+}
+
+export function recordActivityEvent(
+  tomb: string,
+  input: RecordActivityInput,
+): Promise<ActivityEvent[]> {
+  const previous = activityWrites.get(tomb) ?? Promise.resolve();
+  const run = previous
+    .catch(() => undefined)
+    .then(() => appendActivityEvent(tomb, input));
+  const settled = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  activityWrites.set(tomb, settled);
+  void settled.finally(() => {
+    if (activityWrites.get(tomb) === settled) activityWrites.delete(tomb);
+  });
+  return run;
 }
 
 /**
