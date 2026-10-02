@@ -13,7 +13,7 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
    is staged, scans for secrets and checks the design contract.
 3. **Push.** The pre-push hook runs `pnpm typecheck && pnpm test` by default
    (`OPENSESAME_PREPUSH=off|fast|full`).
-4. **Open a pull request.** CI runs three required checks. A user-visible
+4. **Open a pull request.** CI reports three required checks. A user-visible
    change carries before/after evidence
    ([visual-evidence skill](../../skills/visual-evidence/SKILL.md)).
 5. **Merge.** Squash only, signed commits, up to date with `main`, review
@@ -22,14 +22,22 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request. All three jobs are
-required.
+`.github/workflows/ci.yml` runs on every pull request. The required check
+names are still TypeScript, Bundle budgets, and Rust, and each one reports
+on every pull request. The suite behind a check runs only when
+[`scripts/lib/ci-changed-areas.mjs`](../../scripts/lib/ci-changed-areas.mjs)
+says the diff can affect it. A docs-only change runs the signature check
+and passes the three required checks without those suites. A path the
+classifier does not recognize runs every suite.
 
-| Job | Runs |
+| Check | Suite, when the diff touches that area |
 |---|---|
-| **TypeScript** | Commit-signature check, frozen install, `pnpm lint`, `pnpm quality`, `pnpm typecheck`, `pnpm test`, and the product-experience contracts (`pnpm verify:experience`). |
-| **Rust** | `cargo +1.88.0 test --workspace --all-targets`. |
-| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. |
+| **TypeScript** | Commit-signature check (every pull request), then frozen install, `pnpm lint`, `pnpm quality`, `pnpm typecheck`, `pnpm test`, and the product-experience contracts (`pnpm verify:experience`). |
+| **Rust** | `cargo +1.88.0 test --workspace --all-targets`. Skipped when no Rust, Cargo, or embedded host input changed. |
+| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. Skipped when Pages and its production dependencies did not change. |
+
+mTLS is not a required check. It runs when the diff touches the transport
+crates, the gateway, ingress or NATS config, or the Pages transport scripts.
 
 `.github/workflows/deploy-pages.yml` publishes `apps/pages` on every push to
 `main`. Branch protection is kept as code in [`ops/github`](../../ops/github).

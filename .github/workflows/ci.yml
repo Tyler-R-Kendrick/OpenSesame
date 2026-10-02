@@ -1,5 +1,11 @@
 # CI — required up-to-date pull-request checks (personal-account repository).
 # Apply/verify the default-branch policy with ops/github/governance.mjs.
+#
+# The ruleset requires the check names TypeScript, Bundle budgets, and Rust.
+# A skipped required check does not satisfy it, and a workflow that does not
+# run leaves the check pending. The heavy jobs are conditional. The three
+# gate jobs always run and pass when their suite succeeded or was skipped
+# because the diff does not touch it (scripts/lib/ci-changed-areas.mjs).
 name: CI
 
 on:
@@ -14,8 +20,38 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ts:
-    name: TypeScript
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      typescript: ${{ steps.areas.outputs.typescript }}
+      bundle: ${{ steps.areas.outputs.bundle }}
+      rust: ${{ steps.areas.outputs.rust }}
+      mtls: ${{ steps.areas.outputs.mtls }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          # The classifier diffs the pull request against its merge base.
+          fetch-depth: 0
+      - name: Verify merge-required commit signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/release/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
+      - name: Classify changed areas
+        id: areas
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/lib/ci-changed-areas.mjs
+
+  typescript-tests:
+    name: TypeScript tests
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -29,12 +65,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Verify merge-required commit signatures
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/release/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
       - name: Install
         # Not `pnpm bootstrap`: that also runs db:migrate (needs a live
         # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
@@ -52,8 +82,10 @@ jobs:
       - name: Product-experience contracts
         run: pnpm verify:experience
 
-  bundle:
-    name: Bundle budgets
+  bundle-tests:
+    name: Bundle budget tests
+    needs: changes
+    if: needs.changes.outputs.bundle == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -139,8 +171,10 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
-  rust:
-    name: Rust
+  rust-tests:
+    name: Rust tests
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -163,9 +197,10 @@ jobs:
     # (scripts/mtls/mtls-fixtures.sh). Both write artifacts/mtls/ through
     # scripts/lib/mtls-manifest.mjs; a required step that ran nothing, a
     # fixture that cannot start, or an all-ignored suite fails the job
-    # (AT-EVIDENCE-NORUN). Not yet in the required-checks ruleset: that is a
-    # remote governance change (ops/github/governance.mjs).
+    # (AT-EVIDENCE-NORUN). Not in the required-checks ruleset.
     name: mTLS
+    needs: changes
+    if: needs.changes.outputs.mtls == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -205,3 +240,63 @@ jobs:
           path: artifacts/mtls/
           if-no-files-found: error
           retention-days: 30
+
+  typescript:
+    name: TypeScript
+    needs: [changes, typescript-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the required check
+        run: |
+          changes="${{ needs.changes.result }}"
+          heavy="${{ needs.typescript-tests.result }}"
+          if [ "$changes" != "success" ]; then
+            echo "change detection result: $changes"
+            exit 1
+          fi
+          case "$heavy" in
+            success|skipped) exit 0 ;;
+            *) echo "typescript tests result: $heavy"; exit 1 ;;
+          esac
+
+  bundle:
+    name: Bundle budgets
+    needs: [changes, bundle-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the required check
+        run: |
+          changes="${{ needs.changes.result }}"
+          heavy="${{ needs.bundle-tests.result }}"
+          if [ "$changes" != "success" ]; then
+            echo "change detection result: $changes"
+            exit 1
+          fi
+          case "$heavy" in
+            success|skipped) exit 0 ;;
+            *) echo "bundle tests result: $heavy"; exit 1 ;;
+          esac
+
+  rust:
+    name: Rust
+    needs: [changes, rust-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the required check
+        run: |
+          changes="${{ needs.changes.result }}"
+          heavy="${{ needs.rust-tests.result }}"
+          if [ "$changes" != "success" ]; then
+            echo "change detection result: $changes"
+            exit 1
+          fi
+          case "$heavy" in
+            success|skipped) exit 0 ;;
+            *) echo "rust tests result: $heavy"; exit 1 ;;
+          esac
