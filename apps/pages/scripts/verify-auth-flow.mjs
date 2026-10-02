@@ -130,7 +130,24 @@ const text = (page) => page.evaluate(() => document.body.innerText);
  */
 async function openSecurity(page) {
   try {
-    await page.getByRole("treeitem", { name: "Settings", exact: true }).click();
+    const rooted = page.getByRole("treeitem", {
+      name: "Settings",
+      exact: true,
+    });
+    if (
+      (await rooted.count()) === 0 ||
+      !(await rooted
+        .first()
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await page.locator(".rail__prompt").click({ button: "right" });
+      await page
+        .getByRole("menuitem", { name: "Settings", exact: true })
+        .click();
+    } else {
+      await rooted.click();
+    }
   } catch (error) {
     await snap(page, "settings-navigation-failed");
     fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));

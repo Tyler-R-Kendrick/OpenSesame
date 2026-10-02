@@ -5,6 +5,7 @@ import { chromium } from "@playwright/test";
 import { chooseInSetup } from "./lib/capability-walk-contract.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { nativeWebMcp } from "./lib/native-webmcp.mjs";
+import { sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -90,7 +91,9 @@ try {
   ]);
   const initial = await native.invoke("opensesame_status");
   assert.equal(initial.vault, "empty");
-  await doorGuest(page).click();
+  // Setup retires the front door. The sign-in screen's no-account road is
+  // the local seal; the door's Skip is not on this screen.
+  await sealLocalOnly(page);
   await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
   const vaultTools = native.names();
   for (const tool of VAULT_SESSION_WALLET_TOOLS) {

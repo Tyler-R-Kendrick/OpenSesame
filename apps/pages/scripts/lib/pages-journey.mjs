@@ -7,6 +7,7 @@ import {
   capabilityOnSwitch,
 } from "./always-on.mjs";
 import { passTheDoor } from "./front-door.mjs";
+import { openSessionSection } from "./session-section.mjs";
 export const PASSWORD = "correct horse battery staple 2026";
 
 export async function waitOpen(page) {
@@ -17,9 +18,8 @@ export async function waitOpen(page) {
     .waitFor({ timeout: 20000 });
 }
 
-export async function sealWithPassword(page) {
-  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
-  await passTheDoor(page);
+/** Sign-in is already up: the no-account road seals a vault on this device. */
+export async function sealLocalOnly(page) {
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.getByRole("tab", { name: "Password" }).click();
   await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);
@@ -31,6 +31,12 @@ export async function sealWithPassword(page) {
     .check();
   await page.getByRole("button", { name: "Seal this device" }).click();
   await waitOpen(page);
+}
+
+export async function sealWithPassword(page) {
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
+  await passTheDoor(page);
+  await sealLocalOnly(page);
 }
 
 export async function unlockWithPassword(page) {
@@ -50,10 +56,19 @@ export async function lockVault(page) {
     .waitFor({ timeout: 15000 });
 }
 
+const SESSION_ROOTS = {
+  "settings/": "Settings",
+  "activity/": "Activity",
+};
+
 export async function openSection(page, label) {
-  // Section rows for access/identity/wallet/activity are capability
-  // contributions and land after the core rows: wait before concluding the
-  // row is absent.
+  const session = SESSION_ROOTS[label];
+  if (session) {
+    await openSessionSection(page, session);
+    return;
+  }
+  // Section rows for access/identity/wallet are capability contributions
+  // and land after the core rows: wait before concluding the row is absent.
   const rail = page.locator(".railtree__row", { hasText: label }).first();
   const appeared = await rail
     .waitFor({ state: "visible", timeout: 10000 })

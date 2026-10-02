@@ -17,6 +17,7 @@ import {
   capabilityOnSwitch,
   capabilitySwitch,
 } from "./always-on.mjs";
+import { openSessionSection } from "./session-section.mjs";
 
 /**
  * Rail rows an installation that has approved nothing must not have.
@@ -24,8 +25,10 @@ import {
  */
 const GATED_RAIL_ROWS = ["wallet/", "connections/", "access/", "identity/"];
 
-/** Rail rows of always-on capabilities: there before any choice. */
-const ALWAYS_ON_RAIL_ROWS = ["activity/"];
+/**
+ * Activity is always on, and it is a session root rather than a rail
+ * directory. The session menu is what proves it is still there.
+ */
 
 /** A. Nothing optional is on the rail before anything is chosen. */
 export async function checkGatedSectionsAbsent(page, check) {
@@ -38,17 +41,31 @@ export async function checkGatedSectionsAbsent(page, check) {
       `${row} is absent until its capability is approved`,
     );
   }
-  for (const row of ALWAYS_ON_RAIL_ROWS) {
-    check(
-      rows.some((text) => text.startsWith(row)),
-      `${row} is there with nothing chosen: it is always on`,
-    );
-  }
   check(
-    rows.some((text) => text.startsWith("vault/")) &&
-      rows.some((text) => text.startsWith("settings/")),
-    "the core sections are there regardless",
+    rows.some((text) => text.startsWith("vault/")),
+    "the vault is the rail root regardless",
   );
+  check(
+    !rows.some(
+      (text) => text.startsWith("settings/") || text.startsWith("activity/"),
+    ),
+    "settings and activity are session roots, not rail directories",
+  );
+  await page.locator(".rail__prompt").click({ button: "right" });
+  const menu = page.getByRole("menu");
+  check(
+    (await menu
+      .getByRole("menuitem", { name: "Settings", exact: true })
+      .count()) === 1,
+    "the session menu offers Settings",
+  );
+  check(
+    (await menu
+      .getByRole("menuitem", { name: "Activity", exact: true })
+      .count()) === 1,
+    "the session menu offers Activity: it is always on",
+  );
+  await page.keyboard.press("Escape");
   // The minimal vault creates the base secret only (ADR 0153).
   check(
     (await page.locator('.railtree__kids a[href$="/vault?f=secret"]').count()) >
@@ -80,7 +97,7 @@ export async function checkGatedSectionsAbsent(page, check) {
 
 /** Open Settings › Capabilities from wherever the walk is. */
 async function openCapabilities(page) {
-  await page.locator(".railtree__row", { hasText: "settings" }).first().click();
+  await openSessionSection(page, "Settings");
   await page.waitForTimeout(900);
   await page.getByRole("link", { name: "Capabilities", exact: true }).click();
   await page.waitForTimeout(900);
@@ -126,6 +143,13 @@ export async function addCapability(page, check, snap, title, rail = null) {
   // the plan already has — so a caller names a rail row only where there is
   // one to name, and the presence check is skipped rather than faked.
   if (rail === null) return;
+  // Approving a section from Settings leaves the tree rooted there. The
+  // new row is on the vault rail, behind the back key.
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if ((await back.count()) > 0) {
+    await back.click();
+    await page.waitForTimeout(700);
+  }
   const rows = (await page.locator(".railtree__row").allTextContents()).map(
     (text) => text.trim(),
   );

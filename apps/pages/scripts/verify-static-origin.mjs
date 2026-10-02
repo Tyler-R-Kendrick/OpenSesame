@@ -36,6 +36,7 @@ import {
 } from "./lib/front-door-contract.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { checkLoginWebsites } from "./lib/login-websites-contract.mjs";
+import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
@@ -74,14 +75,11 @@ const browser = await launch();
   await checkWordmark(page, check);
   await walkSetupCeremony(page, check, snap);
 
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
-  await page.waitForTimeout(2500);
-  const inApp = await snap(page, "B-guest-in-app");
-  // The guest principal is minted as `guest-N` (`lib/guest-auth.ts`): the
-  // chrome naming it is what "you are inside the app as the guest" looks like.
-  check(/guest-\d+/.test(inApp), "guest landed inside the app");
+  // Skip all retires the door onto sign-in, whose one no-account road is
+  // the local seal. The full-size guest button is not on that screen.
+  await sealLocalOnly(page);
+  const inApp = await snap(page, "B-sealed-in-app");
+  check(/Lock vault/.test(inApp), "the local seal landed inside the app");
   check(!/Claim this guest session/.test(inApp), "no claim notice");
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
@@ -129,11 +127,17 @@ const browser = await launch();
   ]) {
     setStep(name);
     // The rail lists sections as links; fall back to the visible label.
-    const link = page
-      .getByRole("link", { name: new RegExp(`^${label.replace("/", "\\/")}`) })
-      .first();
-    if (await link.count()) await link.click();
-    else await page.getByText(label, { exact: true }).first().click();
+    if (label === "settings/") {
+      await openSection(page, "settings/");
+    } else {
+      const link = page
+        .getByRole("link", {
+          name: new RegExp(`^${label.replace("/", "\\/")}`),
+        })
+        .first();
+      if (await link.count()) await link.click();
+      else await page.getByText(label, { exact: true }).first().click();
+    }
     await page.waitForTimeout(1200);
     const sectionText = await snap(page, name);
     check(
