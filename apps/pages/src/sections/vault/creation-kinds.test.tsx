@@ -127,7 +127,7 @@ describe("what a Personal plan offers when an item is created", () => {
     expect(PERSONAL_SELECTED.has("wallet.spending")).toBe(false);
   });
 
-  it("offers the base secret and no derived type in the new-item picker", () => {
+  it("offers the base secret and the file, and no derived type in the new-item picker", () => {
     renderEditor("/vault/new");
     const offered = typeOptions();
     for (const core of CORE_ITEM_KINDS) {
@@ -141,7 +141,7 @@ describe("what a Personal plan offers when an item is created", () => {
 
   it("leaves the drop filter out of the vault rail", () => {
     const kinds = itemKindsSnapshot();
-    expect(kinds.map((kind) => kind.id)).toEqual(["secret"]);
+    expect(kinds.map((kind) => kind.id)).toEqual(["secret", "file"]);
     const { container } = render(
       <MemoryRouter>
         <VaultRail

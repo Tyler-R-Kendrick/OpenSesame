@@ -6,6 +6,7 @@
 export * from "./bytes.js";
 export * from "./crypto.js";
 export * from "./drop-format.js";
+export * from "./file-parts.js";
 export * from "./item-types.js";
 export * from "./login-uri.js";
 export * from "./merge.js";

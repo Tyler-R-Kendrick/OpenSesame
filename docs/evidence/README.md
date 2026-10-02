@@ -51,6 +51,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-01-statusline-icons/`](2026-10-01-statusline-icons/README.md) | Status line without the identity and key vault glyphs |
 | [`2026-10-01-slash-commands/`](2026-10-01-slash-commands/README.md) | Slash completions in the status line |
 | [`2026-10-01-secret-ceiling/`](2026-10-01-secret-ceiling/README.md) | Secret without the capability ceiling |
+| [`2026-10-01-file-secret/`](2026-10-01-file-secret/README.md) | File item in the minimal install |
 | [`2026-10-01-activity-item-log/`](2026-10-01-activity-item-log/README.md) | A secret save names what happened |
 | [`2026-09-30-setup-configuration/`](2026-09-30-setup-configuration/README.md) | Setup configuration choice |
 | [`2026-09-29-trash-commands/`](2026-09-29-trash-commands/README.md) | Trash commands |
