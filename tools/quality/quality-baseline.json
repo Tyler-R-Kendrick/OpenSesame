@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 440,
-    "violations": 693,
-    "oversizedLines": 228454
+    "violations": 691,
+    "oversizedLines": 227968
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -804,12 +804,10 @@
     },
     "packages/cli/src/parse.ts": {
       "complexity": 1,
-      "max-lines-per-function": 1,
       "max-statements": 1
     },
     "packages/cli/src/run.ts": {
       "complexity": 1,
-      "max-lines": 486,
       "max-lines-per-function": 1,
       "max-statements": 1
     },

@@ -29,7 +29,7 @@ export const vaultInteropCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault import",
       pwa: "lib/vault/import/merge.ts:planMerge",
       mcp_host: null,
       mcp_client: null,
@@ -47,7 +47,7 @@ export const vaultInteropCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault export",
       pwa: "lib/vault/offline-backup-file.ts:offlineBackupFile",
       mcp_host: null,
       mcp_client: null,
