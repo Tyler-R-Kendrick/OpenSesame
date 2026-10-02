@@ -24,8 +24,7 @@ async function openPersonal(page) {
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
-  await openSettingsCategory(page, "Security");
-  await page.locator("#travel").waitFor({ timeout: 15000 });
+  await openSettingsCategory(page, "Vaults");
 }
 
 const safeSwitch = (page, name) =>
@@ -160,6 +159,8 @@ async function gone({ page, check }) {
 
 /** Home again from the bundle file and the return code. */
 async function comeHome({ page, check, snap }, { bundle, code }) {
+  await openSettingsCategory(page, "Security");
+  await page.locator("#travel").waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Turn off travel mode" }).click();
   const dialog = page.getByRole("dialog", { name: "Turn off travel mode" });
   await dialog.waitFor({ timeout: 15000 });
@@ -168,10 +169,14 @@ async function comeHome({ page, check, snap }, { bundle, code }) {
   await dialog.getByRole("button", { name: "Open the bundle" }).click();
   await dialog.getByRole("button", { name: "Bring them home" }).click();
   await page.getByText("1 vault came home").waitFor({ timeout: 30000 });
+  check(
+    /3 vaults on this device/.test(await panel(page)),
+    "the vault that left is counted on this device again",
+  );
+  await openSettingsCategory(page, "Vaults");
   const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   check(
-    /3 vaults on this device/.test(home) &&
-      (/Trip/.test(home) || /project · [0-9a-f]{4}/.test(home)),
+    /Trip/.test(home) || /project · [0-9a-f]{4}/.test(home),
     "the vault that left is back, its name sealed until it is opened",
   );
   await snap(page, "J-TRAVEL-home");
