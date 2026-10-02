@@ -25,6 +25,7 @@ async function openPersonal(page) {
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
   await openSettingsCategory(page, "Vaults");
+  await page.locator("#vaults").waitFor({ timeout: 15000 });
 }
 
 const safeSwitch = (page, name) =>
@@ -146,14 +147,16 @@ async function gone({ page, check }) {
     "only the vault marked safe is still on the device",
   );
   await openPersonal(page);
-  const open = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  const names = (
+    await page.locator("#vaults .vault-row__name").allTextContents()
+  ).join(" | ");
   check(
-    /Work/.test(open),
-    "the safe vault's name is on this device once it is open",
+    /Work/.test(names),
+    `the safe vault's name is on this device once it is open (${names})`,
   );
   check(
-    !/project · [0-9a-f]{4}/.test(open),
-    "the vault that left is still gone after unlock",
+    !/Trip/.test(names),
+    `the vault that left is still gone after unlock (${names})`,
   );
 }
 
@@ -174,10 +177,13 @@ async function comeHome({ page, check, snap }, { bundle, code }) {
     "the vault that left is counted on this device again",
   );
   await openSettingsCategory(page, "Vaults");
-  const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  await page.locator("#vaults").waitFor({ timeout: 15000 });
+  const names = (
+    await page.locator("#vaults .vault-row__name").allTextContents()
+  ).join(" | ");
   check(
-    /Trip/.test(home) || /project · [0-9a-f]{4}/.test(home),
-    "the vault that left is back, its name sealed until it is opened",
+    /Trip/.test(names) || /project · [0-9a-f]{4}/.test(names),
+    `the vault that left is back, its name sealed until it is opened (${names})`,
   );
   await snap(page, "J-TRAVEL-home");
   fs.rmSync(bundle, { force: true });
