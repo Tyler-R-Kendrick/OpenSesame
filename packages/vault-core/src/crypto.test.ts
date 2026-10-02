@@ -170,9 +170,9 @@ describe("password-optional headers", () => {
 
   it("preserves the root-protection manifest when re-wrapping the password", async () => {
     const { header } = await createVault(PASSWORD);
-    const protection = overlapCast({ schemaVersion: 1, protectors: [] });
+    const protection = { schemaVersion: 1, protectors: [] };
     const next = await rewrapVaultKey(
-      { ...header, protection },
+      overlapCast({ ...header, protection }),
       PASSWORD,
       "a whole new passphrase here",
     );
