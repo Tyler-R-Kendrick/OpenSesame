@@ -27,6 +27,7 @@ import {
 } from "./lib/auth-flow-enroll.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
+import { openSessionSection } from "./lib/session-section.mjs";
 import { totp } from "./lib/totp.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -124,30 +125,10 @@ async function snap(page, name) {
 
 const text = (page) => page.evaluate(() => document.body.innerText);
 
-/**
- * The seed, read the way a person without a camera reads it: the "Can't
- * scan?" alternative expands the setup key in place, inside the same sheet.
- */
+/** The seed is read in place: "Can't scan?" expands the setup key in this sheet. */
 async function openSecurity(page) {
   try {
-    const rooted = page.getByRole("treeitem", {
-      name: "Settings",
-      exact: true,
-    });
-    if (
-      (await rooted.count()) === 0 ||
-      !(await rooted
-        .first()
-        .isVisible()
-        .catch(() => false))
-    ) {
-      await page.locator(".rail__prompt").click({ button: "right" });
-      await page
-        .getByRole("menuitem", { name: "Settings", exact: true })
-        .click();
-    } else {
-      await rooted.click();
-    }
+    await openSessionSection(page, "Settings");
   } catch (error) {
     await snap(page, "settings-navigation-failed");
     fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));

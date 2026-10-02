@@ -126,18 +126,7 @@ const browser = await launch();
     ["settings/", "B-settings"],
   ]) {
     setStep(name);
-    // The rail lists sections as links; fall back to the visible label.
-    if (label === "settings/") {
-      await openSection(page, "settings/");
-    } else {
-      const link = page
-        .getByRole("link", {
-          name: new RegExp(`^${label.replace("/", "\\/")}`),
-        })
-        .first();
-      if (await link.count()) await link.click();
-      else await page.getByText(label, { exact: true }).first().click();
-    }
+    await openSection(page, label);
     await page.waitForTimeout(1200);
     const sectionText = await snap(page, name);
     check(
