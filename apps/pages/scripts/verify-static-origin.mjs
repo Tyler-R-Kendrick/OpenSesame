@@ -289,7 +289,7 @@ const browser = await launch();
   await addCapability(page, check, snap, "Browser-local IAM", "identity/");
   await addCapability(page, check, snap, "Operator identity providers");
   setStep("C-provider-registration");
-  await page.getByText("identity/", { exact: true }).first().click();
+  await openSection(page, "identity/");
   await page.getByRole("tab", { name: "Providers", exact: true }).click();
   await page
     .getByRole("button", { name: "Register an IdP", exact: true })

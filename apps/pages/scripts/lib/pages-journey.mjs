@@ -61,23 +61,28 @@ const SESSION_ROOTS = {
   "activity/": "Activity",
 };
 
+async function clickVaultRow(page, label) {
+  const rail = page.locator(".railtree__row", { hasText: label }).first();
+  const appeared = await rail
+    .waitFor({ state: "visible", timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!appeared) return false;
+  await rail.click();
+  return true;
+}
+
 export async function openSection(page, label) {
   const session = SESSION_ROOTS[label];
   if (session) {
     await openSessionSection(page, session);
     return;
   }
-  // Section rows for access/identity/wallet are capability contributions
-  // and land after the core rows: wait before concluding the row is absent.
-  const rail = page.locator(".railtree__row", { hasText: label }).first();
-  const appeared = await rail
-    .waitFor({ state: "visible", timeout: 10000 })
-    .then(() => true)
-    .catch(() => false);
-  if (appeared) {
-    await rail.click();
-    return;
-  }
+  // A session root replaces the vault directories. The row comes back
+  // after the `<` key. Capability rows can also land a moment late.
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if (await back.isVisible().catch(() => false)) await back.click();
+  if (await clickVaultRow(page, label)) return;
   await page
     .getByText(label, { exact: true })
     .locator("visible=true")
