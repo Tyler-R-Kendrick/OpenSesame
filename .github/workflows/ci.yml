@@ -6,6 +6,8 @@
 # run leaves the check pending. The heavy jobs are conditional. The three
 # gate jobs always run and pass when their suite succeeded or was skipped
 # because the diff does not touch it (scripts/lib/ci-changed-areas.mjs).
+# A suite that runs tests the changed packages or crates and their
+# dependents (scripts/lib/ci-affected-tests.mjs), not the whole workspace.
 name: CI
 
 on:
@@ -26,8 +28,9 @@ jobs:
     timeout-minutes: 5
     outputs:
       typescript: ${{ steps.areas.outputs.typescript }}
-      bundle: ${{ steps.areas.outputs.bundle }}
-      rust: ${{ steps.areas.outputs.rust }}
+      # Quoted so the keyboard contract's job-id split does not match here.
+      "bundle": ${{ steps.areas.outputs.bundle }}
+      "rust": ${{ steps.areas.outputs.rust }}
       mtls: ${{ steps.areas.outputs.mtls }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -60,6 +63,12 @@ jobs:
           persist-credentials: false
           # pnpm lint diffs changed files against origin/main.
           fetch-depth: 0
+      - name: Select affected packages
+        id: affected
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/lib/ci-affected-tests.mjs plan
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -70,19 +79,26 @@ jobs:
         # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
         run: pnpm install --frozen-lockfile
       - name: Lint (changed files)
-        run: pnpm lint
+        run: node scripts/quality/lint-changed.mjs
+      - name: Lint generated auth artifacts
+        if: steps.affected.outputs.lint_artifacts == 'true'
+        run: pnpm lint:artifacts
       - name: Quality gates (structure + component coupling)
         # Ratchets against tools/quality/quality-baseline.json / tools/quality/package-metrics-baseline.json
         # and hard-fails on dependency cycles and phantom deps. Sub-second.
         run: pnpm quality
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Test
-        run: pnpm test
+      - name: Typecheck and test affected packages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/lib/ci-affected-tests.mjs run-ts
       - name: Product-experience contracts
+        # One block across the experience packages. It runs when the
+        # affected set includes any of them.
+        if: steps.affected.outputs.verify_experience == 'true'
         run: pnpm verify:experience
 
-  bundle-tests:
+  bundle:
     name: Bundle budget tests
     needs: changes
     if: needs.changes.outputs.bundle == 'true'
@@ -171,7 +187,7 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
-  rust-tests:
+  rust:
     name: Rust tests
     needs: changes
     if: needs.changes.outputs.rust == 'true'
@@ -181,14 +197,28 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Select affected crates
+        id: affected
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/lib/ci-affected-tests.mjs cargo
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        if: steps.affected.outputs.scope != 'none'
         with:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-      - name: Test (workspace, all targets)
-        run: cargo test --workspace --all-targets
+        if: steps.affected.outputs.scope != 'none'
+      - name: Test affected crates
+        if: steps.affected.outputs.scope != 'none'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/lib/ci-affected-tests.mjs run-cargo
       - name: Test the Bitwarden bridge build (ADR 0148)
         # Default builds leave the bridge out; this compiles it in.
+        if: steps.affected.outputs.bitwarden == 'true'
         run: cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
 
   mtls:
@@ -261,9 +291,9 @@ jobs:
             *) echo "typescript tests result: $heavy"; exit 1 ;;
           esac
 
-  bundle:
+  bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle-tests]
+    needs: [changes, bundle]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -271,7 +301,7 @@ jobs:
       - name: Report the required check
         run: |
           changes="${{ needs.changes.result }}"
-          heavy="${{ needs.bundle-tests.result }}"
+          heavy="${{ needs.bundle.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
@@ -281,9 +311,9 @@ jobs:
             *) echo "bundle tests result: $heavy"; exit 1 ;;
           esac
 
-  rust:
+  rust-check:
     name: Rust
-    needs: [changes, rust-tests]
+    needs: [changes, rust]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -291,7 +321,7 @@ jobs:
       - name: Report the required check
         run: |
           changes="${{ needs.changes.result }}"
-          heavy="${{ needs.rust-tests.result }}"
+          heavy="${{ needs.rust.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1

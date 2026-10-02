@@ -1006,12 +1006,15 @@ CI lives in `.github/workflows/`:
   TypeScript, Bundle budgets, and Rust, and each name reports on every
   pull request (a skipped required check does not satisfy the ruleset).
   The suite behind a check runs only when the diff touches that area
-  (`scripts/lib/ci-changed-areas.mjs`): Rust is `cargo test --workspace
-  --all-targets` on Rust 1.88.0, Bundle budgets builds `apps/pages` and
-  checks `tools/quality/bundle-budgets.json`, and TypeScript is the
-  signature preflight plus frozen install, `pnpm lint`, `pnpm quality`,
-  `pnpm typecheck`, and `pnpm test`. A docs-only diff passes the three
-  checks without those suites. An unrecognized path runs every suite.
+  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
+  `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
+  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
+  for that set, and Rust runs `cargo test --all-targets -p` for that set on
+  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  The TypeScript job also runs the signature preflight, changed-file lint,
+  and `pnpm quality`. A docs-only diff passes the three checks without those
+  suites. An unrecognized path runs every suite.
   The ruleset also requires an up-to-date PR and squash auto-merge; this
   personal-account repository does not support merge queues. Verify
   actual settings with `node ops/github/governance.mjs --verify`.

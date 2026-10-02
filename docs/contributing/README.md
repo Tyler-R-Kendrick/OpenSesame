@@ -32,8 +32,8 @@ classifier does not recognize runs every suite.
 
 | Check | Suite, when the diff touches that area |
 |---|---|
-| **TypeScript** | Commit-signature check (every pull request), then frozen install, `pnpm lint`, `pnpm quality`, `pnpm typecheck`, `pnpm test`, and the product-experience contracts (`pnpm verify:experience`). |
-| **Rust** | `cargo +1.88.0 test --workspace --all-targets`. Skipped when no Rust, Cargo, or embedded host input changed. |
+| **TypeScript** | Commit-signature check (every pull request), then frozen install, changed-file lint, and `pnpm quality`. `pnpm typecheck` and `pnpm test` run only for the workspace packages the diff changes and the packages that depend on them ([`scripts/lib/ci-affected-tests.mjs`](../../scripts/lib/ci-affected-tests.mjs)). A root manifest, lockfile, or `turbo.json` still tests every package. Product-experience contracts run when that set includes one of their packages. A workflow or script change runs lint and quality and skips package tests. |
+| **Rust** | `cargo test --all-targets -p` for the crates the diff changes and the crates that depend on them. The whole workspace runs when a root Cargo file, the lockfile, the toolchain, or `spec/` changes. Skipped when no Rust, Cargo, or embedded host input changed. |
 | **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. Skipped when Pages and its production dependencies did not change. |
 
 mTLS is not a required check. It runs when the diff touches the transport
@@ -57,7 +57,7 @@ schedule through [agent routines](agent-routines.md).
 | Design | `pnpm lint:design` | No verb painted on a button, no status pills, no explainer captions. | [DESIGN.md](../../DESIGN.md), [controls](../design/controls.md). |
 | Docs index | part of `pnpm quality` | The ADR and audit indexes match the files. | So the indexes can be trusted. Fix with `pnpm docs:index`. |
 | Types | `pnpm typecheck` | Strict TypeScript everywhere. | — |
-| Tests | `pnpm test`, `cargo test` | Every suite in both languages. | — |
+| Tests | `pnpm test`, `cargo test` | Every suite locally. CI runs the affected packages and crates, plus their dependents. | — |
 | Rust lint | `pnpm audit:clippy` | rustfmt, and Clippy pedantic with the complexity limits in `clippy.toml`. | Same budgets as TypeScript. |
 | Browser | `pnpm --filter @opensesame/pages verify:<journey>` | Keyboard access, touch layout, local IAM, static boot, auth flow — in real Chromium against a real build. | Unit tests cannot prove a person can use it. |
 | Security | `pnpm audit:*` | CVEs, SAST, secrets, dependency budgets, fuzzing, proofs. | [Tooling evaluation](../security/tooling-evaluation.md). |
