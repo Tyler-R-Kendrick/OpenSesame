@@ -53,7 +53,7 @@ export function useCommandSuggestions(value: string, names: readonly string[]) {
       event: KeyboardEvent<HTMLInputElement>,
       choose: (row: SlashSuggestion) => void,
     ) {
-      if (event.nativeEvent.isComposing || event.isComposing) return;
+      if (event.nativeEvent.isComposing) return;
       const action = suggestionKey(event.key, open, suggestions, active);
       if (action.type === "none") return;
       event.preventDefault();
@@ -97,18 +97,19 @@ export function CommandSuggestions({
   onHover: (index: number) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const list = listRef.current;
-    const option = activeRef.current;
-    if (list && option) revealActiveOption(list, option);
+    const option = list?.children.item(active);
+    if (list && option instanceof HTMLElement && suggestions.length > 0) {
+      revealActiveOption(list, option);
+    }
   }, [active, suggestions]);
   return (
     // biome-ignore lint/a11y/useSemanticElements: ARIA combobox listbox not a native select
     // biome-ignore lint/a11y/useFocusableInteractive: focus stays on the combobox input via aria-activedescendant
     <div
-      ref={listRef}
       role="listbox"
+      ref={listRef}
       id={COMMAND_LIST_ID}
       className="command-bar__list"
       aria-label="Commands"
@@ -117,7 +118,6 @@ export function CommandSuggestions({
         // biome-ignore lint/a11y/useSemanticElements: ARIA combobox option under listbox
         // biome-ignore lint/a11y/useFocusableInteractive: options reached via aria-activedescendant on the input
         <div
-          ref={index === active ? activeRef : undefined}
           role="option"
           key={suggestion.id}
           id={commandOptionId(index)}
@@ -131,6 +131,11 @@ export function CommandSuggestions({
             event.preventDefault();
           }}
           onClick={() => {
+            onChoose(suggestion);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
             onChoose(suggestion);
           }}
           onMouseEnter={() => onHover(index)}
