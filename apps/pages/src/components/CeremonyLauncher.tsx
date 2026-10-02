@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 
 import type { ConnectorId } from "@opensesame/app-core/lib/connectors.js";
-import { ConnectionCeremony } from "./ConnectivityBar.js";
+import { ConnectionCeremony } from "./ConnectionCeremony.js";
 
 import { useConnectors } from "../bindings/connectors.js";
 /**

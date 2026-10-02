@@ -1,58 +1,37 @@
 /**
- * Status chrome for the Support sheet: WebMCP, model availability, and the
- * live walkthrough strip.
+ * Status chrome for the Support sheet: the model download and the live
+ * walkthrough strip.
+ *
+ * Nothing here narrates the panel. A sentence that explains what the sheet is,
+ * why nothing can answer, or what the browser's model context holds is
+ * explainer copy, and `pnpm lint:design` rejects it (`docs/design/controls.md`).
+ * What is left is the two things a person can act on or watch: downloading the
+ * on-device model, and the walkthrough that is running.
  */
 
 import { guideGoal } from "@opensesame/app-core/tutorial/registry/goals.js";
-import {
-  subscribeWebMcpRegistration,
-  webmcpRegistrationSnapshot,
-} from "@opensesame/app-core/webmcp/registration.js";
 import type { SupportAgentAvailability } from "@opensesame/support-agent";
-import { type ReactElement, useSyncExternalStore } from "react";
+import type { ReactElement } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconDownload, IconPause, IconX } from "../../components/Icons.js";
 import { useSupport } from "../session.js";
-import { UNAVAILABLE_TEXT, webmcpStatusText } from "./messages.js";
 
 /**
- * What this page has registered with the browser's model context. The same
- * fact the DevTools WebMCP panel reports, shown where a person can see it
- * without DevTools — and where "no tools detected" can be told apart from "no
- * model context in this browser".
+ * The one gesture that changes what can answer, and the progress of it.
+ *
+ * Every other availability state renders nothing: "this browser has no model"
+ * is a fact about the device, not something to do here, and the written help
+ * below already answers the question it would have been explaining.
  */
-export function WebMcpStatus(): ReactElement {
-  const snapshot = useSyncExternalStore(
-    subscribeWebMcpRegistration,
-    webmcpRegistrationSnapshot,
-    webmcpRegistrationSnapshot,
-  );
-  return (
-    <p className="hint support__webmcp" aria-label="WebMCP status">
-      {webmcpStatusText(snapshot)}
-    </p>
-  );
-}
-
 export function Availability({
   availability,
-  ready,
   onAcquire,
 }: {
   availability: SupportAgentAvailability | null;
-  ready: boolean;
   onAcquire: () => void;
 }): ReactElement | null {
-  if (availability === null) {
-    return (
-      <p className="hint">
-        {ready ? "Nothing has reported yet." : "Checking what can answer here…"}
-      </p>
-    );
-  }
-  if (availability.kind === "ready") return null;
-  if (availability.kind === "downloading") {
+  if (availability?.kind === "downloading") {
     const percent = Math.round(availability.progress * 100);
     return (
       <div className="support__download">
@@ -70,13 +49,9 @@ export function Availability({
       </div>
     );
   }
-  if (availability.kind === "downloadable") {
+  if (availability?.kind === "downloadable") {
     return (
       <div className="support__download">
-        <p className="hint">
-          This browser can answer on the device once its model has been
-          downloaded. Nothing is fetched until you ask for it.
-        </p>
         <FormCommit
           label="Download the on-device model"
           icon={<IconDownload size={18} />}
@@ -85,11 +60,7 @@ export function Availability({
       </div>
     );
   }
-  return (
-    <p className="hint support__unavailable">
-      {UNAVAILABLE_TEXT[availability.reason]}
-    </p>
-  );
+  return null;
 }
 
 export function GuideStatus(): ReactElement | null {

@@ -80,32 +80,13 @@ export function questionsFromGoals(
 }
 
 export function SupportQuestions({
-  query,
-  searchId,
-  onQueryChange,
   questions,
 }: {
-  query: string;
-  searchId: string;
-  onQueryChange: (next: string) => void;
   questions: readonly SupportQuestion[];
 }): ReactElement {
   return (
     <section className="support__help" aria-label="Questions">
       <p className="support__section-label">Questions</p>
-      <div className="f__shell support__search">
-        <label className="visually-hidden" htmlFor={searchId}>
-          Search questions
-        </label>
-        <input
-          id={searchId}
-          className="f__input"
-          type="search"
-          value={query}
-          placeholder="Search questions"
-          onChange={(event) => onQueryChange(event.target.value)}
-        />
-      </div>
       {questions.length === 0 ? (
         <p className="hint">Nothing written matches that yet.</p>
       ) : null}

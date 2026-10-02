@@ -25,6 +25,21 @@
   width: max-content;
 }
 
+/* A row's nested choices, beside that row. The floating menu is the
+   containing block; a sheet keeps the same list inside its own scroll. */
+.ctxmenu__sub {
+  position: absolute;
+  z-index: 1;
+  left: calc(100% - 0.25rem);
+}
+
+.ctxmenu--sheet .ctxmenu__sub {
+  position: static;
+  left: auto;
+  margin: 0.15rem 0 0.15rem 0.75rem;
+  box-shadow: none;
+}
+
 /* The phone arrangement: an action sheet on the bottom edge, full width,
    above a scrim (`.sheet-layer` and `.scrim` are the app's own). It clears
    the home indicator, and a long menu scrolls inside itself without handing

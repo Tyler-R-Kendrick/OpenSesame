@@ -1,3 +1,6 @@
+import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
+import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
@@ -76,7 +79,7 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
   const kind = itemKindsSnapshot().some((known) => known.id === filter)
     ? filter
     : null;
-  return [
+  const items: MenuItem[] = [
     {
       id: "new",
       label: kind ? `New ${kind}` : "New item",
@@ -84,6 +87,35 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
       run: () => navigate(kind ? `/vault/new/${kind}` : "/vault/new"),
     },
   ];
+  const share = vaultShare(navigate);
+  if (share) items.push(share);
+  return items;
+}
+
+/** Ways to hand this vault to someone else, only the ones this install has. */
+function vaultShare(navigate: Navigate): MenuItem | null {
+  const ways: MenuItem[] = [];
+  if (contributionsSnapshot("route").some((entry) => entry.path === "/live")) {
+    ways.push({
+      id: "share-session",
+      label: "Session",
+      run: () => navigate("/live"),
+    });
+  }
+  if (isCommandSection("/access")) {
+    ways.push({
+      id: "share-grant",
+      label: "Person or agent",
+      run: () => navigate(accessNewPath("grants")),
+    });
+  }
+  if (ways.length === 0) return null;
+  return {
+    id: "share",
+    label: "Share",
+    submenu: [ways],
+    run: () => undefined,
+  };
 }
 
 /**

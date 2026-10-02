@@ -253,10 +253,10 @@ try {
   await page.waitForURL(`${origin}${base}vault/${item.id}`);
   await page.getByRole("heading", { name: "Renamed by Chrome" }).waitFor();
   await native.invoke("opensesame_help", {});
-  await page
-    .getByLabel("WebMCP status")
-    .filter({ hasText: `${VAULT_UNLOCKED_TOOL_COUNT} tools exposed` })
-    .waitFor();
+  await page.getByRole("heading", { name: "Support", exact: true }).waitFor();
+  // The native tool count is already asserted above. The sheet does not
+  // repeat it: a status paragraph there is explainer copy.
+  assert.equal(await page.getByLabel("WebMCP status").count(), 0);
   await page.getByRole("button", { name: "Close", exact: true }).last().click();
   await page
     .getByRole("button", { name: /^lock( vault)?$/i })

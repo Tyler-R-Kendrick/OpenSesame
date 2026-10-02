@@ -1,3 +1,4 @@
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { PageContextInput } from "@opensesame/app-core/tutorial/registry/context.js";
 import { rankHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
@@ -67,6 +68,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useVault } from "../lib/vault/hooks.js";
 import { supportAgentLoaders } from "./agent-seams.js";
 import { gateSupportAsk } from "./ask-guard.js";
+import { chooseSupportAgent } from "./choose-agent.js";
 import { SupportContext } from "./support-context.js";
 import {
   GUIDE_ERROR_TEXT,
@@ -122,7 +124,6 @@ export type SupportView = {
   /** The remote-transport warning, present only when answers leave the device. */
   readonly warning: string | null;
   readonly transcript: readonly SupportEntry[];
-  readonly error: string | null;
   readonly guide: GuideRuntimeSnapshot | null;
   readonly route: GuideRouteId;
 };
@@ -226,7 +227,6 @@ function emptyView(route: GuideRouteId): SupportView {
     transport: "none",
     warning: null,
     transcript: [],
-    error: null,
     guide: null,
     route,
   };
@@ -255,6 +255,25 @@ export function createSupportController(
   function set(patch: Partial<SupportView>): void {
     state = { ...state, ...patch };
     emit();
+  }
+
+  /**
+   * A failure is a notice in the tray, never a paragraph inside the sheet.
+   *
+   * The sheet is where a person is trying to get an answer; an error box in it
+   * is explainer copy about the panel rather than the row, field or receipt
+   * that failed (`docs/design/controls.md`). The tray already carries every
+   * other page condition, so a walkthrough that stopped or a question nothing
+   * could answer lands there beside them — and the written help below still
+   * works, which is the answer to "what now".
+   */
+  function notifyFailure(body: string): void {
+    setStatusNotice({
+      id: "support.failure",
+      tone: "warn",
+      title: "Support",
+      body,
+    });
   }
 
   function push(
@@ -393,7 +412,8 @@ export function createSupportController(
           // retrying: dropping the memo is what lets the next ask try again.
           if (era === generation) {
             loading = null;
-            set({ ready: true, error: UNEXPECTED_TEXT });
+            set({ ready: true });
+            notifyFailure(UNEXPECTED_TEXT);
           }
           return null;
         });
@@ -420,7 +440,7 @@ export function createSupportController(
     const outcome = await loaded.runGuide(program);
     if (engine !== loaded) return;
     if (outcome.kind === "failed") {
-      set({ error: GUIDE_ERROR_TEXT[outcome.error.code] });
+      notifyFailure(GUIDE_ERROR_TEXT[outcome.error.code]);
       return;
     }
     if (outcome.kind === "completed") {
@@ -435,7 +455,7 @@ export function createSupportController(
   ): Promise<void> {
     const loaded = await ensureEngine();
     if (!loaded) {
-      set({ error: SUPPORT_ERROR_TEXT.AGENT_UNAVAILABLE });
+      notifyFailure(SUPPORT_ERROR_TEXT.AGENT_UNAVAILABLE);
       return;
     }
     const program =
@@ -443,10 +463,9 @@ export function createSupportController(
         ? loaded.compileAuthored(source)
         : loaded.compile(source);
     if (!program) {
-      set({ error: GUIDE_ERROR_TEXT.GUIDE_VALIDATION_ERROR });
+      notifyFailure(GUIDE_ERROR_TEXT.GUIDE_VALIDATION_ERROR);
       return;
     }
-    set({ error: null });
     await runProgram(program);
   }
 
@@ -498,7 +517,6 @@ export function createSupportController(
       if (gate.kind === "skip") return;
       const { text } = gate;
       push("question", text, []);
-      set({ error: null });
       const loaded = await ensureEngine();
       if (!loaded) {
         const authored = rankHelpTopics(text, state.route).find(
@@ -510,7 +528,7 @@ export function createSupportController(
           });
           return;
         }
-        set({ error: SUPPORT_ERROR_TEXT.AGENT_UNAVAILABLE });
+        notifyFailure(SUPPORT_ERROR_TEXT.AGENT_UNAVAILABLE);
         return;
       }
       cancelled = false;
@@ -532,13 +550,12 @@ export function createSupportController(
           push("answer", authored.answer, [], {
             walkthroughs: walkthroughsFor([authored]),
           });
-          set({ error: null });
           void refreshAvailability();
           return;
         }
-        set({
-          error: SUPPORT_ERROR_TEXT[snapshot.error ?? "AGENT_PROTOCOL_ERROR"],
-        });
+        notifyFailure(
+          SUPPORT_ERROR_TEXT[snapshot.error ?? "AGENT_PROTOCOL_ERROR"],
+        );
         void refreshAvailability();
         return;
       }
@@ -564,19 +581,19 @@ export function createSupportController(
     },
     clear() {
       engine?.session.clear();
-      set({ transcript: [], error: null });
+      set({ transcript: [] });
     },
     async acquireModel() {
       const loaded = await ensureEngine();
       if (!loaded) return;
-      set({ availability: { kind: "downloading", progress: 0 }, error: null });
+      set({ availability: { kind: "downloading", progress: 0 } });
       const result = await loaded.acquire((progress) => {
         if (engine !== loaded) return;
         set({ availability: { kind: "downloading", progress } });
       });
       if (engine !== loaded) return;
       if (result.kind === "failed") {
-        set({ error: SUPPORT_ERROR_TEXT[result.code] });
+        notifyFailure(SUPPORT_ERROR_TEXT[result.code]);
       }
       await refreshAvailability();
     },
@@ -605,51 +622,6 @@ export function createSupportController(
       routeListeners.clear();
     },
   };
-}
-
-export type SupportAgentChoice = {
-  readonly port: SupportAgentPort;
-  readonly transport: SupportTransport;
-};
-
-/**
- * Which agent answers — and therefore whether a question leaves the device.
- *
- * Preference order:
- *  1. Browser Prompt API when its model is already ready (shared, no download).
- *  2. A configured *local* model provider (Ollama / LM Studio on loopback) —
- *     already chosen in Setup / Settings, and already on the machine.
- *  3. Browser Prompt API while downloadable/downloading (offer the one-time
- *     browser download rather than quietly sending prompts off-device).
- *  4. Same-origin AG-UI remote endpoint.
- *  5. The local port's honest unavailable reason, or `absent`.
- */
-export function chooseSupportAgent(
-  local: SupportAgentPort | null,
-  localState: SupportAgentAvailability | null,
-  provider: SupportAgentPort | null,
-  openRemote: () => SupportAgentPort | null,
-  absent: SupportAgentPort,
-): SupportAgentChoice {
-  if (local !== null && localState?.kind === "ready") {
-    return { port: local, transport: "on-device" };
-  }
-  if (provider !== null) {
-    return { port: provider, transport: "on-device" };
-  }
-  const browserPending =
-    local !== null &&
-    localState !== null &&
-    (localState.kind === "downloadable" || localState.kind === "downloading");
-  if (browserPending) return { port: local, transport: "on-device" };
-  const remote = openRemote();
-  if (remote !== null) {
-    // Nothing may hold a second provider session open behind the one in use.
-    local?.destroy();
-    return { port: remote, transport: "remote" };
-  }
-  if (local !== null) return { port: local, transport: "on-device" };
-  return { port: absent, transport: "none" };
 }
 
 export async function loadBrowserEngine(

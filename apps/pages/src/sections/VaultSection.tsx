@@ -9,6 +9,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
@@ -106,7 +107,6 @@ export function VaultSection() {
   const previewable =
     location.pathname === "/vault" ||
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
-  const canShare = useContributions("secret-share").length > 0;
   // Keys a capability adds after New item — Import, from the formats it reads.
   const commands = useContributions("vault-command");
   const actions = useMemo(
@@ -137,21 +137,18 @@ export function VaultSection() {
       trash: (item: VaultItem) => void store.trashItem(item.id),
       ...trashItemActions(store, armedPurgeId, setArmedPurgeId),
       favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
-      // Only a capability that contributes a way to share offers it.
-      share: canShare
-        ? (item: VaultItem) => {
-            if (shareText(item)) navigate(`/vault/${item.id}?share=drop`);
-          }
-        : undefined,
+      share: (item: VaultItem) => {
+        if (shareText(item)) navigate(`/vault/${item.id}?share=drop`);
+      },
       create: () => {
         if (inTrash) return;
         navigate(createPath);
       },
+      shareGrant: () => navigate(accessNewPath("grants")),
       inTrash,
     }),
     [
       armedPurgeId,
-      canShare,
       copySecret,
       createPath,
       inTrash,

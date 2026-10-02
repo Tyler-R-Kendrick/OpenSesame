@@ -1,9 +1,7 @@
 import { checkNow } from "@opensesame/app-core/lib/connectivity-monitor.js";
-import {
-  type ConnectorId,
-  type ConnectorStatus,
-  isOfflineSet,
-  needsAttention,
+import type {
+  ConnectorId,
+  ConnectorStatus,
 } from "@opensesame/app-core/lib/connectors.js";
 import {
   beginSignIn,
@@ -24,19 +22,21 @@ import { useConnectivityMonitor } from "../bindings/connectivity-monitor.js";
 import { useConnectors } from "../bindings/connectors.js";
 import { useConnect } from "../bindings/identity.js";
 /**
- * The connectivity bar — a phone status bar for the authorization fabric.
+ * The sheet every connection is repaired in, and the glyph each connector is
+ * drawn as everywhere it appears.
  *
- * Connection state is a state, not a setting, so it lives up top where a glance
- * costs nothing: two glyphs, a coloured pip under each, and an amber pip as
- * the only thing that ever pulls the eye. Clicking one that is not live opens
- * its ceremony; clicking a live one shows what it is connected to.
+ * The glyph strip this file used to also render — one button per connector on
+ * the statusline — is gone. "identity" and "key vault" beside each other in one
+ * row told a glance nothing; a row that names the connection and says what it is
+ * doing does. The overflow sheet on a phone and Settings › Connections on a wide
+ * screen are where they live now.
  */
 const GLYPHS = {
   identity: (size) => <IconLogin size={size} />,
   keys: (size) => <IconVault size={size} />,
 } satisfies Record<ConnectorId, (size: number) => ReactNode>;
 
-export const connectivityBarDependencies = {
+export const connectionCeremonyDependencies = {
   checkNow,
   useConnectivityMonitor,
   useConnectors,
@@ -47,123 +47,16 @@ export const connectivityBarDependencies = {
   KeyVaultCeremony,
 };
 
+/** The mark a connector is drawn as, in a sheet head or a connection row. */
 export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
   return GLYPHS[id](size);
 }
 
-function ConnectivityBarDefault() {
-  const connectors = connectivityBarDependencies.useConnectors();
-  const [open, setOpen] = useState<ConnectorId | null>(null);
-  const attention = needsAttention(connectors);
-  const offline = isOfflineSet(connectors);
-
-  return (
-    <>
-      {/* A fieldset, as the theme switcher already does — the group role comes
-          from the element rather than an attribute. */}
-      <fieldset
-        className="cx"
-        aria-label={
-          offline
-            ? "Connections — offline"
-            : attention === 1
-              ? "Connections — 1 needs setup"
-              : attention > 1
-                ? `Connections — ${attention} need setup`
-                : connectors.every((c) => c.tone === "live")
-                  ? "Connections — all connected"
-                  : "Connections — nothing needs setup"
-        }
-      >
-        {connectors.map((connector) => (
-          <ConnectorGlyph
-            key={connector.id}
-            connector={connector}
-            onOpen={() => {
-              // Opening a ceremony is a person asking, so refresh rather than
-              // showing them whatever the last sweep happened to find.
-              connectivityBarDependencies.checkNow();
-              setOpen(connector.id);
-            }}
-          />
-        ))}
-      </fieldset>
-      {open ? (
-        <ConnectionCeremony
-          id={open}
-          connectors={connectors}
-          onClose={() => setOpen(null)}
-          onSwitch={(next) => setOpen(next)}
-        />
-      ) : null}
-    </>
-  );
-}
-
-export const connectivityBarSeams = {
-  ConnectivityBar: ConnectivityBarDefault,
-};
-
-export function ConnectivityBar() {
-  const Impl = connectivityBarSeams.ConnectivityBar;
-  return <Impl />;
-}
-
 /**
- * One glyph.
- *
- * Recovery gets a one-shot settle animation. Without it a connector that comes
- * back while you are looking elsewhere just silently is green later, and the
- * whole promise of the bar is that you do not have to keep looking.
- */
-function ConnectorGlyph({
-  connector,
-  onOpen,
-}: {
-  connector: ConnectorStatus;
-  onOpen: () => void;
-}) {
-  const previousTone = useRef(connector.tone);
-  const [recovered, setRecovered] = useState(false);
-
-  useEffect(() => {
-    const was = previousTone.current;
-    previousTone.current = connector.tone;
-    if (connector.tone !== "live" || was === "live") return;
-    setRecovered(true);
-    const timer = setTimeout(() => setRecovered(false), 1400);
-    return () => clearTimeout(timer);
-  }, [connector.tone]);
-
-  const label = `${connector.name} — ${connector.detail}`;
-  return (
-    <button
-      type="button"
-      className={[
-        "cx__btn",
-        `cx__btn--${connector.tone}`,
-        connector.checking ? "is-checking" : "",
-        recovered ? "is-recovered" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      // The glyph carries no text, so the whole status has to live in the
-      // accessible name — a screen reader gets the same glance we do.
-      aria-label={label}
-      title={label}
-      onClick={onOpen}
-    >
-      {connectorGlyph(connector.id)}
-      <span className="cx__pip" aria-hidden="true" />
-    </button>
-  );
-}
-
-/**
- * The ceremony a glyph or a tile opens.
+ * The ceremony a connection row opens.
  *
  * It is a sheet rather than a route because repairing a connection is never
- * why you came — you were doing something else and the bar told you the host
+ * why you came — you were doing something else and the app told you the host
  * was down. Closing it puts you back where you were.
  */
 export function ConnectionCeremony({
@@ -259,17 +152,18 @@ function CeremonyBody({
     case "identity":
       return <IdentityCeremony connector={connector} onClose={onClose} />;
     default:
-      return <connectivityBarDependencies.KeyVaultCeremony onClose={onClose} />;
+      return (
+        <connectionCeremonyDependencies.KeyVaultCeremony onClose={onClose} />
+      );
   }
 }
 
 /**
  * When this was last checked, when it will be checked next, and a way to say
- * "now". A status that will not say how old it is asks to be trusted blindly,
- * which is exactly what the old bar did wrong.
+ * "now". A status that will not say how old it is asks to be trusted blindly.
  */
 function Freshness({ connector }: { connector: ConnectorStatus }) {
-  const monitor = connectivityBarDependencies.useConnectivityMonitor();
+  const monitor = connectionCeremonyDependencies.useConnectivityMonitor();
   const [, tick] = useState(0);
 
   // A countdown that does not count down is worse than no countdown.
@@ -305,7 +199,7 @@ function Freshness({ connector }: { connector: ConnectorStatus }) {
         label="Check now"
         small
         disabled={connector.checking || monitor.offline}
-        onClick={() => connectivityBarDependencies.checkNow()}
+        onClick={() => connectionCeremonyDependencies.checkNow()}
       >
         <IconRefresh size={16} />
       </IconKey>

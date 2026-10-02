@@ -122,9 +122,7 @@ function createDriverProbe(): DriverProbe {
   };
 }
 
-export type HintRecord = {
-  readonly config: GuideHintsConfig;
-};
+export type HintRecord = { readonly config: GuideHintsConfig };
 
 export type HintsProbe = {
   readonly factory: GuideHintsFactory;
@@ -162,8 +160,7 @@ function createHintsProbe(): HintsProbe {
         spec.popover.onPopoverRender({ wrapper, title, description });
         nodes.push(wrapper);
         // Driver's hint beacon takes the caret; the adapter puts it back.
-        const first = nodes[0];
-        if (first) first.focus();
+        nodes[0]?.focus();
       },
       hide: () => {
         for (const node of nodes) node.remove();
@@ -221,6 +218,8 @@ export type SupportHarness = {
   readonly driver: DriverProbe;
   readonly hints: HintsProbe;
   readonly fixtures: TargetFixtures;
+  /** The routes a walkthrough asked the app to navigate to, in order. */
+  navigations(): readonly string[];
   /** How many times teardown asked the registry to drop its bindings. */
   clearedTargets(): number;
 };
@@ -345,6 +344,7 @@ export function mountSupport(options: SupportHarnessOptions): SupportHarness {
     driver,
     hints,
     fixtures,
+    navigations: () => routes.navigations(),
     clearedTargets: () => cleared,
   };
 }

@@ -132,7 +132,8 @@ describe("keyboard operability", () => {
     });
     const sheet = await openPanel(user);
 
-    const search = within(sheet).getByLabelText("Search questions");
+    // With no model the one field searches the written help, live as you type.
+    const search = within(sheet).getByLabelText("Search the written help");
     await tabTo(user, search);
     await user.keyboard("healthy");
     expect(

@@ -3,8 +3,8 @@
 /**
  * Two questions with a checked-in answer, asked of a model.
  *
- * "Is this thing healthy?" is answered by Vault health. "Where do I lock?"
- * has one answer, and the interesting part
+ * "Is this thing healthy?" is answered by Vault health. Connections live in
+ * Settings. "Where do I lock?" has one answer, and the interesting part
  * is what the walkthrough does *not* do with it: a guide points, and a person
  * decides. Nothing in this system may press a control on somebody's behalf,
  * least of all the one that drops their keys.
@@ -46,6 +46,7 @@ describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
     await openSupport(user);
     await askSupport(user, "How do I check whether OpenSesame is healthy?");
 
+    expect(journey.focused()).toEqual([]);
     // The walkthrough takes the person to the report itself.
     await waitFor(() =>
       expect(journey.navigations()).toEqual(["/vault/health"]),
