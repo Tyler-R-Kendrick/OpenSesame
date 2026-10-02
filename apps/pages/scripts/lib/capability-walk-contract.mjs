@@ -17,7 +17,7 @@ import {
   capabilityOnSwitch,
   capabilitySwitch,
 } from "./always-on.mjs";
-import { openSessionSection } from "./session-section.mjs";
+import { openSessionMenu, openSessionSection } from "./session-section.mjs";
 
 /**
  * Rail rows an installation that has approved nothing must not have.
@@ -51,7 +51,7 @@ export async function checkGatedSectionsAbsent(page, check) {
     ),
     "settings and activity are session roots, not rail directories",
   );
-  await page.locator(".rail__prompt").click({ button: "right" });
+  await openSessionMenu(page);
   const menu = page.getByRole("menu");
   check(
     (await menu
