@@ -1,5 +1,5 @@
 /**
- * J-TRAVEL: travel mode from Settings › Vaults, end to end (ADR 0143, 0150)
+ * J-TRAVEL: travel mode from Settings › Security, end to end (ADR 0143, 0150)
  * — in the built app, real storage, a real bundle file.
  *
  * Two extra vaults, one marked safe. The mark survives a reload. The rest
@@ -25,7 +25,7 @@ async function openPersonal(page) {
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
   await openSettingsCategory(page, "Vaults");
-  await page.locator("#travel").waitFor({ timeout: 15000 });
+  await page.locator("#vaults").waitFor({ timeout: 15000 });
 }
 
 const safeSwitch = (page, name) =>
@@ -51,6 +51,9 @@ async function sealNamed(page, name) {
 }
 
 async function openLeave(page) {
+  // Travel draws beside Duress, on Security, once a vault is open.
+  await openSettingsCategory(page, "Security");
+  await page.locator("#travel").waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Turn on travel mode" }).click();
   await page
     .getByRole("dialog", { name: "Turn on travel mode" })
@@ -144,19 +147,23 @@ async function gone({ page, check }) {
     "only the vault marked safe is still on the device",
   );
   await openPersonal(page);
-  const open = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  const names = (
+    await page.locator("#vaults .vault-row__name").allTextContents()
+  ).join(" | ");
   check(
-    /Work/.test(open),
-    "the safe vault's name is on this device once it is open",
+    /Work/.test(names),
+    `the safe vault's name is on this device once it is open (${names})`,
   );
   check(
-    !/project · [0-9a-f]{4}/.test(open),
-    "the vault that left is still gone after unlock",
+    !/Trip/.test(names),
+    `the vault that left is still gone after unlock (${names})`,
   );
 }
 
 /** Home again from the bundle file and the return code. */
 async function comeHome({ page, check, snap }, { bundle, code }) {
+  await openSettingsCategory(page, "Security");
+  await page.locator("#travel").waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Turn off travel mode" }).click();
   const dialog = page.getByRole("dialog", { name: "Turn off travel mode" });
   await dialog.waitFor({ timeout: 15000 });
@@ -165,11 +172,18 @@ async function comeHome({ page, check, snap }, { bundle, code }) {
   await dialog.getByRole("button", { name: "Open the bundle" }).click();
   await dialog.getByRole("button", { name: "Bring them home" }).click();
   await page.getByText("1 vault came home").waitFor({ timeout: 30000 });
-  const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   check(
-    /3 vaults on this device/.test(home) &&
-      (/Trip/.test(home) || /project · [0-9a-f]{4}/.test(home)),
-    "the vault that left is back, its name sealed until it is opened",
+    /3 vaults on this device/.test(await panel(page)),
+    "the vault that left is counted on this device again",
+  );
+  await openSettingsCategory(page, "Vaults");
+  await page.locator("#vaults").waitFor({ timeout: 15000 });
+  const names = (
+    await page.locator("#vaults .vault-row__name").allTextContents()
+  ).join(" | ");
+  check(
+    /Trip/.test(names) || /project · [0-9a-f]{4}/.test(names),
+    `the vault that left is back, its name sealed until it is opened (${names})`,
   );
   await snap(page, "J-TRAVEL-home");
   fs.rmSync(bundle, { force: true });

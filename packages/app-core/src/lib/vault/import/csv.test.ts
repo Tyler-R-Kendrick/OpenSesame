@@ -79,6 +79,12 @@ describe("parseCsv", () => {
   it("rejects an empty file", () => {
     expect(() => parseCsv("")).toThrow(CsvParseError);
   });
+
+  it("keeps a __proto__ header as an ordinary key", () => {
+    const { rows } = parseCsv("name,password,__proto__\nSite,hunter2,crafted");
+    expect(rows[0]?.__proto__).toBe("crafted");
+    expect(pick(rows[0] ?? {}, "__proto__")).toBe("crafted");
+  });
 });
 
 describe("pick", () => {

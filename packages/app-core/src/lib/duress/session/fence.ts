@@ -245,7 +245,7 @@ export class DuressSessionFence {
       ...next.denyOperations,
     ]);
     let admitted = [...next.admittedCompartmentRefs];
-    if (this.#fence.activeIncidentIds.length > 0) {
+    if (this.#fence.admittedCompartmentRefs.length > 0) {
       const prior = new Set(this.#fence.admittedCompartmentRefs);
       admitted = admitted.filter((c) => prior.has(c));
     }
@@ -287,14 +287,13 @@ export class DuressSessionFence {
       (id) => !incidentIds.includes(id),
     );
     if (remaining.length === 0) {
-      this.#fence = emptyFence();
+      this.#fence = {
+        ...emptyFence(),
+        incidentEpoch: this.#fence.incidentEpoch + 1,
+      };
       this.#context = null;
       this.guard.bump();
-      try {
-        maybeLocalStore()?.removeItem(FENCE_STORAGE_KEY);
-      } catch {
-        /* ignore */
-      }
+      persistFence(this.#fence);
     } else {
       // Partial resolve: keep accumulated denies/admissions; only drop IDs.
       this.#fence = {

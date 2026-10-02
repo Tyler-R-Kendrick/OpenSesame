@@ -498,14 +498,15 @@ Do not add new top-level directories or loose root files — find the group.
   a guest; ADR 0135). Every placement reads it through
   `apps/pages/src/screens/unlock/GuestRoad.tsx`, `openGuestVault` refuses a
   guest session while it is off, and the last-vault pointer and vault list
-  stop offering the guest tomb. It lives in four places and all four are
+  stop offering the guest tomb. It lives in two places and both are
   required: the front door's corner "Skip" (`screens/FrontDoor.tsx`, the
-  door's one guest road, where a `/guest` link lands), the "Continue as
-  guest" button in `apps/pages/src/screens/unlock/SignInPanel.tsx` on
-  **both** placements (first-run sign-in once setup is answered *and* the
-  sign-in panel opened from the user menu beside an existing vault), the
-  "Skip" corner link on first-run sign-in, and the "Continue as guest" link
-  in the unlock form's footer in `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
+  door's one guest road, where a `/guest` link lands) and the "Continue as
+  guest" link in the unlock form's footer in
+  `apps/pages/src/screens/UnlockScreen.tsx`. The sign-in panel
+  (`screens/unlock/SignInPanel.tsx`) carries no guest road of its own: its
+  single no-account road is "Use without an account", the local-only seal
+  offered on first run (a full-size guest button and a corner guest Skip were
+  removed as duplication, 2026-10). This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
   legitimate. `continueAsGuest` (`packages/app-core/src/lib/guest-auth.ts`) seals a
@@ -520,7 +521,7 @@ Do not add new top-level directories or loose root files — find the group.
   allowlists, or vault status. The only road that is legitimately withheld
   beside an existing vault is "Use without an account" (a local-only seal in
   place). Any change that drops a guest entry is a regression, not a cleanup —
-  the tests in `FrontDoor.test.tsx`, `SignInPanel.test.tsx`,
+  the tests in `FrontDoor.test.tsx`,
   `UnlockScreen.test.tsx`, and `store.test.ts` asserting guest exists and
   stays isolated are load-bearing
   and must not be deleted or inverted.
@@ -1001,15 +1002,22 @@ pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
 
 CI lives in `.github/workflows/`:
 
-- `ci.yml` — runs on `pull_request`: TypeScript job
-  (verified-commit signature preflight + frozen install + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
-  `pnpm test`) and
-  Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
-  Bundle budgets job that builds `apps/pages`/`pwa` and checks
-  `tools/quality/bundle-budgets.json`. The default-branch ruleset requires all three checks
-  and an up-to-date PR, with squash auto-merge; this personal-account repository
-  does not support merge queues. Verify actual settings with
-  `node ops/github/governance.mjs --verify`.
+- `ci.yml` — runs on `pull_request`. The required checks stay
+  TypeScript, Bundle budgets, and Rust, and each name reports on every
+  pull request (a skipped required check does not satisfy the ruleset).
+  The suite behind a check runs only when the diff touches that area
+  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
+  `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
+  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
+  for that set, and Rust runs `cargo test --all-targets -p` for that set on
+  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  The TypeScript job also runs the signature preflight, changed-file lint,
+  and `pnpm quality`. A docs-only diff passes the three checks without those
+  suites. An unrecognized path runs every suite.
+  The ruleset also requires an up-to-date PR and squash auto-merge; this
+  personal-account repository does not support merge queues. Verify
+  actual settings with `node ops/github/governance.mjs --verify`.
 - `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check

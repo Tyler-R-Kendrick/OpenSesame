@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 441,
-    "violations": 696,
-    "oversizedLines": 228941
+    "files": 440,
+    "violations": 693,
+    "oversizedLines": 228454
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -131,7 +131,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/SignInPanel.tsx": {
-      "max-lines": 404,
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/UnlockUserMenu.tsx": {
@@ -199,9 +198,6 @@
     "apps/pages/src/sections/identity/LocalMemberships.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/settings/AgeKeysPanel.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
       "max-lines": 428
     },
@@ -236,7 +232,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines": 431,
+      "max-lines": 415,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
@@ -717,9 +713,8 @@
     },
     "packages/app-core/src/lib/vault/import/formats/kdbx.ts": {
       "complexity": 3,
-      "max-lines": 448,
-      "max-lines-per-function": 1,
-      "max-params": 1
+      "max-lines": 413,
+      "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/vault/import/formats/onepassword.ts": {
       "complexity": 2,
@@ -740,10 +735,10 @@
       "max-lines": 496
     },
     "packages/app-core/src/lib/vault/store-ops.test.ts": {
-      "max-lines": 673
+      "max-lines": 658
     },
     "packages/app-core/src/lib/vault/store.test.ts": {
-      "max-lines": 525
+      "max-lines": 509
     },
     "packages/app-core/src/lib/vault/store.ts": {
       "max-lines": 1673
@@ -765,7 +760,7 @@
       "max-lines": 451
     },
     "packages/app-core/src/tutorial/registry/goals.ts": {
-      "max-lines": 510
+      "max-lines": 509
     },
     "packages/audit/src/__tests__/chain.test.ts": {
       "max-lines": 419

@@ -1,12 +1,13 @@
 /**
  * The steps `verify-transport.mjs` takes, named after what a person does:
- * enter as guest, reach a section, open Settings › Security › Transport,
- * read a row's tone, walk the keyboard, and measure what is on screen.
+ * enter as guest, reach a section, open Settings › Security, and measure
+ * that the page draws no Transport panel.
  * The checks stay in the verifier; this is the machinery.
  */
 
 /** Copy the panel must never show: an erasure, a TLS gate on the vault, a place. */
 import { doorGuest } from "./front-door.mjs";
+import { openSessionSection } from "./session-section.mjs";
 
 export const NO_SUCH_CLAIM =
   /erased|wiped|deleted your|TLS-gated|certificate to unlock|unlock requires|requires a certificate|127\.0\.0\.1|localhost/i;
@@ -30,38 +31,45 @@ export async function guest(page, origin, base, touch = false) {
   await page.waitForTimeout(1500);
 }
 
-/** A rail section (`settings/`, `vault/`) the way this width reaches it. */
+/** A section the way this width reaches it. Settings is a session root. */
 export async function openSection(page, label, touch = false) {
-  const sections = page.getByRole("button", { name: "Sections" }).first();
-  if (await sections.count()) {
-    await press(sections, touch);
-    await page.waitForTimeout(400);
-    const row = page
-      .locator(".drawer__row", { hasText: label.replace("/", "") })
-      .first();
-    await press(row, touch);
-  } else {
-    const link = page
-      .getByRole("link", { name: new RegExp(`^${label.replace("/", "\\/")}`) })
-      .first();
-    if (await link.count()) await press(link, touch);
-    else await press(page.getByText(label, { exact: true }).first(), touch);
+  const session =
+    label === "settings/"
+      ? "Settings"
+      : label === "activity/"
+        ? "Activity"
+        : null;
+  if (session) {
+    const sections = page.getByRole("button", { name: "Sections" });
+    if (await sections.isVisible().catch(() => false)) {
+      await press(sections, touch);
+      await page.waitForTimeout(400);
+      await press(
+        page.getByRole("link", { name: session, exact: true }),
+        touch,
+      );
+    } else {
+      await openSessionSection(page, session);
+    }
+    await page.waitForTimeout(700);
+    return;
   }
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if (await back.isVisible().catch(() => false)) await back.click();
+  const row = page.locator(".railtree__row", { hasText: label }).first();
+  await row.waitFor({ state: "visible", timeout: 10000 });
+  await press(row, touch);
   await page.waitForTimeout(700);
 }
 
-/** Settings › Security, then the panel scrolled into view. */
-export async function openTransport(page, touch = false) {
+/** Settings › Security. The Transport panel is not on this page. */
+export async function openSecurity(page, touch = false) {
   await openSection(page, "settings/", touch);
-  const security = page
-    .getByRole("link", { name: "Security", exact: true })
-    .last();
-  await press(security, touch);
-  const panel = page.locator("#transport");
-  await panel.waitFor({ timeout: 15_000 });
-  await panel.scrollIntoViewIfNeeded();
+  await press(
+    page.getByRole("link", { name: "Security", exact: true }).last(),
+    touch,
+  );
   await page.waitForTimeout(400);
-  return panel;
 }
 
 /** The endpoint probe's key — drawn only while an endpoint is set. */

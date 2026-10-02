@@ -243,7 +243,7 @@ describe("CANARY-E revoke route", () => {
     revokeCanaryRoute("route-alert-1");
     expect(
       executeCanary({
-        event: { version: 1, canaryId: "x", routeRef: "route-alert-1" },
+        event: { version: 1, canaryId: "xx", routeRef: "route-alert-1" },
         enrolledRouteRefs: ["route-alert-1"],
       }).ok,
     ).toBe(true);

@@ -12,6 +12,7 @@ import {
   persistEnrollmentStateForUnlock,
 } from "../store/unlock-enrollment.js";
 import {
+  type EnrollmentCapabilities,
   type EnrollmentState,
   createEmptyEnrollmentState,
   enrollTrigger,
@@ -26,7 +27,16 @@ export type SealUnlockTriggerInput = Readonly<{
   keyEpoch?: number;
   presentation: PresentationClass | string;
   previous?: EnrollmentState | null;
+  /**
+   * Explicit owner consent. When omitted, a previous state's recorded consent
+   * is kept; a fresh enrollment stays unconsented and is refused downstream.
+   */
   ownerConsent?: boolean;
+  /**
+   * Measured device capabilities, used only for a fresh enrollment. Omitted
+   * entries fail closed through assertOwnerAndReadiness.
+   */
+  capabilities?: Partial<EnrollmentCapabilities>;
   /**
    * Whether `code` is also an ordinary unlock secret. Defaults to trying every
    * vault's PIN and password wraps on this device; tests may stand in.
@@ -47,6 +57,31 @@ function asPresentation(value: string): PresentationClass {
   return "restricted";
 }
 
+function measuredCapabilities(
+  input: SealUnlockTriggerInput,
+): EnrollmentCapabilities {
+  return {
+    durableLocalStorage: input.capabilities?.durableLocalStorage ?? false,
+    prfAvailable: input.capabilities?.prfAvailable ?? false,
+    userVerificationAvailable:
+      input.capabilities?.userVerificationAvailable ?? false,
+    offlineReady: input.capabilities?.offlineReady ?? false,
+  };
+}
+
+function baseEnrollmentState(input: SealUnlockTriggerInput): EnrollmentState {
+  return (
+    input.previous ??
+    createEmptyEnrollmentState({
+      vaultRef: input.vaultRef,
+      deviceBindingRef: input.deviceBindingRef,
+      policyRevision: input.policyRevision ?? 1,
+      keyEpoch: input.keyEpoch ?? 1,
+      capabilities: measuredCapabilities(input),
+    })
+  );
+}
+
 /**
  * Seal a fresh application_code trigger (auto-rehearse). Does not mark armed
  * until {@link armPersistedUnlockEnrollment}.
@@ -60,25 +95,11 @@ export async function sealUnlockTriggerFromCeremony(
   if (await opensOrdinary(input.code)) {
     throw new Error("ambiguous_trigger: collides with ordinary code");
   }
-  const previous = input.previous ?? null;
-  const base =
-    previous ??
-    createEmptyEnrollmentState({
-      vaultRef: input.vaultRef,
-      deviceBindingRef: input.deviceBindingRef,
-      policyRevision: input.policyRevision ?? 1,
-      keyEpoch: input.keyEpoch ?? 1,
-      capabilities: {
-        durableLocalStorage: true,
-        offlineReady: true,
-        prfAvailable: false,
-        userVerificationAvailable: false,
-      },
-    });
+  const base = baseEnrollmentState(input);
 
   const consented: EnrollmentState = {
     ...base,
-    ownerConsent: input.ownerConsent !== false,
+    ownerConsent: input.ownerConsent ?? base.ownerConsent,
     vaultRef: input.vaultRef,
     deviceBindingRef: input.deviceBindingRef,
     policyRevision: input.policyRevision ?? base.policyRevision,

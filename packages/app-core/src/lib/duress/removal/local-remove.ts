@@ -12,7 +12,8 @@ export type RemovalResourceKind =
   | "attachment"
   | "index"
   | "grant_handle"
-  | "session_cache";
+  | "session_cache"
+  | "sealed_outbox";
 
 export type RemovalManifest = Readonly<{
   version: 1;
@@ -83,7 +84,7 @@ function shouldRetainResource(
     noteRetained(retainedByPolicy, res.ref);
     return true;
   }
-  if (manifest.preserveSealedOutbox && res.kind === "grant_handle") {
+  if (manifest.preserveSealedOutbox && res.kind === "sealed_outbox") {
     noteRetained(retainedByPolicy, res.ref);
     return true;
   }

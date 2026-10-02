@@ -57,7 +57,7 @@ export async function checkFrontDoor(page, check, text, base) {
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onChoice = await snap(page, "A2-setup-configuration");
-  for (const choice of ["Minimal", "Default", "Custom"]) {
+  for (const choice of ["Minimal", "Default", "Full", "Custom"]) {
     check(
       (await count(page, "button", choice, true)) === 1,
       `setup offers "${choice}"`,
@@ -122,8 +122,9 @@ export async function walkSetupCeremony(page, check, snap) {
   check(
     // One card per optional capability. sharing.drops is always on, so it
     // is not a card. ADR 0153 put Connections, Access, Identity and the
-    // derived item types on this list; the Family purpose draws 24.
-    rows === 24,
+    // derived item types on this list; vault.environments is optional too.
+    // The Family purpose draws every optional card: 25.
+    rows === 25,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

@@ -128,7 +128,7 @@ describe("AppShell rail navigation", () => {
     fireEvent.keyDown(row, { key: "v" });
     expect(selected("Vault")).toBe("true");
     fireEvent.keyDown(row, { key: "j" });
-    expect(selected("Settings")).toBe("false");
+    expect(selected("Vault")).toBe("false");
   });
   it("keeps a pending g when the location moves before its second key", () => {
     // A plan change or a navigation hands the shell a new `navigate`; the
@@ -181,11 +181,11 @@ describe("AppShell rail navigation", () => {
     expect(document.getElementById("connections-tree")).toBeNull();
     fireEvent.keyDown(tree, { key: "5" });
     fireEvent.keyDown(tree, { key: "j" });
-    const settings = screen.getByRole("treeitem", { name: "Settings" });
-    expect(settings.getAttribute("aria-selected")).toBe("true");
-    expect(settings.getAttribute("aria-expanded")).toBe("false");
+    const wallet = screen.getByRole("treeitem", { name: "Wallet" });
+    expect(wallet.getAttribute("aria-selected")).toBe("true");
+    expect(wallet.getAttribute("aria-expanded")).toBe("false");
     fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(settings.getAttribute("aria-selected")).toBe("true");
+    expect(wallet.getAttribute("aria-selected")).toBe("true");
   });
   it("arrows move the rail when the vault tree is not focused", () => {
     const { container } = renderShell("/vault");

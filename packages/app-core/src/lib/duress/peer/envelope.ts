@@ -29,15 +29,6 @@ export type PeerEnvelope = Readonly<{
   signatureB64: string;
 }>;
 
-export type PeerReceipt = Readonly<{
-  schemaVersion: 1;
-  requestNonce: string;
-  recipientDeviceBinding: string;
-  status: "accepted" | "rejected";
-  at: string;
-  signatureB64: string;
-}>;
-
 function b64(bytes: Uint8Array): string {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
@@ -262,10 +253,26 @@ function verifyPeerEnvelopeFreshness(
 ): { ok: false; code: string } | null {
   const now = expect.now ?? Date.now();
   const issued = Date.parse(env.issuedAt);
-  if (Date.parse(env.expiresAt) < now)
+  const expires = Date.parse(env.expiresAt);
+  if (
+    !Number.isFinite(issued) ||
+    !Number.isFinite(expires) ||
+    expires <= issued
+  ) {
     return { ok: false, code: "stale_session" };
-  if (Number.isFinite(issued) && issued > now + PEER_BOUNDS.clockSkewMs) {
+  }
+  if (expires < now) return { ok: false, code: "stale_session" };
+  if (issued > now + PEER_BOUNDS.clockSkewMs) {
     return { ok: false, code: "stale_session" };
+  }
+  if (expires - issued > PEER_BOUNDS.maxTtlMs) {
+    return { ok: false, code: "unsupported_factor" };
+  }
+  if (
+    env.nonce.length < PEER_BOUNDS.nonceMin ||
+    env.nonce.length > PEER_BOUNDS.nonceMax
+  ) {
+    return { ok: false, code: "unsupported_factor" };
   }
   if (seenNonces.has(env.nonce))
     return { ok: false, code: "ambiguous_trigger" };
@@ -308,31 +315,24 @@ export async function verifyPeerEnvelope(
   if (body.byteLength > PEER_BOUNDS.envelopeMaxBytes) {
     return { ok: false, code: "unsupported_factor" };
   }
-  const ok = await crypto.subtle.verify(
-    { name: "ECDSA", hash: "SHA-256" },
-    publicKey,
-    fromB64(env.signatureB64),
-    body,
-  );
-  if (!ok) return { ok: false, code: "unavailable_authority" };
   seenNonces.add(env.nonce);
-  return { ok: true };
-}
-
-export async function signPeerReceipt(
-  receipt: Omit<PeerReceipt, "signatureB64" | "schemaVersion">,
-  privateKey: CryptoKey,
-): Promise<PeerReceipt> {
-  const full = { schemaVersion: 1 as const, ...receipt };
-  const body = new TextEncoder().encode(JSON.stringify(full));
-  const sig = new Uint8Array(
-    await crypto.subtle.sign(
+  let ok = false;
+  try {
+    ok = await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
-      privateKey,
+      publicKey,
+      fromB64(env.signatureB64),
       body,
-    ),
-  );
-  return { ...full, signatureB64: b64(sig) };
+    );
+  } catch {
+    seenNonces.delete(env.nonce);
+    return { ok: false, code: "unsupported_factor" };
+  }
+  if (!ok) {
+    seenNonces.delete(env.nonce);
+    return { ok: false, code: "unavailable_authority" };
+  }
+  return { ok: true };
 }
 
 /** Reject SSRF-ish route targets at the pairing boundary. */

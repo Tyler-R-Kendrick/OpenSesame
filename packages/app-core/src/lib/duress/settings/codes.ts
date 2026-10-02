@@ -2,17 +2,12 @@
  * Safe code replacement / disarm — never returns or echoes enrolled codes.
  */
 
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isString,
-  overlapCast,
-} from "../json-boundary.js";
+import { type JsonObject, overlapCast } from "../json-boundary.js";
 
 export type CodeSlotStatus = Readonly<{
   slotId: string;
   profileId: string;
-  /** Digest of enrolled material only — never the cleartext. */
+  /** Salted PBKDF2 digest of enrolled material — never the cleartext. */
   materialDigest: string;
   enrolled: boolean;
   lastReplacedAt: string | null;
@@ -34,22 +29,78 @@ export type CodeCeremonyOutcome =
   | { ok: false; reason: string };
 
 const CODE_FLOOR = 8;
+const DIGEST_ALGORITHM = "pbkdf2-sha256";
+const DIGEST_ITERATIONS = 600_000;
+const DIGEST_DOMAIN = "duress-trigger-v1:";
+const LEGACY_DIGEST = /^[0-9a-f]{64}$/;
 
-function assertNoCodeLeak(value: BoundaryValue): void {
-  if (isString(value) && /code|pin|secret|password/i.test(value)) {
-    // Status labels may mention "code" as a path type; block cleartext-looking
-    // values that look like enrolled secrets (long digit/alnum blobs only when
-    // callers mistakenly stash them under known secret keys — handled by redact).
-  }
-  void value;
+function hex(bytes: Uint8Array): string {
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function digestCode(code: string): Promise<string> {
-  const data = new TextEncoder().encode(`duress-trigger-v1:${code}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+function unhex(value: string): Uint8Array {
+  const bytes = new Uint8Array(value.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Number.parseInt(value.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+async function deriveCodeDigest(
+  code: string,
+  salt: Uint8Array,
+  iterations: number,
+): Promise<string> {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`${DIGEST_DOMAIN}${code}`),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
+    material,
+    256,
+  );
+  return hex(new Uint8Array(bits));
+}
+
+async function digestNewCode(code: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const digest = await deriveCodeDigest(code, salt, DIGEST_ITERATIONS);
+  return `${DIGEST_ALGORITHM}:${DIGEST_ITERATIONS}:${hex(salt)}:${digest}`;
+}
+
+async function codeMatchesDigest(
+  code: string,
+  recorded: string,
+): Promise<boolean> {
+  const parts = recorded.split(":");
+  if (parts[0] === DIGEST_ALGORITHM && parts.length === 4) {
+    const [, rawIterations, rawSalt, expected] = parts;
+    const iterations = Number(rawIterations);
+    if (
+      !expected ||
+      !rawSalt ||
+      !/^[0-9a-f]+$/.test(rawSalt) ||
+      !Number.isInteger(iterations) ||
+      iterations <= 0
+    ) {
+      return false;
+    }
+    return (
+      (await deriveCodeDigest(code, unhex(rawSalt), iterations)) === expected
+    );
+  }
+  // Statuses minted before the salted KDF carry a bare SHA-256 hex digest;
+  // accept one so an enrolled code stays replaceable, then re-digest on write.
+  if (LEGACY_DIGEST.test(recorded)) {
+    const data = new TextEncoder().encode(`${DIGEST_DOMAIN}${code}`);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return hex(new Uint8Array(digest)) === recorded;
+  }
+  return false;
 }
 
 /**
@@ -70,14 +121,14 @@ export async function replaceEnrolledCode(
     return { ok: false, reason: "previous_code_required" };
   }
   if (existing?.enrolled && input.previousCode) {
-    const prevDigest = await digestCode(input.previousCode);
-    if (prevDigest !== existing.materialDigest) {
+    if (
+      !(await codeMatchesDigest(input.previousCode, existing.materialDigest))
+    ) {
       return { ok: false, reason: "previous_code_mismatch" };
     }
   }
 
-  const materialDigest = await digestCode(input.newCode);
-  assertNoCodeLeak(materialDigest);
+  const materialDigest = await digestNewCode(input.newCode);
 
   const status: CodeSlotStatus = {
     slotId: input.slotId,
@@ -130,8 +181,8 @@ export type PublicCodeSlotView = Readonly<{
 
 /**
  * Public view model — enrollment state only. Nothing derived from the code
- * reaches it: even a digest prefix of a short numeric code is a lookup table
- * away from the code itself, and a screenshot would carry it.
+ * reaches it: the salted digest stays in the internal status, and a
+ * screenshot would carry anything shown here.
  */
 export function publicCodeSlotView(status: CodeSlotStatus): PublicCodeSlotView {
   return {

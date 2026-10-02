@@ -92,6 +92,8 @@ export const CANARY_BOUNDS = Object.freeze({
   falsePositiveMaxHits: 8,
   routeRefMax: 128,
   templateRefMax: 128,
+  /** Upper bound on process-local dedup/suppression/revocation state entries. */
+  stateMaxEntries: 4096,
   maxRetriesMax: 32,
   expiryMsMax: 1000 * 60 * 60 * 24 * 365,
 } as const);
@@ -253,10 +255,7 @@ export function parseCanaryEnrollment(input: BoundaryValue): CanaryEnrollment {
 
 function resolveActivationFingerprint(obj: JsonObject): string {
   const tokenFingerprint = obj.tokenFingerprint;
-  if (isString(tokenFingerprint)) return tokenFingerprint;
-  const routeRef = obj.routeRef;
-  if (isString(routeRef)) return `legacy-route:${routeRef}`;
-  return "";
+  return isString(tokenFingerprint) ? tokenFingerprint : "";
 }
 
 function assertActivationFingerprintBounds(tokenFingerprint: string): void {
@@ -264,18 +263,14 @@ function assertActivationFingerprintBounds(tokenFingerprint: string): void {
   const withinBounds =
     tokenFingerprint.length >= CANARY_BOUNDS.fingerprintMin &&
     tokenFingerprint.length <= CANARY_BOUNDS.fingerprintMax;
-  if (withinBounds) return;
-  if (!tokenFingerprint.startsWith("legacy-route:")) {
+  if (!withinBounds) {
     throw new CanarySchemaError("scope_mismatch", "invalid tokenFingerprint");
-  }
-  if (tokenFingerprint.length > CANARY_BOUNDS.fingerprintMax) {
-    throw new CanarySchemaError("scope_mismatch", "tokenFingerprint too long");
   }
 }
 
 function parseActivationCanaryId(obj: JsonObject): string {
   const canaryId = obj.canaryId;
-  if (!isString(canaryId) || canaryId.length < 1) {
+  if (!isString(canaryId) || canaryId.length < CANARY_BOUNDS.canaryIdMin) {
     throw new CanarySchemaError("scope_mismatch", "canaryId required");
   }
   if (canaryId.length > CANARY_BOUNDS.canaryIdMax) {
@@ -287,7 +282,8 @@ function parseActivationCanaryId(obj: JsonObject): string {
 /**
  * Parse a detection activation payload. Rejects destructive injection.
  * Legacy shape `{ version, canaryId, routeRef, detectedAt }` is accepted and
- * mapped to honeytoken_open with empty fingerprint deferred to executor match.
+ * mapped to honeytoken_open with an empty fingerprint, which never matches an
+ * enrolled canary at executor match time.
  */
 export function parseCanaryActivation(input: BoundaryValue): CanaryActivation {
   if (!isJsonObject(input)) {

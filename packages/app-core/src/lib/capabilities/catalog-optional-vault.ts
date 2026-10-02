@@ -47,6 +47,11 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
+    "vault.environments",
+    "Environments",
+    "Named values for vault items.",
+  ),
+  optional(
     "sharing.household",
     "Household sharing",
     "Share chosen vault items with the people of one household over an explicitly chosen transport.",

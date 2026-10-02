@@ -11,6 +11,7 @@ import {
   type AwsKmsEncryptResponse,
   type AwsKmsTransport,
   assertAwsKmsKeyArn,
+  assertKeyMatchesExpected,
 } from "./aws-kms.js";
 import { type AwsSigV4Credentials, signAwsKmsJsonPost } from "./aws-sigv4.js";
 import {
@@ -127,17 +128,7 @@ async function awsKmsHttpsDecrypt(
       "AWS KMS decrypt response missing plaintext.",
     );
   }
-  const expectedSuffix = request.expectedKeyArn.split("/").pop() ?? "";
-  if (
-    json.KeyId !== request.expectedKeyArn &&
-    expectedSuffix.length > 0 &&
-    !json.KeyId.includes(expectedSuffix)
-  ) {
-    throw new ProtectionError(
-      "provider_denied",
-      "AWS KMS decrypt returned an unexpected key id.",
-    );
-  }
+  assertKeyMatchesExpected(json.KeyId, request.expectedKeyArn);
   return {
     plaintext: bytesFromB64Field(json.Plaintext),
     keyId: json.KeyId,

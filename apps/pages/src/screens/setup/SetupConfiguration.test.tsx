@@ -8,6 +8,7 @@ import {
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FIXTURE_CATALOG } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
 import {
   double,
   installDoublePorts,
@@ -21,6 +22,12 @@ installDoublePorts();
 
 const seams = createSetupSeams();
 const { completeSetup } = seams;
+
+/** Every optional root the fixture catalog ships, as Full selects. */
+const OPTIONAL_IDS = FIXTURE_CATALOG.capabilities
+  .filter((entry) => entry.tier === "optional")
+  .map((entry) => entry.id)
+  .sort();
 
 beforeEach(() => resetSetupScreen(seams));
 afterEach(cleanup);
@@ -57,6 +64,62 @@ describe("the configuration choice (ADR 0154)", () => {
       prefetch: "selected",
       offlineCache: "selected-only",
     });
+  });
+
+  it("commits every optional root for the full configuration", async () => {
+    const onDone = vi.fn();
+    const before = double.commits.length;
+    render(<SetupScreen onDone={onDone} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Full$/ }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    const draft = double.commits.at(-1)?.draft;
+    expect(double.commits).toHaveLength(before + 1);
+    expect(draft?.selectedOptional).toEqual(OPTIONAL_IDS);
+    // Household sharing carries the catalog's one alternative slot:
+    // an unanswered slot would resolve the root out of the plan
+    // (`ALTERNATIVE_NOT_CHOSEN`), so Full answers it here.
+    expect(draft?.chosenAlternatives).toEqual({ transport: "sharing.drops" });
+    expect(draft?.delivery).toEqual({
+      prefetch: "selected",
+      offlineCache: "selected-only",
+    });
+  });
+
+  it("walks the configuration choices with the arrow keys", () => {
+    const onDone = vi.fn();
+    render(<SetupScreen onDone={onDone} />);
+    const minimal = screen.getByRole("button", { name: /^Minimal$/ });
+    expect(document.activeElement).toBe(minimal);
+    fireEvent.keyDown(minimal, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /^Default$/ }),
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: /^Default$/ }), {
+      key: "ArrowRight",
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /^Full$/ }),
+    );
+    // End wraps to Custom; Left walks back.
+    fireEvent.keyDown(screen.getByRole("button", { name: /^Full$/ }), {
+      key: "End",
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /^Custom$/ }),
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: /^Custom$/ }), {
+      key: "ArrowLeft",
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /^Full$/ }),
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: /^Full$/ }), {
+      key: "Home",
+    });
+    expect(document.activeElement).toBe(minimal);
+    // Moving focus never commits anything.
+    expect(onDone).not.toHaveBeenCalled();
+    expect(double.commits).toHaveLength(0);
   });
 
   it("stays on the choice when the commit is refused", async () => {

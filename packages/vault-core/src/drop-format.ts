@@ -197,6 +197,12 @@ export async function sealDrop(payload: DropPayload): Promise<SealedDrop> {
       };
     }
 
+    if (payload.bytes.length === 0) {
+      throw new DropFormatError(
+        "invalid_manifest",
+        "A drop file cannot be empty.",
+      );
+    }
     const chunks: DropChunk[] = [];
     let total = 0;
     for (
@@ -272,6 +278,13 @@ export function guardManifest(value: BoundaryValue): DropManifest {
     manifest.chunks = chunks.map(guardChunk);
     if (!isString(digest)) throw invalidManifest();
     manifest.digest = digest;
+    // The seal side caps total ciphertext; enforce the same ceiling here so a
+    // hostile manifest cannot make openDrop accumulate unbounded plaintext.
+    let total = 0;
+    for (const chunk of manifest.chunks) total += sealedSize(chunk.ciphertext);
+    assertWithinCap(total);
+  } else {
+    assertWithinCap(sealedSize(manifest.ciphertext));
   }
   return manifest;
 }

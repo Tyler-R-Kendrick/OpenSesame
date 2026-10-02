@@ -108,27 +108,45 @@ pub fn parse_verifying_key_b64(spki_or_sec1_b64: &str) -> Result<VerifyingKey, &
         .map_err(|_| "unavailable_authority")
 }
 
-/// Signing input identical to Pages `signingInput` (camelCase JSON, no spaces).
+fn push_field(out: &mut String, first: &mut bool, key: &str, value: &impl serde::Serialize) {
+    if !*first {
+        out.push(',');
+    }
+    *first = false;
+    out.push('"');
+    out.push_str(key);
+    out.push_str("\":");
+    out.push_str(&serde_json::to_string(value).expect("signing input field"));
+}
+
+/// Signing input identical to Pages `signingInput` (camelCase JSON, no
+/// spaces, keys in `envelope.ts` insertion order — serde_json's `Map` sorts
+/// keys, so an object literal would not produce the signed byte string).
 pub fn signing_input_bytes(env: &PeerEnvelopeView) -> Vec<u8> {
-    // serde_json::Map preserves insertion order — must match envelope.ts.
-    let body = serde_json::json!({
-        "schemaVersion": env.schema_version,
-        "alg": env.alg,
-        "issuer": env.issuer,
-        "audience": env.audience,
-        "principalRef": env.principal_ref,
-        "vaultRef": env.vault_ref,
-        "deviceBindingRef": env.device_binding_ref,
-        "operation": env.operation,
-        "incidentId": env.incident_id,
-        "policyRevision": env.policy_revision,
-        "keyEpoch": env.key_epoch,
-        "nonce": env.nonce,
-        "issuedAt": env.issued_at,
-        "expiresAt": env.expires_at,
-        "ciphertextB64": env.ciphertext_b64,
-    });
-    serde_json::to_vec(&body).expect("signing input json")
+    let mut out = String::from("{");
+    let mut first = true;
+    push_field(&mut out, &mut first, "schemaVersion", &env.schema_version);
+    push_field(&mut out, &mut first, "alg", &env.alg);
+    push_field(&mut out, &mut first, "issuer", &env.issuer);
+    push_field(&mut out, &mut first, "audience", &env.audience);
+    push_field(&mut out, &mut first, "principalRef", &env.principal_ref);
+    push_field(&mut out, &mut first, "vaultRef", &env.vault_ref);
+    push_field(
+        &mut out,
+        &mut first,
+        "deviceBindingRef",
+        &env.device_binding_ref,
+    );
+    push_field(&mut out, &mut first, "operation", &env.operation);
+    push_field(&mut out, &mut first, "incidentId", &env.incident_id);
+    push_field(&mut out, &mut first, "policyRevision", &env.policy_revision);
+    push_field(&mut out, &mut first, "keyEpoch", &env.key_epoch);
+    push_field(&mut out, &mut first, "nonce", &env.nonce);
+    push_field(&mut out, &mut first, "issuedAt", &env.issued_at);
+    push_field(&mut out, &mut first, "expiresAt", &env.expires_at);
+    push_field(&mut out, &mut first, "ciphertextB64", &env.ciphertext_b64);
+    out.push('}');
+    out.into_bytes()
 }
 
 fn verify_ecdsa_p256_sha256(
@@ -206,6 +224,9 @@ pub fn verify_envelope_view(
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod interop_tests;
 
 #[cfg(test)]
 mod crypto_tests {

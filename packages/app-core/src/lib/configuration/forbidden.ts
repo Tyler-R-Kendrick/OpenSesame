@@ -18,7 +18,8 @@ const FORBIDDEN_SUFFIXES = [
  */
 export function isForbiddenConfigPath(raw: string): boolean {
   const normalized = normalizeDisplayPath(raw);
-  const haystack = (normalized ?? raw).toLowerCase();
+  if (normalized === null) return true;
+  const haystack = normalized.toLowerCase();
   if (haystack.includes("..")) return true;
   return FORBIDDEN_SUFFIXES.some((suffix) => haystack.includes(suffix));
 }

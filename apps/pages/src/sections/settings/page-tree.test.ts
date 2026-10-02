@@ -110,7 +110,6 @@ describe("settingsPageTree", () => {
     expect(vaults?.children.map((node) => node.label)).toEqual([
       "personal",
       "project · 4f2a",
-      "Travel",
       "Item types",
       "Sealed store",
     ]);
@@ -164,7 +163,10 @@ describe("settingsPageTree", () => {
       tabs
         .find((tab) => tab.id === "danger")
         ?.children.map((node) => node.href),
-    ).toEqual(["/settings/danger#settings-delete-vault"]);
+    ).toEqual([
+      "/settings/danger#settings-delete-vault",
+      "/settings/danger#settings-trash",
+    ]);
   });
 
   it("lists Security's panels in the order the page draws them", () => {
@@ -173,11 +175,9 @@ describe("settingsPageTree", () => {
       "unlock-methods",
       "second-step",
       "recovery",
-      "age-keys",
-      "transport",
     ]);
-    // Duress and the account's factors draw only when they apply; a
-    // capability's panels take the slot after the account, in their order.
+    // Duress (and Travel with it) and the account's factors draw only when
+    // they apply; a capability's panels take the slot after the account.
     expect(
       childIds(
         settingsPageTree({
@@ -194,10 +194,9 @@ describe("settingsPageTree", () => {
       "recovery",
       "account-factors",
       "duress-profiles",
+      "travel",
       "ambient-auth",
       "formats-interoperability",
-      "age-keys",
-      "transport",
     ]);
   });
 

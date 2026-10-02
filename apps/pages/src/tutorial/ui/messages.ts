@@ -18,7 +18,7 @@ import type {
 /** Why nothing can answer — said plainly, including when the answer is "we can't". */
 export const UNAVAILABLE_TEXT = {
   no_local_model:
-    "This browser has no on-device model, and this deployment has no support endpoint configured. The written help below still works.",
+    "No on-device model and no support endpoint on this deployment.",
   model_not_downloaded:
     "The on-device model has not been downloaded on this device yet.",
   no_remote_endpoint:
@@ -85,17 +85,20 @@ export const UNVERIFIED_TEXT =
   "That reply did not cite the written help and nothing written matches the question, so it is unverified: a control it names may not exist.";
 
 /**
- * What this page has told the browser's model context, in one line a person
- * can check against the DevTools WebMCP panel. The number is the tools the
- * page holds registered right now, not a static catalog: a locked vault
- * reports its boot tools, an unlocked one its session tools as well.
+ * What this page has told the browser's model context, in one line a
+ * person can check against the DevTools WebMCP panel. The number is
+ * the tools the page holds registered right now, not a static
+ * catalog: a locked vault reports its boot tools, an unlocked one
+ * its session tools as well. A browser with no model context reads
+ * as the count nothing reaches — how to turn the API on is the
+ * browser's own settings, never a sentence this app narrates.
  */
 export function webmcpStatusText(snapshot: WebMcpRegistrationSnapshot): string {
   const total = snapshot.implemented.length;
   const refused = snapshot.failures.length;
   const noun = (count: number) => (count === 1 ? "tool" : "tools");
   if (snapshot.source === null) {
-    return `WebMCP: this browser exposes no model context, so its agent sees none of the ${total} ${noun(total)} this page has ready. In Chrome, enable Experimental Web Platform features at chrome://flags/#enable-experimental-web-platform-features, relaunch, and reload this page. The app cannot enable a browser API itself.`;
+    return `WebMCP: this browser exposes no model context, so its agent sees none of the ${total} ${noun(total)} this page has ready.`;
   }
   const exposed = snapshot.accepted.length;
   const where = `${snapshot.source}.modelContext`;

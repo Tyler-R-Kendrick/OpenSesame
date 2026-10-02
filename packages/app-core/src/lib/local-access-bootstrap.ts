@@ -17,7 +17,7 @@ import {
   ensureOwnerPerson,
 } from "./local-directory-bootstrap.js";
 import { type LocalDirectory, readLocalDirectory } from "./local-directory.js";
-import { guestSessionPerson, isGuestPersonEntry } from "./local-guest.js";
+import { guestSessionPersonLocked, isGuestPersonEntry } from "./local-guest.js";
 import { ensureLocalShare } from "./local-share-grants.js";
 import { loadSettings } from "./settings.js";
 import { standingConnectionRevoked } from "./standing-connection-grants.js";
@@ -147,7 +147,9 @@ async function ensureConnectorShares(
  */
 export async function ensureDefaultAccess(tomb: string): Promise<void> {
   const personName =
-    tomb === GUEST_TOMB ? guestSessionPerson().name : currentOwnerPersonName();
+    tomb === GUEST_TOMB
+      ? (await guestSessionPersonLocked()).name
+      : currentOwnerPersonName();
   await ensureOwnerPerson(tomb, personName);
   await ensureThisDevice(tomb);
   await ensureDefaultShares(tomb);

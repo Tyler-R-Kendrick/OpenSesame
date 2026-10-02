@@ -61,4 +61,26 @@ describe("activity log", () => {
       ]);
     });
   });
+
+  it("keeps both events from overlapping appends", async () => {
+    const { vaultKey } = await mintVaultKey();
+    unlockTomb(PERSONAL_TOMB, vaultKey);
+    await Promise.all([
+      recordActivityEvent(PERSONAL_TOMB, {
+        category: "settings",
+        type: "settings.updated",
+        summary: "First append",
+      }),
+      recordActivityEvent(PERSONAL_TOMB, {
+        category: "vault",
+        type: "vault.unlocked",
+        summary: "Second append",
+      }),
+    ]);
+    const listed = await listActivityEvents(PERSONAL_TOMB);
+    expect(listed.map((row) => row.summary).sort()).toEqual([
+      "First append",
+      "Second append",
+    ]);
+  });
 });

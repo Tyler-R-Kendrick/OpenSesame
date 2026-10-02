@@ -77,4 +77,3 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
 ];
 
 export { SHELL_GOALS } from "./shell-goals.js";
-export { TRANSPORT_GOALS } from "./transport-goals.js";

@@ -117,6 +117,46 @@ describe("durable fence (AUTH-C/E/F)", () => {
     expect(fence.readFence().denyOperations).toContain("export_root");
   });
 
+  it("full resolution persists a cleared tombstone peer tabs can rehydrate", () => {
+    const a = new DuressSessionFence("resolve-writer");
+    a.activate({
+      incidentId: "i1",
+      policyRevision: 2,
+      keyEpoch: 1,
+      denyOperations: ["export_root"],
+      admittedCompartmentRefs: ["c1"],
+    });
+    const epochBefore = a.readFence().incidentEpoch;
+    const b = new DuressSessionFence("resolve-peer");
+    expect(b.readFence().denyOperations).toContain("export_root");
+    a.resolve(["i1"], true);
+    b.rehydrateFromDurable({ bumpIfChanged: true });
+    expect(b.readFence().activeIncidentIds).toEqual([]);
+    expect(b.readFence().denyOperations).toEqual([]);
+    expect(b.readFence().admittedCompartmentRefs).toEqual([]);
+    expect(b.readFence().incidentEpoch).toBeGreaterThan(epochBefore);
+    expect(a.rejectStaleResolution(epochBefore)).toBe(true);
+  });
+
+  it("unrestricted prior incident does not erase a later narrowing", () => {
+    const fence = new DuressSessionFence("sess-unrestricted");
+    fence.activate({
+      incidentId: "i1",
+      policyRevision: 1,
+      keyEpoch: 1,
+      denyOperations: ["export_root"],
+      admittedCompartmentRefs: [],
+    });
+    fence.activate({
+      incidentId: "i2",
+      policyRevision: 1,
+      keyEpoch: 1,
+      denyOperations: ["mint_grant"],
+      admittedCompartmentRefs: ["c2"],
+    });
+    expect(fence.readFence().admittedCompartmentRefs).toEqual(["c2"]);
+  });
+
   it("BFCache restore drops live context and bumps generation (AT-038)", () => {
     const fence = new DuressSessionFence("sess-bfcache");
     fence.activate({

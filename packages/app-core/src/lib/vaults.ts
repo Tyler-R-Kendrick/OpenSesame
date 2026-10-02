@@ -187,6 +187,24 @@ export function deviceVaultsVersion(): number {
 }
 
 /**
+ * One vault mutation at a time. A switch yields on durable I/O between
+ * choosing a tomb and scoping the store to it, so two switches fired
+ * together would interleave and could scope — or fork a header into — the
+ * wrong tomb. Every switch/seal/remove verb runs through this chain, and a
+ * queued mutation that fails does not poison the next one.
+ */
+let switchChain: Promise<unknown> = Promise.resolve();
+
+function enqueueVaultMutation<T>(task: () => Promise<T>): Promise<T> {
+  const run = switchChain.then(task, task);
+  switchChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/**
  * Bring the active project's keys into this tab and hand the store its
  * scope. `carryKey` is the shared-key road: the store opens the tomb with
  * the key in hand (a new tomb is forked; a sealed one is verified to share
@@ -198,6 +216,9 @@ export async function enterActiveProjectScope(
   const tomb = activeProject().id;
   await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
   await migrateLegacyVaultStorage(tomb);
+  if (activeProject().id !== tomb) {
+    throw new Error("The active vault changed while switching; try again.");
+  }
   // A guest's key was never wrapped to disk: nothing to carry, ever.
   if (carryKey && vaultStore.isUnlocked() && !vaultStore.getSnapshot().guest) {
     if (readTombHeader(tomb)) {
@@ -222,19 +243,26 @@ export type SwitchOutcome =
  * cost the switcher names before the person picks.
  */
 async function switchVaultDefault(id: string): Promise<SwitchOutcome> {
-  if (id === GUEST_TOMB) {
-    await switchToGuest();
-    // Guest has no enrolled key — UnlockScreen shows a single Unlock button.
-    return "locked";
-  }
-  const target = listProjects().find((project) => project.id === id);
-  if (!target) {
-    throw new Error("That vault no longer exists on this device.");
-  }
-  const sharedKey = vaultStore.sharesKeyWith(readTombHeader(id));
-  await setActiveProject(id);
-  await enterActiveProjectScope(sharedKey);
-  return vaultStore.isUnlocked() ? "opened" : "locked";
+  return enqueueVaultMutation(async () => {
+    if (id === GUEST_TOMB) {
+      switchToGuestNow();
+      // Guest has no enrolled key — UnlockScreen shows a single Unlock button.
+      return "locked";
+    }
+    const target = listProjects().find((project) => project.id === id);
+    if (!target) {
+      throw new Error("That vault no longer exists on this device.");
+    }
+    const sharedKey = vaultStore.sharesKeyWith(readTombHeader(id));
+    await setActiveProject(id);
+    await enterActiveProjectScope(sharedKey);
+    return vaultStore.isUnlocked() ? "opened" : "locked";
+  });
+}
+
+function switchToGuestNow(): void {
+  if (vaultStore.isUnlocked()) vaultStore.lock();
+  vaultStore.prepareGuestUnlock();
 }
 
 /**
@@ -243,8 +271,7 @@ async function switchVaultDefault(id: string): Promise<SwitchOutcome> {
  * Unlock / Continue-as-guest opens the session. Never gated (AGENTS.md §5).
  */
 export async function switchToGuest(): Promise<void> {
-  if (vaultStore.isUnlocked()) vaultStore.lock();
-  vaultStore.prepareGuestUnlock();
+  await enqueueVaultMutation(async () => switchToGuestNow());
 }
 
 /**
@@ -256,22 +283,26 @@ async function sealNewVaultDefault(
   name: string,
   options: { shareKey: boolean },
 ): Promise<PagesProject> {
-  const project = await createProject(name);
-  await setActiveProject(project.id);
-  await enterActiveProjectScope(options.shareKey);
-  return project;
+  return enqueueVaultMutation(async () => {
+    const project = await createProject(name);
+    await setActiveProject(project.id);
+    await enterActiveProjectScope(options.shareKey);
+    return project;
+  });
 }
 
 /** Remove a vault from this device. Never the personal one, never the open one. */
 async function removeVaultDefault(id: string): Promise<void> {
-  const snapshot = vaultStore.getSnapshot();
-  const openHere =
-    snapshot.status === "unlocked" &&
-    (snapshot.tomb === id || (id === GUEST_TOMB && snapshot.guest));
-  if (openHere) {
-    throw new Error("Lock this vault before deleting it.");
-  }
-  await deleteProject(id);
+  return enqueueVaultMutation(async () => {
+    const snapshot = vaultStore.getSnapshot();
+    const openHere =
+      snapshot.status === "unlocked" &&
+      (snapshot.tomb === id || (id === GUEST_TOMB && snapshot.guest));
+    if (openHere) {
+      throw new Error("Lock this vault before deleting it.");
+    }
+    await deleteProject(id);
+  });
 }
 
 export const vaultsSeams = {

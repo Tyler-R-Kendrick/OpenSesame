@@ -16,7 +16,7 @@ import { AUTHORITY_HELP } from "./authority-help.js";
 import { CONNECTIONS_HELP } from "./connections-goals.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
-import { SETUP_GOALS, SHELL_GOALS, TRANSPORT_GOALS } from "./setup-goals.js";
+import { SETUP_GOALS, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 export type GuideGoalDescriptor = {
@@ -281,7 +281,6 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   ...SHELL_GOALS,
-  ...TRANSPORT_GOALS,
 ];
 
 /** Authored help whose walkthrough is a core goal. */

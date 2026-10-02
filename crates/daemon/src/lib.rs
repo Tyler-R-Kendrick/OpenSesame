@@ -1,9 +1,9 @@
 //! `OpenSesame` host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA.
 //! Evolved from credential-agent. Never dumps refresh tokens or `WebAuthn` material.
 //! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`, `spec/config/endpoints.json`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
-//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on TCP;
-//! over the Unix socket the kernel-attested peer UID authenticates instead
-//! (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default same-user). With `--features
+//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on every transport.
+//! Over the Unix socket the kernel-attested peer UID is only an extra restriction
+//! (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default same-user), not operator authority. With `--features
 //! tailscale` a read-only tailnet listener authorizes callers by whois identity.
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
@@ -35,7 +35,7 @@ mod duress_routes;
 mod fill;
 use duress_routes::{duress_peer_envelope, duress_peer_health};
 mod proxy_path;
-use proxy_path::is_local_session_path;
+use proxy_path::{has_dot_segment, is_local_session_path};
 mod invoke_through;
 mod keychain;
 mod mint;
@@ -462,7 +462,7 @@ async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Res
     if prefix == "/host" && is_local_session_path(rest) {
         return StatusCode::FORBIDDEN.into_response();
     }
-    if rest.contains("..") {
+    if has_dot_segment(rest) {
         return StatusCode::BAD_REQUEST.into_response();
     }
     let query = req
@@ -984,7 +984,7 @@ mod tests {
         opensesame_host_core::pact::assert_source_order(
             include_str!("lib.rs"),
             &[
-                "if rest.contains(\"..\")",
+                "if has_dot_segment(rest)",
                 "BAD_REQUEST",
                 "upstream_unreachable",
             ],

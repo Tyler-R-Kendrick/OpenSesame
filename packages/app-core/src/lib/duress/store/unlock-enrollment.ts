@@ -8,6 +8,7 @@ import {
   type JournalWriteResult,
   clearJournal,
   readJournalPayload,
+  recoverJournal,
   writeJournal,
 } from "./journal.js";
 
@@ -20,8 +21,10 @@ export async function persistEnrollmentStateForUnlock(
   state: EnrollmentState,
   options: Options = defaultOptions,
 ): Promise<JournalWriteResult> {
+  const existing = recoverJournal<EnrollmentState>(ENROLLMENT_STATE_KEY);
   return writeJournal(ENROLLMENT_STATE_KEY, state, {
     requireDurable: options.requireDurable ?? true,
+    expectedRevision: existing?.revision ?? 0,
   });
 }
 

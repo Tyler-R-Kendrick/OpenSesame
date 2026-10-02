@@ -134,6 +134,7 @@ const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-audit",
+  "local-access-ledger-lock",
   "local-access-requests",
   "local-grant-admin",
   "local-grant-store",
@@ -345,9 +346,6 @@ export const LIB_RULES = [
     `${L}travel/`,
     "vault.local-unlock",
     "travel mode: departure bundle and return",
-  ),
-  ...each(L, ["transport-"], (p) =>
-    core(p, "settings.core", "transport status and probe, drawn in Settings"),
   ),
   shared(`${L}local-iam-events`, "change fanout the tomb and identity share"),
   core(

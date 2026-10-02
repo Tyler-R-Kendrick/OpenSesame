@@ -17,6 +17,7 @@ import {
 } from "@opensesame/os-domain";
 import { emitActivity } from "./activity-log.js";
 import { kvRefresh } from "./kv.js";
+import { withLocalAccessLedgerLock } from "./local-access-ledger-lock.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
@@ -209,9 +210,18 @@ export async function recordAccessAuditEvent(
     targetId: input.targetId,
     metadata,
   };
-  const current = await readAll(tomb);
-  const next = retainEvents([event, ...current]);
-  await writeAll(tomb, next);
+  const next = await withLocalAccessLedgerLock(
+    tomb,
+    "audit",
+    PATH,
+    MAX_BYTES * 2,
+    async () => {
+      const current = await readAll(tomb);
+      const events = retainEvents([event, ...current]);
+      await writeAll(tomb, events);
+      return events;
+    },
+  );
   const outcome =
     event.outcome === "succeeded" || event.outcome === "denied"
       ? event.outcome

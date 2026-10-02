@@ -76,6 +76,12 @@ Systematically remove complexity across these dimensions:
 - **Scannable structure**: Short paragraphs, bullet points, clear headings
 - **Essential information only**: Remove marketing fluff, legalese, hedging
 - **Remove redundant copy**: No headers restating intros, no repeated explanations, say it once
+- **A status states the fact and stops**: No consolation tail
+  ("…still works"), no walk through the browser's own settings
+  ("enable … at chrome://flags", "relaunch", "reload this
+  page"), no disclaimer of what the app cannot enable ("the app
+  cannot enable … itself"). A status names the condition; the
+  explanation that follows it is not part of it.
 
 ### Code Simplification
 - **Remove unused code**: Dead CSS, unused components, orphaned files

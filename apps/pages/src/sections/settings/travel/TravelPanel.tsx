@@ -1,5 +1,5 @@
 /**
- * Settings › Vaults › Travel (ADR 0143).
+ * Settings › Security › Travel (ADR 0143).
  *
  * Two rows, one action each: turn travel mode on (mark the vaults that are
  * safe to carry; the rest leave this device in a bundle sealed under a

@@ -25,6 +25,7 @@ export {
 
 const CACHE_KEY_PREFIX = "vault.offline-ciphertext.v1:";
 const MUTATION_QUEUE_KEY = "vault.offline-mutations.v1";
+let fallbackSeq = 0;
 export const MAX_OFFLINE_MUTATIONS = 64;
 
 export type OfflineVaultMutation =
@@ -99,10 +100,13 @@ function enqueueOfflineMutationDefault(
       },
 ): OfflineVaultMutation {
   const createdAt = new Date().toISOString();
-  const id =
-    crypto !== undefined && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `mut-${createdAt}`;
+  let id: string;
+  if (crypto !== undefined && "randomUUID" in crypto) {
+    id = crypto.randomUUID();
+  } else {
+    fallbackSeq += 1;
+    id = `mut-${createdAt}-${fallbackSeq}`;
+  }
   let item: OfflineVaultMutation;
   if (input.kind === "replace_ciphertext_cache") {
     item = {

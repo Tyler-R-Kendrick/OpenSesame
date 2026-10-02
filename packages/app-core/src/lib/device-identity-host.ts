@@ -94,9 +94,13 @@ function liveSession(token: string | null): DeviceSession | null {
 }
 
 function mintProvisional(): Response {
+  const now = Date.now();
+  for (const [token, row] of sessionsByToken) {
+    if (row.expiresAtMs <= now) sessionsByToken.delete(token);
+  }
   const principalId = `prn_${bytesToB64url(crypto.getRandomValues(new Uint8Array(12)))}`;
   const accessToken = `dev_${bytesToB64url(crypto.getRandomValues(new Uint8Array(24)))}`;
-  const expiresAtMs = Date.now() + PROVISIONAL_TTL_MS;
+  const expiresAtMs = now + PROVISIONAL_TTL_MS;
   sessionsByToken.set(accessToken, { principalId, accessToken, expiresAtMs });
   return json(
     {
@@ -247,7 +251,13 @@ function matchCorePath(
     return { kind: "exact", route: "present" };
   }
   const poll = /^\/v1\/claims\/([^/]+)\/poll$/.exec(bare);
-  if (poll?.[1]) return { kind: "poll", claimId: decodeURIComponent(poll[1]) };
+  if (poll?.[1]) {
+    try {
+      return { kind: "poll", claimId: decodeURIComponent(poll[1]) };
+    } catch {
+      return { kind: "other" };
+    }
+  }
   return { kind: "other" };
 }
 

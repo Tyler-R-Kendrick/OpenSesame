@@ -306,7 +306,7 @@ export function createAgUiSupportAgent(
   const online = options.online ?? isOnlineDefault;
   const transport =
     options.transport ?? createAgUiTransport(options.transportOptions ?? {});
-  let active: AbortController | null = null;
+  const active = new Set<AbortController>();
 
   return {
     async availability(): Promise<SupportAgentAvailability> {
@@ -343,7 +343,7 @@ export function createAgUiSupportAgent(
       assertNoStructuralLeak(payload);
 
       const controller = new AbortController();
-      active = controller;
+      active.add(controller);
       const forward = (): void => controller.abort();
       if (runOptions.signal.aborted) controller.abort();
       else runOptions.signal.addEventListener("abort", forward, { once: true });
@@ -387,13 +387,13 @@ export function createAgUiSupportAgent(
       } finally {
         runOptions.signal.removeEventListener("abort", forward);
         controller.abort();
-        if (active === controller) active = null;
+        active.delete(controller);
       }
     },
 
     destroy(): void {
-      active?.abort();
-      active = null;
+      for (const controller of active) controller.abort();
+      active.clear();
     },
   };
 }

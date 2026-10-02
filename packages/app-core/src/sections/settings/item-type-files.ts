@@ -94,7 +94,7 @@ function checkDefinition(path: string, text: string): FileCheck {
   if (!parsed.ok) return { ok: false, message: describeErrors(parsed.errors) };
   const id = parsed.definition.metadata.id;
   const named = idOf(path, INSTALLED_DIR);
-  const exists = named !== null && installedDefinitions()[named] !== undefined;
+  const exists = named !== null && Object.hasOwn(installedDefinitions(), named);
   if (exists && named !== id)
     return {
       ok: false,
@@ -102,7 +102,7 @@ function checkDefinition(path: string, text: string): FileCheck {
     };
   // A new file may not quietly replace a type already installed: that type
   // is changed in its own file, where the person can see what it was.
-  if (named !== id && installedDefinitions()[id] !== undefined)
+  if (named !== id && Object.hasOwn(installedDefinitions(), id))
     return {
       ok: false,
       message: `${id} is already installed; change it in ${id}.json.`,
@@ -162,9 +162,17 @@ export function itemTypeFiles(ports: ItemTypeFilePorts): VirtualFileProvider {
     async read(path) {
       if (path === MARKETPLACES_PATH) return readMarketplaces(ports.tomb());
       const installed = idOf(path, INSTALLED_DIR);
-      if (installed !== null) return installedDefinitions()[installed] ?? "";
+      if (installed !== null) {
+        const definitions = installedDefinitions();
+        return Object.hasOwn(definitions, installed)
+          ? definitions[installed]
+          : "";
+      }
       const builtin = idOf(path, BUILTIN_DIR);
-      if (builtin !== null) return BUILTIN_TEXT[builtin] ?? "";
+      if (builtin !== null)
+        return Object.hasOwn(BUILTIN_TEXT, builtin)
+          ? BUILTIN_TEXT[builtin]
+          : "";
       return "";
     },
     check,

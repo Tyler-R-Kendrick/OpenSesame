@@ -7,6 +7,7 @@
 
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import type { CarrierSpec } from "@opensesame/app-core/lib/live/transport.js";
+import { localNetworkFetchSeams } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { describe, expect, it } from "vitest";
 import {
   CAPABILITY,
@@ -159,11 +160,17 @@ describe("an ntfy carrier, held to egress's own decision", () => {
   });
 
   it("reaches this device over plain http, and nothing else over it", () => {
-    const gate = gateFor(planUnder(policy(ALLOW_ALL)));
-    expect(carrierRefusal(ntfy("http://127.0.0.1:8080"), gate)).toBeNull();
-    expect(carrierRefusal(ntfy("http://ntfy.example.test"), gate)).toBe(
-      "unsupported-scheme",
-    );
+    const eligible = localNetworkFetchSeams.eligible;
+    localNetworkFetchSeams.eligible = () => true;
+    try {
+      const gate = gateFor(planUnder(policy(ALLOW_ALL)));
+      expect(carrierRefusal(ntfy("http://127.0.0.1:8080"), gate)).toBeNull();
+      expect(carrierRefusal(ntfy("http://ntfy.example.test"), gate)).toBe(
+        "unsupported-scheme",
+      );
+    } finally {
+      localNetworkFetchSeams.eligible = eligible;
+    }
   });
 });
 

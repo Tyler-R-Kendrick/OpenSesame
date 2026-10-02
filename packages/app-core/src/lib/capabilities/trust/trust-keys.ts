@@ -11,6 +11,7 @@ import {
   type JsonValue,
   isBoolean,
   isJsonObject,
+  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -142,6 +143,12 @@ export type PolicyKeyRotation = Readonly<{
   key: PolicyPublicJwk;
   /** When true the authorizing key leaves the set once the new one is in. */
   retire: boolean;
+  /**
+   * Monotonic rotation number, signed into the document. A device refuses a
+   * rotation whose sequence is not greater than the highest it has already
+   * applied, so an old document cannot resurrect a retired key.
+   */
+  sequence: number;
   notBefore?: string;
   signature: string;
 }>;
@@ -153,11 +160,12 @@ export type RotationFailure =
   | "kid-mismatch"
   | "self-signed"
   | "not-yet-valid"
+  | "stale-sequence"
   | "malformed-signature"
   | "bad-signature";
 
 export type RotationResult = Readonly<
-  | { ok: true; keys: TrustedKeySet; fingerprint: string }
+  | { ok: true; keys: TrustedKeySet; fingerprint: string; sequence: number }
   | { ok: false; reason: RotationFailure }
 >;
 
@@ -178,8 +186,14 @@ export function rotationSignedBytes(
     notBefore: rotation.notBefore ?? null,
     retire: rotation.retire,
     schemaVersion: rotation.schemaVersion,
+    sequence: rotation.sequence,
     signedBy: rotation.signedBy,
   });
+}
+
+/** A rotation sequence is a positive safe integer. */
+function isRotationSequence(value: BoundaryValue): value is number {
+  return isNumber(value) && Number.isSafeInteger(value) && value >= 1;
 }
 
 export function readPolicyKeyRotation(
@@ -195,6 +209,7 @@ export function readPolicyKeyRotation(
     !isString(value.signedBy) ||
     !isString(value.kid) ||
     !isBoolean(value.retire) ||
+    !isRotationSequence(value.sequence) ||
     !isString(value.signature) ||
     (value.notBefore !== undefined && !isString(value.notBefore))
   )
@@ -209,6 +224,7 @@ export function readPolicyKeyRotation(
     kid: value.kid,
     key,
     retire: value.retire,
+    sequence: value.sequence,
     signature: value.signature,
   };
   return isString(value.notBefore)
@@ -242,14 +258,20 @@ function rotationWindow(
 
 /**
  * Accept a rotation only when the currently trusted key named by `signedBy`
- * signed it, the new kid is the new key's thumbprint, and the instance
- * matches. A rotation signed by the incoming key itself is refused: trust
- * flows from what the device already holds, never from the document.
+ * signed it, the new kid is the new key's thumbprint, the instance matches,
+ * and `sequence` is greater than `appliedSequence` — the highest sequence
+ * the caller has already applied, persisted beside the key set. A rotation
+ * signed by the incoming key itself is refused: trust flows from what the
+ * device already holds, never from the document.
  */
 export async function rotatePolicyKey(
   current: TrustedKeySet,
   candidate: BoundaryValue | PolicyKeyRotation,
-  options: Readonly<{ instanceId: string; now: string }>,
+  options: Readonly<{
+    instanceId: string;
+    now: string;
+    appliedSequence: number;
+  }>,
 ): Promise<RotationResult> {
   const rotation = readPolicyKeyRotation(candidate);
   if (rotation === null) return { ok: false, reason: "malformed-rotation" };
@@ -263,6 +285,8 @@ export async function rotatePolicyKey(
   if (thumbprint !== rotation.kid) return { ok: false, reason: "kid-mismatch" };
   const window = rotationWindow(rotation, options.now);
   if (window !== null) return { ok: false, reason: window };
+  if (rotation.sequence <= options.appliedSequence)
+    return { ok: false, reason: "stale-sequence" };
   const { signature, ...unsigned } = rotation;
   const verdict = await verifyEs256(
     signer,
@@ -276,5 +300,10 @@ export async function rotatePolicyKey(
     keys[kid] = current[kid];
   }
   keys[rotation.kid] = rotation.key;
-  return { ok: true, keys, fingerprint: keyFingerprint(thumbprint) };
+  return {
+    ok: true,
+    keys,
+    fingerprint: keyFingerprint(thumbprint),
+    sequence: rotation.sequence,
+  };
 }

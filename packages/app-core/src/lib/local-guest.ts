@@ -12,8 +12,8 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { sessionStore } from "../ports.js";
-import { kvDelete, kvGet, kvSet } from "./kv.js";
+import { lockManager, sessionStore } from "../ports.js";
+import { kvDelete, kvGet, kvRefresh, kvSet, kvSetDurable } from "./kv.js";
 
 /** @deprecated Legacy singleton — detect only; never mint again. */
 export const GUEST_PERSON_ID = "local_00000000-0000-4000-8000-000000000003";
@@ -108,6 +108,50 @@ export function mintGuestSessionPerson(): GuestSessionPerson {
   };
   persistSessionPerson(person);
   return person;
+}
+
+/** Hold the ordinal on disk before the lock opens for the next tab. */
+async function persistGuestOrdinal(): Promise<void> {
+  const ordinal = kvGet(GUEST_ORDINAL_KEY);
+  if (ordinal !== null) await kvSetDurable(GUEST_ORDINAL_KEY, ordinal);
+}
+
+/**
+ * Mint under the cross-tab ordinal lock: the durable ordinal is refreshed
+ * inside the lock so two tabs can never mint the same `guest-N`. Browsers
+ * without Web Locks fall back to the sync mint — memory-only storage is
+ * single-copy anyway.
+ */
+export async function mintGuestSessionPersonLocked(): Promise<GuestSessionPerson> {
+  const locks = lockManager();
+  if (!locks) return mintGuestSessionPerson();
+  return locks.request("opensesame-guest-ordinal", async () => {
+    await kvRefresh(GUEST_ORDINAL_KEY, 64);
+    const person = mintGuestSessionPerson();
+    await persistGuestOrdinal();
+    return person;
+  });
+}
+
+/**
+ * Active guest for this tab, minting under the cross-tab ordinal lock when
+ * none is stored yet — concurrent first-boot tabs can never mint the same
+ * `guest-N`. The lock is re-checked inside so a concurrent same-tab caller
+ * resumes the mint it raced instead of replacing it.
+ */
+export async function guestSessionPersonLocked(): Promise<GuestSessionPerson> {
+  const stored = readGuestSessionPerson();
+  if (stored) return stored;
+  const locks = lockManager();
+  if (!locks) return mintGuestSessionPerson();
+  return locks.request("opensesame-guest-ordinal", async () => {
+    await kvRefresh(GUEST_ORDINAL_KEY, 64);
+    const existing = readGuestSessionPerson();
+    if (existing) return existing;
+    const person = mintGuestSessionPerson();
+    await persistGuestOrdinal();
+    return person;
+  });
 }
 
 /** Read the tab's guest principal without minting one. */

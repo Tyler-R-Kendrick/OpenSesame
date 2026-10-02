@@ -121,7 +121,7 @@ export function registerContribution<K extends ContributionKind>(kind: K, entry:
 export function useContributions<K extends ContributionKind>(kind: K): readonly ContributionEntry<K>[];  // generation-fenced, sorted by `order` then id
 export function assertCurrentOperationAuthority(op: OperationId, lease: ActivationLease): void;  // throws CapabilityDenied before any handler import
 export function assertCurrentCapabilityAuthority(id: CapabilityId, lease: ActivationLease): void;  // the same, for a destination (no operation)
-export async function admitOperation(op: OperationId, lease: ActivationLease): Promise<AdmissionDecision>;  // Web Locks + durable generation compare
+export async function admitOperation<T>(op: OperationId, lease: ActivationLease, operation: () => T | Promise<T>): Promise<AdmissionOutcome<T>>;  // Web Locks + durable generation compare; the lock is held through the operation
 ```
 
 **Dispatch gates** (`lib/capabilities/dispatch.ts`). Listing an entry is not

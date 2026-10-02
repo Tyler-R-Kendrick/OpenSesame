@@ -10,16 +10,15 @@ import {
   overlapCast,
 } from "../json-boundary.js";
 import { PEER_BOUNDS } from "./bounds.js";
-import type { PeerEnvelope, PeerReceipt } from "./envelope.js";
-import {
-  assertBoundedPeerPath,
-  assertSafePeerOrigin,
-  originsExactMatch,
-} from "./origin.js";
+import type { PeerEnvelope } from "./envelope.js";
+import { assertPeerOriginResolved } from "./origin-resolve.js";
+import { assertBoundedPeerPath, originsExactMatch } from "./origin.js";
+import { type PeerReceipt, verifyPeerReceipt } from "./receipt.js";
 
 export type PeerSenderConfig = Readonly<{
   registeredOrigin: string;
   audience: string;
+  recipientPublicKey: CryptoKey;
   signal?: AbortSignal;
 }>;
 
@@ -45,7 +44,7 @@ export async function sendPeerEnvelope(
   envelope: PeerEnvelope,
   config: PeerSenderConfig,
 ): Promise<PeerSendResult> {
-  const originUrl = assertSafePeerOrigin(config.registeredOrigin);
+  const originUrl = await assertPeerOriginResolved(config.registeredOrigin);
   if (!originsExactMatch(config.registeredOrigin, originUrl.origin)) {
     return { ok: false, code: "unapproved_route" };
   }
@@ -91,6 +90,16 @@ export async function sendPeerEnvelope(
       return { ok: false, code: "unsupported_factor", httpStatus: res.status };
     }
     const receipt = overlapCast<JsonObject, PeerReceipt>(wire);
+    if (receipt.requestNonce !== envelope.nonce) {
+      return { ok: false, code: "ambiguous_trigger", httpStatus: res.status };
+    }
+    if (!(await verifyPeerReceipt(receipt, config.recipientPublicKey))) {
+      return {
+        ok: false,
+        code: "unavailable_authority",
+        httpStatus: res.status,
+      };
+    }
     return { ok: true, receipt };
   } catch {
     return { ok: false, code: "completion_unknown" };
@@ -100,7 +109,7 @@ export async function sendPeerEnvelope(
 export async function probePeerReceiver(
   config: PeerSenderConfig,
 ): Promise<{ ok: true } | { ok: false; code: string }> {
-  const originUrl = assertSafePeerOrigin(config.registeredOrigin);
+  const originUrl = await assertPeerOriginResolved(config.registeredOrigin);
   const path = assertAllowedPath("/v1/duress/peer/health");
   try {
     const res = await fetch(`${originUrl.origin}${path}`, {

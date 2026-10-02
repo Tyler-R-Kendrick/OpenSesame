@@ -145,8 +145,10 @@ describe("VaultsScreen — the front door", () => {
   it("carries the sign-in tab beside the list", () => {
     renderScreen();
     fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    // The compiled-in road is the panel's own; the guest road is
+    // the unlock form's footer, not a second copy in the panel.
     expect(
-      screen.getByRole("button", { name: /Continue as guest/ }),
+      screen.getByRole("button", { name: "Continue with Google" }),
     ).toBeTruthy();
   });
 });

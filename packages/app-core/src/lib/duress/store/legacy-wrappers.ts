@@ -28,7 +28,8 @@ function unlockWrappers(header: VaultHeader): WrapperKind[] {
   if (!unlocks) return [];
   const out: WrapperKind[] = [];
   if (unlocks.pin) out.push("pin");
-  if (unlocks.passkey) out.push("passkey");
+  if (unlocks.passkey || (unlocks.passkeys?.length ?? 0) > 0)
+    out.push("passkey");
   if (unlocks.totp) out.push("totp_second_step");
   if (unlocks.recovery) out.push("recovery");
   if (unlocks.email || unlocks.sms) out.push("remote_code");

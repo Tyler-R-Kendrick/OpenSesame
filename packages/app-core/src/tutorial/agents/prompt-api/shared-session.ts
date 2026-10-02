@@ -20,12 +20,9 @@ type HeldSession = {
 };
 
 let held: HeldSession | null = null;
+let queue: Promise<unknown> = Promise.resolve();
 
-/**
- * Reuse the live session when the system instruction matches. A different
- * page context replaces it once; that is still one create, not a re-download.
- */
-export async function obtainLocalModelSession(
+async function obtain(
   api: LocalLanguageModelApi,
   instructions: string,
   monitor: LocalModelProgressListener | null,
@@ -50,11 +47,46 @@ export async function obtainLocalModelSession(
   return session;
 }
 
+/**
+ * Reuse the live session when the system instruction matches. A different
+ * page context replaces it once; that is still one create, not a re-download.
+ *
+ * Calls are serialized behind `queue`: `api.create` can take as long as a
+ * model download, and two callers racing past the `held` check would each
+ * create a session, the second assignment orphaning the first — a
+ * multi-gigabyte session nothing can ever destroy.
+ */
+export function obtainLocalModelSession(
+  api: LocalLanguageModelApi,
+  instructions: string,
+  monitor: LocalModelProgressListener | null,
+  signal: AbortSignal | null,
+): Promise<LocalModelSession> {
+  const next = queue.then(() => obtain(api, instructions, monitor, signal));
+  queue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
 /** Drop the shared session. Called on vault lock and from tests. */
 export function releaseLocalModelSession(): void {
   if (held === null) return;
   held.session.destroy();
   held = null;
+}
+
+/**
+ * Drop the shared session only when it is still the one the caller used. A
+ * caller recovering from a failed prompt must not tear down a session another
+ * caller created in the meantime.
+ */
+export function releaseLocalModelSessionIfCurrent(
+  session: LocalModelSession,
+): void {
+  if (held === null || held.session !== session) return;
+  releaseLocalModelSession();
 }
 
 export function resetLocalModelSessionForTest(): void {

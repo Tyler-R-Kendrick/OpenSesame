@@ -129,7 +129,7 @@ export function assertAwsKmsKeyArn(keyArn: string): AwsKmsKeyIdentity {
   return { keyArn, region };
 }
 
-function assertKeyMatchesExpected(
+export function assertKeyMatchesExpected(
   returnedKeyId: string,
   expectedArn: string,
 ): void {

@@ -142,13 +142,20 @@ function classify(
 function decideExternal(
   url: URL,
   plan: EffectivePlan,
+  options: EgressPortOptions,
   destination: string,
 ): EgressDecision {
-  if (
-    url.protocol !== "https:" &&
-    targetAddressSpaceFor(url.href) !== "loopback"
-  )
+  const addressSpace = targetAddressSpaceFor(url.href);
+  if (url.protocol !== "https:" && addressSpace !== "loopback")
     return { ok: false, code: "unsupported-scheme", destination };
+  // A loopback or local-network destination is local operator authority
+  // whichever class reached it, so the deployment profile decides here too.
+  if (addressSpace !== undefined) {
+    const permitted =
+      options.mayPairLocalAuthority ?? localNetworkFetchSeams.eligible;
+    if (!permitted())
+      return { ok: false, code: "local-authority-not-permitted", destination };
+  }
   if (plan.network.externalServices !== "allow")
     return { ok: false, code: "external-services-denied", destination };
   const list = plan.network.allowedServiceOrigins;
@@ -232,7 +239,7 @@ function decide(
   if (plan === null)
     return { ok: false, code: "capability-not-approved", destination };
   return egressClass === "external-service"
-    ? decideExternal(url, plan, destination)
+    ? decideExternal(url, plan, options, destination)
     : decideLocal(url, options, destination);
 }
 

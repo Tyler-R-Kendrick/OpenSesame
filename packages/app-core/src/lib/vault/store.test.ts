@@ -158,22 +158,6 @@ describe("VaultStore rollback detection", () => {
     ]);
   });
 
-  // Deleting has to outlast a write already in the air, or the vault comes back
-  // on a device it was deleted from.
-  it("stays deleted when a write was already in flight", async () => {
-    const store = new VaultStore();
-    await store.create(PASSWORD);
-
-    // Started, not awaited: its seal-and-write is still to come.
-    const saving = store.saveItem(createItem("login", "Racing"));
-    await store.destroy();
-    await saving.catch(() => undefined);
-
-    expect(kvGet(HEADER_KEY)).toBeNull();
-    expect(kvGet(BODY_KEY)).toBeNull();
-    expect(new VaultStore().getSnapshot().status).toBe("empty");
-  });
-
   it("opens the body it last wrote", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);

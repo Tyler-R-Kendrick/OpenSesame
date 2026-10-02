@@ -1,8 +1,8 @@
 /**
  * Producing side of the envelope and rotation formats (S03). Used by tests
  * and by an operator's authoring tool; the Pages runtime only verifies.
- * Signing needs a private `CryptoKey` the caller already holds — nothing here
- * generates, exports or stores private material.
+ * Signing needs a private `CryptoKey` the caller already holds; the one pair
+ * this module generates returns its private key non-extractable.
  */
 import type { InstanceCapabilityPolicy } from "@opensesame/capability-composition";
 import { encodeBase64Url } from "./digest.js";
@@ -30,13 +30,33 @@ export type PolicySigningKey = Readonly<{
   privateKey: CryptoKey;
 }>;
 
-/** A fresh non-extractable P-256 pair; `kid` is the public key's thumbprint. */
+/**
+ * A fresh P-256 pair whose private key is non-extractable; `kid` is the
+ * public key's thumbprint. WebCrypto applies one extractability flag to both
+ * members of a generated pair, so the private key is re-imported with
+ * `extractable: false` and the transient exportable material is dropped.
+ */
 export async function generatePolicySigningKey(): Promise<PolicySigningKey> {
   const pair = await crypto.subtle.generateKey(ECDSA_P256, true, [
     "sign",
     "verify",
   ]);
   const exported = await crypto.subtle.exportKey("jwk", pair.publicKey);
+  const privateJwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+  const privateKey = await crypto.subtle.importKey(
+    "jwk",
+    {
+      kty: privateJwk.kty,
+      crv: privateJwk.crv,
+      x: privateJwk.x,
+      y: privateJwk.y,
+      d: privateJwk.d,
+    },
+    ECDSA_P256,
+    false,
+    ["sign"],
+  );
+  privateJwk.d = "";
   const publicJwk = policyPublicJwk({
     kty: exported.kty,
     crv: exported.crv,
@@ -48,7 +68,7 @@ export async function generatePolicySigningKey(): Promise<PolicySigningKey> {
   return {
     kid: await jwkThumbprintHex(publicJwk),
     publicJwk,
-    privateKey: pair.privateKey,
+    privateKey,
   };
 }
 
@@ -112,6 +132,7 @@ export async function signPolicyKeyRotation(
     instanceId: string;
     next: PolicySigningKey;
     retire: boolean;
+    sequence: number;
     notBefore?: string;
   }>,
 ): Promise<PolicyKeyRotation> {
@@ -123,6 +144,7 @@ export async function signPolicyKeyRotation(
     kid: input.next.kid,
     key: input.next.publicJwk,
     retire: input.retire,
+    sequence: input.sequence,
   };
   if (input.notBefore !== undefined) unsigned.notBefore = input.notBefore;
   return {
