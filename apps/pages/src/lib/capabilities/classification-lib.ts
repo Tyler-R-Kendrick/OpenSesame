@@ -134,6 +134,7 @@ const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-audit",
+  "local-access-ledger-lock",
   "local-access-requests",
   "local-grant-admin",
   "local-grant-store",
