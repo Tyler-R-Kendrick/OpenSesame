@@ -620,7 +620,7 @@
     "title": "Create a vault item",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "route:/vault/new/:kind"
+      "pwa": "route:/vault"
     }
   },
   {
@@ -628,7 +628,7 @@
     "title": "Edit a vault item's name, username, or secret",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "route:/vault/:id"
+      "pwa": "route:/vault"
     }
   },
   {

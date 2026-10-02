@@ -20,7 +20,7 @@ export const vaultCliCapabilities: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: "opensesame-id vault new",
-      pwa: "route:/vault/new/:kind",
+      pwa: "route:/vault",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -34,7 +34,7 @@ export const vaultCliCapabilities: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: "opensesame-id vault set",
-      pwa: "route:/vault/:id",
+      pwa: "route:/vault",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
