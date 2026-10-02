@@ -71,6 +71,39 @@ function trashedItemMenu(
 }
 
 /**
+ * Copy rows for one item. A secret has a single value, so the menu offers
+ * one clipboard action. A login still copies its secret and its username,
+ * and a row the item cannot answer stays visible and disabled.
+ */
+function copyRows(
+  item: VaultItem,
+  actions: VaultTreeActions,
+  verb: (
+    id: string,
+    label: string,
+    hint: string,
+    run: (item: VaultItem) => void,
+    extra?: Partial<MenuItem>,
+  ) => MenuItem,
+): MenuItem[] {
+  if (item.kind === "secret") {
+    return [
+      verb("copy-secret", "Copy to Clipboard", "y", actions.copySecret, {
+        disabled: !concealedValue(item),
+      }),
+    ];
+  }
+  return [
+    verb("copy-secret", "Copy secret", "y", actions.copySecret, {
+      disabled: !concealedValue(item),
+    }),
+    verb("copy-username", "Copy username", "u", actions.copyUsername, {
+      disabled: !username(item),
+    }),
+  ];
+}
+
+/**
  * An item's verbs — the ones its single keys already run, in the order a
  * person reaches for them. An entry the item cannot answer (no username to
  * copy) is shown disabled rather than left to do nothing.
@@ -92,14 +125,7 @@ export function vaultItemMenu(
       verb("open", "Open", "Enter", actions.open),
       verb("edit", "Edit", "e", actions.edit),
     ],
-    [
-      verb("copy-secret", "Copy secret", "y", actions.copySecret, {
-        disabled: !concealedValue(item),
-      }),
-      verb("copy-username", "Copy username", "u", actions.copyUsername, {
-        disabled: !username(item),
-      }),
-    ],
+    copyRows(item, actions, verb),
     [
       verb(
         "favorite",
