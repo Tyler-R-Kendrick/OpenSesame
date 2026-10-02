@@ -10,7 +10,13 @@ import {
 } from "@opensesame/vault-item-types";
 import { afterEach, describe, expect, it } from "vitest";
 import { LEGACY_ITEM_KINDS } from "./contributions.test-support.js";
-import { itemKindsFrom, withTypeDirectories } from "./item-kinds.js";
+import {
+  defaultCreatableKind,
+  isCreatableItemKind,
+  itemKindsFrom,
+  itemKindsSnapshot,
+  withTypeDirectories,
+} from "./item-kinds.js";
 
 function community(id: string, title: string, plural: string, ext: string) {
   return JSON.stringify({
@@ -143,5 +149,19 @@ describe("vault directories", () => {
       );
       expect(outcome.ok).toBe(false);
     }
+  });
+});
+
+describe("the kind a creation surface opens on", () => {
+  it("is the first one this installation may create, not a hardcoded one", () => {
+    // With the core kinds present that is `login` — the rail's own order, not
+    // a constant a capability can invalidate.
+    expect(defaultCreatableKind()).toBe(itemKindsSnapshot()[0]?.id);
+  });
+
+  it("opens on a kind the installation can create", () => {
+    // The whole point: a device whose plan excludes login must not open on a
+    // login draft wearing a login draft's generated name.
+    expect(isCreatableItemKind(defaultCreatableKind())).toBe(true);
   });
 });

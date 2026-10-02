@@ -90,7 +90,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "host.health.check"',
-      'say "Vault health lists weak, reused and aging items."',
+      'say "Vault health lists weak, reused and aging items. Whether this device is connected lives in Settings → Connections."',
       'navigate "/vault/health"',
       'wait route "/vault/health" timeout=15000',
       'success "This is Vault health."',
