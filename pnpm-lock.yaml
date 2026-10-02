@@ -23,7 +23,7 @@ overrides:
   '@xmldom/xmldom': 0.8.15
   ws: 8.21.3
   sharp: 0.35.4
-  hono: 4.13.10
+  hono: 4.13.12
   yaml: 2.8.4
   '@noble/post-quantum>@noble/curves': 2.4.0
   '@noble/post-quantum>@noble/hashes': 2.4.0
@@ -40,7 +40,7 @@ importers:
         version: 0.4.1
       '@hono/node-server':
         specifier: 2.1.0
-        version: 2.1.0(hono@4.13.10)
+        version: 2.1.0(hono@4.13.12)
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@3.25.67)
@@ -78,8 +78,8 @@ importers:
         specifier: 0.45.2
         version: 0.45.2(@electric-sql/pglite@0.2.17)(@libsql/client@0.17.4)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(pg@8.23.0)(postgres@3.4.7)
       hono:
-        specifier: 4.13.10
-        version: 4.13.10
+        specifier: 4.13.12
+        version: 4.13.12
       jose:
         specifier: 6.2.8
         version: 6.2.8
@@ -934,7 +934,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: 2.1.0
-        version: 2.1.0(hono@4.13.10)
+        version: 2.1.0(hono@4.13.12)
       '@node-saml/node-saml':
         specifier: 5.1.0
         version: 5.1.0
@@ -1005,8 +1005,8 @@ importers:
         specifier: 0.45.2
         version: 0.45.2(@electric-sql/pglite@0.2.17)(@libsql/client@0.17.4)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(pg@8.23.0)(postgres@3.4.7)
       hono:
-        specifier: 4.13.10
-        version: 4.13.10
+        specifier: 4.13.12
+        version: 4.13.12
       jose:
         specifier: 6.2.8
         version: 6.2.8
@@ -1515,8 +1515,8 @@ importers:
         specifier: 22.15.29
         version: 22.15.29
       hono:
-        specifier: 4.13.10
-        version: 4.13.10
+        specifier: 4.13.12
+        version: 4.13.12
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -3424,13 +3424,13 @@ packages:
     resolution: {integrity: sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: 4.13.10
+      hono: 4.13.12
 
   '@hono/node-server@2.1.0':
     resolution: {integrity: sha512-XovyyCCnBzW+zKu+z/zq8hwNs4KOR5rEMAOxo2f40Q5xoOI37IMm6MIg2COOUtUApo0i6850MTBKH2u4QLGIqg==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: 4.13.10
+      hono: 4.13.12
 
   '@ibm-cloud/watsonx-ai@1.7.16':
     resolution: {integrity: sha512-ks7EI3TlrnZ6uKEIGemLHiBqOaqrA2dALNhC9Potl5CeajGNhF0n6eY30cNRvboDbuMRibw1iAtn7vnX4dzlwg==}
@@ -7025,8 +7025,8 @@ packages:
   help-me@5.0.0:
     resolution: {integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==}
 
-  hono@4.13.10:
-    resolution: {integrity: sha512-dQuLsa5oO+47QVMVMaaD9cIv8ctmVtK1iRvwWngkfloFJMeFeuoUFDswIqZGxmGX3hrRzREgEArjkK9OgsQEhA==}
+  hono@4.13.12:
+    resolution: {integrity: sha512-6E2QDAc9Ick9Sq77ZrGS/dk2WUYni91aufTw6LJKpV7w8kW5/GxVUc650FOADOmlwg3K+f7Pun6XlV+pYmW6gw==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -11766,13 +11766,13 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hono/node-server@2.0.12(hono@4.13.10)':
+  '@hono/node-server@2.0.12(hono@4.13.12)':
     dependencies:
-      hono: 4.13.10
+      hono: 4.13.12
 
-  '@hono/node-server@2.1.0(hono@4.13.10)':
+  '@hono/node-server@2.1.0(hono@4.13.12)':
     dependencies:
-      hono: 4.13.10
+      hono: 4.13.12
 
   '@ibm-cloud/watsonx-ai@1.7.16':
     dependencies:
@@ -12259,7 +12259,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(zod@3.25.67)':
     dependencies:
-      '@hono/node-server': 2.1.0(hono@4.13.10)
+      '@hono/node-server': 2.1.0(hono@4.13.12)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -12269,7 +12269,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.2.1
       express-rate-limit: 8.7.0(express@5.2.1)
-      hono: 4.13.10
+      hono: 4.13.12
       jose: 6.2.8
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -12281,7 +12281,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 2.1.0(hono@4.13.10)
+      '@hono/node-server': 2.1.0(hono@4.13.12)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -12291,7 +12291,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.2.1
       express-rate-limit: 8.7.0(express@5.2.1)
-      hono: 4.13.10
+      hono: 4.13.12
       jose: 6.2.8
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -15427,7 +15427,7 @@ snapshots:
 
   help-me@5.0.0: {}
 
-  hono@4.13.10: {}
+  hono@4.13.12: {}
 
   hookable@5.5.3: {}
 
@@ -17018,7 +17018,7 @@ snapshots:
     dependencies:
       '@anthropic-ai/sdk': 0.115.0(zod@4.4.3)
       '@apidevtools/json-schema-ref-parser': 15.5.2(@types/json-schema@7.0.15)
-      '@hono/node-server': 2.0.12(hono@4.13.10)
+      '@hono/node-server': 2.0.12(hono@4.13.12)
       '@inquirer/checkbox': 5.2.5(@types/node@22.15.29)
       '@inquirer/confirm': 6.3.2(@types/node@22.15.29)
       '@inquirer/core': 11.2.1(@types/node@22.15.29)
@@ -17127,7 +17127,7 @@ snapshots:
       '@swc/core-linux-x64-musl': 1.16.2
       '@swc/core-win32-x64-msvc': 1.16.2
       google-auth-library: 10.9.1
-      hono: 4.13.10
+      hono: 4.13.12
       ibm-cloud-sdk-core: 5.6.3
       jks-js: 1.1.7
       natural: 8.1.1(@opentelemetry/api@1.9.1)(gcp-metadata@8.1.4)(socks@2.8.10)
