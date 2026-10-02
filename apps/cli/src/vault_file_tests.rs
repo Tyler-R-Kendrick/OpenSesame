@@ -97,3 +97,32 @@ fn refusals_name_no_value() {
     let rejected = read_vault_file("{}").map(|_| ()).unwrap_err();
     assert_eq!(refusal(rejected).to_string(), "Refused: not a vault file");
 }
+
+#[test]
+fn item_commands_forward_to_opensesame_id() {
+    let list = item_args("text", &VaultCmd::List).expect("list forwards");
+    assert_eq!(list, ["vault", "list"]);
+    let json = item_args("json", &VaultCmd::List).expect("json list forwards");
+    assert_eq!(json, ["vault", "--json", "list"]);
+    let edit = item_args(
+        "text",
+        &VaultCmd::Set {
+            query: "Deploy key".to_string(),
+            name: Some("Deployed".to_string()),
+            username: None,
+            secret: true,
+        },
+    )
+    .expect("set forwards");
+    assert_eq!(
+        edit,
+        [
+            "vault",
+            "set",
+            "Deploy key",
+            "--name",
+            "Deployed",
+            "--secret"
+        ]
+    );
+}

@@ -1385,7 +1385,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "client_local",
     kind: "read",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault list",
       pwa: "lib/vault/store.ts:vaultStore",
       mcp_host: null,
       mcp_client: null,
@@ -1413,7 +1413,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault copy",
       pwa: "route:/vault",
       mcp_host: null,
       mcp_client: null,

@@ -24,6 +24,9 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The base secret: the item list, editor, TOTP codes, website matching and the health report. Other item types project onto it and are optional.",
     {
       operationIds: [
+        "vault.item.create",
+        "vault.item.set",
+        "vault.item.share",
         "vault.item_types.install",
         "vault.item_types.list",
         "vault.item_types.marketplace",
