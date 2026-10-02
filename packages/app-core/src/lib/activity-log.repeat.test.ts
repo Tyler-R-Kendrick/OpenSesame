@@ -45,6 +45,33 @@ describe("activity log repeats", () => {
     expect(events.map((event) => event.type)).toEqual(["identity.changed"]);
   });
 
+  it("keeps two different events that start together", async () => {
+    await Promise.all([
+      recordActivityEvent(PERSONAL_TOMB, changed),
+      recordActivityEvent(PERSONAL_TOMB, {
+        category: "vault",
+        type: "vault.secret.created",
+        summary: "A new secret was generated: Deploy key",
+        targetType: "secret",
+        targetId: "secret-1",
+      }),
+    ]);
+    const events = await listActivityEvents(PERSONAL_TOMB);
+    expect(events.map((event) => event.type).sort()).toEqual([
+      "identity.changed",
+      "vault.secret.created",
+    ]);
+  });
+
+  it("still folds a burst that starts together", async () => {
+    await Promise.all([
+      recordActivityEvent(PERSONAL_TOMB, changed),
+      recordActivityEvent(PERSONAL_TOMB, changed),
+    ]);
+    const events = await listActivityEvents(PERSONAL_TOMB);
+    expect(events.map((event) => event.type)).toEqual(["identity.changed"]);
+  });
+
   it("keeps a repeat once something else happened between", async () => {
     await recordActivityEvent(PERSONAL_TOMB, changed);
     await recordActivityEvent(PERSONAL_TOMB, {
