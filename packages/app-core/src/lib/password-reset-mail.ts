@@ -175,13 +175,13 @@ function writeAll(stored: Stored): void {
 }
 
 function emailsByVault(value: JsonObject): Record<string, ResetEmail[]> {
-  const byVault: Record<string, ResetEmail[]> = {};
+  const rows: Array<[string, ResetEmail[]]> = [];
   for (const [vaultId, entries] of Object.entries(value)) {
     if (!Array.isArray(entries)) continue;
     const emails = entries.flatMap(emailFrom);
-    if (emails.length > 0) byVault[vaultId] = emails;
+    if (emails.length > 0) rows.push([vaultId, emails]);
   }
-  return byVault;
+  return Object.fromEntries(rows);
 }
 
 function emailFrom(value: JsonValue): ResetEmail[] {
