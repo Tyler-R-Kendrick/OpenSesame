@@ -6,6 +6,10 @@ import {
 } from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
+import {
+  HOST_CONNECTIONS_WRITE,
+  hostGrantSeams,
+} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
@@ -20,11 +24,13 @@ import { ConnectForm } from "./ConnectForm.js";
 
 const originalIntegrations = connectionSeams.listIntegrations;
 const originalIdentity = { ...identitySeams };
+const originalGrant = { ...hostGrantSeams };
 
 /** A Host is named and this browser holds an approved grant to it. */
 function openHostRoad() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
+  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 function memoryStorage(): Storage {
@@ -62,6 +68,7 @@ afterEach(() => {
   applyConnectCallbackBase("");
   connectionSeams.listIntegrations = originalIntegrations;
   Object.assign(identitySeams, originalIdentity);
+  Object.assign(hostGrantSeams, originalGrant);
   resetConnectRoadSeams();
   notifyConnectRoads();
   vi.unstubAllGlobals();

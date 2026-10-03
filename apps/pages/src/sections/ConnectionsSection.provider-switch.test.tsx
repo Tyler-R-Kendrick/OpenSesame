@@ -196,10 +196,8 @@ describe("moving between connector pages", () => {
     await screen.findByRole("heading", { name: "Better Auth" });
 
     const apiKey = screen.getByLabelText(/^API key \(required\)/);
-    expect((apiKey as HTMLInputElement).value).toBe("");
-    expect((screen.getByLabelText(/Base URL/) as HTMLInputElement).value).toBe(
-      "",
-    );
+    expect(apiKey).toHaveProperty("value", "");
+    expect(screen.getByLabelText(/Base URL/)).toHaveProperty("value", "");
 
     await userEvent.type(screen.getByLabelText(/Base URL/), "https://ba.test");
     await userEvent.type(apiKey, "ba-secret-value");
