@@ -38,7 +38,11 @@ export const PERSONAL_SELECTION = {
   basePolicyRevision: "0",
   revision: "1",
   acceptedRequired: [],
-  selectedOptional: ["agents.webmcp", "vault.passkey-records"],
+  selectedOptional: [
+    "agents.webmcp",
+    "vault.passkey-records",
+    "connectors.external",
+  ],
   chosenAlternatives: {},
   delivery: { prefetch: "none" as const, offlineCache: "shell-only" as const },
 };
@@ -55,7 +59,7 @@ export function withReceipt() {
     policyRevision: "0",
     selectionRevision: "1",
     acceptedAt: "2026-09-22T00:00:00Z",
-    roots: ["agents.webmcp", "vault.passkey-records"],
+    roots: ["agents.webmcp", "vault.passkey-records", "connectors.external"],
     exposure,
     receiptDigest: "sha256:r",
   };
@@ -73,6 +77,7 @@ export function installPanelFixture(): void {
     });
     resetDouble({ selection: PERSONAL_SELECTION, receipt: withReceipt() });
     double.setActive("agents.webmcp");
+    double.setActive("connectors.external");
     capabilitiesPanelSeams.reload = vi.fn();
     capabilitiesPanelSeams.now = realNow;
   });

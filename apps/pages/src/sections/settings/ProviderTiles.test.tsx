@@ -1,5 +1,10 @@
 import { backupSeams } from "@opensesame/app-core/lib/backup.js";
 import {
+  double,
+  installDoublePorts,
+  resetDouble,
+} from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import {
   isHistorySelected,
   loadHistorySelections,
 } from "@opensesame/app-core/lib/history-backups.js";
@@ -18,6 +23,12 @@ import {
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderTiles } from "./ProviderTiles.js";
+import {
+  PERSONAL_SELECTION,
+  withReceipt,
+} from "./capabilities-panel.test-support.js";
+
+installDoublePorts();
 
 const originalBackup = { ...backupSeams };
 
@@ -35,6 +46,9 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  // The connector pages are Connections' routes: a tile is drawn once it runs.
+  resetDouble({ selection: PERSONAL_SELECTION, receipt: withReceipt() });
+  double.setActive("connectors.external");
   Object.assign(backupSeams, {
     getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     setBackupTargetEnabled: vi.fn(async (enabled: boolean) => ({

@@ -24,7 +24,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const panels = useContributions("settings-panel");
   const roads = useConnectorRoads();
   const emptyFeatures = FEATURES.filter(
-    (feature) => !featureDraws(feature, roads.acts),
+    (feature) => !featureDraws(feature, roads.tiles),
   ).map((feature) => feature.id);
   const contributed = useMemo(
     () =>

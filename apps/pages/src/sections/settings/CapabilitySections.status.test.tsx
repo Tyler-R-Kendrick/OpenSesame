@@ -72,7 +72,8 @@ describe("what a switch cannot say is said beside it", () => {
     const on = renderPanel();
     expect(on.container.querySelector("#model-provider")).not.toBeNull();
     cleanup();
-    selecting(["vault.passkey-records"]);
+    selecting(["vault.passkey-records", "connectors.external"]);
+    double.setActive("connectors.external");
     const off = renderPanel();
     expect(off.container.querySelector("#model-provider")).toBeNull();
     // Connectors stay configurable by reference once Connect's roads are installed.

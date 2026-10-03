@@ -30,7 +30,7 @@ export function ProviderTiles({
   const roads = useConnectorRoads();
   useSettingsEpoch();
   const hostProviderId = hostTargetProviderId(target);
-  const items = providerTileItems(category, roads.acts);
+  const items = providerTileItems(category, roads.tiles);
   if (items.length === 0) return null;
   return (
     <ul className="conn-grid" id={category} aria-label={label}>

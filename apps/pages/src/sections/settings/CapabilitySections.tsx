@@ -265,7 +265,7 @@ function CapabilitySection({
   const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch and no connector whose
   // page has something to do on this device (ADR 0158).
-  if (!featureDraws(feature, roads.acts)) return null;
+  if (!featureDraws(feature, roads.tiles)) return null;
   return (
     <section
       className="conn-group capsection"
