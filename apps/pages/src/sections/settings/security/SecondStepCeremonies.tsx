@@ -322,10 +322,15 @@ export function AuthenticatorCeremony({
     }
   }, [view, busy, stage, hasKey, uri, run, store]);
 
-  // Close the sheet mid-way and nothing is kept.
+  // Close the sheet mid-way and nothing is kept. The seed is gone, so the
+  // guard that stops a second begin is lifted with it: under StrictMode the
+  // effects mount, clean up and mount again, and the second mount must begin
+  // the enrollment the cleanup just cancelled, not show a seed no store holds.
   useEffect(() => {
     return () => {
-      if (view !== "remove") store.cancelTotpEnrollment();
+      if (view === "remove") return;
+      store.cancelTotpEnrollment();
+      began.current = false;
     };
   }, [view, store]);
 
