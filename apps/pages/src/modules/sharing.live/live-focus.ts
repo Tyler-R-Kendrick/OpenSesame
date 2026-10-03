@@ -13,6 +13,7 @@
 
 import { useEffect, useRef } from "react";
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
+import { revealClear } from "./live-reveal.js";
 
 /** Where to land, asked once the change has rendered: the new state's own node. */
 export type LandAt = () => Element | null | undefined;
@@ -35,33 +36,43 @@ export function stranded(): boolean {
 }
 
 /**
- * Land on `land()` when `phase` changes and the keyboard was lost with the old
+ * Land on `target` and leave it where it can be seen. `landFocus` does not
+ * scroll, and these swaps replace a tall form with a shorter view, so the
+ * pane's scroll position is clamped and the control that now holds the
+ * keyboard can end up under the page's sticky strip or off the pane's edge.
+ */
+function land(target: Element | null | undefined): void {
+  if (landFocus(target) && target) revealClear(target);
+}
+
+/**
+ * Land on `at()` when `phase` changes and the keyboard was lost with the old
  * state. The first render is an arrival, which the frame around the screen
  * already owns.
  */
-export function useLandOnChange(phase: string, land: LandAt): void {
+export function useLandOnChange(phase: string, at: LandAt): void {
   const seen = useRef(phase);
-  const target = useRef(land);
-  target.current = land;
+  const target = useRef(at);
+  target.current = at;
   useEffect(() => {
     if (seen.current === phase) return;
     seen.current = phase;
-    if (stranded()) landFocus(target.current());
+    if (stranded()) land(target.current());
   }, [phase]);
 }
 
 /**
- * Land on `land()` when a busy form settles and the keyboard was lost while
+ * Land on `at()` when a busy form settles and the keyboard was lost while
  * its fields were disabled: the field that carries the answer, or the key
  * that tries again.
  */
-export function useLandWhenSettled(busy: boolean, land: LandAt): void {
+export function useLandWhenSettled(busy: boolean, at: LandAt): void {
   const was = useRef(busy);
-  const target = useRef(land);
-  target.current = land;
+  const target = useRef(at);
+  target.current = at;
   useEffect(() => {
     const settled = was.current && !busy;
     was.current = busy;
-    if (settled && stranded()) landFocus(target.current());
+    if (settled && stranded()) land(target.current());
   }, [busy]);
 }
