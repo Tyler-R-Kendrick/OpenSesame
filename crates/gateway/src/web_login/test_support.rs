@@ -7,7 +7,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use chrono::Utc;
+use opensesame_agent_hooks::sdk::{AgentContext, Interceptor, Verdict};
 use opensesame_connection_broker::{RotationPolicy, RotationTarget, UpsertRotationPolicy};
 use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::{ExpiryStage, ExpirySubject, LifecycleEvent, SubjectKind};
@@ -278,4 +280,31 @@ pub(super) async fn the_open_run(db: &Db, org: &str) -> opensesame_storage::Stor
         tokio::time::sleep(Duration::from_millis(3)).await;
     }
     panic!("no run was ever opened");
+}
+
+/// Records every context a hook session emits, and allows it.
+#[derive(Clone, Default)]
+pub(super) struct Tap(Arc<std::sync::Mutex<Vec<AgentContext>>>);
+
+impl Tap {
+    pub fn seen(&self) -> Vec<AgentContext> {
+        self.0.lock().unwrap().clone()
+    }
+
+    /// The `summary.reason` of every `agent_shutdown` emitted, in order.
+    pub fn shutdown_reasons(&self) -> Vec<String> {
+        self.seen()
+            .iter()
+            .filter(|context| context["interception_point"] == "agent_shutdown")
+            .map(|context| context["summary"]["reason"].as_str().unwrap().to_owned())
+            .collect()
+    }
+}
+
+#[async_trait]
+impl Interceptor for Tap {
+    async fn intercept(&self, context: &AgentContext) -> Verdict {
+        self.0.lock().unwrap().push(context.clone());
+        Verdict::allow()
+    }
 }

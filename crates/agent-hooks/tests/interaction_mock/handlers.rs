@@ -15,6 +15,7 @@ use axum::{Json, Router};
 use opensesame_agent_hooks::interaction::digest::{request_digest, RequestFields};
 use serde_json::{json, Value};
 
+use super::ledger::{self, Standing};
 use super::{
     Fault, Seen, Step, BINDING_MESSAGE, EXPIRES_AT, REF, REQUESTER_REF, SERVER_PROSE, SUBJECT_ID,
 };
@@ -28,6 +29,8 @@ pub(super) struct Mock {
     pub(super) fault: Fault,
     /// Replies already given, by route and idempotency key.
     pub(super) replayed: Arc<Mutex<HashMap<String, Value>>>,
+    /// The rows of a server that keeps them (see [`Fault::keeps_rows`]).
+    pub(super) rows: Arc<Mutex<Vec<ledger::Row>>>,
     /// The digest the server reports for the interaction it created.
     pub(super) digest: Arc<Mutex<String>>,
     /// Whether the one lost reply has been lost already.
@@ -95,29 +98,26 @@ async fn auth_request(
 ) -> Response {
     note_bearer(&mock, &headers);
     let key = note_key(&mock, &headers, |seen| &mut seen.subject_keys);
-    if let Some(cached) = replay(&mock, "subject", key.as_ref()) {
-        return cached;
+    // A server whose idempotency cache lost the key replays nothing.
+    if !matches!(mock.fault, Fault::DedupAfterLostReply) {
+        if let Some(cached) = replay(&mock, "subject", key.as_ref()) {
+            return cached;
+        }
     }
     let details = body["authorizationDetails"].clone();
-    // The real route answers an identical live request with the first ask's
+    let message = body["bindingMessage"].clone();
+    // The real route answers an identical live request with the existing
     // row and `200`, not a second row and `201`.
-    let existing = {
-        let mut seen = mock.seen.lock().unwrap();
-        let live = matches!(mock.fault, Fault::DedupSubject)
-            && seen.cancels.is_empty()
-            && seen
-                .auth_requests
-                .iter()
-                .any(|first| first["authorizationDetails"] == details);
-        if !live {
-            seen.auth_requests.push(body);
-        }
-        live
+    let (id, existing) = if mock.fault.keeps_rows() {
+        ledger::raise(&mock, &body)
+    } else {
+        mock.seen.lock().unwrap().auth_requests.push(body);
+        (SUBJECT_ID.to_owned(), false)
     };
     let reply = json!({
-        "authReqId": SUBJECT_ID,
+        "authReqId": id,
         "status": "pending",
-        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "bindingMessage": message,
         "requestDigest": "v1:auth-request-digest",
         "requesterRef": REQUESTER_REF,
         "authorizationDetails": details,
@@ -126,22 +126,26 @@ async fn auth_request(
     });
     remember(&mock, "subject", key.as_ref(), &reply);
     if existing {
+        mock.seen.lock().unwrap().subject_statuses.push(200);
         return (StatusCode::OK, Json(reply)).into_response();
     }
-    let lose = matches!(mock.fault, Fault::LoseFirstSubjectReply)
-        && !mock.lost.swap(true, Ordering::SeqCst);
+    let lose = matches!(
+        mock.fault,
+        Fault::LoseFirstSubjectReply | Fault::DedupAfterLostReply
+    ) && !mock.lost.swap(true, Ordering::SeqCst);
     let slow = match mock.fault {
         Fault::SlowSubject(hold) => Some(hold),
         _ => None,
     };
     after_processing(lose, slow).await;
+    mock.seen.lock().unwrap().subject_statuses.push(201);
     (StatusCode::CREATED, Json(reply)).into_response()
 }
 
 /// The digest the server reports for an interaction over `details`, computed
 /// exactly as `crypto/request-digest.ts` computes it.
-fn digest_over(mock: &Mock, approver_ref: &str, details: &[Value]) -> String {
-    let subject = format!("authorization_request:{SUBJECT_ID}");
+fn digest_over(mock: &Mock, subject_id: &str, approver_ref: &str, details: &[Value]) -> String {
+    let subject = format!("authorization_request:{subject_id}");
     let mut hashed = details.to_vec();
     if matches!(mock.fault, Fault::WrongDigest) {
         hashed.push(json!({"type": "something_else"}));
@@ -169,18 +173,21 @@ async fn interaction(
     if let Some(cached) = replay(&mock, "interaction", key.as_ref()) {
         return cached;
     }
-    let already_live = matches!(mock.fault, Fault::DedupSubject) && {
-        let seen = mock.seen.lock().unwrap();
-        !seen.interactions.is_empty() && seen.cancels.is_empty() && seen.revokes == 0
+    let subject_id = body["subject"]["subjectId"]
+        .as_str()
+        .unwrap_or(SUBJECT_ID)
+        .to_owned();
+    // One live interaction per subject: a second create is refused, and is
+    // not something the server keeps.
+    let reference = if mock.fault.keeps_rows() {
+        match ledger::front(&mock, &subject_id) {
+            Some(reference) => reference,
+            None => return error(409, "interaction_already_live"),
+        }
+    } else {
+        REF.to_owned()
     };
     mock.seen.lock().unwrap().interactions.push(body.clone());
-    if already_live {
-        // One live interaction per subject: the second ask's create is refused.
-        let mut seen = mock.seen.lock().unwrap();
-        seen.interactions.pop();
-        drop(seen);
-        return error(409, "interaction_already_live");
-    }
     if mock.create_status != 201 {
         let status = StatusCode::from_u16(mock.create_status).unwrap();
         return (status, Json(json!({"error": "interaction_already_live"}))).into_response();
@@ -191,13 +198,15 @@ async fn interaction(
         .unwrap_or_default();
     let digest = digest_over(
         &mock,
+        &subject_id,
         body["approverRef"].as_str().unwrap_or_default(),
         &details,
     );
     mock.digest.lock().unwrap().clone_from(&digest);
+    ledger::set_digest(&mock, &reference, &digest);
     let reply = json!({
-        "ref": REF,
-        "url": format!("{}/i/{REF}", mock.base),
+        "ref": reference,
+        "url": format!("{}/i/{reference}", mock.base),
         "requestDigest": digest,
         "bindingMessage": BINDING_MESSAGE,
         "expiresAt": EXPIRES_AT,
@@ -215,8 +224,11 @@ async fn interaction(
 }
 
 /// The consumed `InteractionDetail`, as `toDetail` renders it.
-fn consumed_detail(mock: &Mock) -> Value {
-    let sent = mock.seen.lock().unwrap().interactions[0]["authorizationDetails"].clone();
+fn consumed_detail(mock: &Mock, reference: &str) -> Value {
+    let (sent, digest) = ledger::raised_with(mock, reference).unwrap_or_else(|| {
+        let sent = mock.seen.lock().unwrap().interactions[0]["authorizationDetails"].clone();
+        (sent, mock.digest.lock().unwrap().clone())
+    });
     json!({
         "kind": "authorization_request",
         "status": "consumed",
@@ -225,7 +237,7 @@ fn consumed_detail(mock: &Mock) -> Value {
         "id": "ixn-row-1",
         "requesterRef": REQUESTER_REF,
         "bindingMessage": BINDING_MESSAGE,
-        "requestDigest": *mock.digest.lock().unwrap(),
+        "requestDigest": digest,
         "authorizationDetails": sent,
         "createdAt": "2026-09-28T12:00:00.000Z",
         "decidedAt": "2026-09-28T12:01:00.000Z"
@@ -238,14 +250,22 @@ async fn consume(
     headers: HeaderMap,
 ) -> Response {
     note_bearer(&mock, &headers);
-    assert_eq!(
-        reference, REF,
-        "the approver consumes the reference it was handed"
-    );
     mock.seen.lock().unwrap().consumes += 1;
-    // Cancelling the request revokes the interaction that fronts it.
-    if matches!(mock.fault, Fault::DedupSubject) && !mock.seen.lock().unwrap().cancels.is_empty() {
-        return error(409, "interaction_revoked");
+    if mock.fault.keeps_rows() {
+        match ledger::standing(&mock, &reference) {
+            Standing::Unknown => return error(404, "interaction_not_found"),
+            Standing::Revoked => return error(409, "interaction_revoked"),
+            Standing::Approved => {
+                ledger::consumed(&mock, &reference);
+                return (StatusCode::OK, Json(consumed_detail(&mock, &reference))).into_response();
+            }
+            Standing::Open => {}
+        }
+    } else {
+        assert_eq!(
+            reference, REF,
+            "the approver consumes the reference it was handed"
+        );
     }
     let step = {
         let mut script = mock.script.lock().unwrap();
@@ -257,9 +277,9 @@ async fn consume(
     };
     match step {
         Step::Pending => error(401, "approval_required"),
-        Step::Spend => (StatusCode::OK, Json(consumed_detail(&mock))).into_response(),
+        Step::Spend => (StatusCode::OK, Json(consumed_detail(&mock, &reference))).into_response(),
         Step::SpendAltered(alter) => {
-            let mut detail = consumed_detail(&mock);
+            let mut detail = consumed_detail(&mock, &reference);
             alter(&mut detail);
             (StatusCode::OK, Json(detail)).into_response()
         }
@@ -271,11 +291,11 @@ async fn consume(
             .into_response(),
         Step::Stall(hold) => {
             tokio::time::sleep(hold).await;
-            (StatusCode::OK, Json(consumed_detail(&mock))).into_response()
+            (StatusCode::OK, Json(consumed_detail(&mock, &reference))).into_response()
         }
         Step::Oversized => {
             let padding = "x".repeat(opensesame_agent_hooks::interaction::MAX_RESPONSE_BYTES);
-            let mut detail = consumed_detail(&mock);
+            let mut detail = consumed_detail(&mock, &reference);
             detail["padding"] = json!(padding);
             (StatusCode::OK, Json(detail)).into_response()
         }
@@ -287,21 +307,27 @@ fn error(status: u16, code: &str) -> Response {
     (status, Json(json!({"error": code, "detail": SERVER_PROSE}))).into_response()
 }
 
-async fn revoke(State(mock): State<Mock>, headers: HeaderMap) -> Response {
+async fn revoke(
+    State(mock): State<Mock>,
+    Path(reference): Path<String>,
+    headers: HeaderMap,
+) -> Response {
     note_bearer(&mock, &headers);
     mock.seen.lock().unwrap().revokes += 1;
+    ledger::revoke(&mock, &reference);
     (StatusCode::OK, Json(json!({"status": "revoked"}))).into_response()
 }
 
 async fn cancel(State(mock): State<Mock>, Path(id): Path<String>, headers: HeaderMap) -> Response {
     note_bearer(&mock, &headers);
+    ledger::cancel(&mock, &id);
     mock.seen.lock().unwrap().cancels.push(id);
     (StatusCode::OK, Json(json!({"status": "cancelled"}))).into_response()
 }
 
 async fn elsewhere(State(mock): State<Mock>) -> Response {
     mock.seen.lock().unwrap().redirected += 1;
-    (StatusCode::OK, Json(consumed_detail(&mock))).into_response()
+    (StatusCode::OK, Json(consumed_detail(&mock, REF))).into_response()
 }
 
 pub(super) fn router(mock: Mock) -> Router {

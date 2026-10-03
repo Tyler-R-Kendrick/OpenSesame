@@ -12,7 +12,9 @@ use std::time::{Duration, Instant};
 use interaction_mock::{
     approver, config, serve, serve_with, until, Fault, Step, SERVER_PROSE, SUBJECT_ID,
 };
-use opensesame_agent_hooks::approval::{REASON_APPROVAL_DECLINED, REASON_APPROVAL_NOT_BOUND};
+use opensesame_agent_hooks::approval::{
+    ApproverError, HumanDecision, REASON_APPROVAL_DECLINED, REASON_APPROVAL_NOT_BOUND,
+};
 use opensesame_agent_hooks::sdk::{
     AgentContext, AgentContextBuilder, Decision, EnforcementMode, InterceptionEmitter,
     InterceptionPoint, InterceptionRecord,
@@ -284,45 +286,100 @@ async fn a_server_that_reports_a_digest_over_other_content_is_never_believed() {
     assert_eq!(seen.cancels, [SUBJECT_ID]);
 }
 
+/// Spawn one ask about the deploy context.
+fn spawn_ask(server: &interaction_mock::Server) -> tokio::task::JoinHandle<AskOutcome> {
+    let approver = approver(&server.base);
+    tokio::spawn(async move {
+        let context = deploy_context();
+        approver.ask(prompt(&context)).await
+    })
+}
+
+type AskOutcome = Result<HumanDecision, ApproverError>;
+
 #[tokio::test]
-async fn an_ask_handed_another_asks_request_never_cancels_it() {
-    // Two concurrent asks about the same context raise an identical request;
-    // the server answers the second with the first's live row (200). The
-    // second cannot front it (409) and ends unresolved — but it must not
-    // cancel a request it did not create, or the first ask's interaction is
-    // revoked out from under the person answering it.
-    let mut script = vec![Step::Pending; 40];
-    script.push(Step::Spend);
-    let server = serve_with(script, 201, Fault::DedupSubject).await;
-    let first = {
-        let approver = approver(&server.base);
-        tokio::spawn(async move {
-            let context = deploy_context();
-            approver.ask(prompt(&context)).await
-        })
-    };
-    until(&server, |seen| seen.interactions.len() == 1).await;
-    let context = deploy_context();
-    let second = approver(&server.base).ask(prompt(&context)).await;
-    assert!(
-        second.is_err(),
-        "the second ask cannot front the shared request"
-    );
+async fn identical_concurrent_asks_each_own_their_subject() {
+    // Two asks about the same context raise requests the server tells apart
+    // only by the tag each carries in its binding message. Each gets its own
+    // subject and interaction, each is approved on its own, and neither's
+    // cleanup — there is none, both are approved — can reach the other's.
+    let server = serve_with(vec![Step::Pending], 201, Fault::DedupSubject).await;
+    let first = spawn_ask(&server);
+    let second = spawn_ask(&server);
+    until(&server, |seen| seen.interactions.len() == 2).await;
     {
         let seen = server.seen.lock().unwrap();
-        assert_eq!(seen.auth_requests.len(), 1, "one shared request");
-        assert!(
-            seen.cancels.is_empty(),
-            "a shared request is not ours to cancel"
+        assert_eq!(seen.auth_requests.len(), 2, "no request was shared");
+        assert_eq!(seen.subject_statuses, [201, 201], "none was de-duplicated");
+        let messages: Vec<&str> = seen
+            .auth_requests
+            .iter()
+            .map(|request| request["bindingMessage"].as_str().unwrap())
+            .collect();
+        assert_ne!(messages[0], messages[1]);
+        for message in messages {
+            assert!(message.starts_with("Approve an agent action: pre_tool_call"));
+            assert!((4..=120).contains(&message.len()), "{message}");
+        }
+        assert_eq!(
+            seen.auth_requests[0]["authorizationDetails"],
+            seen.auth_requests[1]["authorizationDetails"],
+            "the tag is in the message, never in the details"
         );
-        assert_eq!(seen.revokes, 0, "the second ask raised nothing to revoke");
+        let mut subjects: Vec<&str> = seen
+            .interactions
+            .iter()
+            .map(|i| i["subject"]["subjectId"].as_str().unwrap())
+            .collect();
+        subjects.sort_unstable();
+        assert_eq!(subjects, ["areq_1", "areq_2"]);
+        assert!(seen.cancels.is_empty() && seen.revokes == 0);
     }
-    let decision = first
-        .await
-        .unwrap()
-        .expect("the first ask is still answered, and approved");
-    assert!(decision.approved);
+    // One person answers one of them; the other ask is untouched and waits.
+    server.seen.lock().unwrap().approved.insert("areq_2".into());
+    while !(first.is_finished() || second.is_finished()) {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let (done, waiting) = if first.is_finished() {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    let done = done.await.unwrap().expect("the approved ask is answered");
+    assert!(done.approved);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(!waiting.is_finished(), "the other ask is still waiting");
+    server.seen.lock().unwrap().approved.insert("areq_1".into());
+    let waiting = waiting.await.unwrap().expect("then the other is answered");
+    assert!(waiting.approved);
+    assert_ne!(
+        done.binding.bound_digest, waiting.binding.bound_digest,
+        "each approval is bound to its own request"
+    );
     let seen = server.seen.lock().unwrap();
-    assert!(seen.cancels.is_empty());
+    assert!(seen.cancels.is_empty(), "nothing approved is withdrawn");
     assert_eq!(seen.revokes, 0);
+}
+
+#[tokio::test]
+async fn a_create_answered_200_for_the_asks_own_row_is_still_withdrawn() {
+    // The first create is processed but its reply is lost, and the server's
+    // idempotency cache does not hold it, so the retry reaches the handler
+    // again and is answered 200 with the row the first attempt inserted. The
+    // row is this ask's own; when the ask ends unanswered it is cancelled.
+    let script = vec![Step::Reply(410, "interaction_expired")];
+    let server = serve_with(script, 201, Fault::DedupAfterLostReply).await;
+    let context = deploy_context();
+    let outcome = quick(&server).ask(prompt(&context)).await;
+    assert!(outcome.is_err(), "nobody approved");
+    let seen = server.seen.lock().unwrap();
+    assert_eq!(seen.auth_requests.len(), 1, "raised once");
+    assert_eq!(seen.subject_statuses, [200], "the retry was answered 200");
+    assert_eq!(seen.subject_keys.len(), 2);
+    assert_eq!(seen.revokes, 1);
+    assert_eq!(
+        seen.cancels,
+        [SUBJECT_ID],
+        "the row it was handed is its own"
+    );
 }

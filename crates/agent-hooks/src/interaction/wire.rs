@@ -28,7 +28,7 @@ const MAX_REF: usize = 256;
 pub struct CreateAuthorizationRequest<'a> {
     pub approver_ref: &'a str,
     pub authorization_details: &'a [Value],
-    pub binding_message: &'static str,
+    pub binding_message: &'a str,
     pub ttl_seconds: u64,
 }
 
@@ -51,9 +51,10 @@ pub struct CreateInteraction<'a> {
     pub ttl_seconds: u64,
 }
 
-/// The requester's binding message for the authorization request. Fixed per
-/// interception point, so no agent-supplied text reaches it; the interaction
-/// derives its own from the detail.
+/// The requester's binding message for the authorization request, before the
+/// per-ask tag `session::request_message` appends. Fixed per interception
+/// point, so no agent-supplied text reaches it; the interaction derives its
+/// own from the detail.
 #[must_use]
 pub fn binding_message(prompt: &ApprovalPrompt<'_>) -> &'static str {
     use agent_hooks::InterceptionPoint as P;

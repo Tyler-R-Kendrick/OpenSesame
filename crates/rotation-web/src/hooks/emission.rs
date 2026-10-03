@@ -37,6 +37,12 @@ pub(super) struct Concluded<R> {
 /// the attempt does not vanish from the audit trail. A `post_model_call`
 /// dropped this way hands back the open `pre_model_call` it had claimed,
 /// since it never happened.
+///
+/// The record is a deny, so the session's phase moves as it does for any
+/// deny: a boundary emission cut off still changes what may follow it. A cut
+/// `agent_startup` is a startup deny, after which the closing
+/// `agent_shutdown` is admitted (§6.1a); a cut `agent_shutdown` closes the
+/// session, so no second one is emitted (§3.1).
 struct Flight<'a> {
     session: &'a HookSession,
     sequence: u64,
@@ -57,6 +63,11 @@ impl Drop for Flight<'_> {
                 state.open_model_calls += 1;
             }
             let record = abandoned(self.session, &self.context);
+            state.phase = after(state.phase, self.point, false);
+            if self.point == InterceptionPoint::Output {
+                // As in `settle`: a turn's end closes the model calls left open.
+                state.open_model_calls = 0;
+            }
             state.log.complete(self.sequence, Some(record));
         }
     }

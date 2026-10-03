@@ -819,6 +819,16 @@ These are the boundaries of what is built, each with its reason.
   capture run is hooked in `crates/rotation-web` (`run_capture_steps_hooked`) and is
   walked under the `rotation-web-login` preset in tests, but no gateway runner starts
   one, for the reason above.
+- **An approval request whose create never gets a reply is not withdrawn.** Each ask
+  carries an opaque per-ask reference in the authorization request's binding message
+  (the approval page shows it as `(ref …)`), so asks never share a request. If every
+  attempt at the create goes unanswered, the ask never learns the request's id and
+  cannot cancel a row the server did create; it stays pending in the approver's inbox
+  until its ttl, fronted by nothing.
+- **A held web-login target costs the policy an attempt.** A scheduled rung refused
+  because another run holds the target publishes no outcome (the expiry alert stays
+  open) and backs the policy off like a failed attempt, so it is retried when the
+  holder's claim lapses; eight such attempts park the policy.
 - **An unclosed run is found by the age-based reaper once its job settles.** The job's
   claim is released at settlement, so a run whose close never landed is no longer named
   by a lease, and until the reaper's age pass closes it a driver's late answer to a step
@@ -850,6 +860,12 @@ These are the boundaries of what is built, each with its reason.
     and the production tool seam, authority pinning, concurrency and labels are covered by
     the crate's own tests, not by the CTK. `bigint_json` is not declared (`serde_json`
     coerces beyond-u64 literals at load).
+  - The vendored golden vector `G-15-rfc8785-numbers` expects `9.999999999999996e+22` for the
+    input `9.999999999999997e+22`; RFC 8785 Appendix B (and `JSON.parse`) give
+    `9.999999999999997e+22`. Every OpenSesame build parses numbers exactly
+    (`float_roundtrip`), so a context carrying that number has the RFC's canonical form and an
+    identity that differs from the vector's; the host's golden test checks the RFC's digits for
+    that one fixture and the rest byte for byte. The difference is upstream's, not a choice here.
   - No row for either claim is filed in upstream `conformance/CLAIMS.md`, which is another
     repository.
   - Neither claim is a security certification (§1.4).

@@ -30,7 +30,10 @@ opensesame-ceremony = { path = "../ceremony" }
 opensesame-session-observe = { path = "../session-observe" }
 async-trait = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+# `float_roundtrip`: every hosted build links `opensesame-agent-hooks`, which turns
+# it on for the whole build; naming it here keeps this crate's results (and its
+# golden-vector test) the same whether or not that crate is in the same build.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 thiserror = { workspace = true }
 # login-surrogate only: the plugin switch's state, the credential's type, and
 # the response scrub's base64 needles. serde_json stays required above: the

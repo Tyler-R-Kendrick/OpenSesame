@@ -151,8 +151,9 @@ async fn a_second_rung_for_a_target_in_flight_starts_no_second_run() {
     let first = super::start(&world.state, &event(&world, SITE)).await;
     assert!(first.pending && first.succeeded, "{}", first.detail);
     let second = super::start(&world.state, &event(&world, SITE)).await;
-    assert!(!second.pending);
-    assert!(second.succeeded);
+    // Nothing rotated for this rung: it is neither a success to publish nor a
+    // started run that will report for it.
+    assert!(second.pending && !second.succeeded, "{}", second.detail);
     assert!(
         second.detail.contains("already in flight"),
         "{}",
@@ -359,7 +360,13 @@ async fn a_target_another_replica_holds_is_skipped_and_never_run_twice() {
             Some(world.policies[0].clone()),
         )
         .await;
-    assert!(scheduled.succeeded, "{}", scheduled.detail);
+    // Held: not a success (nothing rotated, and the holder may never report),
+    // and the policy lease is given back rather than left to lapse.
+    assert!(
+        scheduled.pending && !scheduled.succeeded,
+        "{}",
+        scheduled.detail
+    );
     assert!(
         scheduled.detail.contains("already in flight"),
         "{}",

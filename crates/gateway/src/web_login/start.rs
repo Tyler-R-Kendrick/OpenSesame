@@ -65,8 +65,11 @@ pub(crate) async fn start(state: &AppState, event: &LifecycleEvent) -> Outcome {
     );
     match started {
         Ok(()) => Outcome::started(format!("web-login rotation for {origin} started")),
-        // The run already queued or executing will report for this rung too.
-        Err(Refused::InFlight) => Outcome::ok(format!(
+        // A run already queued or executing holds the target. It may be a
+        // scheduled run (which reports its own outcome) or an attended one
+        // (which publishes none), so this rung claims no outcome: nothing is
+        // published for it and the expiry alert stays open.
+        Err(Refused::InFlight) => Outcome::held(format!(
             "web-login rotation for {origin} skipped: a run for it is already in flight"
         )),
         Err(Refused::Full) => Outcome::failed(

@@ -41,4 +41,21 @@ impl Outcome {
             pending: true,
         }
     }
+
+    /// The responder did not act because a run for the target is already held
+    /// elsewhere, so nothing was rotated and nothing was learned.
+    ///
+    /// Not a success: the dispatcher publishes nothing for it (a "renewed"
+    /// event would resolve the expiry alert for a rotation that never
+    /// happened), and a policy lease released with it takes the failure path,
+    /// so the policy backs off and is tried again rather than being left to
+    /// lapse. Not a failure either: no `renewal.failed` is published, because
+    /// the holder may yet rotate the target.
+    pub(crate) fn held(detail: impl Into<String>) -> Self {
+        Self {
+            succeeded: false,
+            detail: detail.into(),
+            pending: true,
+        }
+    }
 }

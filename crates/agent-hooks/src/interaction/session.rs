@@ -18,6 +18,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use reqwest::StatusCode;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::time::Instant;
@@ -31,10 +32,12 @@ use crate::approval::{ApprovalBinding, ApproverError, HumanDecision};
 /// What an `ask` has raised on the Identity API so far: exactly what has to
 /// be withdrawn if it ends without an approval.
 ///
-/// `subject_id` is set only for a request this `ask` created (`201`). The
-/// create route de-duplicates an identical live request and answers `200`
-/// with the first ask's row; that row is somebody else's, and cancelling it
-/// would revoke the interaction that other ask is still waiting on.
+/// Every request an `ask` raises is its own: [`request_message`] puts a tag
+/// no other ask shares into the request's binding message, which feeds the
+/// create route's de-duplication digest, so the route never answers one ask
+/// with another's row. A `200` is therefore this ask's own row — a create
+/// whose first attempt was processed and whose retry reached the handler
+/// again — and is owned exactly as a `201` is.
 #[derive(Default)]
 struct Raised {
     subject_id: Option<String>,
@@ -80,6 +83,24 @@ fn ask_id() -> String {
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     )
+}
+
+/// The binding message of this ask's authorization request: the fixed
+/// per-interception-point sentence and an opaque tag derived from `ask_id`.
+///
+/// The Identity API de-duplicates a live request on a digest of (approver,
+/// requester, details, binding message) and answers `200` with the existing
+/// row, so two asks about the same context would share one subject and one
+/// could cancel the other's. The tag keeps their digests apart. It is a hash,
+/// so the process id and clock inside `ask_id` stay here, and it is the same
+/// on every retry of one create. Only the request carries it: the interaction
+/// derives its own message from the details, which stay identical in both.
+fn request_message(base: &str, ask_id: &str) -> String {
+    let hash = Sha256::digest(ask_id.as_bytes());
+    let mut head = [0_u8; 8];
+    head.copy_from_slice(&hash[..8]);
+    let tag = u64::from_be_bytes(head);
+    format!("{base} (ref {tag:016x})")
 }
 
 fn revoke_path(created: &wire::Created) -> String {
@@ -155,10 +176,11 @@ impl Session {
         raised: &mut Raised,
     ) -> Result<HumanDecision, ApproverError> {
         let id = ask_id();
-        let (subject_id, created_here) = self.raise_subject(&format!("{id}-subject")).await?;
-        if created_here {
-            raised.subject_id = Some(subject_id.clone());
-        }
+        let message = request_message(self.binding_message, &id);
+        let subject_id = self
+            .raise_subject(&format!("{id}-subject"), &message)
+            .await?;
+        raised.subject_id = Some(subject_id.clone());
         checkpoint(cancel, give_up)?;
         let created = self
             .raise_interaction(&format!("{id}-interaction"), &subject_id)
@@ -170,13 +192,14 @@ impl Session {
             .await
     }
 
-    /// The subject's id, and whether this ask created it (`201`) rather than
-    /// being handed an identical live request another ask raised (`200`).
-    async fn raise_subject(&self, key: &str) -> Result<(String, bool), ApproverError> {
+    /// The id of the subject this ask raised. `201` and `200` both mean it is
+    /// this ask's: the request is unique to the ask (see [`request_message`]),
+    /// so a `200` is the row an earlier attempt of this same create inserted.
+    async fn raise_subject(&self, key: &str, message: &str) -> Result<String, ApproverError> {
         let body = wire::CreateAuthorizationRequest {
             approver_ref: &self.approver_ref,
             authorization_details: &self.details,
-            binding_message: self.binding_message,
+            binding_message: message,
             ttl_seconds: self.ttl_seconds,
         };
         let reply = self
@@ -191,9 +214,8 @@ impl Session {
         if !matches!(reply.status, StatusCode::OK | StatusCode::CREATED) {
             return Err(ApproverError::Unavailable);
         }
-        let created_here = reply.status == StatusCode::CREATED;
         wire::auth_req_id(reply.body.as_ref())
-            .map(|id| (id.to_owned(), created_here))
+            .map(str::to_owned)
             .ok_or(ApproverError::Unavailable)
     }
 
@@ -236,8 +258,8 @@ impl Session {
     /// the answer already decided (never an approval). The interaction goes
     /// first; cancelling the authorization request it fronted then clears the
     /// approver's inbox — and, when the interaction's reference never reached
-    /// us, closes the interaction by way of its subject. A subject this ask
-    /// did not create is never cancelled (see [`Raised`]).
+    /// us, closes the interaction by way of its subject. The subject is always
+    /// this ask's own (see [`Raised`]).
     async fn withdraw(&self, raised: &Raised) {
         if let Some(created) = &raised.created {
             let _ = self

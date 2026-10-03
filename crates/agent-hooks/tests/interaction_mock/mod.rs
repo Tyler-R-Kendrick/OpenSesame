@@ -9,8 +9,9 @@
 #![allow(dead_code)]
 
 mod handlers;
+mod ledger;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -69,11 +70,28 @@ pub enum Fault {
     SlowInteraction(Duration),
     /// The server reports (and later attests) a digest over other content.
     WrongDigest,
-    /// The authorization-request create de-duplicates an identical live
-    /// request (`200`, the first ask's row), an interaction is refused while
-    /// one is live for the subject (`409 interaction_already_live`), and
-    /// cancelling the request revokes the interaction fronting it.
+    /// The server keeps rows, as the Identity API does: the authorization
+    /// request create de-duplicates on the digest of (approver, requester,
+    /// details, binding message) and answers `200` with the live row it
+    /// already holds, an interaction is refused while one is live for its
+    /// subject (`409 interaction_already_live`), and cancelling a request
+    /// revokes the interaction fronting it. Each row is a subject of its own
+    /// (`areq_1`, `areq_2`, ...) with its own interaction; one is approved by
+    /// putting its subject id in [`Seen::approved`].
     DedupSubject,
+    /// [`Fault::DedupSubject`], and the first authorization-request create is
+    /// processed but its reply never arrives, and the server's idempotency
+    /// cache does not hold it (per process, or full): the retry reaches the
+    /// handler again and is answered `200` with the row the first attempt
+    /// inserted.
+    DedupAfterLostReply,
+}
+
+impl Fault {
+    /// Whether the server keeps rows.
+    pub fn keeps_rows(self) -> bool {
+        matches!(self, Self::DedupSubject | Self::DedupAfterLostReply)
+    }
 }
 
 /// What the mock saw.
@@ -90,6 +108,10 @@ pub struct Seen {
     /// The `Idempotency-Key` of every create request, in arrival order.
     pub subject_keys: Vec<String>,
     pub interaction_keys: Vec<String>,
+    /// The status of every authorization-request create reply that was sent.
+    pub subject_statuses: Vec<u16>,
+    /// Subjects a person has approved, for [`Fault::DedupSubject`] servers.
+    pub approved: HashSet<String>,
 }
 
 pub struct Server {
@@ -115,6 +137,7 @@ pub async fn serve_with(script: Vec<Step>, create_status: u16, fault: Fault) -> 
         base: base.clone(),
         fault,
         replayed: Arc::new(Mutex::new(HashMap::new())),
+        rows: Arc::new(Mutex::new(Vec::new())),
         digest: Arc::new(Mutex::new(DIGEST.to_owned())),
         lost: Arc::new(AtomicBool::new(false)),
     };
@@ -137,6 +160,7 @@ pub async fn serve_under(prefix: &str, script: Vec<Step>, create_status: u16) ->
         base: base.clone(),
         fault: Fault::None,
         replayed: Arc::new(Mutex::new(HashMap::new())),
+        rows: Arc::new(Mutex::new(Vec::new())),
         digest: Arc::new(Mutex::new(DIGEST.to_owned())),
         lost: Arc::new(AtomicBool::new(false)),
     };

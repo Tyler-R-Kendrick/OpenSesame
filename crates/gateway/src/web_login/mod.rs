@@ -71,6 +71,8 @@ mod deadline_tests;
 #[cfg(test)]
 mod handoff_tests;
 #[cfg(test)]
+mod held_tests;
+#[cfg(test)]
 mod identity_mock;
 mod launch;
 pub(crate) mod prepare;
@@ -85,6 +87,8 @@ pub(crate) mod recipe_trust;
 pub(crate) mod records;
 pub(crate) mod registry;
 mod settle;
+#[cfg(test)]
+mod stand_down_tests;
 mod start;
 #[cfg(test)]
 mod start_tests;
@@ -151,6 +155,9 @@ pub(crate) struct WebLoginLauncher {
     approval_resolver: Option<ApprovalResolverFactory>,
     timing: RunTiming,
     close_retry: close::CloseRetry,
+    /// Every context each run's hook session emits, as a test saw it.
+    #[cfg(test)]
+    tap: Option<test_support::Tap>,
 }
 
 impl WebLoginLauncher {
@@ -167,6 +174,8 @@ impl WebLoginLauncher {
             approval_resolver,
             timing: RunTiming::default(),
             close_retry: close::CloseRetry::default(),
+            #[cfg(test)]
+            tap: None,
         }
     }
 
@@ -196,6 +205,26 @@ impl WebLoginLauncher {
     pub(crate) const fn with_timing(mut self, timing: RunTiming) -> Self {
         self.timing = timing;
         self
+    }
+
+    /// Register, beside the organization's interceptor, one that records every
+    /// context the run's session emits and allows it (tests read what the real
+    /// launcher's session said, e.g. an `agent_shutdown`'s reason).
+    #[cfg(test)]
+    #[must_use]
+    fn with_tap(mut self, tap: test_support::Tap) -> Self {
+        self.tap = Some(tap);
+        self
+    }
+
+    /// `interceptors`, plus the test tap when there is one.
+    #[cfg(test)]
+    fn tapped(
+        &self,
+        mut interceptors: Vec<Box<dyn opensesame_agent_hooks::sdk::Interceptor>>,
+    ) -> Vec<Box<dyn opensesame_agent_hooks::sdk::Interceptor>> {
+        interceptors.extend(self.tap.clone().map(|tap| Box::new(tap) as Box<_>));
+        interceptors
     }
 
     /// Replace how hard a run is closed (tests make the retries instant).

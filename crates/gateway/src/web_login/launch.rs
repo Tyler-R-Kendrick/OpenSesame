@@ -110,6 +110,8 @@ impl Harness {
             records,
         ));
         let interceptors: Vec<Box<dyn Interceptor>> = vec![Box::new(plan.hooks.interceptor())];
+        #[cfg(test)]
+        let interceptors = launcher.tapped(interceptors);
         let resolver = launcher.resolver_for(&plan.organization_id).await;
         let session = HookSession::new(SessionConfig::new(run_id), interceptors, resolver)
             .map_err(|error| anyhow::anyhow!("hook session refused its configuration: {error:?}"))?
@@ -149,7 +151,7 @@ impl WebLoginLauncher {
             {
                 Ok(true) => {}
                 Ok(false) => {
-                    return Outcome::ok(format!(
+                    return Outcome::held(format!(
                         "rotation for policy {} skipped: leased, backing off, or parked",
                         policy.id
                     ));
@@ -170,12 +172,20 @@ impl WebLoginLauncher {
             )
             .await;
         let Ok((outcome, refs)) = ran else {
-            // Another replica's run holds the target and will report for it.
-            // The policy's lease is left to lapse, as for any run skipped
-            // because someone else has the rotation.
-            return Outcome::ok(format!(
+            // A runner this process does not know about holds the target. Its
+            // outcome is not ours to claim: an unattended run reports for
+            // itself, but an attended run publishes no lifecycle outcome and a
+            // crashed one holds the target until its claim lease lapses. So
+            // this rung reports nothing — not "renewed" — leaves the expiry
+            // alert open, and gives the policy lease back through the failure
+            // path, which backs the policy off so a later pass retries.
+            let outcome = Outcome::held(format!(
                 "rotation for {origin} skipped: a run for it is already in flight"
             ));
+            if let Some(policy) = policy {
+                release_policy(broker, &policy, &outcome).await;
+            }
+            return outcome;
         };
         publish_agent_phase(&self.state, event, owner, &refs, &outcome).await;
         if let Some(policy) = policy {
@@ -357,11 +367,15 @@ impl WebLoginLauncher {
         } else {
             tracing::warn!("a web-login run ran past its deadline and was stopped");
             // The timeout dropped the hosted run where it stood, so it never
-            // reached its own shutdown. Close the session here: an emission
-            // that was in flight leaves its abandoned record, and the audit
-            // trail ends in `agent_shutdown` (reason `error`) like any run
-            // that did not come to its outcome. A session that never started
-            // emits nothing, and one already closed refuses.
+            // reached its own shutdown. Close the session here. An emission
+            // that was in flight leaves its abandoned record and moves the
+            // session as the deny it records does: a cut `agent_startup` is a
+            // startup deny, which this shutdown (reason `error`) closes, and a
+            // cut `agent_shutdown` already closed the session, so this one is
+            // refused rather than emitted twice. A session that never started
+            // emits nothing. Either way the trail ends in exactly one
+            // `agent_shutdown`, and a refusal here is the normal answer when
+            // one is already there.
             harness
                 .hooked
                 .session()

@@ -36,12 +36,18 @@ pub(super) const fn admits(phase: Phase, point: InterceptionPoint) -> bool {
     }
 }
 
-/// Where the phase goes after an emission at `point` proceeds or blocks.
+/// Where the phase goes after an emission at `point` proceeds or blocks. An
+/// emission abandoned before its verdict was known records a deny, so it moves
+/// the phase the way a deny does (see `Flight`'s `Drop`).
 pub(super) const fn after(phase: Phase, point: InterceptionPoint, proceeded: bool) -> Phase {
     match (point, proceeded) {
         // A refused output still ends the turn: the response is withheld.
         (InterceptionPoint::AgentStartup, true) | (InterceptionPoint::Output, _) => Phase::Idle,
         (InterceptionPoint::Input, true) => Phase::Turn,
+        // Nothing follows a shutdown, whatever its verdict (§6.1a imposes
+        // nothing on a shutdown deny): the session is closed, and a second
+        // `agent_shutdown` would break §3.1's "once".
+        (InterceptionPoint::AgentShutdown, _) => Phase::Closed,
         (InterceptionPoint::AgentStartup | InterceptionPoint::Input, false) => Phase::Refused,
         _ => phase,
     }
@@ -90,6 +96,24 @@ mod tests {
             assert_eq!(after(phase, point, true), phase, "{point}");
             assert_eq!(after(phase, point, false), phase, "{point}");
         }
+    }
+
+    #[test]
+    fn a_shutdown_closes_the_session_whatever_its_verdict() {
+        for phase in [Phase::Idle, Phase::Turn, Phase::Refused] {
+            for proceeded in [true, false] {
+                let closed = after(phase, InterceptionPoint::AgentShutdown, proceeded);
+                assert_eq!(closed, Phase::Closed);
+            }
+        }
+    }
+
+    #[test]
+    fn a_denied_startup_leaves_only_the_shutdown_admitted() {
+        let refused = after(Phase::Fresh, InterceptionPoint::AgentStartup, false);
+        assert_eq!(refused, Phase::Refused);
+        assert!(admits(refused, InterceptionPoint::AgentShutdown));
+        assert!(!admits(refused, InterceptionPoint::Input));
     }
 
     #[test]
