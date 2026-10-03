@@ -1,4 +1,4 @@
-/* Settings › Keybindings (ADR 0150). A keymap is a table a person reads the
+/* Settings › Keybindings (ADR 0156). A keymap is a table a person reads the
    way they read a vimrc: the command, its keys as keycaps, and at the row's
    end what they can do about it. Changed rows carry an editor's gutter mark
    in the accent — teal is state — and nothing else is coloured. */
@@ -150,7 +150,7 @@
   border-bottom-color: var(--accent);
 }
 
-/* Held in one listing only (ADR 0150 §6): the accent's wash fills the cap,
+/* Held in one listing only (ADR 0156 §6): the accent's wash fills the cap,
    so a scoped key reads apart from one that holds everywhere. */
 .keycap-btn--scoped .keycap {
   background: var(--accent-wash);

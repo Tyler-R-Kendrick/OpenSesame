@@ -1,5 +1,5 @@
 /**
- * The keyboard's half-typed state (ADR 0150): a count, a sequence prefix,
+ * The keyboard's half-typed state (ADR 0156): a count, a sequence prefix,
  * and vim's registers — `q` or `@` waiting for a letter, a recording on.
  * The handler in `keymap.ts` reads and writes it; `showPending` tells the
  * statusline after every press (vim's `showcmd`).

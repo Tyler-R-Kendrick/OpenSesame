@@ -1,0 +1,53 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "vault" },
+        { "measure": ".statusline" },
+        { "shot": "1280-idle" },
+        { "keysOptional": { "keys": ["3", "g"], "wait": 0 } },
+        { "measure": ".statusline" },
+        { "report": ".statusline__keys" },
+        { "shot": "1280-pending" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        { "guest": null },
+        { "tab": "vault" },
+        { "measure": ".statusline" },
+        { "shot": "390-idle" },
+        { "keysOptional": { "keys": ["3", "g"], "wait": 0 } },
+        { "measure": ".statusline" },
+        { "report": ".statusline__keys" },
+        { "shot": "390-pending" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-pending",
+      "width": 1280,
+      "title": "Half-typed keys on the statusline — 1280 × 900",
+      "caption": "Count 3 then g, held mid-sequence. Before, the statusline shows nothing while keys are pending. After, a segment of the same row shows the keys as small caps and, on a wide screen, what each next key runs.",
+      "before": "no pending-keys segment",
+      "after": "segment in the one statusline row: caps `3` `g` and the next-key list"
+    },
+    {
+      "shot": "390-pending",
+      "width": 390,
+      "title": "Half-typed keys on the statusline — 390 × 844",
+      "caption": "The same keys on a phone. The list is not drawn under (pointer: coarse), (max-width: 900px), only the caps, so the statusline keeps its one row.",
+      "before": "no pending-keys segment",
+      "after": "caps only; statusline height unchanged (measured)"
+    }
+  ]
+}

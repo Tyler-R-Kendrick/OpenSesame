@@ -1,5 +1,5 @@
 /**
- * A person's keymap (ADR 0150): the bindings they changed and the macros they
+ * A person's keymap (ADR 0156): the bindings they changed and the macros they
  * wrote. It is sparse on purpose — defaults are never copied into it — so the
  * file says exactly what is theirs, and a later default reaches them unless
  * they chose otherwise.
@@ -61,7 +61,7 @@ export type KeymapConfig = Readonly<{
   singleKeys: boolean;
   /**
    * Keys laid over `bindings` only while the keyboard is in one listing
-   * (ADR 0150 §6). Absent reads as none.
+   * (ADR 0156 §6). Absent reads as none.
    */
   contexts?: KeymapContexts;
 }>;
