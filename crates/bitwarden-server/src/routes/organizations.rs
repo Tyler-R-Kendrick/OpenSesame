@@ -87,7 +87,6 @@ async fn create(
     Authed { user, .. }: Authed,
     Json(body): Json<Value>,
 ) -> ApiResult<Json<Value>> {
-    super::policy_rules::may_create_org(&server, &user.id).await?;
     let body = normalize(body);
     let name = plain_text(&body, "name", "organization name")?;
     let billing_email = plain_text(&body, "billingEmail", "billing email")?;
@@ -139,10 +138,19 @@ async fn create(
         created_at: now,
         revision_at: now,
     });
+    // The single-organization check and the insert share one transaction, so
+    // a policy enabled meanwhile cannot leave the account in two.
     server
         .db
-        .bitwarden_create_organization(&org, &owner, collection.as_ref())
-        .await?;
+        .bitwarden_create_organization_enforced(&org, &owner, collection.as_ref())
+        .await?
+        // Creation can only be refused by a policy binding the creator.
+        .map_err(|_| {
+            ApiError::bad_request(
+                "You may not create an organization. You belong to an organization which has a \
+                 policy that prohibits you from being a member of any other organization.",
+            )
+        })?;
     touch(&server, &user.id).await?;
     Ok(Json(organization_json(&org)))
 }
