@@ -48,3 +48,5 @@ pub fn open_sink(log: &Path, key_override: Option<&str>) -> std::io::Result<Seal
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_shared;

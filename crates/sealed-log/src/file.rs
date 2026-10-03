@@ -3,6 +3,9 @@
 //! Every line is sealed before it is written; the file is created and kept
 //! owner-only (a file that already exists with a wider mode is narrowed);
 //! rotation renames whole files, so a reader never sees half a generation.
+//! Several processes may share one path: before each line the writer checks
+//! that its descriptor is still the file on the path, and reopens when another
+//! process rotated it away.
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
@@ -83,6 +86,49 @@ impl SealedLogFile {
         })
     }
 
+    /// Whether the path still names the file this writer holds open. Another
+    /// process sharing the path may have rotated it away (our fd then points at
+    /// a renamed generation) or removed it.
+    fn path_is_ours(&self) -> io::Result<bool> {
+        let on_path = match std::fs::metadata(&self.path) {
+            Ok(meta) => meta,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error),
+        };
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let held = self.file.metadata()?;
+            Ok(held.dev() == on_path.dev() && held.ino() == on_path.ino())
+        }
+        #[cfg(not(unix))]
+        {
+            // No inode to compare: a held file that is longer than the one on
+            // the path was rotated away from under us.
+            Ok(self.file.metadata()?.len() <= on_path.len())
+        }
+    }
+
+    /// Bring the held file and its length in line with what is on disk, so
+    /// that a line is never appended to a generation another process renamed,
+    /// and a rotation is judged on the file's real size, not a stale count.
+    fn refresh(&mut self) -> io::Result<()> {
+        if !self.path_is_ours()? {
+            self.file = open_append(&self.path)?;
+        }
+        self.len = self.file.metadata()?.len();
+        Ok(())
+    }
+
+    /// Rename `from` to `to`, tolerating `from` having been moved already by
+    /// another process that rotated the same path.
+    fn shift(from: &Path, to: &Path) -> io::Result<()> {
+        match std::fs::rename(from, to) {
+            Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),
+            _ => Ok(()),
+        }
+    }
+
     fn rotate(&mut self) -> io::Result<()> {
         if self.keep == 0 {
             self.file.set_len(0)?;
@@ -91,11 +137,9 @@ impl SealedLogFile {
         }
         for generation in (1..self.keep).rev() {
             let from = rotated_path(&self.path, generation);
-            if from.exists() {
-                std::fs::rename(&from, rotated_path(&self.path, generation + 1))?;
-            }
+            Self::shift(&from, &rotated_path(&self.path, generation + 1))?;
         }
-        std::fs::rename(&self.path, rotated_path(&self.path, 1))?;
+        Self::shift(&self.path, &rotated_path(&self.path, 1))?;
         self.file = open_append(&self.path)?;
         self.len = 0;
         Ok(())
@@ -110,6 +154,7 @@ impl SealedLogFile {
         let mut sealed = seal_line(&self.key, line.trim_end_matches(['\n', '\r']));
         sealed.push('\n');
         let needed = u64::try_from(sealed.len()).unwrap_or(u64::MAX);
+        self.refresh()?;
         if self.len > 0 && self.len.saturating_add(needed) > self.max_bytes {
             self.rotate()?;
         }

@@ -54,15 +54,28 @@ pub fn read_tail(path: &Path, key: &LogKey, count: usize) -> io::Result<Vec<Stri
         .collect())
 }
 
+/// How many rotated generations beside the live file are looked for. Rotation
+/// keeps a handful; the scan does not stop at a gap, so an odd history is sealed too.
+const MAX_ROTATED_SCAN: u32 = 64;
+
 /// Seal every line of `path` that an older build wrote in the clear, in place
-/// and atomically (a sibling file is written owner-only, then renamed over).
-/// Already-sealed lines are left as they are. Returns how many were sealed.
+/// and atomically (a sibling file is written owner-only, then renamed over),
+/// and do the same for every rotated generation beside it (`path.1`, `path.2`,
+/// ...). Already-sealed lines are left as they are. Returns how many were sealed.
 ///
 /// # Errors
 ///
-/// Returns an error when the file cannot be read or replaced; the original is
+/// Returns an error when a file cannot be read or replaced; that file is
 /// untouched in that case.
 pub fn seal_existing(path: &Path, key: &LogKey) -> io::Result<usize> {
+    let mut sealed = seal_one(path, key)?;
+    for generation in 1..=MAX_ROTATED_SCAN {
+        sealed += seal_one(&rotated_path(path, generation), key)?;
+    }
+    Ok(sealed)
+}
+
+fn seal_one(path: &Path, key: &LogKey) -> io::Result<usize> {
     let lines = lines_of(path)?;
     let legacy = lines
         .iter()
