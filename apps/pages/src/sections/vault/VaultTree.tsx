@@ -14,24 +14,16 @@ import {
 } from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
-import {
-  IconChevronRight,
-  IconClock,
-  IconDots,
-  IconStar,
-} from "../../components/Icons.js";
+import { IconChevronRight } from "../../components/Icons.js";
 import { SlashSearchField } from "../../components/SlashSearch.js";
-import { ContextMenuList } from "../../components/context-menu/ContextMenuList.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { VaultPathbar } from "./VaultPathbar.js";
-import { formatExpiry } from "./expiry.js";
-import {
-  type VaultTreeActions,
-  vaultItemMenu,
-  vaultRowMenu,
-} from "./vault-menu.js";
+import { Decorations } from "./VaultRowDecorations.js";
+import { useMenuFlip } from "./use-menu-flip.js";
+import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
+import { VaultRowMenu } from "./vault-row-menu.js";
 
 export type { VaultTreeActions } from "./vault-menu.js";
 
@@ -64,23 +56,6 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-function Decorations({ item }: { item: VaultItem }) {
-  return (
-    <span className="vtree__side">
-      {item.kind === "drop" ? (
-        <IconClock
-          size={13}
-          title={`Expires ${formatExpiry(item.expiresAt)}`}
-        />
-      ) : null}
-      {item.favorite ? (
-        <IconStar size={13} filled title="Favorite" className="vtree__fav" />
-      ) : null}
-      {item.sample ? <span className="vtree__syn">SYNTHETIC</span> : null}
-    </span>
-  );
-}
-
 export function VaultTree({
   items,
   folders,
@@ -100,6 +75,11 @@ export function VaultTree({
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const treeRef = useRef<HTMLDivElement>(null);
+  const { listRef, menuAbove } = useMenuFlip(menuFor, treeRef);
+  const onMenuClose = (restore: boolean) => {
+    setMenuFor(null);
+    if (restore) treeRef.current?.focus();
+  };
   const searchRef = useRef<HTMLInputElement>(null);
   const persistReadyRef = useRef(false);
   // The keymap effect registers once; these refs hand it the live values.
@@ -108,8 +88,7 @@ export function VaultTree({
   const setAndSaveCollapsedRef = useRef<(next: ReadonlySet<string>) => void>(
     () => undefined,
   );
-  // One collapse-toggle implementation, shared by the once-registered keymap
-  // and pointer clicks. It reads only through stable refs.
+  // One collapse toggle for the keymap and clicks. It reads only stable refs.
   const toggleDirRef = useRef((row: DirRow) => {
     const next = new Set(collapsedRef.current);
     if (next.has(row.path)) next.delete(row.path);
@@ -151,8 +130,7 @@ export function VaultTree({
   };
   setAndSaveCollapsedRef.current = setAndSaveCollapsed;
 
-  // The open item owns the cursor; without one the cursor holds its row, and
-  // falls back to the first row when its row left the tree.
+  // The open item owns the cursor; otherwise the held row, else the first.
   useEffect(() => {
     if (activeItemId && rows.some((row) => row.key === activeItemId)) {
       setCursor(activeItemId);
@@ -269,6 +247,8 @@ export function VaultTree({
       copyUsername: withItem((item) => actionsRef.current.copyUsername(item)),
       edit: withItem((item) => actionsRef.current.edit(item)),
       trash: withItem((item) => actionsRef.current.trash(item)),
+      restore: withItem((item) => actionsRef.current.restore?.(item)),
+      purge: withItem((item) => actionsRef.current.purge?.(item)),
       create: () => actionsRef.current.create(),
       favorite: withItem((item) => actionsRef.current.favorite(item)),
       share: withItem((item) => actionsRef.current.share?.(item)),
@@ -360,33 +340,16 @@ export function VaultTree({
                   <span className="vtree__dim">{row.ext}</span>
                 </span>
                 <Decorations item={row.item} />
-                <button
-                  type="button"
-                  className="vtree__more"
-                  data-vtree-more=""
-                  aria-label={`Actions for ${row.name}`}
-                  aria-haspopup="menu"
-                  aria-expanded={menuFor === row.key}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setCursor(row.key);
-                    setMenuFor(menuFor === row.key ? null : row.key);
-                  }}
-                >
-                  <IconDots size={14} />
-                </button>
-                {menuFor === row.key ? (
-                  <ContextMenuList
-                    className="ctxmenu vtree__menu"
-                    label={`Actions for ${row.name}`}
-                    groups={vaultItemMenu(row.item, actions)}
-                    ignoreOutside="[data-vtree-more]"
-                    onClose={(restore) => {
-                      setMenuFor(null);
-                      if (restore) treeRef.current?.focus();
-                    }}
-                  />
-                ) : null}
+                <VaultRowMenu
+                  actions={actions}
+                  listRef={listRef}
+                  menuAbove={menuAbove}
+                  menuFor={menuFor}
+                  onClose={onMenuClose}
+                  row={row}
+                  setCursor={setCursor}
+                  setMenuFor={setMenuFor}
+                />
               </>
             );
           }

@@ -24,21 +24,6 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   {
-    id: "vault.sample-data",
-    title: "Load or remove sample data",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "vault.sample-data"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/vaults"',
-      'wait route "/settings/vaults" timeout=15000',
-      'focus "vault.sample-data" "Sample items are synthetic and badged. The same key removes every one of them, and nothing else." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-
-  {
     id: "vault.store-manifest",
     title: "Move items to and from the sealed store",
     routes: [],
@@ -61,7 +46,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "client.command-bar"',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.command-bar" "Type a command here, or hold the mic to speak one. Voice language and freer phrasing are under Settings → Connections → AI models." side=bottom',
+      'focus "shell.command-bar" "Type a command: go to a section, search, or copy a field. Enter runs it." side=bottom',
       "end",
     ].join("\n"),
   },

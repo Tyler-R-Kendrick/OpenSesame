@@ -1,0 +1,19 @@
+/* Settings › Security › Duress code (ADR 0150). */
+
+.duress__pick {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.duress__legend {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.duress__ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+}

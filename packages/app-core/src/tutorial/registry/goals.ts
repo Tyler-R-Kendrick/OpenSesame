@@ -16,7 +16,7 @@ import { AUTHORITY_HELP } from "./authority-help.js";
 import { CONNECTIONS_HELP } from "./connections-goals.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
-import { SETUP_GOALS, SHELL_GOALS, TRANSPORT_GOALS } from "./setup-goals.js";
+import { SETUP_GOALS, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 export type GuideGoalDescriptor = {
@@ -90,8 +90,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "host.health.check"',
-      'focus "shell.connectivity" "Connectivity lives here: the statusline reports whether identity on this device is ready." side=top',
-      'say "For the vault contents themselves, Vault health lists weak, reused and aging items."',
+      'say "Vault health lists weak, reused and aging items. Whether this device is connected lives in Settings → Connections."',
       'navigate "/vault/health"',
       'wait route "/vault/health" timeout=15000',
       'success "This is Vault health."',
@@ -281,7 +280,6 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   ...SHELL_GOALS,
-  ...TRANSPORT_GOALS,
 ];
 
 /** Authored help whose walkthrough is a core goal. */
@@ -309,7 +307,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.health",
     title: "How do I tell whether OpenSesame is healthy?",
     answer:
-      "Two different questions, two places. The statusline reports whether identity on this device is ready. Vault health, under Vault, reports on the items themselves — weak, reused and aging credentials.",
+      "Vault health, under Vault, lists weak, reused and aging credentials.",
     routes: [],
     goal: "host.health.check",
     keywords: [

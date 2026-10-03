@@ -188,12 +188,13 @@ export function clearBrowserPairing(): void {
 
 export function currentBrowserGrant(rawHost: string): BrowserGrant | null {
   if (grant && grant.expiresAt <= Date.now()) clearBrowserPairing();
+  const requested = rawHost ? normalizeHttpBaseUrl(rawHost) : null;
   if (
-    !rawHost ||
+    !requested ||
     !browserPairingSeams.eligible() ||
     !grant ||
     grant.expiresAt <= Date.now() ||
-    grant.hostApi !== baseUrl(rawHost)
+    grant.hostApi !== requested
   )
     return null;
   return {

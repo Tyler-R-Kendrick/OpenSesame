@@ -2,7 +2,9 @@ import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
+  capabilityOnSwitch,
 } from "./always-on.mjs";
+import { openSessionSection } from "./session-section.mjs";
 
 /**
  * Choose capabilities from Settings › Capabilities, at whatever width this
@@ -20,7 +22,7 @@ export async function chooseCapabilitiesHere(
       await openTab(page, "Settings");
       return;
     }
-    await page.locator(".railtree__row", { hasText: "settings" }).first().tap();
+    await openSessionSection(page, "Settings");
     await page.waitForTimeout(700);
   };
   for (const title of titles) {
@@ -40,12 +42,16 @@ export async function chooseCapabilitiesHere(
     if ((await add.count()) === 0) continue;
     await add.tap();
     await page.waitForTimeout(600);
-    const apply = page.getByTestId("capability-apply");
-    if ((await apply.count()) === 0 || (await apply.isDisabled())) {
-      harness.check(false, `${title}: Apply was not offered`);
+    if ((await page.getByTestId("capability-review").count()) !== 0) {
+      harness.check(false, `${title}: the switch opened a review`);
       return;
     }
-    await apply.tap();
-    await page.waitForTimeout(2200);
+    if ((await capabilityOnSwitch(page, title).count()) !== 1) {
+      harness.check(
+        false,
+        `${title}: the switch did not turn the capability on`,
+      );
+      return;
+    }
   }
 }

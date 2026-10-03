@@ -27,6 +27,14 @@ installDoublePorts();
 
 installPanelFixture();
 
+/**
+ * Sections that draw nothing on a device with no Host, no Connect credential
+ * and no unlocked vault. Encryption's panels seal a key in the vault, so a
+ * locked vault draws no tile and no switch (ADR 0150). A key or a
+ * configuration seals on this device, so those sections stay.
+ */
+const NOTHING_TO_DO_HERE = new Set(["encryption"]);
+
 describe("sections — one list, one style, a switch only where something is optional", () => {
   it("draws every section once, as a subheader, never as a card row", () => {
     const { container } = renderPanel();
@@ -35,7 +43,9 @@ describe("sections — one list, one style, a switch only where something is opt
     ].map((node) => node.textContent);
     expect(titles).toEqual([
       "Guests",
-      ...FEATURES.map((feature) => feature.title),
+      ...FEATURES.filter((feature) => !NOTHING_TO_DO_HERE.has(feature.id)).map(
+        (feature) => feature.title,
+      ),
       "Instance policy",
     ]);
     // No second list of capabilities, no card rows, nothing that collapses.
@@ -50,6 +60,7 @@ describe("sections — one list, one style, a switch only where something is opt
   it("puts the switch on the subheader of a section with optional capabilities, and none on an always-on one", () => {
     const { container } = renderPanel();
     for (const feature of FEATURES) {
+      if (NOTHING_TO_DO_HERE.has(feature.id)) continue;
       const head = container.querySelector(
         `#feature-${feature.id} > .capsection__head`,
       );
@@ -60,16 +71,21 @@ describe("sections — one list, one style, a switch only where something is opt
       else expect(switches + marks, feature.id).toBe(0);
     }
     expect(screen.queryByRole("switch", { name: "Passwords" })).toBeNull();
+    // Passkeys are an item-type extension. This fixture selects them, so the
+    // tile switch is on (ADR 0153).
     expect(
-      screen.queryByRole("switch", { name: "Passkey records" }),
-    ).toBeNull();
+      screen
+        .getByRole("switch", { name: "Passkey records" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
   });
 
-  it("draws one Page toggle: the instance policy has no second one", () => {
+  it("draws no view toggle: the documents are files, not a second view of the page", () => {
     renderPanel();
-    expect(
-      screen.getAllByRole("radiogroup", { name: "Capability view" }),
-    ).toHaveLength(1);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    for (const name of ["Visual", "Source", "Effective"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
   });
 
   it("switching a section on reviews, then commits every capability behind it", async () => {
@@ -77,13 +93,17 @@ describe("sections — one list, one style, a switch only where something is opt
     const sharing = screen.getByRole("switch", { name: "Sharing" });
     expect(sharing.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(sharing);
-    expect(screen.getByTestId("capability-review")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
+    expect(
+      screen.getByRole("list", { name: "Sharing capabilities" }),
+    ).toBeTruthy();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     const selected = double.commits[0]?.draft.selectedOptional ?? [];
-    expect(selected).toContain("sharing.drops");
+    // Drops are always on, so the switch does not record them. Live
+    // sessions are not in this fixture's distribution, so only household
+    // sharing is added.
+    expect(selected).not.toContain("sharing.drops");
     expect(selected).toContain("sharing.household");
-    // The roots the installation already had are kept.
     expect(selected).toContain("agents.webmcp");
   });
 
@@ -92,57 +112,52 @@ describe("sections — one list, one style, a switch only where something is opt
     const ai = screen.getByRole("switch", { name: "AI" });
     expect(ai.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(ai);
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).not.toContain(
       "agents.webmcp",
     );
   });
 
-  it("a partly-on section is completed from its tiles, and its switch turns it off", async () => {
+  it("turning Sharing off removes household and does not record drops", async () => {
     const selection = {
       ...PERSONAL_SELECTION,
-      selectedOptional: ["sharing.drops"],
+      selectedOptional: [
+        "sharing.household",
+        "agents.webmcp",
+        "vault.passkey-records",
+      ],
+      chosenAlternatives: { transport: "sharing.drops" },
     };
     const exposure: Record<string, string> = {};
     for (const id of double.preview(selection).approvedCapabilities)
       exposure[id] = `sha256:fixture-${id}`;
-    const partly = () =>
-      resetDouble({
-        selection,
-        receipt: {
-          ...withReceipt(),
-          roots: selection.selectedOptional,
-          exposure,
-        },
-      });
-    partly();
+    resetDouble({
+      selection,
+      receipt: {
+        ...withReceipt(),
+        roots: selection.selectedOptional,
+        exposure,
+      },
+    });
     renderPanel();
     expect(
       screen
         .getByRole("switch", { name: "Sharing" })
         .getAttribute("aria-checked"),
     ).toBe("true");
-    const household = screen.getByRole("switch", { name: "Household sharing" });
-    expect(household.getAttribute("aria-checked")).toBe("false");
-    expect(household.getAttribute("data-capability-title")).toBe(
-      "Household sharing",
-    );
-    fireEvent.click(household);
-    fireEvent.click(screen.getByTestId("capability-apply"));
-    await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(double.commits[0]?.draft.selectedOptional).toContain(
-      "sharing.household",
-    );
-    cleanup();
-    partly();
-    renderPanel();
+    expect(
+      screen
+        .getByRole("switch", { name: "Household sharing" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
     fireEvent.click(screen.getByRole("switch", { name: "Sharing" }));
-    fireEvent.click(screen.getByTestId("capability-apply"));
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
-    expect(double.commits[0]?.draft.selectedOptional).not.toContain(
-      "sharing.drops",
-    );
+    const selected = double.commits[0]?.draft.selectedOptional ?? [];
+    expect(selected).not.toContain("sharing.household");
+    expect(selected).not.toContain("sharing.drops");
+    expect(selected).toContain("agents.webmcp");
   });
 
   it("a one-capability section's subheader switch answers to that capability's title", () => {
@@ -161,9 +176,8 @@ describe("sections — one list, one style, a switch only where something is opt
     // password-store is a git history road: it is a Backups tile, and Local
     // storage no longer draws it a second time.
     expect(tiles.textContent).toContain("password-store");
-    expect(
-      screen.getByRole("list", { name: "Local storage providers" }).textContent,
-    ).not.toContain("password-store");
+    const local = screen.getByRole("list", { name: "Local storage providers" });
+    expect(local.textContent).not.toContain("password-store");
     for (const group of ["Identity providers", "Password managers"]) {
       expect(screen.queryByRole("switch", { name: group })).toBeNull();
     }

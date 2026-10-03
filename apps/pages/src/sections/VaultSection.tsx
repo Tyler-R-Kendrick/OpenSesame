@@ -1,5 +1,5 @@
 import { vaultFilterLabel } from "@opensesame/app-core/lib/crumbs.js";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Link,
   Outlet,
@@ -9,6 +9,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
@@ -20,17 +21,19 @@ import {
 import { useContributions } from "../bindings/contributions.js";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconPlus } from "../components/Icons.js";
-import { keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { ExportKey } from "./vault/ExportKey.js";
+import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 import {
   chipTypeIds,
   concealedValue,
+  shareText,
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 
@@ -44,13 +47,14 @@ export function VaultSection() {
   const navigate = useNavigate();
 
   const filter = params.get("f") ?? "all";
+  const inTrash = filter === "trash";
+  const [armedPurgeId, setArmedPurgeId] = useState<string | null>(null);
   const folderId = params.get("folder");
 
   // Drop disposal (ADR 0062): every vault read sweeps the drop records, so a
   // drop that was opened or lapsed while away purges itself here.
 
   const visible = useMemo(() => {
-    const inTrash = filter === "trash";
     return sortItems(
       items.filter((item) => {
         if (inTrash ? item.deletedAt === null : item.deletedAt !== null)
@@ -68,7 +72,7 @@ export function VaultSection() {
         return true;
       }),
     );
-  }, [items, filter, folderId]);
+  }, [items, filter, folderId, inTrash]);
 
   const detailOpen = location.pathname !== "/vault";
   // The crumb's own label (a type's plural from its definition), so the
@@ -103,7 +107,6 @@ export function VaultSection() {
   const previewable =
     location.pathname === "/vault" ||
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
-  const canShare = useContributions("secret-share").length > 0;
   // Keys a capability adds after New item — Import, from the formats it reads.
   const commands = useContributions("vault-command");
   const actions = useMemo(
@@ -132,22 +135,23 @@ export function VaultSection() {
       },
       edit: (item: VaultItem) => navigate(`/vault/${item.id}/edit`),
       trash: (item: VaultItem) => void store.trashItem(item.id),
-      restore: (item: VaultItem) => void store.restoreItem(item.id),
-      purge: (item: VaultItem) => void store.purgeItem(item.id),
+      ...trashItemActions(store, armedPurgeId, setArmedPurgeId),
       favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
-      // Only a capability that contributes a way to share offers it.
-      share: canShare
-        ? (item: VaultItem) => {
-            if (item.kind === "secret")
-              navigate(`/vault/${item.id}?share=drop`);
-          }
-        : undefined,
-      create: () => navigate(createPath),
+      share: (item: VaultItem) => {
+        if (shareText(item)) navigate(`/vault/${item.id}?share=drop`);
+      },
+      create: () => {
+        if (inTrash) return;
+        navigate(createPath);
+      },
+      shareGrant: () => navigate(accessNewPath("grants")),
+      inTrash,
     }),
     [
-      canShare,
+      armedPurgeId,
       copySecret,
       createPath,
+      inTrash,
       itemId,
       location.pathname,
       location.search,
@@ -156,6 +160,9 @@ export function VaultSection() {
       store,
     ],
   );
+  useEffect(() => {
+    if (!inTrash) setArmedPurgeId(null);
+  }, [inTrash]);
   const total = items.filter((item) =>
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
@@ -188,7 +195,7 @@ export function VaultSection() {
         hidden(detail) && active !== null && detail.contains(active);
       if (idle || strandedInDetail) {
         if (!landFocus(list.querySelector('[role="tree"]:not([hidden])'))) {
-          landFocus(newItemRef.current);
+          if (!landFocus(newItemRef.current)) landFocus(firstControl(list));
         }
       }
       return;
@@ -231,22 +238,33 @@ export function VaultSection() {
                 filter={filter}
                 folderId={folderId}
               />
-              <Link
-                ref={(element) => {
-                  newItemRef.current = element;
-                  createRef(element);
-                }}
-                className="icon-btn icon-btn--sm"
-                aria-label="New item"
-                title="New item (n)"
-                to={createPath}
-              >
-                <IconPlus size={15} />
-              </Link>
-              {commands.map(({ id, Command }) => (
-                <Command key={id} />
-              ))}
-              <ExportKey />
+              {inTrash ? (
+                <TrashCommands
+                  items={visible}
+                  armedId={armedPurgeId}
+                  onRestore={(item) => actions.restore(item)}
+                  onPurge={(item) => actions.purge(item)}
+                />
+              ) : (
+                <>
+                  <Link
+                    ref={(element) => {
+                      newItemRef.current = element;
+                      createRef(element);
+                    }}
+                    className="icon-btn icon-btn--sm"
+                    aria-label="New item"
+                    title="New item (n)"
+                    to={createPath}
+                  >
+                    <IconPlus size={15} />
+                  </Link>
+                  {commands.map(({ id, Command }) => (
+                    <Command key={id} />
+                  ))}
+                  <ExportKey />
+                </>
+              )}
             </>
           }
         />
@@ -261,13 +279,21 @@ export function VaultSection() {
   );
 }
 
+function welcomeKeys(inTrash: boolean, empty: boolean): string {
+  if (inTrash) {
+    return empty
+      ? "r restore · X delete · ? keys"
+      : "enter open · r restore · X delete · / search · ? keys";
+  }
+  return empty
+    ? "n new · import · ? keys"
+    : "enter open · n new · / search · ? keys";
+}
+
 /**
  * The buffer before the cursor lands on a file. No dashboard: moving the
  * cursor previews items, so this pane only states what the list beside it
- * holds and hands over the keys — for the filter the list is showing. It
- * used to say "nothing sealed yet" inside Trash and every empty filter
- * alike. The keys stay the same everywhere, as the path strip's do
- * (DESIGN.md: empty, filtered and trash views keep the same group).
+ * holds and hands over the keys for the filter the list is showing.
  */
 export function VaultWelcome() {
   const { items } = useVault();
@@ -298,7 +324,7 @@ export function VaultWelcome() {
               ? `no ${what} yet`
               : "nothing sealed yet"}
         </p>
-        <p className="buffer__keys">n new · import · ? keys</p>
+        <p className="buffer__keys">{welcomeKeys(inTrash, true)}</p>
       </div>
     );
   }
@@ -310,7 +336,7 @@ export function VaultWelcome() {
         {what ? ` · ${what}` : ""}
       </p>
       <EmptyTip>{emptyTips.vaultMove}</EmptyTip>
-      <p className="buffer__keys">enter open · n new · / search · ? keys</p>
+      <p className="buffer__keys">{welcomeKeys(inTrash, false)}</p>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import {
   getPasskeyUnlockCeremonyForDefault,
 } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
+import { chooseUnlockMethod } from "./unlock-preference.js";
 
 export {
   type WebauthnHostCheck,
@@ -178,11 +179,7 @@ function listAvailableUnlockMethodsDefault(
 function preferredUnlockMethodDefault(
   header: VaultHeader | null | undefined,
 ): UnlockMethodId | null {
-  const methods = listAvailableUnlockMethods(header);
-  if (methods.includes("passkey")) return "passkey";
-  if (methods.includes("pin")) return "pin";
-  if (methods.includes("password")) return "password";
-  return null;
+  return chooseUnlockMethod(header, listAvailableUnlockMethods(header));
 }
 
 /** Every format problem a PIN has, in plain words, empty when it passes. */
@@ -532,14 +529,16 @@ export async function openText(
 export const RECOVERY_CODE_COUNT = 10;
 /** Lowercase, no 0/1/l/o: a code is read off paper and typed, not pasted. */
 const RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+const RECOVERY_REJECT_AT = 256 - (256 % RECOVERY_ALPHABET.length);
 
-/** Ten codes shaped `xxxx-xxxx`, 155 bits of alphabet each. */
+/** Ten codes shaped `xxxx-xxxx`, 8·log2(31) ≈ 39.6 bits each. */
 export function randomRecoveryCodes(count = RECOVERY_CODE_COUNT): string[] {
   const codes: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const bytes = randomBytes(8);
+  while (codes.length < count) {
+    const bytes = [...randomBytes(9)].filter((b) => b < RECOVERY_REJECT_AT);
+    if (bytes.length < 8) continue;
     let code = "";
-    for (const [index, byte] of bytes.entries()) {
+    for (const [index, byte] of bytes.slice(0, 8).entries()) {
       if (index === 4) code += "-";
       code += RECOVERY_ALPHABET[byte % RECOVERY_ALPHABET.length];
     }
@@ -572,9 +571,7 @@ export async function openRecoveryLedger(
   const codes = Array.isArray(parsed.codes)
     ? parsed.codes.filter(isString)
     : [];
-  const usedRaw = parsed.used;
-  const used = Array.isArray(usedRaw)
-    ? codes.map((_, i) => usedRaw[i] === true)
-    : codes.map(() => false);
+  const raw = parsed.used;
+  const used = codes.map((_, i) => Array.isArray(raw) && raw[i] === true);
   return { codes, used };
 }

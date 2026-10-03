@@ -10,9 +10,11 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(53);
+    expect(ids).toHaveLength(51);
     for (const id of [
       "webcrypto",
+      "aws-kms",
+      "gcp-kms",
       "azure-key-vault-secrets",
       "bitwarden",
       "github",
@@ -43,6 +45,9 @@ describe("embedded connector catalog", () => {
     ]) {
       expect(ids).toContain(id);
     }
+    // A browser cannot enroll these as a vault key protector (ADR 0152).
+    expect(ids).not.toContain("yubikey");
+    expect(ids).not.toContain("azure-key-vault-keys");
   });
 
   it("prepends forge-agnostic git under backup/recovery", () => {

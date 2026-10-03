@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -69,18 +70,37 @@ afterEach(() => {
 });
 
 describe("Settings › Vaults › Travel (ADR 0143)", () => {
-  it("offers nothing to a guest", () => {
+  it("draws both rows for a guest, refused, with the reason on each", () => {
     guest = true;
     render(<TravelPanel />);
     expect(screen.getByRole("heading", { name: "Travel" })).toBeTruthy();
-    expect(screen.queryByRole("switch")).toBeNull();
+    for (const name of ["Turn on travel mode", "Turn off travel mode"]) {
+      expect(
+        screen.getByRole("button", { name }).hasAttribute("disabled"),
+      ).toBe(true);
+    }
     expect(
-      screen.getByRole("img", { name: "Open one of your own vaults first" }),
-    ).toBeTruthy();
+      screen.getAllByText("Open one of your own vaults first"),
+    ).toHaveLength(2);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps the ceremony off the page: the safe list waits in the sheet", () => {
+    render(<TravelPanel />);
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.getByText("2 vaults on this device")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    const sheet = screen.getByRole("dialog", { name: "Turn on travel mode" });
+    expect(sheet.querySelectorAll('[role="switch"]')).toHaveLength(2);
   });
 
   it("carries the open vault and sends the rest home, only once both halves are elsewhere", async () => {
     render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
     const personal = screen.getByRole("switch", {
       name: "Safe for travel: personal",
     });
@@ -116,12 +136,17 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     fireEvent.click(depart);
     await screen.findByText("1 vault left this device");
     expect(screen.getByText("4 files removed")).toBeTruthy();
+    // The ceremony is over: its sheet has closed, and the row keeps the receipt.
+    expect(screen.queryByRole("dialog")).toBeNull();
     await waitFor(() => expect(origin.tombs.has(WORK)).toBe(false));
     expect(origin.tombs.has("personal")).toBe(true);
   });
 
   it("keeps the package after a removal cut short, and finishes it with the same press", async () => {
     render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
     origin.stuck.add(tombFile(WORK, "body"));
     fireEvent.click(
       screen.getByRole("button", { name: "Pack the rest for travel" }),
@@ -137,7 +162,9 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
       name: "Take them off this device",
     });
     fireEvent.click(depart);
-    await screen.findByText("3 files removed · 1 could not be");
+    await screen.findByRole("img", {
+      name: /3 files removed · 1 could not be/,
+    });
     // Still packed: the code and the button are where they were.
     expect(
       screen.getByRole("button", { name: "Take them off this device" }),
@@ -153,7 +180,9 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
 
   it("refuses a file too large to be a bundle without reading it", async () => {
     render(<TravelPanel />);
-    fireEvent.click(screen.getByRole("button", { name: "Bring vaults home" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn off travel mode" }),
+    );
     let read = false;
     const huge = new File(["{}"], "huge.json", { type: "application/json" });
     Object.defineProperty(huge, "size", { value: 65 * 1024 * 1024 });
@@ -171,5 +200,112 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     ).toBeTruthy();
     expect(read).toBe(false);
     expect(screen.getByText("No bundle chosen")).toBeTruthy();
+  });
+
+  it("closes the ceremony from Escape, the scrim and its own keep key, and writes nothing", () => {
+    render(<TravelPanel />);
+    const on = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Turn on travel mode" }),
+      );
+    on();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    on();
+    const close = screen.getAllByRole("button", { name: "Close" })[0];
+    if (close === undefined) throw new Error("Close is missing");
+    fireEvent.click(close);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(origin.tombs.has(WORK)).toBe(true);
+  });
+
+  it("keeps the typed return code while the sheet re-renders", () => {
+    render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn off travel mode" }),
+    );
+    const field = screen.getByLabelText("Return code");
+    field.focus();
+    fireEvent.change(field, { target: { value: "A" } });
+    fireEvent.change(field, { target: { value: "AB" } });
+    expect(document.activeElement).toBe(field);
+    expect(
+      screen.getByRole("dialog", { name: "Turn off travel mode" }),
+    ).toBeTruthy();
+  });
+
+  it("goes back to the plan from 'Keep them here' without removing anything", async () => {
+    render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    await screen.findByText(/^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/);
+    fireEvent.click(screen.getByRole("button", { name: "Keep them here" }));
+    expect(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    ).toBeTruthy();
+    expect(origin.tombs.has(WORK)).toBe(true);
+  });
+
+  it("does not close a ceremony while its step is in flight", async () => {
+    render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    // Still open: the pack was running when the key was pressed.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Turn on travel mode" }),
+      ).toBeTruthy(),
+    );
+  });
+
+  it("does not update the panel after it is gone", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // SAFETY: the fixture owns this mutable seam; TravelDeps stays readonly at the type boundary and this assignment preserves duressActive.
+    const seam = origin.deps as {
+      duressActive: typeof origin.deps.duressActive;
+    };
+    const duress = seam.duressActive;
+    seam.duressActive = async () => {
+      await gate;
+      return duress();
+    };
+    const seen: boolean[] = [];
+    const onUnhandled = (): void => {
+      seen.push(true);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    const view = render(<TravelPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn on travel mode" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pack the rest for travel" }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    view.unmount();
+    try {
+      release();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      });
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(seen).toEqual([]);
   });
 });

@@ -1,20 +1,19 @@
 /**
  * Capture verbs that change what a device has switched on — a capability's
- * own switch, or a whole section's, then Settings › Capabilities' Apply
+ * own switch, or a whole section's. Settings commits that switch in place
  * (ADR 0130) — kept beside `capture-evidence.mjs`'s own. `press` is that
  * script's tap-or-click; `openSettings(page, name)` opens a Settings page.
  */
 import { capabilityOffSwitch } from "./always-on.mjs";
 
 export function capabilitySteps({ press, openSettings }) {
-  /** Press what proposes a capability change, then Settings' own Apply. */
+  /** Press a Settings › Capabilities switch. It commits in place. */
   async function apply(page, control) {
     await press(control);
     await page.waitForTimeout(400);
-    await press(page.getByTestId("capability-apply"));
-    await page
-      .getByTestId("capability-review")
-      .waitFor({ state: "detached", timeout: 20_000 });
+    if ((await page.getByTestId("capability-review").count()) !== 0) {
+      throw new Error("Settings › Capabilities opened a review");
+    }
     await page.waitForTimeout(600);
   }
 
@@ -29,8 +28,8 @@ export function capabilitySteps({ press, openSettings }) {
       if (await add.count()) await apply(page, add.first());
     },
     /**
-     * Switch an optional capability on and stop at its review, unapplied —
-     * so a sheet can show what the review says before anything changes.
+     * Switch an optional capability on. Settings commits in place, so the
+     * page stays on the connector list.
      */
     async propose(page, title) {
       await openSettings(page, "Capabilities");
@@ -40,10 +39,21 @@ export function capabilitySteps({ press, openSettings }) {
           `capture-evidence propose("${title}"): no off switch matched`,
         );
       await press(add.first());
-      await page
-        .getByTestId("capability-review")
-        .waitFor({ state: "visible", timeout: 20_000 });
       await page.waitForTimeout(400);
+      if ((await page.getByTestId("capability-review").count()) !== 0) {
+        throw new Error(
+          `capture-evidence propose("${title}"): a review opened`,
+        );
+      }
+    },
+    /**
+     * `feature`, for a section only one of the two builds has: the base
+     * that has not grown it yet is a legitimate difference, not a miss.
+     */
+    async featureOptional(page, title) {
+      await openSettings(page, "Capabilities");
+      const toggle = page.getByRole("switch", { name: title, exact: true });
+      if (await toggle.count()) await apply(page, toggle.first());
     },
     /** A whole section, by its own switch — what a person actually turns on. */
     async feature(page, title) {

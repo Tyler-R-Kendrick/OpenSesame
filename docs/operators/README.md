@@ -14,6 +14,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Logs and events at rest](log-and-event-sealing.md) | The sealed log file, the keys that seal logs and event rows, what refuses to start without one, and how to read a sealed log. |
 | [Pages origin](pages-origin.md) | What the GitHub Pages build can and cannot do from a shared origin, and how to give it its own. |
 | [Capability composition](capability-composition.md) | Deciding which optional features a deployment contains, permits and lets a device run. |
+| [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 
 ## Identity
 
@@ -49,6 +50,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Optional mTLS and workload identity](mtls.md) | Per-hop TLS profiles, service bindings, SPIFFE, NATS and ingress references. |
 | [Security alerting](security-alerting.md) | Routing security notices to Alertmanager, PagerDuty, syslog and the built-in notifier. |
 | [Notification channels](notification-channels.md) | Where people are asked to approve, and what each channel can be trusted with. |
+| [Live sessions across networks](live-sessions.md) | Tunnel addresses, STUN/TURN, relay only and the code carriers (Nostr, MQTT, NATS, ntfy) a live session may use; every one optional. |
 
 ## Vaults and duress
 

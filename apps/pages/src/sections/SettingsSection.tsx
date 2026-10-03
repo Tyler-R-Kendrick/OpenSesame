@@ -8,9 +8,7 @@ import {
   settingsCategoryFromLocation,
   settingsPath,
 } from "@opensesame/app-core/lib/crumbs.js";
-import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
 import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
-import { DuressEnrollmentPanel } from "../routes/settings/security/index.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import {
@@ -20,23 +18,26 @@ import {
   defaultPanels,
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
-import { AgeKeysPanel } from "./settings/AgeKeysPanel.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
-import { KeybindingsViewsPanel } from "./settings/KeybindingsViewsPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
 import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
+import {
+  DuressPanel,
+  useDuressPanelShown,
+} from "./settings/security/DuressPanel.js";
+import { TravelPanel } from "./settings/travel/TravelPanel.js";
 import "./settings.css";
 
 import { useContributions } from "../bindings/contributions.js";
 import { useSettingsPanels } from "./settings/rail-snapshot.js";
-/** Its own chunk: Transport is read on a Security visit, never on boot. */
-const TransportPanel = lazy(() =>
-  import("./settings/transport/TransportPanel.js").then((module) => ({
-    default: module.TransportPanel,
+/** Its own chunk: the keymap editor is read on a Keybindings visit. */
+const KeybindingsPanels = lazy(() =>
+  import("./settings/keybindings/KeybindingsPanels.js").then((module) => ({
+    default: module.KeybindingsPanels,
   })),
 );
 
@@ -54,6 +55,12 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
       navigate(settingsPath(fromHash, hash), { replace: true });
     }
   }, [hash, navigate, pathname]);
+
+  // Keybindings were a panel of General before they had a tab (ADR 0150).
+  useEffect(() => {
+    if (category !== "general" || hash !== "#settings-keybindings") return;
+    navigate(settingsPath("keybindings"), { replace: true });
+  }, [category, hash, navigate]);
 
   useEffect(() => {
     if (category !== "security") return;
@@ -128,8 +135,12 @@ export function SettingsSection({
               <resolvedPanels.InstallPanel />
             </GuideTarget>
             <GeneralPrefsPanel />
-            <KeybindingsViewsPanel />
           </>
+        ) : null}
+        {form && category === "keybindings" ? (
+          <Suspense fallback={null}>
+            <KeybindingsPanels />
+          </Suspense>
         ) : null}
 
         {form && category === "security" ? (
@@ -162,8 +173,7 @@ function SettingsPageIndex({ category }: { category: string }) {
 
 /**
  * Panels a capability draws inside a category the core already has, so
- * Security can carry Formats and the ambient opt-in without this file
- * importing them.
+ * Security can carry an ambient opt-in without this file importing it.
  */
 function useCategoryPanels(category: string) {
   return [...useContributions("settings-panel")]
@@ -173,9 +183,7 @@ function useCategoryPanels(category: string) {
 
 /**
  * The Security category's own panels, in the order the screen draws them.
- * A capability's panels take the slot after the unlock methods — where
- * Formats sat when this file drew it itself, and drew it a second time
- * beside the capability's own copy.
+ * A capability's panels take the slot after the unlock methods.
  */
 function SecurityPanels({
   UnlockMethodsPanel,
@@ -184,18 +192,18 @@ function SecurityPanels({
   UnlockMethodsPanel: SettingsPanels["UnlockMethodsPanel"];
   contributed: readonly { id: string; Panel: ComponentType }[];
 }) {
+  // Travel is duress's own extension (ADR 0143): it draws exactly where the
+  // duress row does — the owner of an open vault, never a guest.
+  const duressShown = useDuressPanelShown();
   return (
     <>
       <VaultKeyProtectionPanel />
-      {resolveDuressMode({}) !== "off" ? <DuressEnrollmentPanel /> : null}
       <UnlockMethodsPanel />
+      <DuressPanel />
+      {duressShown ? <TravelPanel /> : null}
       {contributed.map(({ id, Panel }) => (
         <Panel key={id} />
       ))}
-      <AgeKeysPanel />
-      <Suspense fallback={null}>
-        <TransportPanel />
-      </Suspense>
     </>
   );
 }

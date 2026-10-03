@@ -19,7 +19,6 @@ import {
 import {
   DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
   UNLOCK_PASSKEY_MISS,
-  UNLOCK_PIN_MISS,
   type UnlockDuressGateOptions,
   resolveRequireDurable,
 } from "./unlock-duress-refuse.js";
@@ -103,7 +102,7 @@ export async function completePasskeyDuressCode(
         profileId: duressOutcome.match.profileId,
         plaintext: duressOutcome.match.plaintext,
       },
-      UNLOCK_PIN_MISS,
+      UNLOCK_PASSKEY_MISS,
     );
   }
 
@@ -121,7 +120,7 @@ export async function completePasskeyDuressCode(
   }
 
   if (select.prfOutput) stashPasskeyDuressEvidence(select);
-  throw new WrongPasswordError(UNLOCK_PIN_MISS);
+  throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
 }
 
 export function cancelPasskeyDuressCode(): void {

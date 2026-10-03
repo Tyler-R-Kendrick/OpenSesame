@@ -113,15 +113,18 @@ const approvedOptional = (plan: EffectivePlan): string[] => {
 const EXPECTED = {
   "minimal-local": [],
   "family-local": [],
-  "family-sharing-selected": ["sharing.drops", "sharing.household"],
+  "family-sharing-selected": ["sharing.household"],
   // Git backup is always on (ADR 0142): the provider path needs nothing optional.
   "single-provider-selected": [],
   "enterprise-selected": [
+    "access.authority",
     "enterprise.ca-administration",
     "enterprise.directory-provisioning",
+    "identity.federation",
+    "vault.certificate-records",
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
-  "managed-prohibited": ["sharing.drops"],
+  "managed-prohibited": [],
 } satisfies Record<string, readonly string[]>;
 
 describe("capability profiles", () => {
@@ -146,13 +149,15 @@ describe("capability profiles", () => {
         ...(policy?.capabilities.prohibited ?? []),
         ...selection.acceptedRequired,
         ...selection.selectedOptional,
-        ...Object.values(selection.chosenAlternatives),
       ];
       const core = new Set(coreCapabilityIds());
       for (const id of listed) {
         expect(known.has(id), `${profile.name}: ${id}`).toBe(true);
         expect(core.has(id), `${profile.name}: core ${id}`).toBe(false);
         expect(id.includes("*"), `${profile.name}: wildcard ${id}`).toBe(false);
+      }
+      for (const id of Object.values(selection.chosenAlternatives)) {
+        expect(known.has(id), `${profile.name}: alternative ${id}`).toBe(true);
       }
       expect(selection.revision).toEqual(expect.any(String));
       if (policy) expect(policy.revision).toEqual(expect.any(String));
@@ -196,6 +201,30 @@ describe("capability profiles", () => {
     // Selected with consent, it resolves its own module and nothing else.
     const rich = resolve("rich-explicit");
     expect(rich.approvedModules).toContain("notifications.routing/runtime");
+  });
+
+  it("minimal-local proves the runtime-installed plugins absent: no module, no operation", () => {
+    const plan = resolve("minimal-local");
+    for (const [id, operations] of [
+      [
+        "agents.surrogate-credentials",
+        ["plugins.surrogate_proxy.switch", "plugins.surrogate_proxy.tripwires"],
+      ],
+      ["vault.browser-autofill", ["plugins.browser_autofill.switch"]],
+    ] as const) {
+      expect(plan.capabilities[id]?.tier, id).toBe("optional");
+      expect(plan.capabilities[id]?.approved, id).toBe(false);
+      expect(plan.approvedModules).not.toContain(`${id}/runtime`);
+      for (const op of operations)
+        expect(plan.approvedOperations).not.toContain(op);
+      // Selected with consent, each resolves its module and pulls the
+      // tailnet daemon pairing it reads through.
+      const rich = resolve("rich-explicit");
+      expect(rich.approvedModules).toContain(`${id}/runtime`);
+      expect(rich.capabilities["networking.tailnet"]?.dependencyOf).toContain(
+        id,
+      );
+    }
   });
 
   it("family profiles keep enterprise, agents, remote AI and telemetry unapproved", () => {
@@ -247,7 +276,7 @@ describe("capability profiles", () => {
     const plan = resolve("managed-invalid-signature");
     expect(approvedOptional(plan)).toEqual([]);
     expect(plan.policyValid).toBe(false);
-    expect(plan.capabilities["sharing.drops"]?.reasons).toContain(
+    expect(plan.capabilities["support.local-ai"]?.reasons).toContain(
       "POLICY_UNVERIFIED",
     );
     expect(plan.network.externalServices).toBe("deny");
@@ -256,7 +285,7 @@ describe("capability profiles", () => {
   it("managed-invalid-instance is a PROFILE_MISMATCH with nothing optional approved", () => {
     const plan = resolve("managed-invalid-instance");
     expect(approvedOptional(plan)).toEqual([]);
-    expect(plan.capabilities["sharing.drops"]?.reasons).toContain(
+    expect(plan.capabilities["support.local-ai"]?.reasons).toContain(
       "PROFILE_MISMATCH",
     );
   });

@@ -181,3 +181,25 @@ support, at what confidence."
 - ADR 0049 is the only path by which a helper protocol or a mint
   capability becomes real; without it, `Mintable` offers exist but the
   mint endpoint does not.
+
+## Amendment 2026-09-28 — the surrogate proxy ships as a plugin (§5)
+
+ADR 0150 §6.1 put its surrogate proxy "in the daemon" and noted that
+certificate minting (`rcgen`) would need an amendment to §5 here. It does not
+need one, because the proxy did not land in the daemon. It is a separate,
+optional executable, `opensesame-surrogate-proxy` (`crates/surrogate-proxy`),
+that a person installs at runtime, pinned by sha256, recorded off and switched
+on in Settings or with `opensesame plugins enable` (ADR 0150 §7,
+[plugins guide](../operators/plugins.md)). `opensesame dev run --agent`
+spawns it per run; the daemon never links it.
+
+**§5's budget is unchanged: the daemon gains zero dependencies for the proxy.**
+The daemon's only addition is `opensesame-plugin-settings`, the catalog and
+settings-file reader behind `/v1/plugins`, whose own dependencies
+(`directories`, `hex`, `sha2`, `serde`, `serde_json`, `thiserror`) were
+already in the daemon's tree. `rcgen`, `tokio-rustls`'s server half used for
+TLS termination, and the proxy crate itself stay outside it.
+`pnpm audit:plugin-boundary` (`scripts/audit/plugin-boundary-gate.sh`) fails
+if `opensesame-daemon`'s normal tree — default features or `tailscale` —
+reaches `opensesame-surrogate-proxy` or `rcgen`, and its negative control
+(`pnpm test:plugin-boundary`) proves the gate fails on a tree that does.

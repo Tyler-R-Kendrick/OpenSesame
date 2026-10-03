@@ -38,6 +38,11 @@ describe("vault rail folders", () => {
       { kind: "login", deletedAt: null, folderId: "work" },
       { kind: "card", deletedAt: "2026-01-02", folderId: "work" },
     ] as VaultItem[];
-    expect(uniqueFolderKind(onlyLogin, "work")).toBe("login");
+    // The rail names a kind only while that kind is installed.
+    const installed = [
+      { id: "login", segment: "logins", label: "Login", order: 0 },
+    ];
+    expect(uniqueFolderKind(onlyLogin, "work", installed)).toBe("login");
+    expect(uniqueFolderKind(onlyLogin, "work")).toBeNull();
   });
 });

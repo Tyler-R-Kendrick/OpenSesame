@@ -87,42 +87,61 @@ describe("Settings → Vaults", () => {
     ).toBeNull();
   });
 
-  it("arms delete in place and only then removes", async () => {
+  it("asks in a sheet before it deletes, and only then removes", async () => {
     render(<VaultsPanel />);
     fireEvent.click(screen.getByRole("button", { name: "Delete vault Work" }));
     expect(removeVault).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Delete a vault" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
-    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete vault Work" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete this vault" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete vault" }));
     await waitFor(() => expect(removeVault).toHaveBeenCalledWith("prj_work"));
+  });
+
+  it("keeps the creation form off the page until the head's key opens it", () => {
+    render(<VaultsPanel />);
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    const key = screen.getByRole("button", { name: "Seal a new vault" });
+    expect(key.closest(".panel__head")).not.toBeNull();
+    fireEvent.click(key);
+    expect(
+      screen.getByRole("dialog", { name: "Seal a new vault" }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Name")).toBeTruthy();
   });
 
   it("seals a new vault with its own key while nothing is open", async () => {
     render(<VaultsPanel />);
-    expect(screen.queryByLabelText("Open it with this vault's key")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Seal a new vault"), {
+    fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
+    expect(screen.queryByRole("radiogroup", { name: "Key" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "Side" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create vault" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seal vault" }));
     await waitFor(() =>
       expect(sealNewVault).toHaveBeenCalledWith("Side", { shareKey: false }),
     );
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("offers to share the open vault's key, and says what that buys", async () => {
     status.current = "unlocked";
     render(<VaultsPanel />);
-    const share = screen.getByLabelText("Open it with this vault's key");
-    expect(screen.getByText(/no extra prompt/)).toBeTruthy();
-    fireEvent.click(share);
-    expect(screen.getByText(/its own passkey, PIN or password/)).toBeTruthy();
-    fireEvent.click(share);
-    fireEvent.change(screen.getByLabelText("Seal a new vault"), {
+    fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
+    expect(
+      screen.getByText("with this vault's key, no extra prompt"),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Its own key" }));
+    expect(
+      screen.getByText("with a passkey, PIN or password of its own"),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "This vault's key" }));
+    fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "Side" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create vault" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seal vault" }));
     await waitFor(() =>
       expect(sealNewVault).toHaveBeenCalledWith("Side", { shareKey: true }),
     );
@@ -133,6 +152,8 @@ describe("Settings → Vaults", () => {
     render(<VaultsPanel />);
     fireEvent.click(screen.getByRole("button", { name: /^Work/ }));
     await waitFor(() => expect(switchVault).toHaveBeenCalledWith("prj_work"));
-    expect(await screen.findByText("different key")).toBeTruthy();
+    expect(
+      await screen.findByRole("img", { name: "different key" }),
+    ).toBeTruthy();
   });
 });

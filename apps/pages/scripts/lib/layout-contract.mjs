@@ -1,3 +1,5 @@
+import { openSessionSection } from "./session-section.mjs";
+
 /**
  * Where keys sit and how wide fields grow, measured in the page
  * (DESIGN.md § Keys have a home, § Fields have a measure).
@@ -116,7 +118,7 @@ export const LAYOUT_AUDIT =
  * form; Security holds the Transport form's selects, which grew to 800px.
  */
 export async function auditSettings(page, audit, stop) {
-  await page.locator(".railtree__row", { hasText: "settings" }).first().tap();
+  await openSessionSection(page, "Settings");
   await page.waitForTimeout(700);
   await audit(stop("settings-general"));
   await page.getByRole("link", { name: "Security", exact: true }).first().tap();

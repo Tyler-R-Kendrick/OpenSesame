@@ -20,6 +20,9 @@ futures = { workspace = true }
 rand = { workspace = true }
 opensesame-a2h = { path = "../../crates/a2h" }
 opensesame-agent-events = { path = "../../crates/agent-events" }
+opensesame-agent-hooks = { path = "../../crates/agent-hooks" }
+# The web-login runner hosts its runs as agent-hooks sessions (ADR 0076, ADR 0150).
+opensesame-rotation-web = { path = "../../crates/rotation-web" }
 opensesame-session-observe = { path = "../../crates/session-observe" }
 url = { workspace = true }
 opensesame-lifecycle = { path = "../../crates/lifecycle" }

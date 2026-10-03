@@ -1,7 +1,7 @@
 # Logs and events at rest
 
 Logs and event rows carry no secrets and rest sealed
-([ADR 0150](../adr/0150-logs-and-events-carry-no-secrets.md)). This page is what an
+([ADR 0155](../adr/0155-logs-and-events-carry-no-secrets.md)). This page is what an
 operator sets, what refuses to start, and how to read a sealed log.
 
 ## What is sealed, and under what

@@ -21,9 +21,12 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "vault.passwords",
     "Vault items",
-    "Logins, notes, cards and secrets: the item list, editor, TOTP codes, website matching and the health report.",
+    "The base secret and the file. Item list, editor, TOTP codes, website matching and the health report. Other item types are optional.",
     {
       operationIds: [
+        "vault.item.create",
+        "vault.item.set",
+        "vault.item.share",
         "vault.item_types.install",
         "vault.item_types.list",
         "vault.item_types.marketplace",
@@ -32,7 +35,6 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "vault.items.search",
         "vault.items.write_meta",
         "vault.login_draft",
-        "vault.sample_data",
         "vault.totp.code",
       ],
       egress: [
@@ -47,18 +49,19 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       environments: ["document", "dedicated-worker"],
       browserPermissions: ["clipboard-write"],
       keyAccess: "item-plaintext",
-      itemKinds: ["login", "note", "card", "secret"],
+      itemKinds: ["secret", "file"],
     },
   ),
   core(
     "vault.local-unlock",
     "Local unlock",
-    "Password, PIN and passkey protectors for the vault key, the enrolled second step, recovery codes, the device's vault list, travel mode and resetting this browser.",
+    "Password, PIN and passkey protectors for the vault key, the enrolled second step, recovery codes, the device's vault list, travel mode, the duress code and resetting this browser.",
     {
       operationIds: [
         "device.browser_reset",
         "vault.recovery_codes",
         "vault.second_step.code",
+        "vaults.duress_code",
         "vaults.switch",
         "vaults.travel",
       ],

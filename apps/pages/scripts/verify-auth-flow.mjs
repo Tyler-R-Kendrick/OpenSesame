@@ -25,7 +25,9 @@ import {
   readSeed,
   withdrawSelfAuthenticator,
 } from "./lib/auth-flow-enroll.mjs";
+import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
+import { openSessionSection } from "./lib/session-section.mjs";
 import { totp } from "./lib/totp.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -123,13 +125,10 @@ async function snap(page, name) {
 
 const text = (page) => page.evaluate(() => document.body.innerText);
 
-/**
- * The seed, read the way a person without a camera reads it: the "Can't
- * scan?" alternative expands the setup key in place, inside the same sheet.
- */
+/** The seed is read in place: "Can't scan?" expands the setup key in this sheet. */
 async function openSecurity(page) {
   try {
-    await page.getByRole("treeitem", { name: "Settings", exact: true }).click();
+    await openSessionSection(page, "Settings");
   } catch (error) {
     await snap(page, "settings-navigation-failed");
     fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));
@@ -167,9 +166,7 @@ const browser = await chromium.launch(launch);
   const { page, context } = await newPage(browser);
   step = "1-guest";
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
+  await doorGuest(page).click();
   await page.waitForTimeout(2000);
   check(/guest-\d+/.test(await text(page)), "guest landed inside the app");
   await openSecurity(page);
@@ -303,6 +300,8 @@ const browser = await chromium.launch(launch);
   const { page, context } = await newPage(browser);
   step = "2-password";
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
+  await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.waitForTimeout(500);
   await page.getByRole("tab", { name: "Password" }).click();
@@ -323,14 +322,19 @@ const browser = await chromium.launch(launch);
     .click();
   await page.waitForTimeout(2500);
   const dialog = page.getByRole("dialog");
-  const scan = await snap(page, "2-password-scan");
+  await snap(page, "2-password-scan");
   check(
     (await dialog.locator(".steps__seg.is-now .steps__label").textContent()) ===
       "1 · Scan",
     "straight to Scan — no key step for a vault that has one",
   );
+  // The sheet's own steps, not the page: the rail beside it names sections
+  // (Settings › Keybindings) that have a "Key" of their own.
+  const steps = await dialog.locator(".steps__label").allTextContents();
   check(
-    /2 · Confirm/.test(scan) && !/Key/.test(scan),
+    steps.length === 2 &&
+      /2 · Confirm/.test(steps.join(" ")) &&
+      !steps.some((label) => /Key/.test(label)),
     "two steps, no key step",
   );
   const secret = await readSeed(page, check);

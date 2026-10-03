@@ -8,14 +8,15 @@ import { setShowHidden } from "./pages-journey.mjs";
  * a device that has approved nothing has no rail row for them (ADR 0130) —
  * asserted below rather than quietly dropped, because a listing that
  * disappears for the wrong reason would otherwise read as a passing gate.
- * Passkey records are always on (ADR 0135), so their listing is there.
+ * Passkey records are optional (ADR 0153). The static walk turns them on
+ * before this check, so the listing is there; drops stay off.
  */
 export async function checkEditorRoutes(page, check) {
   check(
     (await page
       .locator('.railtree__kids a[href$="/vault?f=passkey"]')
       .count()) > 0,
-    "passkey: the listing is there with nothing chosen (always on)",
+    "passkey: the listing is there once Passkey records is on",
   );
   for (const gated of ["drop"]) {
     check(
@@ -36,12 +37,36 @@ export async function checkEditorRoutes(page, check) {
   await setShowHidden(page, true);
   for (const filter of ["all", "favorites", "trash", "login"]) {
     const query = filter === "all" ? "" : `?f=${filter}`;
+    const listing = page
+      .locator(`.railtree__kids a[href$="/vault${query}"]`)
+      .first();
+    // Trash replaces New item with Restore and Delete permanently. The link
+    // from the previous listing unmounts as those keys render.
+    if (filter === "trash") {
+      await listing.click();
+      const create = page.getByRole("link", { name: "New item", exact: true });
+      const restore = page.getByRole("button", {
+        name: "Restore",
+        exact: true,
+      });
+      const purge = page.getByRole("button", {
+        name: "Delete permanently",
+        exact: true,
+      });
+      await expect(create).toHaveCount(0);
+      await expect(restore).toBeVisible();
+      await expect(purge).toBeVisible();
+      check(
+        (await create.count()) === 0 &&
+          (await restore.count()) === 1 &&
+          (await purge.count()) === 1,
+        "trash: Restore and Delete permanently replace New item",
+      );
+      continue;
+    }
     const expected = filter === "login" ? `/vault/new/${filter}` : "/vault/new";
     for (const keyboard of [false, true]) {
-      await page
-        .locator(`.railtree__kids a[href$="/vault${query}"]`)
-        .first()
-        .click();
+      await listing.click();
       const create = page.getByRole("link", { name: "New item", exact: true });
       await expect(create).toHaveAttribute("href", new RegExp(`${expected}$`));
       check(

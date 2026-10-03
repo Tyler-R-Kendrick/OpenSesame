@@ -139,8 +139,9 @@ function dedupe(suggestions: readonly LegacySuggestion[]): LegacySuggestion[] {
 
 /**
  * Synchronous review over whatever is hydrated. Enables nothing. Evidence
- * for an always-on capability (operator providers, a connector directory)
- * suggests nothing: that capability is in every plan already.
+ * for an always-on capability suggests nothing: only optional ids remain.
+ * A connector directory and an identity provider are optional (ADR 0153),
+ * so a record of one is a suggestion.
  */
 export function reviewLegacyConfiguration(): LegacyReview {
   const out: LegacySuggestion[] = [];

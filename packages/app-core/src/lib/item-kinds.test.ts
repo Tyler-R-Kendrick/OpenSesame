@@ -10,7 +10,13 @@ import {
 } from "@opensesame/vault-item-types";
 import { afterEach, describe, expect, it } from "vitest";
 import { LEGACY_ITEM_KINDS } from "./contributions.test-support.js";
-import { itemKindsFrom, withTypeDirectories } from "./item-kinds.js";
+import {
+  defaultCreatableKind,
+  isCreatableItemKind,
+  itemKindsFrom,
+  itemKindsSnapshot,
+  withTypeDirectories,
+} from "./item-kinds.js";
 
 function community(id: string, title: string, plural: string, ext: string) {
   return JSON.stringify({
@@ -92,10 +98,10 @@ describe("vault directories", () => {
     const added = rows.slice(kinds.length);
     expect(added.map((row) => [row.id, row.segment])).toEqual([
       ["from-elsewhere", "from-elsewhere"],
-      ["wifi", "wi-fi-networks"],
     ]);
-    // The platform kinds appear once, where they always were.
-    expect(rows.filter((row) => row.id === "login")).toHaveLength(1);
+    // Built-in kinds a capability owns do not come back from stored items.
+    expect(rows.filter((row) => row.id === "login")).toHaveLength(0);
+    expect(rows.filter((row) => row.id === "wifi")).toHaveLength(0);
   });
 
   it("never brings back a kind a capability owns", () => {
@@ -105,8 +111,8 @@ describe("vault directories", () => {
   });
 
   it("numbers a type not installed here rather than merge it into a taken directory", () => {
-    const rows = withTypeDirectories(kinds, ["logins"]);
-    expect(rows.at(-1)).toMatchObject({ id: "logins", segment: "logins-2" });
+    const rows = withTypeDirectories(kinds, ["secrets"]);
+    expect(rows.at(-1)).toMatchObject({ id: "secrets", segment: "secrets-2" });
     const segments = rows.map((row) => row.segment);
     expect(new Set(segments).size).toBe(segments.length);
   });
@@ -143,5 +149,19 @@ describe("vault directories", () => {
       );
       expect(outcome.ok).toBe(false);
     }
+  });
+});
+
+describe("the kind a creation surface opens on", () => {
+  it("is the first one this installation may create, not a hardcoded one", () => {
+    // With the core kinds present that is `login` — the rail's own order, not
+    // a constant a capability can invalidate.
+    expect(defaultCreatableKind()).toBe(itemKindsSnapshot()[0]?.id);
+  });
+
+  it("opens on a kind the installation can create", () => {
+    // The whole point: a device whose plan excludes login must not open on a
+    // login draft wearing a login draft's generated name.
+    expect(isCreatableItemKind(defaultCreatableKind())).toBe(true);
   });
 });

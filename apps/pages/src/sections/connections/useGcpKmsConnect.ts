@@ -2,8 +2,6 @@
  * State and actions for Settings › Connections › Google Cloud KMS.
  */
 
-import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
-import { bindCapabilityConnector } from "@opensesame/app-core/lib/capability-bind.js";
 import {
   type GcpKmsDeviceConfig,
   clearGcpKmsConfig,
@@ -11,7 +9,6 @@ import {
   toGcpKmsPublic,
   writeGcpKmsConfig,
 } from "@opensesame/app-core/lib/gcp-kms-config.js";
-import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {
   type Flash,
   errorText,
@@ -23,20 +20,7 @@ import {
   emptyGcpKmsForm,
 } from "./GcpKmsConnectFields.js";
 
-type GcpSettingsSlice = {
-  capabilityConnectors: { encryption: { providerId: string } };
-};
-
 export const gcpKmsConnectDependencies = {
-  loadSettings: (): GcpSettingsSlice => {
-    const encryption = loadSettings().capabilityConnectors.encryption;
-    return {
-      capabilityConnectors: {
-        encryption: { providerId: encryption.providerId },
-      },
-    } satisfies GcpSettingsSlice;
-  },
-  bindCapabilityConnector,
   readGcpKmsConfig,
   writeGcpKmsConfig,
   clearGcpKmsConfig,
@@ -74,18 +58,21 @@ function useSealedConfig(unlocked: boolean, tomb: string | null) {
 }
 
 export function useGcpKmsConnect(onFlash: (flash: Flash) => void) {
-  const { status, guest, tomb } = useVault();
+  const { status, guest, tomb, header } = useVault();
   const unlocked = status === "unlocked" && !guest && Boolean(tomb);
   const { form, setForm, saved, setSaved } = useSealedConfig(unlocked, tomb);
   const [busy, setBusy] = useState(false);
-  const [bindingId, setBindingId] = useState(
-    () =>
-      gcpKmsConnectDependencies.loadSettings().capabilityConnectors.encryption
-        .providerId,
-  );
-  const active = bindingId === "gcp-kms";
   const configured = Boolean(saved?.keyName && saved.serviceAccountJson);
   const publicView = saved ? toGcpKmsPublic(saved) : null;
+  // A saved connection is what Test opens the protector with, so it is not
+  // removable while a protector on this key is enrolled (ADR 0150 §3).
+  const enrolled = Boolean(
+    saved?.keyName &&
+      header?.protection?.records.some(
+        (record) =>
+          record.kind === "gcp-kms" && record.keyName === saved.keyName,
+      ),
+  );
 
   const setField = (key: keyof GcpKmsFormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -119,18 +106,6 @@ export function useGcpKmsConnect(onFlash: (flash: Flash) => void) {
     }
   }
 
-  function preferGcpKms() {
-    const next = gcpKmsConnectDependencies.bindCapabilityConnector(
-      "encryption",
-      "gcp-kms",
-    );
-    setBindingId(next.providerId);
-    onFlash({
-      tone: "ok",
-      text: `${connectorLabel("gcp-kms")} selected for vault key protection.`,
-    });
-  }
-
   async function forget() {
     if (!tomb) return;
     setBusy(true);
@@ -150,12 +125,11 @@ export function useGcpKmsConnect(onFlash: (flash: Flash) => void) {
     unlocked,
     form,
     busy,
-    active,
+    enrolled,
     configured,
     statusLabel: publicView?.label || publicView?.projectId || null,
     setField,
     save,
-    preferGcpKms,
     forget,
   };
 }

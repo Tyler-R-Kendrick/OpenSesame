@@ -1,8 +1,11 @@
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { withoutPresetResidue } from "@opensesame/app-core/lib/capabilities/preset-residue.js";
 import {
+  type CapabilityId,
   type EffectivePlan,
+  type InstallationCapabilitySelection,
   type InstanceCapabilityPolicy,
+  buildConsentReceipt,
   resolveComposition,
 } from "@opensesame/capability-composition";
 import { describe, expect, it } from "vitest";
@@ -30,22 +33,41 @@ function orgPolicy(
   };
 }
 
+function selection(
+  selectedOptional: readonly CapabilityId[],
+): InstallationCapabilitySelection {
+  return {
+    schemaVersion: 1,
+    kind: "InstallationCapabilitySelection",
+    instanceId: "inst-org",
+    installationId: "device-org-1",
+    basePolicyRevision: "1",
+    revision: "1",
+    acceptedRequired: [],
+    selectedOptional,
+    chosenAlternatives: {},
+    delivery: { prefetch: "none", offlineCache: "shell-only" },
+  };
+}
+
 function planUnder(
   prohibited: string[],
   policy: InstanceCapabilityPolicy = orgPolicy(prohibited),
+  selectedOptional: readonly CapabilityId[] = [],
 ): EffectivePlan {
-  return resolveComposition({
+  const input = {
     catalog: CAPABILITY_CATALOG,
     distribution: distributionFromOwnership("selective"),
     instancePolicy: policy,
-    provenance: "same-origin-deployment",
+    provenance: "same-origin-deployment" as const,
     policyValid: true,
     workspace: null,
-    installation: null,
+    installation:
+      selectedOptional.length === 0 ? null : selection(selectedOptional),
     vault: null,
     receipt: null,
     facts: {
-      environments: ["document", "dedicated-worker", "service-worker"],
+      environments: ["document", "dedicated-worker", "service-worker"] as const,
       serviceWorkerAvailable: true,
       activeWorkerVariant: null,
       cleanRealm: true,
@@ -55,24 +77,51 @@ function planUnder(
     },
     installationId: "device-org-1",
     vaultId: null,
+  };
+  if (input.installation === null) return resolveComposition(input);
+  const first = resolveComposition(input);
+  return resolveComposition({
+    ...input,
+    receipt: buildConsentReceipt(first, CAPABILITY_CATALOG, input.facts.now),
   });
 }
 
 describe("an operator withdraws a browser-local capability (ADR 0142)", () => {
-  it("runs all four by default", () => {
+  it("runs the always-on pair by default and leaves Identity off", () => {
     const plan = planUnder([]);
-    for (const id of [
-      "identity.local-iam",
-      "identity.siop",
-      "identity.site-broker",
-      "backup.git-remote",
-    ]) {
+    for (const id of ["identity.site-broker", "backup.git-remote"]) {
       expect(plan.capabilities[id]?.approved, id).toBe(true);
+    }
+    // Identity is an optional extension (ADR 0153), off until chosen.
+    for (const id of ["identity.local-iam", "identity.siop"]) {
+      expect(plan.capabilities[id]?.approved, id).toBe(false);
     }
   });
 
   it("withdrawing browser-local IAM takes SIOP with it, and leaves the rest", () => {
-    const plan = planUnder(["identity.local-iam"]);
+    const permitted = orgPolicy([]);
+    const allowed: InstanceCapabilityPolicy = {
+      ...permitted,
+      capabilities: {
+        ...permitted.capabilities,
+        optional: ["identity.local-iam", "identity.siop"],
+      },
+    };
+    const chosen = ["identity.local-iam", "identity.siop"] as const;
+    const on = planUnder([], allowed, chosen);
+    expect(on.capabilities["identity.local-iam"]?.approved).toBe(true);
+    expect(on.capabilities["identity.siop"]?.approved).toBe(true);
+    const plan = planUnder(
+      [],
+      {
+        ...allowed,
+        capabilities: {
+          ...allowed.capabilities,
+          prohibited: ["identity.local-iam"],
+        },
+      },
+      chosen,
+    );
     expect(plan.capabilities["identity.local-iam"]?.approved).toBe(false);
     expect(plan.capabilities["identity.siop"]?.approved).toBe(false);
     expect(plan.capabilities["identity.site-broker"]?.approved).toBe(true);
@@ -101,10 +150,11 @@ describe("a version-1 preset's refusals are not a withdrawal", () => {
     ).toBe(false);
   });
 
-  it("read as the store reads it, all four run", () => {
+  it("read as the store reads it, git backup runs and the IAM refusal stands", () => {
     const plan = planUnder([], withoutPresetResidue(legacy));
     expect(plan.capabilities["backup.git-remote"]?.approved).toBe(true);
-    expect(plan.capabilities["identity.local-iam"]?.approved).toBe(true);
+    // IAM is optional again, so a version-1 prohibition of it is kept.
+    expect(plan.capabilities["identity.local-iam"]?.approved).toBe(false);
   });
 
   it("a hand-written policy still withdraws them", () => {

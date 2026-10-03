@@ -3,7 +3,10 @@ import {
   accessPortalCapabilities,
 } from "./access-portal.js";
 import { accountCapabilities } from "./account.js";
+import { agentHooksCapabilities } from "./agent-hooks.js";
 import { backupSyncCapabilities } from "./backup-sync.js";
+import { breachExposureCapabilities } from "./breach-exposure.js";
+import { browserAutofillCapabilities } from "./browser-autofill.js";
 import { connectorCapabilities } from "./connectors.js";
 import { enrollmentCapabilities } from "./enrollment.js";
 import {
@@ -12,7 +15,6 @@ import {
   ADR_LIVE_OBSERVATION,
   ADR_NOTIFICATION_CEREMONIES,
   AUTH_CEREMONY,
-  BREACH_CHECK_TAKES_A_SECRET,
   COMMAND_BAR_HUMAN_ONLY,
   CUSTODY_KEY_MATERIAL,
   DEFERRED,
@@ -45,7 +47,7 @@ import { sharedSessionCapabilities } from "./shared-sessions.js";
  * here, so a capability cannot ship on one surface without either shipping on
  * the agent surfaces or carrying an explicit, ADR-cited exclusion.
  * Surface string conventions:
- * - cli:    the command line as typed ("opensesame task terminate",
+ * - cli:    the command line as typed ("opensesame access grants task terminate",
  *           "opensesame-id claim poll"); apps/cli and packages/cli parity
  *           tests assert the tokens exist in the clap/arg-parser sources.
  * - pwa:    "lib|vault-core/<file>.ts:<export>" for an app core, shell or
@@ -76,49 +78,13 @@ export {
 } from "./interaction-boundary.js";
 export * from "./capability-map.js";
 
-export type Surface =
-  | "cli"
-  | "pwa"
-  | "mcp_host"
-  | "mcp_client"
-  | "webmcp"
-  | "extension"
-  | "android";
-
-export type AgentSurface = "mcp_host" | "mcp_client" | "webmcp";
-
-export interface CapabilityExclusion {
-  /** Why this capability is deliberately withheld from the surface. */
-  readonly reason: string;
-  /** ADR file name under docs/adr/ that records the decision. */
-  readonly adr: string;
-}
-
-export interface Capability {
-  readonly id: string;
-  readonly title: string;
-  readonly plane: "host" | "identity" | "client_local";
-  readonly kind: "read" | "act" | "admin" | "ceremony";
-  readonly surfaces: {
-    readonly cli: string | null;
-    readonly pwa: string | null;
-    readonly mcp_host: string | null;
-    readonly mcp_client: string | null;
-    readonly webmcp: string | null;
-    /** `message:<type>` the browser extension's background handles. */
-    readonly extension?: string | null;
-    /** The Android app's intent or screen; absent means not built there. */
-    readonly android?: string | null;
-  };
-  /**
-   * null on a surface means "not applicable"; an entry here means
-   * "deliberately withheld" and must cite a real ADR. The registry self-test
-   * requires every host/identity capability to be mapped or excluded on MCP,
-   * and every capability with a pwa surface to be mapped or excluded on
-   * WebMCP.
-   */
-  readonly excluded?: Partial<Record<Surface, CapabilityExclusion>>;
-}
+import type { Capability } from "./types.js";
+export type {
+  AgentSurface,
+  Capability,
+  CapabilityExclusion,
+  Surface,
+} from "./types.js";
 
 export const CAPABILITIES: readonly Capability[] = [
   ...generalAuthorityCapabilities,
@@ -130,7 +96,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame status",
+      cli: "opensesame identity status",
       pwa: null,
       mcp_host: "host_ready",
       mcp_client: "host_health",
@@ -171,7 +137,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame whoami",
+      cli: "opensesame identity whoami",
       pwa: "route:/identity",
       mcp_host: null,
       mcp_client: "whoami",
@@ -198,6 +164,7 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   ...nativeHostCapabilities,
+  ...browserAutofillCapabilities,
 
   // ── Host plane: intents, tasks, receipts ──────────────────────────────
   {
@@ -206,7 +173,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame invoke",
+      cli: "opensesame access resources invoke",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -220,7 +187,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame task list",
+      cli: "opensesame access grants task list",
       pwa: null,
       mcp_host: "task_list",
       mcp_client: null,
@@ -234,7 +201,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame task inspect",
+      cli: "opensesame access grants task inspect",
       pwa: null,
       mcp_host: "task_status",
       mcp_client: null,
@@ -248,7 +215,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame task terminate",
+      cli: "opensesame access grants task terminate",
       pwa: null,
       mcp_host: "task_terminate",
       mcp_client: null,
@@ -262,7 +229,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame intent create",
+      cli: "opensesame access grants intent create",
       pwa: null,
       mcp_host: "task_invoke",
       mcp_client: null,
@@ -275,7 +242,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame intent invoke",
+      cli: "opensesame access grants intent invoke",
       pwa: null,
       mcp_host: "task_invoke_l1",
       mcp_client: null,
@@ -302,7 +269,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame receipt verify",
+      cli: "opensesame access sessions receipt verify",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -483,7 +450,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame provider list",
+      cli: "opensesame identity providers list",
       pwa: "lib/embedded-catalog.ts:getBundledProviders",
       mcp_host: null,
       mcp_client: null,
@@ -500,7 +467,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame provider test",
+      cli: "opensesame identity providers test",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -516,7 +483,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame connect ls",
+      cli: "opensesame access connectors connect ls",
       pwa: "lib/connections.ts:listConnections",
       mcp_host: null,
       mcp_client: null,
@@ -530,7 +497,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame connect inspect",
+      cli: "opensesame access connectors connect inspect",
       pwa: "lib/connections.ts:getConnection",
       mcp_host: null,
       mcp_client: null,
@@ -546,7 +513,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame connect create",
+      cli: "opensesame access connectors connect create",
       pwa: "lib/connections.ts:createConnection",
       mcp_host: null,
       mcp_client: null,
@@ -581,7 +548,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame connect update",
+      cli: "opensesame access connectors connect update",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -606,7 +573,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame connect attach",
+      cli: "opensesame access connectors connect attach",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -625,7 +592,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame connect rotate",
+      cli: "opensesame access connectors connect rotate",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -641,7 +608,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame connect rm",
+      cli: "opensesame access connectors connect rm",
       pwa: "lib/connections.ts:revokeConnection",
       mcp_host: null,
       mcp_client: null,
@@ -662,7 +629,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame connect discover",
+      cli: "opensesame access connectors connect discover",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -676,7 +643,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame export",
+      cli: "opensesame access connectors export",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -706,7 +673,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame cert ls",
+      cli: "opensesame access resources cert ls",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -722,7 +689,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame cert issue",
+      cli: "opensesame access resources cert issue",
       pwa: "lib/certs.ts:issueCertificate",
       mcp_host: null,
       mcp_client: null,
@@ -743,7 +710,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame cert ca",
+      cli: "opensesame access resources cert ca",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -844,7 +811,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame sync push",
+      cli: "opensesame vault sync push",
       pwa: null,
       mcp_host: "sync_push",
       mcp_client: "sync_push",
@@ -857,7 +824,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame sync pull",
+      cli: "opensesame vault sync pull",
       pwa: null,
       mcp_host: "sync_pull",
       mcp_client: "sync_pull",
@@ -886,7 +853,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame connection rotate",
+      cli: "opensesame access connectors connection rotate",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -902,7 +869,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame cert issue",
+      cli: "opensesame access resources cert issue",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -919,7 +886,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame cert key",
+      cli: "opensesame access resources cert key",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -932,63 +899,15 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   ...lifecycleCapabilities,
   ...securityAuthorityCapabilities,
-  // ── Host plane: breach exposure (ADR 0080) ────────────────────────────
-  {
-    id: "security.findings.read",
-    title: "Read breach findings for this organization",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame security findings",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
-  },
-  {
-    id: "security.breach_scan.trigger",
-    title: "Run one breach scan now",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: "opensesame security scan",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SCOPED_AGENT_ONLY,
-    },
-  },
-  {
-    id: "security.breach_check.run",
-    title: "Check a candidate secret against the breached-password corpus",
-    plane: "host",
-    kind: "admin",
-    surfaces: {
-      cli: "opensesame security check",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: BREACH_CHECK_TAKES_A_SECRET,
-      webmcp: BREACH_CHECK_TAKES_A_SECRET,
-    },
-  },
+  ...breachExposureCapabilities,
+  ...agentHooksCapabilities,
   {
     id: "ceremony.catalog.read",
     title: "Read which connector registrations this build can automate",
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame ceremony list",
+      cli: "opensesame access connectors ceremony list",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1014,7 +933,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame rotate runs",
+      cli: "opensesame access connectors rotate runs",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1031,7 +950,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame rotate watch",
+      cli: "opensesame access connectors rotate watch",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1056,7 +975,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame rotate attach",
+      cli: "opensesame access connectors rotate attach",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1133,7 +1052,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame secret get",
+      cli: "opensesame vault secret get",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1151,7 +1070,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame pass show",
+      cli: "opensesame vault pass show",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1169,7 +1088,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame pass attach sync",
+      cli: "opensesame vault pass attach sync",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -1466,7 +1385,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "client_local",
     kind: "read",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault list",
       pwa: "lib/vault/store.ts:vaultStore",
       mcp_host: null,
       mcp_client: null,
@@ -1494,7 +1413,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault copy",
       pwa: "route:/vault",
       mcp_host: null,
       mcp_client: null,
@@ -1685,7 +1604,7 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame session",
       pwa: "lib/setup.ts:completeSetup",
       mcp_host: null,
       mcp_client: null,

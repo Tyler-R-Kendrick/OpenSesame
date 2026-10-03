@@ -24,16 +24,22 @@ type FakeRequest = {
   onupgradeneeded?: () => void;
 };
 
-function request(run: () => BoundaryValue): IDBRequest {
+function request(
+  run: () => BoundaryValue,
+  after?: (failed: boolean) => void,
+): IDBRequest {
   const req: FakeRequest = {};
   queueMicrotask(() => {
+    let failed = false;
     try {
       req.result = run();
       req.onsuccess?.();
     } catch (error) {
+      failed = true;
       req.error = overlapCast(error);
       req.onerror?.();
     }
+    after?.(failed);
   });
   return overlapCast(req);
 }
@@ -42,27 +48,30 @@ function rowId(row: BoundaryObject): string {
   return String(row.id);
 }
 
-function objectStore(store: FakeStore) {
+function objectStore(
+  store: FakeStore,
+  tracked: (run: () => BoundaryValue) => IDBRequest = request,
+) {
   return {
-    get: (id: string) => request(() => store.rows.get(id)),
-    getAll: () => request(() => [...store.rows.values()]),
+    get: (id: string) => tracked(() => store.rows.get(id)),
+    getAll: () => tracked(() => [...store.rows.values()]),
     put: (row: BoundaryObject) =>
-      request(() => {
+      tracked(() => {
         store.rows.set(rowId(row), row);
         return row.id;
       }),
     add: (row: BoundaryObject) =>
-      request(() => {
+      tracked(() => {
         if (store.rows.has(rowId(row))) {
           throw new DOMException("present", "ConstraintError");
         }
         store.rows.set(rowId(row), row);
         return row.id;
       }),
-    delete: (id: string) => request(() => store.rows.delete(id)),
+    delete: (id: string) => tracked(() => store.rows.delete(id)),
     index: (name: string) => ({
       getAll: (value: string) =>
-        request(() =>
+        tracked(() =>
           [...store.rows.values()].filter(
             (row) => row[store.indexes.get(name) ?? ""] === value,
           ),
@@ -82,15 +91,48 @@ function database(stores: Map<string, FakeStore>) {
       stores.set(name, store);
       return objectStore(store);
     },
-    transaction: () => ({
-      objectStore: (name: string) => {
-        const store = stores.get(name);
-        if (!store) throw new DOMException("no store", "NotFoundError");
-        return objectStore(store);
-      },
-    }),
+    transaction: () => countingTransaction(stores),
     close() {},
   };
+}
+
+/** Completes after this turn's requests, on the same object the caller holds. */
+function countingTransaction(stores: Map<string, FakeStore>) {
+  let pending = 0;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    queueMicrotask(() => {
+      tx.oncomplete?.();
+    });
+  };
+  const tracked = (run: () => BoundaryValue): IDBRequest => {
+    pending += 1;
+    return request(run, (failed) => {
+      pending -= 1;
+      if (failed) {
+        finished = true;
+        return;
+      }
+      if (pending === 0) finish();
+    });
+  };
+  const tx = {
+    oncomplete: undefined as (() => void) | undefined,
+    onabort: undefined as (() => void) | undefined,
+    onerror: undefined as (() => void) | undefined,
+    error: undefined as BoundaryValue | undefined,
+    objectStore(name: string) {
+      const store = stores.get(name);
+      if (!store) throw new DOMException("no store", "NotFoundError");
+      return objectStore(store, tracked);
+    },
+  };
+  queueMicrotask(() => {
+    if (pending === 0) finish();
+  });
+  return tx;
 }
 
 export type FakeIndexedDb = { factory: IDBFactory; databases: FakeDatabases };

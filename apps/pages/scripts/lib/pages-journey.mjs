@@ -4,7 +4,10 @@ import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
+  capabilityOnSwitch,
 } from "./always-on.mjs";
+import { passTheDoor } from "./front-door.mjs";
+import { openSessionSection } from "./session-section.mjs";
 export const PASSWORD = "correct horse battery staple 2026";
 
 export async function waitOpen(page) {
@@ -15,7 +18,8 @@ export async function waitOpen(page) {
     .waitFor({ timeout: 20000 });
 }
 
-export async function sealWithPassword(page) {
+/** Sign-in is already up: the no-account road seals a vault on this device. */
+export async function sealLocalOnly(page) {
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.getByRole("tab", { name: "Password" }).click();
   await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);
@@ -27,6 +31,25 @@ export async function sealWithPassword(page) {
     .check();
   await page.getByRole("button", { name: "Seal this device" }).click();
   await waitOpen(page);
+}
+
+/** First-run PIN seal. The same recovery acknowledgement as the password road. */
+export async function sealWithPin(page) {
+  await passTheDoor(page);
+  await page.getByRole("button", { name: "Use without an account" }).click();
+  await page.getByRole("tab", { name: "PIN" }).click();
+  await page.getByLabel("Device PIN").fill("48291037");
+  await page.getByLabel("Confirm PIN").fill("48291037");
+  await page.getByLabel("I understand this vault cannot be recovered.").check();
+  await page.getByRole("button", { name: "Seal with PIN" }).click();
+  await waitOpen(page);
+  await page.waitForTimeout(400);
+}
+
+export async function sealWithPassword(page) {
+  // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
+  await passTheDoor(page);
+  await sealLocalOnly(page);
 }
 
 export async function unlockWithPassword(page) {
@@ -46,19 +69,33 @@ export async function lockVault(page) {
     .waitFor({ timeout: 15000 });
 }
 
-export async function openSection(page, label) {
-  // Section rows for access/identity/wallet/activity are capability
-  // contributions and land after the core rows: wait before concluding the
-  // row is absent.
+const SESSION_ROOTS = {
+  "settings/": "Settings",
+  "activity/": "Activity",
+};
+
+async function clickVaultRow(page, label) {
   const rail = page.locator(".railtree__row", { hasText: label }).first();
   const appeared = await rail
     .waitFor({ state: "visible", timeout: 10000 })
     .then(() => true)
     .catch(() => false);
-  if (appeared) {
-    await rail.click();
+  if (!appeared) return false;
+  await rail.click();
+  return true;
+}
+
+export async function openSection(page, label) {
+  const session = SESSION_ROOTS[label];
+  if (session) {
+    await openSessionSection(page, session);
     return;
   }
+  // A session root replaces the vault directories. The row comes back
+  // after the `<` key. Capability rows can also land a moment late.
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if (await back.isVisible().catch(() => false)) await back.click();
+  if (await clickVaultRow(page, label)) return;
   await page
     .getByText(label, { exact: true })
     .locator("visible=true")
@@ -67,8 +104,8 @@ export async function openSection(page, label) {
 }
 
 /**
- * Choose capabilities the way a person does — Settings › Capabilities, the
- * capability's switch, Apply. A device that has approved nothing has no rail row for the sections
+ * Choose capabilities the way a person does — Settings › Capabilities and
+ * the capability's switch, which commits in place. A device that has approved nothing has no rail row for the sections
  * those capabilities contribute (ADR 0130), so a walk that needs one says
  * which it needs instead of pretending the row is there.
  */
@@ -81,10 +118,11 @@ export async function addCapabilities(page, titles) {
     const add = capabilityOffSwitch(page, title);
     await add.waitFor({ timeout: 15000 });
     await add.click();
-    const review = page.getByTestId("capability-review");
-    await review.waitFor({ timeout: 10000 });
-    await page.getByTestId("capability-apply").click();
-    await review.waitFor({ state: "detached", timeout: 15000 });
+    await page.getByTestId("capability-review").waitFor({
+      state: "detached",
+      timeout: 15000,
+    });
+    await capabilityOnSwitch(page, title).waitFor({ timeout: 15000 });
   }
 }
 
@@ -105,7 +143,13 @@ export async function openGeneral(page) {
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
   await openSection(page, "settings/");
-  const link = page.getByRole("link", { name: label, exact: true });
+  // Inside a category the breadcrumb names it too: the sections list is the one.
+  const section = page
+    .locator(".set__nav")
+    .getByRole("link", { name: label, exact: true });
+  const link = (await section.count())
+    ? section
+    : page.getByRole("link", { name: label, exact: true });
   if (await link.count()) {
     await link.click();
   } else {

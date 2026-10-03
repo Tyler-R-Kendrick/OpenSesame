@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "clock": "2026-10-01T15:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "sealPin": true },
+        { "press": "Export items" },
+        { "report": "[role=dialog]" },
+        { "measure": "[role=dialog] [aria-label='Save backup']" },
+        { "shot": "1280-export-pin" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "sealPin": true },
+        { "press": "Export items" },
+        { "report": "[role=dialog]" },
+        { "measure": "[role=dialog] [aria-label='Save backup']" },
+        { "shot": "390-export-pin" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-export-pin",
+      "width": 1280,
+      "title": "Export sheet, PIN vault — 1280 × 800",
+      "caption": "A vault sealed with a PIN can save its encrypted backup. The sheet names the PIN as what opens the file.",
+      "before": "Save backup absent; mark Export needs a master password",
+      "after": "Save backup in the sheet; Opens with the PIN"
+    },
+    {
+      "shot": "390-export-pin",
+      "width": 390,
+      "title": "Export sheet, PIN vault — 390 × 844",
+      "caption": "The same PIN backup on a phone. The commit stays on the sheet.",
+      "before": "Save backup absent; mark Export needs a master password",
+      "after": "Save backup in the sheet; Opens with the PIN"
+    }
+  ]
+}

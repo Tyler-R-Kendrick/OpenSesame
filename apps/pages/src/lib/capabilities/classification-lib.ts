@@ -1,7 +1,4 @@
-/**
- * `src/lib/*` (root files). No directory default: every family is named,
- * so a new file with no rule fails the classification test and gets one.
- */
+/** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
 import { core, each, optional, shared } from "./classification-rule.js";
 
@@ -69,6 +66,7 @@ const SHELL_FILES = [
   "keyboard-delivery",
   "contributions",
   "item-kinds",
+  "derived-item-kinds",
   "show-hidden",
   "use-show-hidden",
 ];
@@ -76,6 +74,8 @@ const SIGNIN_FILES = [
   "guest-access",
   "guest-auth",
   "guest-isolation",
+  "browser-pairing",
+  "host-authorization",
   "local-guest",
   "auth-outcome",
   "last-sign-in",
@@ -95,7 +95,6 @@ const SIGNIN_FILES = [
   "orgs",
 ];
 const CONNECTOR_FILES = [
-  "capabilities",
   "capability-bind",
   "connector-guidance",
   "connector-settings",
@@ -103,20 +102,15 @@ const CONNECTOR_FILES = [
   "connections",
   "connections-integrations",
   "connections-local-git",
-  "connector-catalog",
   "connector-directory",
   "nango-directory",
-  "embedded-catalog",
-  "embedded-catalog-data",
-  "bundled-provider-ids",
-  "managed-connectors",
   "vercel-connect",
-  "github-app-",
   "github-installation-access",
-  "guest-connections",
   "identity-graph",
 ];
 const GIT_FILES = [
+  "github-app-",
+  "connector-catalog",
   "backup",
   "backup-target-build",
   "backup-target-local",
@@ -130,20 +124,14 @@ const GIT_FILES = [
   "vault-backup-observer",
   "backup-egress-gate",
   "vault-backup-sync",
+  "saved-git-backup",
   "embedded-git",
 ];
-const CLOUD_FILES = [
-  "age-keys",
-  "aws-kms-config",
-  "azure-key-vault-keys-config",
-  "gcp-kms-config",
-  "yubikey-config",
-  "sops/",
-];
+const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-audit",
-  "local-access-bootstrap",
+  "local-access-ledger-lock",
   "local-access-requests",
   "local-grant-admin",
   "local-grant-store",
@@ -151,16 +139,14 @@ const ACCESS_FILES = [
   "local-share-grants",
   "local-share-reach",
   "standing-connection-grants",
-  "host-authorization",
-  "browser-pairing",
 ];
 const LOCAL_IAM_FILES = [
+  "local-access-bootstrap",
   "local-agent-auth",
   "local-agent-authorization",
   "local-agent-channel",
   "local-agent-keys",
   "local-application-approval",
-  "local-application-policy",
   "local-application-shape",
   "local-applications",
   "local-authenticator",
@@ -171,7 +157,6 @@ const LOCAL_IAM_FILES = [
   "local-directory-bootstrap",
   "local-directory-memberships",
   "local-directory-types",
-  "local-iam-events",
   "local-iam-lock-resets",
   "local-issuer-channel",
   "local-organizations",
@@ -185,22 +170,19 @@ const LOCAL_IAM_FILES = [
   "local-vault-session-issue",
   "local-vault-sessions",
   "pages-dogfood",
-  "device-identity-host",
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
-  "byo",
-  "idp-presets",
-  "idp-registry",
   // `orgs-directory` only: `orgs.ts` is the core sign-in vocabulary (the slug
   // shape, the method routing, the profile this tab is on) and declares the
   // four Identity-API calls as seams this capability installs.
   "orgs-directory",
-  "directory",
   "oauth-client-admin",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
+  "hosted-inference",
+  "saved-model-agent",
   "model-catalog",
   "model-slugs",
   "browser-inference",
@@ -215,6 +197,11 @@ export const LIB_RULES = [
     `${L}item-type-marketplace/`,
     "vault.passwords",
     "item-type marketplaces read from a git repository (ADR 0134)",
+  ),
+  core(
+    `${L}file-parts-store`,
+    "vault.passwords",
+    "sealed parts of a file item",
   ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),
@@ -232,10 +219,17 @@ export const LIB_RULES = [
     L,
     [
       "settings",
+      "capability-connector-scope",
+      "password-reset-mail",
       "setup",
       "runtime-config",
       "deployment-profile",
       "configuration/",
+      "capabilities",
+      "connect-roads",
+      "embedded-catalog",
+      "idp-presets",
+      "local-application-policy",
     ],
     (p) =>
       core(
@@ -247,9 +241,15 @@ export const LIB_RULES = [
   ...each(L, ["webauthn", "browser-reset"], (p) =>
     core(p, "vault.local-unlock", "WebAuthn detection; resetting this browser"),
   ),
+  core(`${L}guest-connections`, "vault.local-unlock", "tomb"),
+  core(`${L}idp-registry`, "vault.local-unlock", "tomb IdPs"),
   shared(
     `${L}activity-log`,
     "append API used by core; the section is activity.log",
+  ),
+  shared(
+    `${L}document-lifecycle`,
+    "trusted-hide and persisted-restore decisions the shell and a live session share",
   ),
   ...each(L, CONNECTOR_FILES, (p) =>
     optional(
@@ -261,9 +261,7 @@ export const LIB_RULES = [
   ...each(L, GIT_FILES, (p) =>
     optional(p, GIT, "git remote backup and history"),
   ),
-  ...each(L, CLOUD_FILES, (p) =>
-    optional(p, CLOUD, "cloud KMS, age, YubiKey, SOPS"),
-  ),
+  ...each(L, CLOUD_FILES, (p) => optional(p, CLOUD, "cloud KMS, age, SOPS")),
   ...each(L, ACCESS_FILES, (p) =>
     optional(p, ACCESS, "local PAM records and Host plane"),
   ),
@@ -303,7 +301,7 @@ export const LIB_RULES = [
   // A link's query, read at boot: `/device?user_code=` and the legacy links
   // normalised to it; `/invoke/<kind>`'s handle and its screen model; the
   // `/guest` and `/delegate` aliases (ADR 0140).
-  ...each(L, ["device-link", "invoke-", "ceremony-aliases"], (p) =>
+  ...each(L, ["device-link", "invoke-", "ceremony-aliases", "directory"], (p) =>
     core(p, CEREMONIES, "a ceremony link read at boot, and its model"),
   ),
   core(
@@ -346,17 +344,16 @@ export const LIB_RULES = [
     "vault.local-unlock",
     "duress slots, fence, compartments and alerting",
   ),
-  // Travel mode (ADR 0143) moves whole vaults off the device and back; it
-  // belongs with the device's vault list, under the core unlock capability.
   core(
     `${L}travel/`,
     "vault.local-unlock",
     "travel mode: departure bundle and return",
   ),
-  // Transport security (ADR 0132) is deployment-plane operator work; the
-  // Pages surface reads status and runs the enforcement probe.
-  ...each(L, ["transport-"], (p) =>
-    optional(p, "access.authority", "operator transport status and probe"),
+  shared(`${L}local-iam-events`, "change fanout the tomb and identity share"),
+  core(
+    `${L}ambient-auth/entra-instances`,
+    "vault.local-unlock",
+    "browser reset clears ambient sign-in instances",
   ),
   ...each(L, ["capabilities/settling"], (p) =>
     core(p, SHELL, "whether the plan is still coming up, for the router"),
@@ -383,7 +380,8 @@ export const LIB_RULES = [
     "identity.site-broker",
     "pins the shipped static-auth SDK bytes",
   ),
-  ...each(L, ["certs", "x509/"], (p) =>
+  core(`${L}certs`, "vault.passwords", "editor opens an existing certificate"),
+  ...each(L, ["x509/"], (p) =>
     optional(p, "vault.certificate-records", "self-signed X.509 issuance"),
   ),
   optional(

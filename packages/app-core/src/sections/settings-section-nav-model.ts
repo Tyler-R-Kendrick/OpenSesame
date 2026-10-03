@@ -29,6 +29,12 @@ export type SettingsTab = Readonly<{
 export const settingsTabs: readonly SettingsTab[] = [
   { id: "general", label: "General", guideId: "settings.general", order: 0 },
   {
+    id: "keybindings",
+    label: "Keybindings",
+    guideId: "settings.keybindings",
+    order: 50,
+  },
+  {
     id: "security",
     label: "Security",
     guideId: "settings.security",

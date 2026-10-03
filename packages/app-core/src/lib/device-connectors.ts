@@ -1,0 +1,334 @@
+/**
+ * Device-local connector configuration.
+ *
+ * An api-key or configuration connector saves on this device when no Host is
+ * reachable. The connection record and `publicFields` hold only non-secret
+ * values. Secret material stays in a second record and is copied only onto
+ * the feature operation (`runFeatureConnector`).
+ */
+
+import { ConnectionsError } from "./connections-error.js";
+import {
+  localGitToConnection,
+  mergeLocalGitConnections,
+} from "./connections-local-git.js";
+import type { Connection, Provider } from "./connections.js";
+import { catalogProvider } from "./connector-catalog.js";
+import {
+  type PublicRow,
+  type StringFields,
+  clearDeviceConnectorStore,
+  readDeviceRows,
+  readDeviceSecrets,
+  writeDeviceRows,
+  writeDeviceSecrets,
+} from "./device-connector-records.js";
+import type { GitRemoteConfiguration } from "./git-auth-modes.js";
+import { isGitBackupProvider } from "./git-backup-forges.js";
+import {
+  isLocalGitRemoteId,
+  rememberLocalGitRemote,
+} from "./git-remote-local.js";
+import { bindHistoryConnection } from "./history-backups.js";
+
+const ID_PREFIX = "conn_local_";
+
+export type RenderedConnector = {
+  connection: Connection;
+  publicFields: Record<string, string>;
+};
+
+export type ConnectorRun =
+  | {
+      ok: true;
+      providerId: string;
+      operation: string;
+      fields: Record<string, string>;
+      secrets: Record<string, string>;
+    }
+  | { ok: false; providerId: string };
+
+type SaveBody = {
+  providerId: string;
+  displayName?: string;
+  scopes?: string[];
+  projectId?: string;
+  integrationId?: string;
+};
+
+export function connectionCreateJson(body: SaveBody): string {
+  return JSON.stringify({
+    provider_id: body.providerId,
+    ...(body.displayName ? { display_name: body.displayName } : undefined),
+    ...(body.scopes ? { scopes: body.scopes } : undefined),
+    ...(body.projectId ? { project_id: body.projectId } : undefined),
+    ...(body.integrationId
+      ? { integration_id: body.integrationId }
+      : undefined),
+  });
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function randomId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  return `${ID_PREFIX}${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function isDeviceConnectorId(id: string): boolean {
+  return id.startsWith(ID_PREFIX);
+}
+
+export function forgetDeviceConnectors(): void {
+  clearDeviceConnectorStore();
+}
+
+function findId(id: string): PublicRow | undefined {
+  return readDeviceRows().find((row) => row.connectionId === id);
+}
+
+function latestFor(providerId: string): PublicRow | undefined {
+  return readDeviceRows()
+    .filter((row) => row.providerId === providerId)
+    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+    .at(-1);
+}
+
+const GIT_SECRET_KEYS = [
+  "token",
+  "password",
+  "ssh_private_key",
+  "ssh_passphrase",
+];
+
+function secretNames(providerId: string): Set<string> {
+  const fields = catalogProvider(providerId)?.configurationFields ?? [];
+  const names = new Set(
+    fields.filter((field) => field.secret).map((field) => field.name),
+  );
+  if (isGitBackupProvider(providerId)) {
+    for (const key of GIT_SECRET_KEYS) names.add(key);
+  }
+  return names;
+}
+
+function toConnection(row: PublicRow): Connection {
+  return {
+    connectionId: row.connectionId,
+    connectionRef: `local/connector/${row.connectionId}`,
+    logicalName: row.connectionId,
+    displayName: row.displayName,
+    providerId: row.providerId,
+    integrationId: null,
+    status: "active",
+    statusDetail: null,
+    organizationId: "local",
+    projectId: null,
+    ownerKind: "user",
+    shareability: "private",
+    requestedScopes: row.scopes,
+    grantedScopes: row.scopes,
+    accountLabel: null,
+    expiresAt: null,
+    refreshable: false,
+    lastRefreshedAt: null,
+    maxInvokeLevel: 0,
+    egress: { scheme: "none", authorities: [], pathPrefixes: [] },
+    bindings: [],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function upsert(row: PublicRow, secrets: StringFields): void {
+  const rows = readDeviceRows().filter(
+    (item) => item.connectionId !== row.connectionId,
+  );
+  rows.push(row);
+  writeDeviceRows(rows);
+  const map = readDeviceSecrets();
+  if (Object.keys(secrets).length === 0) delete map[row.connectionId];
+  else map[row.connectionId] = secrets;
+  writeDeviceSecrets(map);
+}
+
+export function deviceConnection(id: string): Connection | null {
+  const row = findId(id);
+  if (!row || isLocalGitRemoteId(id)) return null;
+  return toConnection(row);
+}
+
+export function listDeviceConnections(): Connection[] {
+  return readDeviceRows()
+    .filter((row) => !isLocalGitRemoteId(row.connectionId))
+    .map(toConnection);
+}
+
+export function mergeOfflineConnections(rows: Connection[]): Connection[] {
+  const withGit = mergeLocalGitConnections(rows);
+  const local = listDeviceConnections();
+  if (local.length === 0) return withGit;
+  const seen = new Set(withGit.map((row) => row.connectionId));
+  return [...withGit, ...local.filter((row) => !seen.has(row.connectionId))];
+}
+
+export function publicConnectorFields(connectionId: string): StringFields {
+  const fields: StringFields = {};
+  for (const [name, value] of Object.entries(
+    findId(connectionId)?.fields ?? {},
+  )) {
+    fields[name] = value;
+  }
+  return fields;
+}
+
+export function renderedConnectorRecord(
+  connection: Connection,
+): RenderedConnector {
+  return {
+    connection,
+    publicFields: publicConnectorFields(connection.connectionId),
+  };
+}
+
+export function createDeviceConnection(body: SaveBody): Connection {
+  const stamp = nowIso();
+  const row: PublicRow = {
+    connectionId: randomId(),
+    providerId: body.providerId,
+    displayName: body.displayName?.trim() || body.providerId,
+    scopes: body.scopes ?? [],
+    fields: {},
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  upsert(row, {});
+  return toConnection(row);
+}
+
+function unreachable(error: ConnectionsError): boolean {
+  return error.code === "unreachable" || error.status === 0;
+}
+
+/** Host create when it answers; a device record when it cannot be reached. */
+export function createHostOrDevice(
+  body: SaveBody,
+  host: () => Promise<Connection>,
+): Promise<Connection> {
+  if (isGitBackupProvider(body.providerId)) return host();
+  return host().catch((error) => {
+    if (!(error instanceof ConnectionsError) || !unreachable(error))
+      throw error;
+    return createDeviceConnection(body);
+  });
+}
+
+export function sealDeviceCredential(
+  id: string,
+  value: string,
+): Connection | null {
+  const row = findId(id);
+  if (!row || isLocalGitRemoteId(id)) return null;
+  const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
+  secrets.credential = value;
+  upsert({ ...row, updatedAt: nowIso() }, secrets);
+  return toConnection({ ...row, updatedAt: nowIso() });
+}
+
+export function sealDeviceConfiguration(
+  id: string,
+  values: Record<string, string>,
+): Connection | null {
+  const row = findId(id);
+  if (!row) return null;
+  const hidden = secretNames(row.providerId);
+  const fields: StringFields = { ...row.fields };
+  const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
+  for (const [key, value] of Object.entries(values)) {
+    if (hidden.has(key)) secrets[key] = value;
+    else fields[key] = value;
+  }
+  const next = { ...row, fields, updatedAt: nowIso() };
+  upsert(next, secrets);
+  return isLocalGitRemoteId(id) ? null : toConnection(next);
+}
+
+export function revokeDeviceConnection(id: string): {
+  revoked: boolean;
+  providerRevocation: "ok";
+} | null {
+  if (!findId(id) || isLocalGitRemoteId(id)) return null;
+  writeDeviceRows(readDeviceRows().filter((row) => row.connectionId !== id));
+  const map = readDeviceSecrets();
+  delete map[id];
+  writeDeviceSecrets(map);
+  return { revoked: true, providerRevocation: "ok" };
+}
+
+interface SplitFields {
+  readonly fields: StringFields;
+  readonly secrets: StringFields;
+}
+
+function splitValues(
+  providerId: string,
+  values: GitRemoteConfiguration,
+): SplitFields {
+  const hidden = secretNames(providerId);
+  const fields: StringFields = {};
+  const secrets: StringFields = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined || value.trim() === "") continue;
+    if (hidden.has(key)) secrets[key] = value;
+    else fields[key] = value;
+  }
+  return { fields, secrets };
+}
+
+/** Forge remotes stay on the git road; their catalog fields feed the same operation. */
+export async function saveForgeConnector(
+  provider: Provider,
+  input: { displayName: string; configuration: GitRemoteConfiguration },
+): Promise<Connection> {
+  const displayName = input.displayName.trim() || provider.displayName;
+  const remote = await rememberLocalGitRemote({
+    displayName,
+    configuration: input.configuration,
+  });
+  bindHistoryConnection(provider.id, remote.id, input.configuration.remote_url);
+  const split = splitValues(provider.id, input.configuration);
+  const stamp = nowIso();
+  upsert(
+    {
+      connectionId: remote.id,
+      providerId: provider.id,
+      displayName,
+      scopes: [],
+      fields: split.fields,
+      createdAt: stamp,
+      updatedAt: stamp,
+    },
+    split.secrets,
+  );
+  return localGitToConnection(remote);
+}
+
+/** The catalog operation the owning feature runs from the saved configuration. */
+export function runFeatureConnector(provider: Provider): ConnectorRun {
+  const row = latestFor(provider.id);
+  if (!row) return { ok: false, providerId: provider.id };
+  const fields: StringFields = { ...row.fields };
+  if (row.scopes.length > 0) fields.scopes = row.scopes.join(" ");
+  const secrets: StringFields = {
+    ...(readDeviceSecrets()[row.connectionId] ?? {}),
+  };
+  return {
+    ok: true,
+    providerId: provider.id,
+    operation: provider.operations[0] ?? "configure",
+    fields,
+    secrets,
+  };
+}

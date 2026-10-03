@@ -57,8 +57,15 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
     expect(completeSetup).not.toHaveBeenCalled();
   });
 
-  it("defaults to the operator ceremony with no invite in the address bar", () => {
+  it("opens on the configuration choice, and Custom enters the ceremony", () => {
     render(<SetupScreen onDone={vi.fn()} />);
+    expect(screen.queryByRole("tab")).toBeNull();
+    for (const name of ["Minimal", "Default", "Custom"]) {
+      expect(
+        screen.getByRole("button", { name: new RegExp(`^${name}$`) }),
+      ).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole("button", { name: /^Custom$/ }));
     expect(
       screen.getByRole("tab", { selected: true }).textContent?.trim(),
     ).toBe("capabilities");
@@ -311,8 +318,45 @@ describe("an OpenSesame identity service", () => {
 });
 
 describe("where the keyboard lands", () => {
-  it("lands setup on its commit, never on a provider's Remove", () => {
+  it("lands the configuration choice on Minimal", () => {
     render(<SetupScreen onDone={vi.fn()} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /^Minimal$/ }),
+    );
+  });
+
+  it("lands the ceremony on its commit, never on a provider's Remove", () => {
+    openSetup();
     expect(document.activeElement).toBe(commit());
+  });
+
+  it("walks the step tabs with the arrow keys", () => {
+    openSetup();
+    const tabs = screen.getAllByRole("tab");
+    // The current step is the one Tab reaches; the others wait.
+    expect(tabs[0].getAttribute("aria-selected")).toBe("true");
+    expect(tabs[0].getAttribute("tabindex")).toBe("0");
+    expect(tabs[1].getAttribute("tabindex")).toBe("-1");
+    // Right selects the next step and lands on it.
+    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("connectors");
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: "connectors" }),
+    );
+    // End jumps to the last step, Home back to the first.
+    fireEvent.keyDown(screen.getByRole("tab", { name: "connectors" }), {
+      key: "End",
+    });
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("mfa");
+    fireEvent.keyDown(screen.getByRole("tab", { name: "mfa" }), {
+      key: "Home",
+    });
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("capabilities");
   });
 });

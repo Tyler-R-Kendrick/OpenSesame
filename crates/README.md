@@ -54,6 +54,8 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`connector-host`](connector-host) | Hosts WIT connectors: authorized HTTP, signing and opaque token handles — never a raw secret. |
 | [`connection-detect`](connection-detect) | Value-blind discovery of provider credentials already on a machine ([ADR 0047](../docs/adr/0047-daemon-connector-discovery.md)). |
 | [`invoke-through`](invoke-through) | Daemon-mediated upstream calls over a credential that never leaves the machine. |
+| [`surrogate-proxy`](surrogate-proxy) | Per-run proxy where an unmodified client holds a surrogate and invoke-through places the credential ([ADR 0150](../docs/adr/0150-surrogate-credentials-at-the-last-hop.md)); ships only as the optional plugin binary `opensesame-surrogate-proxy`. |
+| `plugin-settings` | The optional-plugin catalog, the settings file that switches plugins, and install pins verified at every launch ([plugins guide](../docs/operators/plugins.md)). |
 | [`provider-openbao`](provider-openbao) | OpenBao credential-authority adapter. |
 | [`provider-openfga`](provider-openfga) | OpenFGA remote PDP client. |
 | [`provider-bitwarden`](provider-bitwarden) | Bitwarden / Vaultwarden consume-client ([ADR 0052](../docs/adr/0052-password-manager-ecosystem-bridging.md)). |
@@ -93,7 +95,8 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`security-events`](security-events) | The shared `SecurityNotice` envelope and its Alertmanager, PagerDuty and syslog renderings ([ADR 0080](../docs/adr/0080-security-event-hooks.md)). |
 | [`breach-intel`](breach-intel) | Value-blind breach detection: Pwned Passwords k-anonymity and public breach catalogues. |
 | [`agent-events`](agent-events) | Frozen `agent.*` event vocabulary for sandboxed runs. |
-| [`session-observe`](session-observe) | Live observation of agent runs and single-holder control handoff. |
+| [`agent-hooks`](agent-hooks) | OpenSesame as an agent-hooks/0.1 interceptor: tool rules, a value-blind secret guard, digest-bound approvals ([ADR 0150](../docs/adr/0150-agent-hooks-interceptor.md)). |
+| [`session-observe`](session-observe) | Live observation of agent runs and single-holder control handoff; a run lease revokes its credentials when it parks or ends. |
 | [`rotation`](rotation) | Credential rotation state machine. |
 | [`rotation-web`](rotation-web) | Web-login rotation: step IR and a tool boundary that never returns a credential. |
 | [`ceremony`](ceremony) | Connector registration ceremonies: tier ladder and typed capture slots. |

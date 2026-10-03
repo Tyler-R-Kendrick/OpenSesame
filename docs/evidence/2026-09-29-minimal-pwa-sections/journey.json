@@ -1,0 +1,64 @@
+{
+  "out": ".",
+  "clock": "2026-09-29T16:00:00Z",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "guest": null },
+        { "report": "a.railtree__row[aria-level='1']" },
+        {
+          "count": [
+            "a.railtree__row[aria-level='1']",
+            "a[href*='f=secret']",
+            "a[href*='f=login']"
+          ]
+        },
+        { "shot": "1280-rail" },
+        { "open": "New item" },
+        { "report": "select option" },
+        { "count": ["select option"] },
+        { "shot": "1280-new-item" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "press": "Sections" },
+        { "report": ".drawer__name" },
+        { "count": [".drawer__name"] },
+        { "shot": "390-drawer" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-rail",
+      "width": 1280,
+      "title": "Minimal rail — 1280 × 800",
+      "caption": "A bare install lists vault, activity and settings. Connections, access and identity stay off until their switches are on.",
+      "before": "6 section rows; 1 login filter",
+      "after": "3 section rows (vault, activity, settings); 0 login filters"
+    },
+    {
+      "shot": "1280-new-item",
+      "width": 1280,
+      "title": "New item types — 1280 × 800",
+      "caption": "The minimal vault offers the generic secret. Other built-in types are an Item types extension.",
+      "before": "29 select options, including .login, .passkey and .cert",
+      "after": "8 select options; the type list is .secret"
+    },
+    {
+      "shot": "390-drawer",
+      "width": 390,
+      "title": "Phone sections — 390 × 844",
+      "caption": "The phone drawer names the same three sections.",
+      "before": "6 names: Vault, Connections, Access, Identity, Activity, Settings",
+      "after": "3 names: Vault, Activity, Settings"
+    }
+  ]
+}

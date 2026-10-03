@@ -19,25 +19,35 @@ import {
   noteConnectionCreated,
   noteConnectionRevoked,
 } from "./activity-log.js";
+import { ConnectionsError } from "./connections-error.js";
 import {
   type Integration,
   integrationFromLocal,
   toIntegration,
 } from "./connections-integrations.js";
-import {
-  mergeLocalGitConnections,
-  revokeLocalGitConnection,
-} from "./connections-local-git.js";
+import { revokeLocalGitConnection } from "./connections-local-git.js";
 import { providerFromView } from "./connector-catalog.js";
+import {
+  connectionCreateJson,
+  createHostOrDevice,
+  deviceConnection,
+  mergeOfflineConnections,
+  revokeDeviceConnection,
+  sealDeviceConfiguration,
+  sealDeviceCredential,
+} from "./device-connectors.js";
+import { performSavedCategory } from "./feature-request-send.js";
 import {
   buildGithubAppRegistration,
   readLocalGithubApp,
 } from "./github-app-manifest.js";
 import { claimGuestConnection } from "./guest-connections.js";
-export type { Integration } from "./connections-integrations.js";
 import { isGuestSession } from "./guest-isolation.js";
 import { HostSessionError, hostBase, hostFetch } from "./identity.js";
 import * as vercelConnect from "./vercel-connect-ops.js";
+
+export type { Integration } from "./connections-integrations.js";
+export { ConnectionsError };
 
 export type ProviderCategory =
   | "identity"
@@ -154,19 +164,6 @@ export type Connection = {
   updatedAt: string;
 };
 
-export class ConnectionsError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ConnectionsError";
-  }
-}
-
-/* ------------------------------------------------------------- transport */
-
 function base(): string {
   return hostBase();
 }
@@ -205,8 +202,6 @@ async function call<T>(
   if (res.status === 204) return map(null);
   return map(await res.json());
 }
-
-/* ----------------------------------------------------------- wire mapping */
 
 function obj(value: BoundaryValue): JsonObject {
   return value && isTypeofObject(value) ? overlapCast(value) : {};
@@ -393,7 +388,6 @@ function submitGithubAppManifestDefault(
     { manifest: JSON.stringify(registration.manifest) },
     "_self",
   );
-  // If CSP or a browser policy blocks the navigation, the caller must recover the UI.
 }
 
 function listProvidersDefault(): Promise<Provider[]> {
@@ -404,18 +398,18 @@ function listProvidersDefault(): Promise<Provider[]> {
 
 function listConnectionsDefault(): Promise<Connection[]> {
   if (vercelConnect.usesConnect()) {
-    return vercelConnect.listVercelConnections().then(mergeLocalGitConnections);
+    return vercelConnect.listVercelConnections().then(mergeOfflineConnections);
   }
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
   )
-    .then(mergeLocalGitConnections)
+    .then(mergeOfflineConnections)
     .catch((error) => {
       if (
         error instanceof ConnectionsError &&
         (error.code === "unreachable" || error.status === 0)
       ) {
-        return mergeLocalGitConnections([]);
+        return mergeOfflineConnections([]);
       }
       throw error;
     });
@@ -428,6 +422,8 @@ function discoverConnectionsDefault(): Promise<number> {
   );
 }
 export function getConnection(id: string): Promise<Connection> {
+  const local = deviceConnection(id);
+  if (local) return Promise.resolve(local);
   if (vercelConnect.isConnectConnector(id))
     return vercelConnect.getVercelConnection(id);
   return call(`/connections/${encodeURIComponent(id)}`, {}, toConnection);
@@ -442,21 +438,12 @@ function createConnectionDefault(body: {
 }): Promise<Connection> {
   if (vercelConnect.usesConnect(body.providerId))
     return vercelConnect.createVercelConnection(body);
-  return call(
-    "/connections",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        provider_id: body.providerId,
-        ...(body.displayName ? { display_name: body.displayName } : undefined),
-        ...(body.scopes ? { scopes: body.scopes } : undefined),
-        ...(body.projectId ? { project_id: body.projectId } : undefined),
-        ...(body.integrationId
-          ? { integration_id: body.integrationId }
-          : undefined),
-      }),
-    },
-    toConnection,
+  return createHostOrDevice(body, () =>
+    call(
+      "/connections",
+      { method: "POST", body: connectionCreateJson(body) },
+      toConnection,
+    ),
   );
 }
 
@@ -494,6 +481,8 @@ function setConnectionCredentialDefault(
   id: string,
   value: string,
 ): Promise<Connection> {
+  const sealed = sealDeviceCredential(id, value);
+  if (sealed) return Promise.resolve(sealed);
   return call(
     `/connections/${encodeURIComponent(id)}/credential`,
     { method: "POST", body: JSON.stringify({ value }) },
@@ -506,6 +495,8 @@ function setConnectionConfigurationDefault(
   configurationSet: Record<string, string>,
   configurationClear: string[] = [],
 ): Promise<Connection> {
+  const sealed = sealDeviceConfiguration(id, configurationSet);
+  if (sealed) return Promise.resolve(sealed);
   return call(
     `/connections/${encodeURIComponent(id)}/credential`,
     {
@@ -523,6 +514,8 @@ async function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
+  const device = revokeDeviceConnection(id);
+  if (device) return device;
   const local = await revokeLocalGitConnection(id);
   if (local) return local;
   if (vercelConnect.isConnectConnector(id))
@@ -565,10 +558,8 @@ export type ConsentOutcome =
   | { result: "abandoned" };
 
 const POLL_MS = 1500;
-/** Long enough for a real consent screen including an upstream login and MFA. */
 const CONSENT_TIMEOUT_MS = 5 * 60_000;
 
-/** Consent popup plus connection poll; whichever settles first wins. */
 async function awaitConsentDefault(
   connectionId: string,
   popup: Window | null,
@@ -612,8 +603,6 @@ async function awaitConsentDefault(
           : { result: "failed", connection };
       }
 
-      // A closed popup with the connection still pending means the user backed
-      // out. Give the callback one more poll to land before saying so.
       if (popup?.closed) {
         await sleep(POLL_MS);
         const last = await getConnection(connectionId).catch(() => null);
@@ -694,6 +683,7 @@ export function listProviders(): Promise<Provider[]> {
   return connectionSeams.listProviders();
 }
 export function listConnections(): Promise<Connection[]> {
+  performSavedCategory(["password_managers", "local_storage"]);
   return connectionSeams.listConnections();
 }
 export async function createConnection(

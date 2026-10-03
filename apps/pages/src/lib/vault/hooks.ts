@@ -1,3 +1,4 @@
+import { trustedHideRetires } from "@opensesame/app-core/lib/document-lifecycle.js";
 import { endSession } from "@opensesame/app-core/lib/identity.js";
 import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import { clearStagedClaimTokens } from "@opensesame/app-core/lib/queue.js";
@@ -111,8 +112,17 @@ function useSessionGuardsDefault(): void {
 
   useEffect(() => {
     if (status !== "unlocked" || !prefs.lockOnHide) return;
-    const onHide = () => {
-      if (document.visibilityState === "hidden") vaultStore.lock();
+    const onHide = (event: Event) => {
+      if (
+        trustedHideRetires({
+          trusted: event.isTrusted,
+          hidden: document.visibilityState === "hidden",
+          lockOnHide: prefs.lockOnHide,
+          unlocked: status === "unlocked",
+        })
+      ) {
+        vaultStore.lock();
+      }
     };
     document.addEventListener("visibilitychange", onHide);
     return () => document.removeEventListener("visibilitychange", onHide);

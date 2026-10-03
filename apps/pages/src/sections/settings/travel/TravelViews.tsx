@@ -1,8 +1,7 @@
 /**
- * The pieces of Settings › Vaults › Travel (ADR 0143), drawn from state the
- * panel holds. Nothing here reads storage or a secret beyond what it is
- * handed: the return code is shown once, as text to write down — never put
- * on the clipboard, which keeps its own history.
+ * The words and small pieces of Settings › Vaults › Travel (ADR 0143): what
+ * a refusal means, what a departure reports, the row a safe-list entry is
+ * drawn as. Nothing here reads storage or a secret beyond what it is handed.
  */
 
 import type {
@@ -10,15 +9,7 @@ import type {
   DepartureReceipt,
 } from "@opensesame/app-core/lib/travel/index.js";
 import type { ReactNode } from "react";
-import { FieldShell } from "../../../components/FieldShell.js";
-import { FormCommit } from "../../../components/FormCommit.js";
-import {
-  IconArrowRight,
-  IconDownload,
-  IconUpload,
-  IconX,
-} from "../../../components/Icons.js";
-import { StatusMark, type StatusTone } from "../../../components/StatusMark.js";
+import type { StatusTone } from "../../../components/StatusMark.js";
 
 /** What a refusal code means, in the panel's words. */
 const REFUSAL_TEXT = new Map<string, string>([
@@ -56,31 +47,6 @@ export function travelRefusalText(code: string): string {
 /** Something the panel has to say: a refusal, or what just happened. */
 export type TravelNotice = { tone: StatusTone; text: string; meta?: string };
 
-/** A refusal is a mark in the panel head, never a paragraph in its body. */
-export function TravelStatus({ notice }: { notice: TravelNotice }) {
-  return (
-    <span
-      className="travel__status"
-      role={notice.tone === "err" ? "alert" : undefined}
-    >
-      <StatusMark tone={notice.tone} label={notice.text} />
-    </span>
-  );
-}
-
-/** What departure or return did, as a record the list keeps on its top row. */
-export function TravelReceipt({ notice }: { notice: TravelNotice }) {
-  return (
-    <ul className="travel__list" aria-label="What just happened">
-      <TravelRow
-        name={notice.text}
-        meta={notice.meta}
-        side={<StatusMark tone={notice.tone} label={notice.text} />}
-      />
-    </ul>
-  );
-}
-
 export function plural(count: number, one: string): string {
   return `${count} ${one}${count === 1 ? "" : "s"}`;
 }
@@ -105,7 +71,7 @@ export function TravelRow({
   );
 }
 
-function saveBundle(pkg: DeparturePackage): void {
+export function saveBundle(pkg: DeparturePackage): void {
   const blob = new Blob([pkg.bundleJson], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -114,100 +80,6 @@ function saveBundle(pkg: DeparturePackage): void {
   link.click();
   // Revoking synchronously can cancel the download in some engines.
   setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-export function PackedView({
-  pkg,
-  ack,
-  busy,
-  onAck,
-  onDepart,
-  onCancel,
-}: {
-  pkg: DeparturePackage;
-  ack: { bundleSaved: boolean; codeRecorded: boolean };
-  busy: boolean;
-  onAck: (next: { bundleSaved: boolean; codeRecorded: boolean }) => void;
-  onDepart: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <form
-      className="travel"
-      aria-label="Leaving this device"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onDepart();
-      }}
-    >
-      <ul className="travel__list" aria-label="Vaults that leave">
-        {pkg.departing.map((vault) => (
-          <TravelRow
-            key={vault.id}
-            name={vault.label}
-            meta={plural(vault.files, "file")}
-          />
-        ))}
-        <TravelRow
-          name={pkg.bundleFileName}
-          meta="travel bundle"
-          side={
-            <button
-              type="button"
-              className="icon-btn icon-btn--sm"
-              aria-label="Save the travel bundle"
-              title="Save the travel bundle"
-              onClick={() => saveBundle(pkg)}
-            >
-              <IconDownload size={16} />
-            </button>
-          }
-        />
-      </ul>
-      <div>
-        <strong id="travel-code-label">Return code</strong>
-        <p className="travel__code" aria-labelledby="travel-code-label">
-          {pkg.returnCode}
-        </p>
-      </div>
-      <label className="travel__ack">
-        <input
-          type="checkbox"
-          checked={ack.bundleSaved}
-          onChange={(event) =>
-            onAck({ ...ack, bundleSaved: event.target.checked })
-          }
-        />
-        <span>The bundle is saved somewhere other than this device</span>
-      </label>
-      <label className="travel__ack">
-        <input
-          type="checkbox"
-          checked={ack.codeRecorded}
-          onChange={(event) =>
-            onAck({ ...ack, codeRecorded: event.target.checked })
-          }
-        />
-        <span>The return code is written down, and it stays home</span>
-      </label>
-      <FormCommit
-        label="Take them off this device"
-        icon={<IconUpload size={18} />}
-        disabled={busy || !ack.bundleSaved || !ack.codeRecorded}
-        busy={busy}
-      >
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Keep them here"
-          title="Keep them here"
-          onClick={onCancel}
-        >
-          <IconX size={16} />
-        </button>
-      </FormCommit>
-    </form>
-  );
 }
 
 export function departedNotice(receipt: DepartureReceipt): TravelNotice {
@@ -220,85 +92,4 @@ export function departedNotice(receipt: DepartureReceipt): TravelNotice {
         text,
         meta: `${removed} · ${receipt.leftovers.length} could not be`,
       };
-}
-
-export function ReturnForm({
-  fileName,
-  code,
-  busy,
-  onFile,
-  onCode,
-  onOpen,
-  onCancel,
-}: {
-  fileName: string | null;
-  code: string;
-  busy: boolean;
-  onFile: (file: File) => void;
-  onCode: (next: string) => void;
-  onOpen: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <form
-      className="travel"
-      aria-label="Coming home"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onOpen();
-      }}
-    >
-      <ul className="travel__list">
-        <TravelRow
-          name={fileName ?? "No bundle chosen"}
-          meta="travel bundle"
-          side={
-            <label
-              className="icon-btn icon-btn--sm travel__file"
-              title="Choose the travel bundle"
-            >
-              <IconUpload size={16} />
-              <span className="visually-hidden">Choose the travel bundle</span>
-              <input
-                type="file"
-                accept=".json,application/json"
-                aria-label="Choose the travel bundle"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  if (file) onFile(file);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
-          }
-        />
-      </ul>
-      <FieldShell
-        id="travel-return-code"
-        label="Return code"
-        mono
-        autoComplete="off"
-        placeholder="ABCD-EFGH-…"
-        value={code}
-        disabled={busy}
-        onValueChange={onCode}
-      />
-      <FormCommit
-        label="Open the bundle"
-        icon={<IconArrowRight size={18} />}
-        disabled={busy || !fileName || code.trim().length === 0}
-        busy={busy}
-      >
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          title="Close"
-          onClick={onCancel}
-        >
-          <IconX size={16} />
-        </button>
-      </FormCommit>
-    </form>
-  );
 }

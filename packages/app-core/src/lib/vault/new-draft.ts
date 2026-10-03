@@ -36,6 +36,16 @@ export function acceptsDraftUsername(typeId: string): boolean {
   );
 }
 
+function acceptsConnectionRef(typeId: string): boolean {
+  const definition = itemTypeRegistry().get(typeId);
+  return (
+    definition !== undefined &&
+    definitionFields(definition).some(
+      (field) => field.id === "connectionRef" && field.type === "string",
+    )
+  );
+}
+
 /** An editable alias, not a claim about an existing account or real person. */
 export function generateDraftLabels(typeId: string): DraftLabels {
   const definition = itemTypeRegistry().get(typeId);
@@ -45,6 +55,30 @@ export function generateDraftLabels(typeId: string): DraftLabels {
     name: `${definition.spec.title} ${suffix.slice(0, 8)}`,
     username: `user_${suffix}`,
   };
+}
+
+/**
+ * Whether a name is still the one its type generated, and so should be replaced
+ * when the type changes.
+ *
+ * Choosing a different type rebuilt the draft but carried the old name over, so
+ * a person who opened "New item", picked Secret, and never touched the name got
+ * an item called "Login 1d2f0063" — the name named the type they had left. A
+ * name a person typed is theirs and is kept whatever happens next; only the
+ * generated shape moves.
+ *
+ * The shape is the whole of the test: nothing records whether the person
+ * retyped what they were given, so a name that is exactly this type's generated
+ * form is treated as generated. Losing eight characters somebody chose to write
+ * is the smaller failure next to an item named after the type it is not.
+ */
+export function isGeneratedDraftName(name: string, typeId: string): boolean {
+  const definition = itemTypeRegistry().get(typeId);
+  if (definition === undefined) return false;
+  const prefix = `${definition.spec.title} `;
+  return (
+    name.startsWith(prefix) && /^[0-9a-f]{8}$/.test(name.slice(prefix.length))
+  );
 }
 
 /** Only new user/agent creation calls this. Imports and edits retain their values. */
@@ -228,6 +262,8 @@ export function prefillNewDraft(
     if (acceptsDraftUsername(typeId))
       draft.values = { ...draft.values, username: prefill.username };
   }
-  if (draft.kind === "secret" && prefill.ref) draft.connectionRef = prefill.ref;
+  if (draft.kind === "typed" && prefill.ref && acceptsConnectionRef(typeId)) {
+    draft.values = { ...draft.values, connectionRef: prefill.ref };
+  }
   return draft;
 }

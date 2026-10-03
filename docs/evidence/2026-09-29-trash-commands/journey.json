@@ -1,0 +1,55 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault?f=trash" },
+        {
+          "count": [
+            "a[aria-label='New item']",
+            "button[aria-label='Import items']",
+            "button[aria-label='Export items']",
+            "button[aria-label='Restore']",
+            "button[aria-label='Delete permanently']"
+          ]
+        },
+        { "measure": "fieldset.vtree__keys .icon-btn" },
+        { "report": ".buffer__keys" },
+        { "shot": "desktop-trash" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault?f=trash" },
+        { "measure": "fieldset.vtree__keys .icon-btn" },
+        { "report": ".buffer__keys" },
+        { "shot": "phone-trash" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-trash",
+      "width": 1280,
+      "title": "Trash commands — desktop",
+      "caption": "The trash directory keeps the filter. Add, import, and export are gone. Restore and delete are the path-strip keys.",
+      "before": "New, Import, Export, each 24×24; buffer n new · import · ? keys",
+      "after": "Restore and Delete, each 24×24 at 474 and 502; buffer r restore · X delete · ? keys"
+    },
+    {
+      "shot": "phone-trash",
+      "width": 390,
+      "title": "Trash commands — phone",
+      "caption": "The same swap at phone width. Four 44px icon keys become three: filter, restore, delete.",
+      "before": "four 44×44 keys at x 12, 60, 108, 156",
+      "after": "three 44×44 keys at x 12, 60, 108"
+    }
+  ]
+}

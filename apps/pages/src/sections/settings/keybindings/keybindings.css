@@ -1,0 +1,496 @@
+/* Settings › Keybindings (ADR 0150). A keymap is a table a person reads the
+   way they read a vimrc: the command, its keys as keycaps, and at the row's
+   end what they can do about it. Changed rows carry an editor's gutter mark
+   in the accent — teal is state — and nothing else is coloured. */
+
+.kb .panel__body {
+  gap: 0.75rem;
+}
+
+.kb-find__keys {
+  font-family: var(--mono);
+  caret-color: transparent;
+  background: var(--accent-wash);
+}
+
+.kb-count {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.kb-single {
+  max-width: var(--text-max);
+}
+
+.kb-group + .kb-group {
+  margin-top: 0.5rem;
+}
+
+.kb-group__label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.kb-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* Name · keys · end. The name column holds the label over its id, so the
+   keys start on one line down the whole table however long a label is. */
+.kb-row {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  padding: 0.4rem 0 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.kb-row:last-child {
+  border-bottom: 0;
+}
+
+.kb-row[data-changed] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.kb-row__name {
+  display: grid;
+  min-width: 0;
+}
+
+.kb-row__label {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.kb-row__id {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  background: none;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+
+.kb-row__end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 1.5rem;
+}
+
+/* Distinct bindings sit apart; the presses of one sequence sit together. */
+.kb-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  min-width: 0;
+}
+
+/* —— Keycaps ———————————————————————————————————————————————————
+   A key you can press looks like one: a hairline cap with a heavier lower
+   edge that sinks a pixel under the pointer. A sequence is its caps side by
+   side. Yours carry the accent on that edge; a default you took away stays
+   drawn, dashed and struck, so a default is never hidden. */
+
+.keycap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.keycap {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+  transition: transform 80ms var(--ease), border-color 120ms var(--ease);
+}
+
+.keycap-btn:hover .keycap {
+  border-color: var(--ink-3);
+}
+
+.keycap-btn:active .keycap {
+  transform: translateY(1px);
+}
+
+.keycap-btn--user .keycap {
+  border-bottom-color: var(--accent);
+}
+
+/* Held in one listing only (ADR 0150 §6): the accent's wash fills the cap,
+   so a scoped key reads apart from one that holds everywhere. */
+.keycap-btn--scoped .keycap {
+  background: var(--accent-wash);
+  border-bottom-color: var(--accent);
+}
+
+.keycap-btn--waits .keycap {
+  border-bottom-style: dashed;
+}
+
+/* Switched off with the other character keys: kept, and drawn quiet. */
+.keycap-btn--off .keycap {
+  color: var(--ink-3);
+  background: var(--surface-2);
+}
+
+.keycap-btn--removed .keycap {
+  color: var(--ink-3);
+  background: transparent;
+  border-style: dashed;
+  text-decoration: line-through;
+}
+
+.keycap-btn--fixed {
+  cursor: default;
+}
+
+.keycap-btn--fixed .keycap {
+  color: var(--ink-2);
+  background: var(--surface-2);
+}
+
+.keycap-btn--fixed:hover .keycap {
+  border-color: var(--line-strong);
+}
+
+/* A locked command's key another command took: struck, and still not a control. */
+.keycap-btn--fixed.keycap-btn--removed .keycap {
+  color: var(--ink-3);
+  background: transparent;
+}
+
+/* —— Recording a key ——————————————————————————————————————————
+   The capture sits where the keycap was. The hairline under it drains over
+   the keymap's own timeout: when it is gone, the sequence is kept. */
+
+.kb-capture {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.kb-capture__field {
+  position: relative;
+  display: inline-flex;
+}
+
+.kb-capture__input {
+  width: 9rem;
+  max-width: var(--field-max);
+  padding: 0.1rem 0.4rem;
+  font-family: var(--mono);
+  font-size: max(0.75rem, var(--field-min));
+  color: var(--ink);
+  background: var(--accent-wash);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  caret-color: var(--accent);
+}
+
+.kb-capture__input::placeholder,
+.kb-steps__recorder::placeholder {
+  color: var(--ink-3);
+}
+
+.kb-capture__drain {
+  position: absolute;
+  inset: auto 1px 1px;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: left center;
+  animation: kb-drain 1000ms linear forwards;
+}
+
+@keyframes kb-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kb-capture__drain {
+    animation: none;
+  }
+  .keycap {
+    transition: none;
+  }
+}
+
+/* —— A taken key ———————————————————————————————————————————————— */
+
+.kb-conflict {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.3rem 0.5rem;
+  min-width: 0;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--warn-wash);
+}
+
+.kb-conflict__what {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 0.4rem;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.kb-conflict__holder {
+  overflow-wrap: anywhere;
+}
+
+.kb-conflict__holder::before {
+  content: "→ ";
+  color: var(--ink-3);
+}
+
+.kb-conflict .actions {
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
+
+/* —— Macros ——————————————————————————————————————————————————— */
+
+.kb-macro__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.3rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+.kb-macro__then {
+  margin-right: 0.3rem;
+  color: var(--ink-3);
+}
+
+.kb-macro__on {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* The macro being edited opens under its row, across the whole table. */
+.kb-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.4rem 0 0.2rem;
+  padding: 0.75rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--canvas);
+}
+
+.panel__body > .kb-editor {
+  margin: 0;
+}
+
+.kb-editor__row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.kb-editor__row--steps {
+  align-items: start;
+}
+
+.kb-editor__row > label,
+.kb-editor__label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.kb-editor__row--steps .kb-editor__label {
+  padding-top: 0.4rem;
+}
+
+.kb-editor__value {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: var(--field-max);
+}
+
+.kb-editor__value input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  font-family: var(--mono);
+}
+
+.kb-editor__at {
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+
+.kb-editor select {
+  max-width: var(--field-max);
+}
+
+.kb-steps__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: kb-step;
+  min-width: 0;
+}
+
+.kb-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0;
+  min-width: 0;
+  counter-increment: kb-step;
+}
+
+.kb-step::before {
+  content: counter(kb-step, decimal-leading-zero);
+  min-width: 1.4rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.kb-step__count {
+  width: 3.5rem;
+  max-width: 3.5rem;
+  font-family: var(--mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.kb-step__times {
+  color: var(--ink-3);
+}
+
+.kb-step__command {
+  flex: 1 1 11rem;
+  min-width: 0;
+  max-width: var(--field-max);
+}
+
+.kb-step .actions {
+  flex-wrap: nowrap;
+}
+
+.kb-steps__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  min-width: 0;
+}
+
+.kb-steps__recorder {
+  flex: 1 1 10rem;
+  min-width: 0;
+  max-width: var(--field-max);
+  font-family: var(--mono);
+  font-size: max(0.75rem, var(--field-min));
+  caret-color: transparent;
+  background: var(--accent-wash);
+  border-color: var(--accent);
+}
+
+/* —— Phone ————————————————————————————————————————————————————
+   The name takes the row; the keys and the row's end share the line under
+   it. Every keycap is a 44px target (DESIGN.md § Touch). */
+
+@media (max-width: 640px) {
+  .kb-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .kb-row__name {
+    grid-column: 1 / -1;
+  }
+
+  .kb-editor__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.3rem;
+  }
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  /* The cap is the target: it grows to 44px rather than floating in one. */
+  .keycap-btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    align-items: stretch;
+  }
+
+  .keycap-btn .keycap {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    font-size: 0.8125rem;
+  }
+
+  .kb-capture__input {
+    min-height: 2.75rem;
+  }
+}

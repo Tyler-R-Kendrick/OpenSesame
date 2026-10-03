@@ -14,7 +14,7 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": ["sharing.drops", "support.local-ai"],
+      "optional": ["support.local-ai"],
       "prohibited": [
         "agents.webmcp",
         "enterprise.ca-administration",
@@ -23,6 +23,7 @@
         "notifications.routing",
         "notifications.web-push",
         "sharing.household",
+        "sharing.live",
         "support.remote-ai",
         "telemetry.external",
         "wallet.spending"
@@ -45,7 +46,7 @@
     "basePolicyRevision": "13",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["sharing.drops"],
+    "selectedOptional": [],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

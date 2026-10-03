@@ -7,6 +7,7 @@
 mod account_extras;
 mod accounts;
 mod attachments;
+mod auth_requests;
 mod cipher_bulk;
 mod ciphers;
 mod collections;
@@ -24,6 +25,8 @@ mod org_joining;
 mod org_member_status;
 mod org_members;
 mod organizations;
+mod policies;
+mod policy_rules;
 mod register;
 mod rotation;
 mod second_step;
@@ -70,6 +73,8 @@ pub fn router(server: BitwardenServer) -> Router {
         .merge(org_ciphers::routes())
         .merge(emergency::routes())
         .merge(account_extras::routes())
+        .merge(auth_requests::routes())
+        .merge(policies::routes())
         .route(
             "/accounts/key-management/rotate-user-account-keys",
             post(rotation::rotate).layer(DefaultBodyLimit::max(IMPORT_LIMIT)),
@@ -89,6 +94,10 @@ pub fn router(server: BitwardenServer) -> Router {
     let router = Router::new()
         .route("/alive", get(meta::alive))
         .route("/notifications/hub", get(crate::notifications::hub))
+        .route(
+            "/notifications/anonymous-hub",
+            get(crate::notifications::anonymous_hub),
+        )
         .route("/files/{owner}/{id}", get(file_links::download))
         .nest(
             "/identity",
@@ -260,6 +269,11 @@ pub(crate) async fn touch(server: &BitwardenServer, user_id: &str) -> ApiResult<
     server.db.bitwarden_touch_revision(user_id, now).await?;
     server.hub.vault_changed(user_id);
     Ok(now)
+}
+
+/// When the sign-in requests still open were made, at the earliest.
+pub(crate) fn sign_in_request_window_start() -> DateTime<Utc> {
+    auth_requests::window_start()
 }
 
 /// The account's security stamp changed: its clients sign out.

@@ -23,7 +23,7 @@ export {
   mintGuestSessionPerson,
 } from "./local-guest.js";
 import {
-  guestSessionPerson,
+  guestSessionPersonLocked,
   isGuestDisplayName,
   isGuestPersonEntry,
   readGuestSessionPerson,
@@ -94,7 +94,7 @@ async function ensurePerson(
   const name = label.length <= 128 ? label : "Owner";
   if (!current.entries.some((entry) => entry.kind === "person")) {
     if (isGuestDisplayName(name) && guestSessionActive(tomb)) {
-      const guest = guestSessionPerson();
+      const guest = await guestSessionPersonLocked();
       return commitLocalDirectoryUnderLock(tomb, current.revision, {
         action: "create",
         kind: "person",
@@ -139,7 +139,7 @@ async function ensureGuestPerson(
 ): Promise<LocalDirectory> {
   if (!guestSessionActive(tomb)) return current;
   if (findGuestPerson(current)) return current;
-  const guest = guestSessionPerson();
+  const guest = await guestSessionPersonLocked();
   return commitLocalDirectoryUnderLock(tomb, current.revision, {
     action: "create",
     kind: "person",

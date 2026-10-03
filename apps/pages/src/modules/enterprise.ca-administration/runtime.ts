@@ -23,13 +23,55 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
+
+import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "enterprise.ca-administration";
 
+/** Certificate connectors saved on this device. */
+export function savedCertificateOperation(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+export function applySavedCertificateConnectors(): FeatureOperation[] {
+  return applySavedConnectors(["certificates"], savedCertificateOperation);
+}
+
+export function startCertificateConnectors(): FeatureRequest[] {
+  return applySavedCertificateConnectors().map((operation) =>
+    certificateOperation(operation.providerId),
+  );
+}
+
+export function certificateOperation(providerId: string): FeatureRequest {
+  return performSavedConnector(providerId);
+}
+
+/** Send saved certificate connectors when a certificate is issued. */
+export function runSavedCertificateConnectors(): FeatureRequest[] {
+  return startCertificateConnectors();
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
-    return createActivation(ctx, CAPABILITY).handle();
+    const activation = createActivation(ctx, CAPABILITY);
+    activation.onDispose(
+      registerCategorySend("certificates", runSavedCertificateConnectors),
+    );
+    return activation.handle();
   },
 };

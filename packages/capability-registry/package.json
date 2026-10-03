@@ -9,7 +9,8 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./capabilities.json": "./capabilities.json"
+    "./capabilities.json": "./capabilities.json",
+    "./pwa-summaries.json": "./pwa-summaries.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

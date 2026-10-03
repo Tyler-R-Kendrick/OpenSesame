@@ -66,29 +66,31 @@ export async function continueAfterDuressMatch(
     throw new WrongPasswordError(wrongSecretMessage);
   }
 
-  const session = await mintPresentationSession({
-    presentation,
-    profileId: match.profileId,
-    contextId: `duress:${match.profileId}:${crypto.randomUUID()}`,
-    admittedKeys: [
-      {
-        compartmentRef: `compartment:${match.profileId}`,
-        keyEpoch: 1,
-        rawKey: match.plaintext.compartmentKey,
-      },
-    ],
-  });
+  try {
+    const session = await mintPresentationSession({
+      presentation,
+      profileId: match.profileId,
+      contextId: `duress:${match.profileId}:${crypto.randomUUID()}`,
+      admittedKeys: [
+        {
+          compartmentRef: `compartment:${match.profileId}`,
+          keyEpoch: 1,
+          rawKey: match.plaintext.compartmentKey,
+        },
+      ],
+    });
 
-  const outcome = await openPresentation(session, null);
-  const view = projectScopedView(outcome);
-  setActivePresentation({
-    profileId: match.profileId,
-    outcome,
-    view,
-  });
-
-  match.plaintext.compartmentKey.fill(0);
-  match.plaintext.actionCapability?.fill(0);
+    const outcome = await openPresentation(session, null);
+    const view = projectScopedView(outcome);
+    setActivePresentation({
+      profileId: match.profileId,
+      outcome,
+      view,
+    });
+  } finally {
+    match.plaintext.compartmentKey.fill(0);
+    match.plaintext.actionCapability?.fill(0);
+  }
 
   await store.createGuest({ decoy: true });
   return "duress_session";

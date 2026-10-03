@@ -11,7 +11,8 @@ import {
   continueAfterDuressMatch,
 } from "./unlock-duress-continue.js";
 import {
-  takePasskeyDuressEvidence,
+  clearPasskeyDuressEvidence,
+  peekPasskeyDuressEvidence,
   toSelectOptions,
 } from "./unlock-passkey-evidence.js";
 
@@ -36,7 +37,7 @@ export async function unlockSecondStepAfterDuressGate(input: {
     ? "That recovery code is not valid."
     : "That authenticator code is not valid.";
 
-  const evidence = takePasskeyDuressEvidence();
+  const evidence = peekPasskeyDuressEvidence();
   const duressOutcome =
     evidence === null
       ? await onCompleteUnlockCodeSubmission(code)
@@ -44,6 +45,7 @@ export async function unlockSecondStepAfterDuressGate(input: {
           select: toSelectOptions(evidence),
         });
   if (duressOutcome.kind === "duress") {
+    clearPasskeyDuressEvidence();
     return continueAfterDuressMatch(
       input.store,
       {
@@ -56,13 +58,12 @@ export async function unlockSecondStepAfterDuressGate(input: {
   if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
     if (input.recoveryMode) {
       await input.store.redeemRecoveryCode(input.recovery);
-      return "vault_opened";
-    }
-    if (input.activeSecondStep === "totp") {
+    } else if (input.activeSecondStep === "totp") {
       await input.store.confirmTotp(input.totp);
     } else {
       await input.store.confirmRemoteCode(input.totp);
     }
+    clearPasskeyDuressEvidence();
     return "vault_opened";
   }
   throw new WrongPasswordError(wrong);

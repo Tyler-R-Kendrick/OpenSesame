@@ -158,17 +158,29 @@ function saveRegistry(registry: StoredRegistry): void {
 let activeTomb: string | null = null;
 let cachedRaw: string | null = null;
 let hydrated = false;
+/**
+ * Stale-hydrate guard. Bumped by every write and by `discardIdpRegistry`, so
+ * a hydrate whose read resolved after the cache moved on (a registration in
+ * the await window, a vault switch, a lock) can recognize its read as stale.
+ */
+let registryGeneration = 0;
 
 function readCachedDefault(): string | null {
   // Locked (never hydrated): the registry is unreadable — empty posture.
   return hydrated ? cachedRaw : null;
 }
 
+/**
+ * Persist a registry the caller computed from the *hydrated* cache. A write
+ * that lands mid-switch — no active tomb, or the cache not yet hydrated for
+ * this session — was computed from the empty locked posture and would clobber
+ * the sealed registry with a partial view; it is refused, not persisted.
+ */
 function writeCachedDefault(raw: string): void {
-  cachedRaw = raw;
-  hydrated = true;
   const tomb = activeTomb;
-  if (!tomb) return;
+  if (!tomb || !hydrated) return;
+  registryGeneration += 1;
+  cachedRaw = raw;
   void writeFile(
     tomb,
     IDP_REGISTRY_CONFIG_PATH,
@@ -178,11 +190,12 @@ function writeCachedDefault(raw: string): void {
   });
 }
 
+/** Same fail-closed posture as `writeCachedDefault`: never clear mid-switch. */
 function clearCachedDefault(): void {
-  cachedRaw = null;
-  hydrated = true;
   const tomb = activeTomb;
-  if (!tomb) return;
+  if (!tomb || !hydrated) return;
+  registryGeneration += 1;
+  cachedRaw = null;
   void writeFile(
     tomb,
     IDP_REGISTRY_CONFIG_PATH,
@@ -202,17 +215,23 @@ export const idpRegistrySeams = {
  * Fill the in-memory cache from the tomb's sealed config. Runs on unlock,
  * after `migrateTombConfigOnUnlock` has moved any legacy localStorage copy.
  * An unreadable file reads as empty — the mirror posture: the ceremony shows
- * again and nothing is lost.
+ * again and nothing is lost. If a write or a lock happened while the sealed
+ * read was in flight, that read is stale — the newer cache stays.
  */
 export async function hydrateIdpRegistryFromVfs(tomb: string): Promise<void> {
   activeTomb = tomb;
+  const generation = registryGeneration;
+  let raw: string | null;
   try {
     const bytes = await readFile(tomb, IDP_REGISTRY_CONFIG_PATH);
-    cachedRaw = new TextDecoder().decode(bytes);
+    raw = new TextDecoder().decode(bytes);
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") throw error;
-    cachedRaw = null;
+    raw = null;
   }
+  // A write or a discard landed in the await window: its cache is newer.
+  if (registryGeneration !== generation || activeTomb !== tomb) return;
+  cachedRaw = raw;
   hydrated = true;
 }
 
@@ -221,6 +240,7 @@ export function discardIdpRegistry(): void {
   activeTomb = null;
   cachedRaw = null;
   hydrated = false;
+  registryGeneration += 1;
 }
 
 /** Legacy localStorage copy, for the unlock-time migration only. */

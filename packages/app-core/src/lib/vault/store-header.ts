@@ -29,6 +29,7 @@ export function sharesWrapRecord(a: VaultHeader, b: VaultHeader): boolean {
   if (same(a.wrap, b.wrap) && same(a.kdf, b.kdf)) return true;
   if (same(a.unlocks?.pin, b.unlocks?.pin)) return true;
   if (same(a.unlocks?.passkey, b.unlocks?.passkey)) return true;
+  if (same(a.unlocks?.passkeys, b.unlocks?.passkeys)) return true;
   return false;
 }
 

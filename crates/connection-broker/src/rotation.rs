@@ -38,11 +38,11 @@ const STATE_SCHEDULED: &str = "scheduled";
 
 /// Detail recorded for deferred sealed-store rotations.
 const STORE_PATH_DEFERRAL_DETAIL: &str = "store_path rotation requires the sealed-store CLI";
-
-/// Parked when a web-login policy is due but no sandbox runner is configured.
-/// ADR 0076 T5: a target with no way through notifies and parks. It never
-/// improvises, and it never reports success it did not have.
+/// Parked when a caller that brings no runner executes a web-login job (ADR 0076
+/// T5: notify and park, never improvise). The Host's runner uses [`web_login`].
 const WEB_LOGIN_NO_RUNNER_DETAIL: &str = "web_login rotation requires a configured sandbox runner";
+#[path = "rotation_web_login.rs"]
+pub mod web_login;
 
 /// Longest error hint persisted on a job — a hint, never token material.
 const MAX_DETAIL_CHARS: usize = 160;

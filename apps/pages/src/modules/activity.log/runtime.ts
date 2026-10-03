@@ -50,6 +50,13 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 60,
     });
     activation.register("route", {
+      id: "activity-event",
+      path: "/activity/:eventId",
+      element: ActivitySection,
+      framed: true,
+      order: 60,
+    });
+    activation.register("route", {
       id: "wallet-activity-alias",
       path: "/wallet/activity",
       element: WalletActivityRedirect,

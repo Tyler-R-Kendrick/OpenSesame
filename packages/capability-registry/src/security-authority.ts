@@ -57,7 +57,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame local-authority pair",
+      cli: "opensesame access grants local-authority pair",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -71,7 +71,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame local-authority pair",
+      cli: "opensesame access grants local-authority pair",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -132,7 +132,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame local-authority launch",
+      cli: "opensesame access grants local-authority launch",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -160,7 +160,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "read",
     surfaces: {
-      cli: "opensesame vault-inspect",
+      cli: "opensesame vault inspect",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -174,7 +174,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame vault-migrate",
+      cli: "opensesame vault migrate",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -189,7 +189,7 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame sync rebind-legacy",
+      cli: "opensesame vault sync rebind-legacy",
       pwa: null,
       mcp_host: null,
       mcp_client: null,

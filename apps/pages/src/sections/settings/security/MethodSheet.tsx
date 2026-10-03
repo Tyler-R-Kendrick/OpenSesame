@@ -3,15 +3,15 @@ import type {
   UnlockMethodId,
   WebauthnHostCheck,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
+  IconConnection,
   IconMail,
   IconMessage,
   IconPhone,
   IconSecret,
-  IconX,
+  IconShield,
 } from "../../../components/Icons.js";
-import { useModalFocus } from "../../../lib/modal-focus.js";
 import {
   ACCOUNT_SUBTITLE,
   ACCOUNT_TITLE,
@@ -34,6 +34,8 @@ import {
   CodeCeremony,
   RecoveryCeremony,
 } from "./SecondStepCeremonies.js";
+import { ServiceCeremony } from "./ServiceCeremony.js";
+import { SheetFrame } from "./SheetFrame.js";
 import type { Run } from "./run.js";
 
 export type MethodKind =
@@ -41,8 +43,11 @@ export type MethodKind =
   | "totp"
   | CodeChannel
   | "recovery"
+  | "service"
   | AccountMethodKind;
 export type MethodView = KeyView;
+/** A row of the Security list: a method the sheet handles, or the duress code. */
+export type RowKind = MethodKind | "duress";
 
 /**
  * What a row's action asked for: which method, and to do what with it —
@@ -60,6 +65,7 @@ const TITLE = {
   email: "Email code",
   sms: "Text message code",
   recovery: "Recovery codes",
+  service: "Sign-in service",
   ...ACCOUNT_TITLE,
 } satisfies Record<MethodKind, string>;
 
@@ -69,10 +75,11 @@ const SUBTITLE = {
   email: "For a lost phone. Sent by your sign-in service.",
   sms: "For a lost phone. Sent by your sign-in service.",
   recovery: "Each stands in for the second step once.",
+  service: "Where email and text codes are requested from.",
   ...ACCOUNT_SUBTITLE,
 } satisfies Record<MethodKind, string>;
 
-export function methodIcon(kind: MethodKind, size = 16): ReactNode {
+export function methodIcon(kind: RowKind, size = 16): ReactNode {
   switch (kind) {
     case "totp":
       return <IconPhone size={size} />;
@@ -82,6 +89,10 @@ export function methodIcon(kind: MethodKind, size = 16): ReactNode {
       return <IconMessage size={size} />;
     case "recovery":
       return <IconSecret size={size} />;
+    case "service":
+      return <IconConnection size={size} />;
+    case "duress":
+      return <IconShield size={size} />;
     case "account-totp":
       return <IconPhone size={size} />;
     case "account-passkey":
@@ -115,9 +126,6 @@ export function MethodSheet({
   accountEmail: string | null;
   onClose: () => void;
 }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  useModalFocus(true, sheetRef, closeRef, onClose);
   const [foot, setFoot] = useState<string | null>(null);
   const { kind, view } = request;
 
@@ -158,6 +166,10 @@ export function MethodSheet({
         setFoot={setFoot}
       />
     );
+  } else if (kind === "service") {
+    body = (
+      <ServiceCeremony view={view} busy={busy} run={run} onDone={onClose} />
+    );
   } else if (kind === "recovery") {
     body = <RecoveryCeremony busy={busy} run={run} setFoot={setFoot} />;
   } else {
@@ -175,45 +187,15 @@ export function MethodSheet({
   }
 
   return (
-    <div className="sheet-layer">
-      <button
-        type="button"
-        className="scrim"
-        aria-label="Close"
-        onClick={onClose}
-      />
-      <div
-        ref={sheetRef}
-        className="sheet"
-        // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
-        role="dialog"
-        aria-label={TITLE[kind]}
-        aria-modal="true"
-      >
-        <div className="sheet__head">
-          <span className="sheet__mark" aria-hidden="true">
-            {methodIcon(kind, 20)}
-          </span>
-          <div className="sheet__grow">
-            <h2>{TITLE[kind]}</h2>
-            <p>{SUBTITLE[kind]}</p>
-          </div>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Close"
-            ref={closeRef}
-            onClick={onClose}
-          >
-            <IconX size={18} />
-          </button>
-        </div>
-        <div className="sheet__body">{body}</div>
-        <div className="sheet__foot">
-          <p className="hint">{foot ?? footFor(kind, view)}</p>
-        </div>
-      </div>
-    </div>
+    <SheetFrame
+      title={TITLE[kind]}
+      subtitle={SUBTITLE[kind]}
+      mark={methodIcon(kind, 20)}
+      foot={foot ?? footFor(kind, view)}
+      onClose={onClose}
+    >
+      {body}
+    </SheetFrame>
   );
 }
 
@@ -230,6 +212,8 @@ function footFor(kind: MethodKind, view: MethodView): string {
   switch (kind) {
     case "totp":
       return "The seed lives only in memory until a code matches.";
+    case "service":
+      return "Saved on this device. Nothing is sent until you add an email or text code.";
     case "email":
     case "sms":
       return "Your sign-in service sends the code. The vault key never leaves this device.";

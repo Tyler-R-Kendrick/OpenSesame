@@ -1,4 +1,4 @@
-//! An encrypted, rotating log file (ADR 0150).
+//! An encrypted, rotating log file (ADR 0155).
 //!
 //! A log a process writes for itself (the daemon's `~/.opensesame/daemon.log`, a
 //! Host run with `OPENSESAME_LOG_FILE`) rests sealed: every line is sealed on its

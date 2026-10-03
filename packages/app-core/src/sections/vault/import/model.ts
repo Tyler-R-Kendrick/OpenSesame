@@ -6,10 +6,12 @@
  * port — no React, no DOM — so any shell drives the same ordering.
  *
  * A KDBX master password is an argument to one parse and is never held in a
- * stage. An OpenSesame backup (`sealed`) skips the preview: its items are
- * sealed until the store's own `importSealed` opens them with the password.
+ * stage. An OpenSesame backup (`sealed`) skips the preview: its items stay
+ * sealed until the store's own `importSealed` opens them.
  * A store path manifest (`manifest`) merges by path (ADR 0037 §6).
  */
+import { overlapCast } from "@opensesame/os-domain";
+import type { PasskeyUnlockRecord, VaultHeader } from "@opensesame/vault-core";
 import {
   type ParseResult,
   type SourceId,
@@ -26,6 +28,10 @@ import type {
   ManifestMergePlan,
   StorePlainEntry,
 } from "../../../lib/vault/store-sync.js";
+import {
+  getPasskeyUnlockCeremony,
+  unwrapVaultKeyWithPrf,
+} from "../../../lib/vault/unlock-methods.js";
 import { readStoreManifest } from "./store-manifest.js";
 
 export type ImportStage =
@@ -71,13 +77,18 @@ export type StageOutcome = Readonly<{
 /** What the sheet asks of the vault store. */
 export type ImportStorePort = Readonly<{
   applyImport: (plan: MergePlan) => Promise<number>;
-  importSealed: (fileText: string, password: string) => Promise<number>;
+  importSealed: (
+    fileText: string,
+    secret: string | Uint8Array,
+  ) => Promise<number>;
   applyManifestMerge: (plan: ManifestMergePlan) => Promise<void>;
 }>;
 
 export const importModelSeams = {
   readImportFile,
   parseImportAsync,
+  getPasskeyUnlockCeremony,
+  unwrapVaultKeyWithPrf,
 };
 
 export function messageFrom<Thrown>(caught: Thrown): string {
@@ -214,6 +225,32 @@ export async function confirmStage(
   }
 }
 
+function passkeyRecord(sealed: string): PasskeyUnlockRecord {
+  const parsed = overlapCast<unknown, { header?: VaultHeader }>(
+    JSON.parse(sealed),
+  );
+  const record =
+    parsed.header?.unlocks?.passkey ?? parsed.header?.unlocks?.passkeys?.[0];
+  if (!record) throw new Error("This backup opens with its passkey.");
+  return record;
+}
+
+function restored(
+  stage: ImportStage & { step: "sealed" },
+  added: number,
+): StageOutcome {
+  return {
+    stage: {
+      step: "done",
+      fileName: stage.fileName,
+      added,
+      skipped: 0,
+      restored: true,
+    },
+    error: null,
+  };
+}
+
 /** Restore an OpenSesame backup's items not already in this vault. */
 export async function restoreStage(
   stage: ImportStage,
@@ -222,17 +259,27 @@ export async function restoreStage(
 ): Promise<StageOutcome> {
   if (stage.step !== "sealed" || password === "") return { stage, error: null };
   try {
-    const added = await store.importSealed(stage.sealed, password);
-    return {
-      stage: {
-        step: "done",
-        fileName: stage.fileName,
-        added,
-        skipped: 0,
-        restored: true,
-      },
-      error: null,
-    };
+    return restored(stage, await store.importSealed(stage.sealed, password));
+  } catch (caught) {
+    return { stage, error: messageFrom(caught) };
+  }
+}
+
+/** Restore a passkey backup: the ceremony unwraps the key, then the store merges. */
+export async function restoreWithPasskey(
+  stage: ImportStage,
+  store: ImportStorePort,
+): Promise<StageOutcome> {
+  if (stage.step !== "sealed") return { stage, error: null };
+  try {
+    const record = passkeyRecord(stage.sealed);
+    const prf = await importModelSeams.getPasskeyUnlockCeremony(record);
+    const raw = await importModelSeams.unwrapVaultKeyWithPrf(record, prf);
+    try {
+      return restored(stage, await store.importSealed(stage.sealed, raw));
+    } finally {
+      raw.fill(0);
+    }
   } catch (caught) {
     return { stage, error: messageFrom(caught) };
   }

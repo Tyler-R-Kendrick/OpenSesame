@@ -1,0 +1,46 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "press": "Set up your own" },
+        { "count": [".road"] },
+        { "measure": ".road" },
+        { "report": ".road__name" },
+        { "shot": "setup-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "press": "Set up your own" },
+        { "count": [".road"] },
+        { "measure": ".road" },
+        { "report": ".road__name" },
+        { "shot": "setup-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "setup-1280",
+      "width": 1280,
+      "title": "Setup — 1280 × 800",
+      "caption": "Setup opens on Minimal, Default or Custom. Custom is the ceremony that used to open first.",
+      "before": "2 roads, 544×77",
+      "after": "3 roads, 544×77"
+    },
+    {
+      "shot": "setup-390",
+      "width": 390,
+      "title": "Setup — 390 × 844",
+      "caption": "The same choice on a phone. Each road keeps the touch floor.",
+      "before": "2 roads, 353×82",
+      "after": "3 roads, 353×82"
+    }
+  ]
+}

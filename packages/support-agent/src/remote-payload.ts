@@ -9,7 +9,7 @@ export const REMOTE_PAYLOAD_BYTES = 8192;
 export function redactSupportQuestion(question: string): string {
   if (question.length > REMOTE_QUESTION_LIMIT)
     throw new SupportEgressRefused("question", "exceeds remote limit");
-  // The shared scrubber first (ADR 0150): JWTs, `osc_` tokens, secret URL
+  // The shared scrubber first (ADR 0155): JWTs, `osc_` tokens, secret URL
   // parameters. The coarser prose rules below then catch what it cannot name.
   return scrubText(question)
     .replace(

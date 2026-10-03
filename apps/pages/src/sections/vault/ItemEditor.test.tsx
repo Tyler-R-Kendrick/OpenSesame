@@ -1,4 +1,5 @@
 import type { IssuedCertificate } from "@opensesame/app-core/lib/certs.js";
+import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import {
   type CertificateItem,
   type Folder,
@@ -320,9 +321,17 @@ describe("ItemEditor", () => {
     expect(screen.getByDisplayValue("https://mail.example.com")).toBeTruthy();
   });
 
-  it("prefills a new secret connection reference from the query", () => {
+  it("does not offer a connection reference on a secret", () => {
     renderEditor("/vault/new/secret?name=Token&ref=conn/github/pat");
-    expect(inputByLabel(/Connection reference/i).value).toBe("conn/github/pat");
+    expect(screen.queryByLabelText(/Connection reference/i)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add connection reference" }),
+    ).toBeNull();
+  });
+
+  it("offers a connection reference on a server", () => {
+    renderEditor("/vault/new/server");
+    expect(screen.getByLabelText(/Connection reference/i)).toBeTruthy();
   });
 
   it("prefills a new passkey relying party from the query", () => {
@@ -331,17 +340,21 @@ describe("ItemEditor", () => {
   });
 
   it("switches item kind and keeps the name", async () => {
-    renderEditor("/vault/new");
-    await userEvent.clear(screen.getByLabelText(/^Name$/i));
-    await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
-    await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
-    expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
-    expect(inputByLabel(/^Name$/i).value).toBe("My card");
-    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
-      "card",
-    );
+    const revoke = registerLegacyItemKinds();
+    try {
+      renderEditor("/vault/new");
+      await userEvent.clear(screen.getByLabelText(/^Name$/i));
+      await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
+      await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
+      expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
+      expect(inputByLabel(/^Name$/i).value).toBe("My card");
+      expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
+        "card",
+      );
+    } finally {
+      revoke();
+    }
   });
-
   it("strips non-digits from card numbers", async () => {
     renderEditor("/vault/new/card");
     await userEvent.type(
@@ -350,7 +363,6 @@ describe("ItemEditor", () => {
     );
     expect(inputByLabel(/^Number$/i).value).toBe("411111114242");
   });
-
   it("adds, edits, and removes website addresses", async () => {
     renderEditor("/vault/new/login?uri=https://old.example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
@@ -369,7 +381,6 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-
   it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
     renderEditor();
     expect(inputByLabel("Address 1").value).toBe("");
@@ -379,7 +390,6 @@ describe("ItemEditor", () => {
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedItem()).toMatchObject({ kind: "login", uris: [] });
   });
-
   it("reveals the password field and uses the generator", async () => {
     renderEditor();
     const password = inputByLabel(/^Password$/i);
@@ -392,7 +402,6 @@ describe("ItemEditor", () => {
       screen.getByRole("button", { name: /Hide password/i }),
     );
     expect(password.type).toBe("password");
-
     await userEvent.click(
       screen.getByRole("button", { name: /Password generator/i }),
     );
@@ -402,7 +411,6 @@ describe("ItemEditor", () => {
     expect(password.value.length).toBeGreaterThan(0);
     expect(password.type).toBe("text");
   });
-
   it("dismisses the generator without applying", async () => {
     renderEditor();
     await userEvent.click(
@@ -478,28 +486,20 @@ describe("ItemEditor", () => {
     expect(saved.passwordChangedAt).toBe("2026-08-01T00:00:00Z");
   });
 
-  it("saves a secret's connection reference on this device alone", async () => {
-    // ADR 0128: the reference is sealed locally; nothing is compiled or sent.
+  it("saves a secret value and leaves the connection reference empty", async () => {
     const sent = vi.spyOn(globalThis, "fetch");
-    renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add connection reference" }),
-    );
+    renderEditor("/vault/new/secret?ref=conn/github/pat");
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
     await userEvent.clear(screen.getByLabelText(/Secret value/i));
     await userEvent.type(screen.getByLabelText(/Secret value/i), "whsec_1");
-    await userEvent.type(
-      screen.getByLabelText(/Connection reference/i),
-      "conn/github/pat",
-    );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     expect(await screen.findByText("navigated away")).toBeTruthy();
     const saved = savedItem();
     if (saved.kind !== "secret") throw new Error("expected saved secret");
     expect(saved.name).toBe("Deploy hook");
     expect(saved.value).toBe("whsec_1");
-    expect(saved.connectionRef).toBe("conn/github/pat");
+    expect(saved.connectionRef).toBe("");
     expect(sent).not.toHaveBeenCalled();
     sent.mockRestore();
   });
@@ -519,38 +519,30 @@ describe("ItemEditor", () => {
     expect(savedItem()).toHaveProperty("grantees", secret.grantees);
   });
 
-  it("adds, edits, and removes capability ceiling grants", async () => {
+  it("keeps the capability ceiling off the secret form and preserves one", async () => {
     renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Add capability/i }),
-    );
-    await userEvent.type(screen.getByLabelText("Action 1"), "http.post");
-    await userEvent.type(
-      screen.getByLabelText("Resource 1"),
-      "https://deploy.example.com",
-    );
+    expect(screen.queryByText("Capability ceiling")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Add capability/i }),
+    ).toBeNull();
+    cleanup();
+    const secret = createItem("secret");
+    secret.ceiling = [
+      {
+        id: "g1",
+        action: "http.post",
+        resource: "https://deploy.example.com",
+      },
+    ];
+    vault.current.items = [secret];
+    renderEditor(`/vault/${secret.id}/edit`);
+    expect(screen.queryByText("Capability ceiling")).toBeNull();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const saved = savedItem();
     if (saved.kind !== "secret") throw new Error("expected saved secret");
-    expect(saved.ceiling).toHaveLength(1);
-    expect(saved.ceiling[0]).toMatchObject({
-      action: "http.post",
-      resource: "https://deploy.example.com",
-    });
-  });
-
-  it("removes capability ceiling grants", async () => {
-    renderEditor("/vault/new/secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Add capability/i }),
-    );
-    expect(screen.getByLabelText("Action 1")).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remove capability 1/i }),
-    );
-    expect(screen.queryByLabelText("Action 1")).toBeNull();
+    expect(saved.ceiling).toEqual(secret.ceiling);
   });
 
   it("manages custom fields with conceal toggles", async () => {

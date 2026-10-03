@@ -1,3 +1,4 @@
+import { connectFormDraws } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Connection,
   Provider,
@@ -21,6 +22,7 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import {
   IconChevronLeft,
   IconConnection,
@@ -28,15 +30,13 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { AwsKmsConnectPanel } from "./AwsKmsConnectPanel.js";
-import { AzureKeyVaultKeysConnectPanel } from "./AzureKeyVaultKeysConnectPanel.js";
 import { BackupEnableSwitch, canBackupEnable } from "./BackupEnableSwitch.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 import { authKindLabel } from "./CatalogPanel.js";
 import { ConnectForm } from "./ConnectForm.js";
+import { ConnectSection } from "./ConnectSection.js";
 import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
-import { GcpKmsConnectPanel } from "./GcpKmsConnectPanel.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
 import {
@@ -44,14 +44,14 @@ import {
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
-import { YubikeyConnectPanel } from "./YubikeyConnectPanel.js";
 import { ConnectPanels } from "./connect/ConnectPanels.js";
 
 /**
- * Connectors Vercel's registry lists get the plan-built pages alone (ADR
- * 0147); a bundled catalog row with a plan keeps its own road and gets the
- * Connect panels beside it, as do the Git forges' backup form. GitHub keeps
- * its App flow; a refused service (ADR 0086 §6) gets no Connect road.
+ * Where Vercel Connect's plan sits on this page (ADR 0147). A registry
+ * service gets the plan-built panels. A key or a configuration also seals
+ * on this device, and those panels stay beside that form. Git forges and
+ * other bundled rows keep their own road beside Connect. GitHub keeps its
+ * App flow. A refused service (ADR 0086 §6) gets no Connect road.
  */
 function connectOwned(providerId: string): "only" | "beside" | null {
   if (!hasConnectRoute(providerId)) return null;
@@ -106,6 +106,7 @@ export function ConnectorSettingsPage({
     () => null,
   );
   const [githubHostReady, setGithubHostReady] = useState(false);
+  const roads = useConnectorRoads();
   useEffect(() => {
     // A completed local App registration must not leave a failure glyph up.
     if (localGithubApp !== null && flash?.tone === "err") onFlash(null);
@@ -161,6 +162,10 @@ export function ConnectorSettingsPage({
 
   const automatic = canConfigureAutomatically(provider);
   const onConnect = connectOwned(provider.id);
+  // A key or a configuration is collected on this page, including when
+  // Vercel lists the same service.
+  const deviceSeal =
+    provider.authKind === "api_key" || provider.authKind === "configuration";
   // GitHub App already on this device — no Connect chrome.
   const githubAppReady =
     provider.id === "github" &&
@@ -186,6 +191,7 @@ export function ConnectorSettingsPage({
                 connections,
                 backupReady,
                 localGithubApp !== null || githubHostReady,
+                roads.acts(provider),
               )}
             />
             {canBackupEnable(provider.id) ? (
@@ -314,6 +320,7 @@ export function ConnectorSettingsPage({
           </ul>
           {canConfigure &&
           (provider.configured || isGitBackupProvider(provider.id)) &&
+          connectFormDraws(provider) &&
           !githubAppReady ? (
             <details className="conn-add-authorization">
               <summary>Add another authorization</summary>
@@ -329,46 +336,19 @@ export function ConnectorSettingsPage({
             </details>
           ) : null}
         </section>
-      ) : githubAppReady || onConnect === "only" ? null : (
-        <section className="panel" id="authorization" ref={authorizeRef}>
-          <div className="panel__head">
-            <h2>Connect</h2>
-          </div>
-          {provider.id === "yubikey" ? (
-            <YubikeyConnectPanel onFlash={(next) => onFlash(next)} />
-          ) : provider.id === "aws-kms" ? (
-            <AwsKmsConnectPanel onFlash={(next) => onFlash(next)} />
-          ) : provider.id === "azure-key-vault-keys" ? (
-            <AzureKeyVaultKeysConnectPanel onFlash={(next) => onFlash(next)} />
-          ) : provider.id === "gcp-kms" ? (
-            <GcpKmsConnectPanel onFlash={(next) => onFlash(next)} />
-          ) : !canConfigure ? (
-            <div className="panel__body">
-              <p className="hint">{configureHint}</p>
-            </div>
-          ) : provider.configured ||
-            provider.authKind === "oauth2_authorization_code" ||
-            provider.authKind === "configuration" ||
-            provider.authKind === "api_key" ||
-            isGitBackupProvider(provider.id) ? (
-            <ConnectForm
-              provider={provider}
-              online={online}
-              onFlash={(next) => onFlash(next)}
-              onConnected={onChanged}
-              onRememberOffer={(created) =>
-                onRememberOffer({ provider, connection: created })
-              }
-            />
-          ) : (
-            <div className="panel__body">
-              <p className="hint">
-                {provider.displayName} connects over OAuth — pick an OAuth
-                connector from the catalog.
-              </p>
-            </div>
-          )}
-        </section>
+      ) : githubAppReady || (onConnect === "only" && !deviceSeal) ? null : (
+        <ConnectSection
+          provider={provider}
+          online={online}
+          canConfigure={canConfigure}
+          configureHint={configureHint}
+          authorizeRef={authorizeRef}
+          onFlash={(next) => onFlash(next)}
+          onChanged={onChanged}
+          onRememberOffer={(created) =>
+            onRememberOffer({ provider, connection: created })
+          }
+        />
       )}
       {onConnect ? (
         <ConnectPanels

@@ -1,162 +1,182 @@
 /**
- * Settings › Vaults › Travel (ADR 0143).
+ * Settings › Security › Travel (ADR 0143).
  *
- * Mark the vaults that are safe to carry; the rest leave this device in a
- * bundle sealed under a return code, and come back from both. The panel
- * looks the same whether vaults are away or not — there is nothing on the
- * device that knows.
+ * Two rows, one action each: turn travel mode on (mark the vaults that are
+ * safe to carry; the rest leave this device in a bundle sealed under a
+ * return code) and turn it off (bring them back from the bundle and the
+ * code). Each opens its ceremony in a sheet. The panel looks the same
+ * whether vaults are away or not — there is nothing on the device that
+ * knows (ADR 0143 §4) — so a row states what it can do now, never a mode.
  */
 
+import { type ReactNode, useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
-import { FormCommit } from "../../../components/FormCommit.js";
-import { IconDownload, IconUpload } from "../../../components/Icons.js";
-import { RemnantsRow, ReturnPreviewView } from "./TravelReturnViews.js";
+import { IconKey } from "../../../components/IconKey.js";
 import {
-  PackedView,
-  ReturnForm,
-  TravelReceipt,
-  TravelRow,
-  TravelStatus,
-  travelRefusalText,
-} from "./TravelViews.js";
+  IconDownload,
+  IconTrash,
+  IconUpload,
+  IconVault,
+} from "../../../components/Icons.js";
+import { CeremonyRow } from "../CeremonyRow.js";
+import { TravelLeaveSheet } from "./TravelLeaveSheet.js";
+import { TravelReturnSheet } from "./TravelReturnSheet.js";
+import { plural, travelRefusalText } from "./TravelViews.js";
 import { useTravelFlow } from "./useTravelFlow.js";
 import { useTravelRemnants } from "./useTravelRemnants.js";
 import "../travel.css";
 
-function SafeList({
-  safe,
-  busy,
-  onToggle,
+type Sheet = "leave" | "return" | null;
+
+/** What the receipt row's glyph says; the row's own name is the sentence. */
+const RECEIPT_MARK = {
+  ok: "Done",
+  idle: "Done",
+  warn: "Finished with something left",
+  err: "Refused",
+} as const;
+
+/** A row whose one key opens one of the two ceremonies. */
+function ModeRow({
+  icon,
+  label,
+  sub,
+  keyLabel,
+  disabled,
+  onOpen,
 }: {
-  safe: ReadonlySet<string>;
-  busy: boolean;
-  onToggle: (id: string) => void;
+  icon: ReactNode;
+  label: string;
+  sub: string;
+  keyLabel: string;
+  disabled: boolean;
+  onOpen: () => void;
 }) {
-  const vaults = useDeviceVaults().filter(
-    (vault) => vault.kind !== "guest" && vault.state !== "empty",
-  );
   return (
-    <ul className="travel__list" aria-label="Safe for travel">
-      {vaults.map((vault) => {
-        const open = vault.state === "open";
-        const on = open || safe.has(vault.id);
-        const label = `Safe for travel: ${vault.label}`;
-        return (
-          <TravelRow
-            key={vault.id}
-            name={vault.label}
-            meta={open ? "open · travels" : on ? "travels" : "stays home"}
-            side={
-              <button
-                type="button"
-                className="toggle"
-                role="switch"
-                aria-checked={on}
-                aria-label={label}
-                title={label}
-                disabled={busy || open}
-                onClick={() => onToggle(vault.id)}
-              />
-            }
-          />
-        );
-      })}
-    </ul>
+    <CeremonyRow
+      icon={icon}
+      label={label}
+      sub={sub}
+      action={
+        <IconKey
+          small
+          label={keyLabel}
+          disabled={disabled}
+          aria-haspopup="dialog"
+          onClick={onOpen}
+        >
+          {icon}
+        </IconKey>
+      }
+    />
+  );
+}
+
+/** Files a cut-short departure left with no header: never openable here. */
+function RemnantsRow({
+  files,
+  busy,
+  onClear,
+}: {
+  files: number;
+  busy: boolean;
+  onClear: () => void;
+}) {
+  return (
+    <CeremonyRow
+      icon={<IconTrash size={16} />}
+      label="Leftovers of a departure"
+      sub={plural(files, "file")}
+      action={
+        <IconKey
+          small
+          label="Clear leftover files"
+          disabled={busy}
+          onClick={onClear}
+        >
+          <IconTrash size={16} />
+        </IconKey>
+      }
+    />
   );
 }
 
 export function TravelPanel() {
-  const flow = useTravelFlow();
-  const { owner, mode, busy, notice } = flow;
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const flow = useTravelFlow(() => setSheet(null));
+  const { owner, busy, notice } = flow;
   const { remnants, reread } = useTravelRemnants(owner, notice);
+  const carried = useDeviceVaults().filter(
+    (vault) => vault.kind !== "guest" && vault.state !== "empty",
+  ).length;
+  const files = remnants.reduce((sum, r) => sum + r.files.length, 0);
+  const blocked = travelRefusalText("owner_not_present");
+
+  const open = (next: Exclude<Sheet, null>) => {
+    flow.reset();
+    if (next === "return") flow.startReturn();
+    setSheet(next);
+  };
+  const close = () => {
+    // A departure or a return in flight is not cancelled by a key press: its
+    // result would land on a panel with no sheet to show it.
+    if (busy) return;
+    flow.reset();
+    setSheet(null);
+  };
+
   return (
-    <section className="panel" id="travel" aria-labelledby="travel-title">
+    <section
+      className="panel set__security"
+      id="travel"
+      aria-labelledby="travel-title"
+    >
       <div className="panel__head">
         <div>
           <h2 id="travel-title">Travel</h2>
         </div>
-        <div className="actions">
-          {!owner ? (
-            <TravelStatus
-              notice={{
-                tone: "idle",
-                text: travelRefusalText("owner_not_present"),
-              }}
-            />
-          ) : null}
-          {notice?.tone === "err" ? <TravelStatus notice={notice} /> : null}
-          {owner && mode.kind === "plan" ? (
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Bring vaults home"
-              title="Bring vaults home"
-              disabled={busy}
-              onClick={flow.startReturn}
-            >
-              <IconDownload size={16} />
-            </button>
-          ) : null}
-        </div>
       </div>
-      <div className="panel__body travel">
-        {notice && notice.tone !== "err" ? (
-          <TravelReceipt notice={notice} />
+      <div className="panel__body">
+        {notice && sheet === null ? (
+          <CeremonyRow
+            icon={<IconVault size={16} />}
+            label={notice.text}
+            mark={{ tone: notice.tone, label: RECEIPT_MARK[notice.tone] }}
+            sub={notice.meta ?? ""}
+            alert={notice.tone === "err"}
+            action={null}
+          />
         ) : null}
-        {!owner ? null : mode.kind === "plan" ? (
-          <form
-            className="travel"
-            aria-label="Pack for travel"
-            onSubmit={(event) => {
-              event.preventDefault();
-              flow.pack();
-            }}
-          >
-            {remnants.length > 0 ? (
-              <RemnantsRow
-                remnants={remnants}
-                busy={busy}
-                onClear={() => flow.clearRemnants(reread)}
-              />
-            ) : null}
-            <SafeList safe={flow.safe} busy={busy} onToggle={flow.toggleSafe} />
-            <FormCommit
-              label="Pack the rest for travel"
-              icon={<IconUpload size={18} />}
-              disabled={busy}
-              busy={busy}
-            />
-          </form>
-        ) : mode.kind === "packed" ? (
-          <PackedView
-            pkg={mode.pkg}
-            ack={flow.ack}
+        <ModeRow
+          icon={<IconUpload size={16} />}
+          label="Leave for a trip"
+          sub={owner ? `${plural(carried, "vault")} on this device` : blocked}
+          keyLabel="Turn on travel mode"
+          disabled={!owner || busy}
+          onOpen={() => open("leave")}
+        />
+        <ModeRow
+          icon={<IconDownload size={16} />}
+          label="Come home from a trip"
+          sub={owner ? "Needs the bundle and its return code" : blocked}
+          keyLabel="Turn off travel mode"
+          disabled={!owner || busy}
+          onOpen={() => open("return")}
+        />
+        {owner && remnants.length > 0 ? (
+          <RemnantsRow
+            files={files}
             busy={busy}
-            onAck={flow.setAck}
-            onDepart={() => flow.depart(mode.pkg)}
-            onCancel={() => flow.reset()}
+            onClear={() => flow.clearRemnants(reread)}
           />
-        ) : mode.kind === "return" ? (
-          <ReturnForm
-            fileName={flow.bundle?.name ?? null}
-            code={flow.code}
-            busy={busy}
-            onFile={flow.chooseBundle}
-            onCode={flow.typeCode}
-            onOpen={flow.open}
-            onCancel={() => flow.reset()}
-          />
-        ) : (
-          <ReturnPreviewView
-            preview={mode.opened.preview}
-            busy={busy}
-            grants={flow.grants}
-            onGrants={flow.setGrants}
-            onReturn={() => flow.bringHome(mode.opened)}
-            onCancel={() => flow.reset()}
-          />
-        )}
+        ) : null}
       </div>
+      {sheet === "leave" ? (
+        <TravelLeaveSheet flow={flow} onClose={close} />
+      ) : null}
+      {sheet === "return" ? (
+        <TravelReturnSheet flow={flow} onClose={close} />
+      ) : null}
     </section>
   );
 }

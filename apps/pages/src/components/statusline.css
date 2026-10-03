@@ -18,15 +18,13 @@
 
 .statusline__support,
 .statusline__command,
-.statusline__planes,
 .statusline__tools,
 .statusline__tools > div {
   display: flex;
   align-items: center;
 }
 
-.statusline__tools,
-.statusline .cx {
+.statusline__tools {
   gap: 2px;
 }
 
@@ -51,19 +49,9 @@
   transition: background 140ms var(--ease), color 140ms var(--ease);
 }
 
-/* The floor a finger is owed, on the one arrangement that draws this strip
-   for a finger: a touchscreen wider than a phone (an iPad in landscape), where
-   the top bar and its overflow key are gone and these seven keys are the whole
-   of the chrome.
-
-   This floor was already here, as `(pointer: coarse), (max-width: 900px)`.
-   Rebuilding the phone chrome deleted it, because below 900px the strip is now
-   `display: none` and sizing a hidden thing reads as dead code — but the rule
-   was two conditions and only one of them was dead. Pointer is the whole of
-   what is left: the shared floor in styles.css cannot stand in for it, because
-   that one says `.icon-btn` (0,1,0) against the compact sizing above at
-   `.statusline .icon-btn` (0,2,0), and never named `.cx__btn` at all. Stated
-   here, beside the 28px it has to beat, so the two cannot drift apart. */
+/* A touchscreen wider than a phone still draws this strip. The shared floor
+   in styles.css loses to the 28px rule above, and that floor never names
+   `.cx__btn` (the notifications bell). The 44px size has to be stated here. */
 @media (pointer: coarse) {
   .statusline .icon-btn,
   .statusline .cx__btn {
@@ -100,9 +88,9 @@
 }
 
 /* ——— The strip on a phone ————————————————————————————————
-   Plane glyphs and the bell move behind the top bar overflow key. The strip
-   itself still draws: that is where CommandBar sits, on every unlocked
-   screen including a phone.
+   The bell moves behind the top bar overflow key. The strip itself still
+   draws: that is where CommandBar sits, on every unlocked screen including
+   a phone.
 
    Width only, never `(pointer: coarse)`. Layout pairs with layout; the 44px
    floor above is the rule that reads the pointer. */
@@ -113,8 +101,84 @@
     padding-right: max(8px, env(safe-area-inset-right));
   }
 
-  .statusline__planes,
   .statusline__tools {
+    display: none;
+  }
+}
+
+/* ——— Half-typed keys: vim's showcmd, then which-key ———————————————
+   A segment of the row, never a layer over it: the count and keys typed so
+   far as small caps, `recording @a` while a register records, and on a wide
+   screen what each next key runs. It draws only while something is pending,
+   and gives way (it shrinks and clips) before the command field does. The
+   wrapper is `display: contents` so an empty segment costs the row no gap. */
+.statusline__keys {
+  display: contents;
+}
+
+.pending-keys {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pending-keys kbd {
+  display: inline-block;
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  font: inherit;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+}
+
+.pending-keys__typed {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pending-keys__rec {
+  flex-shrink: 0;
+  color: var(--err);
+}
+
+.pending-keys__rec::before {
+  content: "●";
+  margin-right: 0.35em;
+}
+
+.pending-keys__which {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  color: var(--ink-3);
+}
+
+.pending-keys__which li + li::before {
+  content: "·";
+  padding: 0 0.5em;
+}
+
+.pending-keys__which kbd {
+  color: var(--ink-2);
+}
+
+/* A phone, or a finger: the keys typed and the recording mark, no list. */
+@media (pointer: coarse), (max-width: 900px) {
+  .pending-keys__which {
     display: none;
   }
 }

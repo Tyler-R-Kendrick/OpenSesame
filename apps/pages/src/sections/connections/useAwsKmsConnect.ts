@@ -9,9 +9,6 @@ import {
   toAwsKmsPublic,
   writeAwsKmsConfig,
 } from "@opensesame/app-core/lib/aws-kms-config.js";
-import { connectorLabel } from "@opensesame/app-core/lib/capabilities.js";
-import { bindCapabilityConnector } from "@opensesame/app-core/lib/capability-bind.js";
-import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {
   type Flash,
   errorText,
@@ -23,20 +20,7 @@ import {
   emptyAwsKmsForm,
 } from "./AwsKmsConnectFields.js";
 
-type AwsKmsSettingsSlice = {
-  capabilityConnectors: { encryption: { providerId: string } };
-};
-
 export const awsKmsConnectDependencies = {
-  loadSettings: (): AwsKmsSettingsSlice => {
-    const encryption = loadSettings().capabilityConnectors.encryption;
-    return {
-      capabilityConnectors: {
-        encryption: { providerId: encryption.providerId },
-      },
-    } satisfies AwsKmsSettingsSlice;
-  },
-  bindCapabilityConnector,
   readAwsKmsConfig,
   writeAwsKmsConfig,
   clearAwsKmsConfig,
@@ -54,19 +38,21 @@ function formFromConfig(config: AwsKmsDeviceConfig): AwsKmsFormState {
 }
 
 export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
-  const { status, guest, tomb } = useVault();
+  const { status, guest, tomb, header } = useVault();
   const unlocked = status === "unlocked" && !guest && Boolean(tomb);
   const [form, setForm] = useState<AwsKmsFormState>(emptyAwsKmsForm);
   const [saved, setSaved] = useState<AwsKmsDeviceConfig | null>(null);
   const [busy, setBusy] = useState(false);
-  const [bindingId, setBindingId] = useState(
-    () =>
-      awsKmsConnectDependencies.loadSettings().capabilityConnectors.encryption
-        .providerId,
-  );
-  const active = bindingId === "aws-kms";
   const configured = Boolean(saved?.keyArn && saved.secretAccessKey);
   const publicView = saved ? toAwsKmsPublic(saved) : null;
+  // A saved connection is what Test opens the protector with, so it is not
+  // removable while a protector on this key is enrolled (ADR 0150 §3).
+  const enrolled = Boolean(
+    saved?.keyArn &&
+      header?.protection?.records.some(
+        (record) => record.kind === "aws-kms" && record.keyArn === saved.keyArn,
+      ),
+  );
   useEffect(() => {
     if (!unlocked || !tomb) {
       setSaved(null);
@@ -113,18 +99,6 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
     }
   }
 
-  function preferAwsKms() {
-    const next = awsKmsConnectDependencies.bindCapabilityConnector(
-      "encryption",
-      "aws-kms",
-    );
-    setBindingId(next.providerId);
-    onFlash({
-      tone: "ok",
-      text: `${connectorLabel("aws-kms")} selected for vault key protection.`,
-    });
-  }
-
   async function forget() {
     if (!tomb) return;
     setBusy(true);
@@ -144,12 +118,11 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
     unlocked,
     form,
     busy,
-    active,
+    enrolled,
     configured,
     statusLabel: publicView?.label || publicView?.accessKeyId || null,
     setField,
     save,
-    preferAwsKms,
     forget,
   };
 }

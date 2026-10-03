@@ -3,7 +3,7 @@ name = "opensesame-event-seal"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Sealing for the Host's event and audit rows at rest: one process-wide sealer, keyed from the Host sealing key, that storage and the broker write and read through (ADR 0150)"
+description = "Sealing for the Host's event and audit rows at rest: one process-wide sealer, keyed from the Host sealing key, that storage and the broker write and read through (ADR 0155)"
 
 [dependencies]
 base64 = { workspace = true }

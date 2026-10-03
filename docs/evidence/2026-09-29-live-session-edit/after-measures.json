@@ -1,0 +1,29 @@
+{
+  "phase": "after",
+  "optionsDesktop": ["Show values", "Copy only", "Can edit"],
+  "optionsPhone": ["Show values", "Copy only", "Can edit"],
+  "valuesBoxPhone": {
+    "width": 192,
+    "height": 44
+  },
+  "selectedValues": "edit",
+  "valuesBoxPhoneSelected": {
+    "width": 192,
+    "height": 44
+  },
+  "editCountPhone": 1,
+  "editBoxPhone": {
+    "width": 44,
+    "height": 44
+  },
+  "editCountDesktop": 1,
+  "editBoxDesktop": {
+    "width": 44,
+    "height": 44
+  },
+  "saveBoxPhone": {
+    "width": 44,
+    "height": 44
+  },
+  "logBubble": "11:48:46 AM · Ada · edit · GitHub password"
+}

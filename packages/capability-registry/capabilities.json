@@ -439,7 +439,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame task start",
+      "cli": "opensesame access grants task start",
       "pwa": null,
       "mcp_host": "task_start",
       "mcp_client": null,
@@ -485,7 +485,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame status",
+      "cli": "opensesame identity status",
       "pwa": null,
       "mcp_host": "host_ready",
       "mcp_client": "host_health",
@@ -535,7 +535,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame whoami",
+      "cli": "opensesame identity whoami",
       "pwa": "route:/identity",
       "mcp_host": null,
       "mcp_client": "whoami",
@@ -742,7 +742,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame auth doctor",
+      "cli": "opensesame identity auth doctor",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -765,7 +765,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame lease",
+      "cli": "opensesame access grants lease",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -792,7 +792,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame import",
+      "cli": "opensesame access connectors import",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -815,7 +815,7 @@
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame crypto",
+      "cli": "opensesame vault crypto",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -957,12 +957,359 @@
     }
   },
   {
+    "id": "plugins.read",
+    "title": "List optional plugins and one plugin's state and pin (GET /v1/plugins)",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame plugins list",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "Pages uses the per-plugin operations",
+        "adr": "0130-operator-controlled-capability-composition.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.install",
+    "title": "Install an optional plugin pinned by sha256, recorded off",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins install",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "install and remove are terminal-only; no daemon route installs",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.toggle",
+    "title": "Switch an installed plugin on or off (PUT /v1/plugins/{id})",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins enable",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "Pages uses the per-plugin operations",
+        "adr": "0130-operator-controlled-capability-composition.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.remove",
+    "title": "Delete an optional plugin's installed files and its record",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins remove",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "install and remove are terminal-only; no daemon route installs",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.notices",
+    "title": "Read a plugin's recent tripwire notices, never a surrogate (GET /v1/plugins/{id}/notices)",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame plugins notices",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "Pages uses the per-plugin operations",
+        "adr": "0130-operator-controlled-capability-composition.md"
+      }
+    }
+  },
+  {
+    "id": "agents.surrogate.dev_run",
+    "title": "Run a child with surrogates in place of placeholders through the surrogate-proxy plugin",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame dev run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "a page spawns no processes",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.surrogate_proxy.switch",
+    "title": "Switch the surrogate proxy plugin on or off on the paired daemon",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins enable",
+      "pwa": "lib/plugins/client.ts:setPluginEnabled",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.surrogate_proxy.tripwires",
+    "title": "Read the surrogate proxy's recent tripwires",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame plugins notices",
+      "pwa": "lib/plugins/client.ts:readPluginNotices",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a prober must not learn which probes tripped",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.browser_autofill.switch",
+    "title": "Switch the autofill extension plugin on or off on the paired daemon",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins enable",
+      "pwa": "lib/plugins/client.ts:setPluginEnabled",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "changes which executables run here: a person decides, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "vault.autofill.fill",
+    "title": "Fill a focused login field by reference from the companion extension",
+    "plane": "host",
+    "kind": "act",
+    "plugin": "browser-autofill",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": "message:opensesame.fill",
+      "android": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "a terminal has no page to fill",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "only the companion extension fills",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_host": {
+        "reason": "a fill follows a person's gesture on extension UI; no model triggers one",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a fill follows a person's gesture on extension UI; no model triggers one",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a fill follows a person's gesture on extension UI; no model triggers one",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "android": {
+        "reason": "the plugin is a browser extension only",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "vault.autofill.pairing",
+    "title": "Pair the companion autofill extension with this computer",
+    "plane": "host",
+    "kind": "ceremony",
+    "plugin": "browser-autofill",
+    "surfaces": {
+      "cli": "opensesame daemon fill approve",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": "message:opensesame.fill.pair",
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "a person approves the pairing code",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a person approves the pairing code",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a person approves the pairing code",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "android": {
+        "reason": "the plugin is a browser extension only",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "intents.invoke",
     "title": "Capability invoke through a ConnectionRef",
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame invoke",
+      "cli": "opensesame access resources invoke",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -981,7 +1328,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame task list",
+      "cli": "opensesame access grants task list",
       "pwa": null,
       "mcp_host": "task_list",
       "mcp_client": null,
@@ -1000,7 +1347,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame task inspect",
+      "cli": "opensesame access grants task inspect",
       "pwa": null,
       "mcp_host": "task_status",
       "mcp_client": null,
@@ -1019,7 +1366,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame task terminate",
+      "cli": "opensesame access grants task terminate",
       "pwa": null,
       "mcp_host": "task_terminate",
       "mcp_client": null,
@@ -1038,7 +1385,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame intent create",
+      "cli": "opensesame access grants intent create",
       "pwa": null,
       "mcp_host": "task_invoke",
       "mcp_client": null,
@@ -1051,7 +1398,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame intent invoke",
+      "cli": "opensesame access grants intent invoke",
       "pwa": null,
       "mcp_host": "task_invoke_l1",
       "mcp_client": null,
@@ -1087,7 +1434,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame receipt verify",
+      "cli": "opensesame access sessions receipt verify",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -1293,6 +1640,60 @@
     }
   },
   {
+    "id": "shared_sessions.live_host",
+    "title": "Host a live session from this browser",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/live/session.ts:startHosting",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "mcp_client": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "webmcp": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.live_join",
+    "title": "Join somebody's live session from a link",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/live/session.ts:joinLive",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "mcp_client": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      },
+      "webmcp": {
+        "reason": "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
+        "adr": "0150-live-sessions-browser-to-browser.md"
+      }
+    }
+  },
+  {
     "id": "shared_sessions.decide_join_request",
     "title": "Admit or refuse a join request",
     "plane": "host",
@@ -1403,12 +1804,16 @@
     "kind": "read",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-status.ts:readTransportStatus",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so Pages carries no transport surface: status, probe and identity reference are Host-plane operator work",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "transport status names listeners, generations and peer thumbprints across the deployment; it is operator observability, not something an agent acting for one tenant reads",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1484,12 +1889,16 @@
     "kind": "act",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-verify.ts:runTransportVerify",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "the verification probe makes outbound connections with and without the service certificate; an agent-reachable probe is an egress and signing oracle, so it stays an operator action",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1511,12 +1920,16 @@
     "kind": "admin",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/transport-settings.ts:withTransportTarget",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
+        "adr": "0132-optional-mtls-and-workload-identity.md"
+      },
       "mcp_host": {
         "reason": "an agent never selects a transport identity directly; a connector's identity reference is bound to its ConnectionRef by an operator, and the agent holds only the ConnectionRef",
         "adr": "0132-optional-mtls-and-workload-identity.md"
@@ -1545,7 +1958,7 @@
     },
     "excluded": {
       "pwa": {
-        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so there is nothing for it to discover; the Transport panel reports per-target status instead",
+        "reason": "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so Pages carries no transport surface: status, probe and identity reference are Host-plane operator work",
         "adr": "0132-optional-mtls-and-workload-identity.md"
       },
       "mcp_host": {
@@ -1845,7 +2258,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame provider list",
+      "cli": "opensesame identity providers list",
       "pwa": "lib/embedded-catalog.ts:getBundledProviders",
       "mcp_host": null,
       "mcp_client": null,
@@ -1868,7 +2281,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame provider test",
+      "cli": "opensesame identity providers test",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -1887,7 +2300,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame connect ls",
+      "cli": "opensesame access connectors connect ls",
       "pwa": "lib/connections.ts:listConnections",
       "mcp_host": null,
       "mcp_client": null,
@@ -1910,7 +2323,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame connect inspect",
+      "cli": "opensesame access connectors connect inspect",
       "pwa": "lib/connections.ts:getConnection",
       "mcp_host": null,
       "mcp_client": null,
@@ -1929,7 +2342,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame connect create",
+      "cli": "opensesame access connectors connect create",
       "pwa": "lib/connections.ts:createConnection",
       "mcp_host": null,
       "mcp_client": null,
@@ -1979,7 +2392,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame connect update",
+      "cli": "opensesame access connectors connect update",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2002,7 +2415,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame connect attach",
+      "cli": "opensesame access connectors connect attach",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2033,7 +2446,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame connect rotate",
+      "cli": "opensesame access connectors connect rotate",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2052,7 +2465,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame connect rm",
+      "cli": "opensesame access connectors connect rm",
       "pwa": "lib/connections.ts:revokeConnection",
       "mcp_host": null,
       "mcp_client": null,
@@ -2075,7 +2488,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame connect discover",
+      "cli": "opensesame access connectors connect discover",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2098,7 +2511,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame export",
+      "cli": "opensesame access connectors export",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2144,7 +2557,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame cert ls",
+      "cli": "opensesame access resources cert ls",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2163,7 +2576,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame cert issue",
+      "cli": "opensesame access resources cert issue",
       "pwa": "lib/certs.ts:issueCertificate",
       "mcp_host": null,
       "mcp_client": null,
@@ -2186,7 +2599,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame cert ca",
+      "cli": "opensesame access resources cert ca",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2332,7 +2745,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame sync push",
+      "cli": "opensesame vault sync push",
       "pwa": null,
       "mcp_host": "sync_push",
       "mcp_client": "sync_push",
@@ -2345,7 +2758,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame sync pull",
+      "cli": "opensesame vault sync pull",
       "pwa": null,
       "mcp_host": "sync_pull",
       "mcp_client": "sync_pull",
@@ -2377,7 +2790,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame connection rotate",
+      "cli": "opensesame access connectors connection rotate",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2396,7 +2809,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame cert issue",
+      "cli": "opensesame access resources cert issue",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2419,7 +2832,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame cert key",
+      "cli": "opensesame access resources cert key",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2442,7 +2855,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame lifecycle expiring",
+      "cli": "opensesame access resources lifecycle expiring",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2461,7 +2874,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame lifecycle hooks",
+      "cli": "opensesame access resources lifecycle hooks",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2480,7 +2893,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame lifecycle hook add",
+      "cli": "opensesame access resources lifecycle hook add",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2503,7 +2916,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame lifecycle hook rm",
+      "cli": "opensesame access resources lifecycle hook rm",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2526,7 +2939,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame lifecycle deliveries",
+      "cli": "opensesame access resources lifecycle deliveries",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2545,7 +2958,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame lifecycle scan",
+      "cli": "opensesame access resources lifecycle scan",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2591,7 +3004,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame local-authority pair",
+      "cli": "opensesame access grants local-authority pair",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2618,7 +3031,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame local-authority pair",
+      "cli": "opensesame access grants local-authority pair",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2730,7 +3143,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame local-authority launch",
+      "cli": "opensesame access grants local-authority launch",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2784,7 +3197,7 @@
     "plane": "client_local",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame vault-inspect",
+      "cli": "opensesame vault inspect",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2811,7 +3224,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame vault-migrate",
+      "cli": "opensesame vault migrate",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -2838,7 +3251,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": "opensesame sync rebind-legacy",
+      "cli": "opensesame vault sync rebind-legacy",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3006,12 +3419,221 @@
     }
   },
   {
+    "id": "agent_hooks.intercept",
+    "title": "Answer an agent-hooks interception with a verdict: tool rules and the secret guard",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame hooks intercept",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.policy.check",
+    "title": "Check an agent-hooks policy and show it with its defaults",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame hooks check",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.intercept.remote",
+    "title": "Answer an agent-hooks interception over the Host API, under the organization's stored policy",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "cli": {
+        "reason": "the agent framework calls POST /api/v1/agent-hooks/intercept itself; at a terminal the same verdict is `opensesame hooks intercept`, which needs no Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.policy.read",
+    "title": "Read the organization's agent-hooks policy on the Host",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame hooks policy get",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.policy.write",
+    "title": "Replace the organization's agent-hooks policy on the Host (compare-and-set)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame hooks policy put",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
     "id": "ceremony.catalog.read",
     "title": "Read which connector registrations this build can automate",
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame ceremony list",
+      "cli": "opensesame access connectors ceremony list",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3034,7 +3656,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame rotate runs",
+      "cli": "opensesame access connectors rotate runs",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3057,7 +3679,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame rotate watch",
+      "cli": "opensesame access connectors rotate watch",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3080,7 +3702,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame rotate attach",
+      "cli": "opensesame access connectors rotate attach",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3340,7 +3962,7 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame secret get",
+      "cli": "opensesame vault secret get",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3367,7 +3989,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame pass show",
+      "cli": "opensesame vault pass show",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3394,7 +4016,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame pass attach sync",
+      "cli": "opensesame vault pass attach sync",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4670,7 +5292,7 @@
     "plane": "client_local",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault list",
       "pwa": "lib/vault/store.ts:vaultStore",
       "mcp_host": null,
       "mcp_client": null,
@@ -4846,12 +5468,93 @@
     }
   },
   {
+    "id": "vault.item.create",
+    "title": "Create a vault item",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id vault new",
+      "pwa": "route:/vault",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.item.set",
+    "title": "Edit a vault item's name, username, or secret",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id vault set",
+      "pwa": "route:/vault",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.item.share",
+    "title": "Share a secret once",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id vault share",
+      "pwa": "lib/vault/drop.ts:createDrop",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
     "id": "vault.import",
     "title": "Import another manager's export, or restore an encrypted backup, into the vault",
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault import",
       "pwa": "lib/vault/import/merge.ts:planMerge",
       "mcp_host": null,
       "mcp_client": null,
@@ -4878,7 +5581,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault export",
       "pwa": "lib/vault/offline-backup-file.ts:offlineBackupFile",
       "mcp_host": null,
       "mcp_client": null,
@@ -4954,33 +5657,6 @@
     }
   },
   {
-    "id": "vault.sample_data",
-    "title": "Load badged sample items into the vault, or remove them all",
-    "plane": "client_local",
-    "kind": "act",
-    "surfaces": {
-      "cli": null,
-      "pwa": "lib/vault/sample.ts:buildSample",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": null
-    },
-    "excluded": {
-      "mcp_host": {
-        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "mcp_client": {
-        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "webmcp": {
-        "reason": "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-        "adr": "0065-agent-surface-parity.md"
-      }
-    }
-  },
-  {
     "id": "vaults.travel",
     "title": "Travel mode: send the vaults not safe for travel off this device, and bring them home",
     "plane": "client_local",
@@ -5004,6 +5680,33 @@
       "webmcp": {
         "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
         "adr": "0143-travel-mode.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.duress_code",
+    "title": "Duress code: a second unlock code that shows a decoy or a refusal, set and cleared by the owner",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/duress/settings/device-duress.ts:enableDuressCode",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
+        "adr": "0150-the-device-duress-code.md"
+      },
+      "mcp_client": {
+        "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
+        "adr": "0150-the-device-duress-code.md"
+      },
+      "webmcp": {
+        "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
+        "adr": "0150-the-device-duress-code.md"
       }
     }
   },
@@ -5220,7 +5923,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault copy",
       "pwa": "route:/vault",
       "mcp_host": null,
       "mcp_client": null,
@@ -5537,7 +6240,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame session",
       "pwa": "lib/setup.ts:completeSetup",
       "mcp_host": null,
       "mcp_client": null,

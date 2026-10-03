@@ -11,6 +11,7 @@
  * another vault, or something that fails its seal, stops the pass with an
  * error instead of being replaced.
  */
+import type { FeatureOperation } from "../feature-connector-operation.js";
 import type {
   DriveSnapshotInput,
   SealedSnapshot,
@@ -36,11 +37,12 @@ export type SyncableVault = {
 };
 
 export type DriveTransport = {
-  read(pairing: DrivePairing): Promise<DriveRead>;
+  read(pairing: DrivePairing, saved?: FeatureOperation): Promise<DriveRead>;
   write(
     pairing: DrivePairing,
     expectedGeneration: number,
     snapshot: DriveSnapshot,
+    saved?: FeatureOperation,
   ): Promise<DriveWrite>;
 };
 

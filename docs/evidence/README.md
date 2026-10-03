@@ -47,11 +47,40 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-02-vault-share/`](2026-10-02-vault-share/README.md) | Vault share, support, and a new item |
+| [`2026-10-01-vault-export/`](2026-10-01-vault-export/README.md) | Vault export for a PIN seal |
+| [`2026-10-01-vault-environments/`](2026-10-01-vault-environments/README.md) | Vault environments |
+| [`2026-10-01-statusline-icons/`](2026-10-01-statusline-icons/README.md) | Status line without the identity and key vault glyphs |
+| [`2026-10-01-slash-commands/`](2026-10-01-slash-commands/README.md) | Slash completions in the status line |
+| [`2026-10-01-secret-ceiling/`](2026-10-01-secret-ceiling/README.md) | Secret without the capability ceiling |
+| [`2026-10-01-file-secret/`](2026-10-01-file-secret/README.md) | File item in the minimal install |
+| [`2026-10-01-activity-item-log/`](2026-10-01-activity-item-log/README.md) | A secret save names what happened |
+| [`2026-09-30-setup-configuration/`](2026-09-30-setup-configuration/README.md) | Setup configuration choice |
+| [`2026-09-29-trash-commands/`](2026-09-29-trash-commands/README.md) | Trash commands |
+| [`2026-09-29-secret-plain-text/`](2026-09-29-secret-plain-text/README.md) | Secret is one concealed value |
+| [`2026-09-29-password-reset/`](2026-09-29-password-reset/README.md) | Password reset mailboxes |
+| [`2026-09-29-password-history/`](2026-09-29-password-history/README.md) | Retired passwords stay retired |
+| [`2026-09-29-minimal-pwa-sections/`](2026-09-29-minimal-pwa-sections/README.md) | Minimal PWA sections |
+| [`2026-09-29-live-session-edit/`](2026-09-29-live-session-edit/README.md) | Authorized edit on a live session |
+| [`2026-09-29-item-shares/`](2026-09-29-item-shares/README.md) | A drop is a share of an item |
+| [`2026-09-29-activity-detail/`](2026-09-29-activity-detail/README.md) | An activity row opens that event |
+| [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
 | [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
+| [`2026-09-28-surrogate-plugins/`](2026-09-28-surrogate-plugins/README.md) | Surrogate credentials and Browser autofill in Settings › Capabilities |
+| [`2026-09-28-settings-security-rows/`](2026-09-28-settings-security-rows/README.md) | Settings › Security: every row acts, or is not drawn |
+| [`2026-09-28-settings-no-approvals-view/`](2026-09-28-settings-no-approvals-view/README.md) | Settings › General: no approvals view |
+| [`2026-09-28-protector-enrollment/`](2026-09-28-protector-enrollment/README.md) | Enrolling an age recipient, AWS KMS and Google Cloud KMS from Security |
 | [`2026-09-28-member-organizations/`](2026-09-28-member-organizations/README.md) | The signed-in member's organizations |
 | [`2026-09-28-manifest-export-sheet/`](2026-09-28-manifest-export-sheet/README.md) | The sealed-store manifest is saved from a sheet, and never for a guest |
+| [`2026-09-28-live-sessions/`](2026-09-28-live-sessions/README.md) | Live sessions and the two-road front door (ADR 0150) |
+| [`2026-09-28-live-routes/`](2026-09-28-live-routes/README.md) | Live sessions across networks: optional routes (ADR 0150 §6) |
+| [`2026-09-28-keybindings/`](2026-09-28-keybindings/README.md) | Keybindings get their own Settings tab |
+| [`2026-09-28-host-less-connect/`](2026-09-28-host-less-connect/README.md) | Connector pages on a device with no Host: they act, or are not drawn |
+| [`2026-09-28-duress-and-travel-usable/`](2026-09-28-duress-and-travel-usable/README.md) | Duress and travel, usable from Settings — visual evidence |
 | [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
+| [`2026-09-28-completion-not-repeated/`](2026-09-28-completion-not-repeated/README.md) | The config.yaml editor no longer offers back what is typed |
+| [`2026-09-28-capabilities-as-files/`](2026-09-28-capabilities-as-files/README.md) | Capabilities as files; `config.yaml` first |
 | [`2026-09-28-activity-rail-listing/`](2026-09-28-activity-rail-listing/README.md) | Activity: a paged, searchable listing in the rail and on the page |
 | [`2026-09-27-webmcp-review/`](2026-09-27-webmcp-review/README.md) | The WebMCP review no longer claims a reload |
 | [`2026-09-27-vault-import-export/`](2026-09-27-vault-import-export/README.md) | The vault's Import and Export keys, restored |

@@ -140,14 +140,14 @@ describe("itemSubtitle", () => {
     expect(itemSubtitle(cert)).toContain("until 2026-12-01");
   });
 
-  it("shows a secret's connection ref, else its capability count", () => {
+  it("shows a secret's capability count only when one is set", () => {
     const secret = createItem("secret");
     if (secret.kind !== "secret") throw new Error("expected secret");
-    expect(itemSubtitle(secret)).toBe("0 capabilities");
+    expect(itemSubtitle(secret)).toBe("");
+    secret.connectionRef = "conn_1";
+    expect(itemSubtitle(secret)).toBe("");
     secret.ceiling = [newGrant("http.get", "https://h.example")];
     expect(itemSubtitle(secret)).toBe("1 capabilities");
-    secret.connectionRef = "conn_1";
-    expect(itemSubtitle(secret)).toBe("conn_1");
   });
 
   it("summarises a note by first line, field count, or Empty note", () => {
@@ -244,12 +244,12 @@ describe("searchMatches", () => {
     expect(searchMatches(card, "rowan")).toBe(true);
   });
 
-  it("searches secret connection refs and grantees", () => {
+  it("searches secret grantees and not a stored connection ref", () => {
     const secret = createItem("secret", "Deploy");
     if (secret.kind !== "secret") throw new Error("expected secret");
     secret.connectionRef = "conn_deploy";
     secret.grantees = ["agt_release_bot"];
-    expect(searchMatches(secret, "conn_dep")).toBe(true);
+    expect(searchMatches(secret, "conn_dep")).toBe(false);
     expect(searchMatches(secret, "release_bot")).toBe(true);
   });
 

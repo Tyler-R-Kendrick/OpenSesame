@@ -1,5 +1,5 @@
 /**
- * Seal the event rows an older release left in the clear (ADR 0150).
+ * Seal the event rows an older release left in the clear (ADR 0155).
  *
  * Run at start-up, idempotent: a row already sealed is not selected, and an
  * interrupted pass simply finds the rest next time. Each batch is read, sealed

@@ -21,7 +21,7 @@ import {
 } from "@opensesame/os-domain";
 import { maybeLocalStore } from "../../ports.js";
 
-const KEY = "join.presented.v1";
+const KEY = "join.presented.v1"; // gitleaks:allow -- localStorage key name, not a credential
 const MAX_ENTRIES = 64;
 /** The Host's ceiling on an offer's life. */
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;

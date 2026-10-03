@@ -229,7 +229,6 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
   ...optional(
     "backup.cloud-secrets",
     "src/lib/aws-kms-config",
-    "src/lib/azure-key-vault-keys-config",
     "src/lib/gcp-kms-config",
     "src/lib/sops/",
   ),

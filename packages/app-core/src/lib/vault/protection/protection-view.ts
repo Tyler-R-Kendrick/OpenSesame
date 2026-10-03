@@ -1,19 +1,14 @@
 /**
  * View-model for Settings → Security → Vault key protection (C12).
- * Manifest is authority; capability preference is setup intent only.
+ * The header's manifest is the authority: a row is an enrolled protector.
  */
 
 import type {
-  EncryptionSetupIntent,
   ProtectionRecord,
   RootProtectionManifest,
   VaultHeader,
 } from "@opensesame/vault-core";
-import type { CapabilityConnectorBinding } from "../../capabilities.js";
-import {
-  encryptionSetupIntentFromBinding,
-  migrateLegacyHeaderToManifest,
-} from "./migrate-legacy.js";
+import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 
 export type ProtectorViewRow = {
   protectorId: string;
@@ -59,28 +54,6 @@ export function protectionMechanismLabel(
   }
 }
 
-/** Honest labels for encryption preference provider ids — never "WebCrypto". */
-export function preferenceMechanismLabel(providerId: string): string {
-  switch (providerId) {
-    case "webcrypto":
-      return protectionMechanismLabel("password");
-    case "fido2":
-      return protectionMechanismLabel("webauthn-prf");
-    case "yubikey":
-      return protectionMechanismLabel("yubikey-piv-age");
-    case "age":
-      return protectionMechanismLabel("age-recipient");
-    case "aws-kms":
-      return protectionMechanismLabel("aws-kms");
-    case "azure-key-vault-keys":
-      return protectionMechanismLabel("azure-key-vault-keys");
-    case "gcp-kms":
-      return protectionMechanismLabel("gcp-kms");
-    default:
-      return providerId;
-  }
-}
-
 function identityLabel(record: ProtectionRecord): string {
   switch (record.kind) {
     case "password":
@@ -111,33 +84,6 @@ function identityLabel(record: ProtectionRecord): string {
   }
 }
 
-function providerHasEnrolledRecord(
-  providerId: string,
-  manifest: RootProtectionManifest | null,
-): boolean {
-  if (!manifest) return false;
-  return manifest.records.some((record) => {
-    switch (providerId) {
-      case "aws-kms":
-        return record.kind === "aws-kms";
-      case "azure-key-vault-keys":
-        return record.kind === "azure-key-vault-keys";
-      case "gcp-kms":
-        return record.kind === "gcp-kms";
-      case "age":
-        return (
-          record.kind === "age-recipient" || record.kind === "age-webauthn"
-        );
-      case "fido2":
-        return record.kind === "webauthn-prf";
-      case "yubikey":
-        return record.kind === "yubikey-piv-age";
-      default:
-        return false;
-    }
-  });
-}
-
 export function resolveProtectionManifest(
   header: VaultHeader | null | undefined,
   stored?: RootProtectionManifest | null,
@@ -162,82 +108,34 @@ export function listProtectorViewRows(
   }));
 }
 
-export function setupIntentForEncryptionBinding(
-  binding: CapabilityConnectorBinding | undefined,
-  manifest: RootProtectionManifest | null,
-): EncryptionSetupIntent | null {
-  if (!binding) return null;
-  const enrolled = providerHasEnrolledRecord(binding.providerId, manifest)
-    ? new Set([binding.providerId])
-    : new Set<string>();
-  return encryptionSetupIntentFromBinding(
-    binding.providerId,
-    binding.connectionId,
-    enrolled,
-  );
-}
-
 export type ProtectionViewState = {
   methods: ProtectorViewRow[];
-  setupIntent: EncryptionSetupIntent | null;
   preferredProtectorId: string | null;
   /** False until BROWSER wires lifecycle mutations. */
   lifecycleReady: boolean;
 };
 
-/** Typed failure for lifecycle actions that are not wired yet. */
-export class ProtectionNotWiredError extends Error {
-  readonly code = "not_wired" as const;
-
-  constructor(readonly action: string) {
-    super(`not wired: ${action}`);
-    this.name = "ProtectionNotWiredError";
-  }
-}
-
-export const LIFECYCLE_NOT_READY_REASON =
-  "Protection lifecycle is not ready on this build.";
-
-/** Stubs for tests — throw typed not-wired. UI keeps controls disabled instead. */
-export const protectionLifecycleStubs = {
-  add(): never {
-    throw new ProtectionNotWiredError("add");
-  },
-  test(_protectorId: string): never {
-    throw new ProtectionNotWiredError("test");
-  },
-  preferred(_protectorId: string): never {
-    throw new ProtectionNotWiredError("preferred");
-  },
-  remove(_protectorId: string): never {
-    throw new ProtectionNotWiredError("remove");
-  },
-  rotateCompromised(): never {
-    throw new ProtectionNotWiredError("rotate-compromised");
-  },
-} as const;
-
 /**
- * Authority view: enrolled protectors from the (legacy-migrated) manifest,
- * plus encryption preference without a matching record as setup intent (KP-04).
+ * Authority view: enrolled protectors from the header's sealed manifest —
+ * the same one the lifecycle service reads, so a row's id is an id the service
+ * knows — else the legacy wraps projected in memory. A saved encryption
+ * preference is not a row: only an enrolled protector is (KP-04).
+ *
+ * The in-memory projection mints fresh ids on every call. It is only ever a
+ * read-only stand-in for a header that has not been projected yet (a locked
+ * vault); acting on one of its rows would name a protector no manifest holds.
  */
 export function selectProtectionView(input: {
   header: VaultHeader | null | undefined;
-  encryptionBinding?: CapabilityConnectorBinding;
   storedManifest?: RootProtectionManifest | null;
 }): ProtectionViewState {
   const manifest = resolveProtectionManifest(
     input.header,
-    input.storedManifest,
+    input.storedManifest ?? input.header?.protection,
   );
   const methods = listProtectorViewRows(manifest);
-  const setupIntent = setupIntentForEncryptionBinding(
-    input.encryptionBinding,
-    manifest,
-  );
   return {
     methods,
-    setupIntent,
     preferredProtectorId: manifest?.preferredProtectorId ?? null,
     lifecycleReady: true,
   };

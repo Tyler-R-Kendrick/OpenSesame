@@ -7,7 +7,8 @@
 //! What moves, per registered account: the KDF choice, the wrapped user key,
 //! the key pair, the server hash (PBKDF2-SHA256 in raw columns, written as a
 //! record the registry verifies once and upgrades), folders, favourites,
-//! trash, and every personal cipher. What stays behind is counted.
+//! trash, and every personal cipher. Then, server-wide: every organization
+//! and every emergency contact (`orgs`). What stays behind is counted.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -18,7 +19,9 @@ use opensesame_storage::bitwarden::{BitwardenArrival, BitwardenKdf, BitwardenUse
 use serde_json::{json, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 
+mod emergency;
 mod files;
+mod orgs;
 mod rows;
 mod sign_in;
 
@@ -176,31 +179,41 @@ impl Reader {
         Ok(sqlx::query_as(sql).bind(user).fetch_all(&self.pool).await?)
     }
 
-    async fn account(&self, user: BitwardenUser, user_row: &SqliteRow) -> anyhow::Result<Arrival> {
-        let id = user.id.clone();
-        let mut left = LeftBehind::new();
-        let (sign_in, other_methods) =
-            sign_in::read(&self.pool, &self.schema, user_row, &id).await?;
-        leave(&mut left, "two-step login methods", other_methods);
+    async fn folders(
+        &self,
+        user: &BitwardenUser,
+        left: &mut LeftBehind,
+    ) -> anyhow::Result<Vec<opensesame_storage::bitwarden::BitwardenFolder>> {
+        let id = &user.id;
         let mut folders = Vec::new();
         let rows = sqlx::query(
             "SELECT uuid, name, created_at, updated_at FROM folders WHERE user_uuid = ?",
         )
-        .bind(&id)
+        .bind(id)
         .fetch_all(&self.pool)
         .await?;
         for row in &rows {
             let created = timestamp(text(row, "created_at")).unwrap_or(user.created_at);
             let revised = timestamp(text(row, "updated_at")).unwrap_or(created);
             let (Some(folder_id), Some(name)) = (text(row, "uuid"), text(row, "name")) else {
-                leave(&mut left, "unreadable folders", 1);
+                leave(left, "unreadable folders", 1);
                 continue;
             };
-            match folder(&id, &folder_id, &name, created, revised) {
+            match folder(id, &folder_id, &name, created, revised) {
                 Some(folder) => folders.push(folder),
-                None => leave(&mut left, "unreadable folders", 1),
+                None => leave(left, "unreadable folders", 1),
             }
         }
+        Ok(folders)
+    }
+
+    async fn account(&self, user: BitwardenUser, user_row: &SqliteRow) -> anyhow::Result<Arrival> {
+        let id = user.id.clone();
+        let mut left = LeftBehind::new();
+        let (sign_in, other_methods) =
+            sign_in::read(&self.pool, &self.schema, user_row, &id).await?;
+        leave(&mut left, "two-step login methods", other_methods);
+        let folders = self.folders(&user, &mut left).await?;
         let in_folder: HashMap<String, String> = self
             .pairs(
                 "folders_ciphers",
@@ -254,11 +267,16 @@ impl Reader {
                 None => leave(&mut left, "unreadable items", 1),
             }
         }
-        self.count_left_behind(&id, &mut left).await;
         let known: HashSet<String> = ciphers.iter().map(|c| c.id.clone()).collect();
-        let attachments =
-            files::attachments(&self.pool, &self.schema, &self.data, &id, &known, &mut left)
-                .await?;
+        let attachments = files::attachments(
+            &self.pool,
+            &self.schema,
+            &self.data,
+            files::Owner::Account(&id),
+            &known,
+            &mut left,
+        )
+        .await?;
         let sends = files::sends(&self.pool, &self.schema, &self.data, &id, &mut left).await?;
         let mut account = BitwardenArrival {
             user,
@@ -273,25 +291,6 @@ impl Reader {
             attachments,
             sends,
         })
-    }
-
-    async fn count_left_behind(&self, id: &str, left: &mut LeftBehind) {
-        let counts = [
-            (
-                "emergency contacts",
-                "emergency_access",
-                "SELECT COUNT(*) FROM emergency_access WHERE grantor_uuid = ?",
-            ),
-            (
-                "organization memberships",
-                "users_organizations",
-                "SELECT COUNT(*) FROM users_organizations WHERE user_uuid = ?",
-            ),
-        ];
-        for (kind, table, sql) in counts {
-            let n = self.schema.count(&self.pool, table, sql, Some(id)).await;
-            leave(left, kind, n);
-        }
     }
 }
 
@@ -339,18 +338,13 @@ pub async fn read_with(path: &Path, data: Option<&Path>) -> anyhow::Result<Sourc
             Err(skipped) => source.skipped.push(skipped),
         }
     }
-    for (kind, table, sql) in [
-        (
-            "organizations",
-            "organizations",
-            "SELECT COUNT(*) FROM organizations",
-        ),
-        (
-            "organization items",
-            "ciphers",
-            "SELECT COUNT(*) FROM ciphers WHERE user_uuid IS NULL",
-        ),
-    ] {
+    source.organizations = reader.organizations().await?;
+    source.emergency = reader.emergency().await?;
+    for (kind, table, sql) in [(
+        "organization groups",
+        "groups",
+        "SELECT COUNT(*) FROM groups",
+    )] {
         let n = reader.schema.count(&reader.pool, table, sql, None).await;
         leave(&mut source.left_behind, kind, n);
     }

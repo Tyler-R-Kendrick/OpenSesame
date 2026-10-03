@@ -1,4 +1,4 @@
-//! The Host's event rows rest sealed (ADR 0150).
+//! The Host's event rows rest sealed (ADR 0155).
 //!
 //! The outbox, security deliveries, connection events, signing events, approval
 //! comments, runner steps and receipts are sealed before they reach the `SQLite`

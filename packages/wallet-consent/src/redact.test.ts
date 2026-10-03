@@ -20,7 +20,7 @@ describe("redactWalletExport (WAL-B17)", () => {
   });
 });
 
-describe("a wallet export carries no credential by shape (ADR 0150)", () => {
+describe("a wallet export carries no credential by shape (ADR 0155)", () => {
   it("scrubs a bearer, a JWT and a secret URL parameter", () => {
     const exported = redactWalletExport({
       note: "sent Authorization: Bearer abc.def.ghi",

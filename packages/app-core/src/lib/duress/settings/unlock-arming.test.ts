@@ -46,6 +46,8 @@ describe("production unlock arming path", () => {
         vaultRef: "vault-1",
         deviceBindingRef: "device-1",
         presentation: "decoy",
+        ownerConsent: true,
+        capabilities: { durableLocalStorage: true, offlineReady: true },
       });
     await expect(seal("48291037")).rejects.toThrow(/^ambiguous_trigger/);
     const other = await seal("48291038");
@@ -67,6 +69,8 @@ describe("production unlock arming path", () => {
           vaultRef: "vault-1",
           deviceBindingRef: "device-1",
           presentation: "restricted",
+          ownerConsent: true,
+          capabilities: { durableLocalStorage: true, offlineReady: true },
         }),
       ).rejects.toThrow(/^ambiguous_trigger/);
     }
@@ -79,6 +83,8 @@ describe("production unlock arming path", () => {
       vaultRef: "vault-1",
       deviceBindingRef: "device-1",
       presentation: "restricted",
+      ownerConsent: true,
+      capabilities: { durableLocalStorage: true, offlineReady: true },
     });
     expect(sealed.armed).toBe(false);
     expect(sealed.triggers).toHaveLength(1);

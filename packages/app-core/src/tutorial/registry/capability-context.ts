@@ -1,4 +1,14 @@
-import type { Capability } from "@opensesame/capability-registry";
+/**
+ * The fields the support context reads. A full registry `Capability` has
+ * them; so does the page-reachable projection Pages ships
+ * (`@opensesame/capability-registry/pwa-summaries.json`).
+ */
+export type ContextCapability = {
+  id: string;
+  title: string;
+  plane: string;
+  surfaces: { pwa: string | null };
+};
 import { CAPABILITY_TUTORIALS } from "./goals.js";
 import { guideRouteWithin } from "./routes.js";
 
@@ -25,10 +35,11 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "connection.repair": ["/connections"],
     "vault.item.create": ["/vault"],
     "settings.model-provider": ["/settings/capabilities"],
-    "settings.transport": ["/settings"],
     "settings.tailnet-sync": ["/settings/vaults"],
     "settings.notifications": ["/settings/notifications"],
     "settings.backup": ["/settings/capabilities"],
+    "settings.surrogate-credentials": ["/settings/capabilities"],
+    "settings.browser-autofill": ["/settings/capabilities"],
     "identity.sign-in": ["/unlock", "/identity"],
     "identity.sign-out": [],
     "identity.switch-account": [],
@@ -43,7 +54,6 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vault.item-types.install": ["/settings"],
     "vault.export": ["/vault"],
     "vault.import": ["/vault"],
-    "vault.sample-data": ["/settings/vaults"],
     "vault.store-manifest": ["/settings/vaults"],
     "client.support": [],
     "client.command-bar": [],
@@ -62,11 +72,11 @@ const GOAL_CONTEXT_ROUTES = new Map(
 );
 
 /** No truncation: every PWA capability must have an authored, reachable scope. */
-export function capabilitiesForContext(
-  capabilities: readonly Capability[],
+export function capabilitiesForContext<T extends ContextCapability>(
+  capabilities: readonly T[],
   route: string,
   helpGoals: readonly string[],
-): readonly Capability[] {
+): readonly T[] {
   const tutorials: Readonly<Record<string, string>> = CAPABILITY_TUTORIALS;
   return capabilities.filter((capability) => {
     if (capability.surfaces.pwa === null) return false;

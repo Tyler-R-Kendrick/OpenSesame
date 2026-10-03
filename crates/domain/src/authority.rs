@@ -310,7 +310,14 @@ impl CredentialDeliveryMode {
     }
 }
 
-/// Where a placeholder may be substituted on the wire.
+/// Where a projection declares its placeholder is presented on the wire.
+///
+/// Declarative only. Nothing substitutes a placeholder by searching request
+/// text for it: the one admission rule is invoke-through's surrogate ledger
+/// (ADR 0150 §2), which accepts a placeholder only as the entire value of its
+/// declared site and places the credential itself. The rule set that used to
+/// count appearances here was a second, divergent copy of that decision and
+/// was retired with the L2 placeholder simulation (ADR 0150 §6.7).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum PlaceholderLocation {
@@ -320,7 +327,9 @@ pub enum PlaceholderLocation {
     BodyField { path: String },
 }
 
-/// Placement policy for placeholder substitution — fail closed outside these rules.
+/// A projection's declared placement: the sites, methods and appearance
+/// bound it was issued for. See [`PlaceholderLocation`] for where it is
+/// enforced.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaceholderPlacement {
     pub locations: Vec<PlaceholderLocation>,
@@ -337,194 +346,6 @@ impl Default for PlaceholderPlacement {
             methods: vec!["GET".into(), "POST".into(), "PUT".into(), "PATCH".into()],
             max_occurrences: 1,
         }
-    }
-}
-
-/// Request fragments inspected when enforcing placeholder placement.
-#[derive(Clone, Debug, Default)]
-pub struct PlaceholderRequestView<'a> {
-    pub method: &'a str,
-    pub header_name: Option<&'a str>,
-    pub header_value: Option<&'a str>,
-    pub path: &'a str,
-    pub query: Option<&'a str>,
-    pub body_field_path: Option<&'a str>,
-    pub body_field_value: Option<&'a str>,
-}
-
-/// How many times `needle` occurs in `haystack`. An empty needle occurs nowhere:
-/// `contains("")` is true of every string, and a substitution driven by it would
-/// write the credential between every character.
-fn occurrences(haystack: &str, needle: &str) -> u32 {
-    if needle.is_empty() {
-        return 0;
-    }
-    u32::try_from(haystack.matches(needle).count()).unwrap_or(u32::MAX)
-}
-
-/// Occurrences inside the values of the named query parameter only.
-fn query_pair_occurrences(query: &str, name: &str, needle: &str) -> u32 {
-    query
-        .split('&')
-        .filter_map(|pair| {
-            let (k, v) = pair.split_once('=')?;
-            (k == name).then_some(v)
-        })
-        .map(|v| occurrences(v, needle))
-        .sum()
-}
-
-fn header_placeholder_placement(
-    locations: &[PlaceholderLocation],
-    name: Option<&str>,
-    value: Option<&str>,
-    placeholder: &str,
-) -> (u32, bool) {
-    let Some((name, value)) = name.zip(value) else {
-        return (0, true);
-    };
-    let found = occurrences(value, placeholder);
-    let allowed = found == 0
-        || locations.iter().any(|location| {
-            matches!(location, PlaceholderLocation::Header { name: allowed_name }
-                if allowed_name.as_ref().is_none_or(|allowed| allowed.eq_ignore_ascii_case(name)))
-        });
-    (found, allowed)
-}
-
-fn query_placeholder_placement(
-    locations: &[PlaceholderLocation],
-    query: Option<&str>,
-    placeholder: &str,
-) -> (u32, bool) {
-    let Some(query) = query else {
-        return (0, true);
-    };
-    let found = occurrences(query, placeholder);
-    let covered = locations
-        .iter()
-        .filter_map(|location| match location {
-            PlaceholderLocation::Query { name: None } => Some(found),
-            PlaceholderLocation::Query { name: Some(name) } => {
-                Some(query_pair_occurrences(query, name, placeholder))
-            }
-            _ => None,
-        })
-        .max()
-        .unwrap_or(0);
-    (found, covered >= found)
-}
-
-fn body_placeholder_placement(
-    locations: &[PlaceholderLocation],
-    path: Option<&str>,
-    value: Option<&str>,
-    placeholder: &str,
-) -> (u32, bool) {
-    let Some((path, value)) = path.zip(value) else {
-        return (0, true);
-    };
-    let found = occurrences(value, placeholder);
-    let allowed = found == 0
-        || locations.iter().any(
-            |location| matches!(location, PlaceholderLocation::BodyField { path: allowed } if allowed == path),
-        );
-    (found, allowed)
-}
-
-impl PlaceholderPlacement {
-    /// Count occurrences of `placeholder` in the given request parts and enforce policy.
-    ///
-    /// Every site the placeholder appears at must be an allowed one, and the total
-    /// number of appearances — not the number of request parts touched — is what
-    /// `max_occurrences` bounds. Substitution replaces every occurrence, so counting
-    /// parts let a caller multiply the credential inside one allowed header.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when validation or the underlying operation fails.
-    pub fn assert_allowed(
-        &self,
-        req: &PlaceholderRequestView<'_>,
-        placeholder: &str,
-    ) -> Result<(), DomainError> {
-        if placeholder.is_empty() {
-            return Err(DomainError::GrantAttenuation(
-                "empty placeholder is not substitutable".into(),
-            ));
-        }
-        let method_ok = self
-            .methods
-            .iter()
-            .any(|m| m.eq_ignore_ascii_case(req.method));
-        if !method_ok {
-            return Err(DomainError::GrantAttenuation(format!(
-                "method {} not allowed for placeholder substitution",
-                req.method
-            )));
-        }
-
-        let mut hits = 0u32;
-        let mut denied_site: Option<&'static str> = None;
-
-        let (header_hits, header_allowed) = header_placeholder_placement(
-            &self.locations,
-            req.header_name,
-            req.header_value,
-            placeholder,
-        );
-        hits += header_hits;
-        if !header_allowed {
-            denied_site = Some("header");
-        }
-
-        let in_path = occurrences(req.path, placeholder);
-        if in_path > 0 {
-            hits += in_path;
-            if !self
-                .locations
-                .iter()
-                .any(|l| matches!(l, PlaceholderLocation::Path))
-            {
-                denied_site = Some("path");
-            }
-        }
-
-        // A named query location covers its own parameter and nothing else,
-        // so an appearance elsewhere in the query string is its own site.
-        let (query_hits, query_allowed) =
-            query_placeholder_placement(&self.locations, req.query, placeholder);
-        hits += query_hits;
-        if !query_allowed {
-            denied_site = Some("query");
-        }
-
-        let (body_hits, body_allowed) = body_placeholder_placement(
-            &self.locations,
-            req.body_field_path,
-            req.body_field_value,
-            placeholder,
-        );
-        hits += body_hits;
-        if !body_allowed {
-            denied_site = Some("body field");
-        }
-
-        if hits == 0 {
-            return Ok(());
-        }
-        if let Some(site) = denied_site {
-            return Err(DomainError::GrantAttenuation(format!(
-                "placeholder appeared outside allowed placement ({site})"
-            )));
-        }
-        if hits > self.max_occurrences {
-            return Err(DomainError::GrantAttenuation(format!(
-                "placeholder exceeded max_occurrences {}",
-                self.max_occurrences
-            )));
-        }
-        Ok(())
     }
 }
 
@@ -875,134 +696,5 @@ mod tests {
         // Right shape, another connection's placeholder.
         assert!(!mine.accepts_placeholder("ostest_fedcba9876543210"));
         assert!(!mine.accepts_placeholder(""));
-    }
-
-    #[test]
-    fn placement_counts_every_appearance_not_every_part() {
-        let p = PlaceholderPlacement::default();
-        let ph = "ostest_0123456789abcdef";
-        // One allowed header, but the credential would be written twice.
-        let err = p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "POST",
-                    header_name: Some("Authorization"),
-                    header_value: Some(&format!("Bearer {ph} {ph}")),
-                    ..Default::default()
-                },
-                ph,
-            )
-            .unwrap_err();
-        assert!(format!("{err}").contains("max_occurrences"), "{err}");
-    }
-
-    #[test]
-    fn placement_denies_a_second_site_even_beside_an_allowed_one() {
-        let p = PlaceholderPlacement {
-            max_occurrences: 4,
-            ..PlaceholderPlacement::default()
-        };
-        let ph = "ostest_0123456789abcdef";
-        let err = p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "POST",
-                    header_name: Some("Authorization"),
-                    header_value: Some(&format!("Bearer {ph}")),
-                    query: Some(&format!("callback=https://evil.example/?t={ph}")),
-                    ..Default::default()
-                },
-                ph,
-            )
-            .unwrap_err();
-        assert!(
-            format!("{err}").contains("outside allowed placement"),
-            "{err}"
-        );
-    }
-
-    #[test]
-    fn a_named_query_location_covers_only_its_own_parameter() {
-        let p = PlaceholderPlacement {
-            locations: vec![PlaceholderLocation::Query {
-                name: Some("key".into()),
-            }],
-            methods: vec!["GET".into()],
-            max_occurrences: 1,
-        };
-        let ph = "ostest_0123456789abcdef";
-        assert!(p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "GET",
-                    query: Some(&format!("key={ph}")),
-                    ..Default::default()
-                },
-                ph,
-            )
-            .is_ok());
-        let err = p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "GET",
-                    query: Some(&format!("redirect_uri=https://evil.example/?t={ph}")),
-                    ..Default::default()
-                },
-                ph,
-            )
-            .unwrap_err();
-        assert!(
-            format!("{err}").contains("outside allowed placement"),
-            "{err}"
-        );
-    }
-
-    #[test]
-    fn an_empty_placeholder_is_not_substitutable() {
-        let p = PlaceholderPlacement::default();
-        assert!(p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "POST",
-                    header_name: Some("Authorization"),
-                    header_value: Some("Bearer x"),
-                    ..Default::default()
-                },
-                "",
-            )
-            .is_err());
-    }
-
-    #[test]
-    fn placement_denies_body_when_only_header_allowed() {
-        let p = PlaceholderPlacement::default();
-        assert!(p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "POST",
-                    header_name: Some("Authorization"),
-                    header_value: Some("Bearer ostest_x"),
-                    path: "/user",
-                    query: None,
-                    body_field_path: None,
-                    body_field_value: None,
-                },
-                "ostest_x",
-            )
-            .is_ok());
-        assert!(p
-            .assert_allowed(
-                &PlaceholderRequestView {
-                    method: "POST",
-                    header_name: None,
-                    header_value: None,
-                    path: "/user",
-                    query: None,
-                    body_field_path: Some("message"),
-                    body_field_value: Some("leak ostest_x"),
-                },
-                "ostest_x",
-            )
-            .is_err());
     }
 }

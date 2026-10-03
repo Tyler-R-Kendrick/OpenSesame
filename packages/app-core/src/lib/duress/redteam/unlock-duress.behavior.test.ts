@@ -40,6 +40,8 @@ describe("duress unlock behaviour", () => {
       profileId: "p-restricted",
       vaultRef: "vault-behaviour",
       deviceBindingRef: "device-behaviour",
+      ownerConsent: true,
+      capabilities: { durableLocalStorage: true, offlineReady: true },
       presentation: "restricted",
     });
     const armed = await armPersistedUnlockEnrollment(sealed, {
@@ -75,6 +77,8 @@ describe("duress unlock behaviour", () => {
       profileId: "p-locked",
       vaultRef: "vault-behaviour",
       deviceBindingRef: "device-behaviour",
+      ownerConsent: true,
+      capabilities: { durableLocalStorage: true, offlineReady: true },
       presentation: "locked",
     });
     await armPersistedUnlockEnrollment(sealed, { requireDurable: false });
@@ -99,6 +103,8 @@ describe("duress unlock behaviour", () => {
       profileId: "p-uv",
       vaultRef: "vault-behaviour",
       deviceBindingRef: "device-behaviour",
+      ownerConsent: true,
+      capabilities: { durableLocalStorage: true, offlineReady: true },
       presentation: "decoy",
     });
     await armPersistedUnlockEnrollment(sealed, { requireDurable: false });
@@ -153,6 +159,8 @@ describe("duress unlock behaviour", () => {
         profileId: "p-throttle",
         vaultRef: "vault-behaviour",
         deviceBindingRef: "device-behaviour",
+        ownerConsent: true,
+        capabilities: { durableLocalStorage: true, offlineReady: true },
         presentation: "restricted",
       });
       await armPersistedUnlockEnrollment(sealed, { requireDurable: false });

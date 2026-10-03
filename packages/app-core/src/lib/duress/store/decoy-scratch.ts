@@ -12,14 +12,11 @@ import { kvSet } from "../../kv.js";
 import { headerCarriesGate } from "../../vault/header-gate.js";
 import { readTombHeader } from "../../vault/store-header.js";
 import { ATTEMPTS_KEY, type VaultScope } from "../../vault/store-scope.js";
-import { wipeTombOnDestroy } from "../../vault/tomb-migration.js";
 import {
-  BODY_PATH,
-  GUEST_TOMB,
-  TOMBS_REGISTRY_KEY,
-  deleteFile,
-  listTombs,
-} from "../../vfs.js";
+  discardVaultBody,
+  wipeTombOnDestroy,
+} from "../../vault/tomb-migration.js";
+import { GUEST_TOMB, TOMBS_REGISTRY_KEY, listTombs } from "../../vfs.js";
 
 /** Plaintext name only; nothing in it says what the session was. */
 export const DECOY_SCRATCH_TOMB = "guest-scratch";
@@ -70,5 +67,5 @@ export async function endEphemeralTomb(tomb: string): Promise<void> {
     return;
   }
   forgetDecoyScratch(tomb);
-  await Promise.all([deleteFile(tomb, BODY_PATH), wipeTombOnDestroy(tomb)]);
+  await Promise.all([discardVaultBody(tomb), wipeTombOnDestroy(tomb)]);
 }

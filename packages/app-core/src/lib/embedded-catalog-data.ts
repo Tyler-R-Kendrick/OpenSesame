@@ -8,10 +8,18 @@ import type { ConfigurationField } from "./connections.js";
  */
 export const DEVICE_KEY_PROTECTORS = [
   "webcrypto",
-  "yubikey",
   "aws-kms",
-  "azure-key-vault-keys",
   "gcp-kms",
+] as const;
+
+/**
+ * Catalog rows Pages does not draw because a browser cannot enroll them as a
+ * vault key protector (docs/adr/0152). The Host and the native client keep
+ * them; this is only what this target shows.
+ */
+export const BROWSER_UNENROLLABLE_PROTECTORS = [
+  "yubikey",
+  "azure-key-vault-keys",
 ] as const;
 
 export const HOST_PROVIDER_IDS = [
@@ -80,23 +88,12 @@ export const FIELDS = new Map<string, ConfigurationField[]>(
       field("recipients", "Recipients"),
       field("identity", "Identity", true),
     ],
-    yubikey: [
-      field("recipient", "Recipient"),
-      field("slot", "PIV slot", false, false),
-      field("serial", "Serial", false, false),
-    ],
     "aws-kms": [
       field("key_arn", "Key ARN"),
       field("region", "Region"),
       field("access_key_id", "Access key ID"),
       field("secret_access_key", "Secret access key", true),
       field("session_token", "Session token", true, false),
-    ],
-    "azure-key-vault-keys": [
-      field("versioned_key_id", "Versioned key ID"),
-      field("tenant_id", "Tenant ID"),
-      field("client_id", "Client ID"),
-      field("client_secret", "Client secret", true),
     ],
     "gcp-kms": [
       field("crypto_key_name", "Crypto key"),

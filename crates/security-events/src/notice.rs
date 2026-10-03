@@ -234,7 +234,7 @@ impl SecurityNotice {
     }
 
     /// The source payload with every secret-shaped key removed at any depth
-    /// and every string scrubbed (ADR 0150).
+    /// and every string scrubbed (ADR 0155).
     ///
     /// Families build flat payloads today, but a nested one must not be the way
     /// around this fence, so the walk is recursive rather than trusted.

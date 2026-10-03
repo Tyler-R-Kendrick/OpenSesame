@@ -80,6 +80,16 @@ function syncable(): boolean {
   return snap.status === "unlocked" && !snap.guest && snap.tomb !== GUEST_TOMB;
 }
 
+/**
+ * The drive the open vault is paired with — the daemon a person configured —
+ * or null: no pairing, a guest, a locked vault, or another vault open. For
+ * the plugin panels' daemon port (`plugin-daemon.ts`), never for the page.
+ */
+export function pairedDrive(): DrivePairing | null {
+  if (!pairing || !syncable()) return null;
+  return vaultStore.activeTomb() === pairedTomb ? pairing : null;
+}
+
 function describe(drive: DrivePairing | null) {
   return drive ? { label: drive.label, url: drive.url } : null;
 }

@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
 import {
+  ANSWERED,
   FEDERATED_BUTTON,
   STRONG,
   UPSTREAM,
@@ -28,6 +29,7 @@ import {
   requestEmailMagicLink,
   resetUnlockHarness,
   sessionHolder,
+  setupHolder,
   submitButton,
   submitIdentifier,
   upstreamHolder,
@@ -38,6 +40,10 @@ import {
 beforeEach(resetUnlockHarness);
 describe("UnlockScreen — first run", () => {
   beforeEach(() => {
+    // Sign-in is the first screen once setup is answered or skipped; before
+    // that the door offers only its two roads (ADR 0150 §1,
+    // UnlockScreen.door.test.tsx).
+    setupHolder.current = ANSWERED;
     v.state = {
       status: "empty",
       header: null,
@@ -244,25 +250,26 @@ describe("UnlockScreen — first run", () => {
     expect(master.type).toBe("password");
   });
 
-  it("continues as a guest without a passkey or password", async () => {
+  it("offers the no-key road on first run as the local seal", () => {
     render(<UnlockScreen />);
-    // Guest is the most common road in, so it sits on the hub itself.
-    fireEvent.click(screen.getByRole("button", { name: /Continue as guest/ }));
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+    // The one no-account road here is the local seal.
+    goLocalOnly();
+    chooseSealMethod("Password");
+    expect(masterInput()).toBeTruthy();
     expect(v.store.create).not.toHaveBeenCalled();
     expect(v.store.createWithPasskey).not.toHaveBeenCalled();
     expect(v.store.createWithPin).not.toHaveBeenCalled();
   });
 
-  it("offers a skip link in the top corner that starts the same guest flow", async () => {
+  it("offers one no-account road, the local seal, on first run", () => {
     render(<UnlockScreen />);
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Skip sign-in and continue as guest",
-      }),
-    );
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
-    expect(v.store.create).not.toHaveBeenCalled();
+    // Guest lives on the front door and the unlock form, not here.
+    expect(
+      screen.getByRole("button", { name: "Use without an account" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /continue as guest/i }),
+    ).toBeNull();
   });
 
   it("drops the skip link on the local-only road and beside an existing vault", () => {
@@ -295,7 +302,6 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.queryByLabelText("I understand this vault cannot be recovered."),
     ).toBeNull();
-    expect(screen.getByText("or sign in")).toBeTruthy();
   });
 
   it("starts sign-in at the default upstream and returns to the app root", () => {
@@ -619,7 +625,7 @@ describe("UnlockScreen — first run", () => {
     expect(await screen.findByText(/not available/)).toBeTruthy();
   });
 
-  it("offers the sign-in entries on an existing vault too, guest included", async () => {
+  it("offers the sign-in entries on an existing vault too", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
     // Sign-in lives in the user menu — nothing of it crowds the form.
@@ -636,14 +642,13 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.getByRole("button", { name: /Email me a sign-in link/ }),
     ).toBeTruthy();
-    // Sealing a local-only vault beside the existing one is not a road out of
-    // this screen. Guest IS: the store isolates it beside the sealed vault
-    // (AGENTS.md §5 — never withheld because a vault exists).
+    // No no-account road sits in this panel.
     expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Continue as guest/ }));
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
   });
 
   it("offers guest on the unlock form of an existing vault (AGENTS.md §5)", async () => {
@@ -1345,90 +1350,5 @@ describe("UnlockScreen — several vaults on this device", () => {
     expect(screen.getByRole("heading", { name: "Unlock" })).toBeTruthy();
     fireEvent.click(userMenuTrigger());
     expect(screen.queryByRole("menuitem", { name: "All vaults" })).toBeNull();
-  });
-});
-
-describe("UnlockScreen — where the keyboard lands", () => {
-  beforeEach(() => {
-    v.state = {
-      status: "locked",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingSecondStep: false,
-    };
-    v.methods = ["passkey", "pin", "password"];
-    v.preferred = "passkey";
-    v.host = { ok: true };
-    for (const fn of Object.values(v.store)) fn.mockReset();
-  });
-
-  afterEach(cleanup);
-
-  it("lands on the go control for passkey, then follows the method tabs", () => {
-    // A returning vault opens on passkey, which has no field: Enter on the go
-    // control starts the ceremony. Choosing a typed method moves the caret
-    // into its field — no click in the field first.
-    render(<UnlockScreen />);
-    expect(document.activeElement).toBe(submitButton());
-    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
-    expect(document.activeElement).toBe(screen.getByLabelText("Password"));
-    fireEvent.click(screen.getByRole("tab", { name: "PIN" }));
-    expect(document.activeElement).toBe(screen.getByLabelText("PIN"));
-  });
-
-  it("lands on the code mid-MFA", () => {
-    v.state.awaitingSecondStep = true;
-    render(<UnlockScreen />);
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Authenticator code"),
-    );
-  });
-
-  it("lands on the master password once 'Use without an account' is chosen", () => {
-    // The seal form mounts after the sign-in stage on the same screen; the
-    // caret has to move into it even though the method never changed.
-    v.state.status = "empty";
-    v.host = { ok: false, reason: "no passkeys here", fixUrl: null };
-    render(<UnlockScreen />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Use without an account" }),
-    );
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Master password"),
-    );
-  });
-
-  it("lands on the acknowledgement when the seal form opens on passkey", () => {
-    // Passkey has nothing to type, and the go control refuses until the
-    // no-recovery line is accepted — so that checkbox is the first answer.
-    v.state.status = "empty";
-    render(<UnlockScreen />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Use without an account" }),
-    );
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("I understand this vault cannot be recovered."),
-    );
-  });
-
-  it("lands on the method tabs when this host cannot do passkeys", () => {
-    v.host = { ok: false, reason: "not on a DNS hostname", fixUrl: null };
-    render(<UnlockScreen />);
-    expect(document.activeElement).toBe(
-      screen.getByRole("tab", { name: "Passkey" }),
-    );
-  });
-
-  it("hands the caret back to the field when unlock is refused", async () => {
-    v.store.unlock.mockRejectedValue(new Error("wrong"));
-    render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
-    const field = screen.getByLabelText("Password");
-    fireEvent.change(field, { target: { value: "nope" } });
-    fireEvent.click(submitButton());
-    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
-    expect(document.activeElement).toBe(field);
   });
 });

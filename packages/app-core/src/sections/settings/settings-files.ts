@@ -11,9 +11,30 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import { DEFAULT_KEYBINDINGS } from "../../lib/configuration/keybindings.js";
 import { parseConfigYaml } from "../../lib/configuration/yaml-profile.js";
 import { SETTINGS_CONFIG_FILE } from "../../lib/crumbs.js";
+import {
+  CONTEXTS_REFUSAL,
+  type ContextsDoc,
+  type MacroDoc,
+  bindingsFromObject,
+  contextsFromObject,
+  contextsReadable,
+  keymapLines,
+  macrosFromObject,
+  rawKeymapRefusal,
+  readKeymapParts,
+  stableContexts,
+  yamlKey,
+} from "./settings-keymap-yaml.js";
+import {
+  bindingSuggestions,
+  inBindings,
+  indentOf,
+  lineAt,
+} from "./settings-suggest.js";
+
+export type { ContextsDoc, MacroDoc } from "./settings-keymap-yaml.js";
 
 export {
   SETTINGS_CONFIG_FILE,
@@ -29,6 +50,8 @@ export type FieldKind =
   | "boolean"
   | "enum"
   | "keymap"
+  | "macros"
+  | "contexts"
   | "list";
 
 export type SettingsField = {
@@ -48,6 +71,10 @@ export type SettingsValue = string | number | boolean | string[];
 export type SettingsDoc = {
   values: Record<string, SettingsValue>;
   keybindings: Record<string, string>;
+  /** Settings › Keybindings only (ADR 0150). */
+  macros?: Record<string, MacroDoc>;
+  /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0150 §6). */
+  contexts?: ContextsDoc;
 };
 
 export type DecodeResult =
@@ -55,18 +82,33 @@ export type DecodeResult =
   | { ok: false; message: string };
 
 const THEMES = ["system", "light", "dark"] as const;
-const BINDING_KEYS = Object.keys(DEFAULT_KEYBINDINGS);
-const BINDING_ACTIONS = [...new Set(Object.values(DEFAULT_KEYBINDINGS))];
-
-/** Settings › General draws Appearance, Locking and the keymap. */
+/** Settings › General draws Appearance and Locking. */
 const GENERAL = [
   { key: "theme", kind: "enum", options: THEMES },
   { key: "autoLockMinutes", kind: "number" },
   { key: "clipboardClearSeconds", kind: "number" },
   { key: "lockOnHide", kind: "boolean" },
   { key: "signOutOnLock", kind: "boolean" },
-  { key: "keybindings", kind: "keymap" },
 ] as const satisfies readonly SettingsField[];
+
+/**
+ * Settings › Keybindings (ADR 0150): only what the person changed — the
+ * character-key switch, the bindings laid over the defaults, the keys that
+ * hold in one listing, their macros.
+ */
+const KEYBINDINGS = [
+  { key: "singleKeys", kind: "boolean" },
+  { key: "keybindings", kind: "keymap" },
+  { key: "contexts", kind: "contexts" },
+  { key: "macros", kind: "macros" },
+] as const satisfies readonly SettingsField[];
+
+/** Kinds a keymap reads, never a plain value. */
+const KEYMAP_KINDS: ReadonlySet<FieldKind> = new Set([
+  "keymap",
+  "macros",
+  "contexts",
+]);
 
 /** Settings › Security: every row there changes through its own sheet. */
 const SECURITY = [
@@ -96,6 +138,7 @@ const CAPABILITIES = [
 
 const FIELDS = new Map<string, readonly SettingsField[]>([
   ["general", GENERAL],
+  ["keybindings", KEYBINDINGS],
   ["security", SECURITY],
   ["vaults", VAULTS],
   // An older link to Connections reads as Capabilities.
@@ -132,19 +175,15 @@ export function encodeSettings(category: string, doc: SettingsDoc): string {
   if (fields.length === 0) return "# Nothing on this page is a setting.\n";
   const lines: string[] = [];
   for (const field of fields) {
-    if (field.kind === "keymap") continue;
+    if (KEYMAP_KINDS.has(field.kind)) continue;
     const value = doc.values[field.key];
     if (value === undefined) continue;
     const note = field.readonly ? " # read-only: changed on its page" : "";
     lines.push(`${field.key}: ${yamlValue(value)}${note}`);
   }
-  const bindings = Object.entries(doc.keybindings);
-  if (fields.some((field) => field.kind === "keymap") && bindings.length > 0) {
-    lines.push("keybindings:");
-    for (const [key, action] of bindings) {
-      lines.push(`  ${yamlKey(key)}: ${yamlValue(action)}`);
-    }
-  }
+  lines.push(
+    ...keymapLines(doc, (kind) => fields.some((field) => field.kind === kind)),
+  );
   return `${lines.join("\n")}\n`;
 }
 
@@ -164,45 +203,71 @@ export function decodeSettings(
       message: parsed.diagnostics[0]?.message ?? "Invalid YAML.",
     };
   }
+  if (!contextsReadable(parsed.value.contexts))
+    return { ok: false, message: CONTEXTS_REFUSAL };
+  if (settingsFields(category).some((field) => field.kind === "keymap")) {
+    const refusal = rawKeymapRefusal(parsed.value);
+    if (refusal) return refusal;
+  }
   return constrain(category, docFromObject(parsed.value), current);
 }
 
+/**
+ * What may be typed at the caret, narrowed to what has been typed. A top-level
+ * line offers a directory's writable keys and their values; a line inside the
+ * `keybindings:` mapping (or a `contexts.<listing>` one) offers keys, then
+ * action ids. Any other indented line — a macro's steps, a trigger — offers
+ * nothing, so nothing there is ever rewritten.
+ */
 export function suggestSettings(
   category: string,
   source: string,
   caret: number,
 ): readonly string[] {
-  const line = lineAt(source, caret);
-  const trimmed = line.trim();
+  const { text } = lineAt(source, caret);
   const fields = settingsFields(category).filter((field) => !field.readonly);
+  if (indentOf(text) > 0) {
+    const keymap = fields.some((field) => field.kind === "keymap");
+    return keymap && inBindings(source, caret)
+      ? bindingSuggestions(source, caret)
+      : [];
+  }
+  return topLevelSuggestions(fields, text.trim());
+}
+
+function topLevelSuggestions(
+  fields: readonly SettingsField[],
+  trimmed: string,
+): readonly string[] {
   const keyMatch = /^([A-Za-z][A-Za-z0-9]*)\s*:\s*(.*)$/.exec(trimmed);
   const typedKey = keyMatch?.[1];
   const typedValue = (keyMatch?.[2] ?? "").replace(/^["']|["']$/g, "");
-  if (typedKey && !line.startsWith(" ")) {
-    const field = fields.find((item) => item.key === typedKey);
-    if (field?.kind === "enum" && field.options) {
-      return field.options.filter((option) => option.startsWith(typedValue));
-    }
-    if (field?.kind === "boolean") {
-      return ["true", "false"].filter((option) =>
-        option.startsWith(typedValue),
-      );
-    }
-    return [];
+  if (!typedKey) {
+    return fields
+      .map((field) => field.key)
+      .filter((key) => key.startsWith(trimmed));
   }
-  if (line.startsWith(" ") && source.slice(0, caret).includes("keybindings:")) {
-    return typedKey ? BINDING_ACTIONS : BINDING_KEYS;
-  }
-  return fields
-    .map((field) => field.key)
-    .filter((key) => key.startsWith(trimmed));
+  const field = fields.find((item) => item.key === typedKey);
+  const options =
+    field?.kind === "enum"
+      ? (field.options ?? [])
+      : field?.kind === "boolean"
+        ? ["true", "false"]
+        : [];
+  // A finished value is not offered back. The key itself still is, so Tab
+  // can write the colon after it.
+  return options.filter(
+    (option) => option !== typedValue && option.startsWith(typedValue),
+  );
 }
 
 /** Same values, same bindings — spelling and comments aside. */
 export function sameDoc(left: SettingsDoc, right: SettingsDoc): boolean {
   return (
     stable(left.values) === stable(right.values) &&
-    stable(left.keybindings) === stable(right.keybindings)
+    stable(left.keybindings) === stable(right.keybindings) &&
+    JSON.stringify(left.macros ?? {}) === JSON.stringify(right.macros ?? {}) &&
+    stableContexts(left.contexts) === stableContexts(right.contexts)
   );
 }
 
@@ -226,19 +291,30 @@ function constrain(
   const fields = settingsFields(category);
   for (const [key, value] of Object.entries(doc.values)) {
     const field = fields.find((item) => item.key === key);
-    if (!field || field.kind === "keymap") {
+    if (!field || KEYMAP_KINDS.has(field.kind)) {
       return { ok: false, message: `${key} is not a setting here.` };
     }
     const problem = checkValue(field, value, current?.values[key]);
     if (problem) return { ok: false, message: problem };
   }
-  if (
-    !fields.some((field) => field.kind === "keymap") &&
-    Object.keys(doc.keybindings).length > 0
-  ) {
+  return keymapProblem(fields, doc) ?? { ok: true, doc };
+}
+
+/** The keymap's own rules, or its absence where a directory has none. */
+function keymapProblem(
+  fields: readonly SettingsField[],
+  doc: SettingsDoc,
+): DecodeResult | null {
+  const has = (kind: FieldKind) => fields.some((field) => field.kind === kind);
+  if (!has("keymap") && Object.keys(doc.keybindings).length > 0)
     return { ok: false, message: "keybindings is not a setting here." };
-  }
-  return { ok: true, doc };
+  if (!has("macros") && Object.keys(doc.macros ?? {}).length > 0)
+    return { ok: false, message: "macros is not a setting here." };
+  if (!has("contexts") && Object.keys(doc.contexts ?? {}).length > 0)
+    return { ok: false, message: "contexts is not a setting here." };
+  if (!has("keymap")) return null;
+  const keymap = readKeymapParts(doc, doc.values.singleKeys ?? true);
+  return keymap.ok ? null : keymap;
 }
 
 function checkValue(
@@ -271,9 +347,15 @@ function docFromObject(value: JsonObject): SettingsDoc {
   const doc = emptyDoc();
   for (const [key, raw] of Object.entries(value)) {
     if (key === "keybindings" && isJsonObject(raw)) {
-      for (const [binding, action] of Object.entries(raw)) {
-        if (isString(action)) doc.keybindings[binding] = action;
-      }
+      doc.keybindings = bindingsFromObject(raw);
+      continue;
+    }
+    if (key === "contexts") {
+      doc.contexts = contextsFromObject(raw);
+      continue;
+    }
+    if (key === "macros" && isJsonObject(raw)) {
+      doc.macros = macrosFromObject(raw);
       continue;
     }
     if (Array.isArray(raw)) {
@@ -289,14 +371,4 @@ function yamlValue(value: SettingsValue): string {
   if (isString(value)) return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(yamlKey).join(", ")}]`;
   return String(value);
-}
-
-function yamlKey(value: string): string {
-  return /^[A-Za-z0-9_-]+$/.test(value) ? value : JSON.stringify(value);
-}
-
-function lineAt(source: string, caret: number): string {
-  const start = source.lastIndexOf("\n", Math.max(0, caret - 1)) + 1;
-  const end = source.indexOf("\n", caret);
-  return source.slice(start, end === -1 ? source.length : end);
 }

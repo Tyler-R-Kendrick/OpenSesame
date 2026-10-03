@@ -85,6 +85,7 @@ describe("reconstructAfterQuorum", () => {
       macKey,
       requireQuorum: true,
       registry: createGenerationRegistry(),
+      nowMs: NOW,
     };
     await submit("a1", "phone");
     expect(await reconstructAfterQuorum(input)).toEqual({
@@ -120,6 +121,7 @@ describe("reconstructAfterQuorum", () => {
       macKey,
       requireQuorum: true,
       registry: createGenerationRegistry(),
+      nowMs: NOW,
     };
     expect(
       await reconstructAfterQuorum({ ...base, shares: shares.slice(0, 1) }),
@@ -137,7 +139,14 @@ describe("reconstructAfterQuorum", () => {
     const shares = await sharesOf(key(), macKey);
     const registry = createGenerationRegistry();
     rotateGeneration(registry);
-    const input = { ledger, request, shares, macKey, requireQuorum: true };
+    const input = {
+      ledger,
+      request,
+      shares,
+      macKey,
+      requireQuorum: true,
+      nowMs: NOW,
+    };
     expect(await reconstructAfterQuorum({ ...input, registry })).toMatchObject({
       reason: "retired_device: recovery generation revoked",
     });

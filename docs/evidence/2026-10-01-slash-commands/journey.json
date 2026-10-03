@@ -1,0 +1,46 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "slash": "/" },
+        { "measure": "footer.statusline" },
+        { "measure": "#command-bar-suggestions" },
+        { "shot": "1280-slash" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "slash": "/" },
+        { "measure": "footer.statusline" },
+        { "measure": ".command-bar__option" },
+        { "shot": "390-slash" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-slash",
+      "width": 1280,
+      "title": "Slash completions — 1280 × 800",
+      "caption": "Typing / in the status line lists commands above the field.",
+      "before": "statusline 1280×53, no list",
+      "after": "statusline 1280×53, list 1118×256"
+    },
+    {
+      "shot": "390-slash",
+      "width": 390,
+      "title": "Slash completions — 390 × 844",
+      "caption": "The same list on a phone. Each row is 44px, and the status line stays one row.",
+      "before": "statusline 390×56, no list",
+      "after": "statusline 390×56, rows 312×44"
+    }
+  ]
+}

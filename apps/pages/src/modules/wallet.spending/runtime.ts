@@ -20,6 +20,17 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
+
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
 import { watchWalletAssignmentScope } from "@opensesame/app-core/lib/wallet-assignments.js";
@@ -28,6 +39,7 @@ import {
   WALLET_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/wallet-catalog.js";
 import { WALLET_TOOLS } from "@opensesame/app-core/webmcp/wallet-tools.js";
+import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { WalletSection } from "../../sections/WalletSection.js";
 import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
@@ -35,6 +47,33 @@ import { registerTutorial } from "../tutorial-contributions.js";
 import { WalletTree } from "./WalletTree.js";
 
 export const CAPABILITY = "wallet.spending";
+
+/** Wallet connectors saved on this device. Payment credentials are never stored. */
+export function savedWalletOperation(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+export function applySavedWalletConnectors(): FeatureOperation[] {
+  return applySavedConnectors(["wallet"], savedWalletOperation);
+}
+
+/** Send wallet connectors saved on this device. Payment credentials are refused. */
+export function startWalletConnectors(): FeatureRequest[] {
+  return applySavedWalletConnectors().map((operation) =>
+    walletOperation(operation.providerId),
+  );
+}
+
+export function walletOperation(providerId: string): FeatureRequest {
+  return performSavedConnector(providerId);
+}
+
+/** Send wallet connectors saved on this device when a payment runs. */
+export function runSavedWalletConnectors(): FeatureRequest[] {
+  return startWalletConnectors();
+}
 
 export const TUTORIAL = {
   targets: WALLET_TARGETS,
@@ -46,6 +85,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    activation.onDispose(
+      registerCategorySend("wallet", runSavedWalletConnectors),
+    );
 
     // The wallet's three tomb-scoped caches follow the active tomb only
     // while this capability is active; dispose unsubscribes all three.

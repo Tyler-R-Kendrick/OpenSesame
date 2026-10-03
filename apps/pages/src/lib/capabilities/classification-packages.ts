@@ -51,6 +51,31 @@ export const PACKAGE_RULES = [
     "the gateway provider only `ai` imports; unclaimed, it left vendor-ai-sdk in a chunk cycle",
   ),
   optional(
+    `${NM}mqtt`,
+    "sharing.live",
+    "MQTT carrier, loaded when a session names one (modules/sharing.live/carriers/mqtt.ts)",
+  ),
+  optional(
+    `${NM}@nats-io/nats-core`,
+    "sharing.live",
+    "NATS carrier, loaded when a session names one (modules/sharing.live/carriers/nats.ts)",
+  ),
+  optional(
+    `${NM}@nats-io/nkeys`,
+    "sharing.live",
+    "reached only through @nats-io/nats-core",
+  ),
+  optional(
+    `${NM}@nats-io/nuid`,
+    "sharing.live",
+    "reached only through @nats-io/nats-core",
+  ),
+  optional(
+    `${NM}nostr-tools`,
+    "sharing.live",
+    "Nostr carrier, loaded when a session names one (modules/sharing.live/carriers/nostr.ts)",
+  ),
+  optional(
     `${NM}driver.js`,
     "support.guided-help",
     "guide renderer (tutorial/rendering/driver-renderer.ts)",
@@ -110,10 +135,9 @@ export const PACKAGE_RULES = [
     "agents.webmcp",
     "document.modelContext registrar",
   ),
-  optional(
+  shared(
     `${NM}@opensesame/contracts`,
-    "connectors.external",
-    "Host connection schemas; also identity-management (enterprise)",
+    "Host schemas the vault, duress and connectors share",
   ),
   // The duress corner of that package is core, and the longer pattern wins.
   // A duress code is an unlock method, so its policy documents, compiler and
@@ -126,10 +150,9 @@ export const PACKAGE_RULES = [
     "vault.local-unlock",
     "duress policy documents, compiler and incident records",
   ),
-  optional(
+  shared(
     `${NM}@opensesame/api-client`,
-    "access.authority",
-    "DPoP key pair for browser pairing; urls.ts uses its origin fence (shared)",
+    "origin fence urls.ts uses, and the DPoP key pairing uses",
   ),
   optional(
     `${NM}@opensesame/audit`,
@@ -148,8 +171,8 @@ export const PACKAGE_RULES = [
   ),
   optional(
     `${NM}@opensesame/static-auth`,
-    "identity.local-iam",
-    "local protocol types; the built SDK files are identity.site-broker",
+    "identity.site-broker",
+    "local protocol types and the built SDK files the sign-in broker ships",
   ),
 
   // --- shared infrastructure -------------------------------------------------

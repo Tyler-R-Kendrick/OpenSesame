@@ -1,0 +1,44 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "measure": "footer.statusline" },
+        { "measure": "footer.statusline .cx__btn" },
+        { "shot": "1280-statusline" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "measure": "footer.statusline" },
+        { "measure": "footer.statusline .cx__btn" },
+        { "shot": "390-statusline" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-statusline",
+      "width": 1280,
+      "title": "Status line — 1280 × 800",
+      "caption": "The identity and key vault glyphs leave the status line. The command field and the notifications bell stay. The strip stays one row.",
+      "before": "statusline 1280×53, three glyphs 28×28",
+      "after": "statusline 1280×53, bell 28×28"
+    },
+    {
+      "shot": "390-statusline",
+      "width": 390,
+      "title": "Status line — 390 × 844",
+      "caption": "On a phone the status line is the command field, one row. The identity and key vault glyphs are not on it.",
+      "before": "statusline 390×56",
+      "after": "statusline 390×56"
+    }
+  ]
+}

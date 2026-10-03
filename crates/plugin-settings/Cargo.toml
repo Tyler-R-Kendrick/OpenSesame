@@ -1,0 +1,19 @@
+[package]
+name = "opensesame-plugin-settings"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Optional runtime plugins: the catalog, the settings file that switches them, and install-time pins verified at every launch (ADR 0150 §7)"
+
+# Everything here is already in the daemon's tree (ADR 0048 §5): the daemon
+# reads this file to answer Settings, and never links a plugin itself.
+[dependencies]
+directories = "6.0.0"
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

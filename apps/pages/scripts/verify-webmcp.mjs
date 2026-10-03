@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { chooseInSetup } from "./lib/capability-walk-contract.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import { nativeWebMcp } from "./lib/native-webmcp.mjs";
+import { sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -36,6 +38,7 @@ const CHOSEN = [
   "Wallet",
   "Guided help",
   "Passkey records",
+  "Derived item types",
   "Secret drops",
   "Certificate records",
   "Access authority",
@@ -62,9 +65,7 @@ try {
   const { page, context } = await harness.newPage(browser);
   const native = await nativeWebMcp(page);
   await page.goto(`${origin}${base}`);
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .waitFor();
+  await doorGuest(page).waitFor();
   assert.equal(
     await page.evaluate(() =>
       document.modelContext?.registerTool.toString().includes("[native code]"),
@@ -90,9 +91,9 @@ try {
   ]);
   const initial = await native.invoke("opensesame_status");
   assert.equal(initial.vault, "empty");
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
+  // Setup retires the front door. The sign-in screen's no-account road is
+  // the local seal; the door's Skip is not on this screen.
+  await sealLocalOnly(page);
   await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
   const vaultTools = native.names();
   for (const tool of VAULT_SESSION_WALLET_TOOLS) {
@@ -138,7 +139,6 @@ try {
     "card",
     "certificate",
     "passkey",
-    "drop",
   ]) {
     await native.invoke("opensesame_navigate", {
       section: "/vault/new",
@@ -160,6 +160,14 @@ try {
       );
     }
   }
+  // A drop is a share of an item, not a type with a name field.
+  await native.invoke("opensesame_navigate", {
+    section: "/vault/new",
+    itemType: "drop",
+  });
+  await page.waitForURL(`${origin}${base}vault/new/drop`);
+  await page.getByRole("heading", { name: "Drops cannot be edited" }).waitFor();
+  assert.equal(await page.getByLabel("Name", { exact: true }).count(), 0);
   await native.invoke("opensesame_navigate", { section: "/vault" });
   await page.waitForURL(`${origin}${base}vault`);
   await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
@@ -245,10 +253,10 @@ try {
   await page.waitForURL(`${origin}${base}vault/${item.id}`);
   await page.getByRole("heading", { name: "Renamed by Chrome" }).waitFor();
   await native.invoke("opensesame_help", {});
-  await page
-    .getByLabel("WebMCP status")
-    .filter({ hasText: `${VAULT_UNLOCKED_TOOL_COUNT} tools exposed` })
-    .waitFor();
+  await page.getByRole("heading", { name: "Support", exact: true }).waitFor();
+  // The native tool count is already asserted above. The sheet does not
+  // repeat it: a status paragraph there is explainer copy.
+  assert.equal(await page.getByLabel("WebMCP status").count(), 0);
   await page.getByRole("button", { name: "Close", exact: true }).last().click();
   await page
     .getByRole("button", { name: /^lock( vault)?$/i })

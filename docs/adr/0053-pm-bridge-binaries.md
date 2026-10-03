@@ -257,3 +257,21 @@ The daemon's own `reqwest` call sites are unchanged by this work, and
   single command that detects the most likely future mistake — someone
   wiring a bridge into the daemon for convenience — and it must be run and
   green on every change in this area.
+
+## Amendment 2026-09-28 — optional plugins follow the same rule (§2)
+
+The surrogate proxy of ADR 0150 takes the bridge-binary route this ADR set
+out, one step further: it is not even built into the default install. It is
+`opensesame-surrogate-proxy`, a separate executable a person installs at
+runtime (`opensesame plugins install surrogate-proxy --from … --sha256 …`),
+recorded off, verified against its pin at every launch, and spawned by
+`opensesame dev run --agent` only while switched on (ADR 0150 §7,
+[plugins guide](../operators/plugins.md)).
+
+**The daemon still gains zero dependencies.** It reads the plugin settings
+file through `opensesame-plugin-settings`, whose dependencies were already in
+its tree, and links no plugin. §2's gate is joined by
+`pnpm audit:plugin-boundary`, which checks what `daemon-deps` cannot see: that
+neither `opensesame-cli` nor `opensesame-daemon` reaches the plugin crate
+through a normal edge, that the daemon reaches no `rcgen`, and that the CLI
+reaches `rcgen` only through the Host role's existing PKI parents.

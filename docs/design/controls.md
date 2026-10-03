@@ -19,6 +19,41 @@ box is rejected the same way: a failure is a `StatusMark`, never a paragraph.
 Pages copy never names a Host, and a browser-local action never tells the
 person to pair one.
 
+## 0. Explainer prose and in-page errors are both failures
+
+Two things a screen must not carry, because both are text about the screen
+rather than the thing the person came for:
+
+**Explainer prose.** A sentence that narrates what a panel is, why it is in the
+state it is in, or what the device can and cannot do. "This browser has no
+on-device model, and this deployment has no support endpoint configured." "No
+repositories returned." "Nothing has reported yet." The screen already shows
+its state — the rows, the fields, the `StatusMark`, the control that acts on
+it — and a sentence restating that state is a caption on a picture the person
+is already looking at. Where a state genuinely changes what the person can do,
+show the control that changes it (`Download the on-device model`) and name it
+as its own accessible name; the control is the explanation. Where it does not,
+say nothing.
+
+The one exception is a sentence that is itself the content: the answer support
+returns, the prose of a help topic, the `say` line a walkthrough speaks while
+it points at something. That is not explainer prose, it is the thing asked for.
+
+**In-page error boxes.** A `note--err` paragraph banner rendered inside a
+screen. A failure belongs on the object that failed — a `StatusMark` beside
+the row, the field, the receipt — or, where there is no such object on screen,
+a notice in the tray (`setStatusNotice`), which already carries every other
+page condition and survives the screen that produced it being navigated away
+from. An error box in the middle of a screen is explainer prose wearing an
+alert role: it interrupts the whole screen to narrate one failed thing, and it
+is gone the moment the person moves.
+
+`pnpm lint:design` holds both. Explainer sentences are matched by content in
+the connector panels; in-page error boxes are ratcheted per file in
+`tools/quality/design-note-baseline.json`, which only falls — a file that
+removes one lowers its recorded number in the same commit, and a new file is
+recorded at zero, so new code meets the budget outright.
+
 ## 1. The terminal commit — `.go`
 
 **The one action that ends the screen you are on.** Unlocking a vault. Sealing
@@ -117,6 +152,27 @@ Locked. Authorized.
 - The word is `aria-label` and `title` only.
 - A provider, a role, a person, or a platform is a name. Those may stay text. A status may not.
 
+## 4. Status copy — states the fact
+
+**A sentence that explains itself is not a status.** A status says
+what is, and stops.
+
+- No consolation tail (`The written help below still works.`). The
+  help is the panel; it does not need an advertisement.
+- No walk through the browser's own settings (`enable … at
+  chrome://flags`, `relaunch`, `reload this page`). How to turn a
+  browser API on is the browser's documentation, not this app's
+  prose — the app cannot enable a browser API itself, and saying so
+  is a disclaimer, not a status.
+- No apology for what cannot be turned on. `No on-device model and
+  no support endpoint on this deployment.` is the fact; the tail
+  that follows it is not.
+
+The rule lives in strings as much as in JSX: the support pane's
+every sentence is a string in a `.ts` module, so the lint reads
+string literals — comments skipped, a `//` inside a URL string read
+as the address it is — not only JSX text.
+
 ## What is enforced
 
 `scripts/quality/design-lint.mjs`, run by `pnpm lint:design`, the `pre-commit` hook,
@@ -138,17 +194,24 @@ and a Claude Code `PostToolUse` hook:
    `max-width`: `var(--field-max)`, `var(--text-max)`, or `none` for an
    overlay.
 7. **Vault commands are persistent icon keys.** The top path strip retains
-   New item (`+`), Import, and Export in empty, filtered, trash, and populated
-   views. Each has an accessible name and tooltip. Text-button styles in
+   New item (`+`), Import, and Export in empty, filtered, and populated views.
+   The trash directory replaces that group with Restore and Delete permanently.
+   Each has an accessible name and tooltip. Text-button styles in
    `VaultSection` or `VaultPathbar` are a hard lint failure; render tests pin
-   all three commands and their location. Import opens the file picker;
+   the commands and their location. Import opens the file picker;
    Export opens the encrypted-backup sheet, never a plaintext dump.
    The path/count status row stays at the pane bottom in empty and populated
    views; only the item area scrolls, never the command or status strip.
+ 8. **A status states the fact and stops** (`no-status-explainer`). A
+    string that consoles (`still works`), walks the browser's own
+    settings (`chrome://flags`, `relaunch`, `reload this page`), or
+    disclaims what the app cannot enable (`cannot enable … itself`)
+    is a failure — in a `.tsx` screen or a `.ts` module alike, since
+    the copy lives in strings. Specs are not UI and are not swept.
 
 The workspace statusline also uses one control geometry: 28px keys with 17px
 glyphs and 8px between groups, growing to 44px touch targets on small/coarse
-screens. Support, connection indicators, notifications, and lock share borders,
+screens. Support and the notifications bell share borders,
 surfaces, and hover treatment. Status dots are positioned badges, never a
 second layout row that shifts one icon above another. All controls form one
 left-aligned strip; no utility group is pushed to the opposite edge. Static-origin

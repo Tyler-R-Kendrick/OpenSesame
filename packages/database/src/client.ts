@@ -28,7 +28,7 @@ export function createRepositories(options?: {
   const url = options?.databaseUrl ?? process.env.DATABASE_URL;
   if (url) {
     const { db } = createDrizzle(url);
-    // Event rows rest sealed (ADR 0150). No secret, no repositories: a database
+    // Event rows rest sealed (ADR 0155). No secret, no repositories: a database
     // with nothing to seal its events under refuses rather than store them
     // in the clear.
     const secret = options?.eventSealSecret ?? eventSealSecret(process.env);

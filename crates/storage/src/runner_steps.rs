@@ -204,11 +204,13 @@ impl Db {
         row.as_ref().map(step_from_row).transpose()
     }
 
-    /// Record a step's outcome. Only the claimant may.
+    /// Record a step's outcome. Only the claimant may, and only while the run
+    /// is open.
     ///
     /// Returns whether the settle applied. `false` means the caller does not
     /// hold the claim — because it lapsed and somebody else took it, or because
-    /// it was never theirs.
+    /// it was never theirs — or the run is closed: an executor that stopped
+    /// waiting reads nothing more, so nothing more is stored for it.
     ///
     /// # Errors
     ///
@@ -226,7 +228,10 @@ impl Db {
         let outcome = sqlx::query(
             "UPDATE runner_steps SET state = 'settled', outcome_json = ?, updated_at = ? \
              WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'claimed' \
-             AND claimed_by = ?",
+             AND claimed_by = ? AND EXISTS (SELECT 1 FROM observation_runs \
+               WHERE observation_runs.id = runner_steps.run_id \
+               AND observation_runs.organization_id = runner_steps.organization_id \
+               AND closed_at IS NULL)",
         )
         .bind(sealed::seal("runner_steps.outcome_json", outcome_json))
         .bind(now)
@@ -237,6 +242,39 @@ impl Db {
         .execute(self.pool())
         .await
         .context("settle runner step")?;
+        Ok(outcome.rows_affected() > 0)
+    }
+
+    /// Replace a settled step's outcome with the form the executor accepted.
+    ///
+    /// The settle route stores what the driver reported; once the executor
+    /// has read it, this puts back only what it decoded, with any
+    /// credential-shaped text already redacted — so the queue does not keep,
+    /// for the life of the run, a value a driver should never have sent.
+    /// Only a settled step is rewritten, and never to an empty outcome.
+    ///
+    /// # Errors
+    ///
+    /// Propagates database failures.
+    pub async fn replace_settled_runner_step_outcome(
+        &self,
+        organization_id: &str,
+        run_id: &str,
+        seq: i64,
+        outcome_json: &str,
+    ) -> anyhow::Result<bool> {
+        anyhow::ensure!(!outcome_json.is_empty(), "outcome is empty");
+        let outcome = sqlx::query(
+            "UPDATE runner_steps SET outcome_json = ? \
+             WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'settled'",
+        )
+        .bind(outcome_json)
+        .bind(organization_id)
+        .bind(run_id)
+        .bind(seq)
+        .execute(self.pool())
+        .await
+        .context("rewrite runner step outcome")?;
         Ok(outcome.rows_affected() > 0)
     }
 }

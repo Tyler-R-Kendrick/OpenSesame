@@ -100,13 +100,9 @@ function partitionable(id) {
 }
 
 /**
- * Leaves a capability's runtime reaches only through `import()` on first use
- * — the support agents and the WebMCP SDK. Each gets its own chunk: left to
- * Rollup, the four were merged into one, so loading the WebMCP SDK evaluated
- * both AI agents' code too. A module is named only when its classification
- * is the leaf's capability, so a core file that happens to sit in the
- * directory (the consent store in `ag-ui/`), or a package the leaf shares
- * with the core, stays where it was.
+ * Optional import() leaves, one chunk each. Rollup otherwise fused the
+ * agent SDKs, so loading one evaluated the others. A row applies only
+ * when classification matches that capability.
  */
 const LAZY_LEAVES = [
   ["/src/tutorial/agents/prompt-api/", "support.local-ai", "agent-prompt-api"],
@@ -117,6 +113,19 @@ const LAZY_LEAVES = [
   ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
+  // Live sessions' carriers (ADR 0150 §6): each client loads only when a
+  // session names its kind, never when the capability activates.
+  ["/src/modules/sharing.live/carriers/mqtt", "sharing.live", "live-mqtt"],
+  ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
+  ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
+  ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
+  [
+    "/packages/app-core/src/lib/vault/environments",
+    "vault.environments",
+    "cap-vault.environments",
+  ],
+  ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
+  ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
 ];
 
 function lazyLeafChunk(id, entry) {
@@ -143,14 +152,16 @@ function installManualChunks(build, state) {
     // statically reachable from the first page load.
     output.onlyExplicitManualChunks = true;
     output.manualChunks = (id, api) => {
+      // A lazy leaf first: a carrier inside a module directory would
+      // otherwise join the module's chunk and load with it.
+      if (!id.startsWith("\0")) {
+        const leaf = lazyLeafChunk(id, state.classify(id));
+        if (leaf) return leaf;
+      }
       if (partitionable(id)) {
         const entry = state.classify(id);
         if (entry.classification === "optional" && entry.capability)
           return `cap-${entry.capability}`;
-      }
-      if (!id.startsWith("\0")) {
-        const leaf = lazyLeafChunk(id, state.classify(id));
-        if (leaf) return leaf;
       }
       return previous ? previous(id, api) : undefined;
     };

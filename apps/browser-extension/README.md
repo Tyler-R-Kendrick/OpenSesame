@@ -21,6 +21,16 @@ web page.
   `host_permissions` is limited to `http://127.0.0.1/*` and
   `http://localhost/*`.
 
+## Not here: autofill
+
+This extension fills nothing and carries no fill code, content script or
+page permission. Autofill by reference is the optional `browser-autofill`
+plugin, a separate companion extension a person installs at runtime:
+[`apps/browser-extension-autofill`](../browser-extension-autofill)
+([ADR 0150](../../docs/adr/0150-surrogate-credentials-at-the-last-hop.md)
+§6.4, §7). `tests/capability-parity.test.mjs` leaves that plugin's
+registry rows to the companion's own parity test.
+
 ## Surface
 
 | Piece | What it does |

@@ -20,6 +20,10 @@ import {
 } from "./backup-target-local.js";
 import { readBoundedObject } from "./bounded-response.js";
 import {
+  performSavedCategory,
+  performSavedConnector,
+} from "./feature-request-send.js";
+import {
   type GitBackupForge,
   forgeForProvider,
   forgeFromRemoteUrl,
@@ -27,6 +31,7 @@ import {
 import { getLocalGitRemote } from "./git-remote-local.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
+import { savedForgeCredentials } from "./saved-git-backup.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,
@@ -121,6 +126,7 @@ async function putForgeContentsDefault(input: {
   repo: string;
   branch: string;
   contentBase64: string;
+  fields?: Record<string, string>;
 }): Promise<PutContentsResult> {
   const base = githubAppRelayBase();
   if (base === "") throw new Error("Connect relay is not configured.");
@@ -132,6 +138,7 @@ async function putForgeContentsDefault(input: {
     branch: input.branch,
     contentBase64: input.contentBase64,
   };
+  if (input.fields) body.fields = { ...input.fields };
   if (input.username) body.username = input.username;
   refuseUnlessAllowed(base);
   const response = await fetch(`${base}/api/git-backup/put`, {
@@ -208,7 +215,15 @@ type ForgeCredentials = {
   forge: GitBackupForge;
   token: string;
   username: string | null;
+  fields?: Record<string, string>;
 };
+
+export {
+  type SavedGitBackup,
+  bindSavedGitBackup,
+  resetSavedGitBackupForTest,
+  savedGitBackupUse,
+} from "./saved-git-backup.js";
 
 function readSecretToken(value: string): string {
   try {
@@ -236,16 +251,23 @@ function resolveForgeId(
   return null;
 }
 
-function resolveForgeCredentialsDefault(
-  target: LocalBackupTarget,
-): ForgeCredentials | null {
-  const connectionId = target.connectionId;
+function httpsRemote(connectionId: string | null) {
   if (!connectionId) return null;
   const remote = getLocalGitRemote(connectionId);
-  if (!remote || !remote.secretItemId) return null;
+  if (!remote?.secretItemId) return null;
   if (remote.authMode !== "https_token" && remote.authMode !== "https_basic") {
     return null;
   }
+  return remote;
+}
+
+function resolveForgeCredentialsDefault(
+  target: LocalBackupTarget,
+): ForgeCredentials | null {
+  const fromSaved = savedForgeCredentials(target.providerId ?? "");
+  if (fromSaved) return fromSaved;
+  const remote = httpsRemote(target.connectionId);
+  if (!remote) return null;
   const { status, items } = vaultStore.getSnapshot();
   if (status !== "unlocked") return null;
   const item = items.find((row) => row.id === remote.secretItemId);
@@ -266,33 +288,43 @@ export const vaultBackupSyncSeams = {
   resolveForgeCredentials: resolveForgeCredentialsDefault,
 };
 
+/** Push one forge remote with the token saved on Capabilities. */
+export async function pushSavedForgeBackup(
+  target: LocalBackupTarget,
+): Promise<string | null> {
+  const creds = vaultBackupSyncSeams.resolveForgeCredentials(target);
+  if (!creds) {
+    throw new Error("Unlock the vault and use an HTTPS token for this remote.");
+  }
+  const json = vaultBackupSyncSeams.sealedEnvelopeJson();
+  const put = {
+    forge: creds.forge,
+    token: creds.token,
+    username: creds.username,
+    owner: target.owner,
+    repo: target.repo,
+    branch: target.branch,
+    contentBase64: utf8ToBase64(json),
+  };
+  const result = await vaultBackupSyncSeams.putForgeContents(
+    creds.fields ? { ...put, fields: creds.fields } : put,
+  );
+  return result.commitSha;
+}
+
 async function syncOneTarget(
   target: LocalBackupTarget,
 ): Promise<LocalBackupTarget | null> {
   if (!target.enabled) return target;
+  if (target.providerId) performSavedConnector(target.providerId);
   const providerKey = target.providerId ?? "github";
   try {
-    const json = vaultBackupSyncSeams.sealedEnvelopeJson();
-    const contentBase64 = utf8ToBase64(json);
     let commitSha: string | null = null;
     if (target.kind === "git_remote") {
-      const creds = vaultBackupSyncSeams.resolveForgeCredentials(target);
-      if (!creds) {
-        throw new Error(
-          "Unlock the vault and use an HTTPS token for this remote.",
-        );
-      }
-      const result = await vaultBackupSyncSeams.putForgeContents({
-        forge: creds.forge,
-        token: creds.token,
-        username: creds.username,
-        owner: target.owner,
-        repo: target.repo,
-        branch: target.branch,
-        contentBase64,
-      });
-      commitSha = result.commitSha;
+      commitSha = await pushSavedForgeBackup(target);
     } else {
+      const json = vaultBackupSyncSeams.sealedEnvelopeJson();
+      const contentBase64 = utf8ToBase64(json);
       const creds = vaultBackupSyncSeams.resolveCredentials();
       if (!creds) {
         throw new Error(
@@ -337,6 +369,8 @@ async function syncOneTarget(
 export async function syncVaultBackup(
   providerId?: string | null,
 ): Promise<LocalBackupTarget | null> {
+  performSavedCategory(["cloud_secret_storage", "encryption"]);
+  performSavedCategory(["backup_recovery"]);
   if (providerId) {
     const target = readLocalBackupTarget(providerId);
     if (!target || !target.enabled) return target;
@@ -344,9 +378,15 @@ export async function syncVaultBackup(
   }
   const enabled = listLocalBackupTargets().filter((row) => row.enabled);
   let last: LocalBackupTarget | null = null;
+  let firstError: unknown = null;
   for (const target of enabled) {
-    last = await syncOneTarget(target);
+    try {
+      last = await syncOneTarget(target);
+    } catch (caught) {
+      firstError ??= caught;
+    }
   }
+  if (firstError) throw firstError;
   return last;
 }
 

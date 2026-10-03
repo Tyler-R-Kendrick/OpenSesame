@@ -41,6 +41,11 @@
             "id": "connectionString",
             "type": "concealed",
             "label": "Connection string"
+          },
+          {
+            "id": "connectionRef",
+            "type": "string",
+            "label": "Connection reference"
           }
         ]
       },
@@ -77,12 +82,13 @@
         { "key": "database", "field": "databaseName" },
         { "key": "login", "field": "username" },
         { "key": "connection_string", "field": "connectionString" },
+        { "key": "connection_ref", "field": "connectionRef" },
         { "key": "ssl_mode", "field": "sslMode" },
         { "key": "ca", "field": "caCertificate" }
       ]
     },
     "cxf": { "credential": "custom-fields" },
     "subtitle": ["engine", "databaseName"],
-    "search": ["engine", "databaseName", "username"]
+    "search": ["engine", "databaseName", "username", "connectionRef"]
   }
 }

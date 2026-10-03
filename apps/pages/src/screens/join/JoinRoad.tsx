@@ -4,15 +4,12 @@
  * request (ADR 0090 §2). Boot has already taken the link's bearer out of the
  * address bar; this only asks for it once, as the unlock screen mounts.
  *
- * On a deployment that cannot finish a join the road is not drawn — a
- * control that can only fail is not offered (ADR 0090). An invite link still
- * opens the ceremony there, which says so without spending the invite.
+ * The road is on every deployment (ADR 0150): a live session needs no Host,
+ * only the owner's open tab. A Host invite link still opens the Host
+ * ceremony (ADR 0136), which says so where it cannot finish.
  */
 
-import {
-  configuredEndpoint,
-  joinAvailable,
-} from "@opensesame/app-core/lib/join/client.js";
+import { configuredEndpoint } from "@opensesame/app-core/lib/join/client.js";
 import {
   type CapturedInvite,
   onInviteArrival,
@@ -22,9 +19,9 @@ import { type ReactNode, useEffect, useState } from "react";
 import { IconLogin } from "../../components/Icons.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { JoinScreen } from "../JoinScreen.js";
+import { LiveJoinGate } from "./LiveJoinGate.js";
 
 export const joinRoadDependencies = {
-  joinAvailable,
   configuredEndpoint,
   takeCapturedInvite,
   onInviteArrival,
@@ -36,11 +33,11 @@ type Joining = { captured: CapturedInvite | null; arrival: number } | null;
 export type JoinRoadState = Readonly<{
   /** The ceremony, while it is open. */
   screen: ReactNode;
-  /** The front door's opener — absent where a join cannot be finished. */
-  open: (() => void) | undefined;
+  /** The front door's opener. */
+  open: () => void;
 }>;
 
-/** The ceremony when it is open, and the road's opener when it may be. */
+/** The ceremony when it is open, and the road's opener. */
 export function useJoinRoad(): JoinRoadState {
   const [joining, setJoining] = useState<Joining>(() => {
     const captured = joinRoadDependencies.takeCapturedInvite();
@@ -57,24 +54,40 @@ export function useJoinRoad(): JoinRoadState {
     [],
   );
   return {
-    screen: joining ? (
-      <JoinScreen
-        key={joining.arrival}
-        captured={joining.captured}
-        configured={joinRoadDependencies.configuredEndpoint()}
-        onDone={() => setJoining(null)}
-      />
-    ) : null,
-    open: joinRoadDependencies.joinAvailable()
-      ? () => setJoining({ captured: null, arrival: 0 })
-      : undefined,
+    screen: joining ? joinScreenFor(joining, () => setJoining(null)) : null,
+    // Live sessions need no Host, so the road is on every deployment.
+    open: () => setJoining({ captured: null, arrival: 0 }),
   };
 }
 
+/**
+ * A Host invite (or a leaked one) opens the Host ceremony (ADR 0136); a live
+ * link, or the road pressed with nothing in hand, opens the live join
+ * (ADR 0150).
+ */
+function joinScreenFor(joining: NonNullable<Joining>, onDone: () => void) {
+  const { captured } = joining;
+  if (captured?.kind === "invite" || captured?.kind === "leaked")
+    return (
+      <JoinScreen
+        key={joining.arrival}
+        captured={captured}
+        configured={joinRoadDependencies.configuredEndpoint()}
+        onDone={onDone}
+      />
+    );
+  return (
+    <LiveJoinGate
+      key={joining.arrival}
+      link={captured?.kind === "live" ? captured.link : null}
+      onClose={onDone}
+    />
+  );
+}
+
 /** The front door's second road, beside "Set up your own". */
-export function JoinRoadButton({ onOpen }: { onOpen?: () => void }) {
+export function JoinRoadButton({ onOpen }: { onOpen: () => void }) {
   const joinRef = useGuideTarget<HTMLButtonElement>("setup.join");
-  if (!onOpen) return null;
   return (
     <button
       ref={joinRef}
@@ -89,7 +102,7 @@ export function JoinRoadButton({ onOpen }: { onOpen?: () => void }) {
       </span>
       <span className="road__name">Join a session</span>
       <span className="road__kind" id="door-join-kind">
-        an invite, or an open endpoint
+        a link somebody shared
       </span>
     </button>
   );

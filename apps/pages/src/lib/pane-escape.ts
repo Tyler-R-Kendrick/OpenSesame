@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { landFocus } from "./focus.js";
-import { contextMenuOpen, statusBubbleOpen } from "./keymap-targets.js";
+import {
+  capturingKeys,
+  contextMenuOpen,
+  statusBubbleOpen,
+} from "./keymap-targets.js";
 
 const PANES =
   '.sheet, [role="dialog"], [role="tabpanel"], [role="menu"], .account-switcher__menu, .project-switcher__menu, .panel, .vault__detail, .vault__list, main';
@@ -51,6 +55,8 @@ export function handlePaneEscape(event: KeyboardEvent): boolean {
     return false;
   if (contextMenuOpen() || statusBubbleOpen()) return false;
   const target = event.target;
+  // A key-capture field ends its own recording on Escape.
+  if (capturingKeys(target)) return false;
   const pane = target.closest<HTMLElement>(PANES) ?? target.closest("form");
   if (!pane) return false;
   if (event.repeat) {

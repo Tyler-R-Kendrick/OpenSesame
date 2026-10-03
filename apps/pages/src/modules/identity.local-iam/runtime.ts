@@ -18,6 +18,10 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity-host.js";
+import { dispatchExtendedDeviceRoute } from "@opensesame/app-core/lib/device-identity-local.js";
+import { guestAuthDependencies } from "@opensesame/app-core/lib/guest-auth.js";
+import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import { bindLocalIamLockResets } from "@opensesame/app-core/lib/local-iam-lock-resets.js";
 import {
   IDENTITY_ROUTES,
@@ -73,6 +77,15 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+
+    const seedGuest = guestAuthDependencies.ensureDefaultAccess;
+    const dispatchExtended = deviceIdentitySeams.dispatchExtended;
+    guestAuthDependencies.ensureDefaultAccess = ensureDefaultAccess;
+    deviceIdentitySeams.dispatchExtended = dispatchExtendedDeviceRoute;
+    activation.onDispose(() => {
+      guestAuthDependencies.ensureDefaultAccess = seedGuest;
+      deviceIdentitySeams.dispatchExtended = dispatchExtended;
+    });
 
     activation.onDispose(bindLocalIamLockResets());
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));

@@ -1,11 +1,10 @@
 /**
  * Map legacy VaultHeader wraps into ProtectionRecords without changing
- * derivation domains. capabilityConnectors.encryption alone creates setup intent,
- * never enrolled protectors (KP-04).
+ * derivation domains. A saved capabilityConnectors.encryption preference never
+ * creates an enrolled protector (KP-04).
  */
 
 import {
-  type EncryptionSetupIntent,
   MANIFEST_SCHEMA_VERSION,
   type ProtectionRecord,
   type RootProtectionManifest,
@@ -15,6 +14,7 @@ import {
   type VaultUnlocks,
   listPasskeyUnlockRecords,
 } from "../unlock-methods.js";
+import { webauthnRpId } from "../webauthn-host.js";
 import { newProtectorId, newRootKeyId, newVaultId } from "./ids.js";
 
 export type LegacyMigrationInput = {
@@ -23,6 +23,12 @@ export type LegacyMigrationInput = {
   vaultId?: string;
   rootKeyId?: string;
   rootEpoch?: number;
+  /**
+   * RP id the legacy passkey wraps were enrolled under. Legacy records never
+   * stored one — pre-migration ceremonies always used this origin's hostname —
+   * so it defaults to the current ceremony origin.
+   */
+  passkeyRpId?: string;
 };
 
 export type LegacyMigrationResult = {
@@ -79,13 +85,14 @@ export function migrateLegacyHeaderToManifest(
   }
 
   const passkeys = listPasskeyUnlockRecords(header.unlocks);
+  const passkeyRpId = input.passkeyRpId ?? webauthnRpId();
   for (const passkey of passkeys) {
     records.push({
       kind: "webauthn-prf",
       protectorId: newProtectorId("webauthn-prf"),
       legacy: true,
       credentialIdB64: passkey.credentialIdB64,
-      rpId: "localhost",
+      rpId: passkeyRpId,
       saltB64: passkey.prfSaltB64,
       wrap: {
         ivB64: passkey.wrap.ivB64,
@@ -113,28 +120,4 @@ export function migrateLegacyHeaderToManifest(
       legacyGates: gatesFromUnlocks(header.unlocks),
     },
   };
-}
-
-export function encryptionSetupIntentFromBinding(
-  providerId: string | undefined,
-  connectionId: string | undefined,
-  enrolledKinds: ReadonlySet<string>,
-): EncryptionSetupIntent | null {
-  if (!providerId || providerId === "webcrypto") return null;
-  // Catalog preference without matching cryptographic enrollment.
-  const implied =
-    providerId === "aws-kms" ||
-    providerId === "azure-key-vault-keys" ||
-    providerId === "gcp-kms" ||
-    providerId === "age" ||
-    providerId === "fido2" ||
-    providerId === "yubikey";
-  if (!implied) return null;
-  if (enrolledKinds.has(providerId)) return null;
-  const intent: EncryptionSetupIntent = {
-    providerId,
-    source: "capabilityConnectors.encryption",
-  };
-  if (connectionId) intent.connectionId = connectionId;
-  return intent;
 }

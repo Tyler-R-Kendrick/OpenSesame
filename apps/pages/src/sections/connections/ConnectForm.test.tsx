@@ -1,14 +1,31 @@
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
+import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
+import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
-import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
+import {
+  setVercelConnectAuth,
+  usesConnect,
+} from "@opensesame/app-core/lib/vercel-connect.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ConnectForm } from "./ConnectForm.js";
 
 const originalIntegrations = connectionSeams.listIntegrations;
+const originalIdentity = { ...identitySeams };
+
+/** A Host is named and this browser holds an approved grant to it. */
+function openHostRoad() {
+  identitySeams.hostBase = () => "https://host.test";
+  identitySeams.hostLocalSessionEligible = () => true;
+}
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -44,6 +61,9 @@ afterEach(() => {
   setVercelConnectAuth(null);
   applyConnectCallbackBase("");
   connectionSeams.listIntegrations = originalIntegrations;
+  Object.assign(identitySeams, originalIdentity);
+  resetConnectRoadSeams();
+  notifyConnectRoads();
   vi.unstubAllGlobals();
 });
 
@@ -77,6 +97,9 @@ function githubProvider(): Provider {
 
 it("authorizes a Connect-managed provider through the relay", () => {
   applyConnectCallbackBase("http://127.0.0.1:8789");
+  connectRoadSeams.usesConnect = usesConnect;
+  connectRoadSeams.hasConnectRoute = hasConnectRoute;
+  notifyConnectRoads();
   render(
     <ConnectForm
       provider={slackProvider()}
@@ -93,7 +116,37 @@ it("authorizes a Connect-managed provider through the relay", () => {
   );
 });
 
-it("offers GitHub App registration instead of Connect for GitHub", async () => {
+it("offers GitHub App registration and nothing that needs a Host with none open", async () => {
+  connectionSeams.listIntegrations = vi.fn(async () => []);
+  render(
+    <ConnectForm
+      provider={githubProvider()}
+      online
+      onFlash={vi.fn()}
+      onConnected={vi.fn()}
+    />,
+  );
+  expect(
+    await screen.findByRole("button", {
+      name: /Create GitHub App for this organization/i,
+    }),
+  ).toBeTruthy();
+  // Each of these saves through a Host, which this device has none of: a key
+  // that could only fail is not drawn.
+  expect(
+    screen.queryByLabelText(/Or connect with a personal access token/i),
+  ).toBeNull();
+  expect(screen.queryByText(/Or use an existing OAuth app/i)).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Authorize with GitHub/i }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Save OAuth client/i }),
+  ).toBeNull();
+});
+
+it("offers the token and the OAuth client beside the App once a Host road is open", async () => {
+  openHostRoad();
   connectionSeams.listIntegrations = vi.fn(async () => []);
   render(
     <ConnectForm
@@ -115,6 +168,7 @@ it("offers GitHub App registration instead of Connect for GitHub", async () => {
 });
 
 it("hides Create App and PAT once a local GitHub App is registered", async () => {
+  openHostRoad();
   connectionSeams.listIntegrations = vi.fn(async () => []);
   localStorage.setItem(
     "opensesame.github-app.public",

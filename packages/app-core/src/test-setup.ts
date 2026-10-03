@@ -6,8 +6,9 @@
 import { afterEach } from "vitest";
 import { configureHost } from "./host.js";
 import { assertOwnedStorageWrites } from "./test-host-storage-writes.js";
-import { createTestHost } from "./test-host.js";
+import { createTestHost, repairInertWebStorage } from "./test-host.js";
 
+repairInertWebStorage();
 configureHost(createTestHost());
 
 // A test that wrote a Web Storage key the app does not own fails here, even

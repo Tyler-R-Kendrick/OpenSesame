@@ -31,7 +31,16 @@ export type FileCheck =
   | { readonly ok: false; readonly message: string };
 
 export type FileOutcome =
-  | { readonly ok: true; readonly path: string }
+  | {
+      readonly ok: true;
+      readonly path: string;
+      /** What the write did, when the provider has more to say than "saved". */
+      readonly message?: string;
+      /** `warn`: applied, but not as durably as asked (this session only). */
+      readonly tone?: "ok" | "warn";
+      /** The file as stored, when that is not the text that was written. */
+      readonly text?: string;
+    }
   | { readonly ok: false; readonly message: string };
 
 export type VirtualFileProvider = {
@@ -59,4 +68,42 @@ export function directoryOf(path: string): string {
 /** The file name without its directory. */
 export function baseName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
+}
+
+const NO_FILE = "No provider keeps this file.";
+
+/**
+ * Several providers as one directory listing: a category's own files and
+ * those its contributed panels bring. Each path is answered by the provider
+ * that lists it; the first provider that `creates` keeps that offer.
+ */
+export function mergeFileProviders(
+  providers: readonly VirtualFileProvider[],
+): VirtualFileProvider {
+  const owner = (path: string) =>
+    providers.find((provider) =>
+      provider.list().some((file) => file.path === path),
+    ) ?? providers.find((provider) => provider.creates !== undefined);
+  const creates = providers.find(
+    (provider) => provider.creates !== undefined,
+  )?.creates;
+  const merged: VirtualFileProvider = {
+    list: () => providers.flatMap((provider) => provider.list()),
+    read: async (path) => {
+      const provider = owner(path);
+      if (!provider) throw new Error(NO_FILE);
+      return provider.read(path);
+    },
+    check: (path, text) =>
+      owner(path)?.check(path, text) ?? { ok: false, message: NO_FILE },
+    write: async (path, text) =>
+      (await owner(path)?.write(path, text)) ?? {
+        ok: false,
+        message: NO_FILE,
+      },
+    remove: async (path) =>
+      (await owner(path)?.remove(path)) ?? { ok: false, message: NO_FILE },
+  };
+  if (creates === undefined) return merged;
+  return { ...merged, creates };
 }

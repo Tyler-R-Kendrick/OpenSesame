@@ -1,6 +1,7 @@
 import {
   VAULT_EXPORT_FORMAT,
   type VaultHeader,
+  createItem,
   createVault,
   emptyBody,
   openVaultFile,
@@ -12,12 +13,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   type BackupSource,
   backupFileName,
+  exportOpener,
   exportRefusal,
   offlineBackupFile,
   offlineBackupFileSeams,
   sealedVaultText,
+  unwrapExportedVaultKey,
   vaultFileFormat,
 } from "./offline-backup-file.js";
+import { VaultStore } from "./store.js";
 
 const original = { ...offlineBackupFileSeams };
 afterEach(() => Object.assign(offlineBackupFileSeams, original));
@@ -102,6 +106,58 @@ describe("offline backup file", () => {
     expect(() => offlineBackupFile(source({ header }))).toThrow(
       "Export needs a master password",
     );
+  });
+
+  it("round-trips a PIN vault through the backup the Export key writes", async () => {
+    const source = new VaultStore();
+    await source.createWithPin("48291037");
+    await source.saveItem(createItem("login", "Export Me"));
+    const file = offlineBackupFile(source.getSnapshot());
+    expect(file.text).not.toContain("Export Me");
+    const sealed = sealedVaultText(file.text);
+    await source.destroy();
+    const target = new VaultStore();
+    await target.createWithPin("13579246");
+    expect(await target.importSealed(sealed, "48291037")).toBe(1);
+    expect(target.getSnapshot().items[0]?.name).toBe("Export Me");
+    await target.destroy();
+  });
+
+  it("exports a passkey or PIN vault, and a passkey file is not a typed secret", async () => {
+    const created = "2026-09-01T00:00:00Z";
+    const wrap = { ivB64: "YQ==", ctB64: "YQ==" };
+    const passkey: VaultHeader = {
+      v: 1,
+      createdAt: created,
+      unlocks: {
+        passkey: {
+          credentialIdB64: "YQ==",
+          userIdB64: "YQ==",
+          prfSaltB64: "YQ==",
+          wrap,
+        },
+      },
+    };
+    const pin: VaultHeader = {
+      v: 1,
+      createdAt: created,
+      unlocks: {
+        pin: {
+          kdf: { alg: "PBKDF2-SHA256", saltB64: "YQ==", iterations: 600000 },
+          wrap,
+        },
+      },
+    };
+    expect(exportRefusal(source({ header: passkey }))).toBeNull();
+    expect(exportRefusal(source({ header: pin }))).toBeNull();
+    expect(exportOpener(passkey)).toBe("the passkey");
+    expect(exportOpener(pin)).toBe("the PIN");
+    await expect(unwrapExportedVaultKey(passkey, "secret")).rejects.toThrow(
+      /opens with its passkey/,
+    );
+    await expect(
+      unwrapExportedVaultKey({ v: 1, createdAt: created }, "secret"),
+    ).rejects.toThrow(/no master-password unlock/);
   });
 
   it("refuses when nothing is sealed on disk yet", async () => {

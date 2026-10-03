@@ -44,6 +44,11 @@ export function AmbientAuthPanel() {
     bump();
   }
 
+  // Nothing to choose from and nothing deployed: the panel would be a
+  // sentence and a key with no effect, so it is not drawn. Adding a provider
+  // (Capabilities › Identity providers) is what brings it in.
+  if (!deployed && providers.length === 0) return null;
+
   return (
     // A panel like its neighbours on Security: its key ends the head at the
     // panel's edge. As a card with a text-width row, the × floated mid-row.
@@ -79,9 +84,7 @@ export function AmbientAuthPanel() {
             never unlocks a vault and never attaches a guest account.
           </p>
         )}
-        {deployed ? null : providers.length === 0 ? (
-          <p className="hint">Add an organization provider to enable this.</p>
-        ) : (
+        {deployed ? null : (
           <ul className="stack">
             {providers.map((idp) => (
               <li key={idp.issuer} className="keyed-row keyed-row--field">

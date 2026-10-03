@@ -13,27 +13,36 @@ import {
  * SURFACE-01/02/03. Every ordinary surface of the shell derives from
  * contributions: with nothing registered the rail is the two core
  * directories, the drawer names the same two, the keymap sheet advertises
- * only their jumps, and Settings has only its five core categories.
+ * only their jumps, and Settings has only its six core categories.
  */
 describe("AppShell on a core-only plan", () => {
   beforeEach(seedVault);
   afterEach(resetShellRender);
 
-  it("draws the two core rail directories and nothing a capability owns", () => {
+  it("draws the vault rail directory and nothing a capability owns", () => {
     const { container } = renderShell("/vault");
     const rows = [
       ...container.querySelectorAll<HTMLElement>(
         '.railtree > [role="treeitem"]',
       ),
     ].map((row) => row.getAttribute("aria-label"));
-    expect(rows).toEqual(["Vault", "Settings"]);
-    for (const gone of ["Connections", "Access", "Identity", "Wallet"]) {
+    // Settings is core but session-level: the session
+    // prompt's menu roots the tree in it, so it is not a
+    // rail row.
+    expect(rows).toEqual(["Vault"]);
+    for (const gone of [
+      "Connections",
+      "Access",
+      "Identity",
+      "Wallet",
+      "Settings",
+    ]) {
       expect(screen.queryByText(gone.toLowerCase())).toBeNull();
     }
     const jumps = [...container.querySelectorAll("kbd.railtree__jump")].map(
       (kbd) => kbd.textContent,
     );
-    expect(jumps).toEqual(["gv", "gs"]);
+    expect(jumps).toEqual(["gv"]);
   });
 
   it("names the same two sections in the phone drawer", () => {
@@ -45,7 +54,7 @@ describe("AppShell on a core-only plan", () => {
     ).toEqual(["Vault", "Settings"]);
   });
 
-  it("lists the five core Settings categories and no contributed one", () => {
+  it("lists the six core Settings categories and no contributed one", () => {
     const { container } = renderShell("/settings/security");
     const rail = container.querySelector(".railtree");
     const tabs = [
@@ -55,6 +64,7 @@ describe("AppShell on a core-only plan", () => {
     ].map((a) => a.getAttribute("href"));
     expect(tabs).toEqual([
       "/settings",
+      "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
       "/settings/capabilities",
@@ -68,13 +78,11 @@ describe("AppShell on a core-only plan", () => {
     const filters = [
       ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/vault?f="]'),
     ].map((a) => a.getAttribute("href"));
-    expect(filters).toContain("/vault?f=login");
-    expect(filters).toContain("/vault?f=card");
-    expect(filters).toContain("/vault?f=secret");
-    expect(filters).toContain("/vault?f=note");
-    expect(filters).not.toContain("/vault?f=passkey");
-    expect(filters).not.toContain("/vault?f=certificate");
-    expect(filters).not.toContain("/vault?f=drop");
+    expect(filters).toEqual([
+      "/vault?f=favorites",
+      "/vault?f=secret",
+      "/vault?f=file",
+    ]);
   });
 });
 
@@ -96,27 +104,28 @@ describe("AppShell", () => {
     expect(screen.queryByPlaceholderText("Questions only")).toBeNull();
     // The rail's lowercase segments are always drawn; the capitalised labels
     // are the phone's, and a phone keeps its sections behind one key.
-    const labels = [
-      "Vault",
-      "Connections",
-      "Access",
-      "Identity",
-      "Wallet",
-      "Activity",
-      "Settings",
-    ];
-    for (const label of labels) {
+    // The two session-level directories are not rail rows — the
+    // session prompt's menu roots the tree in them — but the
+    // phone drawer still names them, so a phone keeps its road.
+    const railLabels = ["Vault", "Connections", "Access", "Identity", "Wallet"];
+    for (const label of railLabels) {
       expect(screen.getAllByText(label.toLowerCase()).length).toBe(1);
     }
-    expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(0);
+    for (const session of ["activity", "settings"]) {
+      expect(screen.queryAllByText(session)).toHaveLength(0);
+    }
+    expect(railLabels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(0);
+    const drawerLabels = [...railLabels, "Activity", "Settings"];
     fireEvent.click(screen.getByRole("button", { name: "Sections" }));
-    expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(7);
+    expect(drawerLabels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(
+      7,
+    );
     const gone = ["Authority", "Authentication", "Sites"];
     expect(gone.flatMap((g) => screen.queryAllByText(g))).toHaveLength(0);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
+    expect(screen.queryByTestId("connectivity-bar")).toBeNull();
     expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
   });
@@ -125,7 +134,11 @@ describe("AppShell", () => {
     const jumps = [...container.querySelectorAll("kbd.railtree__jump")].map(
       (kbd) => kbd.textContent,
     );
-    expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw", "gy", "gs"]);
+    // The g-jump keys for the two session-level directories
+    // (g y, g s) are advertised on the session prompt's
+    // menu entries, not on rail rows — neither is a rail
+    // directory.
+    expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw"]);
   });
   it("lists Vaults and Capabilities as sibling settings tabs, with no Connections tab", () => {
     const { container } = renderShell("/settings/security");
@@ -168,7 +181,7 @@ describe("AppShell", () => {
       container.querySelector('a[href="/vault?f=login&folder=f1"]'),
     ).toBeNull();
     expect(screen.queryByText("all")).toBeNull();
-    expect(screen.getAllByText("settings").length).toBe(1);
+    expect(screen.getAllByText("connections").length).toBe(1);
   });
   it("omits folder entries when there are none", () => {
     vault.folders = [];

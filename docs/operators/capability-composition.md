@@ -40,36 +40,42 @@ Two more identifiers you will see in emitted files and never have to author:
   may fetch. Only compile-time-known modules exist.
 - **asset id** — a path in `dist/`. The build writes the mapping.
 
-The catalog has **21 core** capabilities and **11 optional** ones. Core is
-always present and cannot be prohibited. Seven are statically linked:
+Seven capabilities are statically linked:
 `shell.navigation`, `vault.passwords`, `vault.local-unlock`,
 `backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
-`install.pwa`. Fourteen are **always-on** (ADR 0135, ADR 0142): core in every
-plan, but their code still arrives as a module after boot —
-`vault.passkey-records`, `vault.certificate-records`, `vault.interop-formats`,
-`backup.cloud-secrets`, `connectors.external`, `access.authority`,
-`identity.federation`, `identity.ambient-sso`, `activity.log`,
-`support.guided-help`, and the four browser-local functions
-`identity.local-iam`, `identity.siop`, `identity.site-broker` and
-`backup.git-remote`. None of them is ever a switch, and none may be named in a
-selection. An older selection that still names one is read as though it did
-not, and so is a policy that *requires* one.
+`install.pwa`. Seven more are **always-on** (ADR 0135, ADR 0142): core in
+every plan, code still a module after boot — `vault.interop-formats`,
+`backup.cloud-secrets`, `identity.ceremonies`, `activity.log`,
+`support.guided-help`, `identity.site-broker` and `backup.git-remote`.
+None of those is a switch. An older selection that still names one is read
+as though it did not.
+
+Connections, Access and Identity are optional (ADR 0153). The minimal plan
+approves `vault.passwords`, `activity.log` and `settings.core` and no
+optional capability. `~/connections`, `~/access` and `~/identity` load only
+after their Settings › Capabilities switch is on (`capability.<id>` is the
+OpenFeature flag). The minimal vault's only creatable kind is `secret`.
+Login, note, card, passkey, certificate and the other built-in types
+project onto that secret and stay out until Item types is on. Password reset
+(`ai.password-reset`) is its own section, off until chosen, and it depends on
+the login item type (`vault.derived-records`).
 
 **Withdrawing an always-on capability.** A verified instance policy may list
 an always-on capability in `prohibited`. The capability is then withdrawn: it
 is not approved and its module is not loaded. Every always-on capability that
-depends on it goes with it; withdrawing `identity.local-iam` takes
-`identity.siop` too. An optional capability that depends on it sees a
+depends on it goes with it. An optional capability that depends on it sees a
 prohibited dependency. Statically linked core cannot be withdrawn, because it
 has no module to leave out. Settings › Capabilities says "withdrawn by
 operator" in a notice and on the section the capability backs.
 
 A policy a version-1 preset wrote (`presetProvenance.version: 1`) listed
-every optional id the preset did not offer, so it may name browser-local IAM,
-SIOP, the site broker or git backup in `prohibited` without anyone having
-chosen that. The store drops those four from such a policy when it reads it.
-To withdraw one of them, write it into a policy you author yourself, or apply
-a preset again (presets are version 2 now) and add it.
+every optional id the preset did not offer, so it may name the site broker
+or git backup in `prohibited` without anyone having chosen that. The store
+drops those two from such a policy when it reads it. Identity is optional
+again (ADR 0153), so a version-1 prohibition of browser-local IAM or SIOP
+stands. To withdraw the site broker or git backup, write it into a policy
+you author yourself, or apply a preset again (presets are version 2 now)
+and add it.
 
 Git backup's automatic calls are held while the plan does not allow external
 services, whichever surface starts them (`backup-egress-gate.ts`). They are
@@ -78,17 +84,63 @@ sync a person asks for by hand still runs. A withdrawn git backup makes no
 call at all. A non-empty `allowedServiceOrigins` is an allowlist for every
 backup call.
 
+An `allowedServiceOrigins` entry is exactly what `URL.origin` prints (scheme,
+host, a non-default port, nothing else) over `https://` or `wss://`, or over
+`http://` or `ws://` to loopback only; a path, credentials, a wildcard host or
+a bare scheme refuses the document, naming the entry. A `wss://` origin is its
+own entry: a Content-Security-Policy `https:` source does not admit a
+WebSocket, so `https://relay.example.com` never stands in for
+`wss://relay.example.com`. `security-headers.mjs` puts each listed origin into
+`connect-src` as itself, only while `externalServices` is `allow`. An empty
+list still widens to `https:` alone, as before; it never adds a `wss:`
+wildcard, so a deployment that sends headers and wants WebSocket carriers must
+list them.
+
+Live sessions (`sharing.live`) reach external services only through what the
+owner names in Routes, and a hardened deployment governs those:
+
+- Prohibit it (`prohibited: [sharing.live]`) and the join road, the tab and
+  every carrier are gone; a session already running when the plan stops
+  approving it ends at once, hosted or joined.
+- Allow it, and list each carrier's origin: `https://ntfy.example.com` for
+  ntfy, `wss://relay.example.com` for Nostr, MQTT and NATS. Under
+  `externalServices: deny`, or an origin not on a non-empty list, the carrier
+  is refused before anything is contacted, and the person sees **Blocked by
+  this installation: relay.example.com**, not Unreachable.
+- STUN and TURN servers are WebRTC, which `connect-src` does not govern. The
+  policy cannot narrow them; prohibit `sharing.live` to keep them out.
+
+The operator guide for the routes is
+[`live-sessions.md`](live-sessions.md#under-a-hardened-deployment).
+
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,
-Identity providers, Directory, Encryption, Certificate authority, Backups,
-Password managers, Cloud secret storage, Local storage, Sharing, Payments,
-AI, Networking, Notifications, Telemetry, and — for the operator — Instance
-policy. A section with optional capabilities carries one switch on its
+Identity, Access, Connections, Directory, Encryption, Certificate authority,
+Backups, Password managers, Cloud secret storage, Local storage, Item types,
+Browser autofill, Sharing, Payments, AI, Password reset, Surrogate credentials, Networking,
+Notifications, Telemetry, and — for the operator — Instance policy. A section with optional
+capabilities carries one switch on its
 subheader over all of them; a section with more than one (Sharing, AI) also
 lists each as a tile with its own switch. A section of an always-on function
 has no switch. Every optional capability and every connector family has
 exactly one section. **Guests** is on unless an operator turns it off.
+
+**Runtime-installed plugins** (ADR 0150 §7, `spec/plugins/catalog.json`).
+Browser autofill (`vault.browser-autofill`) and Surrogate credentials
+(`agents.surrogate-credentials`) are optional, default off, and never
+always-on. Their plugins — the `opensesame-surrogate-proxy` binary and the
+companion autofill extension — are in no default build and never in the
+Pages bundle; a person installs one at a terminal on the daemon's machine,
+and it stays off until switched on. Switching a section on loads only the
+Settings tile for its plugin: what the daemon paired over the tailnet
+(`networking.tailnet`, pulled in as a dependency) reports as installed, on,
+off or forced off, one key that switches it there (`PUT /v1/plugins/{id}`),
+and for the proxy its recent tripwires by event, time and subject. A forced
+off plugin (`OPENSESAME_PLUGIN_<ID>=off` on the daemon) cannot be turned on
+from Pages. Each plugin's state is also the read-only file
+`settings/capabilities/plugins/<id>.json`. With no daemon paired — a guest,
+a locked vault, nothing paired — the tile sends nothing.
 
 ## 2. The five scopes, and which one wins
 
@@ -149,16 +201,18 @@ every optional capability the preset does **not** offer in `prohibited`.
 
 The two "local functions" — optional capabilities that run on this device
 with no connector, enterprise, agent, remote-AI or telemetry surface — are
-`sharing.drops` and `support.local-ai`. Browser-local IAM, SIOP, the site
-broker and git backup are always on (ADR 0142), so no preset names them.
+`sharing.live` and `support.local-ai`. Browser-local IAM, SIOP, the site
+broker and git backup are always on (ADR 0142). Secret drops are always on
+too, so no preset names `sharing.drops` as optional. Family still chooses
+it as Household sharing's transport.
 
 | Preset | Required | Offered | Pre-ticked | External services |
 |---|---|---|---|---|
 | **Personal** | none | the 2 local functions | nothing | allow |
-| **Family** | none | the 2 local functions + `sharing.household` | `sharing.household`, `sharing.drops` | **deny** |
-| **Homelab** | none | all 11 optional | nothing | allow |
-| **Organization** | none (sign-in providers and access are always on) | all 11 optional | nothing | allow |
-| **Custom** | none | all 11 optional | nothing | allow |
+| **Family** | none | the 2 local functions + `sharing.household` | `sharing.household` | **deny** |
+| **Homelab** | none | every optional capability | nothing | allow |
+| **Organization** | none | every optional capability | nothing | allow |
+| **Custom** | none | every optional capability | nothing | allow |
 
 Personal and Family never offer and never pre-select the
 `enterprise.*`, `agents.*` or `telemetry.*` families, nor `support.remote-ai`.
@@ -186,11 +240,17 @@ that way:
 
 ### The documents, and the exact shapes the parsers accept
 
-Four documents are projected as editable YAML resources, under the display
-paths `capabilities/instance-policy.yaml`,
+Four documents are projected as YAML resources by the S04 adapter, under the
+display paths `capabilities/instance-policy.yaml`,
 `capabilities/installation-selection.yaml`,
 `capabilities/vault-restriction.yaml` and `capabilities/effective-plan.yaml`
-(read-only). `.yml` is an accepted alias for each.
+(read-only). `.yml` is an accepted alias for each. Settings' file viewer lists
+three of them, under `settings/capabilities/`:
+`installation-selection.yaml`, `instance-policy.yaml` (listed, read and written
+only for the device's operator, and refused while a deployment owns the
+policy) and `effective-plan.yaml` (read-only). The vault restriction is not
+listed in the file viewer; it remains an adapter resource
+(`commitVaultRestrictionSource`) with its own display path.
 
 The parsers are strict on purpose. Every field must be present, typed, bounded
 and known; there is no lenient mode and no default fill-in. A document is
@@ -214,9 +274,9 @@ capabilities:
   default: deny
   required: []
   optional:
-    - sharing.drops
+    - sharing.live
     - sharing.household
-    - vault.passkey-records
+    - support.local-ai
   prohibited:
     - connectors.external
     - telemetry.external
@@ -395,9 +455,9 @@ Five different facts, five different places. None of them implies another.
 |---|---|
 | What does this release **contain**? | `dist/capability-distribution.json` |
 | Which file carries which capability? | `dist/capability-graph.json` (source module → chunk, static and dynamic edges, CSS/asset edges, workers, public files, classification with rationale) |
-| What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the Effective view — `capabilities/effective-plan.yaml`. Its Source view carries `capabilities/instance-policy.yaml` for the operator |
-| What did this device **select and accept**? | Settings › Capabilities, Source view of `capabilities/installation-selection.yaml` |
-| What did the resolver **decide**? | Settings › Capabilities, Effective view — `capabilities/effective-plan.yaml`, read-only |
+| What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the file `settings/capabilities/effective-plan.yaml`. The policy authored on this device is `settings/capabilities/instance-policy.yaml`, listed to the device's operator only |
+| What did this device **select and accept**? | Settings › Capabilities, the file `settings/capabilities/installation-selection.yaml` |
+| What did the resolver **decide**? | Settings › Capabilities, the file `settings/capabilities/effective-plan.yaml`, read-only |
 | What is **cached** and what is the worker doing? | the offline status in Settings (`online-only`, `saving`, `saved`, `partial`, `storage-unavailable`), and `saved offline` on an approved capability not running here whose page modules the worker saved |
 | What is **loaded and running** right now? | the switch says on or off; beside it a status glyph says what a switch cannot — `starting`, `consent required`, `restart required`, `reload to start`, `saved offline`, `conflict`, `acceptance required`, `selected · not yet applied`, `needed by …` |
 

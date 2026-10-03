@@ -100,8 +100,18 @@ undetectable, and neither should anyone using it:
 
 - There is **no on-screen travel indicator**, because there is nothing on
   the device to indicate.
-- The Settings panel is always present. Its row does not change while
+- The Settings panel is always present. Its rows do not change while
   vaults are away.
+
+The panel is two rows, one action each (amended 2026-09-28): **turn travel
+mode on** (choose what travels, pack, take off the device) and **turn it
+off** (open a bundle with its return code, preview, bring home). Each key
+opens its ceremony in a sheet built from `CeremonySheet` and `CeremonyShell`,
+the same frame as Security's methods; nothing of either ceremony is drawn on
+the page. A row states what it can do now, never a mode, so the two rows
+read the same whether vaults are away or not. A guest, or a device with no
+vault of the person's own open, sees both rows with their keys disabled and
+the reason on each, not a bare lock.
 
 This follows ADR 0130's rule against claiming undetectability.
 

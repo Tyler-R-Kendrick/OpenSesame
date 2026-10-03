@@ -53,11 +53,12 @@ const DENY: NetworkPolicy = {
 /**
  * Optional functions that run on this device with no connector, enterprise,
  * agent, remote-AI or telemetry surface. Personal and Family offer only
- * these. Browser-local IAM, SIOP, the site broker and git backup are always
- * on (ADR 0142), so no preset names them.
+ * these. The site broker and git backup are always on (ADR 0142). Identity,
+ * Connections, Access and derived item types are optional (ADR 0153); a
+ * preset names one only by offering it.
  */
 export const LOCAL_FUNCTIONS: readonly CapabilityId[] = [
-  "sharing.drops",
+  "sharing.live",
   "support.local-ai",
 ];
 
@@ -97,11 +98,11 @@ export const PRESETS: readonly Preset[] = [
     version: 2,
     title: "Family",
     summary:
-      "A household sharing chosen items with each other. Local features and drops, and no automatic call to an external service.",
+      "A household sharing chosen items with each other. Drops are always on. No automatic call to an external service.",
     required: [],
     optional: [...LOCAL_FUNCTIONS, "sharing.household"],
-    defaultSelected: ["sharing.household", "sharing.drops"],
-    // Household sharing needs a transport; drops is the one Family offers.
+    defaultSelected: ["sharing.household"],
+    // Household sharing still names drops as its transport. Drops are always on.
     defaultAlternatives: { transport: "sharing.drops" },
     network: DENY,
   },
@@ -122,7 +123,7 @@ export const PRESETS: readonly Preset[] = [
     version: 2,
     title: "Organization",
     summary:
-      "An operator-run instance people join. Sign-in through the organization's providers and the access authority are always on; enterprise and agent tools are offered, not pre-selected.",
+      "An operator-run instance people join. Enterprise and agent tools are offered, not pre-selected. Connections, Access and Identity stay off until chosen.",
     required: [],
     optional: everyOptional(),
     defaultSelected: [],

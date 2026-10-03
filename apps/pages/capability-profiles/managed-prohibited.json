@@ -14,12 +14,13 @@
     "capabilities": {
       "default": "deny",
       "required": [],
-      "optional": ["sharing.drops", "support.local-ai"],
+      "optional": ["support.local-ai"],
       "prohibited": [
         "agents.webmcp",
         "enterprise.ca-administration",
         "enterprise.directory-provisioning",
         "networking.tailnet",
+        "sharing.live",
         "support.remote-ai",
         "telemetry.external"
       ]
@@ -41,7 +42,7 @@
     "basePolicyRevision": "12",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": ["sharing.drops", "support.remote-ai"],
+    "selectedOptional": ["support.remote-ai"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

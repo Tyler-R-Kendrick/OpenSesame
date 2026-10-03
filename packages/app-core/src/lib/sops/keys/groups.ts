@@ -165,6 +165,11 @@ export async function recoverDataKey(
 ): Promise<RecoveredDataKey> {
   const groups = meta.groups;
   const required = effectiveThreshold(meta);
+  if (groups.length > 1 && required < 2)
+    throw new SopsError(
+      "malformed_encoding",
+      "sops.shamir_threshold must be 0 or at least 2 with several key groups.",
+    );
   const expected = groups.length > 1 ? SHARE_BYTES : DATA_KEY_BYTES;
   const shares: Uint8Array[] = [];
   const outcomes: GroupOutcome[] = [];

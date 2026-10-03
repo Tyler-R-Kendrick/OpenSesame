@@ -3,12 +3,14 @@
 //! Host capabilities: authorized HTTP / sign / opaque token handles.
 //! There is no secrets.get path for guests.
 
+mod constrained_http;
 pub mod manifest;
 pub mod providers;
 #[cfg(feature = "wasm-connectors")]
 pub mod wasm;
 
-use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, PlaceholderPlacement};
+use opensesame_domain::{EgressBinding, InvokeLevel};
+pub use opensesame_invoke_through::{RefusalCode, Surrogate, SurrogateSite, SurrogateSpec};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -37,10 +39,15 @@ pub enum HostError {
     MaterializeDenied,
     #[error("cross-authority redirect denied")]
     RedirectDenied,
-    #[error("placeholder placement denied: {0}")]
-    PlacementDenied(String),
-    #[error("placeholder is not the one this projection issued")]
+    /// The request carries no placeholder this connection issued, or names
+    /// one it did not.
+    #[error("placeholder is not the one this connection issued")]
     PlaceholderMismatch,
+    /// A placeholder was refused at admission (ADR 0150 §3). The code names
+    /// the fence for the owner's notice; the message is the same whatever the
+    /// fence, so a caller probing with guesses learns nothing from it.
+    #[error("request refused by the credential broker")]
+    SurrogateRefused(RefusalCode),
     #[error("connector error: {0}")]
     Connector(String),
 }
@@ -418,94 +425,6 @@ pub fn follow_redirect_with_credential(
         .map_err(|_| HostError::RedirectDenied)
 }
 
-/// Substitute a placeholder with a real credential **only** when placement rules allow.
-/// Never performs generic body-wide string replace.
-pub struct SubstitutePlaceholderRequest<'a> {
-    pub method: &'a str,
-    pub url: &'a str,
-    pub header_name: Option<&'a str>,
-    pub header_value: Option<&'a str>,
-    pub body_field_path: Option<&'a str>,
-    pub body_field_value: Option<&'a str>,
-    pub placeholder: &'a str,
-    pub real_secret: &'a str,
-}
-
-/// # Errors
-///
-/// Returns an error when the destination, placeholder identity, or placement
-/// violates the projection policy.
-pub fn substitute_placeholder(
-    egress: &EgressBinding,
-    placement: &PlaceholderPlacement,
-    projection: &LegacyProjection,
-    req: &SubstitutePlaceholderRequest<'_>,
-) -> Result<Value, HostError> {
-    // The placeholder is the whole key to the substitution: whatever text is named
-    // here gets the real credential written over it. Accept only a placeholder this
-    // projection could have issued, so a caller cannot name a string of its own
-    // choosing — or another connection's — and have a secret filled in behind it.
-    if !projection.accepts_placeholder(req.placeholder) {
-        return Err(HostError::PlaceholderMismatch);
-    }
-    egress
-        .allows_url(req.url)
-        .map_err(|e| HostError::DestinationDenied(e.to_string()))?;
-    let parsed = Url::parse(req.url).map_err(|e| HostError::DestinationDenied(e.to_string()))?;
-    placement
-        .assert_allowed(
-            &opensesame_domain::PlaceholderRequestView {
-                method: req.method,
-                header_name: req.header_name,
-                header_value: req.header_value,
-                path: parsed.path(),
-                query: parsed.query(),
-                body_field_path: req.body_field_path,
-                body_field_value: req.body_field_value,
-            },
-            req.placeholder,
-        )
-        .map_err(|e| HostError::PlacementDenied(e.to_string()))?;
-
-    let mut injected_header = None;
-    if let (Some(hn), Some(hv)) = (req.header_name, req.header_value) {
-        if hv.contains(req.placeholder) {
-            // Host injects the real secret on the wire; guest summary stays redacted.
-            let _wired = hv.replace(req.placeholder, req.real_secret);
-            injected_header = Some((hn.to_string(), hv.replace(req.placeholder, "[REDACTED]")));
-        }
-    }
-    let mut injected_body = None;
-    if let (Some(fp), Some(fv)) = (req.body_field_path, req.body_field_value) {
-        if fv.contains(req.placeholder) {
-            let _wired = fv.replace(req.placeholder, req.real_secret);
-            injected_body = Some(json!({ fp: fv.replace(req.placeholder, "[REDACTED]") }));
-        }
-    }
-
-    Ok(json!({
-        "ok": true,
-        "connection_ref": projection.connection_ref_uri,
-        "env_var": projection.env_var,
-        "credential_injected": true,
-        "credential_bytes_returned_to_guest": false,
-        "header": injected_header,
-        "body_field": injected_body,
-    }))
-}
-
-/// What the host holds for one connection: the projection it issued and the
-/// credential it will write behind that projection's placeholder.
-///
-/// Both belong to the host. A request may name the connection — that is what a
-/// reference is for — but it may not name the placeholder to fill or the material
-/// to fill it with, which is the whole point of L2.
-#[derive(Clone, Debug)]
-pub struct HostConnection {
-    pub projection: LegacyProjection,
-    pub material: String,
-}
-
 pub struct HostRuntime {
     pub policy: HostPolicy,
     connectors: HashMap<String, Arc<dyn Connector>>,
@@ -514,31 +433,32 @@ pub struct HostRuntime {
     /// that executes that provider's typed operations. Unbound providers
     /// fall back to the mock policy id, preserving pre-registry behavior.
     provider_connectors: HashMap<String, String>,
-    /// `connection_ref` URI → what this host resolved for it.
-    pub connections: std::collections::HashMap<String, HostConnection>,
+    /// L2 constrained HTTP: the connections this host holds a credential
+    /// for, and the ledger their placeholders are admitted through.
+    constrained: constrained_http::ConstrainedHttp,
+}
+
+/// Counts only: the connection table holds credentials.
+impl std::fmt::Debug for HostRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HostRuntime")
+            .field("connectors", &self.connectors.len())
+            .field("connection_connectors", &self.connection_connectors.len())
+            .field("provider_connectors", &self.provider_connectors.len())
+            .field("constrained", &self.constrained)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for HostRuntime {
+    /// The mock connector bound as `demo-conn`, and no L2 connection at all:
+    /// a host holds a credential only for a connection someone registered
+    /// with [`HostRuntime::register_connection`].
     fn default() -> Self {
         let mut policy = HostPolicy::default();
         policy
             .trusted_digests
             .insert("sha256:mock-connector".into());
-        let mut connections = std::collections::HashMap::new();
-        connections.insert(
-            "conn://demo".to_string(),
-            HostConnection {
-                projection: LegacyProjection {
-                    env_var: "OPENSESAME_PLACEHOLDER".into(),
-                    connection_ref_uri: "conn://demo".into(),
-                    placeholder_pattern: "ostest_*".into(),
-                    issued_placeholder: Some("ostest_placeholder_key0".into()),
-                    placement: PlaceholderPlacement::default(),
-                    delivery: opensesame_domain::CredentialDeliveryMode::Placeholder,
-                },
-                material: "ostest_injected_material".into(),
-            },
-        );
         let mut connectors: HashMap<String, Arc<dyn Connector>> = HashMap::new();
         connectors.insert("mock".into(), Arc::new(MockConnector));
         let connection_connectors = HashMap::from([("demo-conn".into(), "mock".into())]);
@@ -547,7 +467,7 @@ impl Default for HostRuntime {
             connectors,
             connection_connectors,
             provider_connectors: HashMap::new(),
-            connections,
+            constrained: constrained_http::ConstrainedHttp::default(),
         }
     }
 }
@@ -634,12 +554,40 @@ impl HostRuntime {
     /// # Errors
     ///
     /// Returns an error when trust, destination, invoke-level, operation, or
-    /// connector validation fails.
+    /// connector validation fails. An L2 constrained-HTTP request is admitted
+    /// here exactly as [`HostRuntime::invoke_constrained_http`] admits it, and
+    /// then refused: executing it takes the invoke-through broker, which a
+    /// synchronous call does not have. Nothing here reports a credential it
+    /// did not place.
     pub fn invoke(
         &self,
         connection_id: &str,
         req: &InvokeRequest,
     ) -> Result<InvokeResult, HostError> {
+        let (connector, level) = self.checked_level(connection_id, req)?;
+        if is_constrained_http(level, req) {
+            self.admit_constrained_http(connection_id, req, constrained_http::now_unix(), None)?;
+            return Err(HostError::Connector(constrained_http::NEEDS_BROKER.into()));
+        }
+        if !connector.operations().contains(&req.operation.as_str()) {
+            return Err(HostError::Connector(format!(
+                "connector {} does not implement {}",
+                connector.id(),
+                req.operation
+            )));
+        }
+        connector.invoke(req)
+    }
+
+    /// The checks every invocation passes before anything runs: a connector
+    /// is bound, a named destination is allowed, the component is trusted,
+    /// and the level is neither materialization nor above the policy's
+    /// ceiling.
+    fn checked_level(
+        &self,
+        connection_id: &str,
+        req: &InvokeRequest,
+    ) -> Result<(&dyn Connector, InvokeLevel), HostError> {
         let connector = self.connector(connection_id).ok_or_else(|| {
             HostError::Connector(format!("connection {connection_id} has no connector"))
         })?;
@@ -663,98 +611,20 @@ impl HostRuntime {
         if level > self.policy.max_invoke_level {
             return Err(HostError::InvokeLevelDenied);
         }
-        // L2 constrained HTTP with placement-bound placeholder substitution.
-        if level == InvokeLevel::ConstrainedHttp
-            && (req.operation == "http.authorized" || req.parameters.get("placeholder").is_some())
-        {
-            return self.invoke_l2_placeholder(req);
-        }
-        if !connector.operations().contains(&req.operation.as_str()) {
-            return Err(HostError::Connector(format!(
-                "connector {} does not implement {}",
-                connector.id(),
-                req.operation
-            )));
-        }
-        connector.invoke(req)
+        Ok((connector, level))
     }
 
     fn connector(&self, connection_id: &str) -> Option<&dyn Connector> {
         let connector_id = self.connection_connectors.get(connection_id)?;
         self.connectors.get(connector_id).map(Arc::as_ref)
     }
+}
 
-    fn invoke_l2_placeholder(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
-        let url = req
-            .parameters
-            .get("url")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| HostError::Connector("url required for L2".into()))?;
-        let method = req
-            .parameters
-            .get("method")
-            .and_then(|v| v.as_str())
-            .unwrap_or("GET");
-
-        // Credential material is never a request parameter. A caller that names it
-        // is either confused or trying to have the host write a string of its own
-        // choosing into an outbound request.
-        if req.parameters.get("material").is_some() {
-            return Err(HostError::MaterializeDenied);
-        }
-
-        let connection_ref = req
-            .parameters
-            .get("connection_ref")
-            .and_then(|v| v.as_str())
-            .unwrap_or("conn://demo");
-        let conn = self
-            .connections
-            .get(connection_ref)
-            .ok_or_else(|| HostError::Connector("unknown connection".into()))?;
-        let proj = conn.projection.clone();
-        let placeholder = proj
-            .issued_placeholder
-            .clone()
-            .ok_or(HostError::PlaceholderMismatch)?;
-        // A request may repeat the placeholder it was handed — it has to, to place it
-        // — but it may not name a different one and have a credential follow.
-        if let Some(named) = req.parameters.get("placeholder").and_then(|v| v.as_str()) {
-            if named != placeholder {
-                return Err(HostError::PlaceholderMismatch);
-            }
-        }
-        let material = conn.material.clone();
-        let placeholder = placeholder.as_str();
-        let material = material.as_str();
-        let header_name = req.parameters.get("header_name").and_then(|v| v.as_str());
-        let header_value = req.parameters.get("header_value").and_then(|v| v.as_str());
-        let body_field = req.parameters.get("body_field").and_then(|v| v.as_str());
-        let body_value = req.parameters.get("body_value").and_then(|v| v.as_str());
-
-        let placement = proj.placement.clone();
-
-        let injected = substitute_placeholder(
-            &self.policy.egress,
-            &placement,
-            &proj,
-            &SubstitutePlaceholderRequest {
-                method,
-                url,
-                header_name,
-                header_value,
-                body_field_path: body_field,
-                body_field_value: body_value,
-                placeholder,
-                real_secret: material,
-            },
-        )?;
-        Ok(InvokeResult {
-            ok: true,
-            safe_summary: injected,
-            external_request_digest: Some("sha256:l2-placeholder".into()),
-        })
-    }
+/// Whether a request takes the L2 constrained-HTTP route rather than one of
+/// a connector's typed operations.
+fn is_constrained_http(level: InvokeLevel, req: &InvokeRequest) -> bool {
+    level == InvokeLevel::ConstrainedHttp
+        && (req.operation == "http.authorized" || req.parameters.get("placeholder").is_some())
 }
 
 /// Host-side Wasm guest loader boundary.
@@ -1126,249 +996,6 @@ mod tests {
             ),
             Err(HostError::RedirectDenied)
         );
-    }
-
-    #[test]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one cohesive adversarial matrix documents placeholder binding invariants"
-    )]
-    fn placeholder_header_ok_body_denied() {
-        use opensesame_domain::{CredentialDeliveryMode, LegacyProjection, PlaceholderPlacement};
-        let egress = EgressBinding {
-            scheme: "https".into(),
-            authorities: vec!["api.github.com".into()],
-            path_prefixes: vec![],
-            allow_redirects_cross_authority: false,
-        };
-        let proj = LegacyProjection {
-            env_var: "GITHUB_TOKEN".into(),
-            connection_ref_uri: "conn://demo/github".into(),
-            placeholder_pattern: "ostest_*".into(),
-            issued_placeholder: None,
-            placement: PlaceholderPlacement::default(),
-            delivery: CredentialDeliveryMode::Placeholder,
-        };
-        let ph = proj.shaped_placeholder("0123456789abcdef");
-        let ph = ph.as_str();
-        let ok = substitute_placeholder(
-            &egress,
-            &proj.placement,
-            &proj,
-            &SubstitutePlaceholderRequest {
-                method: "POST",
-                url: "https://api.github.com/user",
-                header_name: Some("Authorization"),
-                header_value: Some(&format!("Bearer {ph}")),
-                body_field_path: None,
-                body_field_value: None,
-                placeholder: ph,
-                real_secret: "ostest_injected_material",
-            },
-        )
-        .unwrap();
-        assert_eq!(ok["credential_bytes_returned_to_guest"], false);
-        assert_eq!(ok["credential_injected"], true);
-        let header_val = ok["header"][1].as_str().unwrap();
-        assert!(header_val.contains("[REDACTED]"));
-        assert!(!header_val.contains("ostest_injected_material"));
-
-        let deny = substitute_placeholder(
-            &egress,
-            &proj.placement,
-            &proj,
-            &SubstitutePlaceholderRequest {
-                method: "POST",
-                url: "https://api.github.com/user",
-                header_name: None,
-                header_value: None,
-                body_field_path: Some("message"),
-                body_field_value: Some(&format!("exfil {ph}")),
-                placeholder: ph,
-                real_secret: "ostest_injected_material",
-            },
-        );
-        assert!(matches!(deny, Err(HostError::PlacementDenied(_))));
-
-        // A placeholder the projection never issued is refused before anything else.
-        let foreign = substitute_placeholder(
-            &egress,
-            &proj.placement,
-            &proj,
-            &SubstitutePlaceholderRequest {
-                method: "POST",
-                url: "https://api.github.com/user",
-                header_name: Some("Authorization"),
-                header_value: Some("Bearer oslive_someone_elses"),
-                body_field_path: None,
-                body_field_value: None,
-                placeholder: "oslive_someone_elses",
-                real_secret: "ostest_injected_material",
-            },
-        );
-        assert!(
-            matches!(foreign, Err(HostError::PlaceholderMismatch)),
-            "{foreign:?}"
-        );
-
-        // Repeating an accepted placeholder in the allowed header still trips the
-        // occurrence bound — substitution replaces every appearance.
-        let doubled = substitute_placeholder(
-            &egress,
-            &proj.placement,
-            &proj,
-            &SubstitutePlaceholderRequest {
-                method: "POST",
-                url: "https://api.github.com/user",
-                header_name: Some("Authorization"),
-                header_value: Some(&format!("Bearer {ph} {ph}")),
-                body_field_path: None,
-                body_field_value: None,
-                placeholder: ph,
-                real_secret: "ostest_injected_material",
-            },
-        );
-        assert!(
-            matches!(doubled, Err(HostError::PlacementDenied(_))),
-            "{doubled:?}"
-        );
-
-        // Once the issued placeholder is recorded, a neighbour's placeholder of the
-        // same shape is refused too.
-        let bound = LegacyProjection {
-            issued_placeholder: Some(ph.to_string()),
-            ..proj.clone()
-        };
-        let neighbour = bound.shaped_placeholder("fedcba9876543210");
-        let refused = substitute_placeholder(
-            &egress,
-            &bound.placement,
-            &bound,
-            &SubstitutePlaceholderRequest {
-                method: "POST",
-                url: "https://api.github.com/user",
-                header_name: Some("Authorization"),
-                header_value: Some(&format!("Bearer {neighbour}")),
-                body_field_path: None,
-                body_field_value: None,
-                placeholder: &neighbour,
-                real_secret: "ostest_injected_material",
-            },
-        );
-        assert!(
-            matches!(refused, Err(HostError::PlaceholderMismatch)),
-            "{refused:?}"
-        );
-    }
-
-    #[test]
-    fn registry_l2_refuses_material_and_a_foreign_placeholder() {
-        let rt = HostRuntime::default();
-        // The host resolves the credential from the connection. A caller naming its
-        // own material is refused rather than obliged.
-        let with_material = json!({
-            "url": "https://api.github.com/repos/acme/x",
-            "method": "GET",
-            "header_name": "Authorization",
-            "header_value": "Bearer ostest_placeholder_key0",
-            "material": "attacker-chosen",
-        });
-        let err = rt
-            .invoke(
-                "demo-conn",
-                &InvokeRequest {
-                    operation: "http.authorized".into(),
-                    resource: "r".into(),
-                    audience: "https://api.github.com".into(),
-                    parameters: with_material.clone(),
-                    parameters_digest: opensesame_param_digest(&with_material),
-                    authorized_operation: "http.authorized".into(),
-                    invoke_level: Some(2),
-                    connection_ref: String::new(),
-                },
-            )
-            .unwrap_err();
-        assert!(matches!(err, HostError::MaterializeDenied), "{err:?}");
-
-        // Naming somebody else's placeholder does not get it filled either.
-        let foreign = json!({
-            "url": "https://api.github.com/repos/acme/x",
-            "method": "GET",
-            "header_name": "Authorization",
-            "header_value": "Bearer ostest_someone_elses0",
-            "placeholder": "ostest_someone_elses0",
-        });
-        let err = rt
-            .invoke(
-                "demo-conn",
-                &InvokeRequest {
-                    operation: "http.authorized".into(),
-                    resource: "r".into(),
-                    audience: "https://api.github.com".into(),
-                    parameters: foreign.clone(),
-                    parameters_digest: opensesame_param_digest(&foreign),
-                    authorized_operation: "http.authorized".into(),
-                    invoke_level: Some(2),
-                    connection_ref: String::new(),
-                },
-            )
-            .unwrap_err();
-        assert!(matches!(err, HostError::PlaceholderMismatch), "{err:?}");
-
-        // A connection this host holds nothing for cannot be exercised at all.
-        let unknown = json!({
-            "url": "https://api.github.com/repos/acme/x",
-            "method": "GET",
-            "header_name": "Authorization",
-            "header_value": "Bearer ostest_placeholder_key0",
-            "connection_ref": "conn://not-mine",
-        });
-        let err = rt
-            .invoke(
-                "demo-conn",
-                &InvokeRequest {
-                    operation: "http.authorized".into(),
-                    resource: "r".into(),
-                    audience: "https://api.github.com".into(),
-                    parameters: unknown.clone(),
-                    parameters_digest: opensesame_param_digest(&unknown),
-                    authorized_operation: "http.authorized".into(),
-                    invoke_level: Some(2),
-                    connection_ref: String::new(),
-                },
-            )
-            .unwrap_err();
-        assert!(matches!(err, HostError::Connector(_)), "{err:?}");
-    }
-
-    #[test]
-    fn registry_l2_wrong_placement_denied() {
-        let rt = HostRuntime::default();
-        let ph = "ostest_placeholder_key0";
-        // Default placement is Authorization header only — body occurrence is denied.
-        let params = json!({
-            "url": "https://api.github.com/repos/acme/x",
-            "method": "POST",
-            "placeholder": ph,
-            "body_field": "message",
-            "body_value": format!("exfil {ph}"),
-        });
-        let err = rt
-            .invoke(
-                "demo-conn",
-                &InvokeRequest {
-                    operation: "http.authorized".into(),
-                    resource: "r".into(),
-                    audience: "https://api.github.com".into(),
-                    parameters: params.clone(),
-                    parameters_digest: opensesame_param_digest(&params),
-                    authorized_operation: "http.authorized".into(),
-                    invoke_level: Some(2),
-                    connection_ref: String::new(),
-                },
-            )
-            .unwrap_err();
-        assert!(matches!(err, HostError::PlacementDenied(_)), "{err:?}");
     }
 
     #[test]

@@ -1,0 +1,99 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        { "report": "section.panel > .panel__head h2" },
+        {
+          "count": [
+            "section.panel",
+            "section.panel button:disabled",
+            "section.panel .status-mark",
+            "section.panel a.icon-btn"
+          ]
+        },
+        { "shot": "1280-guest-top" },
+        { "scrollToOptional": "Formats" },
+        { "shot": "1280-guest-lower" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        {
+          "count": [
+            "section.panel",
+            "section.panel button:disabled",
+            "section.panel .status-mark",
+            "section.panel a.icon-btn"
+          ]
+        },
+        { "shot": "390-guest-top" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        { "report": "section.panel > .panel__head h2" },
+        {
+          "count": [
+            "section.panel",
+            "section.panel button:disabled",
+            "section.panel .status-mark",
+            "section.panel a.icon-btn"
+          ]
+        },
+        { "shot": "1280-vault-top" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-guest-top",
+      "width": 1280,
+      "title": "Security as a guest — desktop",
+      "caption": "Every key on the page acts. The disabled Vault key protection keys, the policy sentences, the locked Email and Text rows and the locked Recovery row are gone: each was a control a guest could not use.",
+      "before": "Vault key protection drawn with 2 disabled keys and 3 policy lines; Email and Text rows locked with a gear that led to a Host form; a locked Recovery row",
+      "after": "Unlock methods, Second step (authenticator only, until a key exists), Formats, Age keys, Transport — no disabled key, no lock standing for not-yet"
+    },
+    {
+      "shot": "1280-guest-lower",
+      "width": 1280,
+      "title": "Formats, Age keys, Transport as a guest — desktop",
+      "caption": "Formats lists what can be done (SOPS document, age armor) instead of a Read/Write/Runtime table of what is supported. Transport is unchanged: its idle rows are an ADR 0132 acceptance scenario.",
+      "before": "A four-row support matrix with locked GPG marks",
+      "after": "Two action rows; Transport as before"
+    },
+    {
+      "shot": "390-guest-top",
+      "width": 390,
+      "title": "Security as a guest — phone",
+      "caption": "The same list at 390 wide.",
+      "before": "Eight panels, most of their keys disabled or leading away",
+      "after": "Panels that each have something to press"
+    },
+    {
+      "shot": "1280-vault-top",
+      "width": 1280,
+      "title": "Security with a personal vault — desktop",
+      "caption": "With a vault sealed, Vault key protection appears with keys that work: Preferred and Remove on the password row, Add and Rotate in its head. Test is offered only where the service can prove a protector (a recovery key), and an enrolled recovery key now shows in the list.",
+      "before": "Static policy list, an inert status row, rows whose keys failed with 'Protector … is not enrolled', an added recovery key that never appeared",
+      "after": "Rows that read the sealed manifest; Add, Preferred, Remove, Rotate all work"
+    }
+  ]
+}

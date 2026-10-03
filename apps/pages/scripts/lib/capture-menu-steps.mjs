@@ -10,7 +10,10 @@ export function menuSteps({ press }) {
     menuOptional,
     openSettingsFile: (page, category) =>
       openSettingsFile(page, category, press),
-    measure,
+    // Named `facts`: capture-evidence's own `measure` (selector boxes) would
+    // shadow a step of that name, which left this one unreachable.
+    facts,
+    caretOnLine,
   };
 }
 
@@ -85,9 +88,37 @@ async function openSettingsFile(page, category, press) {
   await page.waitForTimeout(700);
 }
 
+/**
+ * Put the caret at the end of the first line of a labelled editor that
+ * contains `text`, the way a person clicks into it — a key up follows, which
+ * is what the completions listen to.
+ */
+async function caretOnLine(page, { label, text }) {
+  const field = page.getByLabel(label, { exact: true }).first();
+  if ((await field.count()) === 0)
+    throw new Error(
+      `capture-evidence caretOnLine("${label}"): no editor matched — refusing a silent miss`,
+    );
+  await field.focus();
+  const found = await field.evaluate((node, needle) => {
+    const lines = node.value.split("\n");
+    const at = lines.findIndex((line) => line.includes(needle));
+    if (at < 0) return false;
+    const end = lines.slice(0, at + 1).join("\n").length;
+    node.setSelectionRange(end, end);
+    return true;
+  }, text);
+  if (!found)
+    throw new Error(
+      `capture-evidence caretOnLine: no line contains "${text}" — refusing a silent miss`,
+    );
+  await page.keyboard.press("End");
+  await page.waitForTimeout(400);
+}
+
 /** Log what the browser measures, so each caption quotes a number. */
-async function measure(page, name) {
-  const facts = await page.evaluate(() => {
+async function facts(page, name) {
+  const found = await page.evaluate(() => {
     const rows = [...document.querySelectorAll(".railtree__row")];
     const items = [...document.querySelectorAll(".ctxmenu__item")];
     return {
@@ -99,6 +130,31 @@ async function measure(page, name) {
         .length,
       viewToggleKeys: document.querySelectorAll(".section__head .set__view-btn")
         .length,
+      capabilityViewKeys: document.querySelectorAll(
+        '[aria-label="Capability view"] button',
+      ).length,
+      // How many rail rows sit between Capabilities and its config.yaml:
+      // 0 is first under it.
+      rowsBeforeCapabilitiesConfig: (() => {
+        const at = rows.findIndex((row) =>
+          row.textContent?.trim().startsWith("Capabilities"),
+        );
+        const config = rows.findIndex(
+          (row, index) =>
+            index > at && row.textContent?.includes("config.yaml"),
+        );
+        return at < 0 || config < 0 ? null : config - at - 1;
+      })(),
+      fileList: [...document.querySelectorAll(".vfiles__file")].map((row) =>
+        row.textContent?.trim(),
+      ),
+      // What the page says about a save: each status mark's label.
+      marks: [...document.querySelectorAll(".section__inner .status-mark")].map(
+        (mark) => mark.getAttribute("aria-label") ?? mark.getAttribute("title"),
+      ),
+      completions: [...document.querySelectorAll(".set-raw__option")].map(
+        (option) => option.textContent?.trim(),
+      ),
       menuEntries: items.length,
       menuMode: document.querySelector(".ctxmenu--sheet")
         ? "sheet"
@@ -124,5 +180,5 @@ async function measure(page, name) {
       file: document.querySelector(".set-raw__path")?.textContent ?? null,
     };
   });
-  console.log(`  measure ${name}: ${JSON.stringify(facts)}`);
+  console.log(`  facts ${name}: ${JSON.stringify(found)}`);
 }

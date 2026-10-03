@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>OpenSesame autofill</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="head">
+        <p class="brand">OpenSesame</p>
+        <span
+          id="mark"
+          class="status-mark"
+          role="img"
+          aria-live="polite"
+          data-tone="off"
+          aria-label="Autofill is off on this site"
+          title="Autofill is off on this site"
+        >
+          <svg data-tone="ok" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <svg data-tone="warn" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M12 4l9 16H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+            <path d="M12 10v4M12 17v.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <svg data-tone="off" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2" />
+            <path d="M6.5 17.5l11-11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </span>
+      </header>
+
+      <div class="site-row">
+        <p id="origin" class="origin"></p>
+        <button
+          id="site"
+          type="button"
+          class="icon-btn switch"
+          role="switch"
+          aria-checked="false"
+          aria-label="Autofill on this site"
+          title="Autofill on this site"
+          hidden
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M12 3v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M7 6.5a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="pair-row">
+        <button
+          id="pair"
+          type="button"
+          class="icon-btn"
+          aria-label="Pair with this computer"
+          title="Pair with this computer"
+          hidden
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <output id="code" class="code" aria-label="Pairing code"></output>
+      </div>
+
+      <fieldset id="refs" class="refs" hidden>
+        <legend>Entry</legend>
+      </fieldset>
+
+      <div class="go-row">
+        <button
+          id="go"
+          type="button"
+          class="go"
+          aria-label="Fill the focused field"
+          title="Fill the focused field"
+          hidden
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <circle cx="8" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2" />
+            <path d="M12 12h9M18 12v3M21 12v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <span class="go-verb" aria-hidden="true">Fill the focused field</span>
+      </div>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

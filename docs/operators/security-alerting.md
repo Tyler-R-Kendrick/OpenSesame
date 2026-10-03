@@ -7,8 +7,9 @@ password at 04:00 — is published on one feed, with one subscription model. Thi
 page is how you point that feed at whatever your team already watches.
 
 Design rationale is in [ADR 0080](../adr/0080-security-event-hooks.md); the
-expiry half is [ADR 0074](../adr/0074-expiry-lifecycle-hooks.md), and the agent
-half is [ADR 0081](../adr/0081-live-session-observation.md).
+expiry half is [ADR 0074](../adr/0074-expiry-lifecycle-hooks.md), the agent
+half is [ADR 0081](../adr/0081-live-session-observation.md), and the surrogate
+tripwires are [ADR 0150](../adr/0150-surrogate-credentials-at-the-last-hop.md).
 
 ## The families
 
@@ -17,6 +18,7 @@ half is [ADR 0081](../adr/0081-live-session-observation.md).
 | `lifecycle.*` | deadlines: certificates, CAs, brokered credentials, store paths, signers, web logins, session grants | every kind |
 | `breach.*` | a stored password in a public corpus; a provider that announced an incident; a corpus that could not be consulted | `store_path`, `connection_credential`, `source` |
 | `agent.*` | a sandboxed run rotating a web login: started, blocked, waiting for you, control taken and handed back, resumed, completed, failed | `web_login` |
+| `surrogate.*` | a surrogate credential refused by the broker: two in one request, one never issued, revoked, expired, presented by another process, sent to another host, sent over http, placed outside its declared site, used outside its method and path scope | `agent_run`, `surrogate_proxy` |
 
 Subscribe by exact name, by family wildcard (`agent.*`), or by `*` for
 everything the platform detects, now and later. `GET /api/v1/lifecycle/expiring`
@@ -26,6 +28,37 @@ An `agent.*` subscription is metadata about a run — an origin, a phase, a
 reason it stopped. It is never the run's observation log: what the agent saw is
 sealed to the credential owner's viewer key and the gateway cannot read it, let
 alone forward it to your pager (ADR 0081 §9).
+
+A `surrogate.*` event is a tripwire (ADR 0150 §5). A surrogate (`osr_…`) is
+the stand-in an unmodified client holds instead of a credential, and the
+broker admits it at exactly one site, on its provider's host, from the process
+it was issued to. Anywhere else, something copied it. The surrogate adapter
+(ADR 0150 §6.1) publishes one event per refused request; the names are
+registrable whether or not a surrogate has been issued yet. The event names the run
+(`agent_run`, subject id = the run) when the broker issued the surrogate, and
+the broker itself (`surrogate_proxy`, subject id `unattributed`) when it did
+not. It carries the fence that refused it, the provider, and — for a
+misdirected or misplaced surrogate — the host or site it turned up at. It never
+carries the surrogate: a detail that is not shaped like a host or a site name,
+or that contains a surrogate in any case or encoding, is withheld and named in
+the payload's `withheld` list instead. A notice is never suppressed because its
+detail was withheld. Surrogate events never resolve themselves; a copy that got
+loose does not stop being loose.
+
+| Event | Severity | Why |
+|-------|----------|-----|
+| `surrogate.misdirected` | `error` | sent to a host its provider does not use — the exfiltration signature |
+| `surrogate.foreign_caller` | `error` | presented by a process it was never handed to |
+| `surrogate.revoked` | `error` | used after its run ended |
+| `surrogate.misplaced` | `warning` | in a body, query, path or second header — how a reflection probe looks |
+| `surrogate.out_of_scope` | `warning` | a method or path outside the surrogate's scope |
+| `surrogate.ambiguous` | `warning` | two surrogates in one request |
+| `surrogate.cleartext` | `warning` | the right host over plain http |
+| `surrogate.unknown` | `info` | not one this broker issued; every surrogate is forgotten on restart, so this follows one |
+| `surrogate.expired` | `info` | past its expiry; a slow client |
+
+None is `critical`: that rung means a credential is exposed, and a refused
+surrogate is the case where the fence held.
 
 ## What you get without configuring anything
 
@@ -112,9 +145,9 @@ matters because the ledger is at-least-once.
 
 | Severity | Examples |
 |----------|----------|
-| `info` | expiry within 30 days; a renewal that succeeded; a finding that cleared; an agent run starting, resuming, finishing, or handed to you |
-| `warning` | expiry within 7 days; a renewal coming due; a corpus that could not be reached; a run parked with a person nominally in the loop |
-| `error` | expiry within 24 hours; a renewal that failed; a provider breach that exposed passwords; a run blocked or failed |
+| `info` | expiry within 30 days; a renewal that succeeded; a finding that cleared; an agent run starting, resuming, finishing, or handed to you; an unknown or expired surrogate |
+| `warning` | expiry within 7 days; a renewal coming due; a corpus that could not be reached; a run parked with a person nominally in the loop; a surrogate misplaced, out of scope, doubled or sent over http |
+| `error` | expiry within 24 hours; a renewal that failed; a provider breach that exposed passwords; a run blocked or failed; a surrogate sent to another host, by another process, or after its run ended |
 | `critical` | something already expired; a stored secret found in the password corpus |
 
 `severity_min` is a floor, so a paging integration can take everything loud

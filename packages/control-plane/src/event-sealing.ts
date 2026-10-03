@@ -1,5 +1,5 @@
 /**
- * Where the Identity plane seals its event rows (ADR 0150).
+ * Where the Identity plane seals its event rows (ADR 0155).
  *
  * The audit trail, the outbox and the delivery queues rest sealed in Postgres.
  * The key is derived from `OPENSESAME_EVENT_KEY`, else from the claim pepper

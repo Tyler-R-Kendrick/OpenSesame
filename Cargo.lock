@@ -139,6 +139,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-hooks-sdk"
+version = "0.1.0-alpha.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4b0b9e8954768431c15125a6218ea0e45d8a057b782cab7e358477cc5c243f0"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "ryu-js",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3516,6 +3531,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-agent-hooks"
+version = "0.1.0"
+dependencies = [
+ "agent-hooks-sdk",
+ "async-trait",
+ "axum",
+ "regex",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "opensesame-audit"
 version = "0.1.0"
 dependencies = [
@@ -3687,6 +3719,7 @@ dependencies = [
  "hyper-util",
  "insta",
  "jsonwebtoken",
+ "opensesame-agent-hooks",
  "opensesame-authn",
  "opensesame-bitwarden-server",
  "opensesame-ceremony",
@@ -3699,6 +3732,7 @@ dependencies = [
  "opensesame-host-core",
  "opensesame-human-vault",
  "opensesame-kdbx-bridge",
+ "opensesame-plugin-settings",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
  "opensesame-redaction",
@@ -3818,17 +3852,26 @@ name = "opensesame-connector-host"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "http",
  "opensesame-domain",
+ "opensesame-invoke-through",
  "opensesame-sealed-store",
+ "opensesame-transport-security",
+ "secrecy",
  "serde",
  "serde_json",
  "serde_norway",
  "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "url",
+ "uuid",
  "wasmtime",
 ]
 
@@ -3877,6 +3920,8 @@ dependencies = [
  "opensesame-connection-detect",
  "opensesame-host-core",
  "opensesame-invoke-through",
+ "opensesame-plugin-settings",
+ "opensesame-sealed-store",
  "opensesame-tailscale-authn",
  "opensesame-uds-authn",
  "p256",
@@ -3892,6 +3937,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "url",
  "uuid",
  "windows-sys 0.59.0",
  "zeroize",
@@ -3981,6 +4027,7 @@ dependencies = [
  "jsonwebtoken",
  "opensesame-a2h",
  "opensesame-agent-events",
+ "opensesame-agent-hooks",
  "opensesame-audit",
  "opensesame-authz",
  "opensesame-bitwarden-server",
@@ -4004,6 +4051,7 @@ dependencies = [
  "opensesame-provider-openfga",
  "opensesame-redaction",
  "opensesame-relay",
+ "opensesame-rotation-web",
  "opensesame-security-events",
  "opensesame-session-observe",
  "opensesame-spiffe-source",
@@ -4135,6 +4183,7 @@ name = "opensesame-invoke-through"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "http",
@@ -4260,6 +4309,19 @@ dependencies = [
  "x509-cert 0.2.5",
  "x509-parser 0.16.0",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-plugin-settings"
+version = "0.1.0"
+dependencies = [
+ "directories",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4423,13 +4485,20 @@ dependencies = [
 name = "opensesame-rotation-web"
 version = "0.1.0"
 dependencies = [
+ "agent-hooks-sdk",
  "async-trait",
+ "base64 0.22.1",
+ "futures",
  "opensesame-ceremony",
+ "opensesame-plugin-settings",
+ "opensesame-rotation-web",
  "opensesame-session-observe",
+ "secrecy",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]
@@ -4497,6 +4566,7 @@ dependencies = [
 name = "opensesame-session-observe"
 version = "0.1.0"
 dependencies = [
+ "opensesame-agent-events",
  "serde",
  "thiserror 2.0.19",
 ]
@@ -4552,6 +4622,37 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "opensesame-surrogate-proxy"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "opensesame-agent-events",
+ "opensesame-invoke-through",
+ "opensesame-plugin-settings",
+ "opensesame-transport-security",
+ "rand_core 0.6.4",
+ "rcgen 0.14.9",
+ "rustls",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "zeroize",
 ]
 
 [[package]]
@@ -5929,6 +6030,12 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
+name = "ryu-js"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714"
 
 [[package]]
 name = "salsa20"

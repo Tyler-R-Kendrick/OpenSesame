@@ -19,6 +19,7 @@ import {
 } from "@opensesame/os-domain";
 import { localNetworkFetch } from "../local-network-fetch.js";
 import type { DrivePairing } from "./pairing.js";
+import { currentTailnet, tailnetSyncHeaders } from "./saved-connector.js";
 import { type DriveSnapshot, parseDriveSnapshot } from "./snapshot.js";
 
 export type DriveRead = { generation: number; snapshot: DriveSnapshot | null };
@@ -52,10 +53,13 @@ function slotUrl(pairing: DrivePairing): string {
 }
 
 function headers(pairing: DrivePairing): HeadersInit {
-  return {
-    Authorization: `Bearer ${pairing.key}`,
-    "Content-Type": "application/json",
-  };
+  return tailnetSyncHeaders(
+    {
+      Authorization: `Bearer ${pairing.key}`,
+      "Content-Type": "application/json",
+    },
+    currentTailnet(),
+  );
 }
 
 function generationOf(json: BoundaryValue): number {

@@ -165,7 +165,7 @@ describe("the editor for a type installed at runtime", () => {
       (option) => option.value,
     );
     expect(options).toContain("safe-deposit");
-    expect(options).toContain("login");
+    expect(options).toContain("secret");
   });
 
   it("draws the fields the definition declares, with no per-type code", () => {

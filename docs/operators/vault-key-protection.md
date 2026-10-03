@@ -3,11 +3,39 @@
 ## What protects a vault
 
 Settings → **Security → Vault key protection** lists enrolled methods for the
-active vault (Password, PIN, Passkey/PRF, age recipient, recovery key, cloud
-KMS, …). Each enrolled method can unlock the vault **alone** (any-of).
+active vault. In the browser, **Add** enrolls a recovery key, a passkey, an age
+recipient, an age passkey, AWS KMS or Google Cloud KMS
+([ADR 0152](../adr/0152-browser-key-protector-enrollment.md)); each is opened
+again before it is saved, and **Test** proves it later:
 
-Settings → **Connections** only stores how this runtime authenticates to a
-provider. A connection preference is **not** enrollment.
+| Method | Test asks for |
+| --- | --- |
+| Recovery key | the secret shown once at enrollment |
+| age recipient | the age identity (`AGE-SECRET-KEY-1…`); a recipient enrolled without one stays *Untested* until then |
+| age passkey | the passkey |
+| AWS KMS, Google Cloud KMS | nothing typed — the connection saved on this device |
+
+An age identity made in the browser is saved to a file once (`age-keygen`
+format, so `age -d -i <file>` reads it) and never stored; keep it outside the
+vault. AWS and Google credentials are saved sealed in the vault and used only
+for the call; a cloud protector whose credential is in the vault it protects is
+a path for someone holding that credential elsewhere, not a way into this vault
+from this browser.
+
+Only password, PIN and passkey wraps enrolled under **Unlock methods** open the
+vault at the unlock screen; **Preferred** chooses among them, and their rows are
+removed under Unlock methods. Every other method is a capsule that Test opens.
+
+YubiKey PIV, Azure Key Vault Keys and a device-local key are **not** enrolled in
+the browser (ADR 0152); the native client keeps them.
+
+Settings → **Connections** stores the AWS and Google credentials the Add sheet
+uses. A connection is **not** enrollment, and it cannot be removed while a
+protector on its key is enrolled.
+
+An operator who narrows `connect-src` must allow the regional
+`kms.<region>.amazonaws.com`, `cloudkms.googleapis.com` and
+`oauth2.googleapis.com` for cloud enrollment.
 
 CLI (native sealed store):
 

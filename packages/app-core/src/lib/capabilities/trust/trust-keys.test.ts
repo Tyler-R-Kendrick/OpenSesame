@@ -56,6 +56,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       instanceId: INSTANCE,
       next,
       retire: false,
+      sequence: 1,
     });
     const result = await rotatePolicyKey(
       { [current.kid]: current.publicJwk },
@@ -63,6 +64,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       {
         instanceId: INSTANCE,
         now: NOW,
+        appliedSequence: 0,
       },
     );
     expect(result.ok).toBe(true);
@@ -75,6 +77,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       instanceId: INSTANCE,
       next,
       retire: true,
+      sequence: 1,
     });
     const retired = await rotatePolicyKey(
       { [current.kid]: current.publicJwk },
@@ -82,6 +85,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       {
         instanceId: INSTANCE,
         now: NOW,
+        appliedSequence: 0,
       },
     );
     expect(retired.ok && Object.keys(retired.keys)).toEqual([next.kid]);
@@ -89,11 +93,12 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
 
   it("refuses rotations the trusted key did not authorize", async () => {
     const trusted = { [current.kid]: current.publicJwk };
-    const opts = { instanceId: INSTANCE, now: NOW };
+    const opts = { instanceId: INSTANCE, now: NOW, appliedSequence: 0 };
     const byAttacker = await signPolicyKeyRotation(attacker, {
       instanceId: INSTANCE,
       next,
       retire: false,
+      sequence: 1,
     });
     expect(await rotatePolicyKey(trusted, byAttacker, opts)).toEqual({
       ok: false,
@@ -113,6 +118,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       instanceId: INSTANCE,
       next: attacker,
       retire: false,
+      sequence: 1,
     });
     expect(await rotatePolicyKey(trusted, selfSigned, opts)).toEqual({
       ok: false,
@@ -122,6 +128,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       instanceId: INSTANCE,
       next,
       retire: false,
+      sequence: 1,
     });
     expect(
       await rotatePolicyKey(
@@ -149,6 +156,7 @@ describe("policy keys and rotation (S03, TRUST-07)", () => {
       instanceId: INSTANCE,
       next,
       retire: false,
+      sequence: 1,
       notBefore: "2026-10-01T00:00:00.000Z",
     });
     expect(await rotatePolicyKey(trusted, future, opts)).toEqual({

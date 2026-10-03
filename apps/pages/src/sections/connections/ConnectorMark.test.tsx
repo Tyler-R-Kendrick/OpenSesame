@@ -1,10 +1,17 @@
 /** @vitest-environment jsdom */
 import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { ConnectorMark } from "./ConnectorMark.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  ConnectorMark,
+  connectorMarkLookup,
+  resetConnectorMarkLookup,
+} from "./ConnectorMark.js";
 import { adaptiveHex, connectorMark, monogram } from "./connector-marks.js";
 
-afterEach(cleanup);
+afterEach(() => {
+  resetConnectorMarkLookup();
+  cleanup();
+});
 
 describe("connector-marks", () => {
   it("keeps readable brand colors and drops near-black ones", () => {
@@ -28,6 +35,10 @@ describe("connector-marks", () => {
 });
 
 describe("ConnectorMark", () => {
+  beforeEach(() => {
+    connectorMarkLookup.find = connectorMark;
+  });
+
   it("renders a brand path for a known provider", () => {
     const { container } = render(
       <ConnectorMark providerId="linear" displayName="Linear" />,

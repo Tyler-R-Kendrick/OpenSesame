@@ -59,7 +59,7 @@ Flag legend: `playwright_e2e` = built dist + Playwright user path; `integration_
 | J-CONFIG | verified | `verify-experience-journeys`: Visual Night → Source comment + `autoLockMinutes` 7 → Save → lock/unlock/reload | playwright_e2e |
 | J-FILE | verified | Settings vs `settings/prefs.yaml`; command bar refuses grants/traversal | playwright_e2e |
 | J-CONFLICT | verified | Two Playwright pages, OPFS CAS refuse stale save | playwright_e2e |
-| J-NAV | verified | Remap `j`→`item.edit`, pin view, survive lock/reload | playwright_e2e |
+| J-NAV | verified | Remap `j`→`item.edit`, no approvals view in Settings, survive lock/reload | playwright_e2e |
 | J-APP | verified | Local Identity application registration | playwright_e2e |
 | J-RECIPE | verified | Export omits `clientSecret`; apply twice → one row | playwright_e2e |
 | J-TYPES | verified | Install/remove Event ticket; no-reload copy | playwright_e2e |

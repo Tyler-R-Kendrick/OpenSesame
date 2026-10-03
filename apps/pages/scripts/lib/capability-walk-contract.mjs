@@ -14,22 +14,21 @@ import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
+  capabilityOnSwitch,
   capabilitySwitch,
 } from "./always-on.mjs";
-
-/** Rail rows an installation that has approved nothing must not have. */
-const GATED_RAIL_ROWS = ["wallet/"];
+import { openSessionMenu, openSessionSection } from "./session-section.mjs";
 
 /**
- * Rail rows of always-on capabilities (ADR 0135): there before any choice.
- * Identity is browser-local IAM's, always on since ADR 0142.
+ * Rail rows an installation that has approved nothing must not have.
+ * Connections, Access and Identity are optional extensions (ADR 0153).
  */
-const ALWAYS_ON_RAIL_ROWS = [
-  "identity/",
-  "connections/",
-  "access/",
-  "activity/",
-];
+const GATED_RAIL_ROWS = ["wallet/", "connections/", "access/", "identity/"];
+
+/**
+ * Activity is always on, and it is a session root rather than a rail
+ * directory. The session menu is what proves it is still there.
+ */
 
 /** A. Nothing optional is on the rail before anything is chosen. */
 export async function checkGatedSectionsAbsent(page, check) {
@@ -42,17 +41,52 @@ export async function checkGatedSectionsAbsent(page, check) {
       `${row} is absent until its capability is approved`,
     );
   }
-  for (const row of ALWAYS_ON_RAIL_ROWS) {
+  check(
+    rows.some((text) => text.startsWith("vault/")),
+    "the vault is the rail root regardless",
+  );
+  check(
+    !rows.some(
+      (text) => text.startsWith("settings/") || text.startsWith("activity/"),
+    ),
+    "settings and activity are session roots, not rail directories",
+  );
+  await openSessionMenu(page);
+  const menu = page.getByRole("menu");
+  check(
+    (await menu
+      .getByRole("menuitem", { name: "Settings", exact: true })
+      .count()) === 1,
+    "the session menu offers Settings",
+  );
+  check(
+    (await menu
+      .getByRole("menuitem", { name: "Activity", exact: true })
+      .count()) === 1,
+    "the session menu offers Activity: it is always on",
+  );
+  await page.keyboard.press("Escape");
+  // The minimal vault creates the base secret only (ADR 0153).
+  check(
+    (await page.locator('.railtree__kids a[href$="/vault?f=secret"]').count()) >
+      0,
+    "secret: the base kind is there with nothing chosen",
+  );
+  for (const kind of [
+    "login",
+    "note",
+    "card",
+    "passkey",
+    "certificate",
+    "drop",
+  ]) {
     check(
-      rows.some((text) => text.startsWith(row)),
-      `${row} is there with nothing chosen: it is always on`,
+      (await page
+        .locator(`.railtree__kids a[href$="/vault?f=${kind}"]`)
+        .count()) === 0,
+      `${kind}: absent until its item type is chosen`,
     );
   }
-  check(
-    rows.some((text) => text.startsWith("vault/")) &&
-      rows.some((text) => text.startsWith("settings/")),
-    "the core sections are there regardless",
-  );
   // Guided help is always on, so the statusline's Support key is there
   // before anything is chosen.
   check(
@@ -63,7 +97,7 @@ export async function checkGatedSectionsAbsent(page, check) {
 
 /** Open Settings › Capabilities from wherever the walk is. */
 async function openCapabilities(page) {
-  await page.locator(".railtree__row", { hasText: "settings" }).first().click();
+  await openSessionSection(page, "Settings");
   await page.waitForTimeout(900);
   await page.getByRole("link", { name: "Capabilities", exact: true }).click();
   await page.waitForTimeout(900);
@@ -96,27 +130,26 @@ export async function addCapability(page, check, snap, title, rail = null) {
   check((await add.count()) === 1, `Settings offers a way to add ${title}`);
   await add.click();
   await page.waitForTimeout(700);
-  const review = await page
-    .locator('[data-testid="capability-review"]')
-    .innerText();
   await snap(page, `add-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
   check(
-    review.includes(title),
-    `the review for ${title} names the capability it would start`,
+    (await page.locator('[data-testid="capability-review"]').count()) === 0,
+    `${title} commits in place and stays on the capabilities page`,
   );
-  const enableRow = review.split("enable")[1] ?? "";
   check(
-    enableRow.trimStart().startsWith(title),
-    `the review's enable row states ${title}, not "—"`,
+    (await capabilityOnSwitch(page, title).count()) === 1,
+    `${title} is running after its switch`,
   );
-  const apply = page.getByRole("button", { name: /Apply configuration/ });
-  check(!(await apply.isDisabled()), `Apply is offered for ${title}`);
-  await apply.click();
-  await page.waitForTimeout(2200);
   // Not every capability owns a section — some add a tab or a control to one
   // the plan already has — so a caller names a rail row only where there is
   // one to name, and the presence check is skipped rather than faked.
   if (rail === null) return;
+  // Approving a section from Settings leaves the tree rooted there. The
+  // new row is on the vault rail, behind the back key.
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if ((await back.count()) > 0) {
+    await back.click();
+    await page.waitForTimeout(700);
+  }
   const rows = (await page.locator(".railtree__row").allTextContents()).map(
     (text) => text.trim(),
   );
@@ -139,10 +172,14 @@ export async function addCapability(page, check, snap, title, rail = null) {
 export async function chooseInSetup(page, titles) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   await page.waitForTimeout(900);
+  // ADR 0154: the configuration choice sits in front of the ceremony.
+  await page.getByRole("button", { name: "Custom", exact: true }).click();
+  await page.waitForTimeout(700);
   await page
     .getByRole("button", { name: /Customize this installation/ })
     .click();
   await page.waitForTimeout(700);
+  // The Custom purpose is what puts every capability card on screen.
   await page.getByRole("button", { name: /^Custom/ }).click();
   await page.waitForTimeout(900);
   for (const title of titles) {

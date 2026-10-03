@@ -41,7 +41,7 @@ export const REGISTERED_ACTIONS: readonly RegisteredAction[] = [
   },
   {
     id: "item.share",
-    label: "Share once",
+    label: "Share",
     defaultKeys: ["s"],
     kind: "authority",
     requiresConfirmation: true,

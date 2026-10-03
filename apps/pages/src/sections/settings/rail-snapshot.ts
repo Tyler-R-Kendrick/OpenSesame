@@ -1,9 +1,12 @@
-import { resolveDuressMode } from "@opensesame/app-core/lib/duress/feature/mode.js";
+import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
 import { useMemo } from "react";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
+import { featureDraws } from "./provider-tile-items.js";
+import { useDuressPanelShown } from "./security/DuressPanel.js";
 import { useAccountFactorsOffered } from "./security/account-offered.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
@@ -17,7 +20,12 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const guests = useGuestRowShown();
   const instancePolicy = useDeviceOperator();
   const account = useAccountFactorsOffered();
+  const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
+  const roads = useConnectorRoads();
+  const emptyFeatures = FEATURES.filter(
+    (feature) => !featureDraws(feature, roads.acts),
+  ).map((feature) => feature.id);
   const contributed = useMemo(
     () =>
       panels.map(({ id, label, category, order }) => ({
@@ -34,6 +42,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     instancePolicy,
     account,
     contributed,
-    duress: resolveDuressMode({}) !== "off",
+    duress,
+    emptyFeatures,
   };
 }

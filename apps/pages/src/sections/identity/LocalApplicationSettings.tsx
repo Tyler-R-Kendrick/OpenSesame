@@ -4,7 +4,6 @@ import {
   defaultScopeRoles,
 } from "@opensesame/app-core/lib/local-application-policy.js";
 import {
-  type LocalApplication,
   type LocalApplications,
   configureLocalApplication,
   readLocalApplications,
@@ -31,6 +30,7 @@ import {
 } from "./LocalApplicationFields.js";
 import { RegistrationActions } from "./RegistrationActions.js";
 import { RegistrationExtras } from "./RegistrationExtras.js";
+import { useRegistrationDraft } from "./registration-draft.js";
 
 type Props = {
   tomb: string;
@@ -246,16 +246,6 @@ function RegistrationEditor({
   );
 }
 
-function registrationDraft(saved: LocalApplication | undefined) {
-  return {
-    organizationId: saved?.organizationId ?? "",
-    redirects: saved?.redirectUris.join("\n") ?? "",
-    scopes: saved?.scopes.join(" ") ?? "openid",
-    scopeRoles:
-      saved?.scopeRoles ?? defaultScopeRoles(saved?.scopes ?? ["openid"]),
-  };
-}
-
 function RegistrationForm({
   model,
   applicationId,
@@ -271,11 +261,8 @@ function RegistrationForm({
   const saved = model.state?.applications.find(
     (app) => app.applicationId === applicationId,
   );
-  const [draft, setDraft] = useState(() => registrationDraft(saved));
+  const [draft, setDraft] = useRegistrationDraft(saved);
   const { organizationId, redirects, scopes, scopeRoles } = draft;
-  useEffect(() => {
-    setDraft(registrationDraft(saved));
-  }, [saved]);
   const organizations = directory.entries.filter(
     (entry) =>
       entry.kind === "organization" &&

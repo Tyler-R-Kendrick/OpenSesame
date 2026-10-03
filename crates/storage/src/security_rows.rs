@@ -1,4 +1,4 @@
-//! Reading a security delivery back: its payload rests sealed (ADR 0150).
+//! Reading a security delivery back: its payload rests sealed (ADR 0155).
 
 use sqlx::{sqlite::SqliteRow, Row};
 

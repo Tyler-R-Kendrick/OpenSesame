@@ -69,4 +69,15 @@ describe("editor item paths", () => {
     expect(body.folders).toHaveLength(1);
     expect(body.items[0]?.folderId).toBe(folder.id);
   });
+  it("prefers an id match over a same-name folder when deduplicating", () => {
+    const body = emptyBody();
+    body.folders = [
+      { id: "a", name: "X", createdAt: "2026-01-01" },
+      { id: "b", name: "Y", createdAt: "2026-01-01" },
+    ];
+    const staged = { id: "b", name: "X", createdAt: "2026-01-01" };
+    writeItem(body, { ...createItem("note"), folderId: staged.id }, staged);
+    expect(body.items[0]?.folderId).toBe("b");
+    expect(body.folders).toHaveLength(2);
+  });
 });

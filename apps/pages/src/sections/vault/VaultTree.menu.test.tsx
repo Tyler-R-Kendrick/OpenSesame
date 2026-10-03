@@ -1,5 +1,5 @@
-import type { SecretItem, VaultItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
+import type { SecretItem, VaultItem } from "@opensesame/vault-core";
 import {
   act,
   cleanup,
@@ -15,7 +15,7 @@ import { closeContextMenu } from "../../components/context-menu/menu-model.js";
 import { gestureLimits } from "../../lib/gestures.js";
 import { VaultTree, vaultTreeSeams } from "./VaultTree.js";
 import { makeLogin, makeNote } from "./section-items.test-support.js";
-import type { VaultTreeActions } from "./vault-menu.js";
+import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 
 Object.assign(vaultTreeSeams, {
   activeTomb: () => "personal",
@@ -33,9 +33,30 @@ function spies(): VaultTreeActions {
     trash: vi.fn(),
     favorite: vi.fn(),
     share: vi.fn(),
+    shareGrant: vi.fn(),
     create: vi.fn(),
     restore: vi.fn(),
     purge: vi.fn(),
+  };
+}
+
+function makeSecret(overrides: Partial<SecretItem> = {}): SecretItem {
+  return {
+    id: "itm_secret",
+    kind: "secret",
+    name: "Deploy key",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    fields: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    deletedAt: null,
+    value: "canary-secret-value",
+    ceiling: [],
+    grantees: [],
+    connectionRef: "",
+    ...overrides,
   };
 }
 
@@ -106,6 +127,38 @@ describe("the vault listing's context menu", () => {
     expect(actions.purge).toHaveBeenCalledTimes(1);
   });
 
+  it("does not offer a new item from the trash directory", () => {
+    const trashed = { ...spies(), inTrash: true };
+    const labels = (row: Parameters<typeof vaultRowMenu>[0]) =>
+      vaultRowMenu(
+        row,
+        trashed,
+        () => undefined,
+        () => undefined,
+      )
+        .flat()
+        .map((entry) => entry.label);
+    expect(labels(null)).toEqual(["Search"]);
+    expect(
+      labels({
+        type: "dir",
+        key: "dir_fld",
+        path: "Work/",
+        name: "Work",
+        count: 1,
+        expanded: true,
+      }),
+    ).toEqual(["Collapse"]);
+    actions = trashed;
+    draw([makeLogin({ deletedAt: "2026-08-03T00:00:00Z" })]);
+    fireEvent.contextMenu(screen.getByRole("tree"));
+    const menu = screen.getByRole("menu", { name: "Vault items" });
+    expect(within(menu).getByRole("menuitem", { name: "Search" })).toBeTruthy();
+    expect(
+      within(menu).queryByRole("menuitem", { name: "New item" }),
+    ).toBeNull();
+  });
+
   it("opens the same menu for a finger held on a row", () => {
     vi.useFakeTimers();
     try {
@@ -128,6 +181,33 @@ describe("the vault listing's context menu", () => {
     }
   });
 
+  it("offers a secret one clipboard action", () => {
+    draw([makeSecret()]);
+    fireEvent.contextMenu(screen.getByText("Deploy key"));
+    const menu = screen.getByRole("menu", { name: "Actions for Deploy key" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual([
+      "Open",
+      "Edit",
+      "Copy to Clipboard",
+      "Favorite",
+      "Share",
+      "Trash",
+    ]);
+    const copy = within(menu).getByRole("menuitem", {
+      name: "Copy to Clipboard",
+    });
+    expect(copy.getAttribute("aria-keyshortcuts")).toBe("y");
+    fireEvent.click(copy);
+    expect(actions.copySecret).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Deploy key" }),
+    );
+    expect(actions.copyUsername).not.toHaveBeenCalled();
+  });
+
   it("shares one list with the row's ⋯ key", () => {
     draw();
     fireEvent.click(
@@ -148,35 +228,35 @@ describe("the vault listing's context menu", () => {
     ]);
   });
 
-  it("offers Share once on a secret only when a capability contributed it", () => {
-    const secret: SecretItem = {
-      ...makeNote({ id: "itm_secret", name: "Deploy token" }),
-      kind: "secret",
-      value: "s3cr3t-value",
-      ceiling: [],
-      grantees: [],
-      connectionRef: "",
-    };
-    draw([secret]);
+  it("opens Share onto the ways out, and the drop keeps the s key", () => {
+    draw([makeSecret({ name: "Deploy token" })]);
     fireEvent.contextMenu(screen.getByText("Deploy token"));
-    const shared = screen.getByRole("menu", {
-      name: "Actions for Deploy token",
-    });
-    expect(
-      within(shared).getByRole("menuitem", { name: "Share once" }),
-    ).toBeTruthy();
-    act(() => closeContextMenu());
-    cleanup();
+    const menu = screen.getByRole("menu", { name: "Actions for Deploy token" });
+    const share = within(menu).getByRole("menuitem", { name: "Share" });
+    expect(share.getAttribute("aria-haspopup")).toBe("menu");
+    fireEvent.click(share);
+    const ways = screen.getByRole("menu", { name: "Share" });
+    const drop = within(ways).getByRole("menuitem", { name: "Temporary drop" });
+    expect(drop.getAttribute("aria-keyshortcuts")).toBe("s");
+    fireEvent.click(drop);
+    expect(actions.share).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Deploy token" }),
+    );
+  });
 
-    const { share: _share, ...withoutShare } = actions;
-    actions = withoutShare;
-    draw([secret]);
-    fireEvent.contextMenu(screen.getByText("Deploy token"));
-    const plain = screen.getByRole("menu", {
-      name: "Actions for Deploy token",
-    });
-    expect(
-      within(plain).queryByRole("menuitem", { name: "Share once" }),
-    ).toBeNull();
+  it("offers neither way out for a record that is not a secret", () => {
+    draw([makeNote()]);
+    fireEvent.contextMenu(screen.getByText("Scratch pad"));
+    const menu = screen.getByRole("menu");
+    expect(within(menu).queryByRole("menuitem", { name: /Share/ })).toBeNull();
+  });
+
+  it("says on the row that a secret somebody else can open is shared", () => {
+    draw([makeSecret({ grantees: ["agt_release_bot"] })]);
+    expect(screen.getByTitle("Shared with agt_release_bot")).toBeTruthy();
+
+    cleanup();
+    draw([makeSecret()]);
+    expect(screen.queryByTitle(/^Shared with/)).toBeNull();
   });
 });

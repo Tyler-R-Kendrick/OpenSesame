@@ -94,9 +94,13 @@ function liveSession(token: string | null): DeviceSession | null {
 }
 
 function mintProvisional(): Response {
+  const now = Date.now();
+  for (const [token, row] of sessionsByToken) {
+    if (row.expiresAtMs <= now) sessionsByToken.delete(token);
+  }
   const principalId = `prn_${bytesToB64url(crypto.getRandomValues(new Uint8Array(12)))}`;
   const accessToken = `dev_${bytesToB64url(crypto.getRandomValues(new Uint8Array(24)))}`;
-  const expiresAtMs = Date.now() + PROVISIONAL_TTL_MS;
+  const expiresAtMs = now + PROVISIONAL_TTL_MS;
   sessionsByToken.set(accessToken, { principalId, accessToken, expiresAtMs });
   return json(
     {
@@ -247,7 +251,13 @@ function matchCorePath(
     return { kind: "exact", route: "present" };
   }
   const poll = /^\/v1\/claims\/([^/]+)\/poll$/.exec(bare);
-  if (poll?.[1]) return { kind: "poll", claimId: decodeURIComponent(poll[1]) };
+  if (poll?.[1]) {
+    try {
+      return { kind: "poll", claimId: decodeURIComponent(poll[1]) };
+    } catch {
+      return { kind: "other" };
+    }
+  }
   return { kind: "other" };
 }
 
@@ -294,6 +304,14 @@ async function handleCoreRoute(
   return notImplemented(path);
 }
 
+/** Extended routes `identity.local-iam` serves. Absent, those routes refuse. */
+export const deviceIdentitySeams = {
+  dispatchExtended: async (
+    _path: string,
+    _method: string,
+  ): Promise<Response | null> => null,
+};
+
 export async function deviceIdentityFetch(
   path: string,
   init: RequestInit = {},
@@ -306,12 +324,9 @@ export async function deviceIdentityFetch(
     return pollClaim(matched.claimId, init);
   }
   if (matched.kind === "other") {
-    // The local IAM routes sit above this host (they read the vault and the
-    // local directory), so they load on first use rather than at import.
-    const { dispatchExtendedDeviceRoute } = await import(
-      "./device-identity-local.js"
-    );
-    const extended = await dispatchExtendedDeviceRoute(path, method);
+    // Local IAM routes read the vault and the directory. That module installs
+    // the dispatcher while it is on; otherwise the route is not implemented.
+    const extended = await deviceIdentitySeams.dispatchExtended(path, method);
     return extended ?? notImplemented(path.split("?")[0] ?? path);
   }
   return handleCoreRoute(matched.route, method, init, path);

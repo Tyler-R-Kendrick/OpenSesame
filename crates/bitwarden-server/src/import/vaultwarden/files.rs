@@ -16,23 +16,34 @@ use crate::hashing::pbkdf2_sha256_record;
 use crate::import::{leave, ArrivingAttachment, ArrivingSend, FileSource, LeftBehind};
 use crate::wire::cipher::is_enc_string;
 
-/// The personal ciphers' attachments that arrived with the account.
+/// Whose ciphers' files are read: an account's own, or an organization's.
+#[derive(Clone, Copy)]
+pub(super) enum Owner<'a> {
+    Account(&'a str),
+    Organization(&'a str),
+}
+
+/// The attachments of `ciphers` — the owner's ciphers that arrived.
 pub(super) async fn attachments(
     pool: &SqlitePool,
     schema: &Schema,
     data: &Path,
-    user_id: &str,
+    owner: Owner<'_>,
     ciphers: &HashSet<String>,
     left: &mut LeftBehind,
 ) -> anyhow::Result<Vec<ArrivingAttachment>> {
     if !schema.tables.contains("attachments") {
         return Ok(Vec::new());
     }
-    let rows = sqlx::query(
+    let (column, id, user_id) = match owner {
+        Owner::Account(id) => ("user_uuid", id, Some(id.to_owned())),
+        Owner::Organization(id) => ("organization_uuid", id, None),
+    };
+    let rows = sqlx::query(&format!(
         "SELECT a.id, a.cipher_uuid, a.file_name, a.file_size, a.akey FROM attachments a \
-         JOIN ciphers c ON c.uuid = a.cipher_uuid WHERE c.user_uuid = ?",
-    )
-    .bind(user_id)
+         JOIN ciphers c ON c.uuid = a.cipher_uuid WHERE c.{column} = ?"
+    ))
+    .bind(id)
     .fetch_all(pool)
     .await?;
     let mut arriving = Vec::new();
@@ -54,7 +65,7 @@ pub(super) async fn attachments(
             attachment: BitwardenAttachment {
                 id,
                 cipher_id,
-                user_id: Some(user_id.to_owned()),
+                user_id: user_id.clone(),
                 file_name,
                 key: text(row, "akey"),
                 size: int(row, "file_size").unwrap_or(0),

@@ -12,7 +12,7 @@ import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import type { Folder, LoginItem, VaultItem } from "@opensesame/vault-core";
-import { connectivityBarDependencies } from "../../components/ConnectivityBar.js";
+import { connectionCeremonyDependencies } from "../../components/ConnectionCeremony.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { IMPORT_COMMAND } from "../../modules/vault.interop-formats/runtime.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";
@@ -64,7 +64,7 @@ Object.assign(vaultTreeSeams, {
   loadCollapsed: async (): Promise<string[]> => [],
   saveCollapsed: async (): Promise<void> => undefined,
 });
-Object.assign(connectivityBarDependencies, {
+Object.assign(connectionCeremonyDependencies, {
   useConnectors: () => connectors.current,
   checkNow: () => undefined,
 });
@@ -75,7 +75,6 @@ import {
   isMountedGuideTarget,
   resolveGuideTargetElement,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { ConnectivityBar } from "../../components/ConnectivityBar.js";
 import { VaultSection } from "../../sections/VaultSection.js";
 import { CatalogPanel } from "../../sections/connections/CatalogPanel.js";
 import { ConnectedPanel } from "../../sections/connections/ConnectedPanel.js";
@@ -99,22 +98,6 @@ function provider(): Provider {
   };
 }
 
-function connectorStatus(
-  overrides: Partial<ConnectorStatus> = {},
-): ConnectorStatus {
-  return {
-    id: "identity",
-    name: "Identity",
-    tone: "live",
-    detail: "127.0.0.1:18788",
-    failure: null,
-    lastCheckedAt: null,
-    checking: false,
-    rttMs: null,
-    ...overrides,
-  };
-}
-
 function weakLogin(): LoginItem {
   return {
     id: "itm_1",
@@ -127,7 +110,6 @@ function weakLogin(): LoginItem {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     deletedAt: null,
-    sample: false,
     username: "me@example.invalid",
     password: "abc",
     totp: "",
@@ -245,39 +227,9 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("vault.health.findings")).toBe(false);
   });
 
-  // The statusline carried five glyphs, the Host among them; the Host glyph
-  // left it with the Host plane (ed1d403d, ADR 0090 — Pages never names a
-  // Host). Identity is the one authority plane left there to point at; the
-  // key vault glyph stays reachable but is not a support target. The Host's
-  // target went with its glyph: a model is never offered an id that cannot
-  // mount (ADR 0088).
-  it("binds only the identity plane on the statusline", () => {
-    connectors.current = [
-      connectorStatus({ detail: "signed in" }),
-      connectorStatus({
-        id: "keys",
-        name: "Key vault",
-        detail: "WebCrypto",
-      }),
-    ];
-    render(
-      <MemoryRouter>
-        <ConnectivityBar />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getAllByRole("button", { name: / — / })).toHaveLength(2);
-    expect(isMountedGuideTarget("connectivity.identity")).toBe(true);
-    expect(
-      resolveGuideTargetElement("connectivity.identity")?.getAttribute(
-        "aria-label",
-      ),
-    ).toBe("Identity — signed in");
+  it("does not offer identity or key-vault glyphs as support targets", () => {
+    expect(isKnownGuideTarget("connectivity.identity")).toBe(false);
     expect(isKnownGuideTarget("connectivity.host")).toBe(false);
-    expect(isMountedGuideTarget("connectivity.host")).toBe(false);
-    expect(resolveGuideTargetElement("connectivity.identity")).toBe(
-      screen.getByRole("button", { name: "Identity — signed in" }),
-    );
   });
 
   /**

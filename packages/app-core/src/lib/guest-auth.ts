@@ -21,9 +21,8 @@ import {
   identityJson,
   isRemoteIdentityConfigured,
 } from "./identity.js";
-import { ensureDefaultAccess } from "./local-access-bootstrap.js";
 import {
-  mintGuestSessionPerson,
+  mintGuestSessionPersonLocked,
   readGuestSessionPerson,
 } from "./local-guest.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
@@ -59,6 +58,8 @@ export const guestAuthDependencies = {
     vaultStore.createGuest(options),
   vaultStatus: () => vaultStore.getSnapshot().status,
   loadFederationSession,
+  /** Identity installs the directory seed; a minimal vault leaves it undone. */
+  ensureDefaultAccess: async (_tomb: string): Promise<void> => {},
 };
 // Stryker restore all
 
@@ -164,7 +165,7 @@ async function seedGuestAccess(): Promise<void> {
   try {
     // Seed the tomb this guest session actually unlocked — always the guest
     // isolation tomb after createGuest, never a member vault.
-    await ensureDefaultAccess(vaultStore.activeTomb());
+    await guestAuthDependencies.ensureDefaultAccess(vaultStore.activeTomb());
   } catch {
     /* Access seeds when Identity/Access opens; guest entry must not fail. */
   }
@@ -173,9 +174,9 @@ async function seedGuestAccess(): Promise<void> {
 async function openGuestVault(mode: "fresh" | "resume"): Promise<void> {
   // Both guest roads end here, so the operator's switch is enforced here too.
   assertGuestsAllowed();
-  // A fresh guest always mints a new principal (`guest-N`); a resume mints
-  // one only when no principal survived the lock.
-  if (mode === "fresh" || !readGuestSessionPerson()) mintGuestSessionPerson();
+  // Fresh mints a new principal (`guest-N`); resume only when none survived.
+  if (mode === "fresh" || !readGuestSessionPerson())
+    await mintGuestSessionPersonLocked();
   await guestAuthDependencies.createGuest({ resume: mode === "resume" });
   await seedGuestAccess();
 }

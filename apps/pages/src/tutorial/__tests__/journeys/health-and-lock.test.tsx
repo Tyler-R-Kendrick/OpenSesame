@@ -3,9 +3,8 @@
 /**
  * Two questions with a checked-in answer, asked of a model.
  *
- * "Is this thing healthy?" has two honest answers in this app, and the
- * authored walkthrough gives both — the statusline for the planes, Vault
- * health for the items. "Where do I lock?" has one, and the interesting part
+ * "Is this thing healthy?" is answered by Vault health. Connections live in
+ * Settings. "Where do I lock?" has one answer, and the interesting part
  * is what the walkthrough does *not* do with it: a guide points, and a person
  * decides. Nothing in this system may press a control on somebody's behalf,
  * least of all the one that drops their keys.
@@ -35,10 +34,10 @@ function authored(id: string): string {
 describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
-  it("shows the planes on the statusline, then walks to the report on the items", async () => {
+  it("walks to the report on the items", async () => {
     const journey = renderJourney(
       fakeAgentAnswering(
-        "Two different questions, and this walks you through both.",
+        "Vault health lists weak, reused and aging items.",
         authored("host.health.check"),
       ),
     );
@@ -47,21 +46,8 @@ describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
     await openSupport(user);
     await askSupport(user, "How do I check whether OpenSesame is healthy?");
 
-    // First half of the answer: plane reachability, on the one strip that is
-    // on screen at every width.
-    await waitFor(() =>
-      expect(journey.focused()).toEqual(["shell.connectivity"]),
-    );
-    expect(journey.drawn()[0]).toMatchObject({
-      kind: "focus",
-      target: "shell.connectivity",
-      side: "top",
-    });
-    expect(
-      resolveGuideTargetElement("shell.connectivity")?.closest(".statusline"),
-    ).not.toBeNull();
-
-    // Second half: the walkthrough takes the person to the report itself.
+    expect(journey.focused()).toEqual([]);
+    // The walkthrough takes the person to the report itself.
     await waitFor(() =>
       expect(journey.navigations()).toEqual(["/vault/health"]),
     );
@@ -84,10 +70,7 @@ describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
       goal: "host.health.check",
     });
     // It ended, so it took its overlay with it.
-    expect(journey.drawn().map((call) => call.kind)).toEqual([
-      "focus",
-      "clear",
-    ]);
+    expect(journey.drawn().map((call) => call.kind)).toEqual(["clear"]);
 
     await openSupport(user);
     expect(await screen.findByText("This is Vault health.")).toBeTruthy();

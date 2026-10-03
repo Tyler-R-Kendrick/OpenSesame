@@ -46,8 +46,6 @@ type BaseItem = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  /** Set on items created by "load sample vault" so they can be told apart and purged. */
-  sample?: boolean;
 };
 
 export type LoginItem = BaseItem & {
@@ -57,8 +55,8 @@ export type LoginItem = BaseItem & {
   /** Base32 TOTP seed, or an otpauth:// URI. Empty when the login has no 2FA. */
   totp: string;
   uris: LoginUri[];
-  /** ISO date the password itself last changed — drives the health report. */
   passwordChangedAt: string;
+  resetEmailId?: string;
   supersededById?: string;
   retiredAt?: string | null;
   reenrollState?: ReenrollState;
@@ -124,12 +122,9 @@ export type SecretItem = BaseItem & {
    * an agent. It only matters when granting the secret, and it never widens.
    */
   ceiling: CapabilityGrant[];
-  /**
-   * Optional grant metadata: agent identifiers permitted to request a grant.
-   * It only matters when granting the secret to an agent.
-   */
+  /** Agents that may request a grant of this secret. */
   grantees: string[];
-  /** ConnectionRef the Host plane uses to invoke with this secret. */
+  /** Round-trips secrets saved before connection references moved off this type. */
   connectionRef: string;
 };
 
@@ -428,7 +423,9 @@ export function itemSubtitle(item: VaultItem): string {
     case "card":
       return item.number ? `•••• ${item.number.slice(-4)}` : item.brand;
     case "secret":
-      return item.connectionRef || `${item.ceiling.length} capabilities`;
+      return item.ceiling.length > 0
+        ? `${item.ceiling.length} capabilities`
+        : "";
     case "note": {
       const firstLine = item.notes.split("\n")[0]?.slice(0, 64);
       if (firstLine) return firstLine;
@@ -495,7 +492,7 @@ export function searchMatches(item: VaultItem, query: string): boolean {
   if (item.kind === "passkey") haystack.push(item.username, item.rpId);
   if (item.kind === "card") haystack.push(item.brand, item.cardholder);
   if (item.kind === "secret") {
-    haystack.push(item.connectionRef, ...item.grantees);
+    haystack.push(...item.grantees);
   }
   if (item.kind === "certificate") {
     haystack.push(item.commonName, item.dnsNames, item.serial);

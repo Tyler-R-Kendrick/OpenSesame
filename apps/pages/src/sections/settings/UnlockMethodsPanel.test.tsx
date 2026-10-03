@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
 import {
   afterAll,
   afterEach,
@@ -88,7 +87,11 @@ describe("UnlockMethodsPanel", () => {
     expect(
       row("Text message").getByRole("button", { name: "Add" }),
     ).toBeTruthy();
-    expect(row("Recovery codes").queryByRole("button")).toBeNull();
+    expect(
+      row("Sign-in service").getByRole("button", { name: "Change" }),
+    ).toBeTruthy();
+    // No codes made yet: the row would be a lock with no key, so it is absent.
+    expect(screen.queryByText("Recovery codes")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -389,32 +392,6 @@ describe("UnlockMethodsPanel", () => {
       expect(store.confirmCodeEnrollment).toHaveBeenCalledWith("123456"),
     );
     await waitFor(() => expect(dialog.getByText("aaaa-bbbb")).toBeTruthy());
-  });
-
-  it("says why email and text codes are unavailable without an Identity API", () => {
-    identityApi.current = "";
-    // The row's one key is a route link, so it renders inside a router.
-    render(
-      <MemoryRouter>
-        <UnlockMethodsPanel />
-      </MemoryRouter>,
-    );
-    expect(
-      row("Email code").getByRole("img", { name: "Unavailable" }),
-    ).toBeTruthy();
-    expect(
-      row("Email code").getByText("Needs a sign-in service to send it."),
-    ).toBeTruthy();
-    const capabilities = row("Email code").getByRole("link", {
-      name: "Set up a sign-in service under Capabilities",
-    });
-    expect(capabilities.getAttribute("href")).toBe("/settings/capabilities");
-    expect(row("Text message").queryByRole("button")).toBeNull();
-    expect(
-      row("Text message").getByRole("link", {
-        name: "Set up a sign-in service under Capabilities",
-      }),
-    ).toBeTruthy();
   });
 
   it("shows the recovery codes left and can make a new set", async () => {

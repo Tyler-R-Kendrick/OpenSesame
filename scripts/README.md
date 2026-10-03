@@ -59,6 +59,7 @@ behaviour) and `shuttle` (concurrency). Each writes its report under
 | `battle-test.sh` | part of `verify` | The cross-plane battle test. |
 | `task-security-battle-test.sh` | `test:task-access` | Task-access engine under attack scenarios. |
 | `nats-dogfood-test.sh` | `test:nats-dogfood` | TaskBus against a real `nats-server`. |
+| `live-fixtures.sh` | `test:live-fixtures` | The nats-server pin, an ntfy built from pinned upstream source, and `live-turn` (`scripts/test/live-turn`, pion/turn over UDP, TCP and TLS), for `verify:live-join`'s carriers and TURN walks. |
 | `connect-preflight.mjs` | `test:connect-preflight` | Every connector's real endpoints, read-only: OAuth authorize and discovery, MCP metadata, API-key verify ([ADR 0147](../docs/adr/0147-connector-plans-and-user-token-proof.md)). Logic in `lib/connect-preflight.mjs`. |
 | `live-stack-test.sh` | `test:live-stack` | Live OpenFGA, OpenBao and gateway (start them with `dev/start-native-deps.sh`). |
 | `authority-fabric-gate.mjs` | `test:authority-fabric` | The general-authority scenario matrix across both planes. |

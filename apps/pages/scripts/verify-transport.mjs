@@ -1,5 +1,6 @@
-// The transport panel as a static front end must carry it (ADR 0090, the
-// mTLS directive's STATIC-CORE and BROWSER-BOUNDARY invariants).
+// The browser draws no Transport panel (ADR 0090, the mTLS directive's
+// STATIC-CORE and BROWSER-BOUNDARY invariants). Host transport stays on
+// the authority plane.
 //
 //   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 //   PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
@@ -8,42 +9,36 @@
 // Served out of `dist/` under the production origin exactly as
 // `verify-static-origin.mjs` serves it; every other origin is refused.
 //
-//   AT-STATIC-EMPTY     empty runtime endpoints: guest → Settings › Security ›
-//                       Transport renders five idle rows and the tab makes
-//                       zero requests to any other origin
-//   AT-STATIC-BADREMOTE an endpoint that cannot answer, set through the
-//                       settings UI: only the observed row degrades; guest,
-//                       vault and settings stay complete
-//   AT-BROWSER-CACHE    after the status changed, no copy says local data
-//                       was erased or that the vault is now TLS-gated
-//   AT-BROWSER-UX       keyboard reaches every transport control at 1280
-//                       and 390; the phone contract holds at 320/390/430
-//                       and landscape in a real coarse-pointer context
+//   AT-STATIC-EMPTY     guest → Settings › Security draws no Transport panel,
+//                       and the tab makes zero requests to any other origin
+//   AT-STATIC-BADREMOTE an endpoint set through the settings file is not
+//                       probed from the page; guest, vault and settings stay
+//                       complete
+//   AT-BROWSER-CACHE    the vault copy claims no erasure and no TLS gate
+//   AT-BROWSER-UX       the phone contract holds on Security at 320/390/430
+//                       and landscape, with no transport control to measure
 //
 // Fails on any page error, console error, loopback request, or check below.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect } from "@playwright/test";
 import { addCapability } from "./lib/capability-walk-contract.mjs";
 import {
   AUDIT,
   PHONES,
-  TOUCH_FLOOR,
+  TABLETS,
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
 import { openConfigFile, openConfigForm } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { createEmptyJourney } from "./lib/transport-empty-journey.mjs";
 import {
-  DIMENSIONS,
   NO_SUCH_CLAIM,
   guest,
   measure,
   openSection,
-  openTransport,
-  tabTo,
-  tone,
+  openSecurity,
 } from "./lib/transport-journey.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -54,8 +49,6 @@ const OUT = path.resolve(
   process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-transport-verification",
 );
 const BAD_REMOTE = "https://bad-remote.invalid";
-const STATUS = `${BAD_REMOTE}/api/v1/operator/transport/status`;
-const VERIFY = `${BAD_REMOTE}/api/v1/operator/transport/verify`;
 
 if (!fs.existsSync(path.join(DIST, "index.html"))) {
   console.error(`no build at ${DIST} — run the pages build first`);
@@ -86,77 +79,26 @@ async function measured(page, label) {
   return m;
 }
 
-async function verifyKey(page) {
-  return page.getByRole("button", { name: /enforcement verification/ });
-}
-
-/** AT-STATIC-EMPTY and the keyboard, at one width with a mouse. */
-async function emptyJourney(browser, width) {
-  const step = `empty-${width}`;
-  const { page, context } = await harness.newPage(browser, {
-    device: { viewport: { width, height: 900 } },
-  });
-  setStep(step);
-  await guest(page, ORIGIN, BASE);
-  await openTransport(page);
-  const text = await snap(page, step, { fullPage: false });
-  check(/Transport/.test(text), `${width}: Transport panel is on Security`);
-  for (const dimension of DIMENSIONS) {
-    check(
-      (await tone(page, dimension)) === "idle",
-      `${width}: ${dimension} row is idle with no endpoint`,
-    );
-  }
-  check(
-    (await (await verifyKey(page)).count()) === 0,
-    `${width}: no verification key without an endpoint`,
-  );
-  check(
-    (await page
-      .locator("#transport [role=alert], #transport .note")
-      .count()) === 0,
-    `${width}: no error box`,
-  );
-  check(!NO_SUCH_CLAIM.test(text), `${width}: no false claim on screen`);
-  check(
-    externalDuring(step).length === 0,
-    `${width}: zero requests to any other origin`,
-  );
-  const m = await measured(page, step);
-  check(m.rows.length === 5, `${width}: five rows`);
-
-  const refresh = page.getByRole("button", {
-    name: "Refresh transport status",
-  });
-  await tabTo(page, refresh);
-  await expect(refresh).toBeFocused();
-  // By id: Security has other panels with an "Identity" field of their own.
-  for (const id of [
-    "transport-target",
-    "transport-policy",
-    "transport-execution",
-    "transport-identity",
-    "transport-trust",
-    "transport-profile",
-  ]) {
-    await tabTo(page, page.locator(`#${id}`));
-  }
-  await tabTo(page, page.locator("#transport-trust"), "Shift+Tab");
-  check(
-    true,
-    `${width}: Tab reaches refresh and every field; Shift+Tab returns`,
-  );
-  await context.close();
-}
+const emptyJourney = createEmptyJourney({
+  harness,
+  origin: ORIGIN,
+  base: BASE,
+  externalDuring,
+  measured,
+});
 
 /** AT-STATIC-BADREMOTE, part one: an endpoint that cannot answer, set through the settings file. */
-async function configureBadRemote(page) {
-  setStep("badremote-configure");
+async function configureBadRemote(page, step = "badremote-configure") {
+  setStep(step);
   await guest(page, ORIGIN, BASE);
   await openSection(page, "settings/");
   // Connections is always on and folded into Settings › Capabilities
   // (ADR 0135): the endpoints are in that directory's config.yaml now.
   await addCapability(page, check, snap, "External connectors", "connections/");
+  // The capability snapshot names its own step and leaves it current. The
+  // endpoint write and the status probe belong to this journey, so Chromium's
+  // connection-refused line stays on the step the allowlist already names.
+  setStep(step);
   await openConfigFile(page, "capabilities");
   await page
     .getByLabel("settings/capabilities/config.yaml", { exact: true })
@@ -171,65 +113,28 @@ async function configureBadRemote(page) {
   );
   await openConfigForm(page, "Capabilities");
   check(
-    externalDuring("badremote-configure").length === 0,
+    externalDuring(step).length === 0,
     "setting an endpoint asks it nothing",
   );
 }
 
-/** Part two: only the observed row degrades, and verification is one probe. */
+/** Part two: a configured endpoint is not probed, and Security has no panel. */
 async function openDegraded(page) {
   setStep("badremote-open");
-  await page
-    .getByRole("link", { name: "Security", exact: true })
-    .last()
-    .click();
-  const panel = page.locator("#transport");
-  await panel.waitFor();
-  await panel.scrollIntoViewIfNeeded();
-  await expect(page.locator('[data-dimension="observed"]')).toHaveAttribute(
-    "data-tone",
-    "err",
-    { timeout: 15_000 },
-  );
+  await openSecurity(page);
   const opened = await snap(page, "badremote-open", { fullPage: false });
-  for (const dimension of DIMENSIONS.filter((d) => d !== "observed")) {
-    check(
-      (await tone(page, dimension)) === "idle",
-      `only observed degraded — ${dimension} stays idle`,
-    );
-  }
-  const asked = externalDuring("badremote-open");
   check(
-    asked.length === 1 && asked[0] === `GET ${STATUS}`,
-    `exactly one status read went to the endpoint (${asked.join(", ")})`,
+    (await page.locator("#transport").count()) === 0,
+    "Security draws no Transport panel after an endpoint is set",
   );
   check(
-    (await (await verifyKey(page)).count()) === 1,
-    "verification is offered once an endpoint exists",
+    externalDuring("badremote-open").length === 0,
+    "the page does not probe the endpoint",
   );
-  check(
-    (await page.locator('[role="alert"]').count()) === 0,
-    "a bad endpoint is a glyph, not an alert",
-  );
-  check(
-    !NO_SUCH_CLAIM.test(opened),
-    "no false claim after the status degraded",
-  );
-  await measured(page, "badremote-1280");
-
-  setStep("badremote-verify");
-  await (await verifyKey(page)).click();
-  await page.waitForTimeout(1500);
-  const probed = externalDuring("badremote-verify");
-  check(
-    probed.length === 1 && probed[0] === `POST ${VERIFY}`,
-    "verification is one POST to the endpoint's probe and nothing else",
-  );
-  check(
-    (await tone(page, "enforcement")) === "idle",
-    "a probe that cannot run leaves enforcement unverified",
-  );
-  check((await tone(page, "observed")) === "err", "observed stays degraded");
+  check(!NO_SUCH_CLAIM.test(opened), "no false claim on Security");
+  const m = await measured(page, "badremote-1280");
+  check(m.panel === null, "no transport panel measured");
+  check(m.rows.length === 0, "no status rows measured");
 }
 
 /** AT-BROWSER-CACHE: the vault is untouched by a remote that went away. */
@@ -276,32 +181,35 @@ async function badRemoteJourney(browser) {
   await context.close();
 }
 
-/** AT-BROWSER-UX: the phone contract, in a real touch context. */
-async function phoneJourney(browser, phone) {
-  const step = `phone-${phone.name}`;
+/**
+ * AT-BROWSER-UX: the phone contract on Security. The page draws no Transport
+ * panel, empty or with an endpoint set, so there is no transport control to
+ * size. The floor is still measured on the page that is there.
+ */
+async function phoneJourney(browser, phone, configured = false) {
+  const step = configured
+    ? `phone-configured-${phone.name}`
+    : `phone-${phone.name}`;
   const { page, context } = await harness.newPage(browser, {
     device: phoneContext(phone),
   });
   setStep(step);
-  await guest(page, ORIGIN, BASE, true);
-  await openTransport(page, true);
+  if (configured) await configureBadRemote(page, step);
+  else await guest(page, ORIGIN, BASE, true);
+  await openSecurity(page, true);
   const result = await page.evaluate(`(${AUDIT})()`);
   recordStop(harness, step, result);
   check(result.coarse, `${phone.name}: measured in a coarse-pointer context`);
   const m = await measured(page, step);
-  check(
-    m.refresh && m.refresh.w >= TOUCH_FLOOR && m.refresh.h >= TOUCH_FLOOR,
-    `${phone.name}: refresh key ${m.refresh?.w}×${m.refresh?.h} meets the ${TOUCH_FLOOR}px floor`,
-  );
-  check(
-    Number.parseFloat(m.selectFont) >= 16,
-    `${phone.name}: select ${m.selectFont} will not zoom iOS`,
-  );
-  await snap(page, step, { fullPage: false });
+  check(m.panel === null, `${phone.name}: no transport panel`);
+  check(m.rows.length === 0, `${phone.name}: no status rows`);
+  check(m.refresh === null, `${phone.name}: no refresh key`);
+  check(m.selectFont === null, `${phone.name}: no transport select`);
   check(
     externalDuring(step).length === 0,
-    `${phone.name}: zero external requests`,
+    `${phone.name}: zero requests to any other origin`,
   );
+  await snap(page, step, { fullPage: false });
   await context.close();
 }
 
@@ -310,6 +218,7 @@ try {
   for (const width of [1280, 390]) await emptyJourney(browser, width);
   await badRemoteJourney(browser);
   for (const phone of PHONES) await phoneJourney(browser, phone);
+  await phoneJourney(browser, TABLETS[0], true);
 } finally {
   await browser.close();
 }
@@ -329,7 +238,7 @@ const hardKinds = [
 // its own connection-refused line for that one origin, and nothing else.
 const expectedRefusal = (e) =>
   e.kind === "console-error" &&
-  /^badremote-(open|verify)$/.test(e.step) &&
+  /^(badremote-(open|verify)|phone-configured-[\w-]+)$/.test(e.step) &&
   /ERR_CONNECTION_REFUSED/.test(e.detail);
 const hard = log.filter(
   (e) => hardKinds.includes(e.kind) && !expectedRefusal(e),

@@ -6,6 +6,28 @@
 Design: [ADR 0130](../adr/0130-duress-profiles-trust-boundaries.md).
 Evidence: `docs/evidence/2026-09-21-duress/`.
 
+## Turning it on in Pages
+
+**Settings › Security › Duress** (ADR 0150). There is no switch to find first:
+the row is there for the owner of an open vault, and it is not drawn in a guest
+session — which is what a decoy is.
+
+1. Press **Add**. Choose what the code shows: a **decoy vault** (empty, reads
+   as a normal unlock) or a **wrong password** (refused).
+2. Type a code of 8 to 12 digits twice. It may not be a PIN that opens a vault on
+   this device; you are told now, not at the border.
+3. Tick that you understand, then turn it on. The browser must keep files for
+   the site, or arming is refused.
+
+Type the code where you unlock, as the whole code. Nothing else is asked. After
+it is used, the device is held to a guest's powers (no travel, no code changes)
+until you open the vault with its **real** key and press **Clear** on the row.
+The code stays on until you **Change** or remove it.
+
+What it does **not** do: it is one code per device, the decoy is empty, and it
+sends no alert to anyone. The holds, custodians and removal described below are
+not applied by this road.
+
 ## When to use this
 
 Use duress profiles only if you understand that:

@@ -34,7 +34,9 @@ import {
   checkFrontDoor,
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
+import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { checkLoginWebsites } from "./lib/login-websites-contract.mjs";
+import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
@@ -73,14 +75,15 @@ const browser = await launch();
   await checkWordmark(page, check);
   await walkSetupCeremony(page, check, snap);
 
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .click();
-  await page.waitForTimeout(2500);
-  const inApp = await snap(page, "B-guest-in-app");
-  // The guest principal is minted as `guest-N` (`lib/guest-auth.ts`): the
-  // chrome naming it is what "you are inside the app as the guest" looks like.
-  check(/guest-\d+/.test(inApp), "guest landed inside the app");
+  // Skip all retires the door onto sign-in, whose one no-account road is
+  // the local seal. The full-size guest button is not on that screen.
+  await sealLocalOnly(page);
+  const inApp = await snap(page, "B-sealed-in-app");
+  // The lock is an icon key. Its name is the accessible name, not innerText.
+  check(
+    (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
+    "the local seal landed inside the app",
+  );
   check(!/Claim this guest session/.test(inApp), "no claim notice");
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
@@ -95,10 +98,12 @@ const browser = await launch();
   for (const [title, rail] of [
     // Always on: checked present, never offered a switch.
     ["Guided help", null],
+    // Optional extensions: absent until the switch, then present (ADR 0153).
     ["External connectors", "connections/"],
     ["Access authority", "access/"],
     ["Browser-local IAM", "identity/"],
-    // Optional: absent, then added.
+    ["Derived item types", null],
+    ["Passkey records", null],
     ["Wallet", "wallet/"],
   ]) {
     setStep(`E-add-${(rail ?? title).replace("/", "")}`);
@@ -125,12 +130,7 @@ const browser = await launch();
     ["settings/", "B-settings"],
   ]) {
     setStep(name);
-    // The rail lists sections as links; fall back to the visible label.
-    const link = page
-      .getByRole("link", { name: new RegExp(`^${label.replace("/", "\\/")}`) })
-      .first();
-    if (await link.count()) await link.click();
-    else await page.getByText(label, { exact: true }).first().click();
+    await openSection(page, label);
     await page.waitForTimeout(1200);
     const sectionText = await snap(page, name);
     check(
@@ -220,6 +220,8 @@ const browser = await launch();
   const { page, context, shooCalls } = await newPage(browser, { shoo: true });
   setStep("C-google");
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  // Sign-in is behind the door's setup road (ADR 0150 §1).
+  await passTheDoor(page);
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.waitForTimeout(2000);
   const authorize = new URL(page.url());
@@ -285,14 +287,13 @@ const browser = await launch();
   const federation = "local:opensesame:federation:session";
   const leaks = ["pw_verify", "[Tt]est [Pp]erson"];
   await checkNothingInTheClear(page, check, leaks, [federation]);
-  // This is a fresh device: the identity section (browser-local IAM) and the
-  // provider directory are always on (ADR 0142), so there is nothing to add
-  // and the walk only checks they are there.
+  // This is a fresh device: Identity is off until chosen (ADR 0153). Add the
+  // browser-local IAM section and the provider directory, then walk them.
   setStep("C-add-identity");
   await addCapability(page, check, snap, "Browser-local IAM", "identity/");
   await addCapability(page, check, snap, "Operator identity providers");
   setStep("C-provider-registration");
-  await page.getByText("identity/", { exact: true }).first().click();
+  await openSection(page, "identity/");
   await page.getByRole("tab", { name: "Providers", exact: true }).click();
   await page
     .getByRole("button", { name: "Register an IdP", exact: true })
@@ -322,9 +323,7 @@ const browser = await launch();
     response?.status() === 404,
     "deep link uses the expected SPA fallback document",
   );
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .waitFor();
+  await doorGuest(page).waitFor();
   check(
     (await page
       .getByRole("heading", { level: 1, name: "open-sesame", exact: true })
@@ -332,9 +331,7 @@ const browser = await launch();
     "deep link renders the front door",
   );
   check(
-    (await page
-      .getByRole("button", { name: "Continue as guest", exact: true })
-      .count()) === 1,
+    (await doorGuest(page).count()) === 1,
     "deep link retains guest access",
   );
   await page.waitForTimeout(800);

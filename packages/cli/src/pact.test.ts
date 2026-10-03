@@ -15,12 +15,12 @@ describe("PACT — client CLI emit / session", () => {
       'trimmed.startsWith("{")',
       "JSON.stringify(redacted",
     ]);
-    assertSourceOrder(readFileSync(join(here, "run.ts"), "utf8"), [
+    assertSourceOrder(readFileSync(join(here, "identity-session.ts"), "utf8"), [
       "writeFile(temp, JSON.stringify(session), { mode: 0o600 })",
       "chmod(temp, 0o600)",
       "rename(temp, path)",
     ]);
-    assertSourceOrder(readFileSync(join(here, "run.ts"), "utf8"), [
+    assertSourceOrder(readFileSync(join(here, "identity-session.ts"), "utf8"), [
       "async function refreshSession",
       "if (!discovery.ok) return null",
       "} catch {",

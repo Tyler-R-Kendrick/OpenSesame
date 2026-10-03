@@ -147,7 +147,10 @@ vault's Members page). Check the fingerprint phrase the client shows against
 the person before confirming: registration verifies no address, so
 confirmation is what decides who is in.
 
-Groups, policies, single sign-on and account recovery are not served.
+Policies are set from the web vault's Admin Console. Clients enforce most of
+them; the Host itself enforces two-step login, single organization, personal
+ownership and the Send policies on members who are neither owners nor
+admins. Groups, single sign-on and account recovery are not served.
 
 ## Emergency access and key rotation
 
@@ -179,11 +182,18 @@ export OPENSESAME_BITWARDEN_WEB_VAULT=/srv/bitwarden-web-vault   # holds index.h
 The Host refuses to start if the directory has no `index.html`. Give the
 server a host name of its own for the web vault, as for Sends.
 
+## Log in with device
+
+A new device can sign in by asking one already signed in, with no master
+password typed: approve the request on the signed-in device after checking
+that both show the same fingerprint phrase. Requests expire after fifteen
+minutes; an account can have five waiting at once.
+
 ## What is not served
 
 Other two-step providers (email, Duo, `YubiKey`, security keys), organization
-groups and policies, log in with a device, trusted-device encryption, breach
-reports by address, and mobile push notifications through Bitwarden's relay. Clients hide or fail those
+groups, trusted-device encryption, breach reports by address, and
+mobile push notifications through Bitwarden's relay. Clients hide or fail those
 features as they do against a server that has them turned off.
 
 ## Operating notes

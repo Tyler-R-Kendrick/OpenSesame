@@ -9,13 +9,14 @@ import { type RuntimeEnv, env } from "../host.js";
 import { maybePage, page } from "../ports.js";
 import { noteSettingsUpdated } from "./activity-log.js";
 import {
-  type CapabilityConnectorBinding,
   type CapabilityConnectorMap,
-  type CapabilityId,
-  type HistoryBackupSelection,
   defaultCapabilityConnectors,
-  normalizeCapabilityConnectors,
 } from "./capabilities.js";
+import {
+  SETTINGS_PERSIST_KEY as PERSIST_KEY,
+  bindingsFromStored,
+  scopeCapabilityConnectorsForSave,
+} from "./capability-connector-scope.js";
 import { kvGet, kvSet } from "./kv.js";
 import { isLoopbackUrl } from "./urls.js";
 
@@ -43,7 +44,7 @@ export type PagesSettings = {
   hostApi: string;
   identityApi: string;
   daemonApi: string;
-  /** Capability → Host connector bindings (encryption, git history, …). */
+  /** Capability → connector bindings for the vault that is open. */
   capabilityConnectors: CapabilityConnectorMap;
   /**
    * Every way into this deployment. Absent means nobody has answered first-run
@@ -58,8 +59,6 @@ export type PagesSettings = {
   activeProjectId?: string;
 };
 
-const PERSIST_KEY = "settings.v1";
-
 const TRAILING_SLASHES = /\/+$/;
 
 type PersistedSettings = {
@@ -67,6 +66,8 @@ type PersistedSettings = {
   identityApi: string;
   daemonApi: string;
   capabilityConnectors: CapabilityConnectorMap;
+  /** Present once a record is per-vault. Legacy records omit it. */
+  capabilityConnectorsByVault: Record<string, CapabilityConnectorMap>;
   activeProjectId: string;
   signIn: SignInMethods;
 };
@@ -196,6 +197,7 @@ function defaultsForPage(): PersistedSettings {
     identityApi: defaultIdentityApi(),
     daemonApi: runtimeDaemonApiValue() || "",
     capabilityConnectors: defaultCapabilityConnectors(),
+    capabilityConnectorsByVault: {},
     activeProjectId: "",
     signIn: defaultSignInMethods(),
   };
@@ -205,58 +207,6 @@ function optionalString(value: JsonValue | undefined): string | undefined {
   if (value === undefined) return undefined;
   if (!isString(value)) throw new Error("invalid persisted string");
   return value;
-}
-
-function readCapabilityConnectors(
-  value: JsonValue | undefined,
-):
-  | Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>>
-  | undefined {
-  if (!isJsonObject(value)) return undefined;
-  const connectors: Partial<
-    Record<CapabilityId, Partial<CapabilityConnectorBinding>>
-  > = {};
-  for (const id of ["encryption", "history"] as const) {
-    const candidate = value[id];
-    if (!isJsonObject(candidate)) continue;
-    const binding: Partial<CapabilityConnectorBinding> = {};
-    if (isString(candidate.providerId)) {
-      binding.providerId = candidate.providerId;
-    }
-    if (isString(candidate.connectionId)) {
-      binding.connectionId = candidate.connectionId;
-    }
-    if (isString(candidate.remote)) {
-      binding.remote = candidate.remote;
-    }
-    if (id === "history" && Array.isArray(candidate.selections)) {
-      binding.selections = candidate.selections
-        .filter(isJsonObject)
-        .map((row) => {
-          const selection: HistoryBackupSelection = {
-            providerId: isString(row.providerId) ? row.providerId : "",
-            group: row.group === "postgres" ? "postgres" : "git",
-          };
-          if (isString(row.connectionId)) {
-            selection.connectionId = row.connectionId;
-          }
-          if (isString(row.remote)) selection.remote = row.remote;
-          if (
-            row.claimState === "provisional" ||
-            row.claimState === "claimed"
-          ) {
-            selection.claimState = row.claimState;
-          }
-          if (isString(row.provisionalAccountId)) {
-            selection.provisionalAccountId = row.provisionalAccountId;
-          }
-          return selection;
-        })
-        .filter((row) => row.providerId.length > 0);
-    }
-    connectors[id] = binding;
-  }
-  return connectors;
 }
 
 /** What a deployment nobody has set up offers: the compiled-in broker. */
@@ -382,9 +332,7 @@ function loadPersisted(): PersistedSettings {
         return identityApi || defaults.identityApi;
       })(),
       daemonApi: daemonApi || defaults.daemonApi,
-      capabilityConnectors: normalizeCapabilityConnectors(
-        readCapabilityConnectors(parsed.capabilityConnectors),
-      ),
+      ...bindingsFromStored(parsed),
       activeProjectId: isString(parsed.activeProjectId)
         ? parsed.activeProjectId.trim()
         : defaults.activeProjectId,
@@ -418,7 +366,7 @@ function persistRecord(next: PagesSettings): PersistedSettings {
     hostApi: next.hostApi.trim() || defaults.hostApi,
     identityApi: next.identityApi.trim() || defaults.identityApi,
     daemonApi: next.daemonApi.trim() || defaults.daemonApi,
-    capabilityConnectors: normalizeCapabilityConnectors(
+    ...scopeCapabilityConnectorsForSave(
       next.capabilityConnectors ?? defaults.capabilityConnectors,
     ),
     activeProjectId: next.activeProjectId?.trim() ?? "",

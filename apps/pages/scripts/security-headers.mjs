@@ -61,29 +61,64 @@ const LOOPBACK_DEV_SOURCES = Object.freeze([
   "ws://127.0.0.1:*",
 ]);
 
+/** The hosts egress treats as loopback (`isLoopbackHost` in origins.ts). */
+function isLoopbackHost(host) {
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "[::1]" ||
+    /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
+  );
+}
+
 /**
- * An allowed service origin, by the grammar the policy parser enforces
- * (`isServiceOrigin`, packages/capability-composition/src/origins.ts): a bare
- * origin — no path, no credentials, no trailing slash — over https, or over
- * http only to loopback. Anything else never reaches `connect-src`.
+ * A DNS name, IPv4 address or bracketed IPv6 literal. `URL` also accepts a `*`
+ * in a special-scheme host, which a CSP source reads as "every subdomain".
  */
-function isOrigin(value) {
+const HOST = /^(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\[[0-9a-f:.]+\])$/;
+
+/** The URL of a bare, credential-free origin exactly as `URL.origin` prints it. */
+function bareOrigin(value) {
   try {
     const url = new URL(value);
     // `url.origin` is a string, so a non-string input can never equal it.
-    if (url.origin !== value || url.username || url.password) return false;
-    if (url.protocol === "https:") return true;
-    const host = url.hostname;
-    return (
-      url.protocol === "http:" &&
-      (host === "localhost" ||
-        host.endsWith(".localhost") ||
-        host === "[::1]" ||
-        /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host))
-    );
+    if (url.origin !== value || url.username || url.password) return null;
+    if (!HOST.test(url.hostname)) return null;
+    return url;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * A page or broker origin: https, or http only to loopback. Never a socket
+ * scheme — the canonical origin is where the document is served.
+ */
+function isOrigin(value) {
+  const url = bareOrigin(value);
+  if (url === null) return false;
+  return (
+    url.protocol === "https:" ||
+    (url.protocol === "http:" && isLoopbackHost(url.hostname))
+  );
+}
+
+/**
+ * An allowed service origin, by the grammar the policy parser enforces
+ * (`isServiceOrigin`, packages/capability-composition/src/origins.ts): a bare
+ * origin — no path, no credentials, no trailing slash — over https or wss, or
+ * over http or ws only to loopback. An `https:` source does not admit a
+ * WebSocket, so a carrier's `wss://` origin is listed as itself. Anything
+ * else never reaches `connect-src`.
+ */
+function isServiceOrigin(value) {
+  const url = bareOrigin(value);
+  if (url === null) return false;
+  if (url.protocol === "https:" || url.protocol === "wss:") return true;
+  return (
+    (url.protocol === "http:" || url.protocol === "ws:") &&
+    isLoopbackHost(url.hostname)
+  );
 }
 
 /**
@@ -127,7 +162,7 @@ function ids(list) {
 
 /** The origins in a list, dropping anything that is not a bare origin. */
 function origins(list) {
-  return Array.isArray(list) ? list.filter(isOrigin) : [];
+  return Array.isArray(list) ? list.filter(isServiceOrigin) : [];
 }
 
 /**

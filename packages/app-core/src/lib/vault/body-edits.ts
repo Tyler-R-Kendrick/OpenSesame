@@ -78,23 +78,34 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.tombstones = merged.tombstones;
 }
 
+/** An item the retired sample-data feature wrote: its flag is no longer typed. */
+function isLegacySample(item: VaultItem): boolean {
+  // SAFETY: sample is a retired field the item contract no longer types; the stored object still carries the checked flag.
+  return (item as { sample?: boolean }).sample === true;
+}
+
 /**
- * Take the sample data out (DESIGN.md: badged, removed in one action): every
- * item marked `sample`, live or trashed, and each folder only sample items
- * sat in — tombstoned, so a merge cannot bring them back. A real item is
- * never touched: a folder one also sits in stays, and nothing is moved.
+ * Take out what the retired sample-data feature left in a vault: every item
+ * it flagged, live or trashed, and each folder only those items sat in —
+ * tombstoned, so a merge from a device that still holds them cannot bring
+ * them back. A real item is never touched: a folder one also sits in stays,
+ * and nothing is moved.
  */
-export function dropSample(body: VaultBody): void {
-  const gone = body.items.filter((item) => item.sample === true);
+export function retireLegacySample(body: VaultBody): void {
+  const gone = body.items.filter(isLegacySample);
   if (gone.length === 0) return;
-  const kept = body.items.filter((item) => item.sample !== true);
+  const kept = body.items.filter((item) => !isLegacySample(item));
   const folders = new Set(gone.flatMap((item) => item.folderId ?? []));
   for (const item of kept) if (item.folderId) folders.delete(item.folderId);
   const at = now();
   body.items = kept;
   body.folders = body.folders.filter((folder) => !folders.has(folder.id));
-  const ids = gone.map((item) => item.id);
-  body.tombstones = withTombstone(body.tombstones, "items", ids, at);
+  body.tombstones = withTombstone(
+    body.tombstones,
+    "items",
+    gone.map((item) => item.id),
+    at,
+  );
   if (folders.size > 0) {
     body.tombstones = withTombstone(
       body.tombstones,

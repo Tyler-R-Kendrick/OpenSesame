@@ -7,17 +7,13 @@
  *
  * Always on (ADR 0142): it runs entirely in the browser, and a git history
  * remote already defaults to GitHub, so the default installation has it.
- * Settings › Capabilities draws its tiles (the git providers) under Backups,
- * each with its own enable switch. Contributed: the backup observer as a
- * background job, held off by a plan that denies external services. Its guide target
- * `settings.backup` and goal are authored in the registry's connections
- * files and contributed by `connectors.external`, which this capability
- * depends on (catalog), so they are declared whenever this category mounts.
- * The per-connector pieces (`GithubInstallationPanel`, the backup repository
- * combobox `GithubBackupRepoCombobox`, `BackupSyncControls`) are reached
- * through `connectors.external`'s connector route, which is that
- * capability's surface; they stay where they are and are listed in the
- * catalog as this capability's dependency on it.
+ * Settings › Capabilities draws its tiles (the git providers) under Backups.
+ * Contributed: the backup observer as a background job, held off by a plan
+ * that denies external services. The Connections section is optional
+ * (ADR 0153) and this capability does not depend on it. Connector settings
+ * (`GithubInstallationPanel`, `GithubBackupRepoCombobox`,
+ * `BackupSyncControls`) stay on `connectors.external` and are absent until
+ * that section is on.
  *
  * Egress this module wraps (existing transport code):
  *  - Connect relay at `connectCallbackBase()`: `/api/github-app/lookup`,
@@ -40,6 +36,20 @@
 
 import { backupEgressGate } from "@opensesame/app-core/lib/backup-egress-gate.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  type FeatureRequest,
+  savedFeatureRequests,
+} from "@opensesame/app-core/lib/feature-request.js";
+import { savedForgeCredentials } from "@opensesame/app-core/lib/saved-git-backup.js";
 import {
   startVaultBackupObserver,
   stopVaultBackupObserver,
@@ -64,18 +74,38 @@ export const CAPABILITY = "backup.git-remote";
  */
 export const BACKUP_OBSERVER_JOB = "vault-backup-observer";
 
+/** A forge or history connector's saved operation. Secrets stay on the operation. */
+export function savedGitBackupOperation(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+/** Re-read saved forge credentials and send them when a backup sync runs. */
+export function performGitBackup(): FeatureRequest[] {
+  const sent: FeatureRequest[] = [];
+  for (const row of savedFeatureRequests(["backup_recovery"])) {
+    if (!row.ok) continue;
+    savedForgeCredentials(row.providerId);
+    sent.push(performSavedConnector(row.providerId));
+  }
+  return sent;
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    activation.onDispose(
+      registerCategorySend("backup_recovery", performGitBackup),
+    );
 
     activation.register("background-job", {
       id: BACKUP_OBSERVER_JOB,
       start: (signal) => {
         if (signal.aborted) return;
-        // Always on is not a way round the operator's network envelope
-        // (ADR 0135 §1, 0142): the one gate every caller shares.
+        // The observer stays behind the egress gate (ADR 0135 §1, 0142).
         if (!backupEgressGate.allowed()) return;
         startVaultBackupObserver();
         signal.addEventListener("abort", stopVaultBackupObserver, {

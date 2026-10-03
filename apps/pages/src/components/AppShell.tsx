@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { useKeymapEvents } from "../lib/keymap-events.js";
 import {
   createChordState,
   createKeymapHandler,
@@ -29,11 +30,13 @@ import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import {
   type SectionRowModel,
   sectionForPath,
+  sessionSections,
   useSections,
 } from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { Wordmark } from "./Wordmark.js";
+import { openContextMenu } from "./context-menu/menu-model.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 
 /**
@@ -71,13 +74,33 @@ function useDeniedRouteFallback(sections: readonly SectionRowModel[]) {
 }
 
 /**
- * Account, vault switcher, and lock share one session prompt at every width.
+ * Account, vault switcher, and lock share one session prompt at every
+ * width. The prompt is also the home of the two session-level
+ * directories the rail leaves out — settings and the activity log —
+ * so a right-click (or the menu key) on it roots the tree in either
+ * one, the way a shell's `cd` does.
  */
 function SessionPrompt() {
   const store = useVaultStore();
+  const navigate = useNavigate();
+  const sections = useSections();
   const lockRef = useGuideTarget<HTMLButtonElement>("shell.lock");
+  const roots = sessionSections(sections);
   return (
-    <div className="rail__prompt">
+    <div
+      className="rail__prompt"
+      onContextMenu={(event) => {
+        if (roots.length === 0) return;
+        openContextMenu(event, event.currentTarget, "Session", [
+          roots.map((root) => ({
+            id: root.id,
+            label: root.label,
+            hint: `g ${root.jump}`,
+            run: () => navigate(root.to),
+          })),
+        ]);
+      }}
+    >
       <AccountSwitcher />
       <span className="prompt__dim" aria-hidden="true">
         @
@@ -130,6 +153,9 @@ function Shell({ children }: { children?: ReactNode }) {
   useEffect(() => installRouterNavigate(navigate), [navigate]);
 
   useEffect(() => registerKeymapHelp(showKeymap), [showKeymap]);
+
+  // A macro bound to `on: unlock` or `on: enter:<section>` (ADR 0150).
+  useKeymapEvents(useVaultStore(), navigate);
 
   return (
     <div className="app">

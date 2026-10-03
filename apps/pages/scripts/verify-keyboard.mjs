@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { approveByKeyboard } from "./lib/capability-keyboard-contract.mjs";
 import { contextMenuKeyboardContract } from "./lib/context-menu-keyboard-contract.mjs";
+import { liveKeyboardContract } from "./lib/live-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -28,15 +29,29 @@ async function tabTo(page, target, key = "Tab") {
   );
 }
 
-async function savedVaultUnlock(width) {
-  const { page, context } = await harness.newPage(browser);
-  await page.setViewportSize({ width, height: 900 });
-  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+/**
+ * The local-only seal is a sign-in road, and sign-in comes after the door's
+ * setup road (ADR 0150 §1): Enter on Set up, Skip all, then the seal.
+ */
+async function toLocalSeal(page) {
+  await expect(
+    page.getByRole("button", { name: "Set up your own" }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await tabTo(page, page.getByRole("button", { name: "Skip all" }));
+  await page.keyboard.press("Enter");
   await tabTo(
     page,
     page.getByRole("button", { name: "Use without an account" }),
   );
   await page.keyboard.press("Enter");
+}
+
+async function savedVaultUnlock(width) {
+  const { page, context } = await harness.newPage(browser);
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  await toLocalSeal(page);
   await tabTo(page, page.getByRole("tab", { name: "Password", exact: true }));
   await page.keyboard.press("Enter");
   await expect(
@@ -89,22 +104,19 @@ try {
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-    // The front door lands on Set up; Tab walks the corner skip, the
-    // broker's mark and guest, in order. Join is invite-link only now.
+    // The front door lands on Set up; Tab reaches Join a session, and the
+    // corner Skip — the door's guest road — sits before both (ADR 0150 §1).
     await expect(
       page.getByRole("button", { name: "Set up your own" }),
     ).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(
+      page.getByRole("button", { name: "Join a session" }),
+    ).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(
       page.getByRole("button", { name: "Skip sign-in and continue as guest" }),
-    ).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(
-      page.getByRole("button", { name: "Continue with Google" }),
-    ).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(
-      page.getByRole("button", { name: "Continue as guest", exact: true }),
     ).toBeFocused();
     await page.keyboard.press("Enter");
     const create = page.getByRole("link", { name: "New item", exact: true });
@@ -276,6 +288,9 @@ try {
     console.log(
       `PASS keyboard-only load, guest, New, Escape, Cancel, lock/reload (${width}px)`,
     );
+    // Live sessions (ADR 0150): every swap between the form, the request code,
+    // the joined view and the ended one leaves the keyboard on a control.
+    await liveKeyboardContract({ harness, origin, base, width, tabTo });
   }
 } finally {
   await browser.close();

@@ -12,4 +12,6 @@ names the ADR it fed.
 | [AI-native product tutorials](ai-native-product-tutorials.md) | [ADR 0088](../adr/0088-ai-native-contextual-support.md) — in-product support. |
 | [Android native integration](android-native-integration.md) | [ADR 0133](../adr/0133-shared-app-core.md) — Android as a native surface. |
 | [Claimable connection delegation](claimable-connection-delegation.md) | [ADR 0044](../adr/0044-claimable-connection-delegation.md) — what exists, what standards and peers offer, and a phased plan. |
+| [Credential surrogates](credential-surrogates.md) | [ADR 0150](../adr/0150-surrogate-credentials-at-the-last-hop.md) — Meta Muse, sandbox-runtime, Tokenizer, Horcrux and peers: where the stand-in lives, where the swap happens, and the reflection and tripwire gaps they share. |
+| [Keybinding customization](keybinding-customization.md) | [ADR 0150](../adr/0150-keybindings-and-macros.md) — how editors (VS Code, JetBrains, Vim, which-key) and games (WoW, SC2, Steam Input) let power users bind keys, sequences and macros, and the Keybindings settings redesign that followed. |
 | [Modularity and refactoring](modularity-refactor-strategy.md) | An evaluation, not yet a decision: where the codebase's complexity comes from, and the refactoring strategy that would follow. |

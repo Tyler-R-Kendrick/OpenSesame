@@ -1,3 +1,4 @@
+import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   concealedValue,
   username,
@@ -16,13 +17,47 @@ export type VaultTreeActions = {
   edit: (item: VaultItem) => void;
   trash: (item: VaultItem) => void;
   favorite: (item: VaultItem) => void;
-  /** Absent when no capability contributes a way to share a secret. */
-  share?: (item: VaultItem) => void;
+  /** Seal a one-time drop of this secret: a link, a code, and an expiry. */
+  share: (item: VaultItem) => void;
+  /** Grant this secret to a person or an agent on the local share ledger. */
+  shareGrant: (item: VaultItem) => void;
   create: () => void;
   /** A trashed item's two ways out; absent, the menu offers neither. */
   restore?: (item: VaultItem) => void;
   purge?: (item: VaultItem) => void;
+  /** The menu already asked. Runs the delete without arming the path-strip key. */
+  commitPurge?: (item: VaultItem) => void;
+  /** The listing is the trash directory: no new item from a folder or the pane. */
+  inTrash?: boolean;
 };
+
+export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
+
+function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
+  const ways: MenuItem[] = [
+    {
+      id: "share-drop",
+      label: "Temporary drop",
+      hint: "s",
+      run: () => actions.share(item),
+    },
+  ];
+  if (isCommandSection("/access")) {
+    ways.push({
+      id: "share-grant",
+      label: "Person or agent",
+      run: () => actions.shareGrant(item),
+    });
+  }
+  return [
+    {
+      id: "share",
+      label: "Share",
+      submenu: [ways],
+      run: () => undefined,
+    },
+  ];
+}
 
 function trashedItemMenu(
   item: VaultItem,
@@ -39,19 +74,60 @@ function trashedItemMenu(
       },
     ],
     restore
-      ? [{ id: "restore", label: "Restore", run: () => restore(item) }]
+      ? [
+          {
+            id: "restore",
+            label: "Restore",
+            hint: "r",
+            run: () => restore(item),
+          },
+        ]
       : [],
     purge
       ? [
           {
             id: "purge",
             label: "Delete permanently",
+            hint: "X",
             danger: true,
-            confirm: "Really delete permanently? This cannot be undone",
-            run: () => purge(item),
+            confirm: PURGE_CONFIRM,
+            run: () => (actions.commitPurge ?? purge)(item),
           },
         ]
       : [],
+  ];
+}
+
+/**
+ * Copy rows for one item. A secret has a single value, so the menu offers
+ * one clipboard action. A login still copies its secret and its username,
+ * and a row the item cannot answer stays visible and disabled.
+ */
+function copyRows(
+  item: VaultItem,
+  actions: VaultTreeActions,
+  verb: (
+    id: string,
+    label: string,
+    hint: string,
+    run: (item: VaultItem) => void,
+    extra?: Partial<MenuItem>,
+  ) => MenuItem,
+): MenuItem[] {
+  if (item.kind === "secret") {
+    return [
+      verb("copy-secret", "Copy to Clipboard", "y", actions.copySecret, {
+        disabled: !concealedValue(item),
+      }),
+    ];
+  }
+  return [
+    verb("copy-secret", "Copy secret", "y", actions.copySecret, {
+      disabled: !concealedValue(item),
+    }),
+    verb("copy-username", "Copy username", "u", actions.copyUsername, {
+      disabled: !username(item),
+    }),
   ];
 }
 
@@ -77,14 +153,7 @@ export function vaultItemMenu(
       verb("open", "Open", "Enter", actions.open),
       verb("edit", "Edit", "e", actions.edit),
     ],
-    [
-      verb("copy-secret", "Copy secret", "y", actions.copySecret, {
-        disabled: !concealedValue(item),
-      }),
-      verb("copy-username", "Copy username", "u", actions.copyUsername, {
-        disabled: !username(item),
-      }),
-    ],
+    copyRows(item, actions, verb),
     [
       verb(
         "favorite",
@@ -92,10 +161,10 @@ export function vaultItemMenu(
         ".",
         actions.favorite,
       ),
-      ...(item.kind === "secret" && actions.share
-        ? [verb("share", "Share once", "s", actions.share)]
-        : []),
     ],
+    // Share opens the ways out. A sealed drop expires; a standing grant is a
+    // person or an agent, and only when Access is part of this installation.
+    ...(item.kind === "secret" ? [secretShare(item, actions)] : []),
     [verb("trash", "Trash", "x", actions.trash, { danger: true })],
   ];
 }
@@ -114,18 +183,22 @@ export function vaultRowMenu(
     run: actions.create,
   };
   if (row?.type === "item") return vaultItemMenu(row.item, actions);
+  const searchItem: MenuItem = {
+    id: "search",
+    label: "Search",
+    hint: "/",
+    run: search,
+  };
   if (row?.type === "dir") {
-    return [
-      [
-        {
-          id: "toggle",
-          label: row.expanded ? "Collapse" : "Expand",
-          hint: row.expanded ? "←" : "→",
-          run: () => toggle(row),
-        },
-      ],
-      [create],
+    const folder = [
+      {
+        id: "toggle",
+        label: row.expanded ? "Collapse" : "Expand",
+        hint: row.expanded ? "←" : "→",
+        run: () => toggle(row),
+      },
     ];
+    return actions.inTrash ? [folder] : [folder, [create]];
   }
-  return [[create, { id: "search", label: "Search", hint: "/", run: search }]];
+  return actions.inTrash ? [[searchItem]] : [[create, searchItem]];
 }

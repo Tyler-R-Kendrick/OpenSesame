@@ -50,6 +50,8 @@ import {
   type BrowserInferenceVerdict,
   planeIsReady,
 } from "./browser-inference.js";
+import type { FeatureOperation } from "./feature-connector-operation.js";
+import { sendModelOperation } from "./hosted-inference.js";
 import { kvGet, kvSetDurable } from "./kv.js";
 
 export const MODEL_PROVIDER_KEY = "model-provider.v1";
@@ -374,16 +376,15 @@ export function autonomousResetAvailable(plane: ResolvedModelPlane): boolean {
   return plane.kind !== "none";
 }
 
-/**
- * Whether command-bar freer phrasing may call the on-device Prompt API.
- *
- * Local/hosted inference is for support and password-reset; the omnibox stays
- * on the browser Prompt API when the operator picked browser (or left
- * inference unset so the bypass can fall to it).
- */
+/** Command-bar freer phrasing stays on the on-device Prompt API. */
 export function browserInferenceForCommands(
   record: ModelProviderRecord,
 ): boolean {
   const kind = record.inference.kind;
   return kind === "browser" || kind === "none";
+}
+
+/** Send each operation the feature built. The key stays on the request headers. */
+export function savedModelRequests(operations: readonly FeatureOperation[]) {
+  return operations.map((operation) => sendModelOperation(operation));
 }

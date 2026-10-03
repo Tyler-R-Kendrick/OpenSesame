@@ -1258,7 +1258,7 @@ fn print_service_help(provider: &Value) {
     println!("    REF=$(opensesame connect token {id}/acme)");
 }
 
-fn authorization_headers() -> Vec<String> {
+pub(crate) fn authorization_headers() -> Vec<String> {
     let mut headers = Vec::new();
     if let Ok(token) = crate::load_access_token() {
         if token.starts_with("operator:") || token.starts_with("opaque-session:") {

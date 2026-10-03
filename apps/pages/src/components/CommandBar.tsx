@@ -1,11 +1,18 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
+import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportIfMounted } from "../tutorial/support-access.js";
+import {
+  COMMAND_LIST_ID,
+  CommandSuggestions,
+  commandOptionId,
+  useCommandSuggestions,
+} from "./CommandSuggestions.js";
 import { IconArrowRight } from "./Icons.js";
 import "./command-bar.css";
 
@@ -18,18 +25,25 @@ function useCommandRunner() {
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // "Command or ask": a sentence no verb claims is a question, and the one
-  // field in the chrome hands it to Support rather than shrugging. Support
-  // learns whether a model exists only once it is opened, so an unknown
-  // availability is still a road in; a known absence keeps the honest
-  // no-match, because the sheet could only refuse the question again.
+  // A model capability registers command-assist. Without one, the bar
+  // parses commands only: navigate, search, copy. With one, a sentence no
+  // verb claims is a question. Support learns whether that model can answer
+  // only once it is opened, so an unknown availability is still a road in;
+  // a known absence keeps the honest no-match.
   const supportAccess = useSupportIfMounted();
   const availability = supportAccess?.view.availability ?? null;
   const canAsk =
+    assist != null &&
     supportAccess !== null &&
     (availability === null || availability.kind === "ready") &&
     !supportAccess.view.thinking;
   const support = supportAccess?.support ?? null;
+
+  const names = useMemo(
+    () =>
+      items.filter((item) => item.deletedAt === null).map((item) => item.name),
+    [items],
+  );
 
   const ports = useMemo(
     () => ({
@@ -48,9 +62,6 @@ function useCommandRunner() {
       setBusy(true);
       setNotice("Working…");
       try {
-        const names = items
-          .filter((item) => item.deletedAt === null)
-          .map((item) => item.name);
         const interpreted = assist
           ? await assist.interpret(text, { itemNames: names })
           : readCommand(text);
@@ -72,7 +83,7 @@ function useCommandRunner() {
         setBusy(false);
       }
     },
-    [assist, busy, canAsk, items, ports, support],
+    [assist, busy, canAsk, names, ports, support],
   );
 
   return {
@@ -82,21 +93,35 @@ function useCommandRunner() {
     setNotice,
     busy,
     run,
+    names,
     Voice: assist?.Voice,
+    asks: assist != null,
   };
 }
 
 /**
- * Shell omnibox — typed or spoken commands that drive navigation and
- * clipboard verbs. Click the mic to toggle listening; Enter submits.
+ * Shell omnibox. With no model it runs parsed commands: navigate, search,
+ * copy. A model adds interpretation, the mic, and the ask road.
  */
 export function CommandBar() {
-  const { value, setValue, notice, setNotice, busy, run, Voice } =
+  const { value, setValue, notice, setNotice, busy, run, names, Voice, asks } =
     useCommandRunner();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
+  const suggestions = useCommandSuggestions(value, names);
+
+  const choose = (suggestion: SlashSuggestion) => {
+    setValue(suggestion.insert);
+    if (!suggestion.run) {
+      suggestions.setDismissed(false);
+      return;
+    }
+    suggestions.setDismissed(true);
+    void run(suggestion.insert);
+  };
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    suggestions.setDismissed(true);
     void run(value);
   };
 
@@ -110,13 +135,31 @@ export function CommandBar() {
           id="command-bar-input"
           className="command-bar__input"
           type="text"
+          role="combobox"
           enterKeyHint="go"
           autoComplete="off"
           spellCheck={false}
-          placeholder="Command or ask… copy password for github"
+          aria-autocomplete="list"
+          aria-expanded={suggestions.open}
+          aria-controls={suggestions.open ? COMMAND_LIST_ID : undefined}
+          aria-activedescendant={
+            suggestions.open ? commandOptionId(suggestions.active) : undefined
+          }
+          placeholder={
+            asks
+              ? "Command or ask… copy password for github"
+              : "go to vault · search · copy password for …"
+          }
           value={value}
           disabled={busy}
-          onChange={(event) => setValue(event.target.value)}
+          onFocus={() => suggestions.setFocused(true)}
+          onBlur={() => suggestions.setFocused(false)}
+          onKeyDown={(event) => suggestions.onKeyDown(event, choose)}
+          onChange={(event) => {
+            suggestions.setDismissed(false);
+            setNotice(null);
+            setValue(event.target.value);
+          }}
         />
         {Voice ? (
           <Voice
@@ -136,7 +179,15 @@ export function CommandBar() {
           <IconArrowRight size={16} />
         </button>
       </form>
-      {notice !== null ? (
+      {suggestions.open ? (
+        <CommandSuggestions
+          suggestions={suggestions.suggestions}
+          active={suggestions.active}
+          onHover={suggestions.setActive}
+          onChoose={choose}
+        />
+      ) : null}
+      {notice !== null && !suggestions.open ? (
         <output className="command-bar__status">{notice}</output>
       ) : null}
     </search>

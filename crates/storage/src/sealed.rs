@@ -1,4 +1,4 @@
-//! The Host's event and audit rows rest sealed (ADR 0150).
+//! The Host's event and audit rows rest sealed (ADR 0155).
 //!
 //! Thin wrappers over `opensesame-event-seal` so a call site names its column
 //! once and reads or writes text; a sealed value that does not open surfaces as

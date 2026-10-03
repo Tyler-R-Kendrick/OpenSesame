@@ -1,0 +1,48 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "press": "Save item" },
+        { "measure": ".detail" },
+        { "report": "h2.detail__grouphead" },
+        { "shot": "1280-secret-detail" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "press": "Save item" },
+        { "measure": ".detail" },
+        { "report": "h2.detail__grouphead" },
+        { "shot": "390-secret-detail" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-secret-detail",
+      "width": 1280,
+      "title": "Secret detail — 1280 × 800",
+      "caption": "The capability ceiling leaves the secret detail. The value and the grantees stay.",
+      "before": "detail 696×497, headings Secret and Capability ceiling",
+      "after": "detail 696×387, heading Secret"
+    },
+    {
+      "shot": "390-secret-detail",
+      "width": 390,
+      "title": "Secret detail — 390 × 844",
+      "caption": "On a phone the secret detail is the value and the grantees.",
+      "before": "detail 390×628, headings Secret and Capability ceiling",
+      "after": "detail 390×518, heading Secret"
+    }
+  ]
+}

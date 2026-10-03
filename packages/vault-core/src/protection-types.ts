@@ -223,10 +223,3 @@ export type RootProtectionManifest = {
   /** Base64url HMAC/AEAD tag over canonical manifest without this field. */
   authB64?: string;
 };
-
-export type EncryptionSetupIntent = {
-  providerId: string;
-  connectionId?: string;
-  /** Preference only — not an enrolled protector. */
-  source: "capabilityConnectors.encryption";
-};

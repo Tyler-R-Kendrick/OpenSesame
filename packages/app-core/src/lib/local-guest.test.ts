@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { configureHost } from "../host.js";
+import { createTestHost } from "../test-host.js";
 import { kvDelete, kvGet } from "./kv.js";
 import {
   GUEST_PERSON_ID,
@@ -8,9 +10,11 @@ import {
   GUEST_ORDINAL_KEY as ORDINAL_KEY,
   clearGuestSessionPerson,
   guestSessionPerson,
+  guestSessionPersonLocked,
   guestVaultLabel,
   isGuestPersonEntry,
   mintGuestSessionPerson,
+  mintGuestSessionPersonLocked,
   readGuestSessionPerson,
 } from "./local-guest.js";
 
@@ -94,5 +98,124 @@ describe("local-guest principals", () => {
         enabled: true,
       }),
     ).toBe(false);
+  });
+});
+
+describe("cross-tab guest ordinal minting", () => {
+  const durableFiles = new Map<string, string>();
+  const fakeDirectory = {
+    getFileHandle: async (name: string, options?: { create?: boolean }) => {
+      if (!durableFiles.has(name) && !options?.create) {
+        throw new DOMException("No such file", "NotFoundError");
+      }
+      return {
+        getFile: async () => {
+          const text = durableFiles.get(name);
+          if (text === undefined) {
+            throw new DOMException("No such file", "NotFoundError");
+          }
+          return { size: text.length, text: async () => text };
+        },
+        createWritable: async () => ({
+          write: async (value: string) => {
+            durableFiles.set(name, value);
+          },
+          close: async () => {},
+        }),
+      };
+    },
+  };
+  let lockChain: Promise<unknown> = Promise.resolve();
+  const locks = {
+    request<T>(
+      _name: string,
+      actionOrOptions: LockOptions | LockGrantedCallback,
+      maybeAction?: LockGrantedCallback,
+    ): Promise<T> {
+      const action = (maybeAction ?? actionOrOptions) as () => Promise<T>;
+      const run = lockChain.then(action);
+      lockChain = run.catch(() => undefined);
+      return run;
+    },
+  };
+
+  beforeEach(() => {
+    durableFiles.clear();
+    lockChain = Promise.resolve();
+    configureHost(
+      createTestHost({
+        locks,
+        originFiles: async () =>
+          fakeDirectory as unknown as FileSystemDirectoryHandle,
+      }),
+    );
+    kvDelete(ORDINAL_KEY);
+    kvDelete(GUEST_PERSON_KEY);
+    clearGuestSessionPerson();
+    try {
+      sessionStorage.clear();
+    } catch {
+      /* ignore */
+    }
+  });
+  afterEach(() => {
+    configureHost(createTestHost());
+    clearGuestSessionPerson();
+    kvDelete(ORDINAL_KEY);
+    kvDelete(GUEST_PERSON_KEY);
+  });
+
+  it("a tab with a stale in-memory ordinal mints the next durable one", async () => {
+    const tabA = await mintGuestSessionPersonLocked();
+    expect(tabA.name).toBe("guest-1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    kvDelete(ORDINAL_KEY);
+    expect(kvGet(ORDINAL_KEY)).toBeNull();
+
+    const tabB = await mintGuestSessionPersonLocked();
+    expect(tabB.name).toBe("guest-2");
+    expect(tabB.id).not.toBe(tabA.id);
+  });
+
+  it("falls back to the sync mint where Web Locks are unavailable", async () => {
+    configureHost(createTestHost());
+    const person = await mintGuestSessionPersonLocked();
+    expect(person.name).toBe("guest-1");
+  });
+
+  it("resume-or-mint under the lock never duplicates a slug across tabs", async () => {
+    const tabA = await guestSessionPersonLocked();
+    expect(tabA.name).toBe("guest-1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    kvDelete(ORDINAL_KEY);
+    kvDelete(GUEST_PERSON_KEY);
+    clearGuestSessionPerson();
+    try {
+      sessionStorage.clear();
+    } catch {
+      /* ignore */
+    }
+
+    const tabB = await guestSessionPersonLocked();
+    expect(tabB.name).toBe("guest-2");
+    expect(tabB.id).not.toBe(tabA.id);
+  });
+
+  it("resume-or-mint resumes the same principal within a tab", async () => {
+    const [first, second] = await Promise.all([
+      guestSessionPersonLocked(),
+      guestSessionPersonLocked(),
+    ]);
+    expect(second).toEqual(first);
+    expect(kvGet(ORDINAL_KEY)).toBe("1");
+  });
+
+  it("resume-or-mint falls back to the sync mint without Web Locks", async () => {
+    configureHost(createTestHost());
+    const person = await guestSessionPersonLocked();
+    expect(person.name).toBe("guest-1");
+    expect(await guestSessionPersonLocked()).toEqual(person);
   });
 });

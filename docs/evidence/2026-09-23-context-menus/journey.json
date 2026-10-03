@@ -10,7 +10,7 @@
           "guest": null
         },
         {
-          "measure": "1280-rail"
+          "facts": "1280-rail"
         },
         {
           "shot": "1280-rail"
@@ -19,7 +19,7 @@
           "rightClick": "vault/"
         },
         {
-          "measure": "1280-rail-menu"
+          "facts": "1280-rail-menu"
         },
         {
           "shot": "1280-rail-menu"
@@ -37,7 +37,7 @@
           "expand": "General"
         },
         {
-          "measure": "1280-settings"
+          "facts": "1280-settings"
         },
         {
           "shot": "1280-settings"
@@ -46,7 +46,7 @@
           "rightClick": "General"
         },
         {
-          "measure": "1280-general-menu"
+          "facts": "1280-general-menu"
         },
         {
           "shot": "1280-general-menu"
@@ -61,7 +61,7 @@
           "openSettingsFile": "general"
         },
         {
-          "measure": "1280-config"
+          "facts": "1280-config"
         },
         {
           "shot": "1280-config"
@@ -79,7 +79,7 @@
           "tab": "Settings"
         },
         {
-          "measure": "390-settings"
+          "facts": "390-settings"
         },
         {
           "shot": "390-settings"
@@ -88,7 +88,7 @@
           "openSettingsFile": "general"
         },
         {
-          "measure": "390-config"
+          "facts": "390-config"
         },
         {
           "shot": "390-config"

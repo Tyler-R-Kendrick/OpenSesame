@@ -19,7 +19,7 @@ describe("peer envelopes", () => {
         incidentId: "i1",
         policyRevision: 1,
         keyEpoch: 1,
-        nonce: "n1",
+        nonce: "nonce-0001",
         issuedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
         ciphertextB64: btoa("hi"),

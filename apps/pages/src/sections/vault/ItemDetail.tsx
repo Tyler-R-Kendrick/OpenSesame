@@ -1,4 +1,3 @@
-import { generate } from "@opensesame/app-core/lib/vault/password.js";
 import {
   type VaultItem,
   definitionFor,
@@ -36,6 +35,7 @@ import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
 import { KindRecord, SecretShares } from "./item-contributions.js";
@@ -116,7 +116,6 @@ export function ItemDetail() {
               </Link>
             ) : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
-            {item.sample ? <StatusMark tone="idle" label="Synthetic" /> : null}
             {inTrash ? <StatusMark tone="warn" label="In trash" /> : null}
           </div>
         </div>
@@ -222,9 +221,6 @@ export function ItemDetail() {
         copied={copied}
         failed={failed}
         copy={copy}
-        shareInitiallyOpen={
-          new URLSearchParams(location.search).get("share") === "drop"
-        }
         onUpdateSecret={async (next) => {
           const updated = { ...item, updatedAt: new Date().toISOString() };
           if (updated.kind === "login") {
@@ -236,6 +232,14 @@ export function ItemDetail() {
           await store.saveItem(updated);
         }}
       />
+      {item.kind !== "drop" ? (
+        <SecretShares
+          item={item}
+          initialOpen={
+            new URLSearchParams(location.search).get("share") === "drop"
+          }
+        />
+      ) : null}
 
       {item.fields.length > 0 ? (
         <section className="detail__group">
@@ -304,124 +308,8 @@ type FieldsProps = {
   copied: string | null;
   failed: string | null;
   copy: (key: string, value: string) => Promise<void>;
-  /** A `?share=drop` deep link (e.g. from a list row) opens the ceremony. */
-  shareInitiallyOpen: boolean;
   onUpdateSecret: (next: string) => Promise<void>;
 };
-
-function UpdateSecretPanel({
-  label,
-  onUpdate,
-}: {
-  label: string;
-  onUpdate: (next: string) => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"generate" | "provide">("generate");
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function apply() {
-    setError(null);
-    setBusy(true);
-    try {
-      const next =
-        mode === "generate"
-          ? generate({
-              mode: "characters",
-              length: 32,
-              lower: true,
-              upper: true,
-              digits: true,
-              symbols: true,
-              avoidAmbiguous: true,
-            })
-          : value;
-      if (!next) throw new Error("Enter a new value.");
-      await onUpdate(next);
-      setOpen(false);
-      setValue("");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Update failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!open) {
-    return (
-      <IconKey label={`Update ${label}`} onClick={() => setOpen(true)}>
-        <IconRefresh size={17} />
-      </IconKey>
-    );
-  }
-
-  return (
-    <div className="detail__update">
-      <fieldset className="sites-effect-toggle" aria-label="Update mode">
-        <button
-          type="button"
-          className={
-            mode === "generate" ? "sites-effect is-on is-allow" : "sites-effect"
-          }
-          aria-pressed={mode === "generate"}
-          onClick={() => setMode("generate")}
-        >
-          Generate
-        </button>
-        <button
-          type="button"
-          className={
-            mode === "provide" ? "sites-effect is-on is-allow" : "sites-effect"
-          }
-          aria-pressed={mode === "provide"}
-          onClick={() => setMode("provide")}
-        >
-          Enter
-        </button>
-      </fieldset>
-      {mode === "provide" ? (
-        <input
-          type="password"
-          className="input"
-          autoComplete="new-password"
-          placeholder={`New ${label}`}
-          aria-label={`New ${label}`}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-      ) : null}
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : null}
-      <div className="actions">
-        <button
-          type="button"
-          className="icon-btn is-on"
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => void apply()}
-          aria-label={busy ? "Saving…" : "Save new value"}
-          title={busy ? "Saving…" : "Save new value"}
-        >
-          <IconCheck size={17} />
-        </button>
-        <IconKey
-          label="Cancel"
-          onClick={() => {
-            setOpen(false);
-            setError(null);
-          }}
-        >
-          <IconX size={17} />
-        </IconKey>
-      </div>
-    </div>
-  );
-}
 
 function ItemFields({
   item,
@@ -430,7 +318,6 @@ function ItemFields({
   copied,
   failed,
   copy,
-  shareInitiallyOpen,
   onUpdateSecret,
 }: FieldsProps) {
   switch (item.kind) {
@@ -752,108 +639,46 @@ function ItemFields({
       return (
         <>
           <section className="detail__group">
-            <h2 className="detail__grouphead">Secret</h2>
-            <FieldRow
-              label="Value"
-              actions={
-                <>
-                  <RevealButton
-                    revealed={revealed.has("value")}
-                    label="secret value"
-                    onToggle={() => toggle("value")}
-                  />
-                  <CopyButton
-                    value={item.value}
-                    label="secret"
-                    fieldKey="value"
-                    copied={copied}
-                    failed={failed}
-                    onCopy={copy}
-                  />
-                </>
-              }
-            >
-              <ConcealedValue
-                value={item.value}
-                label="secret value"
-                revealed={revealed.has("value")}
-              />
-              <UpdateSecretPanel label="secret" onUpdate={onUpdateSecret} />
-            </FieldRow>
-            {item.connectionRef ? (
-              <FieldRow
-                label="Connection reference"
-                actions={
-                  <CopyButton
-                    value={item.connectionRef}
-                    label="connection reference"
-                    fieldKey="connref"
-                    copied={copied}
-                    failed={failed}
-                    onCopy={copy}
-                  />
+            <h2 className="detail__grouphead">Value</h2>
+            <div className="secret-value">
+              <div className="frow__text">
+                <ConcealedValue
+                  value={item.value}
+                  label="secret value"
+                  revealed={revealed.has("value")}
+                />
+              </div>
+              <UpdateSecretPanel
+                label="secret"
+                onUpdate={onUpdateSecret}
+                leading={
+                  <>
+                    <RevealButton
+                      revealed={revealed.has("value")}
+                      label="secret value"
+                      onToggle={() => toggle("value")}
+                    />
+                    <CopyButton
+                      value={item.value}
+                      label="secret"
+                      fieldKey="value"
+                      copied={copied}
+                      failed={failed}
+                      onCopy={copy}
+                    />
+                  </>
                 }
-              >
-                <span className="frow__value frow__value--mono">
-                  {item.connectionRef}
-                </span>
-              </FieldRow>
-            ) : null}
-            <FieldRow label="Grantees">
+              />
+            </div>
+          </section>
+          <section className="detail__group">
+            <h2 className="detail__grouphead">Grantees</h2>
+            <div className="frow">
               <span className="frow__value">
                 {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
               </span>
-            </FieldRow>
+            </div>
           </section>
-
-          <section className="detail__group">
-            <h2 className="detail__grouphead">Capability ceiling</h2>
-            {item.ceiling.length === 0 ? (
-              <div className="frow">
-                <p className="frow__notes">
-                  No ceiling set. Optional grant metadata — it only matters when
-                  granting this secret to an agent.
-                </p>
-              </div>
-            ) : (
-              item.ceiling.map((grant, index) => (
-                <div className="ceil" key={`${grant.action}-${index}`}>
-                  <span className="ceil__action">{grant.action}</span>
-                  <span className="ceil__resource">{grant.resource}</span>
-                </div>
-              ))
-            )}
-          </section>
-
-          <section className="detail__group">
-            <h2 className="detail__grouphead">Last receipt</h2>
-            <LastReceipt connectionRef={item.connectionRef} />
-          </section>
-
-          <div className="actions">
-            {item.connectionRef ? (
-              <Link
-                className="btn btn--primary btn--sm"
-                to={`/connections/${providerIdFromRef(item.connectionRef)}`}
-              >
-                Grant or invoke
-              </Link>
-            ) : (
-              <Link className="btn btn--sm" to="/connections">
-                Authorize a connector first
-              </Link>
-            )}
-          </div>
-
-          <SecretShares item={item} initialOpen={shareInitiallyOpen} />
-
-          <div className="note">
-            <span>
-              You can reveal this value; an agent never can. An agent receives a
-              ConnectionRef, invokes through OpenSesame, and returns a receipt.
-              There is no getSecret().
-            </span>
-          </div>
         </>
       );
 
@@ -970,17 +795,4 @@ function ItemFields({
   }
 }
 
-function providerIdFromRef(ref: string): string {
-  const parts = ref.split("/").filter(Boolean);
-  return parts.length >= 2 ? (parts[parts.length - 2] ?? "github") : "github";
-}
-
-function LastReceipt({ connectionRef }: { connectionRef: string }) {
-  // Pages is complete without a Host (ADR 0090) — ConnectionRef receipts
-  // lived on the Host plane and have no local substitute here.
-  const line = !connectionRef
-    ? "No ConnectionRef on this item."
-    : "Connection receipts are unavailable on this device.";
-  return <p className="frow__notes">{line}</p>;
-}
 import { loginWebsiteLink } from "@opensesame/app-core/lib/vault/website-pattern.js";

@@ -1,13 +1,14 @@
 /**
  * Which item kinds a person may *create* here (SURFACE-08).
  *
- * The core vault owns logins, cards, secrets and notes. Every other kind —
- * passkey records, certificates, drops — is an `item-kind` contribution from
- * the capability that owns it, so its creation surfaces (the rail filter, the
+ * The minimal vault owns the base secret. Every other built-in kind —
+ * logins, cards, notes, passkeys, certificates, and the typed
+ * projections onto that secret — is an `item-kind` contribution from the
+ * capability that owns it, so its creation surfaces (the rail filter, the
  * type picker, the filtered "+ new") exist only while that capability is in
- * the plan. Existing records of an excluded kind still render: the parsers
- * are untouched and the unknown-type fallback is the same one a community
- * type uses.
+ * the plan (ADR 0153). Existing records of an excluded kind still render:
+ * the parsers are untouched and the unknown-type fallback is the same one a
+ * community type uses.
  */
 
 import {
@@ -16,6 +17,7 @@ import {
   typeLabel,
 } from "@opensesame/vault-core";
 import {
+  BUILTIN_TYPE_IDS,
   RESERVED_DIRECTORIES,
   RESERVED_TYPE_IDS,
   directoryName,
@@ -33,21 +35,20 @@ export type ItemKindRow = Readonly<{
 }>;
 
 /**
- * The kinds the core vault ships. Orders leave the gaps the contributed
- * kinds fill (passkeys 20, drops 50, certificates 70), so the rail reads
- * logins, passkeys, cards, secrets, drops, notes, certs whatever is present.
+ * The kinds the minimal vault ships: the base secret, and the file that
+ * projects onto it. Contributed kinds fill the other orders (logins 0,
+ * passkeys 20, cards 30, notes 60, certificates 70).
  */
 export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
-  { id: "login", segment: "logins", label: "Login", order: 0 },
-  { id: "card", segment: "cards", label: "Card", order: 30 },
   { id: "secret", segment: "secrets", label: "Secret", order: 40 },
-  { id: "note", segment: "notes", label: "Secure note", order: 60 },
+  { id: "file", segment: "files", label: "File", order: 45 },
 ];
 
 export function itemKindsFrom(
   contributions: readonly ItemKindContribution[],
 ): readonly ItemKindRow[] {
   const contributed = contributions
+    .filter((entry) => entry.creatable !== false)
     .filter((entry) => !CORE_ITEM_KINDS.some((core) => core.id === entry.kind))
     .map((entry) => ({
       id: entry.kind,
@@ -63,12 +64,15 @@ export function itemKindsFrom(
 }
 
 /**
- * The built-in kinds a capability owns. A community type (ADR 0087) is not
- * among them: it is the core vault's own plugin mechanism and stays creatable.
+ * Built-in kinds a capability owns. A community type (ADR 0087) is not among
+ * them: it is the core vault's own plugin mechanism and stays creatable.
+ * Every built-in id is gated, including the typed projections onto secret,
+ * so a minimal plan offers the secret and the file.
  */
-const GATED_KINDS: ReadonlySet<string> = new Set(
-  Object.keys(KIND_LABEL).filter((kind) => kind !== "typed"),
-);
+const GATED_KINDS: ReadonlySet<string> = new Set([
+  ...Object.keys(KIND_LABEL).filter((kind) => kind !== "typed"),
+  ...BUILTIN_TYPE_IDS,
+]);
 
 /** Type directories sort after every platform kind (certs is 70). */
 const TYPE_DIRECTORY_ORDER = 100;
@@ -145,4 +149,16 @@ export function itemKindsSnapshot(): readonly ItemKindRow[] {
 export function isCreatableItemKind(kind: string): boolean {
   if (!GATED_KINDS.has(kind)) return true;
   return itemKindsSnapshot().some((row) => row.id === kind);
+}
+
+/**
+ * The kind a creation surface opens on when nothing named one.
+ *
+ * The first kind this installation may create, in the rail's own order — so a
+ * device without the login capability opens on the first type it does have,
+ * rather than on a type it cannot create and a name generated for it. Falls
+ * back to `secret` only if the registry somehow offers nothing at all.
+ */
+export function defaultCreatableKind(): string {
+  return itemKindsSnapshot()[0]?.id ?? "secret";
 }

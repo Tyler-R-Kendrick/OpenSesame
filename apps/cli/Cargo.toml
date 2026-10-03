@@ -13,6 +13,7 @@ opensesame-storage = { path = "../../crates/storage" }
 opensesame-redaction = { path = "../../crates/redaction", features = ["tracing"] }
 opensesame-sealed-log = { path = "../../crates/sealed-log" }
 base64 = { workspace = true }
+opensesame-agent-hooks = { path = "../../crates/agent-hooks" }
 opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
@@ -30,6 +31,9 @@ opensesame-daemon = { path = "../../crates/daemon" }
 opensesame-gateway = { path = "../../crates/gateway" }
 opensesame-host-core = { path = "../../crates/host-core" }
 opensesame-worker = { path = "../../crates/worker" }
+# Settings for optional plugins only (ADR 0150 §7). The plugins themselves are
+# separate executables this binary never links (`pnpm audit:plugin-boundary`).
+opensesame-plugin-settings = { path = "../../crates/plugin-settings" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 jsonwebtoken = { workspace = true }

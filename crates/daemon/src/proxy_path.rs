@@ -18,6 +18,12 @@ pub(crate) fn decoded_path_segment(segment: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
+pub(crate) fn has_dot_segment(path: &str) -> bool {
+    path.split('/')
+        .filter(|segment| !segment.is_empty())
+        .any(|segment| matches!(decoded_path_segment(segment).as_deref(), Some("." | "..")))
+}
+
 pub(crate) fn is_local_session_path(path: &str) -> bool {
     path.split('/')
         .filter(|segment| !segment.is_empty())
@@ -25,4 +31,26 @@ pub(crate) fn is_local_session_path(path: &str) -> bool {
         .collect::<Option<Vec<_>>>()
         .as_deref()
         == Some(&["api".into(), "v1".into(), "session".into(), "local".into()])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::has_dot_segment;
+
+    #[test]
+    fn encoded_dot_segments_are_traversal() {
+        assert!(has_dot_segment("/x/%2e%2e/y"));
+        assert!(has_dot_segment("/x/%2E%2E/y"));
+        assert!(has_dot_segment("/x/%2e./y"));
+        assert!(has_dot_segment("/x/.%2e/y"));
+        assert!(has_dot_segment("/%2e"));
+    }
+
+    #[test]
+    fn ordinary_segments_are_not_traversal() {
+        assert!(!has_dot_segment("/api/v1/session/local"));
+        assert!(!has_dot_segment("/x/a%2Eb/y"));
+        assert!(!has_dot_segment("/x/%2eg/y"));
+        assert!(!has_dot_segment("/x/..y"));
+    }
 }

@@ -1,0 +1,78 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "openSettingsFile": "general"
+        },
+        {
+          "caretOnLine": {
+            "label": "settings/general/config.yaml",
+            "text": "lockOnHide"
+          }
+        },
+        {
+          "facts": "1280-typed"
+        },
+        {
+          "shot": "1280-typed"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "openSettingsFile": "general"
+        },
+        {
+          "caretOnLine": {
+            "label": "settings/general/config.yaml",
+            "text": "lockOnHide"
+          }
+        },
+        {
+          "facts": "390-typed"
+        },
+        {
+          "shot": "390-typed"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-typed",
+      "width": 1280,
+      "title": "config.yaml with the caret on lockOnHide: false \u2014 1280 \u00d7 800",
+      "caption": "The completion list no longer offers back a value that is already typed.",
+      "before": "1 completion offered: false",
+      "after": "0 completions"
+    },
+    {
+      "shot": "390-typed",
+      "width": 390,
+      "title": "config.yaml with the caret on lockOnHide: false \u2014 390 \u00d7 844",
+      "caption": "Same on a phone: no stray completion under the editor.",
+      "before": "1 completion offered: false",
+      "after": "0 completions"
+    }
+  ]
+}

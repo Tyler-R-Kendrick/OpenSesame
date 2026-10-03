@@ -263,7 +263,7 @@ describe("redaction boundaries (mutation coverage)", () => {
   });
 });
 
-describe("audit values are scrubbed by shape, not only by key (ADR 0150)", () => {
+describe("audit values are scrubbed by shape, not only by key (ADR 0155)", () => {
   it("scrubs an allowlisted free-text value before it is cut", () => {
     const out = redactAuditMetadata({
       reason: "retry https://h.example/cb?code=abc123&page=2 failed",

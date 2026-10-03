@@ -1,8 +1,4 @@
-import {
-  ADR_AGENT_SURFACE_PARITY,
-  ADR_PM_BRIDGING,
-  NEVER_AGENT_SECRET,
-} from "./exclusions.js";
+import { ADR_PM_BRIDGING, NEVER_AGENT_SECRET } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
@@ -15,18 +11,6 @@ const EXPLICIT_HUMAN_IMPORT: CapabilityExclusion = {
   reason:
     "an import is an explicit, visible human action over a file the person picked; an agent would carry a plaintext export or its master password and write secrets under nobody's hand",
   adr: ADR_PM_BRIDGING,
-};
-
-/**
- * Sample data is the person's own look at the product: synthetic, badged,
- * loaded and removed by whoever is looking at it. An agent that could load
- * it would put credential-shaped items in a vault under nobody's hand, and
- * one that could remove it would be a delete an agent reached by a side road.
- */
-const SAMPLE_DATA_IS_THE_PERSONS: CapabilityExclusion = {
-  reason:
-    "sample data is loaded and removed by the person looking at it; an agent would write credential-shaped items, or delete items, under nobody's hand",
-  adr: ADR_AGENT_SURFACE_PARITY,
 };
 
 /**
@@ -45,7 +29,7 @@ export const vaultInteropCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault import",
       pwa: "lib/vault/import/merge.ts:planMerge",
       mcp_host: null,
       mcp_client: null,
@@ -63,7 +47,7 @@ export const vaultInteropCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault export",
       pwa: "lib/vault/offline-backup-file.ts:offlineBackupFile",
       mcp_host: null,
       mcp_client: null,
@@ -110,24 +94,6 @@ export const vaultInteropCapabilities: readonly Capability[] = [
       mcp_host: EXPLICIT_HUMAN_IMPORT,
       mcp_client: EXPLICIT_HUMAN_IMPORT,
       webmcp: EXPLICIT_HUMAN_IMPORT,
-    },
-  },
-  {
-    id: "vault.sample_data",
-    title: "Load badged sample items into the vault, or remove them all",
-    plane: "client_local",
-    kind: "act",
-    surfaces: {
-      cli: null,
-      pwa: "lib/vault/sample.ts:buildSample",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SAMPLE_DATA_IS_THE_PERSONS,
-      mcp_client: SAMPLE_DATA_IS_THE_PERSONS,
-      webmcp: SAMPLE_DATA_IS_THE_PERSONS,
     },
   },
 ];

@@ -26,6 +26,10 @@ import type { ProviderCategory } from "../connections.js";
 
 export type FeatureId =
   | "identity"
+  | "access"
+  | "connections"
+  | "item-types"
+  | "environments"
   | "directory"
   | "encryption"
   | "certificates"
@@ -33,9 +37,12 @@ export type FeatureId =
   | "password-managers"
   | "cloud-secret-storage"
   | "local-storage"
+  | "autofill"
   | "sharing"
   | "payments"
   | "ai"
+  | "password-reset"
+  | "surrogates"
   | "networking"
   | "notifications"
   | "telemetry";
@@ -70,17 +77,24 @@ const section = (
 /**
  * In page order, by topic: who signs in, what protects keys, where secrets
  * live, then what this installation does with others and with models.
- * Browser-local IAM, SIOP, the site broker and git backup are always on
- * (ADR 0142), so Identity providers and Backups carry no switch.
+ * The site broker and git backup are always on (ADR 0142), so Backups
+ * carries no switch. Identity, Connections, Access and item types are
+ * optional extensions (ADR 0153): off until their switch is on.
  */
 export const FEATURES: readonly Feature[] = [
   section(
     "identity",
-    "Identity providers",
-    [],
+    "Identity",
+    [
+      "identity.local-iam",
+      "identity.siop",
+      "identity.federation",
+      "identity.ambient-sso",
+    ],
     ["identity"],
-    ["identity.federation"],
   ),
+  section("access", "Access", ["access.authority"], []),
+  section("connections", "Connections", ["connectors.external"], []),
   section("directory", "Directory", ["enterprise.directory-provisioning"], []),
   section(
     "encryption",
@@ -96,28 +110,36 @@ export const FEATURES: readonly Feature[] = [
     ["certificates"],
   ),
   section("backups", "Backups", [], ["backup_recovery"], ["backup.git-remote"]),
-  section(
-    "password-managers",
-    "Password managers",
-    [],
-    ["password_managers"],
-    ["connectors.external"],
-  ),
+  section("password-managers", "Password managers", [], ["password_managers"]),
   section(
     "cloud-secret-storage",
     "Cloud secret storage",
     [],
     ["cloud_secret_storage"],
-    ["connectors.external"],
   ),
+  section("local-storage", "Local storage", [], ["local_storage"]),
   section(
-    "local-storage",
-    "Local storage",
+    "item-types",
+    "Item types",
+    [
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ],
     [],
-    ["local_storage"],
-    ["connectors.external"],
   ),
-  section("sharing", "Sharing", ["sharing.drops", "sharing.household"], []),
+  section("environments", "Environments", ["vault.environments"], []),
+  // Runtime-installed plugins (ADR 0150 §7): advanced, default off, and
+  // nothing of the plugin itself is in the bundle — the section shows what
+  // the paired daemon has installed and switches it there.
+  section("autofill", "Browser autofill", ["vault.browser-autofill"], []),
+  section(
+    "sharing",
+    "Sharing",
+    ["sharing.live", "sharing.household"],
+    [],
+    ["sharing.drops"],
+  ),
   section("payments", "Payments", ["wallet.spending"], ["wallet"]),
   {
     ...section(
@@ -128,6 +150,13 @@ export const FEATURES: readonly Feature[] = [
     ),
     models: true,
   },
+  section("password-reset", "Password reset", ["ai.password-reset"], []),
+  section(
+    "surrogates",
+    "Surrogate credentials",
+    ["agents.surrogate-credentials"],
+    [],
+  ),
   section("networking", "Networking", ["networking.tailnet"], ["networking"]),
   section(
     "notifications",

@@ -42,6 +42,7 @@ import {
 } from "./execute.js";
 import { CanaryRegistry } from "./registry.js";
 import {
+  CANARY_BOUNDS,
   CANARY_FORBIDDEN_KEYS,
   parseCanaryActivation as parseActivation,
 } from "./schema.js";
@@ -79,7 +80,14 @@ function hasForbiddenKey(obj: JsonObject): boolean {
 }
 
 export function revokeCanaryRoute(routeRef: string): void {
-  revokedRoutes.add(routeRef);
+  if (!revokedRoutes.has(routeRef)) {
+    revokedRoutes.add(routeRef);
+    while (revokedRoutes.size > CANARY_BOUNDS.stateMaxEntries) {
+      const oldest = revokedRoutes.values().next();
+      if (oldest.done) break;
+      revokedRoutes.delete(oldest.value);
+    }
+  }
   for (const e of defaultRegistry.list()) {
     if (e.receiver?.routeRef === routeRef) {
       defaultRegistry.revokeRoute(e.canaryId);
@@ -183,14 +191,15 @@ export function executeCanary(
     return { ok: false, code: "contradictory_actions" };
   }
 
-  const parsed = parseCanaryEvent(request.event);
-  if ("ok" in parsed) return parsed;
-  const event = parsed;
-
   const routeRef = routeRefFromEvent(request.event);
   if (!routeRef || !request.enrolledRouteRefs.includes(routeRef)) {
     return { ok: false, code: "unapproved_route" };
   }
+
+  const parsed = parseCanaryEvent(request.event);
+  if ("ok" in parsed) return parsed;
+  const event = parsed;
+
   if (revokedRoutes.has(routeRef)) {
     return revokedCanaryHit(event.canaryId);
   }

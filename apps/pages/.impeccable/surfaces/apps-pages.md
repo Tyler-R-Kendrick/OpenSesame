@@ -51,8 +51,6 @@ where it lands → import.
 - Static hosting. Identity and Host planes are remote and configurable, and
   every network-backed surface has to state what it cannot show while offline
   or unauthenticated rather than rendering an empty frame.
-- Sample data is opt-in from Settings, badged on every item, and removable in
-  one action.
 - TOTP codes, password generation, strength, and the health report are computed
   in the page. Nothing about a password, including a hash of one, leaves the
   device.

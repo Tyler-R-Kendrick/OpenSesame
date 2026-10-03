@@ -79,8 +79,11 @@ function declared(): ReadonlyMap<GuideTargetId, GuideTargetDescriptor> {
 const mounted = new Map<GuideTargetId, MountedTarget[]>();
 const mountListeners = new Set<() => void>();
 const activationListeners = new Map<GuideTargetId, Set<ActivationListener>>();
-const duplicateMounts: string[] = [];
-const undeclaredMounts: string[] = [];
+// Session diagnostics, deduplicated: a control that keeps mounting with an
+// undeclared or duplicate id records the id once, not once per mount, so a
+// list rendered before its capability lands cannot grow these without bound.
+const duplicateMounts = new Set<string>();
+const undeclaredMounts = new Set<string>();
 
 function announce(): void {
   for (const listener of [...mountListeners]) listener();
@@ -117,7 +120,7 @@ export function mountGuideTarget(
     // app, because its settings category names `settings.backup`, which
     // `connectors.external` declares. Development still throws, which is
     // where an id genuinely nobody declares gets caught.
-    undeclaredMounts.push(id);
+    undeclaredMounts.add(id);
     if (inDevelopment()) {
       throw new Error(`guide_target_undeclared:${id}`);
     }
@@ -125,7 +128,7 @@ export function mountGuideTarget(
   }
   const candidates = mounted.get(id) ?? [];
   if (candidates.some((candidate) => candidate.element === element)) {
-    duplicateMounts.push(id);
+    duplicateMounts.add(id);
     if (inDevelopment()) {
       throw new Error(`guide_target_mounted_twice:${id}`);
     }
@@ -341,6 +344,7 @@ export function clearMountedGuideTargets(): void {
   }
   mounted.clear();
   activationListeners.clear();
-  undeclaredMounts.length = 0;
+  undeclaredMounts.clear();
+  duplicateMounts.clear();
   announce();
 }

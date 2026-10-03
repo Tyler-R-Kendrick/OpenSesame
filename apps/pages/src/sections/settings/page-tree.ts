@@ -34,10 +34,15 @@ export type SettingsRailSnapshot = {
    * `SettingsSection` draws them: a tab lists exactly the active ones.
    */
   contributed?: readonly ContributedPanel[];
-  /** Security › Duress profiles draws (duress mode is not off). */
+  /** Security › Duress draws (the owner of an open vault; never a guest or a decoy). */
   duress?: boolean;
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
+  /**
+   * Capabilities sections that draw nothing on this device (no switch, no
+   * connector with anything to do): unlisted, as the page leaves them out.
+   */
+  emptyFeatures?: readonly string[];
 };
 
 export type ContributedPanel = Readonly<{
@@ -64,11 +69,13 @@ function panel(category: string, id: string, label: string): PageTreeSource {
 export function capabilitiesSettingsSections(
   guests = true,
   instancePolicy = false,
+  emptyFeatures: readonly string[] = [],
 ): PageTreeSource[] {
   return [
     ...(guests ? [panel("capabilities", "feature-guests", "Guests")] : []),
-    ...FEATURES.map((feature) =>
-      panel("capabilities", `feature-${feature.id}`, feature.title),
+    ...FEATURES.filter((feature) => !emptyFeatures.includes(feature.id)).map(
+      (feature) =>
+        panel("capabilities", `feature-${feature.id}`, feature.title),
     ),
     ...(instancePolicy
       ? [panel("capabilities", "instance-policy", "Instance policy")]
@@ -100,7 +107,12 @@ function sectionsFor(
           : []),
         panel("general", "settings-appearance", "Appearance"),
         panel("general", "settings-locking", "Locking"),
-        panel("general", "settings-keybindings", "Keybindings and views"),
+        ...contributed,
+      ];
+    case "keybindings":
+      return [
+        panel("keybindings", "settings-keymap", "Keymap"),
+        panel("keybindings", "settings-macros", "Macros"),
         ...contributed,
       ];
     case "security":
@@ -108,18 +120,19 @@ function sectionsFor(
       // the unlock methods and the account's own factors.
       return [
         panel("security", "vault-key-protection", "Vault key protection"),
-        ...(snapshot.duress
-          ? [panel("security", "duress-profiles", "Duress profiles")]
-          : []),
         panel("security", "unlock-methods", "Unlock methods"),
         panel("security", "second-step", "Second step"),
         panel("security", "recovery", "Recovery"),
         ...(snapshot.account
           ? [panel("security", "account-factors", "Your account")]
           : []),
+        ...(snapshot.duress
+          ? [
+              panel("security", "duress-profiles", "Duress"),
+              panel("security", "travel", "Travel"),
+            ]
+          : []),
         ...contributed,
-        panel("security", "age-keys", "Age keys"),
-        panel("security", "transport", "Transport"),
       ];
     case "vaults":
       return [
@@ -129,9 +142,7 @@ function sectionsFor(
           href: settingsPath("vaults"),
           keepEmpty: true,
         })),
-        panel("vaults", "travel", "Travel"),
         panel("vaults", "item-types", "Item types"),
-        panel("vaults", "sample-data", "Sample data"),
         ...contributed,
       ];
     case "capabilities":
@@ -140,12 +151,14 @@ function sectionsFor(
         ...capabilitiesSettingsSections(
           snapshot.guests ?? true,
           snapshot.instancePolicy ?? false,
+          snapshot.emptyFeatures ?? [],
         ),
       ];
     case "danger":
       return [
         ...contributed,
         panel("danger", "settings-delete-vault", "Delete this vault"),
+        panel("danger", "settings-trash", "Trash"),
       ];
     default:
       // A contributed tab: the panels its module says it always draws.
@@ -182,6 +195,7 @@ export function settingsPageSources(
               label: SETTINGS_CONFIG_FILE,
               href: settingsConfigRoute(tab.id),
               hidden: true,
+              first: true,
               kind: "file",
             },
           ]

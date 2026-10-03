@@ -3,38 +3,20 @@
  * Connections used to carry, now drawn under the feature (or the always-on
  * group) that uses them on Settings › Capabilities. Each tile opens its
  * connector page (`/settings/connections/<provider>`), and a backup road
- * wears its enable switch.
+ * wears its enable switch. A connector whose page has nothing to do on this
+ * device draws no tile (`providerTileItems`).
  */
 
-import type {
-  Provider,
-  ProviderCategory,
-} from "@opensesame/app-core/lib/connections.js";
-import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
+import type { ProviderCategory } from "@opensesame/app-core/lib/connections.js";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
-import { featureBindingSections } from "../connections/page-tree.js";
 import "../connections.css";
 import {
   FeatureBindingTile,
   hostTargetProviderId,
   useHostBackupTarget,
 } from "./FeatureBindingTile.js";
-
-const HISTORY_ROADS = new Set(
-  HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds),
-);
-
-/**
- * A git history road is drawn under Backups whatever its catalog category:
- * the one catalog (ADR 0139) files password-store under local storage, as
- * Fnox does, but here it is configured beside the forges (ADR 0142).
- */
-function placed(provider: Provider): Provider {
-  return HISTORY_ROADS.has(provider.id)
-    ? { ...provider, category: "backup_recovery" }
-    : provider;
-}
+import { providerTileItems } from "./provider-tile-items.js";
 
 export function ProviderTiles({
   category,
@@ -44,30 +26,22 @@ export function ProviderTiles({
   /** Names the list for assistive technology. */
   label: string;
 }) {
-  const providers = getBundledProviders().map(placed);
-  const group = featureBindingSections(providers).find(
-    (section) => section.id === category,
-  );
   const target = useHostBackupTarget(category === "backup_recovery");
+  const roads = useConnectorRoads();
   useSettingsEpoch();
-  const byId = new Map(providers.map((provider) => [provider.id, provider]));
   const hostProviderId = hostTargetProviderId(target);
-  const items = group?.items ?? [];
+  const items = providerTileItems(category, roads.acts);
   if (items.length === 0) return null;
   return (
     <ul className="conn-grid" id={category} aria-label={label}>
-      {items.map((item) => {
-        const provider = byId.get(item.id);
-        if (!provider) return null;
-        return (
-          <FeatureBindingTile
-            key={item.id}
-            provider={provider}
-            href={item.href}
-            hostTarget={hostProviderId === provider.id ? target : null}
-          />
-        );
-      })}
+      {items.map(({ provider, href }) => (
+        <FeatureBindingTile
+          key={provider.id}
+          provider={provider}
+          href={href}
+          hostTarget={hostProviderId === provider.id ? target : null}
+        />
+      ))}
     </ul>
   );
 }

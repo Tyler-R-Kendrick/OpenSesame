@@ -14,6 +14,7 @@ import {
   capabilityDef,
   connectorLabel,
 } from "@opensesame/app-core/lib/capabilities.js";
+import { formRoad } from "@opensesame/app-core/lib/connect-roads.js";
 import {
   type Connection,
   authorizeConnection,
@@ -92,6 +93,67 @@ function useConnectFlow(
   return [state, connect];
 }
 
+/**
+ * The card's one status or key. A key is drawn only where a road exists to
+ * connect through — a Connect route or an open Host road — because otherwise
+ * it could only fail (ADR 0150, ADR 0151); the card then names what it needs
+ * and offers none.
+ */
+function CardSide({
+  providerId,
+  needsAuth,
+  selected,
+  connected,
+  as,
+  busy,
+  reconnect,
+  onConnect,
+}: {
+  providerId: string;
+  needsAuth: boolean;
+  selected: boolean;
+  connected: boolean;
+  as: string | undefined;
+  busy: boolean;
+  reconnect: boolean;
+  onConnect: () => void;
+}) {
+  if (!needsAuth) {
+    return (
+      <StatusMark
+        tone={selected ? "ok" : "idle"}
+        label={selected ? "Ready" : "Instant"}
+      />
+    );
+  }
+  if (connected) {
+    return (
+      <StatusMark tone="ok" label={as ? `Connected as ${as}` : "Connected"} />
+    );
+  }
+  if (formRoad(providerId, "oauth2_authorization_code") === null) return null;
+  const name = connectorLabel(providerId);
+  return (
+    <button
+      type="button"
+      className="icon-btn"
+      disabled={busy}
+      aria-busy={busy}
+      aria-label={
+        busy
+          ? "Authorizing"
+          : reconnect
+            ? `Reconnect ${name}`
+            : `Connect ${name}`
+      }
+      title={reconnect ? "Reconnect" : "Connect"}
+      onClick={onConnect}
+    >
+      <IconConnection size={17} />
+    </button>
+  );
+}
+
 function ConnectorCard({
   capability,
   providerId,
@@ -127,39 +189,16 @@ function ConnectorCard({
         </span>
       </button>
       <span className="xcard__side">
-        {!needsAuth ? (
-          <StatusMark
-            tone={selected ? "ok" : "idle"}
-            label={selected ? "Ready" : "Instant"}
-          />
-        ) : active || state.phase === "connected" ? (
-          <StatusMark
-            tone="ok"
-            label={
-              state.phase === "connected" && state.as
-                ? `Connected as ${state.as}`
-                : "Connected"
-            }
-          />
-        ) : (
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={state.phase === "busy"}
-            aria-busy={state.phase === "busy"}
-            aria-label={
-              state.phase === "busy"
-                ? "Authorizing"
-                : connection
-                  ? `Reconnect ${connectorLabel(providerId)}`
-                  : `Connect ${connectorLabel(providerId)}`
-            }
-            title={connection ? "Reconnect" : "Connect"}
-            onClick={() => void connect()}
-          >
-            <IconConnection size={17} />
-          </button>
-        )}
+        <CardSide
+          providerId={providerId}
+          needsAuth={needsAuth}
+          selected={selected}
+          connected={active || state.phase === "connected"}
+          as={state.phase === "connected" ? state.as : undefined}
+          busy={state.phase === "busy"}
+          reconnect={connection !== undefined}
+          onConnect={() => void connect()}
+        />
       </span>
       {state.phase === "error" ? (
         <p className="xcard__note" role="alert">

@@ -5,7 +5,7 @@ use serde_json::json;
 use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum SyncCmd {
+pub(crate) enum SyncCmd {
     /// Rebind explicitly selected legacy ciphertext after verifying ownership offline.
     #[command(name = "rebind-legacy")]
     RebindLegacy {
@@ -34,7 +34,7 @@ pub(super) enum SyncCmd {
     },
 }
 
-pub(super) async fn sync_cmd(server: &str, cmd: SyncCmd) -> anyhow::Result<()> {
+pub(crate) async fn sync_cmd(server: &str, cmd: SyncCmd) -> anyhow::Result<()> {
     if let SyncCmd::RebindLegacy {
         database,
         owner,

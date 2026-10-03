@@ -185,6 +185,8 @@ observation window, not forever.
 
 ### 6. Egress substitution is rejected
 
+> Amended by [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) §6.3: unchanged for rotation; for *login* submission a declared-field substitution is specified for the §8 runner, deferred until it is implemented.
+
 An earlier shape of this design routed the sandbox's traffic through a
 TLS-terminating proxy that swapped a placeholder for the real secret on the
 way out, so that plaintext never entered the browser process at all. It is

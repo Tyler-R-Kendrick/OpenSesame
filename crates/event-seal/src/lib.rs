@@ -1,4 +1,4 @@
-//! Event and audit rows, sealed at rest (ADR 0150).
+//! Event and audit rows, sealed at rest (ADR 0155).
 //!
 //! The Host's `SQLite` file holds what happened: the outbox, security deliveries,
 //! connection events, signing events, approval comments, runner steps and

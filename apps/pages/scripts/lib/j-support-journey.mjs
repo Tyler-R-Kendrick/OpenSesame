@@ -1,10 +1,9 @@
 /**
- * J-SUPPORT: before any model runs the Support sheet refuses proposals —
- * nothing can answer, so it says so in prose, keeps the field disabled for
- * assistive technology, and the written help below still works. Untrusted text
- * may propose a draft but never name a mutation tool (ADV-10); that gate is
- * held at the enforcement boundary with these exact strings in
- * `lib/configuration/experience-journeys.test.ts`.
+ * J-SUPPORT: with no model ready the Support sheet searches the written help.
+ * The field stays enabled, the key says Search, and the sheet does not explain
+ * the missing model. Untrusted text may propose a draft but never name a
+ * mutation tool (ADV-10); that gate is held at the enforcement boundary with
+ * these exact strings in `lib/configuration/experience-journeys.test.ts`.
  */
 import { addCapabilities, sealWithPassword } from "./pages-journey.mjs";
 
@@ -17,22 +16,26 @@ export async function walkJSupport({ page, origin, base, check, snap }) {
   await page.getByRole("button", { name: /^Support/ }).click();
   const sheet = page.getByRole("dialog", { name: "Support" });
   await sheet.waitFor({ timeout: 15000 });
-  const prose = await sheet.innerText();
+  const search = sheet.getByLabel("Search the written help");
+  await search.waitFor({ timeout: 8000 });
   check(
-    /on-device model|support endpoint|nothing is available|offline|not been downloaded/i.test(
-      prose,
-    ),
-    `the sheet names the unavailable state in prose: ${prose.slice(0, 120)}`,
+    !(await search.isDisabled()),
+    "search over the written help stays available",
   );
-  const ask = sheet.getByLabel("Ask about this screen");
-  await ask.waitFor({ timeout: 8000 });
   check(
-    await ask.isDisabled(),
-    "the field that cannot work is disabled for assistive technology",
+    (await sheet
+      .getByRole("button", { name: "Search", exact: true })
+      .count()) === 1,
+    "the key says Search",
   );
   check(
     (await sheet.getByRole("button").count()) > 1,
     "the written help below still works",
+  );
+  const prose = await sheet.innerText();
+  check(
+    !/on-device model|support endpoint/i.test(prose),
+    "the sheet does not explain the missing model",
   );
   await snap(page, "J-SUPPORT-no-model");
 }

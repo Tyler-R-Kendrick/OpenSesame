@@ -22,7 +22,7 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame lifecycle expiring",
+      cli: "opensesame access resources lifecycle expiring",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -38,7 +38,7 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame lifecycle hooks",
+      cli: "opensesame access resources lifecycle hooks",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -54,7 +54,7 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame lifecycle hook add",
+      cli: "opensesame access resources lifecycle hook add",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -71,7 +71,7 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame lifecycle hook rm",
+      cli: "opensesame access resources lifecycle hook rm",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -96,7 +96,7 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame lifecycle deliveries",
+      cli: "opensesame access resources lifecycle deliveries",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -112,7 +112,7 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame lifecycle scan",
+      cli: "opensesame access resources lifecycle scan",
       pwa: null,
       mcp_host: null,
       mcp_client: null,

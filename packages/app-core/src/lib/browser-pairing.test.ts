@@ -79,6 +79,9 @@ describe("explicit browser authority", () => {
     expect(JSON.stringify(prompt)).not.toContain(pairing.device_code);
     const grant = await pollBrowserPairing();
     expect(JSON.stringify(grant)).not.toContain(token);
+    expect(currentBrowserGrant("::::not a url")).toBeNull();
+    expect(currentBrowserGrant("https://user:pass@127.0.0.1:8787")).toBeNull();
+    expect(currentBrowserGrant(host)).toMatchObject({ hostApi: host });
     await pairedHostFetch(host, "/api/v1/sync/pull-page", {
       method: "POST",
       body: "{}",

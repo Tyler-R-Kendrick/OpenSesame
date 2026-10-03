@@ -145,7 +145,7 @@ function toRemovalKind(
     case "session_cache":
       return kind;
     case "sealed_outbox":
-      return "grant_handle";
+      return "sealed_outbox";
     case "recovery_copy":
     case "other":
       return "cache";

@@ -95,29 +95,46 @@ export class SandboxTextDecoder {
   readonly encoding = "utf-8";
   readonly fatal: boolean;
   readonly ignoreBOM: boolean;
+  private bomSeen: boolean;
+  private pending = new Uint8Array(0);
 
   constructor(label = "utf-8", options: TextDecoderOptions = {}) {
     if (!/^\s*(utf-?8|unicode-1-1-utf-8)\s*$/i.test(label))
       throw new RangeError(`The encoding label "${label}" is not supported`);
     this.fatal = options.fatal === true;
     this.ignoreBOM = options.ignoreBOM === true;
+    this.bomSeen = this.ignoreBOM;
   }
 
-  decode(input?: ArrayBuffer | ArrayBufferView): string {
-    const bytes = toBytes(input);
+  decode(
+    input?: ArrayBuffer | ArrayBufferView,
+    options?: TextDecodeOptions,
+  ): string {
+    const stream = options?.stream === true;
+    const chunk = toBytes(input);
+    const bytes = new Uint8Array(this.pending.byteLength + chunk.byteLength);
+    bytes.set(this.pending);
+    bytes.set(chunk, this.pending.byteLength);
+    this.pending = new Uint8Array(0);
     let text = "";
-    let index =
-      !this.ignoreBOM &&
-      bytes[0] === 0xef &&
-      bytes[1] === 0xbb &&
-      bytes[2] === 0xbf
-        ? 3
-        : 0;
+    let index = 0;
     while (index < bytes.length) {
       const [point, used, valid] = decodeAt(bytes, index);
+      if (
+        !valid &&
+        stream &&
+        index + used === bytes.length &&
+        sequence(bytes[index] ?? 0) !== null
+      ) {
+        this.pending = bytes.slice(index);
+        break;
+      }
       if (!valid && this.fatal)
         throw new TypeError("The encoded data was not valid utf-8");
-      text += String.fromCodePoint(point);
+      const first = !this.bomSeen;
+      this.bomSeen = true;
+      if (!(first && valid && point === 0xfeff))
+        text += String.fromCodePoint(point);
       index += used;
     }
     return text;

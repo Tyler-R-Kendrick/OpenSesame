@@ -1,42 +1,54 @@
-import {
-  loadSettings,
-  saveSettings,
-} from "@opensesame/app-core/lib/settings.js";
-import {
-  ProtectionNotWiredError,
-  protectionLifecycleStubs,
-} from "@opensesame/app-core/lib/vault/protection/protection-view.js";
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import { FormatsInteroperabilityPanel } from "./FormatsInteroperabilityPanel.js";
 import { VaultKeyProtectionPanel } from "./VaultKeyProtectionPanel.js";
+import {
+  type VaultViewState,
+  agePasskey,
+  ageRecipient,
+  awsKms,
+  azure,
+  deviceLocal,
+  gcpKms,
+  headerWithRecords,
+  passkeyWrap,
+  passwordHeader,
+  pin,
+  recoveryKey,
+  yubikey,
+} from "./vault-protection-fixtures.test-support.js";
 
 const originalVaultHooksSeams = { ...vaultHooksSeams };
+const ensureProtectionProjected = vi.fn(async () => undefined);
 
-function headerWithPassword() {
-  return {
-    v: 1 as const,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    kdf: {
-      alg: "PBKDF2-SHA256" as const,
-      saltB64: "c2FsdA==",
-      iterations: 600_000,
-    },
-    wrap: { ivB64: "aXY=", ctB64: "Y3Q=" },
-  };
+function useVaultState(state: VaultViewState) {
+  Object.assign(vaultHooksSeams, {
+    useVault: () => ({
+      header: passwordHeader(),
+      tomb: "personal",
+      ...state,
+    }),
+  });
+}
+
+function showRecords(records: Parameters<typeof headerWithRecords>[0]) {
+  Object.assign(vaultHooksSeams, {
+    useVault: () => ({
+      header: headerWithRecords(records),
+      guest: false,
+      status: "unlocked",
+      tomb: "personal",
+    }),
+  });
+  render(<VaultKeyProtectionPanel />);
 }
 
 beforeEach(() => {
   Object.assign(vaultHooksSeams, {
-    useVault: () => ({
-      header: headerWithPassword(),
-      guest: false,
-      status: "locked",
-    }),
     useVaultStore: () => ({
       protection: {
+        ensureProtectionProjected,
         enrollCandidate: vi.fn(),
         commitEnrollment: vi.fn(),
         testProtector: vi.fn(),
@@ -45,17 +57,10 @@ beforeEach(() => {
         rotateCompromisedRoot: vi.fn(),
         listProtectors: vi.fn(() => []),
       },
-      getSnapshot: () => ({ header: headerWithPassword() }),
+      getSnapshot: () => ({ header: passwordHeader() }),
     }),
   });
-  const settings = loadSettings();
-  saveSettings({
-    ...settings,
-    capabilityConnectors: {
-      ...settings.capabilityConnectors,
-      encryption: { providerId: "webcrypto" },
-    },
-  });
+  useVaultState({ guest: false, status: "unlocked" });
 });
 
 afterEach(() => {
@@ -72,83 +77,168 @@ describe("VaultKeyProtectionPanel", () => {
     expect(screen.getByText("Password")).toBeTruthy();
     expect(screen.getByLabelText("Verified")).toBeTruthy();
     expect(screen.queryByText(/WebCrypto/i)).toBeNull();
-    // The policy is said, not hidden in three glyphs' tooltips.
-    const policy = screen.getByRole("list", { name: "Protection policy" });
-    expect(policy.textContent).toContain(
-      "Any enrolled method can unlock alone",
+  });
+
+  it("draws no static policy prose and no row without an action", () => {
+    const { container } = render(<VaultKeyProtectionPanel />);
+    expect(
+      screen.queryByRole("list", { name: "Protection policy" }),
+    ).toBeNull();
+    expect(screen.queryByText(/No enrolled method/)).toBeNull();
+    expect(screen.queryByTestId("setup-intent")).toBeNull();
+    // Every row carries at least one key — none is a bare status.
+    for (const row of container.querySelectorAll("[data-protector-id]")) {
+      expect(row.querySelectorAll("button").length).toBeGreaterThan(0);
+    }
+  });
+
+  it("offers Test only where the service can prove it — not for Password, PIN or passkey", () => {
+    render(<VaultKeyProtectionPanel />);
+    expect(screen.queryByRole("button", { name: /^Test Password/ })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /^Preferred unlock Password/ }),
+    ).toBeTruthy();
+    // Its wrap is removed under Unlock methods, so no Remove is drawn here.
+    expect(
+      screen.queryByRole("button", { name: /^Remove Password/ }),
+    ).toBeNull();
+  });
+
+  it("offers Test on a recovery key, which the service proves from its secret", () => {
+    showRecords([recoveryKey]);
+    expect(
+      screen.getByRole("button", { name: /^Test Recovery key/ }),
+    ).toBeTruthy();
+  });
+
+  it("offers Test on every kind the browser can open, and on none it cannot", () => {
+    showRecords([
+      ageRecipient,
+      agePasskey,
+      awsKms,
+      gcpKms,
+      yubikey,
+      azure,
+      deviceLocal,
+    ]);
+    for (const label of [
+      "age recipient",
+      "age passkey",
+      "AWS KMS",
+      "Google Cloud KMS",
+    ]) {
+      expect(
+        screen.getByRole("button", { name: `Test ${label}` }),
+      ).toBeTruthy();
+    }
+    for (const label of [
+      "YubiKey PIV through age",
+      "Azure Key Vault Keys",
+      "Device-local key",
+    ]) {
+      expect(
+        screen.queryByRole("button", { name: `Test ${label}` }),
+      ).toBeNull();
+      // Remove acts on the manifest for a protector that opens nothing at the
+      // unlock screen; Preferred is a choice among the wraps that do.
+      expect(
+        screen.queryByRole("button", { name: `Preferred unlock ${label}` }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("button", { name: `Remove ${label}` }),
+      ).toBeTruthy();
+    }
+  });
+
+  it("draws Preferred for the wraps that open the vault and Remove for the rest", () => {
+    showRecords([pin, passkeyWrap, recoveryKey]);
+    for (const label of ["PIN", "Passkey / security key"]) {
+      expect(
+        screen.getByRole("button", { name: `Preferred unlock ${label}` }),
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: `Remove ${label}` }),
+      ).toBeNull();
+    }
+    expect(
+      screen.getByRole("button", { name: "Remove Recovery key" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Preferred unlock Recovery key" }),
+    ).toBeNull();
+  });
+
+  it("every key on the panel is enabled when it is drawn", () => {
+    const { container } = render(<VaultKeyProtectionPanel />);
+    const keys = container.querySelectorAll("button");
+    // Add, Rotate, and the password row's Preferred.
+    expect(keys.length).toBe(3);
+    for (const key of keys) {
+      expect(key.hasAttribute("disabled")).toBe(false);
+    }
+  });
+
+  it("writes the manifest once it can act, so a row's id is one the service holds", () => {
+    ensureProtectionProjected.mockClear();
+    render(<VaultKeyProtectionPanel />);
+    expect(ensureProtectionProjected).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not project for a guest, whose protectors are not changed here", () => {
+    ensureProtectionProjected.mockClear();
+    useVaultState({ guest: true, status: "unlocked" });
+    render(<VaultKeyProtectionPanel />);
+    expect(ensureProtectionProjected).not.toHaveBeenCalled();
+  });
+
+  it("is absent for a guest — there is no key to act on", () => {
+    useVaultState({ guest: true, status: "unlocked" });
+    const { container } = render(<VaultKeyProtectionPanel />);
+    expect(container.querySelector("#vault-key-protection")).toBeNull();
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("is absent in the guest's own tomb even once a key is enrolled in it", () => {
+    // `guest` (ephemeral) goes false when a key is enrolled; the tomb stays the
+    // guest's, and the service refuses protector changes there.
+    useVaultState({ guest: false, status: "unlocked", tomb: "guest" });
+    const { container } = render(<VaultKeyProtectionPanel />);
+    expect(container.querySelector("#vault-key-protection")).toBeNull();
+  });
+
+  it("is absent while the vault is locked", () => {
+    useVaultState({ guest: false, status: "locked" });
+    const { container } = render(<VaultKeyProtectionPanel />);
+    expect(container.querySelector("#vault-key-protection")).toBeNull();
+  });
+
+  it("opens the add sheet from the add key", () => {
+    render(<VaultKeyProtectionPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add key protection method" }),
     );
-    expect(policy.textContent).toContain("Removing one does not erase backups");
-    expect(policy.textContent).toContain(
-      "A cloud method adds an independent authority",
+    expect(screen.getByRole("dialog", { name: "Add" })).toBeTruthy();
+  });
+
+  it("opens the rotate sheet from the rotate key", () => {
+    render(<VaultKeyProtectionPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Rotate compromised vault key" }),
     );
+    expect(screen.getByRole("dialog", { name: "Rotate" })).toBeTruthy();
   });
 
-  it("shows encryption preference without enrollment as setup intent (KP-04)", () => {
-    const settings = loadSettings();
-    saveSettings({
-      ...settings,
-      capabilityConnectors: {
-        ...settings.capabilityConnectors,
-        encryption: { providerId: "aws-kms", connectionId: "conn_1" },
-      },
-    });
-    render(<VaultKeyProtectionPanel />);
-    expect(screen.getByTestId("setup-intent")).toBeTruthy();
-    expect(screen.getByLabelText("Setup intent")).toBeTruthy();
-    expect(screen.getByText("AWS KMS")).toBeTruthy();
-  });
-
-  it("disables lifecycle actions when the vault is locked", () => {
-    render(<VaultKeyProtectionPanel />);
-    const add = screen.getByRole("button", {
-      name: "Add key protection method",
-    });
-    if (!(add instanceof HTMLButtonElement)) {
-      throw new Error("expected add button");
-    }
-    expect(add.disabled).toBe(true);
-    expect(add.getAttribute("title")).toMatch(/lifecycle is not ready/i);
-    const testBtn = screen.getByRole("button", {
-      name: /Test Password/i,
-    });
-    if (!(testBtn instanceof HTMLButtonElement)) {
-      throw new Error("expected test button");
-    }
-    expect(testBtn.disabled).toBe(true);
-  });
-
-  it("enables lifecycle actions when unlocked (store-wired)", () => {
-    Object.assign(vaultHooksSeams, {
-      useVault: () => ({
-        header: headerWithPassword(),
-        guest: false,
-        status: "unlocked",
-      }),
-    });
-    render(<VaultKeyProtectionPanel />);
-    const add = screen.getByRole("button", {
-      name: "Add key protection method",
-    });
-    if (!(add instanceof HTMLButtonElement)) {
-      throw new Error("expected add button");
-    }
-    expect(add.disabled).toBe(false);
-  });
-
-  it("calls wired action props when lifecycle callbacks are supplied", () => {
+  it("calls supplied action props", () => {
     const onAdd = vi.fn();
-    const onTest = vi.fn();
     const onPreferred = vi.fn();
-    const onRemove = vi.fn();
-    const onRotateCompromised = vi.fn();
     render(
       <VaultKeyProtectionPanel
         actions={{
           onAdd,
-          onTest,
+          onTest: vi.fn(),
           onPreferred,
-          onRemove,
-          onRotateCompromised,
+          onRemove: vi.fn(),
+          onRotateCompromised: vi.fn(),
         }}
       />,
     );
@@ -156,23 +246,10 @@ describe("VaultKeyProtectionPanel", () => {
       screen.getByRole("button", { name: "Add key protection method" }),
     );
     expect(onAdd).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: /Test Password/i }));
-    expect(onTest).toHaveBeenCalled();
-  });
-
-  it("throws typed not-wired from lifecycle stubs", () => {
-    expect(() => protectionLifecycleStubs.add()).toThrow(
-      ProtectionNotWiredError,
+    fireEvent.click(
+      screen.getByRole("button", { name: /Preferred unlock Password/i }),
     );
-    try {
-      protectionLifecycleStubs.test("x");
-    } catch (caught) {
-      expect(caught).toBeInstanceOf(ProtectionNotWiredError);
-      if (!(caught instanceof ProtectionNotWiredError)) {
-        throw caught;
-      }
-      expect(caught.code).toBe("not_wired");
-    }
+    expect(onPreferred).toHaveBeenCalled();
   });
 
   it("uses icon-btn actions only — no word-verb button faces", () => {
@@ -181,20 +258,5 @@ describe("VaultKeyProtectionPanel", () => {
       expect(button.className).toMatch(/icon-btn/);
       expect(button.textContent?.trim()).toBe("");
     }
-  });
-});
-
-describe("FormatsInteroperabilityPanel", () => {
-  it("shows native/age/SOPS/GPG with separate R/W/runtime marks", () => {
-    render(<FormatsInteroperabilityPanel />);
-    expect(screen.getByRole("heading", { name: "Formats" })).toBeTruthy();
-    expect(document.getElementById("formats-interoperability")).toBeTruthy();
-    expect(screen.getByText("Native")).toBeTruthy();
-    expect(screen.getByText("age")).toBeTruthy();
-    expect(screen.getByText("SOPS")).toBeTruthy();
-    expect(screen.getByText("GPG")).toBeTruthy();
-    expect(screen.getByLabelText("Write not in this browser")).toBeTruthy();
-    const sops = document.querySelector('[data-format="sops"]');
-    expect(sops?.querySelectorAll(".status-mark").length).toBe(3);
   });
 });

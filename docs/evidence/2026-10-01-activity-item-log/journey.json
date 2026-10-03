@@ -1,0 +1,90 @@
+{
+  "out": ".",
+  "clock": "2026-10-01T15:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "fill": { "label": "Name", "text": "Deploy key" } },
+        {
+          "fill": {
+            "label": "Secret value",
+            "text": "canary-secret-value-9f3a"
+          }
+        },
+        { "press": "Save item" },
+        { "press": "Update secret" },
+        { "press": "Enter" },
+        {
+          "fill": {
+            "label": "New secret",
+            "text": "canary-secret-value-rotated"
+          }
+        },
+        { "press": "Save new value" },
+        { "tab": "Activity" },
+        { "expand": "Activity" },
+        { "waitFor": "Vault body saved" },
+        { "report": ".identity-row__id" },
+        { "count": [".identity-row"] },
+        { "measure": ".activity-log__list" },
+        { "measure": ".identity-row" },
+        { "shot": "1280-activity" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault/new/secret" },
+        { "fill": { "label": "Name", "text": "Deploy key" } },
+        {
+          "fill": {
+            "label": "Secret value",
+            "text": "canary-secret-value-9f3a"
+          }
+        },
+        { "press": "Save item" },
+        { "press": "Update secret" },
+        { "press": "Enter" },
+        {
+          "fill": {
+            "label": "New secret",
+            "text": "canary-secret-value-rotated"
+          }
+        },
+        { "press": "Save new value" },
+        { "tab": "Activity" },
+        { "waitFor": "Vault body saved" },
+        { "report": ".identity-row__id" },
+        { "count": [".identity-row"] },
+        { "measure": ".activity-log__list" },
+        { "measure": ".identity-row" },
+        { "shot": "390-activity" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-activity",
+      "width": 1280,
+      "title": "Activity after a secret is saved — 1280 × 800",
+      "caption": "Creating Deploy key and editing it leaves a line for each save.",
+      "before": "1 row, list 960×147, row 960×75, Vault body saved",
+      "after": "4 rows, list 960×409, each row 960×75"
+    },
+    {
+      "shot": "390-activity",
+      "width": 390,
+      "title": "Activity after a secret is saved — 390 × 844",
+      "caption": "The same log on a phone. The generated line wraps; the value does not appear.",
+      "before": "1 row, list 358×164, row 358×75, Vault body saved",
+      "after": "4 rows, list 358×448; generated row 358×98, the others 358×75"
+    }
+  ]
+}

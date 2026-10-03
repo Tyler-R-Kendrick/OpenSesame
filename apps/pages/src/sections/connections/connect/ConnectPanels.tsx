@@ -21,8 +21,10 @@ export function isConnectConnection(connection: Connection | null): boolean {
 
 /**
  * A connector page on Vercel Connect: never blank. Before a connector exists
- * the whole configuration is on the page, filled from the plan; once it
- * exists, its settings and a person's own token. Who may use it is decided
+ * the page asks for the Connect credential; with it held, the whole
+ * configuration is on the page, filled from the plan — a Create key that
+ * could not act without the credential is not drawn (ADR 0150). Once a
+ * connector exists, its settings and a person's own token. Who may use it is decided
  * on Access › Connectors, which lists every connector this page configures.
  */
 export function ConnectPanels({
@@ -52,30 +54,32 @@ export function ConnectPanels({
         held={transport.held}
         onFlash={onFlash}
       />
-      <section className="panel" id="connector" aria-label="Connector">
-        <div className="panel__head">
-          <h2>{connected ? "Connector settings" : "Create connector"}</h2>
-        </div>
-        {connected ? (
-          <ConnectorSettingsForm
-            key={connected.connectionId}
-            plan={plan}
-            connectorId={connected.connectionId}
-            canManage={transport.canManage}
-            online={online}
-            onFlash={onFlash}
-          />
-        ) : (
-          <ConnectCreateForm
-            key={plan.id}
-            plan={plan}
-            canManage={transport.canManage}
-            online={online}
-            onFlash={onFlash}
-            onCreated={onChanged}
-          />
-        )}
-      </section>
+      {connected || transport.canManage ? (
+        <section className="panel" id="connector" aria-label="Connector">
+          <div className="panel__head">
+            <h2>{connected ? "Connector settings" : "Create connector"}</h2>
+          </div>
+          {connected ? (
+            <ConnectorSettingsForm
+              key={connected.connectionId}
+              plan={plan}
+              connectorId={connected.connectionId}
+              canManage={transport.canManage}
+              online={online}
+              onFlash={onFlash}
+            />
+          ) : (
+            <ConnectCreateForm
+              key={plan.id}
+              plan={plan}
+              canManage={transport.canManage}
+              online={online}
+              onFlash={onFlash}
+              onCreated={onChanged}
+            />
+          )}
+        </section>
+      ) : null}
       {connected ? (
         <UserTokenPanel
           key={connected.connectionId}

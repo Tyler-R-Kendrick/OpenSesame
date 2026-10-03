@@ -29,11 +29,19 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   ...SHELL_TARGETS,
   ...VAULT_TARGETS,
 
-  // ── Settings: five categories and the panels people ask about ─────────
+  // ── Settings: six categories and the panels people ask about ─────────
   {
     id: "settings.general",
     description:
       "The General settings category: appearance, and how long the vault waits before locking itself.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
+    id: "settings.keybindings",
+    description:
+      "The Keybindings settings category: every command with its keys as keycaps — press a keycap to record a new key or sequence — and macros, named lists of steps bound to a key or run when the vault unlocks or a section opens.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: null,
@@ -167,15 +175,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
 
-  // ── Statusline detail: the identity plane and the health notice ───────
-  {
-    id: "connectivity.identity",
-    description:
-      "The sign-in glyph on the statusline. Pressing it opens the ceremony that signs in or reports the session already held.",
-    role: "ceremony",
-    routes: [],
-    capabilityId: "identity.whoami",
-  },
+  // ── Statusline detail: the health notice ──────────────────────────────
   {
     id: "notifications.health",
     description:

@@ -108,6 +108,12 @@
       "passed": 188,
       "failed": 0,
       "note": "Recorded when LIFE-02 and LIFE-03 were carried forward from #470 (2026-09-27)."
+    },
+    {
+      "id": "run-plugin-capabilities",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/plugins src/lib/tailnet-sync/plugin-daemon.test.ts src/sections/settings/plugin-files.test.ts && pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities/profiles.test.ts src/modules/agents.surrogate-credentials src/modules/vault.browser-autofill src/sections/settings/plugins",
+      "vitest": "4.1.11",
+      "note": "2026-09-28, branch adr0148/pages-capability. The two runtime-installed plugin capabilities (ADR 0150 \u00a77). Every file named in PLUGIN-ABSENCE and PLUGIN-PANEL passed in this session; a hardened minimal-local build (build-profile.mjs --expect-absent agents.surrogate-credentials/runtime --expect-absent vault.browser-autofill/runtime) and verify-capability-graph.mjs over it reported CLEAN."
     }
   ],
   "contracts": [
@@ -1720,6 +1726,68 @@
           "name": "capability profiles \u2014 18 tests, all passed (minimal-local 0 optional, family-local 0, family-sharing-selected 2, single-provider-selected 2, enterprise-selected 6, rich-explicit 24, managed-prohibited 1)",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
+        }
+      ]
+    },
+    {
+      "id": "PLUGIN-ABSENCE",
+      "statement": "agents.surrogate-credentials and vault.browser-autofill are optional descriptors (never always-on or core) mirrored from spec/plugins/catalog.json; minimal-local approves neither, resolves neither module and none of their operations; a hardened minimal-local build emits neither module; selected with consent (rich-explicit) each resolves its runtime and pulls networking.tailnet.",
+      "status": "covered",
+      "tests": [
+        {
+          "file": "packages/app-core/src/lib/plugins/catalog.test.ts",
+          "name": "one plugin catalog (ADR 0139, ADR 0150 \u00a77)",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        },
+        {
+          "file": "apps/pages/src/lib/capabilities/profiles.test.ts",
+          "name": "minimal-local proves the runtime-installed plugins absent: no module, no operation",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        },
+        {
+          "file": "apps/pages/src/modules/agents.surrogate-credentials/runtime.test.tsx",
+          "name": "imports with no fetch, timer, DOM or storage side effect; reaches no network on activation",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        },
+        {
+          "file": "apps/pages/src/modules/vault.browser-autofill/runtime.test.tsx",
+          "name": "imports with no fetch, timer, DOM or storage side effect; reaches no network on activation",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        }
+      ]
+    },
+    {
+      "id": "PLUGIN-PANEL",
+      "statement": "A plugin tile reads the paired tailnet daemon only through the capability's egress port with the pairing key in the Authorization header alone; sends nothing with no daemon paired or the capability unapproved; cannot switch on a forced-off or uninstalled plugin; refuses an answer about another plugin; never draws a surrogate, a notice summary, or a plugin the catalog does not list.",
+      "status": "covered",
+      "tests": [
+        {
+          "file": "packages/app-core/src/lib/plugins/wire.test.ts",
+          "name": "a hostile daemon's tripwire feed / plugin list",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/plugins/client.test.ts",
+          "name": "switching a plugin from the page; reading plugins",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/tailnet-sync/plugin-daemon.test.ts",
+          "name": "the tailnet daemon as the plugin port",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
+        },
+        {
+          "file": "apps/pages/src/sections/settings/plugins/PluginPanel.test.tsx",
+          "name": "PluginPanel",
+          "observed": "run-passed",
+          "run": "run-plugin-capabilities"
         }
       ]
     }

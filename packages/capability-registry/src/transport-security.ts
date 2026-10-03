@@ -35,12 +35,12 @@ const REFERENCE_ONLY_VIA_CONNECTIONREF: CapabilityExclusion = {
 /**
  * What a static page can do about TLS is fixed, not discovered: no vault key
  * reaches a handshake and `fetch` selects no certificate (ADR 0132 §2, §14).
- * The Pages Transport panel reports status per target; no PWA code ever
- * rendered a discovery answer, so none is claimed.
+ * Pages carries no transport surface at all — no status panel, no probe, no
+ * identity reference — so there is nothing for it to discover or display.
  */
 const BROWSER_BOUNDARY_IS_FIXED: CapabilityExclusion = {
   reason:
-    "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so there is nothing for it to discover; the Transport panel reports per-target status instead",
+    "a static page's transport capabilities are fixed by the browser boundary (no vault key in a handshake, no certificate selection through fetch), so Pages carries no transport surface: status, probe and identity reference are Host-plane operator work",
   adr: ADR_MTLS,
 };
 
@@ -54,12 +54,13 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-status.ts:readTransportStatus",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: BROWSER_BOUNDARY_IS_FIXED,
       mcp_host: STATUS_IS_OPERATOR_TOPOLOGY,
       mcp_client: STATUS_IS_OPERATOR_TOPOLOGY,
       webmcp: STATUS_IS_OPERATOR_TOPOLOGY,
@@ -108,12 +109,13 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-verify.ts:runTransportVerify",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: PROBE_IS_AUTHORIZED_EGRESS,
       mcp_host: PROBE_IS_AUTHORIZED_EGRESS,
       mcp_client: PROBE_IS_AUTHORIZED_EGRESS,
       webmcp: PROBE_IS_AUTHORIZED_EGRESS,
@@ -127,12 +129,13 @@ export const transportSecurityCapabilities: readonly Capability[] = [
     kind: "admin",
     surfaces: {
       cli: null,
-      pwa: "lib/transport-settings.ts:withTransportTarget",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: REFERENCE_ONLY_VIA_CONNECTIONREF,
       mcp_host: REFERENCE_ONLY_VIA_CONNECTIONREF,
       mcp_client: REFERENCE_ONLY_VIA_CONNECTIONREF,
       webmcp: REFERENCE_ONLY_VIA_CONNECTIONREF,

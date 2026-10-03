@@ -30,6 +30,43 @@ export function oauth2ProxyDiscoveryGaps(doc: OidcDiscovery): string[] {
   });
 }
 
+const UNSAFE_CONFIG_CHARS = /["\\\n\r]/;
+const CLIENT_ID_CHARS = /^[A-Za-z0-9._@:/-]+$/;
+const EMAIL_DOMAIN_CHARS = /^(\*|[A-Za-z0-9.-]+)$/;
+
+function assertConfigValue(name: string, value: string): void {
+  if (UNSAFE_CONFIG_CHARS.test(value)) {
+    throw new Error(
+      `${name} must not contain quotes, backslashes, or line breaks.`,
+    );
+  }
+}
+
+function assertHttpsUrl(name: string, value: string): void {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} must be an absolute URL.`);
+  }
+  const loopback =
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname === "[::1]";
+  if (url.protocol !== "https:" && !(loopback && url.protocol === "http:")) {
+    throw new Error(`${name} must use https (http is loopback-only).`);
+  }
+}
+
+function assertEmailDomains(domains: readonly string[]): void {
+  for (const domain of domains) {
+    assertConfigValue("emailDomains", domain);
+    if (!EMAIL_DOMAIN_CHARS.test(domain)) {
+      throw new Error(`emailDomains entry is not a valid domain: ${domain}`);
+    }
+  }
+}
+
 /** Generate a public-PKCE oauth2-proxy.cfg. Never embeds a client secret. */
 export function oauth2ProxyConfig(input: {
   discovery: OidcDiscovery;
@@ -48,7 +85,16 @@ export function oauth2ProxyConfig(input: {
   if (!methods.includes("S256")) {
     throw new Error("Issuer must advertise PKCE S256 for OAuth2 Proxy.");
   }
-  const domains = (input.emailDomains ?? ["*"]).join(",");
+  assertConfigValue("issuer", input.discovery.issuer);
+  assertHttpsUrl("issuer", input.discovery.issuer);
+  assertConfigValue("clientId", input.clientId);
+  if (!CLIENT_ID_CHARS.test(input.clientId)) {
+    throw new Error("clientId contains characters outside the allowlist.");
+  }
+  assertConfigValue("redirectUrl", input.redirectUrl);
+  assertHttpsUrl("redirectUrl", input.redirectUrl);
+  const domains = input.emailDomains ?? ["*"];
+  assertEmailDomains(domains);
   return `# oauth2-proxy ${OAUTH2_PROXY_PINNED_VERSION}
 # Public PKCE client. Do not put a client secret in this file.
 provider = "oidc"
@@ -57,7 +103,7 @@ client_id = "${input.clientId}"
 redirect_url = "${input.redirectUrl}"
 code_challenge_method = "S256"
 oidc_email_claim = "email"
-email_domains = "${domains}"
+email_domains = "${domains.join(",")}"
 skip_provider_button = true
 `;
 }

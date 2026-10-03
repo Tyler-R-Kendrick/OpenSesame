@@ -2,13 +2,14 @@
  * What a version-1 preset left behind (ADR 0142).
  *
  * A version-1 preset projection wrote every optional id the preset did not
- * offer into `prohibited`. ADR 0142 made four of those always on, so in such
- * a policy their listing is residue of the projection — nobody chose it —
- * and reading it as an operator's withdrawal would take git backup and
- * browser-local sign-in away from every Personal and Family device set up
- * before. It is dropped when the policy is read, from `required` and
- * `optional` as well, where the projection listed them as offered. A policy
- * written by hand, or projected by a version-2 preset, still withdraws them.
+ * offer into `prohibited`. ADR 0142 made the site broker and git backup
+ * always on, so in such a policy their listing is residue of the projection
+ * — nobody chose it — and reading it as an operator's withdrawal would take
+ * git backup away from every Personal and Family device set up before. It
+ * is dropped when the policy is read, from `required` and `optional` as
+ * well, where the projection listed them as offered. Identity is optional
+ * again (ADR 0153), so a version-1 listing of it stands. A policy written
+ * by hand, or projected by a version-2 preset, still withdraws what it names.
  */
 
 import type {
@@ -17,10 +18,9 @@ import type {
 } from "@opensesame/capability-composition";
 
 const PROMOTED_TO_ALWAYS_ON: ReadonlySet<CapabilityId> = new Set([
-  "identity.local-iam",
-  "identity.siop",
   "identity.site-broker",
   "backup.git-remote",
+  "sharing.drops",
 ]);
 
 const PRESET_IDS: ReadonlySet<string> = new Set([

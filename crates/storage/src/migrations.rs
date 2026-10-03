@@ -182,4 +182,20 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0046_bitwarden_emergency_access",
         include_str!("../migrations/0046_bitwarden_emergency_access.sql"),
     ),
+    (
+        "0047_bitwarden_auth_requests",
+        include_str!("../migrations/0047_bitwarden_auth_requests.sql"),
+    ),
+    (
+        "0048_bitwarden_org_policies",
+        include_str!("../migrations/0048_bitwarden_org_policies.sql"),
+    ),
+    (
+        "0049_agent_hook_policies",
+        include_str!("../migrations/0049_agent_hook_policies.sql"),
+    ),
+    (
+        "0050_web_login_runs",
+        include_str!("../migrations/0050_web_login_runs.sql"),
+    ),
 ];

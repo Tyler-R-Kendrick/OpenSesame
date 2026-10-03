@@ -20,6 +20,20 @@ use crate::runner::{minimal_child_env, ScrubbedCommandRunner};
 /// an invoke-through request.
 const ACQUIRE_TIMEOUT_MS: u64 = 5_000;
 
+/// How the daemon turns a provider id into its credential source.
+pub(crate) type TokenSourceFactory =
+    std::sync::Arc<dyn Fn(&str) -> Option<Box<dyn TokenSource>> + Send + Sync>;
+
+/// Production factory: the provider's CLI credential command under the
+/// scrubbed runner, over a fresh environment snapshot per call.
+pub(crate) fn cli_token_source_factory() -> TokenSourceFactory {
+    std::sync::Arc::new(|provider_id: &str| {
+        let env: BTreeMap<String, String> = std::env::vars().collect();
+        CliTokenSource::for_provider(provider_id, &env)
+            .map(|source| Box::new(source) as Box<dyn TokenSource>)
+    })
+}
+
 /// A [`TokenSource`] that runs the provider's local credential command under
 /// the scrubbed runner.
 pub struct CliTokenSource {

@@ -5,6 +5,7 @@ import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CAPABILITIES, surfaceGaps } from "../src/index.ts";
+import { pwaSummaries } from "../src/pwa-summaries.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const target = join(here, "..", "capabilities.json");
@@ -15,3 +16,11 @@ console.log(`wrote ${target} (${CAPABILITIES.length} capabilities)`);
 const gapsTarget = join(here, "..", "surface-gaps.json");
 writeFileSync(gapsTarget, `${JSON.stringify(surfaceGaps(), null, 2)}\n`);
 console.log(`wrote ${gapsTarget}`);
+// The page-reachable projection Pages ships instead of the whole registry
+// (src/pwa-summaries.ts). The registry test fails until this matches.
+const summariesTarget = join(here, "..", "pwa-summaries.json");
+writeFileSync(
+  summariesTarget,
+  `${JSON.stringify(pwaSummaries(CAPABILITIES), null, 2)}\n`,
+);
+console.log(`wrote ${summariesTarget}`);

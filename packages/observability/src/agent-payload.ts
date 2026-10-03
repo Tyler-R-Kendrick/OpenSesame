@@ -94,7 +94,7 @@ export function forAgent(
 ): string {
   // Registered secrets by value, then the refusal contract for credential
   // markers (loud, never quietly scrubbed), then anything else shaped like a
-  // secret (ADR 0150): a bearer, a JWT or a `#token=` URL has no registry entry.
+  // secret (ADR 0155): a bearer, a JWT or a `#token=` URL has no registry entry.
   const scrubbed = scrubLocalSecrets(text, env);
   if (looksLikeCredential(scrubbed)) throw new AgentPayloadRefused();
   return scrubText(scrubbed);

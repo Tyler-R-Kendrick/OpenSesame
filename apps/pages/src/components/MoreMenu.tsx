@@ -38,7 +38,7 @@ import { showKeymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupport } from "../tutorial/session.js";
-import { ConnectionCeremony, connectorGlyph } from "./ConnectivityBar.js";
+import { ConnectionCeremony, connectorGlyph } from "./ConnectionCeremony.js";
 import { IconBell, IconDots, IconHelp, IconTerminal, IconX } from "./Icons.js";
 import { NotificationsBar, useNoticeCount } from "./NotificationsBar.js";
 

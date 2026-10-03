@@ -49,18 +49,40 @@ export function useSupportMarkSlot(): HTMLElement | null {
 }
 
 /**
- * Ask field at the foot of the support sheet. The statusline CommandBar is
- * the always-on field; unmatched commands land here as questions.
+ * The one field at the foot of the support sheet.
+ *
+ * With a model ready it asks. With nothing to answer it searches the written
+ * help instead, live as you type, and says so on the button — the same field,
+ * a different verb, because a second field would be the same field twice. The
+ * statusline CommandBar is the always-on field; unmatched commands land here.
  */
-export function SupportComposer(): ReactElement {
+export function SupportComposer({
+  query,
+  onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (next: string) => void;
+}): ReactElement {
   const { view, support } = useSupport();
   const askId = useId();
   const [question, setQuestion] = useState("");
-  const canAsk = view.availability?.kind === "ready" && !view.thinking;
+  const modelReady = view.availability?.kind === "ready";
+  const label = modelReady
+    ? "Ask about this screen"
+    : "Search the written help";
+  // Searching filters as you type, so the field holds the filter itself and
+  // clearing it restores the whole list. Asking holds a draft until submitted.
+  const value = modelReady ? question : query;
+  const onChange = (next: string) => {
+    if (modelReady) setQuestion(next);
+    else onQueryChange(next);
+  };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const asked = question;
+    if (!modelReady) return;
+    const asked = question.trim();
+    if (!asked) return;
     setQuestion("");
     void support.ask(asked);
   };
@@ -68,26 +90,25 @@ export function SupportComposer(): ReactElement {
   return (
     <form className="support__composer" onSubmit={submit}>
       <label className="visually-hidden" htmlFor={askId}>
-        Ask about this screen
+        {label}
       </label>
       <div className="f__shell">
         <input
           id={askId}
           className="f__input"
-          type="text"
-          value={question}
+          type={modelReady ? "text" : "search"}
+          value={value}
           maxLength={SUPPORT_LIMITS.maxQuestionChars}
-          placeholder="Ask about this screen"
-          disabled={!canAsk}
-          onChange={(event) => setQuestion(event.target.value)}
+          placeholder={label}
+          onChange={(event) => onChange(event.target.value)}
         />
       </div>
       <button
         type="submit"
         className="btn btn--primary"
-        disabled={!canAsk || question.trim().length === 0}
+        disabled={value.trim().length === 0}
       >
-        Ask
+        {modelReady ? "Ask" : "Search"}
       </button>
     </form>
   );

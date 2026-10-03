@@ -7,8 +7,10 @@
  * question first. This screen is reached on purpose — `Deployment setup`
  * from the sign-in screen's foot.
  *
- * The first tab is always `capabilities` — what this installation runs, as
- * a draft reviewed and applied (CONSENT-03). Every further tab is a
+ * With no step and no join, the first screen is a configuration choice
+ * (ADR 0154): Minimal, Default or Custom. Custom opens this ceremony.
+ * Its first tab is always `capabilities` — what this installation runs,
+ * as a draft reviewed and applied (CONSENT-03). Every further tab is a
  * `setup-panel` contribution registered by a capability the person has
  * applied: nothing is hardcoded here any more, so a deselected capability
  * has no tab. Every tab writes its record as it is answered — `settings.v1`,
@@ -42,7 +44,17 @@ import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { CapabilitySetup } from "./capabilities/CapabilitySetup.js";
 import { KeepIt } from "./setup/KeepIt.js";
+import {
+  type ConfigurationChoice,
+  SetupConfiguration,
+} from "./setup/SetupConfiguration.js";
+import {
+  type AppliedConfiguration,
+  applySetupConfiguration,
+} from "./setup/apply-configuration.js";
+import { useRovingTabs } from "./use-roving-tabs.js";
 import "./setup.css";
+import "./setup/steps/steps.css";
 
 import { useCompositionContributions } from "../bindings/capabilities.js";
 /** One tab: the fixed capabilities tab, or a `setup-panel` contribution. */
@@ -118,14 +130,24 @@ export function SetupScreen({
   // tab strip never points past its end.
   const index = Math.min(rawIndex, STEPS.length - 1);
   const [skipped, setSkipped] = useState<SetupStep[]>([]);
+  const [phase, setPhase] = useState<"choose" | "ceremony">(() =>
+    step || join ? "ceremony" : "choose",
+  );
+  const [pending, setPending] = useState<ConfigurationChoice | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const { tabProps } = useRovingTabs({
+    count: STEPS.length,
+    index,
+    select: setIndex,
+  });
 
-  // The terminal commit owns the landing: nothing here is required, so Enter
-  // finishes, and Shift+Tab walks back up into the tabs. The first control
-  // in a step's body can be a Remove, which an arrival must not land on.
+  // The choice screen lands on Minimal, so Tab reaches Skip all. The
+  // ceremony lands on Finish: a step body's first control can be a Remove.
   useEffect(() => {
-    landFocus(frameRef.current?.querySelector(".go"));
-  }, []);
+    const frame = frameRef.current;
+    if (!frame) return;
+    landFocus(frame.querySelector(phase === "choose" ? ".road" : ".go"));
+  }, [phase]);
 
   const verb = finishing ? "Saving…" : "Finish setup";
 
@@ -168,6 +190,21 @@ export function SetupScreen({
     finish([...skipped, ...STEPS.slice(index).map((step) => step.id)]);
   }
 
+  function choose(id: ConfigurationChoice) {
+    if (id === "custom") {
+      setPhase("ceremony");
+      return;
+    }
+    if (pending || finishing) return;
+    const applied: AppliedConfiguration = id;
+    setPending(id);
+    void applySetupConfiguration(applied)
+      .then((result) => {
+        if (result === "applied") finish([]);
+        else setPending(null);
+      })
+      .catch(() => setPending(null));
+  }
   function stepBack() {
     if (index <= 0) return;
     setIndex(index - 1);
@@ -176,6 +213,47 @@ export function SetupScreen({
   const current = STEPS[index] ?? STEPS[0];
   const atStart = index <= 0;
   const atEnd = index + 1 >= STEPS.length;
+  const busy = pending !== null || finishing;
+
+  if (phase === "choose") {
+    return (
+      <div className="setup">
+        <div className="setup__frame" ref={frameRef}>
+          <div className="setup__bar">
+            <Wordmark className="setup__wordmark" />
+            <button
+              type="button"
+              className="icon-btn setup__back"
+              aria-label="Close"
+              title="Close"
+              onClick={onDone}
+            >
+              <IconX size={18} />
+            </button>
+          </div>
+          <main className="setup__body" id="main">
+            <SetupConfiguration
+              busy={busy}
+              pending={pending}
+              onChoose={choose}
+            />
+          </main>
+          <div className="setup__foot">
+            <button
+              type="button"
+              className="icon-btn"
+              disabled={busy}
+              aria-label="Skip all"
+              title="Skip all"
+              onClick={skipAll}
+            >
+              <IconSkipAll size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="setup">
@@ -227,6 +305,7 @@ export function SetupScreen({
             {STEPS.map((entry, at) => (
               <button
                 key={entry.id}
+                {...tabProps(at)}
                 type="button"
                 role="tab"
                 aria-selected={at === index}

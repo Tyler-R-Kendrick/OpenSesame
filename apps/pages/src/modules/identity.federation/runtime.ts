@@ -23,9 +23,20 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import {
+  performSavedConnector,
+  registerCategorySend,
+} from "@opensesame/app-core/lib/feature-request-send.js";
+import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { IDENTITY_TARGETS } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { IDENTITY_READ_TOOL } from "@opensesame/app-core/webmcp/identity-tools.js";
+import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { installOrgDirectory } from "../../lib/orgs-directory.js";
 import { IdentityStep } from "../../screens/setup/steps/IdentityStep.js";
 import { MfaStep } from "../../screens/setup/steps/MfaStep.js";
@@ -37,6 +48,34 @@ import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 
 export const CAPABILITY = "identity.federation";
+
+/** Identity connectors saved on this device. */
+export function savedIdentityOperation(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+export function applySavedIdentityConnectors(): FeatureOperation[] {
+  return applySavedConnectors(["identity"], savedIdentityOperation);
+}
+
+/** Send every identity connector saved on this device. Nothing saved does not send. */
+export function startIdentityConnectors(): FeatureRequest[] {
+  return applySavedIdentityConnectors().map((operation) =>
+    identityOperation(operation.providerId),
+  );
+}
+
+/** Read the saved identity connector and send it. Nothing saved does not send. */
+export function identityOperation(providerId: string): FeatureRequest {
+  return performSavedConnector(providerId);
+}
+
+/** Send identity connectors saved on this device when sign-in runs. */
+export function runSavedIdentityConnectors(): FeatureRequest[] {
+  return startIdentityConnectors();
+}
 
 /** The Identity tabs this capability puts on the page. */
 export const IDENTITY_VIEWS_OWNED = ["providers"] as const;
@@ -60,6 +99,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    activation.onDispose(
+      registerCategorySend("identity", runSavedIdentityConnectors),
+    );
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
     // The Identity API's organization directory: `lib/orgs.ts` declares the

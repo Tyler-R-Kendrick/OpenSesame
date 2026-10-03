@@ -22,6 +22,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.command_bar": "shell.navigation",
 
     // --- core: vault items -----------------------------------------------
+    "vault.item.create": "vault.passwords",
+    "vault.item.set": "vault.passwords",
+    "vault.item.share": "vault.passwords",
     "vault.items.search": "vault.passwords",
     "vault.items.read_meta": "vault.passwords",
     "vault.items.write_meta": "vault.passwords",
@@ -31,11 +34,11 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vault.item_types.list": "vault.passwords",
     "vault.item_types.install": "vault.passwords",
     "vault.item_types.marketplace": "vault.passwords",
-    "vault.sample_data": "vault.passwords",
 
     // --- core: unlock and vaults ----------------------------------------
     "vaults.switch": "vault.local-unlock",
     "vaults.travel": "vault.local-unlock",
+    "vaults.duress_code": "vault.local-unlock",
     "vault.second_step.code": "vault.local-unlock",
     "vault.recovery_codes": "vault.local-unlock",
     "device.browser_reset": "vault.local-unlock",
@@ -82,12 +85,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "authority.portal.templates.manage": "access.authority",
     "authority.portal.templates.read": "access.authority",
     "receipts.read": "access.authority",
-    // Transport security is deployment-plane operator work (ADR 0132): the
-    // Pages surface only reads status and capability, references a
-    // registered identity by name and runs the enforcement probe.
-    "transport.status.view": "access.authority",
-    "transport.verify.run": "access.authority",
-    "transport.identity.reference": "access.authority",
     "delegations.claim": "access.authority",
     "shared_sessions.join_request": "access.authority",
     "agent_identities.read": "access.authority",
@@ -129,6 +126,15 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
 
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
+
+    // --- optional: runtime-installed plugins (ADR 0150 §7) ---------------
+    "plugins.surrogate_proxy.switch": "agents.surrogate-credentials",
+    "plugins.surrogate_proxy.tripwires": "agents.surrogate-credentials",
+    "plugins.browser_autofill.switch": "vault.browser-autofill",
+
+    // --- optional: live sessions (ADR 0150) -----------------------------
+    "shared_sessions.live_host": "sharing.live",
+    "shared_sessions.live_join": "sharing.live",
 
     // --- optional: browser-local IAM ------------------------------------
     "identity.local.agent.keys.manage": "identity.local-iam",

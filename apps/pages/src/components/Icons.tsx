@@ -13,6 +13,8 @@ import {
 } from "./Icons.actions.js";
 import { type IconProps, Svg } from "./icon-frame.js";
 
+export { IconKeyboard, IconRecord, IconSwap } from "./Icons.keys.js";
+
 export type { IconProps };
 export {
   IconSearch,
@@ -21,6 +23,7 @@ export {
   IconArrowRight,
   IconTrash,
   IconPlus,
+  IconLayers,
   IconCopy,
   IconEye,
   IconEyeOff,

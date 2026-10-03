@@ -1,22 +1,20 @@
 /**
- * Always-on descriptors — the browser-local functions (ADR 0142). Each runs
- * entirely in this browser on the static front end: no Host, no Identity
- * API, no automatic call until a person binds something. The default
- * installation always had them in reach (a git history remote defaults to
- * GitHub, a local application can already sign in here), so presenting them
- * as opt-ins the device had "deselected" misdescribed what it runs.
+ * Browser-local descriptors. Each runs in this browser on the static front
+ * end: no automatic call until a person binds something.
  *
- *  - `identity.local-iam` — this device as an identity host;
- *  - `identity.siop` — self-issued OpenID answered by that host;
- *  - `identity.site-broker` — the static-auth broker this origin serves;
- *  - `backup.git-remote` — encrypted snapshots to a git remote a person
- *    binds; the observer honours the plan's network envelope.
+ * Always on (ADR 0142): the site broker, and git backup. A git history
+ * remote defaults to GitHub, so listing git backup as deselected
+ * misdescribed the default install. Git backup does not depend on the
+ * Connections section (ADR 0153).
+ *
+ * Optional, off until the Identity switch (ADR 0153): `identity.local-iam`
+ * and `identity.siop`, the Identity section.
  */
 
-import { type AuthoredDescriptor, alwaysOn } from "./descriptor.js";
+import { type AuthoredDescriptor, alwaysOn, optional } from "./descriptor.js";
 
 export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
-  alwaysOn(
+  optional(
     "identity.local-iam",
     "Browser-local IAM",
     "This device as an identity host: the local directory of people, agents, devices and applications, local passkeys, application sign-in and grants.",
@@ -40,7 +38,7 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       keyAccess: "protector-wrap",
     },
   ),
-  alwaysOn(
+  optional(
     "identity.siop",
     "Self-issued OpenID",
     "Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.",
@@ -78,7 +76,6 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Git remote backup",
     "Push encrypted vault snapshots to a private repository through the GitHub App or a forge git remote, and sync them back.",
     {
-      dependencies: ["connectors.external"],
       operationIds: ["backup.status", "backup.target.set"],
       egress: [
         {
@@ -92,6 +89,30 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       requiresService: true,
       offlineLimits:
         "Snapshots queue locally and push when the remote is reachable.",
+    },
+  ),
+  alwaysOn(
+    "sharing.drops",
+    "Secret drops",
+    "Share any item's secret once, through a sealed claim. The share is part of that item. Opening a drop someone sent needs nothing else.",
+    {
+      egress: [
+        {
+          class: "external-service",
+          purpose:
+            "the configured Identity API's claim sessions, or this origin when Pages hosts the claim",
+          automatic: false,
+        },
+        {
+          class: "user-mediated-navigation",
+          purpose: "the drop link a person copies",
+          automatic: false,
+        },
+      ],
+      browserPermissions: ["clipboard-write"],
+      keyAccess: "item-plaintext",
+      offlineLimits:
+        "Creating a share needs the claim host. A share already sent still opens.",
     },
   ),
 ];

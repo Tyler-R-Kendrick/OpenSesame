@@ -35,6 +35,8 @@ export type VaultKeymapTarget = ListingMotion & {
   create: () => void;
   favorite: () => void;
   share: () => void;
+  restore?: () => void;
+  purge?: () => void;
 };
 
 export type RailKeymapTarget = ListingMotion;
@@ -128,6 +130,16 @@ export function contextMenuOpen(): boolean {
  */
 export function statusBubbleOpen(): boolean {
   return document.querySelector(".status-bubble") !== null;
+}
+
+/**
+ * A key-capture field (Settings › Keybindings) is recording presses: every
+ * key is its own, Escape and Control-l included, until it lets go.
+ */
+export function capturingKeys(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element && target.closest("[data-key-capture]") !== null
+  );
 }
 
 export function typing(target: EventTarget | null): boolean {

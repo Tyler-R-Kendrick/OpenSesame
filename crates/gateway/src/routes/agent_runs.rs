@@ -824,7 +824,7 @@ pub async fn settle_step(
             StatusCode::CONFLICT,
             Json(json!({
                 "error": "not_the_claimant",
-                "hint": "this step is not yours to settle; claim it again"
+                "hint": "this step is not yours to settle, or its run has closed"
             })),
         )
             .into_response(),

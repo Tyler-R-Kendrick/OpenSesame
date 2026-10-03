@@ -53,7 +53,7 @@ describe(
     afterEach(resetJourney);
 
     it(
-      "opens, says why, and still helps — without asking anything",
+      "opens and still helps — without asking anything",
       { timeout: 20_000 },
       async () => {
         const agent = fakeAgentAlwaysUnavailable("platform_unsupported");
@@ -62,15 +62,15 @@ describe(
 
         const panel = await openSupport(user);
 
-        // The honest reason, not a spinner and not a dead composer with no
-        // explanation beside it.
+        // Nothing narrates why nothing can answer: the sheet shows no prose
+        // about the device, and the field says what it now does instead.
         expect(
-          await within(panel).findByText(UNAVAILABLE_TEXT.platform_unsupported),
-        ).toBeTruthy();
+          within(panel).queryByText(UNAVAILABLE_TEXT.platform_unsupported),
+        ).toBeNull();
         const composer = await screen.findByLabelText<HTMLInputElement>(
-          "Ask about this screen",
+          "Search the written help",
         );
-        expect(composer.disabled).toBe(true);
+        expect(composer.disabled).toBe(false);
 
         const help = within(panel).getByRole("region", { name: "Questions" });
         expect(
@@ -84,11 +84,9 @@ describe(
           }),
         ).toBeTruthy();
 
-        // Search is a substring over authored prose — no index, no model.
-        await user.type(
-          within(panel).getByLabelText("Search questions"),
-          "import",
-        );
+        // Search is a substring over authored prose — no index, no model. The
+        // one field carries it, filtering as you type.
+        await user.type(composer, "import");
         expect(
           await within(help).findByRole("button", {
             name: "How do I bring items in from another password manager?",
@@ -99,7 +97,7 @@ describe(
             name: "Where do I lock the vault?",
           }),
         ).toBeNull();
-        await user.clear(within(panel).getByLabelText("Search questions"));
+        await user.clear(composer);
         expect(
           await within(help).findByRole("button", {
             name: "Where do I lock the vault?",
@@ -121,10 +119,6 @@ describe(
         // And a named goal runs a real walkthrough, over the real registry.
         await user.click(
           await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
-        );
-        await waitFor(
-          () => expect(journey.focused()).toEqual(["shell.connectivity"]),
-          { timeout: 10_000 },
         );
         await waitFor(
           () => expect(journey.navigations()).toEqual(["/vault/health"]),

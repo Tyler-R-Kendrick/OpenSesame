@@ -359,7 +359,7 @@ export function redactSecrets(
 ): JsonValue | undefined {
   // Keys are this CLI's own policy (below): a `user_code` is printed on
   // purpose, for a person to type. The shared scrubber then rewrites any
-  // string that carries a bearer with no key to name it (ADR 0150).
+  // string that carries a bearer with no key to name it (ADR 0155).
   return scrubStrings(redactKeys(value));
 }
 

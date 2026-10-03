@@ -105,6 +105,24 @@ afterEach(() => {
   applyConnectCallbackBase(undefined);
 });
 
+describe("user-token keys are drawn only where they can act (ADR 0150)", () => {
+  it("draws no Test key in direct-token mode, where there is no relay to prove through", () => {
+    draw("resend", connectConnection("resend"));
+    expect(
+      screen.queryByRole("button", { name: "Test user token" }),
+    ).toBeNull();
+  });
+
+  it("draws the Test key once a relay and its manage key are held", () => {
+    applyConnectCallbackBase("https://relay.test");
+    setVercelConnectAuth({ token: "", manageKey: KEY });
+    draw("resend", connectConnection("resend"));
+    expect(
+      screen.getByRole("button", { name: "Test user token" }),
+    ).toBeTruthy();
+  });
+});
+
 describe("no connector page is blank", () => {
   const ids = connectPlans()
     .filter(isConnectable)
@@ -177,16 +195,17 @@ describe("Resend", () => {
     ).toBe(false);
   });
 
-  it("asks where connectors live when nothing is configured, instead of a dead end", () => {
+  it("asks where connectors live when nothing is configured, and draws no key that cannot act", () => {
     setVercelConnectAuth(null);
     draw("resend");
     expect(screen.getByRole("region", { name: "Vercel Connect" })).toBeTruthy();
     expect(screen.getByLabelText("Vercel access token")).toBeTruthy();
+    // Create needs the credential above; until it is sealed the form is not
+    // drawn, rather than drawn with a key that stays disabled (ADR 0150).
     expect(
-      screen
-        .getByRole("button", { name: "Create connector" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
+      screen.queryByRole("button", { name: "Create connector" }),
+    ).toBeNull();
+    expect(screen.queryByRole("region", { name: "Connector" })).toBeNull();
   });
 
   it("asks for the relay's management key on a relay deployment", () => {

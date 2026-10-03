@@ -20,8 +20,8 @@ import {
  * the deployment had anything behind them. Most of those need an Identity
  * API, so on a deployment without one they were buttons that could only fail.
  * ADR 0078 §3: the screen renders what first-run setup allowed and nothing
- * else. Guest is the standing exception: it seals a local vault, needs no
- * service, and is never removed or gated (AGENTS.md §5).
+ * else. The local-only seal is the standing exception: it seals a local vault
+ * and needs no service.
  */
 
 const state = {
@@ -176,8 +176,8 @@ describe("what the sign-in screen offers", () => {
   it("hides every road that needs an identity service, when there is none", () => {
     renderPanel();
     // Bring-your-own registers server-side; the magic link and the
-    // organisation lookup are Identity API ceremonies. Guest is NOT — it
-    // stays, asserted separately below.
+    // organisation lookup are Identity API ceremonies. The local-only seal
+    // does not need one, and is asserted below.
     expect(
       screen.queryByRole("button", { name: "Continue with your IdP" }),
     ).toBeNull();
@@ -187,22 +187,16 @@ describe("what the sign-in screen offers", () => {
     expect(screen.queryByLabelText(/Email or organization/i)).toBeNull();
   });
 
-  it("offers guest even without an identity service (AGENTS.md §5)", () => {
-    // `continueAsGuest` seals a local vault and works with no service at all;
-    // the claim step degrades to a bell notice. The guest/anonymous flow must
-    // never be removed from this screen or gated on Identity availability.
+  it("offers the local-only seal without an identity service", () => {
+    // The seal needs no service at all. It is the panel's single no-account
+    // road; guest has its own placements elsewhere (AGENTS.md §5).
     renderPanel();
     expect(
-      screen.getByRole("button", { name: /Continue as guest/ }),
-    ).toBeDefined();
-    expect(
-      screen.getByRole("button", {
-        name: "Skip sign-in and continue as guest",
-      }),
+      screen.getByRole("button", { name: "Use without an account" }),
     ).toBeDefined();
   });
 
-  it("brings those roads back the moment one is configured", () => {
+  it("brings the service roads back the moment one is configured", () => {
     state.identityApi = "https://id.acme.com";
     renderPanel();
     expect(
@@ -212,29 +206,27 @@ describe("what the sign-in screen offers", () => {
       screen.getByRole("button", { name: "More sign-in options" }),
     ).toBeDefined();
     expect(
-      screen.getByRole("button", { name: /Continue as guest/ }),
+      screen.getByRole("button", { name: "Use without an account" }),
     ).toBeDefined();
   });
 
-  it("offers guest beside an existing vault too (AGENTS.md §5)", () => {
+  it("offers no no-account road beside an existing vault", () => {
     render(<SignInPanel placement="secondary" providers={[]} />);
-    expect(
-      screen.getByRole("button", { name: /Continue as guest/ }),
-    ).toBeDefined();
-    // Local-only would seal a second vault in place, so that road stays off.
+    // Local-only would seal a second vault in place. Guest is not this
+    // panel's to offer: the unlock form's own footer carries it.
     expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Continue as guest/ }),
+    ).toBeNull();
   });
 
-  it("keeps guest and local-only even when setup allowed nothing", () => {
+  it("keeps the local-only seal even when setup allowed nothing", () => {
     state.signIn = { builtin: false, providers: [] };
     renderPanel();
     const bar = document.querySelector(".signin__bar");
     expect(bar?.querySelectorAll("button")).toHaveLength(0);
-    expect(
-      screen.getByRole("button", { name: /Continue as guest/ }),
-    ).toBeDefined();
     expect(
       screen.getByRole("button", { name: "Use without an account" }),
     ).toBeDefined();
@@ -251,12 +243,14 @@ describe("SignInPanel — where the keyboard lands", () => {
     expect(document.activeElement).toBe(first);
   });
 
-  it("lands on guest when setup left no provider at all", () => {
+  it("leaves the keyboard where it is when setup left no provider at all", () => {
     state.signIn = { ...defaultSignInMethods(), builtin: false, providers: [] };
     renderPanel();
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /Continue as guest/ }),
-    );
+    // Nothing in the bar to land on; the local-only seal below the bar is the
+    // only road, and Tab reaches it.
+    expect(
+      screen.getByRole("button", { name: "Use without an account" }),
+    ).toBeDefined();
   });
 
   it("yields to the identifier field where an identity service exists", () => {

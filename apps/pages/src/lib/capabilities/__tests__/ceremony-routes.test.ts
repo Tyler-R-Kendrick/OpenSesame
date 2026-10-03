@@ -6,7 +6,8 @@
  * activating that module serves `/device`, `/claim`, `/i/:ref`,
  * `/approve/:ref`, `/invoke/:kind` and the `/guest` and `/delegate`
  * aliases before unlock — a claim or drop link
- * opens even where drops cannot be sent (ADR 0140 D2), an approval link opens
+ * opens on every installation (ADR 0140 D2), and sending a drop is always on
+ * too. An approval link opens
  * with no vault (D7), and an authenticator hand-off opens with zero optional
  * capabilities approved (plan step 10).
  */
@@ -39,7 +40,7 @@ describe("minimal-local serves the ceremony routes", () => {
 
   it("resolves every ceremony route from the module the plan approves", async () => {
     const plan = profilePlan("minimal-local");
-    expect(approved(plan, "sharing.drops")).toBe(false);
+    expect(approved(plan, "sharing.drops")).toBe(true);
     const t = createTestContext();
     const handle = await capabilityRuntime.activate(t.ctx);
     expect(t.entries("route").map((route) => route.path)).toEqual([
@@ -54,7 +55,7 @@ describe("minimal-local serves the ceremony routes", () => {
     expect(t.entries("route").every((route) => route.gate === "any")).toBe(
       true,
     );
-    // Opening a drop is approved with Drops off (ADR 0140 D2).
+    // Opening a drop stays on the ceremony capability (ADR 0140 D2).
     expect(plan.approvedOperations).toContain("identity.drop.open");
     expect(plan.approvedOperations).toContain("identity.claim.accept");
     // Approving before unlock needs nothing optional (ADR 0140 D7).

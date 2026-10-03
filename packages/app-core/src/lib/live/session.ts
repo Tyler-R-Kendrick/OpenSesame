@@ -1,0 +1,389 @@
+/**
+ * The one live session this tab hosts, and the one it has joined
+ * (ADR 0150 §2).
+ *
+ * They live here rather than in the capability module's activation: a
+ * module is disposed and activated again on every lock, unlock and consent
+ * commit, and a joiner mid-session must not be dropped because the page
+ * re-planned. A hosted session is different on purpose — locking the vault
+ * ends it, because the vault it reads from is gone.
+ *
+ * What does end both, hosted and joined, is the capability going away: the
+ * page's resolved plan no longer approves `sharing.live` — an operator
+ * withdrew it, or the person switched it off. The UI is gone by then, and a
+ * peer connection, carrier sockets and a polling loop must not outlive it.
+ * A re-plan that still approves it (a lock, an unlock, a consent commit)
+ * changes nothing here (ADR 0150 §7).
+ */
+
+import {
+  type EffectivePlan,
+  capabilityState,
+} from "@opensesame/capability-composition";
+import type { VaultItem } from "@opensesame/vault-core";
+import { compositionStore } from "../capabilities/store.js";
+import { persistedRestoreRefuses } from "../document-lifecycle.js";
+import { vaultStore } from "../vault/store.js";
+import { vaultWrite } from "./field-write.js";
+import { LiveGuest } from "./guest.js";
+import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
+import { watchDocumentLifecycle } from "./lifecycle-watch.js";
+import type { LiveLink } from "./link.js";
+import type { SharePolicy } from "./messages.js";
+import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
+import { type CarrierFactory, Rendezvous } from "./rendezvous.js";
+import { NO_ROUTES, linkRoutes } from "./routes.js";
+import {
+  type CarrierSpec,
+  DIRECT_TRANSPORT,
+  type IceServerSpec,
+  type LiveTransport,
+  routesFor,
+} from "./transport.js";
+import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
+
+export const liveSeams = {
+  items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
+  onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
+  /** The page's resolved plan; null until the composition store has one. */
+  plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
+  /** Hear the composition store publish, on every re-plan and activity note. */
+  onPlan: (handler: () => void): (() => void) =>
+    compositionStore.subscribe(handler),
+};
+
+const CAPABILITY = "sharing.live";
+
+/** Whether a resolved plan approves Live sessions. */
+export function planApprovesLive(plan: EffectivePlan): boolean {
+  return capabilityState(plan, CAPABILITY)?.approved === true;
+}
+
+let host: LiveHost | null = null;
+let hostCarriers: Rendezvous | null = null;
+let stopLockWatch: (() => void) | null = null;
+let guest: LiveGuest | null = null;
+let guestCarriers: Rendezvous | null = null;
+let stopPlanWatch: (() => void) | null = null;
+
+/**
+ * While a session stands, end both when a resolved plan does not approve
+ * Live sessions. A plan not yet resolved says nothing either way.
+ */
+function watchPlan(): void {
+  stopPlanWatch ??= liveSeams.onPlan(endIfWithdrawn);
+  endIfWithdrawn();
+}
+
+function endIfWithdrawn(): void {
+  const plan = liveSeams.plan();
+  if (plan === null || planApprovesLive(plan)) return;
+  endHosting();
+  leaveLive();
+}
+
+function unwatchPlanIfIdle(): void {
+  if (host || guest) return;
+  stopPlanWatch?.();
+  stopPlanWatch = null;
+}
+
+/** How long a first post waits for a carrier to connect. */
+const CARRIER_WAIT_MS = 8000;
+
+function rtcServers(servers: readonly IceServerSpec[]): RTCIceServer[] {
+  return servers.map((server) => {
+    const out: RTCIceServer = { urls: [...server.urls] };
+    if (server.username) out.username = server.username;
+    if (server.credential) out.credential = server.credential;
+    return out;
+  });
+}
+
+/** Open the carriers, if any are named and the shell supplied them. */
+function openCarriers(
+  specs: readonly CarrierSpec[],
+  secret: string,
+  factory: CarrierFactory | undefined,
+  onCode: (code: string) => void,
+): Rendezvous | null {
+  if (!factory || specs.length === 0) return null;
+  return Rendezvous.open(specs, secret, factory, onCode);
+}
+
+/** Post once a carrier is up (or has had its chance). */
+function poster(rendezvous: Rendezvous): (code: string) => Promise<void> {
+  return async (code) => {
+    await rendezvous.whenReady(CARRIER_WAIT_MS);
+    await rendezvous.post(code);
+  };
+}
+const listeners = new Set<() => void>();
+
+function changed(): void {
+  for (const listener of listeners) listener();
+}
+
+/** Hear when the hosted or joined session is replaced or cleared. */
+export function onLiveSessionChange(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export type HostInput = Readonly<{
+  title: string;
+  scope: ShareScope;
+  policy: SharePolicy;
+  admission: Admission;
+  /** Minutes; the host clamps it to eight hours. */
+  minutes: number;
+  peers: PeerFactory;
+  /** The owner's transport profile; direct only when absent. */
+  transport?: LiveTransport;
+  /** The shell's carrier clients, for a profile that names carriers. */
+  carriers?: CarrierFactory;
+}>;
+
+/** The session's host and the routes its link carries, built but not yet live. */
+async function buildHost(input: HostInput, post: (code: string) => void) {
+  // The host clamps the lifetime; the catalog states the clamped one.
+  const expiresAt = Math.min(
+    Date.now() + input.minutes * 60_000,
+    Date.now() + MAX_SESSION_MS,
+  );
+  const items = liveSeams.items;
+  const transport = input.transport ?? DIRECT_TRANSPORT;
+  const routes = await routesFor(transport, expiresAt);
+  const ice: IceSettings = {
+    iceServers: rtcServers(routes.ice),
+    relay: transport.relay,
+    addresses: transport.addresses,
+  };
+  const next = await LiveHost.start({
+    admission: input.admission,
+    ice,
+    routes,
+    post,
+    expiresAt,
+    catalog: () =>
+      vaultCatalog({
+        title: input.title,
+        policy: input.policy,
+        expiresAt,
+        scope: input.scope,
+        items,
+      }),
+    readField: vaultField({ scope: input.scope, items }),
+    writeField: vaultWrite({ scope: input.scope, items }, (item) =>
+      vaultStore.saveItem(item),
+    ),
+    peers: input.peers,
+  });
+  return { next, routes };
+}
+
+function authorityStands(): boolean {
+  return host !== null || guest !== null;
+}
+
+function dropAuthority(): void {
+  endHosting();
+  leaveLive();
+}
+
+/** The document navigated away, so a frozen copy must not still be hosting. */
+export function noteDocumentLeft(): void {
+  if (authorityStands()) dropAuthority();
+}
+
+/** A persisted pageshow refuses authority that was live when the document froze. */
+export function notePersistedRestore(persisted: boolean): void {
+  if (persistedRestoreRefuses({ persisted, hadAuthority: authorityStands() })) {
+    dropAuthority();
+  }
+}
+
+function armRestoreGuard(): void {
+  watchDocumentLifecycle(noteDocumentLeft, notePersistedRestore);
+}
+
+/**
+ * Start hosting; any session this tab was hosting ends first.
+ *
+ * The lock watch is registered before anything is awaited: building a session
+ * awaits, and a vault that locks in that window must not be left with a live
+ * session over it. A session whose vault locked while it was being built
+ * comes back already ended and is never the current one.
+ */
+export async function startHosting(input: HostInput): Promise<LiveHost> {
+  armRestoreGuard();
+  endHosting();
+  let started: LiveHost | null = null;
+  let carriers: Rendezvous | null = null;
+  let locked = false;
+  const stopWatch = liveSeams.onLock(() => {
+    locked = true;
+    if (started && host === started) endHosting();
+  });
+  let post: ((code: string) => Promise<void>) | null = null;
+  try {
+    const built = await buildHost(input, (code) => void post?.(code));
+    const made = built.next;
+    started = made;
+    // A session another start installed while this one was building ends.
+    endHosting();
+    if (locked) {
+      made.end("owner");
+      stopWatch();
+      return made;
+    }
+    host = made;
+    stopLockWatch = stopWatch;
+    watchPlan();
+    // The plan may already have withdrawn Live sessions while this was built.
+    if (host !== made) return made;
+    carriers = openCarriers(
+      built.routes.carriers,
+      made.link.secret,
+      input.carriers,
+      (code) => void made.receive(code),
+    );
+    hostCarriers = carriers;
+    if (carriers) {
+      const opened = carriers;
+      post = poster(opened);
+      made.subscribe((state) => {
+        if (state.status === "ended") opened.close();
+      });
+    }
+    changed();
+    return made;
+  } catch (error) {
+    abandon(started, carriers, stopWatch);
+    throw error;
+  }
+}
+
+/**
+ * A start that failed leaves nothing behind: the host it made (if it got
+ * that far) ends, its carriers close, its lock watch goes, and it is not the
+ * current session.
+ */
+function abandon(
+  started: LiveHost | null,
+  carriers: Rendezvous | null,
+  stopWatch: () => void,
+): void {
+  stopWatch();
+  carriers?.close();
+  started?.end("owner");
+  if (stopLockWatch === stopWatch) stopLockWatch = null;
+  if (carriers && hostCarriers === carriers) hostCarriers = null;
+  if (!started || host !== started) return;
+  host = null;
+  try {
+    changed();
+  } catch {
+    // The failure that brought us here is the one to report.
+  }
+  unwatchPlanIfIdle();
+}
+
+export function currentHost(): LiveHost | null {
+  return host;
+}
+
+/** The carriers the hosted session listens on, if its profile names any. */
+export function currentHostCarriers(): Rendezvous | null {
+  return hostCarriers;
+}
+
+/** End the hosted session for everyone. */
+export function endHosting(): void {
+  stopLockWatch?.();
+  stopLockWatch = null;
+  hostCarriers?.close();
+  hostCarriers = null;
+  if (!host) return;
+  host.end("owner");
+  host = null;
+  unwatchPlanIfIdle();
+  changed();
+}
+
+export type JoinInput = Readonly<{
+  link: LiveLink;
+  code: string | null;
+  name: string;
+  note: string;
+  peers: PeerFactory;
+  /**
+   * Whether to use what the link names — its ICE servers and carriers. The
+   * person agreed to the hosts it lists; without that, direct only.
+   */
+  useRoutes: boolean;
+  carriers?: CarrierFactory;
+}>;
+
+/**
+ * Start asking to join: the request code comes back for the person to send
+ * the owner, and goes out on the link's carriers where they agreed to them.
+ * Any session this tab had joined is left first.
+ */
+export async function joinLive(input: JoinInput): Promise<LiveGuest> {
+  armRestoreGuard();
+  leaveLive();
+  // The join screen refuses a link whose routes do not read; direct here.
+  const routes = linkRoutes(input.link) ?? NO_ROUTES;
+  const ice: IceSettings = input.useRoutes
+    ? { iceServers: rtcServers(routes.ice), relay: routes.relay, addresses: [] }
+    : DIRECT_ONLY;
+  let next: LiveGuest | null = null;
+  const carriers = input.useRoutes
+    ? openCarriers(
+        routes.carriers,
+        input.link.secret,
+        input.carriers,
+        (code) => void next?.accept(code),
+      )
+    : null;
+  guestCarriers = carriers;
+  next = new LiveGuest({
+    link: input.link,
+    code: input.code,
+    name: input.name,
+    note: input.note,
+    ice,
+    peers: input.peers,
+    carriers: carriers
+      ? { post: poster(carriers), close: () => carriers.close() }
+      : null,
+  });
+  guest = next;
+  watchPlan();
+  // The plan may already have withdrawn Live sessions: left before it began.
+  if (guest !== next) return next;
+  changed();
+  await next.start();
+  return next;
+}
+
+export function currentGuest(): LiveGuest | null {
+  return guest;
+}
+
+/** The carriers the joined session's request goes out on, if any. */
+export function currentGuestCarriers(): Rendezvous | null {
+  return guestCarriers;
+}
+
+/** Leave the joined session, dropping everything it held. */
+export function leaveLive(): void {
+  guestCarriers?.close();
+  guestCarriers = null;
+  if (!guest) return;
+  guest.leave();
+  guest = null;
+  unwatchPlanIfIdle();
+  changed();
+}

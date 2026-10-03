@@ -130,7 +130,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       ? createDrizzle(config.databaseUrl)
       : undefined;
 
-  // Event rows rest sealed in Postgres (ADR 0150).
+  // Event rows rest sealed in Postgres (ADR 0155).
   const eventSealer = resolveEventSealer(
     processEnv,
     config.claimPepper,

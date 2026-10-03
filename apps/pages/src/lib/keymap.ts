@@ -1,16 +1,32 @@
-import { dispatchUserBinding } from "@opensesame/app-core/lib/configuration/nav-persist.js";
-import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
+import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
 import {
-  focusCommandBar,
-  handleCommandBarChord,
-  toggleCommandBarMic,
-} from "./command-bar/focus.js";
+  REGISTER_PREFIX,
+  keymapCommands,
+} from "@opensesame/app-core/lib/keymap/commands.js";
+import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
+import type { KeymapContext } from "@opensesame/app-core/lib/keymap/context.js";
+import { effectiveBindings } from "@opensesame/app-core/lib/keymap/effective.js";
+import { tokenFromPress } from "@opensesame/app-core/lib/keymap/notation.js";
+import { loadKeymap } from "@opensesame/app-core/lib/keymap/store.js";
+import { handleCommandBarChord } from "./command-bar/focus.js";
+import {
+  type ChordState,
+  clearPending,
+  createChordState,
+  registerKey,
+  repeatIgnored,
+  showPending,
+  startRegister,
+} from "./keymap-chord.js";
+import { runTarget } from "./keymap-commands.js";
 import { contributedKeymapExtras, keymapHelpRows } from "./keymap-help.js";
-import { sectionJumpKeys, sectionJumpPath } from "./keymap-jumps.js";
+import { sectionJumpKeys } from "./keymap-jumps.js";
+import { recordRun } from "./keymap-registers.js";
+import { type Fire, resolveToken } from "./keymap-resolve.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 import {
-  type ListingMotion,
+  capturingKeys,
   contextMenuOpen,
   currentRailTarget,
   currentSearchTarget,
@@ -54,106 +70,105 @@ export function keymapHelp() {
   return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras());
 }
 
-/** Listing motions that keep their meaning after a `g`: `gj` is still down. */
-const GO_MOTIONS = new Set(["j", "k", "h", "l"]);
+type BindingsFor = (
+  context: KeymapContext | null,
+) => ReadonlyMap<string, string>;
+
+type KeymapSeams = {
+  /** Vim `timeoutlen`: how long a half-typed sequence waits. */
+  goTimeoutMs: number;
+  /** The map the handler reads; null reads the keymap in force. */
+  bindings: BindingsFor | null;
+};
+
+/** Tests may shorten the timeout, or hand the handler a map of their own. */
+export const keymapSeams: KeymapSeams = {
+  goTimeoutMs: 1_000, // CI keypress gap; was 600
+  bindings: null,
+};
 
 const COUNT_MAX = 999;
 
-/** Vim `timeoutlen` for `g` chords. Tests may shorten it. */
-export const keymapSeams = {
-  goTimeoutMs: 1_000, // CI keypress gap; was 600
-};
+export { type ChordState, createChordState } from "./keymap-chord.js";
+
+let cached: {
+  config: KeymapConfig;
+  jumps: unknown;
+  sections: unknown;
+  /** One map per scope: everywhere, and each listing asked for so far. */
+  maps: Map<KeymapContext | "everywhere", ReadonlyMap<string, string>>;
+} | null = null;
 
 /**
- * tinykeys refuses events with an empty `code` (jsdom / Testing Library).
- * Production keydowns always have one; tests often pass only `key`.
+ * The keymap in force — everywhere, or with a listing's own keys laid over
+ * it (ADR 0150 §6) — rebuilt only when the keymap or the jumps change.
  */
-function ensureCode(event: KeyboardEvent): void {
-  const code = event.key === " " ? "Space" : event.key;
-  try {
-    Object.defineProperty(event, "code", { value: code });
-  } catch {
-    // Some engines expose `code` as a readonly getter; matching still uses `key`.
+export function currentBindings(
+  context?: KeymapContext | null,
+): ReadonlyMap<string, string> {
+  const config = loadKeymap();
+  const jumps = contributionsSnapshot("keymap-jump");
+  const sections = contributionsSnapshot("section");
+  if (
+    cached?.config !== config ||
+    cached.jumps !== jumps ||
+    cached.sections !== sections
+  ) {
+    cached = { config, jumps, sections, maps: new Map() };
   }
+  const scope = context ?? "everywhere";
+  let map = cached.maps.get(scope);
+  if (map === undefined) {
+    map = effectiveBindings(config, keymapCommands(), context ?? undefined);
+    cached.maps.set(scope, map);
+  }
+  return map;
 }
 
-function goToCount(target: ListingMotion | null, n: number): void {
-  if (!target) return;
-  if (target.toIndex) {
-    target.toIndex(Math.max(0, n - 1));
-    return;
-  }
-  target.first();
-  if (n > 1) target.next(n - 1);
+/** Ctrl-l reaches the command bar from a field too — while it is still bound. */
+function commandBarChordBound(event: KeyboardEvent): boolean {
+  if (event.metaKey) return true;
+  return (
+    currentBindings(listingOf(event)).get("Control+l") === "command.palette"
+  );
 }
 
-function applyGoChord(
-  event: KeyboardEvent,
-  count: number,
-  navigate: (path: string) => void,
-): boolean {
-  if (event.key === "g") {
-    if (count > 0) goToCount(movementTarget(event), count);
-    else movementTarget(event)?.first();
-    event.preventDefault();
-    return true;
-  }
-  const key = event.key.toLowerCase();
-  const path = sectionJumpPath(key);
-  if (path === null) {
-    // A letter that is no jump on this plan is swallowed, not reinterpreted:
-    // a stale `g y` must not become `y` (copy the secret) because the
-    // activity capability left. Motions keep working after a `g`.
-    if (/^[a-z]$/.test(key) && !GO_MOTIONS.has(key)) {
-      event.preventDefault();
-      return true;
-    }
-    return false;
-  }
-  const rail = currentRailTarget();
-  if (rail?.goTo) {
-    rail.goTo(path);
-    rail.focus?.();
-  } else navigate(path);
+function leavePane(event: KeyboardEvent): void {
+  if (statusBubbleOpen()) return;
+  currentSearchTarget()?.closeSearch();
+  currentVaultTarget()?.closeSearch();
+  (
+    movementTarget(event) ??
+    currentVaultTarget() ??
+    currentRailTarget()
+  )?.focus?.();
   event.preventDefault();
-  return true;
 }
 
-function times(n: number, run: () => void): void {
-  for (let i = 0; i < n; i++) run();
-}
-
-/** A half-typed count or `g`, held apart from the handler that reads it. */
-export type ChordState = {
-  count: number;
-  pendingGo: boolean;
-  goTimer: ReturnType<typeof setTimeout> | undefined;
-};
-
-export function createChordState(): ChordState {
-  return { count: 0, pendingGo: false, goTimer: undefined };
+function otherListing(event: KeyboardEvent): void {
+  const listing = listingOf(event);
+  const other = listing === "rail" ? currentVaultTarget() : currentRailTarget();
+  if (!other?.focus) return;
+  other.focus();
+  event.preventDefault();
 }
 
 /**
- * tinykeys map plus counts/`g` leader; remappable actions use liveBindings.
- * The shell passes one `chord` for the page's life: a capability's wrapper
- * arriving remounts it, and a `g` typed across that must still land.
+ * The shell's key handler (ADR 0150). Every binding comes from the keymap in
+ * force — the defaults with a person's changes — through a sequence trie:
+ * counts first (`5j`), then the half-typed sequence (`g` of `g v`), which
+ * waits `goTimeoutMs` like vim's `timeoutlen`. The keys that keep the
+ * keyboard-only road open (Tab, Enter, Escape, F6, counts) are fixed here and
+ * cannot be bound away. The shell passes one `chord` for the page's life: a
+ * capability's wrapper arriving remounts it, and a `g` typed across that must
+ * still land. The register keys (`q`, `@`) take the next key as a letter,
+ * and a recording outlives any remount. After every press the statusline
+ * hears what is half-typed.
  */
 export function createKeymapHandler(
   { navigate, showHelp }: KeymapOptions,
   chord: ChordState = createChordState(),
 ) {
-  const clearGo = () => {
-    chord.pendingGo = false;
-    clearTimeout(chord.goTimer);
-    chord.goTimer = undefined;
-  };
-
-  const armGo = () => {
-    chord.pendingGo = true;
-    chord.goTimer = setTimeout(clearGo, keymapSeams.goTimeoutMs);
-  };
-
   const takeCount = () => {
     const hadCount = chord.count > 0;
     const steps = hadCount ? chord.count : 1;
@@ -161,130 +176,95 @@ export function createKeymapHandler(
     return { steps, hadCount };
   };
 
-  const run = (
-    fn: (
-      listing: ListingMotion | null,
-      steps: number,
-      hadCount: boolean,
-    ) => void,
-  ) => {
-    return (event: KeyboardEvent) => {
-      const listing = movementTarget(event);
-      if (!listingOf(event)) listing?.focus?.();
-      const { steps, hadCount } = takeCount();
-      fn(listing, steps, hadCount);
-      event.preventDefault();
-    };
+  const fire: Fire = (target, event, keys) => {
+    const counted = takeCount();
+    if (target.startsWith(REGISTER_PREFIX)) {
+      startRegister(
+        chord,
+        target,
+        keys,
+        counted.steps,
+        keymapSeams.goTimeoutMs,
+      );
+      return;
+    }
+    // A command that throws is not recorded: `recordRun` is never reached.
+    runTarget(target, { event, navigate, showHelp, ...counted });
+    recordRun(chord.registers, target, counted.steps);
   };
 
-  const verb = (fn: () => void) => (event: KeyboardEvent) => {
+  const resolve = (
+    event: KeyboardEvent,
+    token: string,
+    map: ReadonlyMap<string, string>,
+  ) =>
+    resolveToken(
+      { chord, fire, map, timeoutMs: keymapSeams.goTimeoutMs },
+      event,
+      token,
+    );
+
+  const handle = (event: KeyboardEvent) => {
+    if (heldElsewhere(event) || standsDown(event)) {
+      chord.count = 0;
+      clearPending(chord);
+      return;
+    }
+    const map = (keymapSeams.bindings ?? currentBindings)(listingOf(event));
+    if (repeatIgnored(event, chord, map)) {
+      event.preventDefault();
+      return;
+    }
+    if (registerKey(event, chord, { navigate, showHelp })) return;
+    if (countKey(event, chord)) return;
+    if (fixedKey(event)) {
+      chord.count = 0;
+      clearPending(chord);
+      return;
+    }
+    const token = tokenFromPress(event);
+    if (token === null) return;
+    if (resolve(event, token, map)) return;
     chord.count = 0;
-    fn();
-    event.preventDefault();
+    // An unbound Space in a listing must not scroll the page under the cursor.
+    if (token === "Space" && listingOf(event)) event.preventDefault();
   };
 
-  const bindings: KeybindingsMap = {
-    j: run((listing, steps) => listing?.next(steps)),
-    ArrowDown: run((listing, steps) => listing?.next(steps)),
-    k: run((listing, steps) => listing?.previous(steps)),
-    ArrowUp: run((listing, steps) => listing?.previous(steps)),
-    l: run((listing, steps) => times(steps, () => listing?.enter())),
-    ArrowRight: run((listing, steps) => times(steps, () => listing?.enter())),
-    h: run((listing, steps) => times(steps, () => listing?.parent())),
-    ArrowLeft: run((listing, steps) => times(steps, () => listing?.parent())),
-    Backspace: run((listing, steps) => times(steps, () => listing?.parent())),
-    "Shift+G": run((listing, steps, hadCount) =>
-      hadCount ? goToCount(listing, steps) : listing?.last(),
-    ),
-    "Shift+$": run((listing) => listing?.last()),
-    $: run((listing) => listing?.last()),
-    End: run((listing) => listing?.last()),
-    Home: run((listing) => listing?.first()),
-    "Shift+H": run((listing) => listing?.edge?.("high")),
-    "Shift+M": run((listing) => listing?.edge?.("mid")),
-    "Shift+L": run((listing) => listing?.edge?.("low")),
-    PageDown: run((listing, steps) =>
-      times(steps, () => listing?.page?.(1, "full")),
-    ),
-    PageUp: run((listing, steps) =>
-      times(steps, () => listing?.page?.(-1, "full")),
-    ),
-    "Control+d": run((listing, steps) =>
-      times(steps, () => listing?.page?.(1, "half")),
-    ),
-    "Control+u": run((listing, steps) =>
-      times(steps, () => listing?.page?.(-1, "half")),
-    ),
-    "Control+f": run((listing, steps) =>
-      times(steps, () => listing?.page?.(1, "full")),
-    ),
-    "Control+b": run((listing, steps) =>
-      times(steps, () => listing?.page?.(-1, "full")),
-    ),
-    "Control+n": run((listing, steps) => listing?.next(steps)),
-    "Control+p": run((listing, steps) => listing?.previous(steps)),
-    Enter: run((listing) => listing?.activate()),
-    "/": verb(() => (currentSearchTarget() ?? currentVaultTarget())?.search()),
-    Escape: (event) => {
-      chord.count = 0;
-      if (statusBubbleOpen()) return;
-      currentSearchTarget()?.closeSearch();
-      currentVaultTarget()?.closeSearch();
-      (
-        movementTarget(event) ??
-        currentVaultTarget() ??
-        currentRailTarget()
-      )?.focus?.();
-      event.preventDefault();
-    },
-    y: verb(() => currentVaultTarget()?.copySecret()),
-    u: verb(() => currentVaultTarget()?.copyUsername()),
-    e: verb(() => currentVaultTarget()?.edit()),
-    x: verb(() => currentVaultTarget()?.trash()),
-    n: verb(() => currentVaultTarget()?.create()),
-    ".": verb(() => currentVaultTarget()?.favorite()),
-    s: verb(() => currentVaultTarget()?.share()),
-    "Shift+?": verb(() => showHelp()),
-    "?": verb(() => showHelp()),
-    ":": verb(() => focusCommandBar()),
-    m: verb(() => toggleCommandBarMic()),
-    F6: (event) => {
-      chord.count = 0;
-      const listing = listingOf(event);
-      const other =
-        listing === "rail" ? currentVaultTarget() : currentRailTarget();
-      if (!other?.focus) return;
-      other.focus();
-      event.preventDefault();
-    },
-    Space: (event) => {
-      chord.count = 0;
-      if (listingOf(event)) event.preventDefault();
-    },
-  };
-
-  const dispatch = createKeybindingsHandler(bindings, {
-    ignore: (event) => event.isComposing,
-  });
-
+  // The statusline hears the outcome even when a command threw.
   return (event: KeyboardEvent) => {
-    ensureCode(event);
-    if (handlePaneEscape(event)) {
-      chord.count = 0;
-      clearGo();
-      return;
+    try {
+      handle(event);
+    } finally {
+      showPending(chord);
     }
-    // An open context menu owns every key until it closes.
-    if (!contextMenuOpen() && handleCommandBarChord(event)) {
-      chord.count = 0;
-      clearGo();
-      return;
-    }
-    if (
-      contextMenuOpen() ||
+  };
+}
+
+/**
+ * Something else owns this press: a key-capture field (Settings ›
+ * Keybindings), the Escape ladder, or the command bar's own chord.
+ */
+function heldElsewhere(event: KeyboardEvent): boolean {
+  if (capturingKeys(event.target)) return true;
+  if (handlePaneEscape(event)) return true;
+  // An open context menu owns every key until it closes.
+  return (
+    !contextMenuOpen() &&
+    commandBarChordBound(event) &&
+    handleCommandBarChord(event)
+  );
+}
+
+/** A native control, a field, a menu or a dialog keeps its own keys. */
+function standsDown(event: KeyboardEvent): boolean {
+  return Boolean(
+    contextMenuOpen() ||
       event.defaultPrevented ||
+      event.isComposing ||
       event.metaKey ||
-      event.altKey ||
+      // Alt, Option and AltGr make symbols on many layouts (`@`): those are
+      // characters, and only an Alt shortcut stands down.
+      (event.altKey && tokenFromPress(event) === null) ||
       event.key === "Tab" ||
       typing(event.target) ||
       (event.target instanceof Element &&
@@ -304,59 +284,34 @@ export function createKeymapHandler(
           "Home",
           "End",
         ].includes(event.key)) ||
-      document.querySelector('[role="dialog"][aria-modal="true"]')
-    ) {
-      chord.count = 0;
-      clearGo();
-      return;
-    }
+      document.querySelector('[role="dialog"][aria-modal="true"]'),
+  );
+}
 
-    if (!event.ctrlKey && event.key >= "1" && event.key <= "9") {
-      chord.count = Math.min(chord.count * 10 + Number(event.key), COUNT_MAX);
-      event.preventDefault();
-      return;
-    }
-    if (!event.ctrlKey && event.key === "0") {
-      if (chord.count > 0) {
-        chord.count = Math.min(chord.count * 10, COUNT_MAX);
-        event.preventDefault();
-        return;
-      }
-      clearGo();
-      movementTarget(event)?.first();
-      event.preventDefault();
-      return;
-    }
+/** `1`–`9` start or extend a count; `0` extends one already started. */
+function countKey(event: KeyboardEvent, chord: ChordState): boolean {
+  if (event.ctrlKey) return false;
+  const digit = event.key >= "1" && event.key <= "9";
+  if (!digit && !(event.key === "0" && chord.count > 0)) return false;
+  chord.count = Math.min(chord.count * 10 + Number(event.key), COUNT_MAX);
+  event.preventDefault();
+  return true;
+}
 
-    if (chord.pendingGo) {
-      if (applyGoChord(event, chord.count, navigate)) {
-        chord.count = 0;
-        clearGo();
-        return;
-      }
-      clearGo();
-    }
-
-    if (event.key === "g") {
-      armGo();
-      event.preventDefault();
-      return;
-    }
-
-    if (
-      dispatchUserBinding(event, false, {
-        "command.palette": () => focusCommandBar(),
-        "listing.search": () =>
-          (currentSearchTarget() ?? currentVaultTarget())?.search(),
-        "listing.next": (ev) => movementTarget(ev)?.next(takeCount().steps),
-        "item.edit": () => currentVaultTarget()?.edit(),
-        "help.keymap": () => showHelp(),
-      })
-    ) {
-      chord.count = 0;
-      return;
-    }
-
-    dispatch(event);
-  };
+/** The keys no keymap may take: Escape, F6 and Enter (ADR 0150). */
+function fixedKey(event: KeyboardEvent): boolean {
+  if (event.key === "Escape") {
+    leavePane(event);
+    return true;
+  }
+  if (event.key === "F6") {
+    otherListing(event);
+    return true;
+  }
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey) return false;
+  const listing = movementTarget(event);
+  if (!listingOf(event)) listing?.focus?.();
+  listing?.activate();
+  event.preventDefault();
+  return true;
 }

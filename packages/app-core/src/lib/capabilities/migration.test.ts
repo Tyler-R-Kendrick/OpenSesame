@@ -53,10 +53,17 @@ describe("reviewLegacyConfiguration", () => {
 
     const review = reviewLegacyConfiguration();
 
-    // Operator providers and the connector directory are always-on now:
-    // their records are evidence for capabilities every plan already has.
+    // A hosted model, an identity provider and a connector directory are
+    // optional extensions (ADR 0153). The review suggests them and enables
+    // nothing.
     const capabilities = new Set(review.suggestions.map((s) => s.capability));
-    expect(capabilities).toEqual(new Set(["support.remote-ai"]));
+    expect(capabilities).toEqual(
+      new Set([
+        "connectors.external",
+        "identity.federation",
+        "support.remote-ai",
+      ]),
+    );
     expect(review.enabled).toEqual([]);
     for (const s of review.suggestions) {
       expect(s.evidence).not.toMatch(/example\.test|okta|abc/i);

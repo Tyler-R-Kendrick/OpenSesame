@@ -16,6 +16,11 @@ import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
+import { sealWithPin, unlockWithPassword } from "./pages-journey.mjs";
+
+async function sealPin(page) {
+  await sealWithPin(page);
+}
 
 export function extraSteps({ press }) {
   return {
@@ -28,10 +33,18 @@ export function extraSteps({ press }) {
     ...markSteps({ press }),
     ...memberSteps({ press }),
     ...placeSteps(),
-    ...railSteps(),
+    ...railSteps({ press }),
     ...routingSteps(),
     ...orgSignInSteps(),
     ...networkSteps(),
+    sealPin,
+    /** Reload and unlock, for a change a device only picks up on a cold load. */
+    async reloadUnlock(page) {
+      await page.reload({ waitUntil: "networkidle" });
+      await page.waitForTimeout(5200);
+      await unlockWithPassword(page);
+      await page.waitForTimeout(1400);
+    },
     /**
      * Pick a labelled radio when this build has it — a connector's
      * connection method. A base build without the choice is a legitimate
@@ -77,10 +90,33 @@ export function extraSteps({ press }) {
      */
     async fillOptional(page, { label, text }) {
       const field = page.getByLabel(label, { exact: true }).first();
-      if ((await field.count()) && (await field.isEnabled())) {
-        await field.fill(text);
-        await page.waitForTimeout(300);
-      }
+      if (!(await field.count()) || !(await field.isEnabled())) return;
+      // A label can name a key in the other build; only a real field is filled.
+      if (!(await field.evaluate((node) => node.matches("input, textarea"))))
+        return;
+      await field.fill(text);
+      await page.waitForTimeout(300);
+    },
+    /**
+     * Press keys into a key-capture field (Settings › Keybindings) when one
+     * holds focus, then wait `wait` ms — the capture keeps a sequence once the
+     * keymap's timeout lapses. With no capture focused (a base build without
+     * one) nothing is pressed: a stray `k` would move the page's listing.
+     */
+    async captureKeysOptional(page, { keys, wait = 0 }) {
+      const capturing = await page.evaluate(
+        () => document.activeElement?.closest("[data-key-capture]") != null,
+      );
+      if (!capturing) return;
+      for (const key of keys) await page.keyboard.press(key);
+      await page.waitForTimeout(wait);
+    },
+    /** Type a slash into the status-line command field. */
+    async slash(page) {
+      const field = page.locator("#command-bar-input");
+      await field.click();
+      await field.fill("/");
+      await page.waitForTimeout(400);
     },
   };
 }

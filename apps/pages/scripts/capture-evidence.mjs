@@ -33,6 +33,9 @@ import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
+import { readSteps } from "./lib/capture-read-steps.mjs";
+import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -118,9 +121,7 @@ const STEPS = {
     await page.waitForTimeout(1400);
   },
   async guest(page) {
-    await press(
-      page.getByRole("button", { name: "Continue as guest", exact: true }),
-    );
+    await press(doorGuest(page));
     await page.waitForTimeout(1400);
   },
   async tab(page, name) {
@@ -202,6 +203,7 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...readSteps(),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -247,6 +249,7 @@ const STEPS = {
     await page.waitForTimeout(600);
   },
   ...capabilitySteps({ press, openSettings }),
+  ...scopedSteps({ press }),
   /** A new section loads with the app root, so a chosen one needs a reload. */
   async reload(page) {
     await page.reload({ waitUntil: "networkidle" });

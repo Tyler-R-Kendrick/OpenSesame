@@ -188,6 +188,31 @@ export async function createDrop(input: {
   };
 }
 
+/** A one-time share of text already stored on an item. No vault record. */
+export type SharedOnce = {
+  link: string;
+  userCode: string;
+  expiresAt: string;
+};
+
+export async function shareOnce(input: {
+  name: string;
+  text: string;
+  ttlMs: number;
+}): Promise<SharedOnce> {
+  const { manifest, fragmentKey } = await sealDrop({
+    kind: "text",
+    name: input.name,
+    text: input.text,
+  });
+  const session = await createDropSession(manifest, input.ttlMs);
+  return {
+    link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
+    userCode: session.userCode,
+    expiresAt: session.expiresAt,
+  };
+}
+
 /* ----------------------------------------------------------- kept copies */
 
 /** JSON-safe form of a payload for the drop record's optional kept copy. */

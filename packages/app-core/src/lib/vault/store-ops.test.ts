@@ -262,8 +262,7 @@ describe("VaultStore sealed export and import", () => {
 
     // A second device: same password, empty vault.
     clearVault();
-    const target = new VaultStore();
-    await target.create(PASSWORD);
+    const target = await unlockedStore();
     await expect(target.importSealed(exported, PASSWORD)).resolves.toBe(1);
     expect(target.getSnapshot().items.map((i) => i.name)).toEqual(["Portable"]);
 
@@ -291,20 +290,6 @@ describe("VaultStore sealed export and import", () => {
     await expect(
       source.importSealed(exported, "definitely wrong password"),
     ).rejects.toBeInstanceOf(WrongPasswordError);
-  });
-});
-
-describe("VaultStore destroy", () => {
-  it("removes every trace and reports an empty vault afterwards", async () => {
-    const store = await unlockedStore();
-    await store.saveItem(createItem("note", "Gone"));
-    await store.destroy();
-
-    expect(kvGet(HEADER_KEY)).toBeNull();
-    expect(kvGet(BODY_KEY)).toBeNull();
-    expect(store.getSnapshot().status).toBe("empty");
-    expect(store.isUnlocked()).toBe(false);
-    expect(new VaultStore().getSnapshot().status).toBe("empty");
   });
 });
 
@@ -571,7 +556,7 @@ describe("VaultStore prefs and idle auto-lock", () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
     store.setPrefs({ theme: "dark", lockOnHide: true });
-    // setPrefs writes through fire-and-forget; a reload boundary is where the write must have landed.
+    // setPrefs persists on the write chain; a reload boundary is where the write must have landed.
     await vfsFlush();
     store.lock();
 

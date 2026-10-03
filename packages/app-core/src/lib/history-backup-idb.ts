@@ -85,6 +85,16 @@ function idbReq<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+function txDone(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onabort = () =>
+      reject(tx.error ?? new Error("indexedDB transaction aborted"));
+    tx.onerror = () =>
+      reject(tx.error ?? new Error("indexedDB transaction failed"));
+  });
+}
+
 type SealedRow = { id: string; accountId?: string; sealed: string };
 
 function rowBinding(store: string, id: string): Uint8Array {
@@ -208,32 +218,42 @@ async function withDb<T>(
   // Opening alone recreates a deleted database, so a tab whose browser is
   // being reset does not open it at all; memory answers until it reloads.
   if (storageWritesHalted()) return undefined;
+  let atRest: AtRestKey;
   try {
-    const atRest = await atRestReady();
-    // A key that dies with this document: rows could never be read back.
-    if (!atRest.durable) return undefined;
-    const db = await openDb();
-    try {
-      await sealLegacyRows(db, atRest);
-      return await run(db, atRest);
-    } finally {
-      db.close();
-    }
+    atRest = await atRestReady();
   } catch {
     return undefined;
+  }
+  // A key that dies with this document: rows could never be read back.
+  if (!atRest.durable) return undefined;
+  let db: IDBDatabase;
+  try {
+    db = await openDb();
+  } catch {
+    return undefined;
+  }
+  try {
+    await sealLegacyRows(db, atRest);
+    return await run(db, atRest);
+  } finally {
+    db.close();
   }
 }
 
 export async function putHistoryAccount(
   account: ProvisionalHistoryAccount,
 ): Promise<void> {
-  memoryAccounts.set(account.id, account);
-  await withDb(async (db, atRest) => {
+  const persisted = await withDb(async (db, atRest) => {
     const tx = db.transaction(ACCOUNTS, "readwrite");
+    const done = txDone(tx);
     await idbReq(
       tx.objectStore(ACCOUNTS).put(sealRow(atRest, ACCOUNTS, account)),
     );
+    await done;
+    return true;
   });
+  if (persisted === true) memoryAccounts.delete(account.id);
+  else memoryAccounts.set(account.id, account);
 }
 
 export async function getHistoryAccount(
@@ -261,7 +281,12 @@ export async function listHistoryAccounts(): Promise<
       .map((row) => asAccount(openRow(atRest, ACCOUNTS, row)))
       .filter(present);
   });
-  return rows ?? [...memoryAccounts.values()];
+  if (!rows) return [...memoryAccounts.values()];
+  const merged = new Map(rows.map((row) => [row.id, row]));
+  for (const [id, account] of memoryAccounts) {
+    if (!merged.has(id)) merged.set(id, account);
+  }
+  return [...merged.values()];
 }
 
 export async function listHistoryEntries(
@@ -275,10 +300,12 @@ export async function listHistoryEntries(
       .map((row) => asEntry(openRow(atRest, ENTRIES, row)))
       .filter(present);
   });
-  if (rows) return rows;
-  return [...memoryEntries.values()].filter(
+  const memoryRows = [...memoryEntries.values()].filter(
     (row) => row.accountId === accountId,
   );
+  if (!rows) return memoryRows;
+  const seen = new Set(rows.map((row) => row.id));
+  return [...rows, ...memoryRows.filter((row) => !seen.has(row.id))];
 }
 
 export async function appendHistoryEntry(
@@ -291,12 +318,15 @@ export async function appendHistoryEntry(
     ciphertextB64: bytesToB64(ciphertext),
     createdAt: new Date().toISOString(),
   };
-  memoryEntries.set(entry.id, entry);
-  await withDb(async (db, atRest) => {
+  const persisted = await withDb(async (db, atRest) => {
     const tx = db.transaction(ENTRIES, "readwrite");
+    const done = txDone(tx);
     await idbReq(
       tx.objectStore(ENTRIES).put(sealRow(atRest, ENTRIES, entry, accountId)),
     );
+    await done;
+    return true;
   });
+  if (persisted !== true) memoryEntries.set(entry.id, entry);
   return entry;
 }

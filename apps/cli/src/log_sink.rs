@@ -1,4 +1,4 @@
-//! The sealed log file the long-running roles write when asked to (ADR 0150).
+//! The sealed log file the long-running roles write when asked to (ADR 0155).
 //!
 //! `OPENSESAME_LOG_FILE` names a file every log line of the Host, the worker and
 //! the daemon is sealed into, under a key kept beside it or at

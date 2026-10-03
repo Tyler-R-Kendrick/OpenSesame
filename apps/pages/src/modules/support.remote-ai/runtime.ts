@@ -28,6 +28,16 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import {
+  type FeatureOperation,
+  runListedFeature,
+} from "@opensesame/app-core/lib/feature-connector-operation.js";
+import { savedFeatureRequests } from "@opensesame/app-core/lib/feature-request.js";
+import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
+import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
+import { createSavedModelSupportAgent } from "@opensesame/app-core/lib/saved-model-agent.js";
 import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
@@ -38,11 +48,69 @@ import { createActivation } from "../activation.js";
 export const CAPABILITY = "support.remote-ai";
 
 /** Test seam: the deploy-config read, swappable without a module mock. */
-export const remoteSupportSeams = { loadAgUiEndpoint };
+interface RemoteSupportSeams {
+  loadAgUiEndpoint: typeof loadAgUiEndpoint;
+}
+
+export const remoteSupportSeams: RemoteSupportSeams = { loadAgUiEndpoint };
+
+/** The model operation for a saved api-key connector, with no Host required. */
+export function savedRemoteModel(
+  provider: Provider | string,
+): FeatureOperation {
+  return runListedFeature(provider);
+}
+
+/**
+ * Send every saved agent-harness request. The key is on those requests,
+ * never on the same-origin support endpoint and never on the model record.
+ * Each request is the operation `savedRemoteModel` returned.
+ */
+export function loadSavedRemoteModels(): ModelExchange[] {
+  const operations = savedFeatureRequests(["agent_harnesses"]).map((row) =>
+    savedRemoteModel(row.providerId),
+  );
+  return savedModelRequests(operations);
+}
+
+let acceptedModels: ModelExchange[] = [];
+
+/** Inference requests this capability has accepted. Secrets stay on their headers. */
+export function acceptedRemoteModels(): readonly ModelExchange[] {
+  return acceptedModels;
+}
+
+function secretsStayOnHeaders(row: ModelExchange & { ok: true }): boolean {
+  const packed = JSON.stringify(row.body);
+  return Object.values(row.headers).every(
+    (value) => value === "" || !packed.includes(value),
+  );
+}
+
+/** AG-UI when an endpoint is configured, otherwise the saved model connector. */
+interface RemoteAgentModule {
+  readonly createAgUiAgent: () => ReturnType<
+    typeof createSavedModelSupportAgent
+  >;
+}
+
+export async function loadRemoteAgentModule(): Promise<RemoteAgentModule> {
+  const ag = await import(
+    "@opensesame/app-core/tutorial/agents/ag-ui/index.js"
+  );
+  return {
+    createAgUiAgent: () =>
+      ag.createAgUiAgent() ?? createSavedModelSupportAgent(),
+  };
+}
 
 /** Read the configured endpoint once, unless the lease already aborted. */
 export function startAgUiEndpointLoad(signal: AbortSignal): void {
   if (signal.aborted) return;
+  acceptedModels = loadSavedRemoteModels().filter(
+    (row): row is ModelExchange & { ok: true } =>
+      row.ok && secretsStayOnHeaders(row),
+  );
   void remoteSupportSeams.loadAgUiEndpoint().then(
     (endpoint) => {
       // Disabled while the read was in flight: the address is not kept.
@@ -65,8 +133,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       installSupportAgentLoaders({
         provider: () =>
           import("@opensesame/app-core/tutorial/agents/provider/index.js"),
-        agUi: () =>
-          import("@opensesame/app-core/tutorial/agents/ag-ui/index.js"),
+        agUi: () => loadRemoteAgentModule(),
       }),
     );
     activation.onDispose(() => applyAgUiEndpoint(null));
@@ -74,6 +141,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("background-job", {
       id: "ag-ui-endpoint",
       start: startAgUiEndpointLoad,
+    });
+    // The bar stays a command parser until a model capability is on. This
+    // one does not interpret; it only opens the ask road. On-device
+    // interpretation sorts first (order 10).
+    activation.register("command-assist", {
+      id: "remote",
+      order: 30,
+      interpret: (utterance) => Promise.resolve(readCommand(utterance)),
     });
 
     return activation.handle();

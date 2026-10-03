@@ -52,6 +52,14 @@ or a decrypted value on the way, exactly as it never does in service.
   person's next sign-in (ADR 0141 §4). vaultwarden's salts are 64 bytes,
   longer than generic PHC parsers accept, so the verify-only scheme reads that
   form itself. Nobody resets a password; each device signs in once more.
+  Once the accounts are in, every organization follows in one transaction
+  each — members with the key each held, collections, who reaches which, its
+  ciphers and files, each member's own folder and favourite — and every
+  emergency contact. A member or contact keeps a key only when its own
+  account came across; one at an address that has a different account here
+  is accepted and waits to be confirmed again, and one at an address with no
+  account waits as an invitation. Policies move with their organization
+  (§9); groups are counted, not moved.
 - **A live account** (`import account --from <server> --email <address>`),
   for bitwarden.com, bitwarden.eu, a self-hosted Bitwarden server or a
   vaultwarden whose database is out of reach: the person runs the CLI and
@@ -185,9 +193,9 @@ Bitwarden.
   rename, reassign, delete); sharing a personal cipher in, its attachments
   re-encrypted first; putting a cipher in collections; the administrators'
   `…-admin` forms; `organization-details`; and importing into an
-  organization. Groups, policies, single sign-on, account recovery and
-  directory sync are not: groups and policies list empty, and clients hide
-  the rest as they do against a server without them.
+  organization. Groups, single sign-on, account recovery and directory sync
+  are not: groups list empty, and clients hide the rest as they do against
+  a server without them. Policies arrived with §9.
 - **Files** on an organization's ciphers count against the organization, not
   against whoever uploaded them, under the same per-account quota.
 
@@ -224,8 +232,8 @@ member — decrypts it, under the oracle.
   and deleting it, after the master password, unless it is the only owner of
   an organization.
 - **Plain refusals** for what the server does not do: a password hint or a
-  deletion link (both go by mail), log in with a device, trusted-device
-  encryption, and a breach report on an address (that would disclose it to a
+  deletion link (both go by mail), trusted-device encryption, and a breach
+  report on an address (that would disclose it to a
   third party; the Host checks passwords by k-anonymity instead, ADR 0080 §5).
 
 ### 7. Live sync and the web vault
@@ -256,6 +264,54 @@ member — decrypts it, under the oracle.
 The pinned SignalR client (10.0.0, as `bitwarden/clients` pins it) hears
 "sync" and "log out" and is refused with a stale token, under the oracle.
 
+### 8. Log in with device
+
+A device that does not hold the master password asks to sign in
+(`POST /auth-requests`, unauthenticated, with a public key and an access code
+it keeps); the account's signed-in devices hear it on the hub and show the
+request's fingerprint phrase; one approves by wrapping the user key under
+the asking device's public key. The asking device hears the answer on the
+anonymous hub (`/notifications/anonymous-hub?Token=`), fetches the wrap with
+its access code, and signs in with the same code on the password grant
+(`authRequest`) — standing in for both steps, as on Bitwarden.
+
+- The server keeps the wrap and a SHA-256 digest of the access code, never
+  the code or the key. A request is open for fifteen minutes and is spent by
+  the one sign-in it allows; a denial deletes it.
+- An account has at most five unanswered requests at once; wrong codes are
+  limited per request, and requests per address by the sign-in limiter.
+- An address with no account gets a well-formed request that nothing will
+  ever answer, so asking reveals nothing about who has an account.
+- The pinned SignalR client, connected as `AnonymousHubService` connects,
+  hears the answer (`AuthRequestResponseRecieved`, Bitwarden's spelling)
+  under the oracle; the signed-in client hears the request and its answer.
+
+### 9. Organization policies
+
+Owners, admins and custom roles allowed to manage policies set an
+organization's policies (`/organizations/{id}/policies/{type}`, in both the
+flat and the `{policy: {…}}` body clients send); a sync carries the enabled
+ones of every organization an account is a confirmed member of, and clients
+enforce the password, generator, timeout, export, PIN and item-type ones
+from there, as they do against Bitwarden's server.
+
+The server enforces the ones that guard what it stores, on members who are
+neither owners nor admins, as Bitwarden's does:
+
+- **Two-step login:** enabling it revokes members without it; turning one's
+  own off revokes one from such organizations; a member without it is
+  neither confirmed nor restored.
+- **Single organization:** enabling it revokes members who belong to
+  another organization; such a member is neither confirmed nor restored into
+  another, and creates none.
+- **Personal ownership:** no new items in the personal vault (items go to an
+  organization's collections instead).
+- **Disable Send**, and **Send options**' "hide my email": no new or changed
+  Sends, or none hiding the address.
+
+Policies move with an organization from vaultwarden. `/plans` answers with
+the one plan this server has, so the web vault can create an organization.
+
 ## Consequences
 
 - A default Host build contains no Bitwarden code. Operators who serve
@@ -266,9 +322,11 @@ The pinned SignalR client (10.0.0, as `bitwarden/clients` pins it) hears
   one sign-in, in the person's own terminal, zeroized after use; it is the same
   exposure as signing in with `bw`.
 - A self-hosted team can move onto the Host with its shared vaults, not just
-  its personal ones; the vaultwarden importer still carries personal vaults
-  only, so an organization's ciphers are exported from the old server and
-  imported into the new organization (`bw import --organizationid`).
+  its personal ones: the vaultwarden importer carries organizations and
+  emergency contacts with the accounts. A live-account import is one
+  person's, so what they reach through an organization stays with the
+  organization; it is counted, and moves when the organization's server is
+  imported.
 - The Bitwarden consume-client (`crates/provider-bitwarden`) now names the
   two-step providers a server offers and a new-device challenge, and signs in
   with an answer; its own vault reads still decline both (ADR 0052).

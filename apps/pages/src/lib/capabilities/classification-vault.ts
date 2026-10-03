@@ -53,7 +53,7 @@ export const VAULT_LIB_RULES = [
     core(p, UNLOCK, "vault key, protectors, store lifecycle"),
   ),
   ...each(V, CLOUD_ADAPTERS, (p) =>
-    optional(p, CLOUD, "cloud KMS, age and YubiKey protectors"),
+    optional(p, CLOUD, "cloud KMS and age protectors"),
   ),
   core(
     `${V}offline-backup`,
@@ -78,11 +78,28 @@ export const VAULT_LIB_RULES = [
     "draft labels from the on-device model",
   ),
   optional(
+    `${V}environments`,
+    "vault.environments",
+    "named environments, schema text, and the missing-value notice",
+  ),
+  optional(
     `${V}import/`,
     "vault.interop-formats",
     "import pipeline and manager formats",
   ),
   optional(`${V}export/`, "vault.interop-formats", "CXF export"),
+  // A live link leaves the address bar at boot, like an invite; everything
+  // that speaks to a peer is the capability's (ADR 0150).
+  core(
+    "src/lib/live/link",
+    "identity.brokered-signin",
+    "boot takes a live-session link out of the address bar (ADR 0150)",
+  ),
+  optional(
+    "src/lib/live/",
+    "sharing.live",
+    "live sessions: pairing codes, WebRTC peers, host and guest (ADR 0150)",
+  ),
 ];
 
 export const TUTORIAL_RULES = [
@@ -119,6 +136,7 @@ export const TUTORIAL_RULES = [
       "__tests__/",
       "session",
       "ask-guard",
+      "choose-agent",
       "support-access",
       "support-context",
       "support.css",

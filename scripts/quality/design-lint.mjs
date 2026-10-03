@@ -18,8 +18,10 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkCopy } from "./design-lint-copy.mjs";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
 import { wordVerbHits } from "./design-lint-verbs.mjs";
+import { checkProse } from "./prose-lint.mjs";
 
 /**
  * `--root <dir>` re-points the lint at another tree. Only the contract test
@@ -53,6 +55,16 @@ const ROOTS = ["apps/pages/src"];
 
 const DOC = "docs/design/controls.md";
 
+/**
+ * A spec is not UI: its fixtures deliberately break the rules the
+ * lint enforces, so a sweep that read them would fail on its own
+ * tests. The contract test pins the lint by writing broken copies
+ * to a throwaway tree; the real tree's specs stay out of it.
+ */
+function isSpec(path) {
+  return /\.test\.(tsx|ts|css)$/.test(path);
+}
+
 function walk(dir, out) {
   let entries;
   try {
@@ -64,7 +76,7 @@ function walk(dir, out) {
     if (entry === "node_modules" || entry.startsWith(".")) continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.(tsx|css)$/.test(full)) out.push(full);
+    else if (/\.(tsx|ts|css)$/.test(full) && !isSpec(full)) out.push(full);
   }
   return out;
 }
@@ -78,7 +90,7 @@ function targets(argv) {
   return argv
     .map((file) => resolve(root, file))
     .filter((file) => {
-      if (!/\.(tsx|css)$/.test(file)) return false;
+      if (!/\.(tsx|ts|css)$/.test(file) || isSpec(file)) return false;
       const rel = relative(root, file);
       return ROOTS.some((dir) => rel.startsWith(dir));
     });
@@ -163,40 +175,9 @@ function checkTsx(file, source) {
       );
     }
   }
-  checkExplainers(file, source);
+  checkCopy(root, file, source, report, lineOf);
   checkCommitKeys(file, source, report, lineOf);
   checkWordVerbs(file, source);
-  checkStatusPills(file, source);
-}
-
-/** Captions that narrate a connector panel instead of showing the row. */
-const EXPLAINER =
-  /this app is installed|permissions it was granted|repositories it can reach|saved in this app|already saved in this app|no permissions recorded|no repositories returned|no github user or organization|loading github app access|mirrored as a revocable/i;
-
-function checkExplainers(file, source) {
-  const path = relative(root, file).replaceAll("\\", "/");
-  if (!path.includes("/sections/connections/")) return;
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const match of code.matchAll(
-    /<div className="panel__head">([\s\S]*?)<\/div>/g,
-  )) {
-    if (!match[1].includes("hint")) continue;
-    report(
-      file,
-      lineOf(source, match.index ?? 0),
-      "no-explainer",
-      "A panel head is a title. Do not add a caption that explains the section.",
-    );
-  }
-  for (const match of code.matchAll(/["'`]([^"'`\n]+)["'`]/g)) {
-    if (!EXPLAINER.test(match[1])) continue;
-    report(
-      file,
-      lineOf(source, match.index ?? 0),
-      "no-explainer",
-      "Explainer copy is a design smell. Show the account, grant, or repo. Do not describe the panel.",
-    );
-  }
 }
 
 const BUTTON_BASELINE = join(
@@ -215,9 +196,9 @@ function isCountRecord(value) {
   );
 }
 
-function readButtonBaseline() {
+function readCountBaseline(location) {
   try {
-    const parsed = JSON.parse(readFileSync(BUTTON_BASELINE, "utf8"));
+    const parsed = JSON.parse(readFileSync(location, "utf8"));
     if (!isCountRecord(parsed)) return {};
     return parsed;
   } catch {
@@ -225,7 +206,7 @@ function readButtonBaseline() {
   }
 }
 
-const buttonBaseline = readButtonBaseline();
+const buttonBaseline = readCountBaseline(BUTTON_BASELINE);
 
 function checkWordVerbs(file, source) {
   const path = relative(root, file).replaceAll("\\", "/");
@@ -250,25 +231,6 @@ function checkWordVerbs(file, source) {
       lineOf(source, index),
       "word-verb-button",
       "An executing action is an icon key (`icon-btn` or `.go`) with aria-label and title. Do not paint the verb on the button. See DESIGN.md § Actions are symbols.",
-    );
-  }
-}
-
-function checkStatusPills(file, source) {
-  const face =
-    /\b(Connected|Needs you|Needs install|Broken|Not enabled|Revoked|Authorized|Disabled|Enabled|inactive|Saved|In use|Did not match|Does not match|Matches|broad|In trash|Will connect|Ready|Instant|SYNTHETIC|connector off|Identity sealed|No identity|locked|Offline|All connected|Nothing needs setup|needs attention|need attention|errors?|chip\.label|VERB_LABEL|note\.label|session\.status|ISSUE_LABEL|stateChip)\b/;
-  for (const match of source.matchAll(
-    /<(span|p|output|div)\b[^>]*\bchip\b[^>]*>/g,
-  )) {
-    const start = (match.index ?? 0) + match[0].length;
-    const close = source.indexOf(`</${match[1]}>`, start);
-    if (close === -1) continue;
-    if (!face.test(source.slice(start, close))) continue;
-    report(
-      file,
-      lineOf(source, match.index ?? 0),
-      "status-is-symbol",
-      "Status is a StatusMark glyph with aria-label and title. Do not paint the word on a chip. See DESIGN.md § Status is a symbol.",
     );
   }
 }
@@ -362,8 +324,17 @@ function checkDropdowns(file, source) {
 const files = targets(fileArgs);
 for (const file of files) {
   const source = readFileSync(file, "utf8");
-  if (file.endsWith(".tsx")) checkTsx(file, source);
-  else checkCss(file, source);
+  if (file.endsWith(".css")) {
+    checkCss(file, source);
+  } else if (file.endsWith(".tsx")) {
+    checkTsx(file, source);
+    checkProse(file, source, report);
+  } else {
+    // A `.ts` module: its strings are UI copy too — the support
+    // pane's every sentence lives in one — but it carries no JSX
+    // for the control checks to read.
+    checkProse(file, source, report);
+  }
 }
 
 if (problems.length === 0) {

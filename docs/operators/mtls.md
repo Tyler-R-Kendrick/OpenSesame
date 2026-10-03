@@ -484,6 +484,14 @@ device.
 `GET /api/v1/operator/transport/status` (configurator-gated) returns one
 `TransportStatusView` per target. Read the dimensions separately:
 
+In the Pages app, Settings › Security › Transport draws these five dimensions
+as rows, with a Refresh key and a verification key, only once a remote endpoint
+is set (or a status has already been read). With no endpoint it draws the
+configuration form alone — there is nothing to ask, so no idle "Not checked"
+rows and no keys
+([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md), amended
+2026-09-28; [ADR 0150](../adr/0150-settings-rows-act-or-are-absent.md)).
+
 | Field | Values | Reading |
 |---|---|---|
 | `desired` | `existing_local` / `server_tls` / `mtls_required` / `trusted_ingress` | What you asked for. Says nothing about what is running. |

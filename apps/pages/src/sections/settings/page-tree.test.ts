@@ -33,12 +33,29 @@ const childIds = (
   tabs.find((node) => node.id === id)?.children.map((node) => node.id) ?? [];
 
 describe("settingsPageTree", () => {
+  it("lists a directory's config.yaml first, ahead of its panels, once it is shown", () => {
+    for (const tab of ["general", "security", "vaults", "capabilities"]) {
+      const shown = settingsPageTree({ showHidden: true }).find(
+        (node) => node.id === tab,
+      );
+      expect(shown?.children[0]?.id, tab).toBe(`${tab}-config`);
+      expect(shown?.children.length, tab).toBeGreaterThan(1);
+      // Hidden, it is not listed at all — the panels alone remain.
+      const hidden = settingsPageTree().find((node) => node.id === tab);
+      expect(
+        hidden?.children.some((node) => node.id === `${tab}-config`),
+        tab,
+      ).toBe(false);
+    }
+  });
+
   it("lists each settings tab as a first-level child, never nested under another tab", () => {
     const tabs = settingsPageTree();
     // Connections is gone as a tab: every provider is configured on
     // Capabilities, under the feature (or always-on group) that uses it.
     expect(tabs.map((node) => node.label)).toEqual([
       "General",
+      "Keybindings",
       "Security",
       "Vaults",
       "Capabilities",
@@ -46,6 +63,7 @@ describe("settingsPageTree", () => {
     ]);
     expect(tabs.map((node) => node.href)).toEqual([
       "/settings",
+      "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
       "/settings/capabilities",
@@ -92,9 +110,7 @@ describe("settingsPageTree", () => {
     expect(vaults?.children.map((node) => node.label)).toEqual([
       "personal",
       "project · 4f2a",
-      "Travel",
       "Item types",
-      "Sample data",
       "Sealed store",
     ]);
     const capabilities = tabs.find((node) => node.id === "capabilities");
@@ -106,6 +122,7 @@ describe("settingsPageTree", () => {
   it("keeps sources in tab order without a synthetic Settings wrapper", () => {
     expect(settingsPageSources().map((source) => source.id)).toEqual([
       "general",
+      "keybindings",
       "security",
       "vaults",
       "capabilities",
@@ -120,9 +137,19 @@ describe("settingsPageTree", () => {
         ?.children.map((node) => node.label);
     // A rail entry for a panel that returned null opened General at its
     // top with nothing to show for it.
-    const always = ["Appearance", "Locking", "Keybindings and views"];
+    const always = ["Appearance", "Locking"];
     expect(general(false)).toEqual(always);
     expect(general(true)).toEqual(["Install", ...always]);
+  });
+
+  it("gives Keybindings its own tab: the keymap and the macros", () => {
+    const keybindings = settingsPageTree().find(
+      (node) => node.id === "keybindings",
+    );
+    expect(keybindings?.children.map((node) => node.label)).toEqual([
+      "Keymap",
+      "Macros",
+    ]);
   });
 
   it("gives every tab its panels, so no tab is a caret-less row among branches", () => {
@@ -136,7 +163,10 @@ describe("settingsPageTree", () => {
       tabs
         .find((tab) => tab.id === "danger")
         ?.children.map((node) => node.href),
-    ).toEqual(["/settings/danger#settings-delete-vault"]);
+    ).toEqual([
+      "/settings/danger#settings-delete-vault",
+      "/settings/danger#settings-trash",
+    ]);
   });
 
   it("lists Security's panels in the order the page draws them", () => {
@@ -145,11 +175,9 @@ describe("settingsPageTree", () => {
       "unlock-methods",
       "second-step",
       "recovery",
-      "age-keys",
-      "transport",
     ]);
-    // Duress and the account's factors draw only when they apply; a
-    // capability's panels take the slot after the account, in their order.
+    // Duress (and Travel with it) and the account's factors draw only when
+    // they apply; a capability's panels take the slot after the account.
     expect(
       childIds(
         settingsPageTree({
@@ -161,15 +189,14 @@ describe("settingsPageTree", () => {
       ),
     ).toEqual([
       "vault-key-protection",
-      "duress-profiles",
       "unlock-methods",
       "second-step",
       "recovery",
       "account-factors",
+      "duress-profiles",
+      "travel",
       "ambient-auth",
       "formats-interoperability",
-      "age-keys",
-      "transport",
     ]);
   });
 

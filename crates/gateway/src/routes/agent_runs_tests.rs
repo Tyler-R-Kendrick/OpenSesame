@@ -69,6 +69,8 @@ pub(super) async fn send_json(
 #[path = "agent_runs_test_support.rs"]
 mod support;
 pub(super) use support::{fixture, Browser};
+#[path = "agent_runs_web_login_tests.rs"]
+mod web_login;
 
 #[tokio::test]
 async fn the_owner_reads_a_run_and_nobody_else_learns_it_exists() {

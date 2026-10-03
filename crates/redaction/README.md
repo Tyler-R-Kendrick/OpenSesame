@@ -18,7 +18,7 @@ through it before they reach a log, a receipt or an HTTP response.
 ## Surface
 
 The rules are [`spec/log-scrub/log-scrub.json`](../../spec/log-scrub/log-scrub.json)
-([ADR 0150](../../docs/adr/0150-logs-and-events-carry-no-secrets.md)), embedded
+([ADR 0155](../../docs/adr/0155-logs-and-events-carry-no-secrets.md)), embedded
 at build time and read by `@opensesame/log-scrub` too: one rule set, one vector
 table, run by both planes.
 

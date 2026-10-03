@@ -2,7 +2,7 @@
  * Sections and their sub-panels.
  */
 
-import { core, each, optional } from "./classification-rule.js";
+import { core, each, optional, shared } from "./classification-rule.js";
 
 const CONNECTORS = "connectors.external";
 const CLOUD = "backup.cloud-secrets";
@@ -20,10 +20,8 @@ export const SECTION_RULES = [
     "vault.passwords",
     "items, editor, detail, health, filters",
   ),
-  ...each(
-    "src/sections/vault/",
-    ["DropCeremony", "DropTtl", "NewDropCeremony"],
-    (p) => optional(p, "sharing.drops", "drop ceremonies"),
+  ...each("src/sections/vault/", ["DropCeremony", "DropTtl"], (p) =>
+    optional(p, "sharing.drops", "drop ceremonies"),
   ),
   optional(
     "src/sections/vault/DraftSuggestions",
@@ -47,7 +45,10 @@ export const SECTION_RULES = [
     CONNECTORS,
     "connections section root",
   ),
-  optional("src/sections/connections", CONNECTORS, "stylesheet"),
+  shared(
+    "src/sections/connections",
+    "stylesheet shared by Settings provider tiles and the Connections section",
+  ),
   optional(
     "src/sections/connections/",
     CONNECTORS,
@@ -56,19 +57,25 @@ export const SECTION_RULES = [
   ...each(
     "src/sections/connections/",
     [
-      "AwsKms",
-      "AzureKeyVault",
-      "GcpKms",
-      "Yubikey",
+      "AwsKmsConnectFields",
+      "GcpKmsConnectFields",
+      "shared",
       "useAwsKmsConnect",
-      "useAzureKeyVaultKeysConnect",
       "useGcpKmsConnect",
     ],
-    (p) => optional(p, CLOUD, "cloud KMS / YubiKey protector panels"),
+    (p) => optional(p, CLOUD, "cloud KMS connection panels"),
   ),
   ...each(
     "src/sections/connections/",
-    ["Backup", "GithubBackupRepo", "githubBackupRepo", "useGithubBackupRepo"],
+    [
+      "BackupEnableSwitch",
+      "GithubBackupRepo",
+      "GithubBackupRepoEditor",
+      "GithubBackupRepoResolve",
+      "githubBackupRepoActions",
+      "githubBackupRepoLoad",
+      "useGithubBackupRepo",
+    ],
     (p) => optional(p, GIT, "git backup controls"),
   ),
 
@@ -99,7 +106,10 @@ export const SECTION_RULES = [
     LOCAL_IAM,
     "identity section root; MIXED",
   ),
-  optional("src/sections/identity.css", LOCAL_IAM, "stylesheet"),
+  shared(
+    "src/sections/identity.css",
+    "stylesheet shared by Activity and the Identity section",
+  ),
   optional("src/sections/identity-section-model", LOCAL_IAM, "its view-model"),
   optional(
     "src/sections/identity/",
@@ -126,9 +136,19 @@ export const SECTION_RULES = [
     "identity.ceremonies",
     "the device-approval form /device and Identity › Devices share (ADR 0140)",
   ),
+  core(
+    "src/sections/identity/ConnectIdentityNote",
+    "identity.ceremonies",
+    "the note a ceremony shows; the Identity section stays optional (ADR 0153)",
+  ),
+  core(
+    "src/sections/connections/ConnectorMark",
+    SETTINGS,
+    "provider mark Settings draws; brand paths load with Connections",
+  ),
   ...each(
     "src/sections/identity/",
-    ["ProviderRouting", "ConnectIdentityNote", "RegistrationExtras"],
+    ["ProviderRouting", "RegistrationExtras"],
     (p) => optional(p, "identity.federation", "operator provider surfaces"),
   ),
 
@@ -184,11 +204,6 @@ export const SECTION_RULES = [
     ["ItemTypesPanel", "item-types/", "item-type-marketplace-model"],
     (p) => core(p, "vault.passwords", "item types and their marketplaces"),
   ),
-  core(
-    "src/sections/settings/SampleDataPanel",
-    "vault.passwords",
-    "load and remove the badged sample items",
-  ),
   ...each(
     "src/sections/settings/",
     [
@@ -214,16 +229,8 @@ export const SECTION_RULES = [
     "identity.federation",
     "Identity account factors model (ADR 0140 D10)",
   ),
-  ...each(
-    "src/sections/settings/",
-    [
-      "AgeInteropSheet",
-      "AgeKeysPanel",
-      "SopsDocumentSheet",
-      "VaultKeyProtectionCeremonies",
-    ],
-    (p) =>
-      optional(p, CLOUD, "age, SOPS and cloud KMS sheets; ceremonies MIXED"),
+  ...each("src/sections/settings/", ["VaultKeyProtectionCeremonies"], (p) =>
+    optional(p, CLOUD, "cloud KMS sheets; ceremonies MIXED"),
   ),
   ...each(
     "src/sections/settings/",
@@ -239,16 +246,6 @@ export const SECTION_RULES = [
     "src/sections/settings/AmbientAuthPanel",
     "identity.ambient-sso",
     "ambient SSO panel",
-  ),
-  optional(
-    "src/sections/settings/FormatsInteroperabilityPanel",
-    "vault.interop-formats",
-    "formats panel",
-  ),
-  optional(
-    "src/sections/settings/StoreManifestPanel",
-    "vault.interop-formats",
-    "the sealed-store path manifest (ADR 0037 §6)",
   ),
   optional(
     "src/sections/settings/notification-routing-files",

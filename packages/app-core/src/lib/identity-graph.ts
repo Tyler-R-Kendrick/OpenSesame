@@ -1,8 +1,11 @@
 import {
   type VaultItem,
   createItem,
+  createTypedItem,
   hostOf,
   itemSubtitle,
+  itemTypeRegistry,
+  newValues,
 } from "@opensesame/vault-core";
 import type { Connection, ConnectionStatus, Provider } from "./connections.js";
 import { kvGet, kvSet } from "./kv.js";
@@ -142,6 +145,10 @@ export function itemMatchesProvider(
     const ref = item.connectionRef.toLowerCase();
     return ref.includes(`/${id}/`) || ref.includes(id) || haystack.includes(id);
   }
+  if (item.kind === "typed" && typeof item.values.connectionRef === "string") {
+    const ref = item.values.connectionRef.toLowerCase();
+    return ref.includes(`/${id}/`) || ref.includes(id);
+  }
   return false;
 }
 
@@ -161,15 +168,20 @@ export function suggestedLoginUri(provider: Provider): string {
   return site ? `https://${site}` : "";
 }
 
+function storedConnectionRef(item: VaultItem): string {
+  if (item.deletedAt !== null) return "";
+  if (item.kind === "secret") return item.connectionRef;
+  if (item.kind !== "typed") return "";
+  const ref = item.values.connectionRef;
+  return typeof ref === "string" ? ref : "";
+}
+
 export function hasConnectorReminder(
   items: VaultItem[],
   connection: Connection,
 ): boolean {
   return items.some(
-    (item) =>
-      item.kind === "secret" &&
-      item.deletedAt === null &&
-      item.connectionRef === connection.connectionRef,
+    (item) => storedConnectionRef(item) === connection.connectionRef,
   );
 }
 
@@ -177,13 +189,18 @@ export function buildConnectorReminder(
   provider: Provider,
   connection: Connection,
 ): VaultItem {
-  const item = createItem("secret", `${provider.displayName} connector`);
-  if (item.kind === "secret") {
-    item.value = "";
-    item.connectionRef = connection.connectionRef;
-    item.notes =
-      "Credential stays with the connection. This item is a reminder and a grant target.";
+  const definition = itemTypeRegistry().get("server");
+  if (definition === undefined) {
+    const fallback = createItem("secret", `${provider.displayName} connector`);
+    return fallback;
   }
+  const item = createTypedItem(
+    definition,
+    { ...newValues(definition), connectionRef: connection.connectionRef },
+    `${provider.displayName} connector`,
+  );
+  item.notes =
+    "Credential stays with the connection. This item is a reminder and a grant target.";
   return item;
 }
 
@@ -223,7 +240,6 @@ export type GraphDoor = {
 export function vaultCreateHref(
   kind: "login" | "passkey" | "secret",
   provider: Provider,
-  connection?: Connection | null,
 ): string {
   const params = new URLSearchParams();
   params.set(
@@ -234,10 +250,17 @@ export function vaultCreateHref(
   );
   const uri = suggestedLoginUri(provider);
   if (uri && kind !== "secret") params.set("uri", uri);
-  if (kind === "secret" && connection) {
-    params.set("ref", connection.connectionRef);
-  }
   return `/vault/new/${kind}?${params.toString()}`;
+}
+
+export function serverReminderHref(
+  provider: Provider,
+  connection: Connection,
+): string {
+  const params = new URLSearchParams();
+  params.set("name", `${provider.displayName} connector`);
+  params.set("field.connectionRef", connection.connectionRef);
+  return `/vault/new/server?${params.toString()}`;
 }
 
 export function grantableAgentId(raw: string): string | null {
@@ -339,7 +362,7 @@ export function graphDoors(
         reminders[0] !== undefined
           ? `/vault/${reminders[0].id}`
           : connection
-            ? vaultCreateHref("secret", provider, connection)
+            ? serverReminderHref(provider, connection)
             : "#authorization",
       action:
         reminders.length > 0

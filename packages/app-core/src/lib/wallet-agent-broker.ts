@@ -8,6 +8,7 @@
 
 import { reserveTransferAndFee } from "@opensesame/wallet-budget";
 import { redactWalletExport } from "@opensesame/wallet-consent/redact";
+import { performSavedCategory } from "./feature-request-send.js";
 import {
   type DigestBoundPaymentProof,
   type LocalPaymentApprovalIntent,
@@ -72,6 +73,7 @@ export function proposeWalletPayment(input: {
 }):
   | { ok: true; proposal: WalletProposal }
   | { ok: false; code: "CALLER_NOT_AUTHORIZED" | "INVALID_AMOUNT" } {
+  performSavedCategory(["wallet"]);
   if (
     input.claimedPrincipalRef !== undefined &&
     input.claimedPrincipalRef !== input.caller.principalRef
@@ -186,6 +188,7 @@ export function executeApprovedWalletPayment(input: {
         | "INVALID_AMOUNT"
         | "SERVICE_WORKER_UPDATE_REQUIRES_REAUTHORIZATION";
     } {
+  performSavedCategory(["wallet"]);
   void input.caller;
   const sw = assessPaymentDuringWorkerUpdate({
     paymentInFlight: true,

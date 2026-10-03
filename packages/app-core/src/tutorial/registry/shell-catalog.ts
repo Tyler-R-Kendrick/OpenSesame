@@ -64,7 +64,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "shell.connectivity",
     description:
-      "Statusline strip reporting whether identity on this device is ready right now.",
+      "The connection rows behind the overflow key. Each row names a connector and what it is doing.",
     role: "status",
     routes: [],
     capabilityId: "host.health.pages",
@@ -80,7 +80,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "shell.command-bar",
     description:
-      "Typed or spoken commands that navigate and copy vault fields. Hold the mic to talk; Enter runs the command.",
+      "Typed commands that navigate, search, and copy vault fields. Enter runs the command.",
     role: "surface",
     routes: [],
     capabilityId: "client.command_bar",

@@ -3,6 +3,14 @@
 Agent context for OpenSesame. This file is the canonical entry point for any
 coding agent working in this repo — read it before spelunking.
 
+## How a task starts
+
+Start every goal in a copy-on-write worktree branched from `origin/main`,
+fan independent slices through a workflow, and ship them as stacked pull
+requests that squash-merge into `origin/main` once the required checks are
+green. The procedure is §9. The checkout at `/home/codex/repos/opensesame`
+is often mid-merge; write the task in `/home/codex/repos/opensesame-<topic>`.
+
 ## 1. What this is
 
 OpenSesame is a private **authorization fabric for the agentic era**: a
@@ -50,8 +58,12 @@ All scripts below are defined in the root `package.json` unless noted.
 
 ```bash
 pnpm bootstrap           # install + db:generate + db:migrate
-pnpm dev                 # turbo dev (control-plane, worker,
-                          #   mock-upstream-idp, example-rp-alpha/beta), parallel
+pnpm dev                 # turbo dev (control-plane, identity-worker,
+                          #   mock-upstream-idp, example-rp-alpha/beta/static-rp)
+pnpm dev:pwa             # Pages vite on :5180, no backend
+pnpm dev:cli             # native opensesame CLI; verb after --
+pnpm dev:host            # host on 127.0.0.1:8787
+pnpm dev:daemon          # daemon on 127.0.0.1:18790
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
@@ -63,7 +75,7 @@ pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
 pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
-                          #   tools/quality/log-hygiene-baseline.json (ADR 0150)
+                          #   tools/quality/log-hygiene-baseline.json (ADR 0155)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
@@ -91,6 +103,9 @@ pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright cli
                           #   ingress reference, plus the static app with no certificate
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
+pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
+                          #   upstream source + live-turn (pion/turn, UDP/TCP/TLS), the servers
+                          #   verify:live-join runs (ADR 0150 §6)
 pnpm test:all            # typecheck + test + test:integration
 pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
@@ -173,7 +188,7 @@ When the human says run the app locally, attach a live debug session. Do
 not hand off a URL, a `preview` of `dist/`, or a headless `verify:*` run.
 
 ```bash
-pnpm --filter @opensesame/pages dev:web   # vite --port 5180 --strictPort --host localhost
+pnpm dev:pwa             # vite --port 5180 --strictPort --host localhost
 # Keep this process attached. Open http://localhost:5180 (localhost, not
 # 127.0.0.1, for passkeys). Watch console, pageerror, and failed requests.
 # Patch source so Vite HMR updates the same session; do not restart from
@@ -188,9 +203,9 @@ VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:static
 # Drives dist/ under https://tyler-r-kendrick.github.io/OpenSesame/ in
-# headless Chromium: first screen is sign-in + guest (no setup wall), guest
-# walks every section, Google via a mocked shoo.dev lands unlocked, deep
-# links resolve. Fails on any page error, console error, loopback request,
+# headless Chromium: first screen is the front door's two roads + the guest
+# Skip (no setup wall, no sign-in), guest walks every section, Google via a
+# mocked shoo.dev lands unlocked once setup is skipped, deep links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:mobile
@@ -210,6 +225,35 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # PIN → code → open, again after a reload; and a password-sealed vault the
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:live-join
+# Same harness, live sessions (ADR 0150) in real browser contexts over real
+# WebRTC. Direct: codes passed by hand, no WebSocket, no request off the
+# origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
+# never meets without Routes' address, meets at it with one. Carriers: an
+# in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
+# pin), a real ntfy (LIVE_NTFY_SERVER, default .cache/live-fixtures/bin/ntfy)
+# and BroadcastChannel each pair with nothing pasted and see no plaintext; a
+# joiner who declines is never heard of. Relayed: relay-only through a real
+# TURN server, relay to relay, over UDP (node-turn), TCP (`turn:…?transport=tcp`)
+# and TLS (`turns:`, a self-signed certificate trusted by its public key alone)
+# on live-turn (pion/turn, scripts/test/live-turn), whose per-transport counters
+# show which one carried the browsers; and through a TURN REST secret typed into
+# `settings/live/transport.json` (the app mints the credential, the link never
+# carries the secret; a wrong server secret must fail). A missing server fails the run
+# (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
+# before touching lib/live, the join road, Routes or sharing.live. Operator
+# guide: docs/operators/live-sessions.md.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:live-netns
+# The tunnel walk on a real network path: two Linux network namespaces
+# (unprivileged user namespaces; no root, no sudo, no `ip`), a Chromium in
+# each, a veth with multicast off between them and a harness namespace that
+# forwards nothing. mDNS hiding on, nothing filtered in the page. No address
+# named: never connects. Address named: connects over a pair at it, no ICE
+# server; again through a wss Nostr relay; and, veth down, relay-only TURN.
+# Fails, never skips, without namespace support. Run before touching
+# lib/live/candidates.ts or the address hint.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -251,6 +295,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
 | `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
 | `crates/agent-events` | Frozen `agent.*` vocabulary for sandboxed runs, and the `SecurityNotice` conversion that puts them on ADR 0080's feed — pure, value-blind (ADR 0081) |
+| `crates/agent-hooks` | OpenSesame as an [agent-hooks/0.1](https://github.com/responsibleai/agent-hooks) interceptor on the canonical `agent-hooks-sdk` core (pinned exactly): operator tool rules at `pre_tool_call`, a value-blind secret guard that redacts credential shapes at every content seam and denies them in tool arguments, and an approval resolver bound to `context_identity` as ADR 0086's request digest; `opensesame hooks intercept` is the out-of-process form (ADR 0150) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store, and `pages_vault`: the Rust reader of the vault Pages writes (vault format v1, checked against `spec/conformance/vault-vectors.json`), behind `opensesame vault verify\|ls` |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
@@ -281,9 +326,9 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
-| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0150): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
-| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0150): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
-| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0150): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
+| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0155): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
+| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0155): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
+| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0155): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
@@ -349,7 +394,7 @@ Do not add new top-level directories or loose root files — find the group.
   requests with full stacks. Fix against the hot-reloaded session; do not
   kill it to run a production `dist/` or a headless `verify:*` harness
   unless that gate was the request. Pages UI without a backend is
-  `pnpm --filter @opensesame/pages dev:web` on `:5180`. Procedure:
+  `pnpm dev:pwa` on `:5180`. Procedure:
   `skills/local-debug-session/SKILL.md`.
 - **Keyboard access is a core product contract, not optional polish.** Every
   arrival (cold load, reload, guest/unlock, deep link, route change and modal
@@ -401,23 +446,31 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0150).
+  0001–0155).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
-  `apps/pages` is a broker: an empty device opens on the sign-in screen with
-  the compiled-in Google-via-Shoo road and the guest road, and nothing — no
-  operator ceremony, no Identity API, no Host, no daemon, no localhost — may
-  be placed in front of them. On a device with no vault and no setup record
-  that screen is the **front door** (`screens/FrontDoor.tsx`,
-  [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)): the
-  wordmark at hero scale, the `Set up your own` road made large, and the
-  whole sign-in panel beneath it on the same card — offers beside sign-in,
-  never a gate before it. **Join a session** is the door's second road on a
-  deployment that can finish a join (dedicated or loopback origin), and an
-  invite link opens it by itself anywhere
-  ([ADR 0136](docs/adr/0136-join-a-session-restored.md)); once the ceremony
-  is answered, skipped or joined, setup lives behind unlock (Settings), not
-  as quiet foot links. `setupRequired` does not
+  `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
+  API, no Host, no daemon, no localhost — may be placed in front of its first
+  screen. On a device with no vault and no setup record that screen is the
+  **front door** (`screens/FrontDoor.tsx`,
+  [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md),
+  [ADR 0150](docs/adr/0150-live-sessions-browser-to-browser.md) §1): the
+  wordmark at hero scale and exactly two roads made large — **Set up your
+  own** and **Join a session** — with the guest road as the card's corner
+  **Skip**. The door asks no sign-in question: a device with no vault has
+  nothing to sign in to. Join is on every deployment, the shared GitHub
+  Pages origin included: it opens a live session browser to browser over
+  WebRTC, paired by codes the two people pass each other — no server, relay,
+  STUN or TURN by default (`sharing.live`, `lib/live/`, consent first); an
+  owner may name their own in Settings › Live sessions › Routes (a tunnel
+  address, STUN/TURN, relay only, a Nostr/MQTT/NATS/ntfy carrier), never a
+  default, and the joiner sees every host before any is contacted —
+  and a Host invite link still opens the Host ceremony
+  ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
+  a shared link opens join by itself. Once setup is answered or skipped the
+  sign-in screen — the compiled-in Google-via-Shoo road, guest, the
+  local-only seal — is the first screen, and setup lives behind unlock
+  (Settings), not as quiet foot links. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
@@ -444,7 +497,7 @@ Do not add new top-level directories or loose root files — find the group.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
 - **Logs and events carry no secrets, by key or by shape**
-  ([ADR 0150](docs/adr/0150-logs-and-events-carry-no-secrets.md)). Redaction
+  ([ADR 0155](docs/adr/0155-logs-and-events-carry-no-secrets.md)). Redaction
   by key name alone misses a bearer in an error message, a `#token=` in a URL,
   a JWT in a stack trace and a DSN with a password in it, so every log line,
   event, audit row, activity entry and persisted failure passes the shared
@@ -455,7 +508,7 @@ Do not add new top-level directories or loose root files — find the group.
   `console.*`, a hand-built `pino(...)` or a bare `tracing_subscriber::fmt()`.
   `pnpm quality:log-hygiene` counts those and the ledger only falls. A struct
   holding a secret never derives `Debug`. Log an id, never the secret.
-- **Logs and events rest sealed** (ADR 0150 items 7–9). A log file a process
+- **Logs and events rest sealed** (ADR 0155 items 7–9). A log file a process
   writes goes through `crates/sealed-log` / `packages/observability`'s sealed
   destination (`OPENSESAME_LOG_FILE`); a new event or audit column the Host
   writes is sealed through `opensesame-event-seal` and read back through it (add
@@ -476,13 +529,15 @@ Do not add new top-level directories or loose root files — find the group.
   a guest; ADR 0135). Every placement reads it through
   `apps/pages/src/screens/unlock/GuestRoad.tsx`, `openGuestVault` refuses a
   guest session while it is off, and the last-vault pointer and vault list
-  stop offering the guest tomb. It lives in three places and all three are
-  required: the "Continue as guest" button in
-  `apps/pages/src/screens/unlock/SignInPanel.tsx` on **both** placements
-  (first run *and* the sign-in panel opened from the user menu beside an
-  existing vault), the "Skip" corner link on first run, and the "Continue as
+  stop offering the guest tomb. It lives in two places and both are
+  required: the front door's corner "Skip" (`screens/FrontDoor.tsx`, the
+  door's one guest road, where a `/guest` link lands) and the "Continue as
   guest" link in the unlock form's footer in
-  `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
+  `apps/pages/src/screens/UnlockScreen.tsx`. The sign-in panel
+  (`screens/unlock/SignInPanel.tsx`) carries no guest road of its own: its
+  single no-account road is "Use without an account", the local-only seal
+  offered on first run (a full-size guest button and a corner guest Skip were
+  removed as duplication, 2026-10). This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
   legitimate. `continueAsGuest` (`packages/app-core/src/lib/guest-auth.ts`) seals a
@@ -497,8 +552,9 @@ Do not add new top-level directories or loose root files — find the group.
   allowlists, or vault status. The only road that is legitimately withheld
   beside an existing vault is "Use without an account" (a local-only seal in
   place). Any change that drops a guest entry is a regression, not a cleanup —
-  the tests in `SignInPanel.test.tsx`, `UnlockScreen.test.tsx`, and
-  `store.test.ts` asserting guest exists and stays isolated are load-bearing
+  the tests in `FrontDoor.test.tsx`,
+  `UnlockScreen.test.tsx`, and `store.test.ts` asserting guest exists and
+  stays isolated are load-bearing
   and must not be deleted or inverted.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)
@@ -586,6 +642,23 @@ Do not add new top-level directories or loose root files — find the group.
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
+- **Every key is a person's, and a few keep the road open**
+  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  resolves every press through the effective keymap (the catalogue in
+  `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
+  sparse bindings), so a new key is a catalogue row, never a second
+  hard-coded table. Tab, Enter, Escape, F6, Shift-F10/Shift-Enter and the
+  count digits stay fixed. A command that asks before it acts (trash, share)
+  never gains a key and never runs from a macro, and an event trigger
+  (`on: unlock`, `on: enter:<section>`) runs navigation only. A key may be
+  scoped to a closed set of contexts (`vault`, `rail`, read from
+  `listingOf(event)`), never an expression, and every guardrail holds in each.
+- **A Settings row acts, or it is not drawn**
+  ([ADR 0150](docs/adr/0150-settings-rows-act-or-are-absent.md)). No disabled
+  key, no lock glyph standing for "not yet", no link to a page that does not
+  configure the thing, no static status a person cannot change. A control
+  whose precondition is unmet is absent; the row that needs a setting opens the
+  sheet that sets it. A setting is not removable while something depends on it.
 - **Settings is files, and the Form is a view of them**
   ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
   Configuration a Settings panel edits lives in a virtual file a
@@ -613,6 +686,25 @@ Do not add new top-level directories or loose root files — find the group.
   opensesame-connection-broker --test catalog_view`) and the client module
   (`pnpm --filter @opensesame/app-core generate:catalog`). A target shows a
   subset only as an ordered selection of catalog ids.
+- **A surrogate selects a credential; it never becomes one**
+  ([ADR 0150](docs/adr/0150-surrogate-credentials-at-the-last-hop.md)).
+  An unmodified client may hold `osr_…` instead of a token, and the broker
+  *recognizes* it, *strips* its header and *re-places* the credential into
+  the provider's own site through invoke-through — never a find-and-replace
+  of the text. A surrogate anywhere but its one declared site, at another
+  host, from another caller, or outside its method/path scope is refused
+  and is a `surrogate.*` tripwire; the client learns only one message.
+  Surrogates carry no provider prefix. Every brokered response is scrubbed
+  of the credential it carried. No extension or PWA does network
+  substitution (ADR 0150 §6.4–6.5). The proxy, login-form substitution and
+  autofill are **optional runtime plugins** (ADR 0150 §7,
+  `spec/plugins/catalog.json`, `crates/plugin-settings`): never in the
+  default `opensesame` binary, the daemon's dependency tree, the Pages
+  bootstrap or `apps/browser-extension`; installed from a terminal with a
+  sha256 pin re-verified at every launch; recorded off until switched on in
+  Settings or `opensesame plugins enable`; `OPENSESAME_PLUGIN_<ID>=off` can
+  only turn one off. A gate fails if `opensesame-cli` or the daemon reaches
+  the plugin crate.
 - A connector arrives by reference, never by credential. The connectors tab
   of setup and the Connections page's *Import connectors* read a
   Nango-compatible directory's two listing routes and nothing else; `GET /connection/{id}` — the route that
@@ -659,9 +751,10 @@ Do not add new top-level directories or loose root files — find the group.
   Most functions are **always-on** (`alwaysOn` in
   `catalog-always-on.ts` and `catalog-always-on-local.ts`, ADR 0135/0142):
   core tier, never a switch, code still loaded as a module after boot.
-  Anything that runs entirely in the browser-local default install
-  (browser-local IAM, SIOP, the site broker, git backup) is always on, not an
-  opt-in the page reports as "deselected" — and an operator's verified policy
+  The site broker and git backup are always on, not an opt-in the page
+  reports as "deselected". Connections, Access and Identity are optional
+  extensions, absent until their Settings switch is on, and the minimal
+  vault creates only the base secret (ADR 0153). An operator's verified policy
   may still withdraw an always-on capability that owns a module (ADR 0142). Settings › Capabilities is **one
   list of sections** (`FEATURES` in
   `packages/app-core/src/lib/capabilities/features.ts`), every one drawn as a
@@ -940,15 +1033,22 @@ pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
 
 CI lives in `.github/workflows/`:
 
-- `ci.yml` — runs on `pull_request`: TypeScript job
-  (verified-commit signature preflight + frozen install + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
-  `pnpm test`) and
-  Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
-  Bundle budgets job that builds `apps/pages`/`pwa` and checks
-  `tools/quality/bundle-budgets.json`. The default-branch ruleset requires all three checks
-  and an up-to-date PR, with squash auto-merge; this personal-account repository
-  does not support merge queues. Verify actual settings with
-  `node ops/github/governance.mjs --verify`.
+- `ci.yml` — runs on `pull_request`. The required checks stay
+  TypeScript, Bundle budgets, and Rust, and each name reports on every
+  pull request (a skipped required check does not satisfy the ruleset).
+  The suite behind a check runs only when the diff touches that area
+  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
+  `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
+  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
+  for that set, and Rust runs `cargo test --all-targets -p` for that set on
+  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  The TypeScript job also runs the signature preflight, changed-file lint,
+  and `pnpm quality`. A docs-only diff passes the three checks without those
+  suites. An unrecognized path runs every suite.
+  The ruleset also requires an up-to-date PR and squash auto-merge; this
+  personal-account repository does not support merge queues. Verify
+  actual settings with `node ops/github/governance.mjs --verify`.
 - `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check
@@ -961,4 +1061,101 @@ CI is the merge gate, not the whole story: the heavier suites
 plus the commands above, supplemented by scheduled Claude Code sessions
 documented in `docs/contributing/agent-routines.md`. Run the relevant
 `pnpm audit:*` gates (§3/§6) for changes touching auth, crypto, or
-dependency surfaces.
+dependency surfaces. Host the work itself as §9 describes: a copy-on-write
+worktree, a workflow swarm, stacked pull requests, a disk check after every
+commit, then self-review and squash-merge.
+
+## 9. Starting, parallelizing, and shipping a task
+
+Every new goal follows this sequence. It applies to interactive sessions and
+to the standing routines in `ops/routines/` (`docs/contributing/agent-routines.md`).
+
+### Worktree
+
+Fetch `origin/main`, then:
+
+```bash
+git worktree add -b <branch> /home/codex/repos/opensesame-<topic> origin/main
+```
+
+`git worktree` shares this clone's object database. Do not `git clone` a
+second full copy of the repository, and do not nest the worktree inside
+`/home/codex/repos/opensesame` or commit it as files of that checkout. Leave
+a checkout with `MERGE_HEAD` set alone: do not commit, abort, or finish that
+merge to make room for the task. One task, one branch stack. Leave unrelated
+dirty worktrees, including `opensesame-dev-commands`, untouched.
+
+### Shared caches
+
+The disk stays near full. A new worktree gets source only.
+
+- pnpm: install with the existing store (`pnpm store path`, the user store
+  under `~/.local/share/pnpm/store`). `pnpm install` hardlinks from that
+  store. Do not copy `node_modules` from another checkout.
+- Cargo: `CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target` on every
+  `cargo` and `cargo +1.88.0` invocation, in every worktree. Do not create a
+  per-worktree `target/`.
+- Playwright browsers stay in the existing browser cache. Do not download a
+  second browser pack for a worktree.
+- Skip `pnpm install` and Rust builds unless the task's checks need them.
+
+### Swarm
+
+Independent slices run together as a workflow. The standing entry point is
+`.grok/workflows/task-swarm.rhai` (invoke it with the workflow tool, or write
+a task-specific script when the slices are fixed). Each slice is one agent
+with a self-contained prompt and a disjoint set of files. Agents write only
+inside the task worktree. The parent integrates, reviews, and is the only
+one who opens pull requests.
+
+### Incremental commits and stacked pull requests
+
+One logical slice per commit. A multi-slice task is a stack: the first pull
+request targets `main`, and each next pull request targets the previous
+branch.
+
+Commits are created with GitHub's GraphQL `createCommitOnBranch` so the
+committer is GitHub and the ruleset sees a verified signature. A local
+`git commit`, including an SSH signature from `~/.ssh/opensesame_signing`,
+is `unknown_key` and cannot merge. Omit an author override on the mutation.
+`expectedHeadOid` is `origin/main` for the first commit and the previous
+commit on the stack after that. The local git identity, when a tool needs
+one, is Tyler Kendrick `<145080887+Tyler-R-Kendrick@users.noreply.github.com>`.
+
+### After each commit
+
+Run `df -h /`. Delete scratch under `/tmp` that this commit created, and any
+build output that exists only because of that commit. Leave
+`/tmp/os-wallet-ship`, the Host listening on `127.0.0.1:8787`, unrelated
+worktrees, and the primary checkout's uncommitted work in place. Remove a
+task worktree only after its branch has been squash-merged and its remote
+branch deleted (`git worktree remove`, then `git worktree prune`).
+
+### Done
+
+When every pull request in the stack is open:
+
+1. Self-review the diff and post that review on each pull request. Resolve
+   every review thread opened on the stack.
+2. A Copilot review request on this repository returns HTTP 422. CodeRabbit
+   does not auto-review while the repository has fewer than 10 stars. The
+   self-review is the review that has to land.
+3. Squash-merge only after the required checks are green and the pull request
+   is up to date with `main`: TypeScript, Rust, and Bundle budgets. The
+   ruleset is squash-only. Do not pass `--admin`.
+4. Merge from the bottom of the stack. After each squash, restack the next
+   branch onto the new `main` with another verified `createCommitOnBranch`
+   (full file contents of that slice, `expectedHeadOid` the new main tip)
+   and squash-merge it the same way.
+5. Remove the finished worktree and delete the local and remote branches.
+
+User-visible product changes still follow §5 visual evidence and §8 gates.
+This section is how the work is hosted. It does not waive those gates.
+
+### Local task queue
+
+`ops/routines/*.md` and `docs/contributing/agent-routines.md` are the local
+task queue. Each routine starts with this same worktree, shared-cache, swarm,
+stack, disk-check, and squash-merge sequence. A routine that edits the tree
+does that work in `/home/codex/repos/opensesame-<routine>`, with independent
+findings fanned out through `.grok/workflows/task-swarm.rhai`.

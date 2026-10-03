@@ -14,11 +14,14 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { VfsError, readFile, writeFile } from "./vfs.js";
+import { lockManager } from "../ports.js";
+import { kvDurability, kvRefresh } from "./kv.js";
+import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 export const ACTIVITY_LOG_PATH = "config/activity-log";
 
 const MAX_EVENTS = 500;
+const MAX_LOG_BYTES = 1_048_576;
 
 export const ACTIVITY_CATEGORIES = [
   "settings",
@@ -137,6 +140,33 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
+const chains = new Map<string, Promise<unknown>>();
+
+function withActivityLogLock<T>(
+  tomb: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  const name = `opensesame:activity-log:${tomb}`;
+  const run = (chains.get(name) ?? Promise.resolve()).then(async () => {
+    const key = tombFileKey(tomb, ACTIVITY_LOG_PATH);
+    const locks = lockManager();
+    if (locks)
+      return locks.request(name, async () => {
+        await kvRefresh(key, MAX_LOG_BYTES);
+        return action();
+      });
+    await kvRefresh(key, MAX_LOG_BYTES);
+    if (kvDurability() === "persistent")
+      throw new Error("Web Locks are required for shared activity writes.");
+    return action();
+  });
+  chains.set(
+    name,
+    run.catch(() => undefined),
+  );
+  return run;
+}
+
 export function subscribeActivity(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
@@ -153,11 +183,17 @@ export async function listActivityEvents(
 /** How close together two identical events fold into the first. */
 const REPEAT_WINDOW_MS = 60_000;
 
+/**
+ * One save is one fact. `vault.login.created` qualifies; `vault.body.persisted`
+ * and `vault.unlocked` do not, and those still fold.
+ */
+const ITEM_SAVE_TYPE = /^vault\.[^.]+\.(?:created|updated)$/u;
+
 function repeats(
   last: ActivityEvent | undefined,
   next: ActivityEvent,
 ): boolean {
-  if (!last) return false;
+  if (!last || ITEM_SAVE_TYPE.test(next.type)) return false;
   if (
     last.type !== next.type ||
     last.summary !== next.summary ||
@@ -174,7 +210,14 @@ function scrubNullable(value: string | null | undefined): string | null {
   return value === undefined || value === null ? null : scrubText(value);
 }
 
-export async function recordActivityEvent(
+/**
+ * Per tomb, so a body-saved note and the item note that follows it both
+ * read the log the other one just wrote. Unchained, each reads the old
+ * file and one write replaces the other.
+ */
+const activityWrites = new Map<string, Promise<void>>();
+
+async function appendActivityEvent(
   tomb: string,
   input: RecordActivityInput,
 ): Promise<ActivityEvent[]> {
@@ -190,14 +233,51 @@ export async function recordActivityEvent(
     targetId: scrubNullable(input.targetId),
     metadata,
   };
-  const current = await readAll(tomb);
-  // A burst of the same event (an invalidation fired once per store it
-  // touched, a ledger written on every render) is one line, not fifteen.
-  if (repeats(current[0], event)) return current;
-  const next = [event, ...current].slice(0, MAX_EVENTS);
-  await writeAll(tomb, next);
-  notify();
+  let wrote = false;
+  const next = await withActivityLogLock(tomb, async () => {
+    const current = await readAll(tomb);
+    // A burst of the same event (an invalidation fired once per store it
+    // touched, a ledger written on every render) is one line, not fifteen.
+    if (repeats(current[0], event)) return current;
+    const merged = [event, ...current].slice(0, MAX_EVENTS);
+    await writeAll(tomb, merged);
+    wrote = true;
+    return merged;
+  });
+  if (wrote) notify();
   return next;
+}
+
+/** Settle notes already fired. A note that starts afterwards is a new call. */
+export async function flushActivityLog(): Promise<void> {
+  const pending = [...chains.values(), ...activityWrites.values()];
+  await Promise.all(
+    pending.map((job) =>
+      job.then(
+        () => undefined,
+        () => undefined,
+      ),
+    ),
+  );
+}
+
+export function recordActivityEvent(
+  tomb: string,
+  input: RecordActivityInput,
+): Promise<ActivityEvent[]> {
+  const previous = activityWrites.get(tomb) ?? Promise.resolve();
+  const run = previous
+    .catch(() => undefined)
+    .then(() => appendActivityEvent(tomb, input));
+  const settled = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  activityWrites.set(tomb, settled);
+  void settled.finally(() => {
+    if (activityWrites.get(tomb) === settled) activityWrites.delete(tomb);
+  });
+  return run;
 }
 
 /**

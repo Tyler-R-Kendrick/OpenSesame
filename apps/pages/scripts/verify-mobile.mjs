@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import {
@@ -115,9 +116,8 @@ async function openChromeKey(page, pattern, label) {
 }
 
 /**
- * Anything the statusline used to hold, which on a phone is two presses: there
- * is no strip, so notifications, help and the five connectors are named rows
- * inside the overflow the top bar carries.
+ * Notifications, help, and the connection rows are named rows inside the
+ * overflow the top bar carries. A phone reaches one with two presses.
  */
 async function openOverflowRow(page, pattern, label) {
   const more = page.getByRole("button", { name: /^More —/ }).first();
@@ -142,16 +142,16 @@ async function openOverflowRow(page, pattern, label) {
   await page.waitForTimeout(350);
 }
 
-/** The front door and the two roads a person with no account has. */
+/** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
   await audit(page, stop("front-door"));
   for (const name of [
+    "Set up your own",
+    "Join a session",
     "Skip sign-in and continue as guest",
-    "Continue as guest",
   ]) {
-    const exact = name !== "Skip sign-in and continue as guest";
     harness.check(
-      (await page.getByRole("button", { name, exact }).count()) > 0,
+      (await page.getByRole("button", { name }).count()) > 0,
       `${stop("front-door")}: "${name}" is offered`,
     );
   }
@@ -228,9 +228,7 @@ async function walk(browser, phone) {
   await page.waitForTimeout(700);
 
   await frontDoor(page, stop);
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .tap();
+  await doorGuest(page).tap();
   await page.waitForTimeout(1100);
   await audit(page, stop("vault"));
 
@@ -272,9 +270,8 @@ async function walk(browser, phone) {
  * A finger above 900px: the arrangement the phone roads never reach.
  *
  * Here the top bar is gone by width and the status strip is the whole of the
- * chrome — Support, CommandBar, plane glyphs, and the bell. Assert the strip
- * is drawn with those seats on screen and named, and that they are keys a
- * finger can hit.
+ * chrome — Support, CommandBar, and the bell. Assert the strip is drawn with
+ * those seats on screen and named, and that they are keys a finger can hit.
  */
 async function tablet(browser, size) {
   const { page, context } = await harness.newPage(browser, {
@@ -283,10 +280,7 @@ async function tablet(browser, size) {
   const stop = (name) => `${size.name}-${name}`;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
-  await page
-    .getByRole("button", { name: "Continue as guest", exact: true })
-    .first()
-    .tap();
+  await doorGuest(page).tap();
   await page.waitForTimeout(1100);
   // The strip's Support key is guided help's, so this installation chooses
   // it before the walk asks whether the key is reachable (ADR 0130).
@@ -313,7 +307,7 @@ async function tablet(browser, size) {
   harness.check(
     chromeCounts.strip === 1 &&
       chromeCounts.command === 1 &&
-      chromeCounts.keys >= 4,
+      chromeCounts.keys >= 3,
     `${stop("chrome")}: the status strip with CommandBar is on screen (saw ${chromeCounts.keys} keys in ${chromeCounts.strip} strip)`,
   );
   harness.check(
@@ -325,9 +319,8 @@ async function tablet(browser, size) {
     `${stop("chrome")}: the rail is drawn`,
   );
   // Everything the strip holds has to be reachable by name, not merely
-  // painted: this is the road a person on a tablet takes to support and to the
-  // truth about which planes are configured.
-  for (const name of [/^Support$/, /^Notifications/, /^Identity/]) {
+  // painted: support, the command, and notifications.
+  for (const name of [/^Support$/, /^Notifications/]) {
     harness.check(
       (await page.getByRole("button", { name }).count()) > 0,
       `${stop("chrome")}: ${name.source} is reachable`,

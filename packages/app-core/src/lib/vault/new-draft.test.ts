@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptsDraftUsername,
   generateDraftLabels,
+  isGeneratedDraftName,
   newItemDraft,
   prefillNewDraft,
   readDraftPrefill,
@@ -114,6 +115,48 @@ describe("new vault draft defaults", () => {
   });
 });
 
+describe("isGeneratedDraftName", () => {
+  it("recognises the name its own type generated", () => {
+    expect(
+      isGeneratedDraftName(generateDraftLabels("secret").name, "secret"),
+    ).toBe(true);
+    expect(
+      isGeneratedDraftName(generateDraftLabels("login").name, "login"),
+    ).toBe(true);
+  });
+
+  it("says no to a name another type generated", () => {
+    // The exact case: "New item" opens as a login, the person picks Secret,
+    // and the name still named the type they had left.
+    expect(
+      isGeneratedDraftName(generateDraftLabels("login").name, "secret"),
+    ).toBe(false);
+  });
+
+  it("says no to any name that is not this type's generated shape", () => {
+    expect(isGeneratedDraftName("Login f54fa2ea", "secret")).toBe(false);
+    expect(isGeneratedDraftName("", "secret")).toBe(false);
+    expect(isGeneratedDraftName("Secret", "secret")).toBe(false);
+    expect(isGeneratedDraftName("Secret f54fa2ea extra", "secret")).toBe(false);
+    // Hex is lowercase; a person's own capitals are their own.
+    expect(isGeneratedDraftName("Secret F54FA2EA", "secret")).toBe(false);
+  });
+
+  it("counts a typed name that is exactly the shape as generated", () => {
+    // The generated form is what the field starts as, and nothing records
+    // whether a person retyped it. Replacing it loses eight characters they
+    // chose to write down; keeping a stale type's name in an item nobody named
+    // is the worse of the two.
+    expect(isGeneratedDraftName("Secret f54fa2ea", "secret")).toBe(true);
+  });
+
+  it("says no for a type this device has never heard of", () => {
+    expect(isGeneratedDraftName("Secret f54fa2ea", "not-installed")).toBe(
+      false,
+    );
+  });
+});
+
 describe("public link prefills", () => {
   it.each([
     ["software-license", "seats", "12"],
@@ -138,16 +181,33 @@ describe("public link prefills", () => {
       prefillNewDraft(type, new URLSearchParams({ [`field.${field}`]: value })),
     ).toThrow("invalid_prefill");
   });
-  it("bounds the whole query and preserves compatible connection references", () => {
+  it("bounds the whole query and puts a connection reference on a server", () => {
     expect(() =>
       readDraftPrefill(new URLSearchParams({ name: "x".repeat(2049) })),
     ).toThrow("invalid_prefill");
+    const secret = prefillNewDraft(
+      "secret",
+      new URLSearchParams({ ref: "conn/github/pat" }),
+    );
+    expect(secret.kind === "secret" ? secret.connectionRef : "x").toBe("");
     expect(
       prefillNewDraft(
-        "secret",
+        "server",
         new URLSearchParams({ ref: "conn/github/pat" }),
       ),
-    ).toMatchObject({ connectionRef: "conn/github/pat" });
+    ).toMatchObject({
+      typeId: "server",
+      values: { connectionRef: "conn/github/pat" },
+    });
+    expect(
+      prefillNewDraft(
+        "database",
+        new URLSearchParams({ ref: "conn/github/pat" }),
+      ),
+    ).toMatchObject({
+      typeId: "database",
+      values: { connectionRef: "conn/github/pat" },
+    });
   });
   it("validates typed public fields against their manifest and rejects secret fields", () => {
     expect(

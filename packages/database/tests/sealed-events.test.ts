@@ -20,7 +20,7 @@ import {
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
 
 /**
- * Event rows at rest (ADR 0150). Every assertion reads the table itself, not
+ * Event rows at rest (ADR 0155). Every assertion reads the table itself, not
  * the repository: what a database dump, a replica or a read-only SQL account
  * would see.
  */

@@ -78,6 +78,22 @@ export const SECTIONS: readonly SectionRowModel[] = [
   },
 ];
 
+/**
+ * The session-level directories. These are not rail rows: the
+ * session prompt's own menu roots the tree in either one, and a
+ * `<` key returns to the vault view. Settings is core; the
+ * activity log arrives with its module, so a plan without it
+ * roots in settings alone.
+ */
+export const SESSION_SECTIONS = ["/settings", "/activity"];
+
+/** The session-level directories a plan actually has, in rail order. */
+export function sessionSections(
+  sections: readonly SectionRowModel[] = sectionsSnapshot(),
+): readonly SectionRowModel[] {
+  return sections.filter((entry) => SESSION_SECTIONS.includes(entry.to));
+}
+
 function rowFromContribution(entry: SectionContribution): SectionRowModel {
   return {
     id: entry.id,

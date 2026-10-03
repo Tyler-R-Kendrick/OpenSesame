@@ -32,6 +32,12 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
+    "ai.password-reset",
+    "Password reset",
+    "Find a password-reset message in a configured mailbox and run the website password-reset ceremony for that login.",
+    { dependencies: ["vault.derived-records"] },
+  ),
+  optional(
     "support.remote-ai",
     "Remote support model",
     "Send redacted page context to a configured AG-UI endpoint or model provider when the browser has no local model.",

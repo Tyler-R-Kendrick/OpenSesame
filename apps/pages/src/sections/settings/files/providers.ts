@@ -1,16 +1,23 @@
 /**
  * Which virtual files each Settings category has beyond its own document
- * (`settings/<category>/config.yaml`). Vaults carries the item types; a
+ * (`settings/<category>/config.yaml`). Vaults carries the item types and
+ * Capabilities its capability documents; a
  * category a capability contributes brings its own provider with it
  * (Notifications, `notifications.routing`); the other categories are one
  * document each.
  */
+import { defaultCapabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-resources.js";
 import { tombUnlocked } from "@opensesame/app-core/lib/vfs.js";
+import { capabilityFiles } from "@opensesame/app-core/sections/settings/capability-files.js";
 import { itemTypeFiles } from "@opensesame/app-core/sections/settings/item-type-files.js";
-import type { VirtualFileProvider } from "@opensesame/app-core/sections/settings/virtual-files.js";
-import { useMemo } from "react";
+import {
+  type VirtualFileProvider,
+  mergeFileProviders,
+} from "@opensesame/app-core/sections/settings/virtual-files.js";
+import { useMemo, useRef } from "react";
 import { useContributions } from "../../../bindings/contributions.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
+import { useDeviceOperator } from "../useDeviceOperator.js";
 import {
   notifySettingsFilesChanged,
   useSettingsFilesRevision,
@@ -61,11 +68,79 @@ export function useItemTypeFiles(): VirtualFileProvider {
   }, [store, tomb, status]);
 }
 
+/**
+ * The files the panels a capability draws inside `category` bring — a
+ * Capabilities section's plugin panel (`capabilities.feature-<id>`) lists
+ * its file under Capabilities.
+ */
+function usePanelFiles(category: string): VirtualFileProvider[] {
+  return useContributions("settings-panel")
+    .filter(
+      (entry) =>
+        entry.category === category ||
+        entry.category.startsWith(`${category}.`),
+    )
+    .flatMap((entry) => (entry.files ? [entry.files] : []));
+}
+
+/**
+ * One merged provider per set of members: the editor re-reads when its
+ * provider changes, so the same members must give back the same object.
+ */
+function useMerged(
+  members: readonly VirtualFileProvider[],
+): VirtualFileProvider | null {
+  const last = useRef<{
+    members: readonly VirtualFileProvider[];
+    merged: VirtualFileProvider | null;
+  }>({ members: [], merged: null });
+  const same =
+    last.current.members.length === members.length &&
+    members.every((member, at) => last.current.members[at] === member);
+  if (!same) {
+    last.current = {
+      members,
+      merged:
+        members.length === 0
+          ? null
+          : members.length === 1
+            ? (members[0] ?? null)
+            : mergeFileProviders(members),
+    };
+  }
+  return last.current.merged;
+}
+
+/**
+ * The capability documents, read and written through the S04 adapter. Rebuilt
+ * with the open vault and the operator, so a policy is listed to no one else
+ * and one vault's files are never written into another's.
+ */
+export function useCapabilityFiles(): VirtualFileProvider {
+  const { tomb } = useVault();
+  const operator = useDeviceOperator();
+  return useMemo(
+    () =>
+      capabilityFiles({
+        ports: () => defaultCapabilityPorts(() => tomb),
+        operator: () => operator,
+      }),
+    [tomb, operator],
+  );
+}
+
 export function useCategoryFiles(category: string): VirtualFileProvider | null {
   const itemTypes = useItemTypeFiles();
+  const capabilities = useCapabilityFiles();
   const contributed = useContributions("settings-category").find(
     (entry) => entry.id === category,
   )?.files;
-  if (category === "vaults") return itemTypes;
-  return contributed ?? null;
+  const panels = usePanelFiles(category);
+  const own =
+    category === "vaults"
+      ? itemTypes
+      : category === "capabilities"
+        ? capabilities
+        : (contributed ?? null);
+  return useMerged(own === null ? panels : [own, ...panels]);
 }

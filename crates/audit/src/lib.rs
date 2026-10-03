@@ -173,7 +173,7 @@ impl ReceiptSigner {
         // Key names are refused above; a secret riding in a *value* (an upstream
         // error, a URL, a bearer in a message) is scrubbed here, before the
         // digest is taken, so the signature covers exactly what is stored
-        // (ADR 0150). Every receipt is signed through this one method.
+        // (ADR 0155). Every receipt is signed through this one method.
         receipt.safe_result_summary = receipt
             .safe_result_summary
             .as_ref()

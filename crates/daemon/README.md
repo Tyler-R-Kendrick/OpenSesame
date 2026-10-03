@@ -43,6 +43,7 @@ default `http://127.0.0.1:8788`), `--allowed-uids`. Cargo feature
 | Vault drive (ADR 0144) | `/v1/vault-drive/slots` (operator: open, list), `/v1/vault-drive/slots/{slot}` (operator: close), `/v1/vault-drive/slots/{slot}/snapshot` (slot key: read, compare-and-set replace; also on the tailnet listener) |
 | Proxies | `/host/*` to the Host API, `/identity/*` to the Identity API |
 | Duress peer | `/v1/duress/peer/health`, `/v1/duress/peer/envelope` |
+| Autofill (ADR 0150 §6.4; the optional `browser-autofill` plugin) | `/v1/fill` (one field, exact origin, rate-limited), `/v1/fill/match` (entry names only), `/v1/fill/pair` (the companion extension, from its own origin), `/v1/fill/pair/approve`, `/v1/fill/pair/revoke`, `/v1/fill/pairings` (operator). Every one answers like a path never served (404, no body) unless `browser-autofill` is installed and switched on in the plugin settings file; see [`apps/browser-extension-autofill`](../../apps/browser-extension-autofill) |
 
 Source areas under `src/`: `discovery.rs`, `keychain.rs`, `cli_probe.rs`,
 `runner.rs` (scrubbed command execution), `promote.rs`, `invoke_through.rs`,

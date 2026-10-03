@@ -35,6 +35,11 @@
             "type": "select",
             "label": "Protocol",
             "options": ["ssh", "rdp", "vnc", "telnet", "winrm", "other"]
+          },
+          {
+            "id": "connectionRef",
+            "type": "string",
+            "label": "Connection reference"
           }
         ]
       },
@@ -57,11 +62,12 @@
         { "key": "private_key", "field": "privateKey" },
         { "key": "environment", "field": "environment" },
         { "key": "url", "field": "consoleUrl" },
-        { "key": "runbook", "field": "notesUrl" }
+        { "key": "runbook", "field": "notesUrl" },
+        { "key": "connection_ref", "field": "connectionRef" }
       ]
     },
     "cxf": { "credential": "custom-fields" },
     "subtitle": ["endpoint", "environment"],
-    "search": ["endpoint", "username", "environment"]
+    "search": ["endpoint", "username", "environment", "connectionRef"]
   }
 }

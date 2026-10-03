@@ -38,6 +38,21 @@ describe("parseConfigYaml", () => {
     expect(parseConfigYaml("<<: {a: 1}\n").ok).toBe(false);
   });
 
+  it("rejects multi-document streams regardless of marker formatting", () => {
+    for (const source of [
+      "a: 1\n--- b: 2\n",
+      "a: 1\n---",
+      "--- a: 1\n--- b: 2\n",
+      "a: 1\n...\nb: 2\n",
+    ]) {
+      const parsed = parseConfigYaml(source);
+      expect(parsed.ok).toBe(false);
+      expect(
+        parsed.diagnostics.some((item) => item.code === "multi_document"),
+      ).toBe(true);
+    }
+  });
+
   it("rejects duplicate keys, prototype keys, and non-string keys", () => {
     expect(parseConfigYaml("theme: light\ntheme: dark\n").ok).toBe(false);
     expect(parseConfigYaml("__proto__: {admin: true}\n").ok).toBe(false);

@@ -1,5 +1,5 @@
 /**
- * Sealing for event rows at rest (ADR 0150).
+ * Sealing for event rows at rest (ADR 0155).
  *
  * The audit trail, the outbox and the webhook and notification delivery queues
  * hold what happened, to whom and what was sent. Postgres keeps them as jsonb,

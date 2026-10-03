@@ -195,18 +195,23 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
         .filter((item) => (favorites ? item.favorite : true))
         .filter((item) => (query ? searchMatches(item, query) : true));
       const items = [];
+      const reachableFolderIds = new Set<string>();
       for (const item of candidates) {
         try {
           await assertItemReach(item.id, "read");
         } catch {
           continue;
         }
+        if (item.folderId !== null) reachableFolderIds.add(item.folderId);
         items.push({
           ...projectVaultItemMeta(item),
           healthIssues: issues.get(item.id) ?? [],
         });
       }
-      return { items, folders: vaultStore.getSnapshot().folders };
+      const folders = vaultStore
+        .getSnapshot()
+        .folders.filter((folder) => reachableFolderIds.has(folder.id));
+      return { items, folders };
     },
   },
   {
@@ -286,7 +291,13 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
         item = newItemDraft(kind, name ?? undefined);
       }
       if (name) item.name = name;
-      if (folderId !== null) item.folderId = folderId;
+      if (folderId !== null) {
+        const known = vaultStore
+          .getSnapshot()
+          .folders.some((folder) => folder.id === folderId);
+        if (!known) throw new Error(`unknown_folder:${folderId}`);
+        item.folderId = folderId;
+      }
       if (favorite !== null) item.favorite = favorite;
       if (url !== null) {
         if (item.kind !== "login") {

@@ -13,6 +13,7 @@ describe("MSAL redirect bridge asset", () => {
     expect(html).not.toMatch(/createRoot|react-dom|App\.tsx/i);
     expect(ts).toContain("@azure/msal-browser/redirect-bridge");
     expect(ts).toContain("broadcastResponseToMainFrame");
+    expect(ts).toContain('path.endsWith("/auth/redirect.html")');
     expect(ts).not.toMatch(/admitAmbient|createGuest|beginSignIn|createRoot/);
     expect(ts).not.toMatch(/from ["']react["']/);
   });
