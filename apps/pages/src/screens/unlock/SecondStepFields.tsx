@@ -101,6 +101,7 @@ function CodeStep({
   hasRecoveryCodes,
   sent,
   resendIn,
+  busy,
   disabled,
   totp,
   totpRef,
@@ -113,6 +114,7 @@ function CodeStep({
   hasRecoveryCodes: boolean;
   sent: SentCode | null;
   resendIn: number;
+  busy: boolean;
   disabled: boolean;
   totp: string;
   totpRef: RefObject<HTMLInputElement | null>;
@@ -154,7 +156,8 @@ function CodeStep({
           <button
             type="button"
             className="unlock__switch"
-            disabled={disabled || resendIn > 0}
+            // Not the lockout: asking for a fresh code is not an attempt.
+            disabled={busy || resendIn > 0}
             onClick={onResend}
           >
             {resendIn > 0 ? `Send it again · in ${resendIn}s` : "Send it again"}
