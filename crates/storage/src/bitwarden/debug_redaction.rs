@@ -17,8 +17,8 @@ use super::sends::BitwardenSend;
 
 const REDACTED: &str = "[REDACTED]";
 
-fn present<T>(value: &Option<T>) -> Option<&'static str> {
-    value.as_ref().map(|_| REDACTED)
+fn present<T>(value: Option<&T>) -> Option<&'static str> {
+    value.map(|_| REDACTED)
 }
 
 impl fmt::Debug for BitwardenUser {
@@ -28,12 +28,15 @@ impl fmt::Debug for BitwardenUser {
             .field("email", &self.email)
             .field("name", &self.name)
             .field("master_password_hash", &REDACTED)
-            .field("master_password_hint", &present(&self.master_password_hint))
+            .field(
+                "master_password_hint",
+                &present(self.master_password_hint.as_ref()),
+            )
             .field("kdf", &self.kdf)
             .field("user_key", &REDACTED)
             .field("user_key_id", &self.user_key_id)
             .field("public_key", &self.public_key)
-            .field("private_key", &present(&self.private_key))
+            .field("private_key", &present(self.private_key.as_ref()))
             .field("security_stamp", &REDACTED)
             .field("culture", &self.culture)
             .field("created_at", &self.created_at)
@@ -62,8 +65,11 @@ impl fmt::Debug for BitwardenAuthRequest {
             .field("device_type", &self.device_type)
             .field("access_code_digest", &REDACTED)
             .field("public_key", &self.public_key)
-            .field("key", &present(&self.key))
-            .field("master_password_hash", &present(&self.master_password_hash))
+            .field("key", &present(self.key.as_ref()))
+            .field(
+                "master_password_hash",
+                &present(self.master_password_hash.as_ref()),
+            )
             .field("approved", &self.approved)
             .field("response_device", &self.response_device)
             .field("created_at", &self.created_at)
@@ -81,7 +87,7 @@ impl fmt::Debug for BitwardenSend {
             .field("send_type", &self.send_type)
             .field("data", &REDACTED)
             .field("key", &REDACTED)
-            .field("password_hash", &present(&self.password_hash))
+            .field("password_hash", &present(self.password_hash.as_ref()))
             .field("max_access_count", &self.max_access_count)
             .field("access_count", &self.access_count)
             .field("disabled", &self.disabled)
@@ -100,8 +106,8 @@ impl fmt::Debug for BitwardenSend {
 impl fmt::Debug for ArrivingSignIn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ArrivingSignIn")
-            .field("api_key", &present(&self.api_key))
-            .field("recovery_code", &present(&self.recovery_code))
+            .field("api_key", &present(self.api_key.as_ref()))
+            .field("recovery_code", &present(self.recovery_code.as_ref()))
             .field("two_factors", &self.two_factors)
             .finish()
     }
@@ -116,7 +122,7 @@ impl fmt::Debug for BitwardenOrganization {
             .field("plan_type", &self.plan_type)
             .field("seats", &self.seats)
             .field("public_key", &self.public_key)
-            .field("private_key", &present(&self.private_key))
+            .field("private_key", &present(self.private_key.as_ref()))
             .field("created_at", &self.created_at)
             .field("revision_at", &self.revision_at)
             .finish()

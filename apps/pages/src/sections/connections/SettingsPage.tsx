@@ -3,7 +3,6 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
-import { listIntegrations } from "@opensesame/app-core/lib/connections.js";
 import { canConfigureAutomatically } from "@opensesame/app-core/lib/connector-guidance.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import {
@@ -105,35 +104,11 @@ export function ConnectorSettingsPage({
     () => (providerId === "github" ? readLocalGithubApp() : null),
     () => null,
   );
-  const [githubHostReady, setGithubHostReady] = useState(false);
   const roads = useConnectorRoads();
   useEffect(() => {
     // A completed local App registration must not leave a failure glyph up.
     if (localGithubApp !== null && flash?.tone === "err") onFlash(null);
   }, [localGithubApp, flash, onFlash]);
-  useEffect(() => {
-    if (providerId !== "github") {
-      setGithubHostReady(false);
-      return;
-    }
-    let cancel = false;
-    void listIntegrations()
-      .then((rows) => {
-        if (cancel) return;
-        setGithubHostReady(
-          rows.some(
-            (row) =>
-              row.providerId === "github" && row.enabled && row.configured,
-          ),
-        );
-      })
-      .catch(() => {
-        if (!cancel) setGithubHostReady(false);
-      });
-    return () => {
-      cancel = true;
-    };
-  }, [providerId]);
   if (!provider) {
     return (
       <div className="section__inner">
@@ -169,7 +144,7 @@ export function ConnectorSettingsPage({
   // GitHub App already on this device — no Connect chrome.
   const githubAppReady =
     provider.id === "github" &&
-    (localGithubApp !== null || provider.configured || githubHostReady);
+    (localGithubApp !== null || provider.configured);
   return (
     <div className="section__inner conn-settings">
       <Link ref={backRef} className="conn-back" to={ceremonyRoot}>
@@ -190,7 +165,7 @@ export function ConnectorSettingsPage({
                 connection,
                 connections,
                 backupReady,
-                localGithubApp !== null || githubHostReady,
+                localGithubApp !== null,
                 roads.acts(provider),
               )}
             />

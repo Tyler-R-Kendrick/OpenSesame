@@ -21,14 +21,15 @@ import { PURGE_CONFIRM } from "./vault-menu.js";
 
 registerLegacyItemKinds();
 
-const vault = {
-  current: {
-    items: [] as Array<
-      ReturnType<typeof makeLogin> | ReturnType<typeof makeNote>
-    >,
-    folders: [] as [],
-    header: null,
-  },
+type TestVault = {
+  items: Array<ReturnType<typeof makeLogin> | ReturnType<typeof makeNote>>;
+  folders: [];
+  header: null;
+};
+type TestVaultCell = { current: TestVault };
+
+const vault: TestVaultCell = {
+  current: { items: [], folders: [], header: null },
 };
 const store = {
   purgeItem: vi.fn(),
@@ -182,15 +183,13 @@ describe("trash directory commands", () => {
     vaultTreeSeams.loadCollapsed = () => new Promise(() => undefined);
     renderAt("/vault?f=trash");
     expect(
-      (screen.getByRole("button", { name: "Restore" }) as HTMLButtonElement)
+      screen.getByRole<HTMLButtonElement>("button", { name: "Restore" })
         .disabled,
     ).toBe(true);
     expect(
-      (
-        screen.getByRole("button", {
-          name: "Delete permanently",
-        }) as HTMLButtonElement
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Delete permanently",
+      }).disabled,
     ).toBe(true);
     await waitFor(() =>
       expect(document.activeElement).toBe(

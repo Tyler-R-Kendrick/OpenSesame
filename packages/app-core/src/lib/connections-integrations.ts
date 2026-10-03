@@ -1,10 +1,6 @@
-import {
-  type BoundaryValue,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
 import type { LocalGithubApp } from "./github-app-local.js";
 
+/** A GitHub App registered from this browser, as the pages read it. */
 export type Integration = {
   id: string;
   key: string;
@@ -14,27 +10,9 @@ export type Integration = {
   enabled: boolean;
   configured: boolean;
   scopes: string[];
-  /** Public GitHub App page when this is a tenant App integration. */
+  /** Public GitHub App page for the App registered here. */
   githubAppHtmlUrl: string | null;
 };
-
-export function toIntegration(value: BoundaryValue): Integration {
-  const raw = overlapCast(value);
-  const html = isString(raw.github_app_html_url)
-    ? raw.github_app_html_url.trim()
-    : "";
-  return {
-    id: String(raw.id ?? ""),
-    key: String(raw.key ?? ""),
-    providerId: String(raw.provider_id ?? ""),
-    displayName: String(raw.display_name ?? ""),
-    source: String(raw.source ?? ""),
-    enabled: Boolean(raw.enabled),
-    configured: Boolean(raw.configured),
-    scopes: Array.isArray(raw.scopes) ? raw.scopes.map(String) : [],
-    githubAppHtmlUrl: html.startsWith("https://github.com/apps/") ? html : null,
-  };
-}
 
 export function integrationFromLocal(app: LocalGithubApp): Integration {
   return {

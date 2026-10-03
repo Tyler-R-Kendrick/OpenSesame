@@ -1,44 +1,47 @@
-//! One run's agent-hooks session: the emitter, the context builder, the
-//! lifecycle phase and the records, behind one lock.
+//! One run's agent-hooks session: the context builder, the lifecycle phase,
+//! the labels and the records, and the public surface a run drives.
 //!
-//! Everything that makes an emission is serialized through [`HookSession`]'s
-//! lock, and that is deliberate rather than convenient. The context builder
-//! hands out `sequence` numbers, the emitter composes and records, and the
-//! phase decides whether an interception point may be emitted at all; holding
-//! the three together is what makes §12.2.3 ("assign `sequence` atomically")
-//! and §3.1's ordering true *by construction* when two verbs run at once. The
-//! guarded actions themselves never run under the lock — only their emissions
-//! do — so concurrent verbs still overlap.
+//! # Concurrency (§12.2)
 //!
-//! The phase is the other half of the ordering. §6.1a says a denied
-//! `agent_startup` means nothing else may be emitted, and §3.1 says
-//! `agent_startup` precedes and `agent_shutdown` follows everything; a tool
-//! verb called outside a turn is therefore refused **without an emission**,
-//! because emitting it would be the violation.
+//! A relay serving a remote agent may have several tool calls in flight, and
+//! one of them may be parked on the approval seam — a person, possibly for
+//! minutes. The session therefore never holds a lock while it awaits an
+//! interceptor or the resolver. An emission is three steps (see `emission`):
+//!
+//! 1. **Reserve**, under a short lock: check the phase, build the context —
+//!    which assigns its `sequence` atomically (§12.2.3) — and take a fresh
+//!    emitter from the session's shared parts (see `recipe`).
+//! 2. **Dispatch**, with no lock: the SDK runs the interceptors and, if a
+//!    verdict is liftable, the resolver. Emissions of different tool calls
+//!    overlap here, as §12.2.2 allows; within one emission the composition
+//!    profile governs, and a sequential fold stays sequential.
+//! 3. **Settle**, under a short lock: the phase, the labels and the record
+//!    are applied, and the record leaves in `sequence` order (see `log`).
+//!
+//! The one thing that does not overlap is a run's boundary: `agent_startup`,
+//! `input`, `output` and `agent_shutdown` each wait for every emission in
+//! flight and are then emitted alone (`phase::overlaps`), so §3.1's ordering
+//! is true by construction and nothing is sequenced between a boundary and
+//! the emissions it closes over.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use agent_hooks::{
     AgentContext, AgentContextBuilder, ApprovalResolver, CompositionConfig, EnforcementMode,
-    HostError, IdentityProvider, InterceptionEmitter, InterceptionPoint, InterceptionRecord,
-    Interceptor, Verdict,
+    HostError, IdentityProvider, InterceptionPoint, InterceptionRecord, Interceptor,
 };
-use futures::lock::Mutex;
-use serde_json::Value;
+use tokio::sync::RwLock;
 
 use super::labels::LabelLedger;
-use super::refusal::{Refusal, ShutdownReason, OUT_OF_ORDER};
+use super::log::RecordLog;
+pub use super::log::RecordSink;
+use super::phase::Phase;
+use super::recipe::Recipe;
+use super::refusal::{Refusal, ShutdownReason};
 
 /// `agent.framework` on every context this crate emits.
 pub const FRAMEWORK: &str = "opensesame-rotation-web";
-
-/// Where each emitted record goes, as it is made.
-///
-/// Called once per emission, in `sequence` order, with the payload-free
-/// §10.3 projection — never the context. This is how a run's observation log
-/// or audit trail persists them.
-pub type RecordSink = Arc<dyn Fn(&InterceptionRecord) + Send + Sync>;
 
 /// How a run's hook session is configured. Host configuration (§7.1), never
 /// something a driving agent can reach.
@@ -52,7 +55,7 @@ pub struct SessionConfig {
     /// The composition profile and knobs (§7.2).
     pub composition: CompositionConfig,
     /// The identity provider (§10.1). `jcs-sha256` unless a caller says
-    /// otherwise, because approvals bind to it (ADR 0150 §6).
+    /// otherwise, because approvals bind to it (ADR 0159 §6).
     pub identity: IdentityProvider,
 }
 
@@ -70,51 +73,17 @@ impl SessionConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
-    /// Nothing emitted yet.
-    Fresh,
-    /// Started, between turns: an `input` may arrive.
-    Idle,
-    /// Inside a turn: tool verbs and the `output` may be emitted.
-    Turn,
-    /// A startup or input deny: nothing but `agent_shutdown` may follow.
-    Refused,
-    /// `agent_shutdown` was emitted.
-    Closed,
-}
-
-const fn admits(phase: Phase, point: InterceptionPoint) -> bool {
-    match point {
-        InterceptionPoint::AgentStartup => matches!(phase, Phase::Fresh),
-        InterceptionPoint::Input => matches!(phase, Phase::Idle),
-        InterceptionPoint::AgentShutdown => {
-            matches!(phase, Phase::Idle | Phase::Turn | Phase::Refused)
-        }
-        // Tool verbs and the output belong to a turn. The model points are
-        // never emitted by this host (it makes no model calls, §3.2).
-        _ => matches!(phase, Phase::Turn),
-    }
-}
-
-/// Where the phase goes after an emission at `point` proceeds or blocks.
-const fn after(phase: Phase, point: InterceptionPoint, proceeded: bool) -> Phase {
-    match (point, proceeded) {
-        // A refused output still ends the turn: the response is withheld.
-        (InterceptionPoint::AgentStartup, true) | (InterceptionPoint::Output, _) => Phase::Idle,
-        (InterceptionPoint::Input, true) => Phase::Turn,
-        (InterceptionPoint::AgentStartup | InterceptionPoint::Input, false) => Phase::Refused,
-        _ => phase,
-    }
-}
-
-struct State {
-    builder: AgentContextBuilder,
-    emitter: InterceptionEmitter,
-    phase: Phase,
-    labels: LabelLedger,
-    records: Vec<InterceptionRecord>,
-    last_refusal: Option<Refusal>,
+/// What the short critical sections read and write.
+pub(super) struct State {
+    pub(super) builder: AgentContextBuilder,
+    pub(super) phase: Phase,
+    /// `pre_model_call`s that proceeded and have no `post_model_call` yet
+    /// (§3.1.4). A host may have several in flight; none survives its turn.
+    /// Claimed and released only under the state lock (see `emission`).
+    pub(super) open_model_calls: u32,
+    pub(super) labels: LabelLedger,
+    pub(super) log: RecordLog,
+    pub(super) last_refusal: Option<Refusal>,
 }
 
 /// One run's agent-hooks session.
@@ -122,11 +91,23 @@ struct State {
 /// Built once per run with the interceptors and the optional approval
 /// resolver the caller injects — the gateway registers `OpenSesame`'s own
 /// interceptor here — and shared by the hosted transport and the run driver.
+/// It is `Sync`: verbs may be emitted from several tasks at once (see the
+/// module documentation for what overlaps and what does not).
 pub struct HookSession {
+    pub(super) recipe: Recipe,
+    /// Shared by every emission that may overlap, held alone by a run's
+    /// boundary. Never held by anything that is not emitting.
+    pub(super) gate: RwLock<()>,
+    /// Only ever locked for a few field updates, never across an `await`.
     state: Mutex<State>,
-    sink: Option<RecordSink>,
     calls: AtomicU64,
+    /// Whether the run stood down for a person rather than finishing or
+    /// failing; asked once, when the run's report decides `agent_shutdown`'s
+    /// reason.
+    stand_down: Option<StandDown>,
 }
+
+type StandDown = Box<dyn Fn() -> bool + Send + Sync>;
 
 impl HookSession {
     /// A session over `interceptors`, in registration order, with `resolver`
@@ -141,33 +122,79 @@ impl HookSession {
         interceptors: Vec<Box<dyn Interceptor>>,
         resolver: Option<Box<dyn ApprovalResolver>>,
     ) -> Result<Self, HostError> {
-        let mut emitter = InterceptionEmitter::new(config.mode, resolver);
-        emitter.set_composition(config.composition);
-        emitter
-            .set_identity_provider(config.identity)
-            .map_err(|(error, _)| error)?;
-        let labels = LabelLedger::default();
+        let mut recipe = Recipe {
+            mode: config.mode,
+            composition: config.composition,
+            identity: config.identity.into(),
+            interceptors: Vec::new(),
+            resolver: resolver.map(Into::into),
+            redactor: None,
+        };
         for interceptor in interceptors {
-            emitter.register(labels.wrap(interceptor));
+            recipe.register(interceptor);
         }
+        // Reject a bad identity name now, not at the first emission.
+        recipe.emitter()?;
         Ok(Self {
+            recipe,
+            gate: RwLock::new(()),
             state: Mutex::new(State {
                 builder: AgentContextBuilder::new(&config.agent_id, FRAMEWORK, &config.session_id),
-                emitter,
                 phase: Phase::Fresh,
-                labels,
-                records: Vec::new(),
+                open_model_calls: 0,
+                labels: LabelLedger::default(),
+                log: RecordLog::new(),
                 last_refusal: None,
             }),
-            sink: None,
             calls: AtomicU64::new(0),
+            stand_down: None,
         })
     }
 
-    /// Deliver every record to `sink` as it is made.
+    /// Deliver every record to `sink` as it is made, in `sequence` order.
+    ///
+    /// With a sink installed the session **stops keeping records** — the sink
+    /// is where they live, and a long relay session would otherwise hold
+    /// every one for its whole life. [`Self::records`] is then empty unless
+    /// [`Self::with_retained_records`] asks for both.
     #[must_use]
     pub fn with_record_sink(mut self, sink: RecordSink) -> Self {
-        self.sink = Some(sink);
+        self.state_mut().log.set_sink(sink);
+        self
+    }
+
+    /// Say whether the run stood down for a person — a handoff, or a page a
+    /// person already holds — which `agent_shutdown` records as `cancelled`
+    /// rather than `error` (§4.2). The host's channel knows; the executor's
+    /// outcome alone cannot tell a parked run from a failed transport.
+    #[must_use]
+    pub fn with_stand_down(
+        mut self,
+        stood_down: impl Fn() -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.stand_down = Some(Box::new(stood_down));
+        self
+    }
+
+    /// Whether the run stood down for a person (see [`Self::with_stand_down`]).
+    #[must_use]
+    pub fn stood_down(&self) -> bool {
+        self.stand_down.as_ref().is_some_and(|probe| probe())
+    }
+
+    /// Keep records for [`Self::records`] even with a sink installed.
+    #[must_use]
+    pub fn with_retained_records(mut self) -> Self {
+        self.state_mut().log.keep();
+        self
+    }
+
+    /// Bound the records [`Self::records`] holds: past `limit`, the oldest is
+    /// dropped and counted ([`Self::records_dropped`]). A sink still sees
+    /// every record.
+    #[must_use]
+    pub fn with_max_records(mut self, limit: usize) -> Self {
+        self.state_mut().log.set_limit(limit);
         self
     }
 
@@ -178,28 +205,45 @@ impl HookSession {
         mut self,
         redactor: impl Fn(&AgentContext) -> AgentContext + Send + Sync + 'static,
     ) -> Self {
-        self.state.get_mut().emitter.set_approval_redactor(redactor);
+        self.recipe.set_redactor(redactor);
         self
     }
 
     /// Replace the context timestamp source (deterministic tests).
     #[must_use]
     pub fn with_timestamps(mut self, now: impl Fn() -> String + Send + Sync + 'static) -> Self {
-        let state = self.state.get_mut();
+        let state = self.state_mut();
         let builder = std::mem::replace(&mut state.builder, AgentContextBuilder::new("", "", ""));
         state.builder = builder.with_timestamp_provider(now);
         self
     }
 
-    /// Every record emitted so far, in `sequence` order.
+    /// The records the session is keeping, in `sequence` order.
+    ///
+    /// **Not every record ever emitted.** With no sink installed the session
+    /// keeps them all (that is the only way to read them); with a sink it
+    /// keeps none unless [`Self::with_retained_records`] was asked for; and
+    /// [`Self::with_max_records`] keeps only the newest. A record appears
+    /// here once every record sequenced before it has — so while an earlier
+    /// emission is still parked on an approval, a later one that already
+    /// finished is not listed yet, and no record is ever listed out of order.
+    #[allow(clippy::unused_async)] // The public signature predates the split lock.
     pub async fn records(&self) -> Vec<InterceptionRecord> {
-        self.state.lock().await.records.clone()
+        self.lock().log.retained()
+    }
+
+    /// Retained records the [`Self::with_max_records`] limit has dropped.
+    #[must_use]
+    pub fn records_dropped(&self) -> u64 {
+        self.lock().log.dropped()
     }
 
     /// The most recent refusal, so a caller holding only a `StepError` can
     /// learn the verdict's reason. Never content: a reason or a fixed marker.
+    /// With several verbs in flight, "most recent" is the last to settle.
+    #[allow(clippy::unused_async)] // The public signature predates the split lock.
     pub async fn last_refusal(&self) -> Option<Refusal> {
-        self.state.lock().await.last_refusal.clone()
+        self.lock().last_refusal.clone()
     }
 
     /// Emit `agent_startup` with the verbs this session's transport exposes.
@@ -219,20 +263,23 @@ impl HookSession {
 
     /// Emit `agent_shutdown` and close the session. Its verdict is recorded
     /// and imposes nothing (§6.1a). A session that never started emits
-    /// nothing, because a shutdown with no startup breaks §3.1.
+    /// nothing, because a shutdown with no startup breaks §3.1. It waits for
+    /// every emission already in flight, so it follows all of them.
     pub async fn shutdown(&self, reason: ShutdownReason) -> Option<InterceptionRecord> {
-        let mut state = self.state.lock().await;
-        if !admits(state.phase, InterceptionPoint::AgentShutdown) {
-            return None;
-        }
-        let mut context = state.builder.agent_shutdown(reason.as_str());
-        let record = state.emitter.emit_unchecked(&mut context).await;
-        state.emitter.take_records();
-        // Nothing follows a shutdown, so there is nothing to resurface to.
-        state.labels.settle(false, &record.verdict);
-        state.phase = Phase::Closed;
-        self.deliver(&mut state, record.clone());
-        Some(record)
+        self.emit_with(
+            InterceptionPoint::AgentShutdown,
+            |builder| builder.agent_shutdown(reason.as_str()),
+            |record, _, _| super::emission::Concluded {
+                result: record.clone(),
+                // Nothing follows a shutdown, so there is nothing to
+                // resurface labels to.
+                applied: false,
+                phase: Phase::Closed,
+                refusal: None,
+            },
+        )
+        .await
+        .ok()
     }
 
     /// A fresh `tool_call.id`. Payload-free: a counter, never an argument.
@@ -240,66 +287,15 @@ impl HookSession {
         format!("call-{}", self.calls.fetch_add(1, Ordering::Relaxed))
     }
 
-    /// Emit one context and hand back the effective target, decoded.
-    ///
-    /// `decode` turns the post-composition target back into what the guarded
-    /// action consumes. When a transform produced something it cannot take —
-    /// a string where the verb takes a selector object, an image that is not
-    /// in the context — the transform could not be applied, and the host
-    /// substitutes `host_error:transform_invalid` (§5.2, §11) in the record
-    /// rather than ignoring the verdict or delivering a record that says the
-    /// transform happened.
-    pub(crate) async fn emit<T>(
-        &self,
-        point: InterceptionPoint,
-        build: impl FnOnce(&mut AgentContextBuilder) -> AgentContext,
-        decode: impl FnOnce(Value) -> Option<T>,
-    ) -> Result<T, Refusal> {
-        let mut state = self.state.lock().await;
-        if !admits(state.phase, point) {
-            let refusal = Refusal::new(point, Some(OUT_OF_ORDER.to_owned()));
-            state.last_refusal = Some(refusal.clone());
-            return Err(refusal);
-        }
-        let mut context = build(&mut state.builder);
-        let mut record = state.emitter.emit_unchecked(&mut context).await;
-        // The session keeps its own (possibly amended) copy; the emitter's
-        // buffer would otherwise grow for the life of the run.
-        state.emitter.take_records();
-        let outcome = if record.proceeds() {
-            let target = context.get("target").cloned().unwrap_or(Value::Null);
-            decode(target).ok_or_else(|| {
-                // §10.3: `decided_by` is null for a transform-application
-                // failure, and `enforced_identity` equals `input_identity`
-                // when no transform was applied — the transformed context
-                // the SDK hashed is one the host refused to act on.
-                record.verdict = Verdict::host_error(HostError::TransformInvalid, None);
-                record.decided_by = None;
-                record.enforced_identity.clone_from(&record.input_identity);
-                Refusal::of(&record)
-            })
-        } else {
-            Err(Refusal::of(&record))
-        };
-        state.phase = after(state.phase, point, outcome.is_ok());
-        // §5.4: labels persist only for an emission the host acted on, and
-        // ride every later context (the `labels` module says why every one).
-        if let Some(extensions) = state.labels.settle(outcome.is_ok(), &record.verdict) {
-            state.builder.with_optional("extensions", extensions);
-        }
-        if let Err(refusal) = &outcome {
-            state.last_refusal = Some(refusal.clone());
-        }
-        self.deliver(&mut state, record);
-        outcome
+    /// The state, for a few field updates. A panic elsewhere (a sink is
+    /// caught, but a decode closure is not) poisons the lock; the fields are
+    /// each valid on their own, so the session goes on rather than losing the
+    /// audit trail with it.
+    pub(super) fn lock(&self) -> MutexGuard<'_, State> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    fn deliver(&self, state: &mut State, record: InterceptionRecord) {
-        if let Some(sink) = &self.sink {
-            // Audit delivery must not take the run down with it; the SDK's
-            // own sink contract makes the same choice.
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| sink(&record)));
-        }
-        state.records.push(record);
+    fn state_mut(&mut self) -> &mut State {
+        self.state.get_mut().unwrap_or_else(PoisonError::into_inner)
     }
 }

@@ -59,6 +59,10 @@ pub enum BrokerError {
     /// ADR 0049: the provider has no derived-token mint path (yet).
     #[error("provider `{0}` cannot mint a derived credential")]
     Unmintable(String),
+    /// ADR 0159: a web-login run for this organization and target is already
+    /// in flight — on this process or another replica sharing the database.
+    #[error("a web-login run for this target is already in flight")]
+    RunInFlight,
     #[error("invalid request: {0}")]
     Invalid(String),
     #[error(transparent)]
@@ -94,6 +98,7 @@ impl BrokerError {
             Self::UnsupportedCredential(_) => "unsupported_credential",
             Self::MaterializationDenied => "materialization_denied",
             Self::Unmintable(_) => "unmintable",
+            Self::RunInFlight => "web_login_run_in_flight",
             Self::Invalid(_) => "invalid_request",
             Self::Storage(_) | Self::Serde(_) => "internal_error",
         }
@@ -123,7 +128,10 @@ impl BrokerError {
             | Self::ConfigValueNotFound
             | Self::IntegrationNotFound => 404,
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
-            Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
+            Self::BindingExists
+            | Self::IntegrationConflict
+            | Self::IntegrationInUse
+            | Self::RunInFlight => 409,
             Self::IntegrationReadOnly | Self::MaterializationDenied => 403,
             Self::Unmintable(_) => 422,
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,

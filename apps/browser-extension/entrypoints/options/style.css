@@ -1,0 +1,249 @@
+/* OpenSesame extension popup — shares the vault app's design language:
+   navy + teal, light and dark, rounded surfaces. */
+
+:root {
+  --canvas: #f2f5f9;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --surface-3: #eef2f8;
+
+  --ink: #0e1826;
+  --ink-2: #566880;
+  --ink-3: #7e8fa6;
+  --line: #dce4ef;
+  --line-strong: #c4d1e2;
+
+  --accent: #0d7268;
+  --accent-hover: #0a5c54;
+  --accent-ink: #ffffff;
+
+  --radius: 10px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0a121d;
+    --surface: #111d2c;
+    --surface-2: #162435;
+    --surface-3: #1c2c40;
+
+    --ink: #e7eefa;
+    --ink-2: #9db0c8;
+    --ink-3: #7488a2;
+    --line: #223349;
+    --line-strong: #2e4262;
+
+    --accent: #2fb3a3;
+    --accent-hover: #43c8b7;
+    --accent-ink: #04231f;
+
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 280px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  padding: 1rem 1.1rem 1.25rem;
+}
+
+.brand {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.1rem;
+}
+
+h1 {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--ink-2);
+  margin: 0 0 0.5rem;
+}
+
+.lede,
+.hint {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.status {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.status li {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 0.75rem;
+}
+
+.field input {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  min-height: 2.1rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.field input::placeholder {
+  color: var(--ink-3);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-height: 2.1rem;
+  padding: 0 0.75rem;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+button.secondary {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+  font-weight: 550;
+}
+
+button.secondary:hover {
+  background: var(--surface-3);
+  border-color: var(--ink-3);
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shell {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+h2 {
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 1.5rem 0 0.5rem;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem 0;
+}
+
+legend {
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  padding: 0 0.3rem;
+}
+
+.field textarea,
+.field select {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  resize: vertical;
+}
+
+.status li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status li span {
+  flex: 1;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.status li[data-ok="true"]::before {
+  content: "\2713";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.status li[data-ok="false"]::before {
+  content: "\2022";
+  color: var(--ink-3);
+}
+
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

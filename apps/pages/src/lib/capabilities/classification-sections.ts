@@ -146,10 +146,8 @@ export const SECTION_RULES = [
     SETTINGS,
     "provider mark Settings draws; brand paths load with Connections",
   ),
-  ...each(
-    "src/sections/identity/",
-    ["ProviderRouting", "RegistrationExtras"],
-    (p) => optional(p, "identity.federation", "operator provider surfaces"),
+  ...each("src/sections/identity/", ["ProviderRouting"], (p) =>
+    optional(p, "identity.federation", "operator provider surfaces"),
   ),
 
   // --- wallet / activity -----------------------------------------------------

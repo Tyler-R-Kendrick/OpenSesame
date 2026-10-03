@@ -1,5 +1,7 @@
-//! What the Host's web-login runner reads and writes (ADR 0076, ADR 0150):
-//! the recipes it may replay, and the agent-hooks record of each run.
+//! What the Host's web-login runner reads and writes (ADR 0076, ADR 0159):
+//! the recipes it may replay ([`recipes`]), and the agent-hooks record of each
+//! run. There is one writer of recipes, [`recipes`], which derives a recipe's
+//! trust from a verification and never takes one as an input.
 //!
 //! Neither table can hold a credential. A recipe is selectors and a URL — a
 //! statement about a site, the same for every user of it — and a hook record
@@ -12,38 +14,21 @@ use sqlx::{sqlite::SqliteRow, Row};
 
 use crate::Db;
 
+/// Retention and orphan reconciliation of the runs this module's records
+/// belong to.
+pub mod retention;
+
+mod recipe_rows;
+/// The writer and the replay rule for recipes: what a run may replay, and
+/// the verification that decides it (ADR 0076 §4).
+pub mod recipes;
+
+/// The keys an organization trusts to sign recipes.
+pub mod signers;
+
 /// Trust levels a run may replay unattended (rotation-recipe-schema.md,
 /// "Signing and trust"). A `candidate` is a hypothesis and never is.
 pub const REPLAYABLE_TRUST: [&str; 2] = ["canary_verified", "corpus"];
-
-/// One recipe row.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoredWebLoginRecipe {
-    pub organization_id: String,
-    /// The relying party's origin, as the rotation target names it.
-    pub origin: String,
-    pub recipe_id: String,
-    /// `candidate`, `canary_verified` or `corpus`.
-    pub trust: String,
-    /// The executor's projection: change URL and selectors, as JSON.
-    pub recipe_json: String,
-    pub expires_at: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-fn recipe_from_row(row: &SqliteRow) -> StoredWebLoginRecipe {
-    StoredWebLoginRecipe {
-        organization_id: row.get("organization_id"),
-        origin: row.get("origin"),
-        recipe_id: row.get("recipe_id"),
-        trust: row.get("trust"),
-        recipe_json: row.get("recipe_json"),
-        expires_at: row.get("expires_at"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
 
 /// One interception, as a hosted run's audit keeps it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,7 +54,7 @@ pub struct StoredAgentHookRecord {
     pub recorded_at: String,
 }
 
-fn record_from_row(row: &SqliteRow) -> StoredAgentHookRecord {
+pub(crate) fn record_from_row(row: &SqliteRow) -> StoredAgentHookRecord {
     StoredAgentHookRecord {
         run_id: row.get("run_id"),
         organization_id: row.get("organization_id"),
@@ -86,72 +71,7 @@ fn record_from_row(row: &SqliteRow) -> StoredAgentHookRecord {
     }
 }
 
-const RECIPE_COLUMNS: &str = "organization_id, origin, recipe_id, trust, recipe_json, \
-     expires_at, created_at, updated_at";
-
 impl Db {
-    /// Store the organization's recipe for an origin, replacing any earlier
-    /// one.
-    ///
-    /// # Errors
-    ///
-    /// Propagates database failures, including a trust level the schema does
-    /// not know.
-    pub async fn put_web_login_recipe(&self, recipe: &StoredWebLoginRecipe) -> anyhow::Result<()> {
-        sqlx::query(
-            "INSERT INTO web_login_recipes \
-             (organization_id, origin, recipe_id, trust, recipe_json, expires_at, created_at, \
-              updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
-             ON CONFLICT(organization_id, origin) DO UPDATE SET \
-               recipe_id = excluded.recipe_id, trust = excluded.trust, \
-               recipe_json = excluded.recipe_json, expires_at = excluded.expires_at, \
-               updated_at = excluded.updated_at",
-        )
-        .bind(&recipe.organization_id)
-        .bind(&recipe.origin)
-        .bind(&recipe.recipe_id)
-        .bind(&recipe.trust)
-        .bind(&recipe.recipe_json)
-        .bind(&recipe.expires_at)
-        .bind(&recipe.created_at)
-        .bind(&recipe.updated_at)
-        .execute(self.pool())
-        .await
-        .context("store web-login recipe")?;
-        Ok(())
-    }
-
-    /// The recipe a run may replay for `origin` at `now`: trusted beyond a
-    /// candidate, and not expired. `None` otherwise — a stale or unverified
-    /// recipe is the same as none, because replaying it unattended is what
-    /// the trust ladder exists to prevent.
-    ///
-    /// # Errors
-    ///
-    /// Propagates database failures.
-    pub async fn replayable_web_login_recipe(
-        &self,
-        organization_id: &str,
-        origin: &str,
-        now: &str,
-    ) -> anyhow::Result<Option<StoredWebLoginRecipe>> {
-        // ast-grep-ignore: sql-format-injection
-        let sql = format!(
-            "SELECT {RECIPE_COLUMNS} FROM web_login_recipes \
-             WHERE organization_id = ? AND origin = ? AND trust IN (?, ?) AND expires_at > ?"
-        );
-        let row = sqlx::query(&sql)
-            .bind(organization_id)
-            .bind(origin)
-            .bind(REPLAYABLE_TRUST[0])
-            .bind(REPLAYABLE_TRUST[1])
-            .bind(now)
-            .fetch_optional(self.pool())
-            .await
-            .context("read web-login recipe")?;
-        Ok(row.as_ref().map(recipe_from_row))
-    }
-
     /// Append a run's hook records, all or none.
     ///
     /// # Errors

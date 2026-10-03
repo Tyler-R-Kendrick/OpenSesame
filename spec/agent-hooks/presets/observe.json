@@ -1,0 +1,11 @@
+{
+  "preset": 1,
+  "name": "observe",
+  "summary": "Allow every tool and keep the audit: credential-shaped strings are still redacted wherever the spec permits a rewrite.",
+  "policy": {
+    "version": 1,
+    "unlisted_tools": "allow",
+    "secret_guard": "redact",
+    "tools": []
+  }
+}

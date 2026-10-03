@@ -9,75 +9,31 @@
 //!
 //! Run with `--nocapture` to see the per-part report a claim attaches.
 
+mod ctk_common;
 mod ctk_support;
 
-use std::collections::BTreeMap;
-use std::path::PathBuf;
-
-use agent_hooks::ctk::{load_vectors, run_vector, VectorResult};
+use agent_hooks::ctk::{run_vector, VectorResult};
 use agent_hooks::{canonical_json, context_identity, AgentContext};
+use ctk_common::{corpus, failures, print_report, vectors};
 use ctk_support::{RotationWebHarness, CAPABILITIES};
 use serde_json::Value;
-
-fn corpus() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/agent-hooks/conformance")
-}
+use sha2::{Digest, Sha256};
 
 async fn run_all() -> Vec<VectorResult> {
-    let vectors = load_vectors(corpus().join("vectors")).expect("the vendored corpus loads");
-    assert_eq!(
-        vectors.len(),
-        47,
-        "the v0.1.0-alpha.5 corpus has 47 vectors"
-    );
-    let mut results = Vec::with_capacity(vectors.len());
-    for vector in &vectors {
+    let mut results = Vec::new();
+    for vector in &vectors() {
         let mut harness = RotationWebHarness::default();
         results.push(run_vector(&mut harness, vector).await);
     }
     results
 }
 
-fn print_report(results: &[VectorResult]) {
-    let mut parts: BTreeMap<&str, [usize; 3]> = BTreeMap::new();
-    for result in results {
-        let part = if result.part.is_empty() {
-            "(untagged)"
-        } else {
-            &result.part
-        };
-        let slot = match result.status {
-            "pass" => 0,
-            "fail" => 1,
-            _ => 2,
-        };
-        parts.entry(part).or_default()[slot] += 1;
-    }
-    println!("agent-hooks/0.1 CTK — opensesame-rotation-web, capabilities {CAPABILITIES:?}");
-    println!("{:<40} {:>4} {:>4} {:>4}", "part", "pass", "fail", "skip");
-    for (part, [pass, fail, skip]) in &parts {
-        println!("{part:<40} {pass:>4} {fail:>4} {skip:>4}");
-    }
-    for result in results {
-        let detail = if result.detail.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", result.detail)
-        };
-        println!("{} {} {}{detail}", result.status, result.id, result.title);
-    }
-}
-
 #[tokio::test]
 async fn every_applicable_vector_passes_on_the_declared_surface() {
     let results = run_all().await;
-    print_report(&results);
+    print_report("opensesame-rotation-web", &CAPABILITIES, &results);
 
-    let failures: Vec<String> = results
-        .iter()
-        .filter(|r| r.status == "fail")
-        .map(|r| format!("{}: {:?}", r.id, r.failures))
-        .collect();
+    let failures = failures(&results);
     assert!(failures.is_empty(), "{failures:#?}");
 
     let passed: Vec<&str> = results
@@ -119,18 +75,31 @@ fn the_declared_identity_provider_meets_the_golden_vectors() {
             assert_eq!(error.to_string(), "host_error:context_invalid", "{id}");
             continue;
         }
-        assert_eq!(
-            canonical_json(&fixture["ctx"]),
-            fixture["expect"]["canonical_json"]
-                .as_str()
-                .expect("canonical"),
-            "{id}"
-        );
+        let mut canonical = fixture["expect"]["canonical_json"]
+            .as_str()
+            .expect("canonical")
+            .to_owned();
+        let mut identity = fixture["expect"]["context_identity"]
+            .as_str()
+            .expect("identity")
+            .to_owned();
+        if id == "G-15-rfc8785-numbers" {
+            // The vendored vector expects `9.999999999999996e+22` for the input
+            // `9.999999999999997e+22`; RFC 8785 Appendix B gives
+            // `9.999999999999997e+22` (0x44b52d02c7e14af5). The SDK matches the
+            // vector only when `serde_json` parses that number inexactly; this
+            // build parses every number as the nearest double, as JSON.parse does
+            // (ADR 0159 limits), so the vector is checked with the RFC's digits.
+            canonical = canonical.replace("9.999999999999996e+22", "9.999999999999997e+22");
+            identity = format!(
+                "sha256:{}",
+                hex::encode(Sha256::digest(canonical.as_bytes()))
+            );
+        }
+        assert_eq!(canonical_json(&fixture["ctx"]), canonical, "{id}");
         assert_eq!(
             context_identity(&context).expect("valid I-JSON"),
-            fixture["expect"]["context_identity"]
-                .as_str()
-                .expect("identity"),
+            identity,
             "{id}"
         );
     }

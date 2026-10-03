@@ -1,14 +1,15 @@
 {
   "name": "@opensesame/browser-extension",
   "version": "0.1.0",
-  "description": "WXT browser extension that reports Host API health, daemon reachability and a sync cursor, and never exposes a secret to a web page",
+  "description": "WXT browser extension that reports Host API health, daemon reachability and a sync cursor, drives a person's own run steps in the browser (the local runner), and never exposes a secret to a web page",
   "private": true,
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
-    "test": "node --test tests/pact.test.mjs tests/capability-parity.test.mjs",
+    "test": "vitest run && node --test tests/pact.test.mjs tests/capability-parity.test.mjs tests/runner-pact.test.mjs",
     "test:e2e": "playwright test",
-    "test:install": "playwright install chromium"
+    "test:install": "playwright install chromium",
+    "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json"
   },
   "dependencies": {
     "@opensesame/api-client": "workspace:*",
@@ -18,7 +19,9 @@
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",
+    "jsdom": "26.1.0",
     "typescript": "5.8.3",
+    "vitest": "4.1.11",
     "wxt": "0.20.6"
   }
 }

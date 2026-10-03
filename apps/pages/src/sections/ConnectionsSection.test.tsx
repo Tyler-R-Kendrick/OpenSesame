@@ -21,18 +21,7 @@ const connect = vi.hoisted(() => vi.fn());
 const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
   () => ({ connecting: false, error: null }),
 );
-const ensureHostSession = vi.hoisted(() =>
-  vi.fn().mockResolvedValue(undefined),
-);
-import { hostGrantSeams } from "@opensesame/app-core/lib/host-grant.js";
-import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
-Object.assign(identitySeams, {
-  ensureHostSession,
-  hostBase: () => "http://127.0.0.1:8787",
-  hostLocalSessionEligible: () => true,
-});
-hostGrantSeams.capabilities = () => ["host.connections.write"];
 Object.assign(identityHookSeams, {
   useConnect: () => ({
     connect,
@@ -67,19 +56,14 @@ vi.spyOn(githubInstallation, "shouldEnsureGithubAccessGrant").mockReturnValue(
   false,
 );
 vi.spyOn(githubInstallation, "ensureGithubAccessGrant").mockResolvedValue([]);
-const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
-const discoverConnections = vi.hoisted(() => vi.fn().mockResolvedValue(0));
 const createConnection = vi.hoisted(() => vi.fn());
 const authorizeConnection = vi.hoisted(() => vi.fn());
 const awaitConsent = vi.hoisted(() => vi.fn());
 const revokeConnection = vi.hoisted(() => vi.fn());
-const refreshConnection = vi.hoisted(() => vi.fn());
-const updateConnectionPolicy = vi.hoisted(() => vi.fn());
 const setConnectionCredential = vi.hoisted(() => vi.fn());
 const setConnectionConfiguration = vi.hoisted(() => vi.fn());
 const listIntegrations = vi.hoisted(() => vi.fn().mockResolvedValue([]));
-const createIntegration = vi.hoisted(() => vi.fn());
 const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
@@ -97,19 +81,14 @@ import {
 import { declareConnectionsTutorial } from "./connections/tutorial.test-support.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, {
-  listProviders,
   listConnections,
-  discoverConnections,
   createConnection,
   authorizeConnection,
   awaitConsent,
   revokeConnection,
-  refreshConnection,
-  updateConnectionPolicy,
   setConnectionCredential,
   setConnectionConfiguration,
   listIntegrations,
-  createIntegration,
   openConsentPopup,
   startGithubAppRegistration,
   submitGithubAppManifest,
@@ -151,11 +130,9 @@ describe("ConnectionsSection gallery", () => {
     connectState.connecting = false;
     connectState.error = null;
     shouldAutoConnect.mockReturnValue(true);
-    listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    discoverConnections.mockResolvedValue(0);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections");
@@ -222,19 +199,6 @@ describe("ConnectionsSection gallery", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("keeps the bundled catalog when the remote list is unreachable", async () => {
-    listProviders.mockRejectedValue(
-      new ConnectionsError(0, "unreachable", "fetch failed"),
-    );
-    renderAt("/connections");
-    await waitFor(() => {
-      expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
-    });
-    expect(listNotices().find((n) => n.id === "catalog-stale")).toBeUndefined();
-    expect(screen.queryByText(/Host API/i)).toBeNull();
-    expect(screen.queryByText(/Host catalog/i)).toBeNull();
-  });
-
   it("warns when connection sealing is unavailable", async () => {
     const keyed = [
       { ...catalog[1], missingConfig: ["OPENSESAME_CONNECTION_KEY"] },
@@ -283,7 +247,6 @@ describe("ConnectionsSection connector page", () => {
     online.value = true;
     session.current = { principalId: "prn_op" };
     shouldAutoConnect.mockReturnValue(true);
-    listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
@@ -332,27 +295,6 @@ describe("ConnectionsSection connector page", () => {
     expect(await screen.findByRole("img", { name: /no host/ })).toBeTruthy();
   });
 
-  it("connects GitHub with a personal access token", async () => {
-    const created = makeConnection({ connectionId: "con_new" });
-    createConnection.mockResolvedValue(created);
-    setConnectionCredential.mockResolvedValue(created);
-    renderAt("/connections/github");
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
-    );
-    await userEvent.type(input, "ghp_secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Connect GitHub with token/i }),
-    );
-    await waitFor(() =>
-      expect(setConnectionCredential).toHaveBeenCalledWith(
-        "con_new",
-        "ghp_secret",
-      ),
-    );
-    expect(await screen.findByLabelText(/GitHub connected/)).toBeTruthy();
-  });
-
   it("shows only required Better Auth inputs and applies hidden defaults", async () => {
     const created = makeConnection({ providerId: "better-auth" });
     createConnection.mockResolvedValue(created);
@@ -393,11 +335,9 @@ describe("ConnectionsSection deeper branches", () => {
     online.value = true;
     session.current = { principalId: "prn_op" };
     shouldAutoConnect.mockReturnValue(true);
-    listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    discoverConnections.mockResolvedValue(0);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections");
@@ -470,25 +410,34 @@ describe("ConnectionsSection deeper branches", () => {
     ).toBeTruthy();
   });
 
-  it("hides Connect once the GitHub App is already configured", async () => {
-    listIntegrations.mockResolvedValue([
-      {
-        id: "int_gh",
-        providerId: "github",
-        enabled: true,
-        configured: true,
-        source: "organization",
+  it("hides Connect once the GitHub App is registered from this browser", async () => {
+    localStorage.setItem(
+      "opensesame.github-app.public",
+      JSON.stringify({
+        id: "123",
+        key: "github-oauth",
         displayName: "Org App",
-      },
-    ]);
-    renderAt("/connections/github");
-    expect(await screen.findByTestId("github-app-presence")).toBeTruthy();
-    await waitFor(() => {
-      expect(screen.queryByRole("heading", { name: /^Connect$/i })).toBeNull();
-    });
-    expect(
-      screen.queryByRole("button", { name: /Authorize with GitHub/i }),
-    ).toBeNull();
+        htmlUrl: "https://github.com/apps/org-app",
+        ownerLogin: "acme",
+        ownerType: "Organization",
+        installedByLogin: null,
+        installations: [],
+      }),
+    );
+    try {
+      renderAt("/connections/github");
+      expect(await screen.findByTestId("github-app-presence")).toBeTruthy();
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("heading", { name: /^Connect$/i }),
+        ).toBeNull();
+      });
+      expect(
+        screen.queryByRole("button", { name: /Authorize with GitHub/i }),
+      ).toBeNull();
+    } finally {
+      localStorage.removeItem("opensesame.github-app.public");
+    }
   });
 });
 
@@ -499,11 +448,9 @@ describe("ConnectionsSection remaining branches", () => {
     connectState.connecting = false;
     connectState.error = null;
     shouldAutoConnect.mockReturnValue(true);
-    listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
     embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
-    discoverConnections.mockResolvedValue(0);
     vault.items = [];
     setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections");

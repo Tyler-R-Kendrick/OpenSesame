@@ -19,9 +19,12 @@ async function resolveAuthorizationRequest(
   const request = await ctx.repos.authorizationRequests.getById(subjectId);
   if (!request || request.status !== "pending") return false;
   if (!stillLive(request.expiresAt, ctx.clock())) return false;
-  const callerHandle = requesterRef(callerId, ctx.config.claimPepper);
+  // The requester, and only the requester. The request's addressee is the one
+  // party who may never front it: the approver is somebody else by
+  // construction (`approverMayBeAsked`), so an entitlement for them would
+  // only ever lead to a refusal a step later.
   return (
-    request.requesterRef === callerHandle || request.principalId === callerId
+    request.requesterRef === requesterRef(callerId, ctx.config.claimPepper)
   );
 }
 

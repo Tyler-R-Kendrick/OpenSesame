@@ -1,0 +1,76 @@
+[
+  {
+    "state": "empty",
+    "name": "desktop",
+    "width": 1280,
+    "file": "options-empty-desktop.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "height": 1570,
+    "smallest": 33,
+    "fields": 14,
+    "readyRows": [
+      "-- Host session",
+      "ok Private window allowed (to prove a login)",
+      "-- Recovery key pinned (to back a candidate up)",
+      "-- Credentials held: 0"
+    ]
+  },
+  {
+    "state": "empty",
+    "name": "phone",
+    "width": 390,
+    "file": "options-empty-phone.png",
+    "errors": [],
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "height": 1570,
+    "smallest": 33,
+    "fields": 14,
+    "readyRows": [
+      "-- Host session",
+      "ok Private window allowed (to prove a login)",
+      "-- Recovery key pinned (to back a candidate up)",
+      "-- Credentials held: 0"
+    ]
+  },
+  {
+    "state": "ready",
+    "name": "desktop",
+    "width": 1280,
+    "file": "options-ready-desktop.png",
+    "errors": [],
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "height": 1762,
+    "smallest": 33,
+    "fields": 14,
+    "readyRows": [
+      "ok Host session",
+      "ok Private window allowed (to prove a login)",
+      "ok Recovery key pinned (to back a candidate up)",
+      "ok Credentials held: 1"
+    ]
+  },
+  {
+    "state": "ready",
+    "name": "phone",
+    "width": 390,
+    "file": "options-ready-phone.png",
+    "errors": [],
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "height": 1762,
+    "smallest": 33,
+    "fields": 14,
+    "readyRows": [
+      "ok Host session",
+      "ok Private window allowed (to prove a login)",
+      "ok Recovery key pinned (to back a candidate up)",
+      "ok Credentials held: 1"
+    ]
+  }
+]

@@ -20,22 +20,9 @@ use opensesame_storage::Db;
 /// Returns an error when a production Host has no sealing key, or when an
 /// existing row cannot be sealed or scrubbed.
 pub async fn install(db: &Db, config: &BrokerConfig, production: bool) -> anyhow::Result<()> {
-    let scrubbed = db.scrub_legacy_failure_text().await?;
-    if scrubbed > 0 {
-        tracing::info!(
-            scrubbed,
-            "scrubbed failure text an older build stored as it came"
-        );
-    }
+    scrub_failure_text(db).await?;
     match config.key() {
-        Some(key) => {
-            opensesame_event_seal::install(key);
-            let sealed = db.seal_legacy_events().await?;
-            if sealed > 0 {
-                tracing::info!(sealed, "sealed event values an older build left in the clear");
-            }
-            Ok(())
-        }
+        Some(key) => seal_events(db, key).await,
         None if production => anyhow::bail!(
             "OPENSESAME_CONNECTION_KEY must be set on a networked or production Host: the Host's events (outbox, deliveries, receipts, signing and approval records) are sealed at rest under it"
         ),
@@ -46,4 +33,29 @@ pub async fn install(db: &Db, config: &BrokerConfig, production: bool) -> anyhow
             Ok(())
         }
     }
+}
+
+/// Scrub the failure text an older build stored as it came.
+async fn scrub_failure_text(db: &Db) -> anyhow::Result<()> {
+    let scrubbed = db.scrub_legacy_failure_text().await?;
+    if scrubbed > 0 {
+        tracing::info!(
+            scrubbed,
+            "scrubbed failure text an older build stored as it came"
+        );
+    }
+    Ok(())
+}
+
+/// Install the sealer under `key`, then seal what an older build left in the clear.
+async fn seal_events(db: &Db, key: &[u8; 32]) -> anyhow::Result<()> {
+    opensesame_event_seal::install(key);
+    let sealed = db.seal_legacy_events().await?;
+    if sealed > 0 {
+        tracing::info!(
+            sealed,
+            "sealed event values an older build left in the clear"
+        );
+    }
+    Ok(())
 }

@@ -32,6 +32,7 @@ import { composeState } from "./lib/capability-compose-state.mjs";
 import { publicPathTarget } from "./lib/capability-distribution.mjs";
 import { VIRTUAL_MODULES, canonicalJson } from "./lib/capability-graph.mjs";
 import { formatViolations, violations } from "./lib/capability-invariants.mjs";
+import { lazyLeafChunk } from "./lib/capability-lazy-leaves.mjs";
 import { walk } from "./lib/verify-dist-checks.mjs";
 
 export { loadInventory } from "./lib/capability-compose-state.mjs";
@@ -97,43 +98,6 @@ function partitionable(id) {
   if (id.startsWith("\0")) return false;
   if (/\.(css|scss|sass|less|styl)(\?|$)/.test(id)) return false;
   return toPosix(id).includes("/src/modules/");
-}
-
-/**
- * Optional import() leaves, one chunk each. Rollup otherwise fused the
- * agent SDKs, so loading one evaluated the others. A row applies only
- * when classification matches that capability.
- */
-const LAZY_LEAVES = [
-  ["/src/tutorial/agents/prompt-api/", "support.local-ai", "agent-prompt-api"],
-  ["/src/tutorial/agents/ag-ui/", "support.remote-ai", "agent-ag-ui"],
-  ["/src/tutorial/agents/provider/", "support.remote-ai", "agent-provider"],
-  ["/packages/webmcp/src/", "agents.webmcp", "webmcp-sdk"],
-  // The SDKs behind the agents, which Rollup fused the same way.
-  ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
-  ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
-  ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
-  // Live sessions' carriers (ADR 0150 §6): each client loads only when a
-  // session names its kind, never when the capability activates.
-  ["/src/modules/sharing.live/carriers/mqtt", "sharing.live", "live-mqtt"],
-  ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
-  ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
-  ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
-  [
-    "/packages/app-core/src/lib/vault/environments",
-    "vault.environments",
-    "cap-vault.environments",
-  ],
-  ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
-  ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
-];
-
-function lazyLeafChunk(id, entry) {
-  const path = toPosix(id);
-  for (const [dir, capability, name] of LAZY_LEAVES) {
-    if (path.includes(dir) && entry.capability === capability) return name;
-  }
-  return undefined;
 }
 
 function installManualChunks(build, state) {
