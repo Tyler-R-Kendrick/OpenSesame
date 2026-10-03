@@ -79,7 +79,25 @@ export function ConnectionsSection() {
   const [catalogError, setCatalogError] = useState<LoadFailure | null>(null);
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
   const [loading, setLoading] = useState(false);
-  const [flash, setFlash] = useState<Flash | null>(null);
+  // A flash belongs to the page that raised it: the list, or one provider. It
+  // is recorded with that scope and read back only on it, so an error from
+  // provider A never renders — or reaches the bell — on provider B.
+  const flashScope = providerId ?? "connections";
+  const [flashed, setFlashed] = useState<{
+    scope: string;
+    flash: Flash;
+  } | null>(null);
+  const flash = flashed?.scope === flashScope ? flashed.flash : null;
+  const setFlash = useCallback(
+    (next: Flash | null) =>
+      setFlashed(next ? { scope: flashScope, flash: next } : null),
+    [flashScope],
+  );
+  useEffect(() => {
+    setFlashed((current) =>
+      current && current.scope !== flashScope ? null : current,
+    );
+  }, [flashScope]);
   const [rememberOffer, setRememberOffer] = useState<{
     provider: Provider;
     connection: Connection;
@@ -87,7 +105,7 @@ export function ConnectionsSection() {
 
   useFlashNotice(
     flash,
-    providerId ?? "connections",
+    flashScope,
     providers?.find((item) => item.id === providerId)?.displayName ??
       "Connections",
   );
