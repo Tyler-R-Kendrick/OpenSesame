@@ -40,9 +40,15 @@ export function applyUnlockSubmitFailure(input: {
   input.setProtectorSecret("");
   input.setPin("");
   input.setTotp("");
-  if (input.awaitingSecondStep) input.totpRef.current?.focus();
-  else if (input.activeMethod === "pin") input.pinRef.current?.focus();
-  else if (input.activeMethod === "recovery" || input.activeMethod === "age")
-    input.protectorRef.current?.focus();
-  else input.passwordRef.current?.focus();
+  // The field is disabled while the attempt is in flight, and focus() on a
+  // disabled control does nothing — a browser also drops focus from a control
+  // the moment it is disabled. Put the caret back once the form has re-enabled.
+  const target = input.awaitingSecondStep
+    ? input.totpRef
+    : input.activeMethod === "pin"
+      ? input.pinRef
+      : input.activeMethod === "recovery" || input.activeMethod === "age"
+        ? input.protectorRef
+        : input.passwordRef;
+  setTimeout(() => target.current?.focus(), 0);
 }

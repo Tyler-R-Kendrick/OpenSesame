@@ -605,6 +605,14 @@
     min-height: 2.75rem;
   }
 
+  /* The method tabs are keys too: Password, PIN, Passkey and each protector a
+     vault enrolled (ADR 0152). Padding grows the box and the label stays on
+     the baseline the underline already sits under. */
+  .unlock__method {
+    min-height: 2.75rem;
+    padding-bottom: 0.35rem;
+  }
+
   /* Every road off this screen is a key a thumb can hit. The guest roads
      especially: they are the ones a person with no account has, and a 20px
      underline at the corner of a phone is a road only a mouse can take. */

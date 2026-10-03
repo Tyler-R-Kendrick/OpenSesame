@@ -7,6 +7,8 @@
 //     pnpm --filter @opensesame/pages verify:auth
 //
 // Guest enrollment walks through a PIN first; password enrollment starts at MFA.
+// Journey 3 (lib/auth-flow-protector.mjs) opens a vault from an enrolled
+// recovery key (ADR 0152): exact tabs, wrong key refused, code still asked.
 // The vault is its own authenticator (ADR 0113): the guest road opens with the
 // code supplied in memory — never shown — while the password road trashes the
 // registered entry first and walks the manual code road it leaves behind.
@@ -25,6 +27,7 @@ import {
   readSeed,
   withdrawSelfAuthenticator,
 } from "./lib/auth-flow-enroll.mjs";
+import { protectorJourney } from "./lib/auth-flow-protector.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
 import { openSessionSection } from "./lib/session-section.mjs";
@@ -366,6 +369,23 @@ const browser = await chromium.launch(launch);
   });
   await context.close();
 }
+
+// ---- 3: a vault opened from an enrolled protector (ADR 0152)
+await protectorJourney({
+  browser,
+  newPage,
+  check,
+  snap,
+  setStep: (name) => {
+    step = name;
+  },
+  openSecurity,
+  lock,
+  PASSWORD,
+  ORIGIN,
+  BASE,
+  totp,
+});
 
 await browser.close();
 fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));

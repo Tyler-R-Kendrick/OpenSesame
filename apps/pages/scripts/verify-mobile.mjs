@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
+import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import {
   AUDIT,
@@ -266,6 +267,22 @@ async function walk(browser, phone) {
   await context.close();
 }
 
+/** The unlock screen of a vault with an enrolled recovery key (ADR 0152). */
+async function protectorUnlock(browser, phone) {
+  const { page, context } = await harness.newPage(browser, {
+    device: phoneContext(phone),
+  });
+  await protectorUnlockStops(page, {
+    harness,
+    audit,
+    openTab,
+    stop: (name) => `${phone.name}-${name}`,
+    origin,
+    base,
+  });
+  await context.close();
+}
+
 /**
  * A finger above 900px: the arrangement the phone roads never reach.
  *
@@ -334,7 +351,10 @@ async function tablet(browser, size) {
 checkSafeAreas();
 const browser = await harness.launch();
 try {
-  for (const phone of PHONES) await walk(browser, phone);
+  for (const phone of PHONES) {
+    await walk(browser, phone);
+    await protectorUnlock(browser, phone);
+  }
   for (const size of TABLETS) await tablet(browser, size);
 } finally {
   await browser.close();
