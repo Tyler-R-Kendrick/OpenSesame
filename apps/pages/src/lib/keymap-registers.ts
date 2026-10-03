@@ -55,10 +55,15 @@ function stopRecording(state: RegisterState): void {
   if (recording === null) return;
   state.recording = null;
   const next = withRecording(loadKeymap(), recording.register, recording.steps);
-  const kept = next !== null && saveKeymap(next).ok;
-  state.announcement = kept
+  // An empty recording is nothing; one with steps storage refused is not.
+  if (next === null) {
+    state.announcement = `nothing recorded in @${recording.register}`;
+    return;
+  }
+  const saved = saveKeymap(next);
+  state.announcement = saved.ok
     ? `recorded @${recording.register}`
-    : `nothing recorded in @${recording.register}`;
+    : `@${recording.register} not kept: ${saved.message}`;
 }
 
 /**

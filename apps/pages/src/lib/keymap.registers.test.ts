@@ -89,6 +89,23 @@ describe("recording a register", () => {
     release();
   });
 
+  it("announces the save's own error when storage refuses a recording with steps", () => {
+    const { release, type } = setup();
+    type("q", "e", "j", "k");
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    type("q");
+    set.mockRestore();
+    expect(pendingSnapshot().announcement).toBe(
+      "@e not kept: The keymap could not be saved on this device.",
+    );
+    expect(loadKeymap().macros["q-e"]).toBeUndefined();
+    release();
+  });
+
   it("writes a bound macro's steps in, since a macro cannot name another", () => {
     const saved = saveKeymap({
       bindings: { "Space h": "macro.hop" },
