@@ -1,4 +1,4 @@
-//! What the Host's web-login runner reads and writes (ADR 0076, ADR 0156):
+//! What the Host's web-login runner reads and writes (ADR 0076, ADR 0159):
 //! the recipes it may replay ([`recipes`]), and the agent-hooks record of each
 //! run. There is one writer of recipes, [`recipes`], which derives a recipe's
 //! trust from a verification and never takes one as an input.

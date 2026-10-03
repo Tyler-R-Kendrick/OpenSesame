@@ -23,7 +23,7 @@ mod delegations;
 mod device;
 mod est_enrollment;
 mod est_records;
-mod est_server;
+pub(crate) mod est_server;
 mod est_wire;
 pub(crate) mod github_app;
 mod grant_offers;
@@ -33,7 +33,7 @@ mod intents;
 mod intents_budget;
 mod intents_projection;
 mod kv_facade;
-mod lifecycle;
+pub(crate) mod lifecycle;
 mod local_authority_routes;
 mod nats_callout;
 mod protected_resource;
@@ -44,7 +44,7 @@ mod secret_config_policy;
 #[cfg(test)]
 mod secret_config_policy_tests;
 mod secret_configs;
-mod security;
+pub(crate) mod security;
 mod session;
 mod session_coordination;
 pub(crate) mod shared_sessions;
@@ -361,9 +361,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
         .route("/api/v1/tasks/{id}", get(tasks::get_task))
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
-        // ADR 0156: agent-hooks verdicts and the organization's hook policy.
+        // ADR 0159: agent-hooks verdicts and the organization's hook policy.
         .merge(agent_hooks::routes())
-        // ADR 0076 §4, ADR 0156: the recipes a web-login run replays, and their signers.
+        // ADR 0076 §4, ADR 0159: the recipes a web-login run replays, and their signers.
         .merge(web_login_recipes::routes())
         .merge(aauth::routes());
     // Vault KV v2 read facade (ops plane, default off). Merged rather than

@@ -222,7 +222,7 @@ before it settled; whether the site received the change is unknown*.
 
 Every run the Host executes is an
 [agent-hooks/0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md)
-session ([ADR 0156](../adr/0156-agent-hooks-interceptor.md)). The Host does not
+session ([ADR 0159](../adr/0159-agent-hooks-interceptor.md)). The Host does not
 call the executor bare. `Harness::open` in `crates/gateway/src/web_login/launch.rs`
 builds a `HookedTransport` over an `ExtensionTransport` whose step channel is the
 step queue, registers the organization's own `OpenSesameInterceptor` (and, when an
@@ -266,7 +266,7 @@ agent_startup -> input -> [ pre_tool_call -> step queue -> driver -> post_tool_c
 ## The extension runner
 
 The default browser extension is the local runner of the step protocol
-(`apps/browser-extension/runner`, ADR 0156 §16). It is the driver on the far side of
+(`apps/browser-extension/runner`, ADR 0159 §16). It is the driver on the far side of
 the queue for a run whose credential its person owns: it claims a step with the
 person's Host session, executes it in the isolated world of the one tab on the run's
 origin, and settles an outcome built by closed constructors that mirror the Host's
@@ -326,7 +326,7 @@ hooked path above is wired in `crates/gateway/src/web_login`.
 | Live observation lanes, frame admission, control lease | `crates/session-observe` (exists; ADR 0081) |
 | Sealed observation log, attach ceremony, WSS relay | `crates/storage`, `crates/gateway/src/routes/rotation.rs` |
 | Registry entries | `packages/capability-registry/src/index.ts`, `agent-hooks.ts`, `web-login-recipes.ts`, `extension-runner.ts`, then regenerate `capabilities.json` |
-| Hooked executor, signed recipe document | `crates/rotation-web/src/hooks`, `crates/rotation-web/src/recipe_doc` (ADR 0156) |
+| Hooked executor, signed recipe document | `crates/rotation-web/src/hooks`, `crates/rotation-web/src/recipe_doc` (ADR 0159) |
 | Runner, claim, reaper, settle route, recipe and signer routes | `crates/gateway/src/web_login`, `crates/gateway/src/routes/{agent_runs,web_login_recipes}*`, `crates/storage/src/web_login_runs*` |
 | Local runner | `apps/browser-extension/runner` |
 

@@ -11,6 +11,7 @@ use opensesame_domain::{
 };
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
+use opensesame_session_observe::{NoRunCredentials, RunCredentials};
 use opensesame_storage::Db;
 use opensesame_task_access::{
     distributed_task_authority_ok, is_postgres_database_url, PostgresTaskStore,
@@ -131,12 +132,17 @@ pub struct AppState {
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,
     /// The web-login runs this process has started, tracked and bounded
-    /// (ADR 0156). The lifecycle scanner starts a run here and moves on.
+    /// (ADR 0159). The lifecycle scanner starts a run here and moves on.
     pub web_login_runs: Arc<crate::web_login::registry::RunRegistry>,
-    /// The operator's approver for escalated agent actions (ADR 0156): the
+    /// The operator's approver for escalated agent actions (ADR 0159): the
     /// Identity API and the requester's bearer on it. `None` when the
     /// deployment configured none, which leaves every escalation a denial.
     pub agent_hook_approver: Option<Arc<crate::agent_hook_approver::ApproverSettings>>,
+    /// What a sandboxed run's lease revokes when the agent stops driving
+    /// (ADR 0150 §6.2). The Host issues no surrogates itself, so this is
+    /// [`NoRunCredentials`] until an embedder that does supplies its own; the
+    /// lease hooks in `run_lease` call it either way.
+    pub run_credentials: Arc<dyn RunCredentials + Send + Sync>,
 }
 
 impl AppState {
@@ -166,6 +172,10 @@ async fn build_with_security(
     } else {
         Db::connect_sqlite(&args.database_url).await?
     };
+    // Before anything writes an event: they rest sealed (ADR 0157).
+    let broker_config = BrokerConfig::from_env()?;
+    let production = security.deployment.production_safeguards();
+    crate::event_sealing::install(&db, &broker_config, production).await?;
 
     let mut boot =
         bootstrap::maybe_demo_bootstrap(&db, security.deployment, security.receipt_signer).await?;
@@ -179,10 +189,7 @@ async fn build_with_security(
         .demo
         .as_ref()
         .map_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()), |b| b.org);
-    let connection_broker = Arc::new(ConnectionBroker::new(
-        db.pool().clone(),
-        BrokerConfig::from_env()?,
-    )?);
+    let connection_broker = Arc::new(ConnectionBroker::new(db.pool().clone(), broker_config)?);
     // Community Wasm connectors (ADR 0065 §5): loaded only when the operator
     // configured a directory + pinned digests; any failure refuses boot.
     crate::connector_egress::load_wasm_connectors(
@@ -196,7 +203,7 @@ async fn build_with_security(
 
     let transport_config =
         crate::transport::config::TransportConfig::from_env().map_err(anyhow::Error::new)?;
-    // A partially configured approver refuses to start (ADR 0156): it would
+    // A partially configured approver refuses to start (ADR 0159): it would
     // otherwise fail at the first escalation, hours into a rotation.
     let approver =
         crate::agent_hook_approver::ApproverSettings::from_env().map_err(anyhow::Error::new)?;
@@ -237,6 +244,7 @@ async fn build_with_security(
         transport: None,
         web_login_runs: Arc::new(crate::web_login::registry::RunRegistry::from_env()),
         agent_hook_approver: approver.map(Arc::new),
+        run_credentials: Arc::new(NoRunCredentials),
     };
     // Built after the state exists: a `managed` identity source resolves
     // through the Host's own custody bridge, which needs the state.

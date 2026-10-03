@@ -1,4 +1,4 @@
-//! Whether a runner already holds a web-login job for a target (ADR 0156).
+//! Whether a runner already holds a web-login job for a target (ADR 0159).
 //!
 //! The Host's in-process registry keeps one run per `(organization, origin)`
 //! inside one process. Replicas share a database and not a registry, so the

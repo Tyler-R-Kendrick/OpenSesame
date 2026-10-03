@@ -186,14 +186,14 @@ pub struct OfferView {
 }
 
 /// Returned once, at mint. The token and code are never stored or shown again.
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct MintedOffer {
     pub offer: OfferView,
     pub claim_token: String,
     pub user_code: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct ClaimOfferRequest {
     pub claim_token: String,
     pub user_code: String,

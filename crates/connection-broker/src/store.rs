@@ -16,6 +16,9 @@ use crate::crypto::SealedBlob;
 use crate::error::{BrokerError, Result};
 use crate::model::{BindingTargetKind, BindingView, ConnectionStatus, EventKind, EventView};
 
+#[path = "event_view.rs"]
+mod event_view;
+
 #[derive(Clone, Debug)]
 pub struct ConnectionRow {
     pub id: String,
@@ -262,7 +265,7 @@ pub async fn transition_unless_revoked(
             .bind(uuid::Uuid::now_v7().to_string())
             .bind(id)
             .bind(event_kind.as_str())
-            .bind(event_detail)
+            .bind(opensesame_event_seal::seal_opt("connection_events.detail", event_detail))
             .bind(&now)
             .execute(&mut *transaction)
             .await?;
@@ -315,7 +318,7 @@ pub async fn invalidate_credential_unless_revoked(
         .bind(uuid::Uuid::now_v7().to_string())
         .bind(id)
         .bind(event_kind.as_str())
-        .bind(detail)
+        .bind(opensesame_event_seal::seal("connection_events.detail", detail))
         .bind(&now)
         .execute(&mut *transaction)
         .await?;
@@ -536,7 +539,7 @@ pub async fn activate_credential_unless_revoked(
             .bind(uuid::Uuid::now_v7().to_string())
             .bind(&c.connection_id)
             .bind(activation.event_kind.as_str())
-            .bind(activation.event_detail)
+            .bind(opensesame_event_seal::seal_opt("connection_events.detail", activation.event_detail))
             .bind(&now)
         .execute(&mut *transaction)
         .await?;
@@ -880,7 +883,7 @@ pub async fn append_event(
     .bind(uuid::Uuid::now_v7().to_string())
     .bind(connection_id)
     .bind(kind.as_str())
-    .bind(detail)
+    .bind(opensesame_event_seal::seal_opt("connection_events.detail", detail))
     .bind(Utc::now().to_rfc3339())
     .execute(pool)
     .await?;
@@ -897,15 +900,7 @@ pub async fn list_events(pool: &SqlitePool, connection_id: &str) -> Result<Vec<E
     .bind(connection_id)
     .fetch_all(pool)
     .await?;
-    Ok(rows
-        .iter()
-        .map(|r| EventView {
-            id: r.get("id"),
-            kind: r.get("kind"),
-            detail: r.get("detail"),
-            at: r.get("at"),
-        })
-        .collect())
+    rows.iter().map(event_view::event_view).collect()
 }
 
 // ---- sync_targets -----------------------------------------------------------

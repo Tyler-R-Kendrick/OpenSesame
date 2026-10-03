@@ -1,4 +1,4 @@
--- ADR 0156: who an organization's escalated agent actions are put to.
+-- ADR 0159: who an organization's escalated agent actions are put to.
 --
 -- The hook policy decides *whether* an action needs a person; this row says
 -- *which* person. It is a sibling of `agent_hook_policies`, not a field of

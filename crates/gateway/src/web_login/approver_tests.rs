@@ -1,5 +1,5 @@
 //! A hooked web-login run whose policy escalates a verb, with the Identity API
-//! replaced by a local server (ADR 0156): the run is held until the person is
+//! replaced by a local server (ADR 0159): the run is held until the person is
 //! reached and approves — an approval bound to this very request — and then
 //! proceeds. A refusal, a deadline, an approval bound to some other request,
 //! an organization nobody is named for, and a deployment with no approver all

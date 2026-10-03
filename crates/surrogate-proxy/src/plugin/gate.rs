@@ -16,7 +16,7 @@
 
 use std::path::{Path, PathBuf};
 
-use opensesame_plugin_settings::{sha256_file, PluginSettings, SettingsError};
+use opensesame_plugin_settings::{sha256_file, PluginSettings, PluginState, SettingsError};
 
 /// The catalog id this binary answers to.
 pub const PLUGIN_ID: &str = "surrogate-proxy";
@@ -48,12 +48,20 @@ impl From<SettingsError> for GateError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Admitted {
     settings_path: PathBuf,
+    state: PluginState,
 }
 
 impl Admitted {
     #[must_use]
     pub fn settings_path(&self) -> &Path {
         &self.settings_path
+    }
+
+    /// The switch as it stood when the plugin was admitted: what arms a
+    /// declared login substitution (`LoginRoad::choose`).
+    #[must_use]
+    pub fn state(&self) -> &PluginState {
+        &self.state
     }
 }
 
@@ -70,7 +78,8 @@ pub fn admit(
     env: impl Fn(&str) -> Option<String>,
 ) -> Result<Admitted, GateError> {
     let settings = PluginSettings::load(settings_path)?;
-    if !settings.state(PLUGIN_ID, &env)?.active {
+    let state = settings.state(PLUGIN_ID, &env)?;
+    if !state.active {
         return Err(GateError::NotActive);
     }
     settings.verified_binary(PLUGIN_ID, &env)?;
@@ -85,6 +94,7 @@ pub fn admit(
     }
     Ok(Admitted {
         settings_path: settings_path.to_path_buf(),
+        state,
     })
 }
 

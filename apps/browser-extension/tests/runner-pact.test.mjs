@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-// The local runner's structural pacts (ADR 0076, 0079, 0082, 0149, 0156): what
+// The local runner's structural pacts (ADR 0076, 0079, 0082, 0149, 0159): what
 // the source may not contain and the order its decisions must be made in. The
 // behavioural pacts — a fake Host, a full recipe walk, the negative cases —
 // are the vitest suites beside the code in runner/.

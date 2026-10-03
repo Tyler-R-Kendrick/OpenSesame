@@ -1,5 +1,5 @@
 //! The interaction request digest, recomputed here rather than trusted
-//! (ADR 0086, ADR 0156).
+//! (ADR 0086, ADR 0159).
 //!
 //! The Identity API computes an interaction's `requestDigest` over what is
 //! being asked, and a person's approval is bound to that digest. The approver

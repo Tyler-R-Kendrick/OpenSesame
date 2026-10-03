@@ -21,7 +21,7 @@ login-surrogate = [
 
 [dependencies]
 # The canonical agent-hooks core (MIT, responsibleai/agent-hooks): this crate
-# is an agent-hooks/0.1 *host* for its own runs (ADR 0156). Pinned exactly,
+# is an agent-hooks/0.1 *host* for its own runs (ADR 0159). Pinned exactly,
 # with the same pin as crates/agent-hooks — the contract is pre-1.0, and the
 # vendored CTK corpus in spec/agent-hooks/conformance moves with this line.
 agent-hooks-sdk = "=0.1.0-alpha.5"

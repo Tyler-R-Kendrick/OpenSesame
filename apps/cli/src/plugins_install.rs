@@ -114,9 +114,9 @@ pub(crate) async fn install(
             }
         }
     };
-    let mut settings = PluginSettings::load(settings_path)?;
-    settings.record_install(&plugin.id, &version, &pin, &location)?;
-    settings.save(settings_path)?;
+    PluginSettings::update(settings_path, |settings| {
+        settings.record_install(&plugin.id, &version, &pin, &location)
+    })?;
     Ok(json!({
         "installed": plugin.id,
         "version": version,
@@ -236,21 +236,21 @@ async fn download(url: &str, partial: &Path) -> anyhow::Result<()> {
 /// a tampered settings file cannot aim this at an arbitrary path.
 pub(crate) fn remove(settings_path: &Path, root: &Path, id: &str) -> anyhow::Result<Value> {
     let plugin = row(id)?;
-    let mut settings = PluginSettings::load(settings_path)?;
     let own = root.join(&plugin.id);
-    let outside = settings
-        .plugins
-        .get(id)
-        .filter(|p| {
-            plugin.kind == PluginKind::NativeBinary && !Path::new(&p.location).starts_with(&own)
-        })
-        .map(|p| p.location.clone());
-    let files = own.exists();
-    if files {
-        std::fs::remove_dir_all(&own)?;
-    }
-    let record = settings.remove(id);
-    settings.save(settings_path)?;
+    let (outside, files, record) = PluginSettings::update(settings_path, |settings| {
+        let outside = settings
+            .plugins
+            .get(id)
+            .filter(|p| {
+                plugin.kind == PluginKind::NativeBinary && !Path::new(&p.location).starts_with(&own)
+            })
+            .map(|p| p.location.clone());
+        let files = own.exists();
+        if files {
+            std::fs::remove_dir_all(&own)?;
+        }
+        Ok((outside, files, settings.remove(id)))
+    })?;
     Ok(json!({
         "removed": plugin.id,
         "record": record,

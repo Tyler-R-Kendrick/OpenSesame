@@ -1,4 +1,4 @@
-//! A hosted run's agent-hooks record, read (ADR 0156, ADR 0081).
+//! A hosted run's agent-hooks record, read (ADR 0159, ADR 0081).
 //!
 //! A run the Host opened has no viewer key to seal a log to (ADR 0081 §9 puts
 //! that key in the owner's client), so its sealed log is empty by construction

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150: the keymap lives in storage, so a second tab can change it. The
+ * ADR 0156: the keymap lives in storage, so a second tab can change it. The
  * shell reads it again on `storage` and `focus`, only when it differs from the
  * live copy, and never empties a keymap it cannot read back.
  */

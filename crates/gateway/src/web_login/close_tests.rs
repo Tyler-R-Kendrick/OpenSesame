@@ -1,4 +1,4 @@
-//! A run is closed durably before its rotation is settled (ADR 0156): a close
+//! A run is closed durably before its rotation is settled (ADR 0159): a close
 //! that fails is retried with backoff and the job stays unsettled until it
 //! lands; one that cannot ever land parks the job for reconciliation, with a
 //! detail that says why.

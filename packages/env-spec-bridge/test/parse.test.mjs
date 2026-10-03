@@ -47,6 +47,27 @@ LEAKY=sk_live_should_not_appear_when_sensitive
   }
 });
 
+test("a surrogate's declared scope reaches Rust as keyed resolver args", () => {
+  const path = join(__dirname, "tmp-scope.env.schema");
+  writeFileSync(
+    path,
+    `# @defaultSensitive=false
+# ---
+
+# @required @sensitive
+GITHUB_TOKEN=opensesameConnection(conn://demo/github, projection=legacy-token, paths="/repos/acme,/user", methods="GET,POST")
+`,
+  );
+  try {
+    const { resolver } = parseSchemaFile(path).items[0];
+    const arg = (key) => resolver.args.find((a) => a.key === key)?.value;
+    assert.equal(arg("paths"), "/repos/acme,/user");
+    assert.equal(arg("methods"), "GET,POST");
+  } finally {
+    unlinkSync(path);
+  }
+});
+
 test("adversarial: missing schema path exits 2", () => {
   let stderr = "";
   assert.equal(

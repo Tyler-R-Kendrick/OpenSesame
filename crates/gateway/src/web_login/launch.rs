@@ -201,7 +201,7 @@ impl WebLoginLauncher {
     /// # Errors
     ///
     /// [`HeldElsewhere`] when a runner on another replica already holds a job
-    /// for the target (the broker refuses the insert, ADR 0156).
+    /// for the target (the broker refuses the insert, ADR 0159).
     pub(super) async fn request_and_run(
         &self,
         organization_id: &OrganizationId,

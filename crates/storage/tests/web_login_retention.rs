@@ -1,5 +1,5 @@
 //! What outlives a web-login run and what a crashed process strands
-//! (ADR 0076 §5, ADR 0081, ADR 0156): retention removes a run's whole
+//! (ADR 0076 §5, ADR 0081, ADR 0159): retention removes a run's whole
 //! footprint, the reaper's queries find only runs nobody is running, and the
 //! step queue is closed to everything but the agent's own turn.
 

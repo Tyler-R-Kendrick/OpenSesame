@@ -15,7 +15,7 @@ import { requesterRef } from "./interaction-handles.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /**
- * The requester withdraws an authorization request (ADR 0046, ADR 0156).
+ * The requester withdraws an authorization request (ADR 0046, ADR 0159).
  *
  * An inbox item lives until somebody answers it or it lapses, and a requester
  * that gives up — the agent it was raised for was cancelled, a host's own

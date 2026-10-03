@@ -1,5 +1,5 @@
 //! What outlives a web-login run, and what a crashed process leaves behind
-//! (ADR 0076 §5, ADR 0081, ADR 0156).
+//! (ADR 0076 §5, ADR 0081, ADR 0159).
 //!
 //! Two jobs, both owned by the gateway's actors and both defined here so the
 //! SQL that decides them is beside the tables it touches:

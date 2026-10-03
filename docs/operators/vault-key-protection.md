@@ -22,9 +22,41 @@ for the call; a cloud protector whose credential is in the vault it protects is
 a path for someone holding that credential elsewhere, not a way into this vault
 from this browser.
 
-Only password, PIN and passkey wraps enrolled under **Unlock methods** open the
-vault at the unlock screen; **Preferred** chooses among them, and their rows are
-removed under Unlock methods. Every other method is a capsule that Test opens.
+What opens the vault at the unlock screen, and when:
+
+| Method | Unlock tab | Needs |
+| --- | --- | --- |
+| Password, PIN, passkey wraps (**Unlock methods**) | Password, PIN, Passkey | what each always needed; their rows are removed under Unlock methods |
+| Recovery key (verified) | Recovery key | the secret shown once at enrollment, typed |
+| age recipient (verified) | Age key | the age identity, typed |
+| age passkey (verified) | Age passkey | the passkey |
+| Passkey capsule enrolled here (verified) | Passkey | the passkey |
+| AWS KMS, Google Cloud KMS | never | — a credential sealed in the vault cannot open that vault |
+
+A tab appears only for a protector that is enrolled and **Verified**: an age
+recipient that is still *Untested* has to be tested with its identity first. The
+tabs are the same on a locked screen as in Settings, so a protector you remove
+here is gone from the unlock screen. A key typed at unlock counts toward the same
+lockout as a password, an enrolled authenticator code is still asked for
+afterwards, and a duress code typed in the key field opens the decoy. **Preferred**
+chooses which tab the screen opens on, among everything that opens the vault. A
+recovery key, age key or age passkey can open the vault but never stands in for
+the last password, PIN or passkey wrap, which Unlock methods keeps.
+
+What authenticates a record before the vault is open differs by kind. A recovery
+key and a passkey capsule are AES-GCM under a key only your material derives, so
+nobody without it can make one. An age recipient and an age passkey are public-key
+encryption with a public context, so anyone who can write the header can seal a
+capsule around a root of their choosing; what refuses it is the root itself,
+which must verify the manifest's MAC and then open the vault's own body. What
+protects the header from someone with write access to the device's storage is the
+at-rest seal (ADR 0149). The worst such a person can do to the unlock screen is
+deny a way in, never open the vault.
+
+With a two-input duress trigger that includes a passkey's PRF output (`prf_and_code`)
+armed, the roads that cannot carry that output are not offered: the Age passkey
+tab is absent, and the Passkey tab offers only the credential the trigger is bound
+to. Password, PIN and a typed recovery or age key are unaffected.
 
 YubiKey PIV, Azure Key Vault Keys and a device-local key are **not** enrolled in
 the browser (ADR 0152); the native client keeps them.

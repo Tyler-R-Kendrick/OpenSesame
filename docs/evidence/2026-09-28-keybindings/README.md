@@ -4,7 +4,7 @@ Before/after sheets from two real builds of `apps/pages` (base: `main` at
 `9ee047b8`; after: this branch), walked by `journey.json` with
 `apps/pages/scripts/capture-evidence.mjs`. Every number below was printed by
 the capture from the browser (`count`, `report`, `labels`, `measure`).
-[ADR 0150](../../adr/0150-keybindings-and-macros.md) records the decision.
+[ADR 0156](../../adr/0156-keybindings-and-macros.md) records the decision.
 
 ## Settings › Keybindings
 

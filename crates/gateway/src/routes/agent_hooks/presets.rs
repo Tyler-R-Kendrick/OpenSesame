@@ -1,4 +1,4 @@
-//! Named policy presets (ADR 0156, ADR 0139): `GET /api/v1/agent-hooks/presets`.
+//! Named policy presets (ADR 0159, ADR 0139): `GET /api/v1/agent-hooks/presets`.
 //!
 //! A preset is a [`HookPolicy`] with a name and a summary, written once as a
 //! file under `spec/agent-hooks/presets/` and embedded here and in the CLI

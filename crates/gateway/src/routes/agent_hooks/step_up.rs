@@ -1,4 +1,4 @@
-//! The step-up a change to the agent-hooks policy needs (ADR 0156, on ADR
+//! The step-up a change to the agent-hooks policy needs (ADR 0159, on ADR
 //! 0146's `step_up_required` and ADR 0084's recent-WebAuthn evidence).
 //!
 //! The policy governs agent loops, and an agent framework often runs under an

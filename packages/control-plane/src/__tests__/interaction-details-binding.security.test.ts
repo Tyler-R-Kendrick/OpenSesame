@@ -19,7 +19,7 @@ import {
 } from "./interaction-factory-helpers.js";
 
 /**
- * What a person approves is what the request carries (ADR 0086, ADR 0156).
+ * What a person approves is what the request carries (ADR 0086, ADR 0159).
  *
  * An interaction's digest is computed over the details its create call
  * carried, and the approver's WebAuthn activation is bound to that digest.

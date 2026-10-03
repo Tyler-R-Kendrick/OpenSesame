@@ -3,9 +3,9 @@
  * capabilities draw the same tile over the same daemon calls, so what they
  * share is `shared`: it imports no optional code, and reaches a page only
  * through one of the two modules (`src/modules/<id>/`, owned by its id).
- * The daemon port itself is the tailnet capability's
- * (`src/lib/tailnet-sync/plugin-daemon`, under `networking.tailnet`), which
- * both depend on.
+ * The daemon port and its pairing are the tailnet capability's
+ * (`src/lib/tailnet-sync/plugin-*`, under `networking.tailnet`), which both
+ * depend on.
  */
 
 import { shared } from "./classification-rule.js";

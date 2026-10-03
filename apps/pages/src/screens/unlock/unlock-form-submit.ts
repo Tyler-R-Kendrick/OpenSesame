@@ -1,7 +1,10 @@
 import type {
-  SecondStepId,
-  UnlockMethodId,
-} from "@opensesame/app-core/lib/vault/unlock-methods.js";
+  PasskeyProbe,
+  PasskeyProbeOptions,
+} from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
+import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
+import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
+import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import type { FormEvent, MutableRefObject } from "react";
 import {
   submitFirstRunUnlock,
@@ -11,6 +14,7 @@ import {
   submitSecondStepUnlock,
 } from "./unlock-form-paths.js";
 import { applyUnlockSubmitFailure } from "./unlock-submit-errors.js";
+import type { PendingFocus } from "./use-refocus-after-failure.js";
 
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
@@ -22,10 +26,18 @@ type UnlockStore = Readonly<{
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
   unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-  probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
+  probePasskeyCeremony: (
+    options?: PasskeyProbeOptions,
+  ) => Promise<PasskeyProbe>;
   unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
+  unlockWithProtector: (input: ProtectorUnlockInput) => Promise<void>;
+  probeProtector: (input: ProtectorUnlockInput) => Promise<ArrayBuffer>;
+  unlockWithHeldProtectorRoot: (
+    root: ArrayBuffer,
+    input: Pick<ProtectorUnlockInput, "method">,
+  ) => Promise<void>;
 }>;
 
 export async function submitUnlockForm(input: {
@@ -40,24 +52,28 @@ export async function submitUnlockForm(input: {
   awaitingPasskeyDuressCode: boolean;
   setAwaitingPasskeyDuressCode: (value: boolean) => void;
   recoveryMode: boolean;
-  activeMethod: UnlockMethodId;
+  activeMethod: UnlockTabId;
   activeSecondStep: SecondStepId | null;
   store: UnlockStore;
   passkeyAbort: MutableRefObject<AbortController | null>;
   pin: string;
   confirm: string;
   password: string;
+  protectorSecret: string;
   hint: string;
   recovery: string;
   totp: string;
   setPin: (value: string) => void;
   setConfirm: (value: string) => void;
   setPassword: (value: string) => void;
+  setProtectorSecret: (value: string) => void;
   setRecovery: (value: string) => void;
   setTotp: (value: string) => void;
   pinRef: MutableRefObject<HTMLInputElement | null>;
   passwordRef: MutableRefObject<HTMLInputElement | null>;
+  protectorRef: MutableRefObject<HTMLInputElement | null>;
   totpRef: MutableRefObject<HTMLInputElement | null>;
+  pendingFocus: PendingFocus;
 }): Promise<void> {
   input.event.preventDefault();
   if (input.busy) return;
@@ -93,11 +109,14 @@ export async function submitUnlockForm(input: {
       activeMethod: input.activeMethod,
       setError: input.setError,
       setPassword: input.setPassword,
+      setProtectorSecret: input.setProtectorSecret,
       setPin: input.setPin,
       setTotp: input.setTotp,
       totpRef: input.totpRef,
       pinRef: input.pinRef,
       passwordRef: input.passwordRef,
+      protectorRef: input.protectorRef,
+      pendingFocus: input.pendingFocus,
     });
   } finally {
     input.setBusy(false);

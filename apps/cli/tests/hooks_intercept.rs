@@ -1,6 +1,6 @@
 //! `opensesame hooks` driven through the real binary, the way an
 //! out-of-process agent-hooks host drives it: one `AgentContext` on standard
-//! input, one `Verdict` on standard output (ADR 0156).
+//! input, one `Verdict` on standard output (ADR 0159).
 
 use std::io::Write;
 use std::process::{Command, Output, Stdio};

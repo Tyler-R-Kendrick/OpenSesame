@@ -8,6 +8,7 @@ import type {
   RootProtectionManifest,
   VaultHeader,
 } from "@opensesame/vault-core";
+import { dependsOnVault } from "./lifecycle.js";
 import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 
 export type ProtectorViewRow = {
@@ -18,6 +19,8 @@ export type ProtectorViewRow = {
   identityLabel: string;
   proofStatus: ProtectionRecord["proofStatus"];
   legacy: boolean;
+  /** Its key is sealed in this vault: proved, but not a way back in (KP-37). */
+  dependsOnVault: boolean;
   currentlyListed: true;
 };
 
@@ -104,6 +107,7 @@ export function listProtectorViewRows(
     identityLabel: identityLabel(record),
     proofStatus: record.proofStatus,
     legacy: "legacy" in record ? record.legacy === true : false,
+    dependsOnVault: dependsOnVault(record),
     currentlyListed: true,
   }));
 }

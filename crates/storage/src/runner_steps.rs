@@ -12,6 +12,7 @@
 //! - a settled step always carries an outcome, because one without is a step
 //!   the executor waits on forever.
 
+use crate::sealed;
 use anyhow::Context;
 use sqlx::{sqlite::SqliteRow, Row};
 
@@ -38,19 +39,20 @@ pub struct StoredRunnerStep {
     pub updated_at: String,
 }
 
-fn step_from_row(row: &SqliteRow) -> StoredRunnerStep {
-    StoredRunnerStep {
+fn step_from_row(row: &SqliteRow) -> anyhow::Result<StoredRunnerStep> {
+    let request: String = row.get("request_json");
+    Ok(StoredRunnerStep {
         run_id: row.get("run_id"),
         organization_id: row.get("organization_id"),
         seq: row.get("seq"),
-        request_json: row.get("request_json"),
+        request_json: sealed::open("runner_steps.request_json", &request)?,
         state: row.get("state"),
         claimed_by: row.get("claimed_by"),
         claim_expires_at: row.get("claim_expires_at"),
-        outcome_json: row.get("outcome_json"),
+        outcome_json: sealed::open_opt("runner_steps.outcome_json", row.get("outcome_json"))?,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
-    }
+    })
 }
 
 const STEP_COLUMNS: &str = "run_id, organization_id, seq, request_json, state, claimed_by, \
@@ -126,7 +128,7 @@ impl Db {
         .bind(run_id)
         .bind(organization_id)
         .bind(seq)
-        .bind(request_json)
+        .bind(sealed::seal("runner_steps.request_json", request_json))
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
@@ -201,7 +203,7 @@ impl Db {
             .fetch_optional(self.pool())
             .await
             .context("read outstanding runner step")?;
-        Ok(row.as_ref().map(step_from_row))
+        row.as_ref().map(step_from_row).transpose()
     }
 
     /// One step by position, settled or not.
@@ -227,7 +229,7 @@ impl Db {
             .fetch_optional(self.pool())
             .await
             .context("read runner step")?;
-        Ok(row.as_ref().map(step_from_row))
+        row.as_ref().map(step_from_row).transpose()
     }
 
     /// Record a step's outcome. Only the claimant may, only while its claim is
@@ -270,7 +272,7 @@ impl Db {
                AND observation_runs.organization_id = runner_steps.organization_id \
                AND closed_at IS NULL)",
         )
-        .bind(outcome_json)
+        .bind(sealed::seal("runner_steps.outcome_json", outcome_json))
         .bind(now)
         .bind(organization_id)
         .bind(run_id)
@@ -309,7 +311,7 @@ impl Db {
             "UPDATE runner_steps SET outcome_json = ? \
              WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'settled'",
         )
-        .bind(outcome_json)
+        .bind(sealed::seal("runner_steps.outcome_json", outcome_json))
         .bind(organization_id)
         .bind(run_id)
         .bind(seq)

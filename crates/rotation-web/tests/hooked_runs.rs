@@ -1,4 +1,4 @@
-//! A whole run as one agent-hooks session (ADR 0156; agent-hooks/0.1 §3.1,
+//! A whole run as one agent-hooks session (ADR 0159; agent-hooks/0.1 §3.1,
 //! §6, §6.1a, §9), driven through the production entry points
 //! `run_change_password_hooked` and `run_capture_steps_hooked`.
 

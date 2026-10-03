@@ -9,7 +9,7 @@ import type { Capability, CapabilityExclusion } from "./types.js";
  * the extension's own messages, from its own pages, that put the runner on
  * and off and say what is ready.
  */
-const ADR_AGENT_HOOKS = "0156-agent-hooks-interceptor.md";
+const ADR_AGENT_HOOKS = "0159-agent-hooks-interceptor.md";
 
 /**
  * Arming is the person's consent to let software act inside one signed-in

@@ -25,6 +25,10 @@ pub const NOTICES_FILE: &str = "notices.jsonl";
 /// The rotated predecessor of [`NOTICES_FILE`].
 pub const NOTICES_ROTATED_FILE: &str = "notices.jsonl.1";
 
+/// The evidence file beside [`NOTICES_FILE`]: the Error-and-above notices, in
+/// a file that lower-severity traffic never rotates.
+pub const TRIPWIRES_FILE: &str = "tripwires.jsonl";
+
 /// `<dir of settings_path>/plugin-state/<id>`.
 ///
 /// # Errors
@@ -43,6 +47,15 @@ pub fn plugin_state_dir(settings_path: &Path, id: &str) -> Result<PathBuf, Setti
 /// `UnknownPlugin` for an id the catalog does not name.
 pub fn notices_path(settings_path: &Path, id: &str) -> Result<PathBuf, SettingsError> {
     Ok(plugin_state_dir(settings_path, id)?.join(NOTICES_FILE))
+}
+
+/// `<plugin state dir>/tripwires.jsonl`.
+///
+/// # Errors
+///
+/// `UnknownPlugin` for an id the catalog does not name.
+pub fn tripwires_path(settings_path: &Path, id: &str) -> Result<PathBuf, SettingsError> {
+    Ok(plugin_state_dir(settings_path, id)?.join(TRIPWIRES_FILE))
 }
 
 #[cfg(test)]

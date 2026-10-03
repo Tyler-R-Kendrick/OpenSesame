@@ -10,6 +10,11 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod login;
+mod scope;
+pub use login::{web_login, WebLogin, LOGIN_RESOLVER};
+pub use scope::{is_bounded_prefix, is_http_method};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnvSpecDocument {
     pub schema_path: String,
@@ -67,6 +72,9 @@ pub enum EnvSpecError {
     Bridge(String),
     #[error(transparent)]
     Domain(#[from] DomainError),
+    /// A `paths=` or `methods=` declaration that does not bound a surrogate.
+    #[error("{0}")]
+    Scope(String),
 }
 
 fn bridge_bin() -> PathBuf {
@@ -153,7 +161,7 @@ fn starts_with_from_type(t: Option<&Value>) -> Option<String> {
     None
 }
 
-fn arg_string(a: &EnvResolverArg) -> Option<String> {
+pub(crate) fn arg_string(a: &EnvResolverArg) -> Option<String> {
     match &a.value {
         Some(Value::String(s)) => Some(s.clone()),
         Some(v) => Some(v.to_string().trim_matches('"').to_string()),
@@ -193,6 +201,16 @@ pub struct ResolvedEnvEntry {
     pub projection: Option<LegacyProjection>,
     pub omitted: bool,
     pub warning: Option<String>,
+    /// A web login a surrogate stands in for (ADR 0150 §6.3). Always
+    /// `omitted`: only the surrogate-proxy plugin delivers anything for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub login: Option<WebLogin>,
+    /// The path prefixes the entry declared with `paths=` (ADR 0150 section
+    /// 8): the most a surrogate for it may reach. Empty when none were
+    /// declared, never defaulted to the root; the plugin issues nothing for a
+    /// served entry that has none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub path_prefixes: Vec<String>,
 }
 
 /// Unguessable, per-projection placeholder suffix.
@@ -218,10 +236,13 @@ fn resolve_connection_entry(
             projection: None,
             omitted: false,
             warning: None,
+            login: None,
+            path_prefixes: Vec::new(),
         });
     }
 
     policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
+    let declared = scope::declared(&item.key, resolver)?;
     let pattern = starts_with_from_type(item.r#type.as_ref()).unwrap_or_else(|| "ostest_*".into());
     let mut projection = LegacyProjection {
         env_var: item.key.clone(),
@@ -237,6 +258,9 @@ fn resolve_connection_entry(
         },
         delivery: CredentialDeliveryMode::Placeholder,
     };
+    if let Some(methods) = declared.methods {
+        projection.placement.methods = methods;
+    }
     // A fresh suffix binds substitution to this projection instead of a
     // shared or guessable placeholder with the same shape.
     let placeholder = projection.shaped_placeholder(&placeholder_suffix());
@@ -249,6 +273,8 @@ fn resolve_connection_entry(
         projection: Some(projection),
         omitted: false,
         warning: None,
+        login: None,
+        path_prefixes: declared.path_prefixes,
     })
 }
 
@@ -266,9 +292,15 @@ fn resolve_item(
             projection: None,
             omitted: false,
             warning: None,
+            login: None,
+            path_prefixes: Vec::new(),
         }));
     }
     if let Some(resolver) = &item.resolver {
+        if resolver.fn_name == LOGIN_RESOLVER {
+            policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
+            return Ok(Some(login::resolve_login(item, resolver)));
+        }
         let Some(uri) = connection_uri_from_resolver(resolver) else {
             return Ok(Some(ResolvedEnvEntry {
                 key: item.key.clone(),
@@ -278,6 +310,8 @@ fn resolve_item(
                 projection: None,
                 omitted: true,
                 warning: Some(format!("unresolved resolver {}", resolver.fn_name)),
+                login: None,
+                path_prefixes: Vec::new(),
             }));
         };
         return resolve_connection_entry(item, resolver, uri, policy).map(Some);
@@ -301,6 +335,8 @@ fn resolve_item(
         } else {
             "materialize allowed — legacy warning".into()
         }),
+        login: None,
+        path_prefixes: Vec::new(),
     }))
 }
 

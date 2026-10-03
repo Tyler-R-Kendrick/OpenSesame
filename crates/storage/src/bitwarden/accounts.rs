@@ -21,7 +21,7 @@ pub struct BitwardenKdf {
 
 /// One Bitwarden account. `master_password_hash` is a PHC string produced by
 /// the server's password-hash registry, never the client's own hash.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BitwardenUser {
     pub id: String,
     pub email: String,
@@ -42,7 +42,7 @@ pub struct BitwardenUser {
 }
 
 /// Everything a password or KDF change replaces at once.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BitwardenCredentials {
     pub master_password_hash: String,
     pub kdf: BitwardenKdf,

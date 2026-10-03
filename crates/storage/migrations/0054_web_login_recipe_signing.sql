@@ -1,4 +1,4 @@
--- ADR 0076 §4, ADR 0156: who may write the recipes a web-login run replays,
+-- ADR 0076 §4, ADR 0159: who may write the recipes a web-login run replays,
 -- and what makes one of them trusted.
 --
 -- 0050 gave the runner a `web_login_recipes` table and nothing that wrote it,

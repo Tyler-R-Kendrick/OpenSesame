@@ -20,7 +20,11 @@ export type TestVaultState = {
   /** Active tomb id — `guest` is the isolated guest tomb (a keyless one
    *  unlocks by guest entry; one with enrolled keys offers them). */
   tomb?: string | null;
-  header: { hint?: string; unlocks?: Record<string, JsonObject> } | null;
+  header: {
+    hint?: string;
+    unlocks?: Record<string, JsonObject>;
+    protection?: JsonObject;
+  } | null;
   lockedOutUntil: number | null;
   failedAttempts: number;
   durable: boolean;
@@ -40,6 +44,9 @@ export type StoreMethod =
   | "unlock"
   | "unlockWithPin"
   | "unlockWithPasskey"
+  | "unlockWithProtector"
+  | "probeProtector"
+  | "unlockWithHeldProtectorRoot"
   | "confirmTotp"
   | "cancelTotpChallenge"
   | "destroy"
@@ -79,6 +86,9 @@ export const v = ((): TestHarness => {
       unlock: vi.fn(),
       unlockWithPin: vi.fn(),
       unlockWithPasskey: vi.fn(),
+      unlockWithProtector: vi.fn(),
+      probeProtector: vi.fn(),
+      unlockWithHeldProtectorRoot: vi.fn(),
       confirmTotp: vi.fn(),
       cancelTotpChallenge: vi.fn(),
       destroy: vi.fn(),

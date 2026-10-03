@@ -1,4 +1,4 @@
-# ADR 0156 — OpenSesame as an agent-hooks/0.1 interceptor and host
+# ADR 0159 — OpenSesame as an agent-hooks/0.1 interceptor and host
 
 - Status: Accepted
 - Date: 2026-10-03

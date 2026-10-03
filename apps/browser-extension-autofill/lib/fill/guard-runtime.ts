@@ -12,6 +12,7 @@
  * write and is returned to nobody.
  */
 import { focusedInput, pageFacts } from "./facts";
+import type { RootReader } from "./flat-tree";
 import { decideFill } from "./guard";
 import { FILL_MESSAGE } from "./protocol";
 import type { ArmMessage, GuardReply, ValueReply, ValueRequest } from "./wire";
@@ -51,8 +52,9 @@ export async function answerArm(
   view: Window,
   requestValue: RequestValue,
   arm: ArmMessage,
+  roots: RootReader | null = null,
 ): Promise<GuardReply> {
-  const facts = pageFacts(view);
+  const facts = pageFacts(view, roots);
   if (arm.mode === "probe") {
     return { passkey: facts.isTopFrame && facts.passkeyOffered };
   }
@@ -66,7 +68,7 @@ export async function answerArm(
     field: decision.field,
   });
   if ("refusal" in reply) return { outcome: reply.refusal };
-  const again = decideFill(arm, pageFacts(view), Date.now());
+  const again = decideFill(arm, pageFacts(view, roots), Date.now());
   if (!again.fill) return { outcome: again.refusal };
   if (!input || focusedInput(view.document) !== input) {
     return { outcome: "focus_moved" };

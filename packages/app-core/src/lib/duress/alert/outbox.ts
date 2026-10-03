@@ -4,6 +4,7 @@
  * No emergency-response guarantee; alert ≠ unlock.
  */
 
+import { scrubText } from "@opensesame/log-scrub";
 import type { SealedAlertPackage } from "./seal.js";
 import { verifyAlertEvidence } from "./seal.js";
 
@@ -260,7 +261,8 @@ export class AlertOutbox {
       }
       return entry;
     } catch (err) {
-      entry.lastError = err instanceof Error ? err.message : "delivery_error";
+      entry.lastError =
+        err instanceof Error ? scrubText(err.message) : "delivery_error";
       if (entry.attempts > entry.maxRetries) {
         return this.#setStatus(entry, "failed", "relay", now);
       }

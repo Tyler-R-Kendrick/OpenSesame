@@ -1,4 +1,4 @@
-//! The custody steps are host-owned and deliberately not hooked (ADR 0156).
+//! The custody steps are host-owned and deliberately not hooked (ADR 0159).
 //!
 //! `generate_candidate`, `seal_candidate` and `promote_candidate` are not in
 //! the tool surface an agent calls: the Host mints the handle, the owner's

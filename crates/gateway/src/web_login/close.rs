@@ -1,4 +1,4 @@
-//! Closing a run durably, before its rotation is settled (ADR 0156).
+//! Closing a run durably, before its rotation is settled (ADR 0159).
 //!
 //! Closing is what makes a run's step queue refuse everything: once
 //! `closed_at` is set no step can be claimed and no outcome stored. A run that

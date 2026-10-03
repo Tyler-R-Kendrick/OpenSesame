@@ -1,5 +1,5 @@
 //! `opensesame hooks intercept --approver-*`, driven through the real binary
-//! against a stand-in Identity API that a person answers (ADR 0156): an
+//! against a stand-in Identity API that a person answers (ADR 0159): an
 //! escalation is put to them, and what they say is what the verdict says.
 
 mod hooks_mock;

@@ -11,6 +11,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 |---|---|
 | [Local operator guide](local.md) | Running both planes on one machine: the daemon, devcontainers, env-spec resolution, live providers. |
 | [Health and operations](health-and-operations.md) | Health and readiness endpoints, logs, and day-two checks for both planes. |
+| [Logs and events at rest](log-and-event-sealing.md) | The sealed log file, the keys that seal logs and event rows, what refuses to start without one, and how to read a sealed log. |
 | [Pages origin](pages-origin.md) | What the GitHub Pages build can and cannot do from a shared origin, and how to give it its own. |
 | [Capability composition](capability-composition.md) | Deciding which optional features a deployment contains, permits and lets a device run. |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
@@ -35,7 +36,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Host project-config authorization](config-authorization.md) | The operator-managed Host role ceiling for configuration and project permissions. |
 | [Local authority migration](local-authority-migration.md) | Moving local authority and deployment configuration onto the hardened interfaces. |
 | [General authority support matrix](general-authority-support-matrix.md) | Which hierarchical-authority features are enforced where, and which are not yet. |
-| [Agent hooks](agent-hooks.md) | The policy that decides what an agent may do, who is asked when it needs a person, the audit, and what fails closed (ADR 0156). |
+| [Agent hooks](agent-hooks.md) | The policy that decides what an agent may do, who is asked when it needs a person, the audit, and what fails closed (ADR 0159). |
 | [Web-login recipes](web-login-recipes.md) | Storing a recipe, pinning the keys that sign them, signing locally, and proving one with an attended canary before the scanner rotates a login on its own (ADR 0076 §4). |
 | [Access portal](access-portal.md) | The Access screen: just-in-time grants, approvals and live sessions. |
 | [Credential helpers](credential-helpers.md) | git, Docker, AWS and kubectl authenticating with short-lived derived tokens. |

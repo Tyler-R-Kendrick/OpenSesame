@@ -21,7 +21,7 @@ const general = {
   keybindings: {},
 };
 
-/** Settings › Keybindings: only what the person changed (ADR 0150). */
+/** Settings › Keybindings: only what the person changed (ADR 0156). */
 const keymap = {
   values: { singleKeys: true },
   keybindings: { w: "listing.next", x: "nop" },

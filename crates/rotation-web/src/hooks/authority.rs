@@ -22,6 +22,8 @@
 //! The pinned view carries identifiers only: a credential reference, a slot
 //! name, and the shape of a destination. It never holds a value.
 
+use std::fmt;
+
 use opensesame_ceremony::Slot;
 use url::{Origin, Url};
 
@@ -57,7 +59,7 @@ pub(crate) trait Authority {
 /// origin. Because the comparison is against the origin the *executor*
 /// proposed, it also keeps every navigation inside the run's declared origin
 /// whenever the executor's own step is inside it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 enum Destination {
     /// Absolute, or protocol-relative: scheme, host, port and userinfo.
     Origin {
@@ -80,6 +82,32 @@ enum Destination {
 /// first base's host too, but against the second it lands on a host of its
 /// own, so it is an origin, not a relative reference.
 const SENTINEL_HOSTS: [&str; 2] = ["relative-a.invalid", "relative-b.invalid"];
+
+/// A URL's userinfo password is a credential, and a destination the parser
+/// could not reduce is the executor's raw string, which may carry one: neither
+/// reaches a log through `{:?}` (ADR 0157).
+impl fmt::Debug for Destination {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Origin {
+                scheme,
+                host,
+                port,
+                username,
+                password,
+            } => f
+                .debug_struct("Origin")
+                .field("scheme", scheme)
+                .field("host", host)
+                .field("port", port)
+                .field("username", username)
+                .field("password", &password.as_ref().map(|_| "[REDACTED]"))
+                .finish(),
+            Self::Relative => f.write_str("Relative"),
+            Self::Exact(text) => write!(f, "Exact(<{} bytes>)", text.len()),
+        }
+    }
+}
 
 impl Destination {
     fn of(raw: &str) -> Self {

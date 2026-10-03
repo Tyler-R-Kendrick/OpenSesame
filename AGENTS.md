@@ -74,6 +74,8 @@ pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disabl
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
+pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
+                          #   tools/quality/log-hygiene-baseline.json (ADR 0157)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
@@ -292,22 +294,22 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
 | `apps/cli` | **The native binary**, `opensesame` (`opensesame-cli`): every CLI verb incl. `pass`, and the roles `host run`, `daemon run`, `worker run`; `src/entry.rs` answers as each helper under its link name (`opensesame helpers link`) |
 | `crates/gateway` | Host API library, `:8787` (`opensesame host run`); signed provider callbacks at `/webhooks/{connection}/{route}` (`src/callback_ingress`) |
-| `crates/gateway/src/web_login`, `src/agent_hooks.rs`, `src/agent_hook_approver.rs`, `src/routes/{agent_hooks*,agent_runs*,web_login_recipes*}`, `src/retention.rs` | The Host's side of agent-hooks (ADR 0156): the web-login runner that spawns and tracks each run (`registry`), claims its job atomically, drives `run_change_password_hooked` with the organization's interceptor and a per-run approval seam, closes the run durably before settling, and is mopped up by the `reaper`; the typed canonical settle route (`agent_runs/outcome.rs`); `POST /api/v1/agent-hooks/intercept`, policy (`If-Match`, step-up in `agent_hooks/step_up.rs`), presets, approver, decisions and hook-records routes; recipe and signer routes; retention |
+| `crates/gateway/src/web_login`, `src/agent_hooks.rs`, `src/agent_hook_approver.rs`, `src/routes/{agent_hooks*,agent_runs*,web_login_recipes*}`, `src/retention.rs` | The Host's side of agent-hooks (ADR 0159): the web-login runner that spawns and tracks each run (`registry`), claims its job atomically, drives `run_change_password_hooked` with the organization's interceptor and a per-run approval seam, closes the run durably before settling, and is mopped up by the `reaper`; the typed canonical settle route (`agent_runs/outcome.rs`); `POST /api/v1/agent-hooks/intercept`, policy (`If-Match`, step-up in `agent_hooks/step_up.rs`), presets, approver, decisions and hook-records routes; recipe and signer routes; retention |
 | `crates/daemon` | Local host agent library, `:18790` (`opensesame daemon run`); its dependency budget is `pnpm audit:daemon-deps` |
 | `crates/worker` | Workload connector host library (`opensesame worker run`, ADR 0132) |
 | `crates/storage` | SQLite-backed host store; `impl Db` is split one module per responsibility (ADR 0093) |
-| `crates/storage/src/{agent_hook_policy*,agent_hook_records.rs,web_login_runs*,runner_steps.rs}` | Agent-hooks and web-login storage (ADR 0156): the policy (compare-and-set), the approver setting, the append-only decision audit, hook records that belong to their run (migration 0053), the step queue, the recipe writer that derives trust inside its transaction and the signer pins (0054), approvers (0055), job claims and retention |
+| `crates/storage/src/{agent_hook_policy*,agent_hook_records.rs,web_login_runs*,runner_steps.rs}` | Agent-hooks and web-login storage (ADR 0159): the policy (compare-and-set), the approver setting, the append-only decision audit, hook records that belong to their run (migration 0053), the step queue, the recipe writer that derives trust inside its transaction and the signer pins (0054), approvers (0055), job claims and retention |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0074) |
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
 | `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
 | `crates/agent-events` | Frozen `agent.*` vocabulary for sandboxed runs, and the `SecurityNotice` conversion that puts them on ADR 0080's feed — pure, value-blind (ADR 0081) |
-| `crates/agent-hooks` | OpenSesame as an [agent-hooks/0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md) interceptor on the canonical `agent-hooks-sdk` core (pinned exactly): operator tool rules and §5.4 result labels at `pre_tool_call`, a value-blind secret guard that redacts credential shapes at every content seam and denies them in tool arguments, an approval resolver bound to `context_identity` as ADR 0086's request digest, and the Interaction-backed approver (`src/interaction`: requester-visible decline, withdrawal, digest recomputed against `spec/conformance/request-digest-vectors.json`, an `ask` its caller cannot cancel); `opensesame hooks intercept` is the out-of-process form (ADR 0156) |
+| `crates/agent-hooks` | OpenSesame as an [agent-hooks/0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md) interceptor on the canonical `agent-hooks-sdk` core (pinned exactly): operator tool rules and §5.4 result labels at `pre_tool_call`, a value-blind secret guard that redacts credential shapes at every content seam and denies them in tool arguments, an approval resolver bound to `context_identity` as ADR 0086's request digest, and the Interaction-backed approver (`src/interaction`: requester-visible decline, withdrawal, digest recomputed against `spec/conformance/request-digest-vectors.json`, an `ask` its caller cannot cancel); `opensesame hooks intercept` is the out-of-process form (ADR 0159) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store, and `pages_vault`: the Rust reader of the vault Pages writes (vault format v1, checked against `spec/conformance/vault-vectors.json`), behind `opensesame vault verify\|ls` |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
-| `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0156) |
+| `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
@@ -333,10 +335,13 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
+| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0157): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
+| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0157): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
+| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0157): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
-| `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0156): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
+| `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0159): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
@@ -366,7 +371,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `skills/` | Agent skills — see §7 |
 | `spec/wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
 | `spec/openapi/host-api.yaml`, `spec/openfga/`, `spec/connectors/` | Host OpenAPI, OpenFGA model + baseline tuples, connector parity table and reference manifest |
-| `spec/agent-hooks/` | `conformance/` is the agent-hooks CTK corpus vendored byte for byte from tag `v0.1.0-alpha.5` (47 vectors plus the golden identity file; exercised by `crates/rotation-web/tests/agent_hooks_ctk*.rs`) and `presets/` the named policies (`rotation-web-login`, `strict`, `observe`), embedded by both the CLI and the gateway with a drift test each (ADR 0139, ADR 0156) |
+| `spec/agent-hooks/` | `conformance/` is the agent-hooks CTK corpus vendored byte for byte from tag `v0.1.0-alpha.5` (47 vectors plus the golden identity file; exercised by `crates/rotation-web/tests/agent_hooks_ctk*.rs`) and `presets/` the named policies (`rotation-web-login`, `strict`, `observe`), embedded by both the CLI and the gateway with a drift test each (ADR 0139, ADR 0159) |
 | `crates/storage/migrations/` | Host SQL migrations, embedded by `crates/storage` |
 | `tests/fuzz/{cargo,jazzer,clusterfuzzlite}`, `tests/redteam`, `tests/visual-contract`, `tests/fixtures` | Fuzzing, MCP red team, visual regression, shared fixtures |
 | `tools/quality/`, `tools/mutation/`, `tools/security/` | Ratchet ledgers and budgets, Stryker configs, ast-grep rules and negative controls |
@@ -451,7 +456,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0156).
+  0001–0159).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -501,6 +506,30 @@ Do not add new top-level directories or loose root files — find the group.
   relying party's origin — values seal through `@opensesame/browser-at-rest`.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
+- **Logs and events carry no secrets, by key or by shape**
+  ([ADR 0157](docs/adr/0157-logs-and-events-carry-no-secrets.md)). Redaction
+  by key name alone misses a bearer in an error message, a `#token=` in a URL,
+  a JWT in a stack trace and a DSN with a password in it, so every log line,
+  event, audit row, activity entry and persisted failure passes the shared
+  scrubber (`spec/log-scrub/log-scrub.json`, run by `@opensesame/log-scrub` and
+  `crates/redaction` against the same vectors). Add a shape by adding a rule
+  and a vector to the spec, never to one target. Log through `createLogger`
+  (TypeScript) or a subscriber whose writer is `ScrubMakeWriter` (Rust); never
+  `console.*`, a hand-built `pino(...)` or a bare `tracing_subscriber::fmt()`.
+  `pnpm quality:log-hygiene` counts those and the ledger only falls. A struct
+  holding a secret never derives `Debug`: write `impl fmt::Debug` and print
+  `[REDACTED]` for it; `scripts/lib/secret-debug.test.mjs` (in `pnpm quality`) fails on a
+  derived `Debug` over a field named like a credential. Log an id, never the secret.
+- **Logs and events rest sealed** (ADR 0157 items 7–9). A log file a process
+  writes goes through `crates/sealed-log` / `packages/observability`'s sealed
+  destination (`OPENSESAME_LOG_FILE`); a new event or audit column the Host
+  writes is sealed through `opensesame-event-seal` and read back through it (add
+  it to `SEALED_COLUMNS` in `crates/storage/src/sealed.rs` so the legacy sweep
+  reaches it); a new Identity event payload goes through `withSealedEvents`.
+  Never write an event or a log line to disk in the clear, and never add a
+  plaintext fallback: a configured sealed sink that cannot open refuses to
+  start. The event keys derive from secrets the deployment already holds
+  (`docs/operators/log-and-event-sealing.md`).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -542,8 +571,10 @@ Do not add new top-level directories or loose root files — find the group.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)
   and **which key** opens the vault (the passkey/PIN/password wraps in the
-  plaintext header, then the authenticator gate if enrolled). The unlock tabs
-  are exactly the enrolled methods, never a uniform three; an enrolled
+  plaintext header, plus the manifest's verified recovery key, age key, age
+  passkey and passkey capsule — never a cloud KMS record, whose credential is
+  sealed in the vault, ADR 0152 — then the authenticator gate if enrolled). The
+  unlock tabs are exactly the enrolled methods, never a uniform three; an enrolled
   authenticator code is announced as step 2 before step 1 is taken. Sign out
   is one operation in `packages/app-core/src/lib/session-exit.ts` (forget the
   assertion, revoke Identity, lock, note it for the sign-in panel); "switch
@@ -626,7 +657,7 @@ Do not add new top-level directories or loose root files — find the group.
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
 - **Every key is a person's, and a few keep the road open**
-  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  ([ADR 0156](docs/adr/0156-keybindings-and-macros.md)). The shell's handler
   resolves every press through the effective keymap (the catalogue in
   `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
   sparse bindings), so a new key is a catalogue row, never a second
@@ -637,7 +668,7 @@ Do not add new top-level directories or loose root files — find the group.
   scoped to a closed set of contexts (`vault`, `rail`, read from
   `listingOf(event)`), never an expression, and every guardrail holds in each.
 - **A Settings row acts, or it is not drawn**
-  ([ADR 0150](docs/adr/0150-settings-rows-act-or-are-absent.md)). No disabled
+  ([ADR 0158](docs/adr/0158-settings-rows-act-or-are-absent.md)). No disabled
   key, no lock glyph standing for "not yet", no link to a page that does not
   configure the thing, no static status a person cannot change. A control
   whose precondition is unmet is absent; the row that needs a setting opens the

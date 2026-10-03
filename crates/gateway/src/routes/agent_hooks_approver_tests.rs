@@ -1,6 +1,6 @@
 //! `GET|PUT /api/v1/agent-hooks/approver`: who an escalated action is put to
 //! is read by owner/admin or the operator, replaced only with a step-up,
-//! compare-and-set, and audited without the handle (ADR 0156).
+//! compare-and-set, and audited without the handle (ADR 0159).
 
 use super::*;
 use crate::agent_hook_approver::{ApproverSettings, ENV_BEARER, ENV_REF, ENV_URL};

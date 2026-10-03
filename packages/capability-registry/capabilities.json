@@ -1112,8 +1112,62 @@
     }
   },
   {
+    "id": "plugins.pair",
+    "title": "Pair one browser origin with the daemon's plugin settings (one-time code for a key scoped to /v1/plugins)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins pair",
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.unpair",
+    "title": "Revoke a page's plugin-settings key: every pairing for an origin at the terminal, or this page's own from Settings",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins unpair",
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "agents.surrogate.dev_run",
-    "title": "Run a child with surrogates in place of placeholders through the surrogate-proxy plugin",
+    "title": "Run a child with surrogates in place of placeholders and web-login passwords through the surrogate-proxy plugin",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -3435,27 +3489,27 @@
     "excluded": {
       "pwa": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3476,27 +3530,27 @@
     "excluded": {
       "pwa": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3517,31 +3571,31 @@
     "excluded": {
       "pwa": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "an interceptor answers the agent framework at its own loop's seams; a tool the governed agent could call would let it probe or pre-clear the policy that governs it",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "this surface runs no agent loop; agent-hooks verdicts are answered to the framework that does, through the native CLI",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "cli": {
         "reason": "the agent framework calls POST /api/v1/agent-hooks/intercept itself; at a terminal the same verdict is `opensesame hooks intercept`, which needs no Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3562,27 +3616,27 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3603,27 +3657,27 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "the Host's hook policy governs the agent; an agent that could read it would learn what to route around, and one that could write it would govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3644,27 +3698,27 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3685,27 +3739,27 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3726,27 +3780,27 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3767,31 +3821,31 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "cli": {
         "reason": "the CLI lists and shows the same presets from the table compiled into the binary (`opensesame hooks policy preset ls|show`), which needs no Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3812,27 +3866,27 @@
     "excluded": {
       "pwa": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3853,27 +3907,27 @@
     "excluded": {
       "pwa": {
         "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -3897,16 +3951,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -3938,16 +3992,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -3979,16 +4033,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -4020,16 +4074,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -4061,16 +4115,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "signing a recipe is a local act of the native CLI: the private key is a file it reads and nothing else, never an argument, never printed and never sent; the Host holds only public keys (ADR 0076 §4)",
@@ -4102,16 +4156,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -4143,16 +4197,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -4184,16 +4238,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -4225,16 +4279,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
@@ -4266,16 +4320,16 @@
         "adr": "0076-autonomous-web-login-rotation.md"
       },
       "mcp_host": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
-        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "reason": "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "extension": {
         "reason": "signing a recipe is a local act of the native CLI: the private key is a file it reads and nothing else, never an argument, never printed and never sent; the Host holds only public keys (ADR 0076 §4)",
@@ -4304,27 +4358,27 @@
     "excluded": {
       "cli": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "pwa": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "arming a site is a person's consent to let the runner act inside their signed-in session; an agent that could arm one would grant itself the page it is about to drive",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "arming a site is a person's consent to let the runner act inside their signed-in session; an agent that could arm one would grant itself the page it is about to drive",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "arming a site is a person's consent to let the runner act inside their signed-in session; an agent that could arm one would grant itself the page it is about to drive",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -4345,27 +4399,27 @@
     "excluded": {
       "cli": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "pwa": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "arming a site is a person's consent to let the runner act inside their signed-in session; an agent that could arm one would grant itself the page it is about to drive",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "arming a site is a person's consent to let the runner act inside their signed-in session; an agent that could arm one would grant itself the page it is about to drive",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "arming a site is a person's consent to let the runner act inside their signed-in session; an agent that could arm one would grant itself the page it is about to drive",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -4386,27 +4440,27 @@
     "excluded": {
       "cli": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "pwa": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_host": {
         "reason": "the runner's readiness names which sites a person holds credentials for and has armed; that is the person's own, and an agent has no use for it but to probe",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "mcp_client": {
         "reason": "the runner's readiness names which sites a person holds credentials for and has armed; that is the person's own, and an agent has no use for it but to probe",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "webmcp": {
         "reason": "the runner's readiness names which sites a person holds credentials for and has armed; that is the person's own, and an agent has no use for it but to probe",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       },
       "android": {
         "reason": "the local runner is the browser extension's role: it is the one surface that holds the page, the browser's per-origin grant and the sealed credentials a step resolves",
-        "adr": "0156-agent-hooks-interceptor.md"
+        "adr": "0159-agent-hooks-interceptor.md"
       }
     }
   },
@@ -6490,6 +6544,68 @@
       "webmcp": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
         "adr": "0155-the-device-duress-code.md"
+      }
+    }
+  },
+  {
+    "id": "vault.protectors.manage",
+    "title": "Vault key protection: enroll a recovery key, passkey, age recipient, AWS KMS or Google Cloud KMS protector, test it, prefer an unlock, or remove it",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/protection/enroll-external.ts:provenExternalRecord",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the protectors of the vault in the browser are enrolled, proved and removed in the page that holds its tomb; a CLI has no handle on that manifest (the sealed store's own protectors are `opensesame pass protect`)",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_host": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_client": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "webmcp": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      }
+    }
+  },
+  {
+    "id": "vault.protectors.rotate",
+    "title": "Vault key protection: rotate the vault's root key so a compromised protector stops opening it",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/protection/browser-lifecycle-ops.ts:rotateCompromisedRoot",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the protectors of the vault in the browser are enrolled, proved and removed in the page that holds its tomb; a CLI has no handle on that manifest (the sealed store's own protectors are `opensesame pass protect`)",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_host": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_client": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "webmcp": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
       }
     }
   },

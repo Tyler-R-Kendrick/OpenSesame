@@ -35,6 +35,7 @@ path = "src/bin/opensesame-nats-auth-bridge.rs"
 default = []
 
 [dependencies]
+opensesame-redaction = { path = "../redaction", features = ["tracing"] }
 opensesame-authz = { path = "../authz" }
 opensesame-domain = { path = "../domain" }
 opensesame-transport-security = { path = "../transport-security" }

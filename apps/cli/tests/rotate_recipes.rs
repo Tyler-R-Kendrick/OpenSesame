@@ -1,6 +1,6 @@
 //! The worked example in `docs/operators/web-login-recipes.md`, run line by
 //! line through the real binary against a stand-in Host (ADR 0076 §4, ADR
-//! 0156), against the example recipe file the document embeds.
+//! 0159), against the example recipe file the document embeds.
 
 mod hooks_mock;
 mod rotate_recipes_mock;

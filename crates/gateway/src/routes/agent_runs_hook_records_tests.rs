@@ -1,4 +1,4 @@
-//! A run's hook records over the routes (ADR 0156): paged by `sequence`, under
+//! A run's hook records over the routes (ADR 0159): paged by `sequence`, under
 //! the sealed log's entitlement, summarised on the run, and — for a run the
 //! Host opened — standing in for a sealed log the Host has no key to write
 //! (ADR 0081 §9).

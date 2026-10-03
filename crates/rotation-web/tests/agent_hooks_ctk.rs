@@ -89,7 +89,7 @@ fn the_declared_identity_provider_meets_the_golden_vectors() {
             // `9.999999999999997e+22` (0x44b52d02c7e14af5). The SDK matches the
             // vector only when `serde_json` parses that number inexactly; this
             // build parses every number as the nearest double, as JSON.parse does
-            // (ADR 0156 limits), so the vector is checked with the RFC's digits.
+            // (ADR 0159 limits), so the vector is checked with the RFC's digits.
             canonical = canonical.replace("9.999999999999996e+22", "9.999999999999997e+22");
             identity = format!(
                 "sha256:{}",

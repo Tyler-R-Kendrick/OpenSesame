@@ -1,5 +1,5 @@
 //! `opensesame hooks` — `OpenSesame` as an agent-hooks/0.1 interceptor
-//! (ADR 0156).
+//! (ADR 0159).
 //!
 //! An agent framework that implements agent-hooks builds an `AgentContext` at
 //! each point of its loop and asks its interceptors for a `Verdict`. A host

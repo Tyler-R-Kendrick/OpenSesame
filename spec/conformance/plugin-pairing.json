@@ -1,0 +1,51 @@
+{
+  "$comment": "The plugin-settings pairing code (ADR 0150 §7), as literal vectors. `opensesame plugins pair` formats it (crates/plugin-settings/src/pairing_tests.rs checks format_pairing_code against example.text); Pages parses it through its real parser (packages/app-core/src/lib/tailnet-sync/plugin-pairing.test.ts) and refuses every entry in 'refused'. The code inside is a one-time secret the daemon keeps only as a SHA-256; it is traded once, from exactly 'origin', for a bearer scoped to the /v1/plugins routes. Change a case here and both sides must follow.",
+  "version": 1,
+  "prefix": "opensesame-plugins:v1:",
+  "exchangePath": "/v1/plugins/pairing",
+  "codeTtlSecs": 300,
+  "example": {
+    "code": "UGx1Z2luLXBhaXJpbmctY29kZS1ub3QtcmVhbC0wMSE",
+    "label": "Desk",
+    "origin": "https://tyler-r-kendrick.github.io",
+    "url": "https://desk.tail4c2e.ts.net",
+    "text": "opensesame-plugins:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdHlsZXItci1rZW5kcmljay5naXRodWIuaW8iLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
+  },
+  "localExample": {
+    "code": "UGx1Z2luLXBhaXJpbmctY29kZS1ub3QtcmVhbC0wMSE",
+    "label": "Desk",
+    "origin": "http://localhost:5180",
+    "url": "http://127.0.0.1:18790",
+    "text": "opensesame-plugins:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6NTE4MCIsInVybCI6Imh0dHA6Ly8xMjcuMC4wLjE6MTg3OTAifQ"
+  },
+  "refused": [
+    {
+      "name": "a daemon on the open internet",
+      "text": "opensesame-plugins:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdHlsZXItci1rZW5kcmljay5naXRodWIuaW8iLCJ1cmwiOiJodHRwczovL2F0dGFja2VyLmV4YW1wbGUifQ"
+    },
+    {
+      "name": "an origin with a path",
+      "text": "opensesame-plugins:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdHlsZXItci1rZW5kcmljay5naXRodWIuaW8vT3BlblNlc2FtZSIsInVybCI6Imh0dHBzOi8vZGVzay50YWlsNGMyZS50cy5uZXQifQ"
+    },
+    {
+      "name": "an origin with a trailing slash",
+      "text": "opensesame-plugins:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdHlsZXItci1rZW5kcmljay5naXRodWIuaW8vIiwidXJsIjoiaHR0cHM6Ly9kZXNrLnRhaWw0YzJlLnRzLm5ldCJ9"
+    },
+    {
+      "name": "a cleartext origin that is not localhost",
+      "text": "opensesame-plugins:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHA6Ly90eWxlci1yLWtlbmRyaWNrLmdpdGh1Yi5pbyIsInVybCI6Imh0dHBzOi8vZGVzay50YWlsNGMyZS50cy5uZXQifQ"
+    },
+    {
+      "name": "a code of the wrong shape",
+      "text": "opensesame-plugins:v1:eyJjb2RlIjoic2hvcnQiLCJsYWJlbCI6IkRlc2siLCJvcmlnaW4iOiJodHRwczovL3R5bGVyLXIta2VuZHJpY2suZ2l0aHViLmlvIiwidXJsIjoiaHR0cHM6Ly9kZXNrLnRhaWw0YzJlLnRzLm5ldCJ9"
+    },
+    {
+      "name": "the drive's prefix",
+      "text": "opensesame-drive:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdHlsZXItci1rZW5kcmljay5naXRodWIuaW8iLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
+    },
+    {
+      "name": "not base64 JSON",
+      "text": "opensesame-plugins:v1:%%%"
+    }
+  ]
+}

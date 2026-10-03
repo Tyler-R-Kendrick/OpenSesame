@@ -1,8 +1,7 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
 /**
- * Additional vault unlock methods beyond the master password.
- *
- * Password wrap stays the classic path (VaultHeader.wrap). Passkey (WebAuthn PRF)
+ * Additional vault unlock methods beyond the master password. Password wrap
+ * stays the classic path (VaultHeader.wrap). Passkey (WebAuthn PRF)
  * and PIN each store an alternate AES-GCM wrap of the same vault key. Optional
  * TOTP is a second factor after any primary unwrap — the TOTP seed is sealed
  * under the vault key so it is only readable after primary unlock succeeds.
@@ -33,6 +32,7 @@ import {
   getPasskeyUnlockCeremonyForDefault,
 } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
+import type { UnlockTabId } from "./protection/unlock-protector-methods.js";
 import { chooseUnlockMethod } from "./unlock-preference.js";
 
 export {
@@ -178,7 +178,7 @@ function listAvailableUnlockMethodsDefault(
 
 function preferredUnlockMethodDefault(
   header: VaultHeader | null | undefined,
-): UnlockMethodId | null {
+): UnlockTabId | null {
   return chooseUnlockMethod(header, listAvailableUnlockMethods(header));
 }
 
@@ -420,7 +420,7 @@ export function listAvailableUnlockMethods(
 
 export function preferredUnlockMethod(
   header: VaultHeader | null | undefined,
-): UnlockMethodId | null {
+): UnlockTabId | null {
   return unlockMethodsSeams.preferredUnlockMethod(header);
 }
 

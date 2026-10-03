@@ -1,6 +1,6 @@
 //! The approver's deployment configuration refuses what would fail at the
 //! first escalation, and the per-run seam is only ever built for somebody
-//! the organization (or the operator) named (ADR 0156).
+//! the organization (or the operator) named (ADR 0159).
 
 use super::*;
 use opensesame_storage::agent_hook_policy::approver::{

@@ -211,7 +211,7 @@ export interface OutboxRepository {
   ): Promise<OutboxEvent[]>;
   /** Drop a live claim so the next tick can retry immediately. */
   releaseClaim(id: string, error?: string): Promise<void>;
-  markPublished(id: string, publishedAt?: Date): Promise<void>;
+  markPublished(id: string, publishedAt?: Date, error?: string): Promise<void>;
 }
 
 export interface AuthorizationRequestRepository {

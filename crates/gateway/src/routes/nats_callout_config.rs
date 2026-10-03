@@ -19,7 +19,7 @@ use crate::transport::admission;
 use crate::transport::config::AuthMode;
 
 /// Everything the route reads from the deployment plane.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CalloutConfig {
     pub shared_secret: String,
     pub issuer_allowlist: String,
@@ -36,6 +36,22 @@ pub struct CalloutConfig {
     pub cert_identity: bool,
     pub cert_peers: Vec<verify::CertPeer>,
     pub evidence: CalloutEvidenceVerifier,
+}
+
+impl std::fmt::Debug for CalloutConfig {
+    /// The shared secret authenticates the bridge; everything else is policy.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CalloutConfig")
+            .field("shared_secret", &"[REDACTED]")
+            .field("issuer_allowlist", &self.issuer_allowlist)
+            .field("server_nkeys", &self.server_nkeys)
+            .field("callout_subject", &self.callout_subject)
+            .field("dev_identity", &self.dev_identity)
+            .field("cert_identity", &self.cert_identity)
+            .field("cert_peers", &self.cert_peers)
+            .field("evidence", &self.evidence)
+            .finish()
+    }
 }
 
 fn split_list(raw: &str) -> Vec<String> {
@@ -164,5 +180,21 @@ pub fn authenticate_bridge(
         Ok(())
     } else {
         Err(refuse(StatusCode::UNAUTHORIZED, "unauthorized"))
+    }
+}
+
+#[cfg(test)]
+mod debug_redaction {
+    use super::*;
+
+    #[test]
+    fn the_bridge_shared_secret_never_prints() {
+        let config = CalloutConfig::from_lookup(false, &|name| {
+            (name == "OPENSESAME_NATS_CALLOUT_SECRET").then(|| "bridge-secret-12345".to_owned())
+        })
+        .unwrap();
+        let shown = format!("{config:?}");
+        assert!(shown.contains("[REDACTED]"), "{shown}");
+        assert!(!shown.contains("bridge-secret-12345"), "{shown}");
     }
 }

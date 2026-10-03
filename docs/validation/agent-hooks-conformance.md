@@ -4,7 +4,7 @@ What was run to check that OpenSesame's own agent-driven runs are an
 [Agent Hooks 0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md)
 host, what was observed, and what the result does and does not show.
 
-[ADR 0156](../adr/0156-agent-hooks-interceptor.md) put OpenSesame on the
+[ADR 0159](../adr/0159-agent-hooks-interceptor.md) put OpenSesame on the
 interceptor's side of the contract. This page is about the other side: the
 runs `crates/rotation-web` orders — a web-login rotation
 ([ADR 0076](../adr/0076-autonomous-web-login-rotation.md)) and a registration
@@ -149,7 +149,7 @@ sections below state each, what it shows, and what it does not.
 |---|---|---|
 | Capabilities | `tool_calls`, `int64_json` | No model calls: ADR 0076 §8 keeps the model in the remote runner, on the far side of the tool boundary, and no model client is a dependency of the crate — a tool router in §3.2's sense. `int64_json`: contexts are `serde_json` values holding `i64`. `bigint_json` is not claimed (`serde_json` coerces beyond-u64 literals at load). |
 | Profiles | all four (`sequential/first_deny`, `sequential/run_all`, `parallel/strictest`, `parallel/unanimous`), every knob value | `SessionConfig.composition` is handed to the SDK emitter unchanged. |
-| Identity provider | `jcs-sha256` (default); `null` and host-defined providers accepted per session | `SessionConfig.identity`; approvals bind to `jcs-sha256` (ADR 0156 §6). |
+| Identity provider | `jcs-sha256` (default); `null` and host-defined providers accepted per session | `SessionConfig.identity`; approvals bind to `jcs-sha256` (ADR 0159 §6). |
 | `buffered_output` | `true` | The report is returned whole, only after the `output` verdict permits; nothing streams. |
 | `tool_seam_host_error` | `terminate`, for `run_change_password_hooked` / `run_capture_steps_hooked` | A refused verb ends the run through the executor's own semantics (§6.2's "unless the host's own semantics terminate the turn"): a rotation reports `blocked: hook_refused` (or reconciles, if the refused step was the submit or the verification), and a capture run fails. The posture is declaration-only here: it post-dates the pinned runner (upstream #68), which neither reads it nor carries `run_outcome_by_posture`. |
 

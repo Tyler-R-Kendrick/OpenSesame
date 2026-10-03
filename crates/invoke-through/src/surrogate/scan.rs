@@ -8,7 +8,7 @@ use super::{Refusal, RefusalCode, SurrogateSpec, SURROGATE_HEX_LEN, SURROGATE_MA
 /// One place a surrogate-shaped token was seen.
 pub(super) struct Sighting {
     pub(super) value: String,
-    /// `path`, `body`, or the lowercased header name.
+    /// `path`, `body`, `method`, or the lowercased header name.
     pub(super) site: String,
 }
 
@@ -48,10 +48,16 @@ pub(super) fn check_placement(
     Ok(())
 }
 
-/// Every surrogate-shaped token anywhere in the request: header names and
-/// values, the request target (raw and percent-decoded), and the body.
+/// Every surrogate-shaped token anywhere in the request: the method, header
+/// names and values, the request target (raw and percent-decoded), and the body.
 pub(super) fn sightings(req: &RequestView<'_>) -> Vec<Sighting> {
-    let mut out = Vec::new();
+    let mut out: Vec<Sighting> = shaped(req.method.as_bytes())
+        .into_iter()
+        .map(|value| Sighting {
+            value,
+            site: "method".into(),
+        })
+        .collect();
     for (name, value) in req.headers {
         let site = name.to_ascii_lowercase();
         for found in shaped(name.as_bytes())
@@ -127,9 +133,11 @@ fn percent_decode(input: &[u8]) -> Vec<u8> {
 }
 
 /// The method and path this request uses must be ones the surrogate was
-/// scoped to. The path is the request target up to `?`; any dot segment, raw
-/// or percent-encoded, is refused outright rather than resolved, because the
-/// upstream's resolution is the one that counts and it is not ours to predict.
+/// scoped to. The path is the request target up to `?`; any dot segment, a
+/// backslash, a `;` and any control character, raw or percent-encoded, is
+/// refused outright rather than resolved, because the upstream's resolution
+/// is the one that counts and it is not ours to predict: some servers read `\`
+/// as a separator and some treat `;` as a path parameter.
 pub(super) fn check_scope(req: &RequestView<'_>, spec: &SurrogateSpec) -> Result<(), Refusal> {
     let out_of_scope = |detail: &str| {
         Err(Refusal::issued(
@@ -151,8 +159,11 @@ pub(super) fn check_scope(req: &RequestView<'_>, spec: &SurrogateSpec) -> Result
         .map_or(req.path_and_query, |(path, _)| path);
     let decoded = percent_decode(path.as_bytes());
     let decoded = String::from_utf8_lossy(&decoded);
-    let has_dot_segment = |p: &str| p.split('/').any(|seg| seg == "." || seg == "..");
-    if !path.starts_with('/') || has_dot_segment(path) || has_dot_segment(&decoded) {
+    let ambiguous = |p: &str| {
+        p.split('/').any(|seg| seg == "." || seg == "..")
+            || p.chars().any(|c| c.is_control() || matches!(c, '\\' | ';'))
+    };
+    if !path.starts_with('/') || ambiguous(path) || ambiguous(&decoded) {
         return out_of_scope("path");
     }
     let within = spec.path_prefixes.iter().any(|prefix| {

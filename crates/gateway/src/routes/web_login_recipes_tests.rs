@@ -1,4 +1,4 @@
-//! The recipe and signer routes (ADR 0076 §4, ADR 0156): who may call them,
+//! The recipe and signer routes (ADR 0076 §4, ADR 0159): who may call them,
 //! that trust comes only from a verification the Host performed, and that
 //! every change is compare-and-set and audited without the document.
 

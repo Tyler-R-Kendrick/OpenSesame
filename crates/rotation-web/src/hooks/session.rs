@@ -55,7 +55,7 @@ pub struct SessionConfig {
     /// The composition profile and knobs (§7.2).
     pub composition: CompositionConfig,
     /// The identity provider (§10.1). `jcs-sha256` unless a caller says
-    /// otherwise, because approvals bind to it (ADR 0156 §6).
+    /// otherwise, because approvals bind to it (ADR 0159 §6).
     pub identity: IdentityProvider,
 }
 

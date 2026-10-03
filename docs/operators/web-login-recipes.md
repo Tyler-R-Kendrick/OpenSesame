@@ -5,7 +5,7 @@ How an organization gets a web-login rotation to run on its own: store a
 by a key the organization pinned, and prove it with one **canary** run you
 watch. The decision and its reasons are in
 [ADR 0076](../adr/0076-autonomous-web-login-rotation.md) §4 and
-[ADR 0156](../adr/0156-agent-hooks-interceptor.md); the recipe schema this
+[ADR 0159](../adr/0159-agent-hooks-interceptor.md); the recipe schema this
 implements the executor's half of is
 [rotation-recipe-schema](../architecture/rotation-recipe-schema.md).
 
@@ -170,7 +170,7 @@ is what the next run will do.
 All routes are for an owner or admin of the organization, or the operator, as a
 native session — never an agent capability and never a browser grant. The
 recipes govern the agent, so the agent has no tool to read or write them
-(ADR 0076 §1, ADR 0156). The origin is a percent-encoded path segment
+(ADR 0076 §1, ADR 0159). The origin is a percent-encoded path segment
 (`https%3A%2F%2Flogin.example`).
 
 | Route | |

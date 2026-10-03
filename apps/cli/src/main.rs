@@ -18,10 +18,12 @@ mod identity_area;
 mod init_schema;
 mod lifecycle;
 mod local_authority;
+mod log_sink;
 mod pass_otp;
 mod pass_protect;
 mod plugins;
 mod plugins_install;
+mod private_file;
 mod providers_native;
 mod rotate_recipes;
 mod security;
@@ -47,6 +49,7 @@ use opensesame_connector_host::providers::{
     HumanProviderOperation, HumanProviderPlan,
 };
 use opensesame_host_core::endpoints::{self, HOST};
+use private_file::{write_private, write_private_new};
 pub(crate) use rotate_recipes::RotateCmd;
 use serde::Deserialize;
 use serde_json::json;
@@ -169,7 +172,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: plugins::PluginsCmd,
     },
-    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0156).
+    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0159).
     Hooks {
         #[command(subcommand)]
         cmd: hooks::HooksCmd,
@@ -835,7 +838,11 @@ enum CompletionShell {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
+    log_sink::exit_on_error(real_main().await);
+}
+
+async fn real_main() -> anyhow::Result<()> {
     if let Some(code) = entry::by_program_name() {
         std::process::exit(code);
     }
@@ -893,44 +900,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Security { cmd } => security::run(&cli.server, &cli.output, cmd).await?,
         Commands::Hooks { cmd } => hooks::run(&cli.server, cmd).await?,
     }
-    Ok(())
-}
-
-/// Write a file only its owner can read, without a moment where it is anything else.
-///
-/// `fs::write` then `set_permissions` creates the file at the umask's mode first,
-/// so a token spends a window world-readable — long enough for another account on
-/// the box to open it and keep the handle.
-fn write_private(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
-    use std::io::Write;
-    let mut opts = std::fs::OpenOptions::new();
-    opts.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opts.mode(0o600);
-    }
-    let mut f = opts.open(path)?;
-    f.write_all(bytes)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        // An existing file keeps its old mode, so say it again.
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-    }
-    Ok(())
-}
-
-fn write_private_new(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
-    use std::io::Write;
-    let mut opts = std::fs::OpenOptions::new();
-    opts.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opts.mode(0o600);
-    }
-    opts.open(path)?.write_all(bytes)?;
     Ok(())
 }
 

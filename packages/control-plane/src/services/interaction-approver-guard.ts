@@ -1,5 +1,5 @@
 /**
- * Who a requester may put an interaction in front of (ADR 0086, ADR 0156).
+ * Who a requester may put an interaction in front of (ADR 0086, ADR 0159).
  *
  * An inbox handle is what authorizes the *asking*, and until this guard it was
  * the only thing checked. For an agent's authorization request that left

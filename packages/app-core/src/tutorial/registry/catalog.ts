@@ -89,10 +89,10 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.vault-key-protection",
     description:
-      "Vault key protection under Security: enrolled methods that can unlock this vault alone, and setup intent that is not yet enrolled.",
+      "Vault key protection under Security: the keys enrolled on this vault. Add opens one sheet for a recovery key, a passkey, an age recipient, an AWS KMS key or a Google Cloud KMS key; each row can be tested, and most removed. Rotate changes the root key.",
     role: "action",
     routes: ["/settings"],
-    capabilityId: null,
+    capabilityId: "vault.protectors.manage",
   },
   {
     id: "settings.formats-interoperability",

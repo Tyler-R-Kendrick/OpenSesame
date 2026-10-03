@@ -1,5 +1,5 @@
 //! Stand-in servers and a way to run the real binary, shared by the hooks CLI
-//! tests that talk to a Host or an Identity API (ADR 0156): every connection
+//! tests that talk to a Host or an Identity API (ADR 0159): every connection
 //! on its own thread, answered by a closure, every request logged.
 
 #![allow(dead_code)]

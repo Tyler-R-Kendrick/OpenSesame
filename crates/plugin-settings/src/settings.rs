@@ -9,8 +9,10 @@ use sha2::{Digest, Sha256};
 
 use crate::catalog;
 
-/// Overrides the settings file's location (tests, and operators who keep
-/// configuration elsewhere).
+/// Overrides the settings file's location. Honoured only in a build with the
+/// `path-override` feature (the crates' own tests): a shipped build reads the
+/// config directory alone, so no environment can aim a launch's pin check at a
+/// file its caller wrote.
 pub const SETTINGS_PATH_ENV: &str = "OPENSESAME_PLUGINS_FILE";
 
 #[derive(Debug, thiserror::Error)]
@@ -72,13 +74,28 @@ pub struct PluginSettings {
     pub plugins: BTreeMap<String, InstalledPlugin>,
 }
 
-/// `<config dir>/plugins.json`, or [`SETTINGS_PATH_ENV`] when set.
+/// `<config dir>/plugins.json`; with the `path-override` feature,
+/// [`SETTINGS_PATH_ENV`] when set.
 ///
 /// # Errors
 ///
 /// `NoConfigDir` when the platform has no home or config directory.
 pub fn default_settings_path() -> Result<PathBuf, SettingsError> {
-    if let Some(path) = std::env::var_os(SETTINGS_PATH_ENV).filter(|v| !v.is_empty()) {
+    settings_path_from(|key| std::env::var(key).ok())
+}
+
+/// [`default_settings_path`] over an explicit environment.
+///
+/// # Errors
+///
+/// `NoConfigDir` when the platform has no home or config directory.
+#[cfg_attr(
+    not(feature = "path-override"),
+    expect(unused_variables, reason = "a shipped build reads no path from `env`")
+)]
+pub fn settings_path_from(env: impl Fn(&str) -> Option<String>) -> Result<PathBuf, SettingsError> {
+    #[cfg(feature = "path-override")]
+    if let Some(path) = env(SETTINGS_PATH_ENV).filter(|v| !v.is_empty()) {
         return Ok(PathBuf::from(path));
     }
     let dirs = directories::ProjectDirs::from("dev", "OpenSesame", "opensesame")
@@ -104,6 +121,7 @@ impl PluginSettings {
             }
             Err(error) => return Err(error.into()),
         };
+        refuse_shared_write(path)?;
         let settings: Self = serde_json::from_slice(&bytes)
             .map_err(|error| SettingsError::Unreadable(error.to_string()))?;
         if settings.schema_version != catalog::schema_version() {
@@ -118,15 +136,29 @@ impl PluginSettings {
     ///
     /// `Io` when the directory or file cannot be written.
     pub fn save(&self, path: &Path) -> Result<(), SettingsError> {
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        let tmp = path.with_extension("json.tmp");
         let bytes = serde_json::to_vec_pretty(self)
             .map_err(|error| SettingsError::Unreadable(error.to_string()))?;
-        write_private(&tmp, &bytes)?;
-        std::fs::rename(&tmp, path)?;
+        write_atomic(path, "json.tmp", &bytes)?;
         Ok(())
+    }
+
+    /// Read, change and write the file as one step other writers wait for.
+    /// The CLI and the daemon both edit this file; without the lock two
+    /// read-modify-writes interleave and one install record is lost.
+    ///
+    /// # Errors
+    ///
+    /// Whatever `change` returns, or `Io` when the lock cannot be taken
+    /// within a few seconds or the file cannot be written.
+    pub fn update<T>(
+        path: &Path,
+        change: impl FnOnce(&mut Self) -> Result<T, SettingsError>,
+    ) -> Result<T, SettingsError> {
+        let _lock = crate::lock::FileLock::take(path)?;
+        let mut settings = Self::load(path)?;
+        let out = change(&mut settings)?;
+        settings.save(path)?;
+        Ok(out)
     }
 
     /// Record an install. The plugin must be in the catalog; it is recorded
@@ -257,11 +289,34 @@ pub(crate) fn override_var(id: &str) -> String {
     format!("{}{suffix}", catalog::env_override_prefix())
 }
 
+/// The override is a kill switch, so it fails toward off: a value that is not
+/// empty and not an explicit allow word is an off, whatever it says. Nothing
+/// here can turn a plugin on; an allow word only leaves the file in charge.
 fn is_off(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "off" | "0" | "false" | "no" | "disabled"
-    )
+    let value = value.trim();
+    !value.is_empty()
+        && !matches!(
+            value.to_ascii_lowercase().as_str(),
+            "on" | "1" | "true" | "yes"
+        )
+}
+
+/// A settings file another user could have written is not the person's file.
+#[cfg(unix)]
+fn refuse_shared_write(path: &Path) -> Result<(), SettingsError> {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = std::fs::metadata(path)?.permissions().mode();
+    if mode & 0o022 != 0 {
+        return Err(SettingsError::Unreadable(
+            "the settings file is writable by others".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn refuse_shared_write(_: &Path) -> Result<(), SettingsError> {
+    Ok(())
 }
 
 /// Lowercase hex sha256 of a file.
@@ -274,7 +329,28 @@ pub fn sha256_file(path: &Path) -> Result<String, SettingsError> {
     Ok(hex::encode(Sha256::digest(&bytes)))
 }
 
-fn write_private(path: &Path, bytes: &[u8]) -> Result<(), SettingsError> {
+/// Write `bytes` to `path` by way of a sibling temp file, 0600 on Unix, so a
+/// reader sees the old file or the new one and never half of either.
+pub(crate) fn write_atomic(path: &Path, tmp_ext: &str, bytes: &[u8]) -> std::io::Result<()> {
+    // A name of our own, so two writers never share a temp file.
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let unique = format!(
+        "{}.{}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
+    let tmp = path.with_extension(format!("{unique}.{tmp_ext}"));
+    let written = write_private(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    written
+}
+
+fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     let mut opts = std::fs::OpenOptions::new();
     opts.write(true).create(true).truncate(true);
@@ -283,6 +359,5 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), SettingsError> {
         use std::os::unix::fs::OpenOptionsExt;
         opts.mode(0o600);
     }
-    opts.open(path)?.write_all(bytes)?;
-    Ok(())
+    opts.open(path)?.write_all(bytes)
 }

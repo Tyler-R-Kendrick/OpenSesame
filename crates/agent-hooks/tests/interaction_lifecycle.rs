@@ -1,5 +1,5 @@
 //! How an Interaction-backed `ask` ends, and what it leaves behind
-//! (ADR 0156): a refusal is reported at once, every exit without an approval
+//! (ADR 0159): a refusal is reported at once, every exit without an approval
 //! withdraws both the interaction and the authorization request it fronted,
 //! a cancelled `ask` cannot strand what it half raised, and a create whose
 //! reply was lost is found again rather than duplicated.

@@ -1,4 +1,4 @@
--- ADR 0156: the append-only audit of every agent-hooks verdict the Host's
+-- ADR 0159: the append-only audit of every agent-hooks verdict the Host's
 -- intercept route answers.
 --
 -- Until now each decision was an `agent_hooks.decision` outbox event. The

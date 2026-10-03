@@ -190,7 +190,7 @@ pub async fn scan(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
 }
 
 /// A candidate secret to vet, and what to record the answer against.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CheckRequest {
     /// The value to check. Hashed, never stored.

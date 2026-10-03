@@ -65,9 +65,9 @@ fn payload(notice: &SecurityNotice) -> Value {
     body.insert(
         "source".into(),
         json!(if notice.subject_id.is_empty() {
-            notice.subject_kind.as_str()
+            notice.subject_kind.clone()
         } else {
-            notice.subject_id.as_str()
+            notice.subject_id_text()
         }),
     );
     body.insert(

@@ -10,7 +10,7 @@ import { isJsonObject, isString, overlapCast } from "../json.js";
 import { DIGEST_CASES } from "./request-digest-cases.js";
 
 /**
- * `spec/conformance/request-digest-vectors.json` (ADR 0139, ADR 0156).
+ * `spec/conformance/request-digest-vectors.json` (ADR 0139, ADR 0159).
  *
  * The interaction request digest is computed here by the Identity API and
  * recomputed in Rust by the agent-hooks approver, which refuses an approval
@@ -30,7 +30,7 @@ const FILE = new URL(
 );
 
 const ABOUT =
-  "Interaction request digest vectors (ADR 0086, ADR 0139, ADR 0156). Every digest and canonicalDetails is generated from packages/os-domain crypto/request-digest.ts (UPDATE_REQUEST_DIGEST_VECTORS=1); crates/agent-hooks recomputes them independently. Never edit by hand, and never regenerate to make a reader pass.";
+  "Interaction request digest vectors (ADR 0086, ADR 0139, ADR 0159). Every digest and canonicalDetails is generated from packages/os-domain crypto/request-digest.ts (UPDATE_REQUEST_DIGEST_VECTORS=1); crates/agent-hooks recomputes them independently. Never edit by hand, and never regenerate to make a reader pass.";
 
 const ENCODING = {
   purpose: REQUEST_DIGEST_PURPOSE,

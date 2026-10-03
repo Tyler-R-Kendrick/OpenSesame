@@ -3,7 +3,7 @@
 How to run OpenSesame as an [agent-hooks/0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md)
 interceptor and host: write the policy that decides what an agent may do, say
 who is asked when it needs a person, and read what was decided. The decision
-and its reasons are in [ADR 0156](../adr/0156-agent-hooks-interceptor.md); what
+and its reasons are in [ADR 0159](../adr/0159-agent-hooks-interceptor.md); what
 was run to check the host side is in
 [Agent Hooks 0.1 conformance](../validation/agent-hooks-conformance.md).
 
@@ -341,4 +341,4 @@ above) and as a **host** for its own agent-driven runs, in two separately stated
 claims with what each does and does not show:
 [Agent Hooks 0.1 conformance](../validation/agent-hooks-conformance.md). The
 upstream contract is pinned exactly (`agent-hooks-sdk =0.1.0-alpha.5`); a bump is
-a deliberate re-read of the spec with ADR 0156 updated.
+a deliberate re-read of the spec with ADR 0159 updated.

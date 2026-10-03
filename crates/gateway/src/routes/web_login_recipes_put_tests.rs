@@ -1,4 +1,4 @@
-//! The recipe routes proper (ADR 0076 §4, ADR 0156): trust comes only from a
+//! The recipe routes proper (ADR 0076 §4, ADR 0159): trust comes only from a
 //! verification the Host performed, a body can name none, and every write and
 //! delete is compare-and-set and audited without the document.
 

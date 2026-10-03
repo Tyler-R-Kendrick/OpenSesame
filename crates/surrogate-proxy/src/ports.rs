@@ -20,6 +20,32 @@ use opensesame_invoke_through::{Admission, ReceiptMeta, Refusal, TokenSource};
 /// the refusal to a queue rather than block.
 pub trait RefusalSink: Send + Sync {
     fn refused(&self, refusal: &Refusal);
+
+    /// A refused login-form surrogate (ADR 0150 §6.3). The default drops it;
+    /// an embedder that publishes notices publishes these beside the rest.
+    fn login_refused(&self, refusal: &LoginRefusal<'_>) {
+        let _ = refusal;
+    }
+}
+
+/// A login-form surrogate refused at the proxy: the `surrogate.*` code, the
+/// run, and the detail `opensesame-rotation-web` already defanged. `Debug`
+/// says whether a detail is present, never its text.
+#[derive(Clone, Copy)]
+pub struct LoginRefusal<'a> {
+    pub code: &'a str,
+    pub run_id: &'a str,
+    pub detail: Option<&'a str>,
+}
+
+impl std::fmt::Debug for LoginRefusal<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginRefusal")
+            .field("code", &self.code)
+            .field("run_id", &self.run_id)
+            .field("detail", &self.detail.is_some())
+            .finish()
+    }
 }
 
 /// Receives the receipt of every brokered call. Optional: the proxy works

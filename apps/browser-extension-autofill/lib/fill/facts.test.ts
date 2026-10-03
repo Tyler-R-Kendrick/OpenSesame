@@ -118,6 +118,15 @@ describe("passkeyOffered", () => {
   });
 });
 
+/** An open shadow root under a fresh host, appended to `parent`. */
+function shadowRoot(parent: Node = document.body): ShadowRoot {
+  const host = document.createElement("div");
+  parent.appendChild(host);
+  return host.attachShadow({ mode: "open" });
+}
+
+const PASSKEY = { type: "text", autocomplete: "username webauthn" };
+
 describe("pageFacts feeding decideFill", () => {
   const arm = (origin: string) => ({
     trigger: "command",
@@ -175,5 +184,46 @@ describe("pageFacts feeding decideFill", () => {
       fill: false,
       refusal: "not_top_frame",
     });
+  });
+
+  it("refuses a shadow-root password beside a sibling webauthn field", () => {
+    const root = shadowRoot();
+    input(PASSKEY, root);
+    const field = input({ type: "password" }, root);
+    field.getBoundingClientRect = () => BOX;
+    root.elementFromPoint = () => field;
+    field.focus();
+    const facts = pageFacts(window);
+    expect(facts.passkeyOffered).toBe(true);
+    expect(decideFill(arm(location.origin), facts, Date.now())).toEqual({
+      fill: false,
+      refusal: "passkey_offered",
+    });
+  });
+
+  it("fills a shadow-root password when the only passkey is in another root", () => {
+    input(PASSKEY, shadowRoot());
+    const root = shadowRoot();
+    const field = input({ type: "password" }, root);
+    field.getBoundingClientRect = () => BOX;
+    root.elementFromPoint = () => field;
+    field.focus();
+    const facts = pageFacts(window);
+    expect(facts.passkeyOffered).toBe(false);
+    expect(decideFill(arm(location.origin), facts, Date.now()).fill).toBe(true);
+  });
+
+  it("refuses a field in a nested shadow root covered by an overlay in its root", () => {
+    const outer = shadowRoot();
+    const inner = shadowRoot(outer);
+    const field = input({ type: "password" }, inner);
+    const overlay = document.createElement("div");
+    inner.appendChild(overlay);
+    field.getBoundingClientRect = () => BOX;
+    inner.elementFromPoint = () => overlay;
+    field.focus();
+    expect(
+      decideFill(arm(location.origin), pageFacts(window), Date.now()),
+    ).toEqual({ fill: false, refusal: "covered" });
   });
 });

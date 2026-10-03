@@ -27,7 +27,10 @@ pub(super) async fn append_backup_outbox(
     )
     .bind(uuid::Uuid::now_v7().to_string())
     .bind(event_type)
-    .bind(serde_json::json!({"organization_id": organization, "connection_id": connection_id, "detail": detail}).to_string())
+    .bind(opensesame_event_seal::seal(
+        "outbox_events.payload_json",
+        &serde_json::json!({"organization_id": organization, "connection_id": connection_id, "detail": detail}).to_string(),
+    ))
     .bind(Utc::now().to_rfc3339())
     .execute(&mut **transaction)
     .await?;

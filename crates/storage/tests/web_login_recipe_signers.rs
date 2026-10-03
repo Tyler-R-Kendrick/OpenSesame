@@ -1,5 +1,5 @@
 //! The keys an organization trusts to sign web-login recipes (ADR 0076 §4,
-//! ADR 0156): pinned once, revoked for good, bounded, and audited with the row.
+//! ADR 0159): pinned once, revoked for good, bounded, and audited with the row.
 
 mod recipes_support;
 

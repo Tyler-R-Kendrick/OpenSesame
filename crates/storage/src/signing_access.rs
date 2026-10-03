@@ -9,6 +9,7 @@ use super::{
     now_rfc3339, stored_signing_access_record, stored_signing_event, validate_json_document,
     Context, Db, StoredSigningAccessRecord, StoredSigningEvent,
 };
+use crate::sealed::{open_opt, seal_opt};
 
 impl Db {
     /// # Errors
@@ -137,12 +138,12 @@ impl Db {
         .bind(&event.signer_id)
         .bind(&event.access_record_id)
         .bind(&event.outcome)
-        .bind(&event.command)
+        .bind(seal_opt("signing_events.command", event.command.as_deref()))
         .bind(&event.application_name)
         .bind(&event.application_sha256)
-        .bind(&event.hostname)
-        .bind(&event.os_username)
-        .bind(&event.ip)
+        .bind(seal_opt("signing_events.hostname", event.hostname.as_deref()))
+        .bind(seal_opt("signing_events.os_username", event.os_username.as_deref()))
+        .bind(seal_opt("signing_events.ip", event.ip.as_deref()))
         .bind(&event.data_hash)
         .bind(&event.occurred_at)
         .bind(event.version)
@@ -168,7 +169,16 @@ impl Db {
         .bind(signer_id)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows.iter().map(stored_signing_event).collect())
+        rows.iter()
+            .map(|row| {
+                let mut event = stored_signing_event(row);
+                event.command = open_opt("signing_events.command", event.command)?;
+                event.hostname = open_opt("signing_events.hostname", event.hostname)?;
+                event.os_username = open_opt("signing_events.os_username", event.os_username)?;
+                event.ip = open_opt("signing_events.ip", event.ip)?;
+                Ok(event)
+            })
+            .collect()
     }
 
     /// Access records that are still usable for a signer right now.

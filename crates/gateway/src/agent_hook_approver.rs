@@ -1,4 +1,4 @@
-//! The Host's approver for escalated agent actions (ADR 0156): the operator's
+//! The Host's approver for escalated agent actions (ADR 0159): the operator's
 //! deployment configuration, and the per-run approval seam built from it.
 //!
 //! A tool rule that escalates is a liftable deny (agent-hooks/0.1 §5.1), and

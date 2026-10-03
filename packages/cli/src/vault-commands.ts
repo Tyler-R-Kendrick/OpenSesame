@@ -9,6 +9,7 @@
 import { readFile } from "node:fs/promises";
 import { configureHost } from "@opensesame/app-core/host.js";
 import { createNodeHost } from "@opensesame/app-core/node/host.js";
+import { scrubText } from "@opensesame/log-scrub";
 import {
   type OpenedVaultFile,
   VaultCorruptError,
@@ -39,8 +40,8 @@ function describe(opened: OpenedVaultFile): string {
 function refusal(error: Error): string {
   if (error instanceof WrongPasswordError) return "Wrong master password.";
   if (error instanceof VaultCorruptError)
-    return `Not a readable vault file: ${error.message}`;
-  return error.message;
+    return `Not a readable vault file: ${scrubText(error.message)}`;
+  return scrubText(error.message);
 }
 
 export async function runVaultCommand(

@@ -1,5 +1,5 @@
 //! `opensesame hooks approver get|put`, driven through the real binary against
-//! a stand-in Host (ADR 0156): who the Host asks is read, and replaced only
+//! a stand-in Host (ADR 0159): who the Host asks is read, and replaced only
 //! compare-and-set and with a step-up.
 
 mod hooks_mock;

@@ -22,7 +22,7 @@ export type KeymapState = Readonly<{
   commands: readonly KeymapCommand[];
   /** Who holds each key in `scope`. */
   bindings: ReadonlyMap<string, string>;
-  /** Where recorded keys go: everywhere, or one listing (ADR 0150 §6). */
+  /** Where recorded keys go: everywhere, or one listing (ADR 0156 §6). */
   scope?: KeymapContext;
   /** Keep a keymap; the message when it was refused. */
   save: (next: KeymapConfig) => string | null;

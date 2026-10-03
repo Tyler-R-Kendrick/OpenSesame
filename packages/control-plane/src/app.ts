@@ -120,7 +120,7 @@ export function createHonoApp(
   app.route("/v1/projects", projectRoutes);
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/authorization-requests", authorizationRequestRoutes);
-  // The requester's withdrawal (ADR 0156): the one move a requester has.
+  // The requester's withdrawal (ADR 0159): the one move a requester has.
   app.route("/v1/authorization-requests", authorizationRequestCancelRoutes);
   app.route("/v1/approval", approvalPageRoutes);
   // The cross-device interaction layer (ADR 0086). Versioned prefix, and

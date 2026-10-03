@@ -8,7 +8,7 @@ use tower::ServiceExt;
 mod metadata;
 
 /// The hook record of a run is read under the same ceiling as its sealed log,
-/// and only read (ADR 0156): observing is not controlling.
+/// and only read (ADR 0159): observing is not controlling.
 #[test]
 fn a_runs_hook_records_are_observe_only() {
     let path = "/api/v1/agent/runs/run_0190:1/hook-records";

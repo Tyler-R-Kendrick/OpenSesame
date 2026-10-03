@@ -1,4 +1,4 @@
-//! `opensesame access connectors rotate hooks <run>` — a Host-run agent's hook records (ADR 0156).
+//! `opensesame access connectors rotate hooks <run>` — a Host-run agent's hook records (ADR 0159).
 //!
 //! A run the Host opened has no viewer key to seal a log to: ADR 0081 §9 puts
 //! that key in the owner's client, and the Host never invents one, so the

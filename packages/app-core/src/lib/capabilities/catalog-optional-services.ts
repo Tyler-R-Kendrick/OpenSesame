@@ -146,7 +146,7 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Tailnet networking",
     "Bind this installation to a Tailscale tailnet: the networking connectors, the tailnet a daemon is reached over, and syncing the vault through a drive on it.",
     {
-      operationIds: ["vault.drive.sync"],
+      operationIds: ["vault.drive.sync", "plugins.pair", "plugins.unpair"],
       egress: [
         {
           class: "peer-or-local-network",

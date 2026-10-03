@@ -59,7 +59,7 @@ pub enum BrokerError {
     /// ADR 0049: the provider has no derived-token mint path (yet).
     #[error("provider `{0}` cannot mint a derived credential")]
     Unmintable(String),
-    /// ADR 0156: a web-login run for this organization and target is already
+    /// ADR 0159: a web-login run for this organization and target is already
     /// in flight — on this process or another replica sharing the database.
     #[error("a web-login run for this target is already in flight")]
     RunInFlight,

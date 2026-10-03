@@ -10,6 +10,8 @@ path = "src/main.rs"
 
 [dependencies]
 opensesame-storage = { path = "../../crates/storage" }
+opensesame-redaction = { path = "../../crates/redaction", features = ["tracing"] }
+opensesame-sealed-log = { path = "../../crates/sealed-log" }
 base64 = { workspace = true }
 opensesame-agent-hooks = { path = "../../crates/agent-hooks" }
 opensesame-ceremony = { path = "../../crates/ceremony" }
@@ -35,6 +37,9 @@ opensesame-worker = { path = "../../crates/worker" }
 # Settings for optional plugins only (ADR 0150 §7). The plugins themselves are
 # separate executables this binary never links (`pnpm audit:plugin-boundary`).
 opensesame-plugin-settings = { path = "../../crates/plugin-settings" }
+# The run lease's credential hook (ADR 0150 §6.2): a tripwire ends a dev
+# run's plugin session through `RunCredentials`. serde + thiserror only.
+opensesame-session-observe = { path = "../../crates/session-observe" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 jsonwebtoken = { workspace = true }
@@ -58,6 +63,9 @@ regex = "1.11.1"
 tempfile = "3.20.0"
 
 [dev-dependencies]
+# The dev-run tests point the CLI at their own settings file, which a shipped
+# build refuses to take from the environment.
+opensesame-plugin-settings = { path = "../../crates/plugin-settings", features = ["path-override"] }
 insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }

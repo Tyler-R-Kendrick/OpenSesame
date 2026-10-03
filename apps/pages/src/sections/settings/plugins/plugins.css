@@ -9,6 +9,18 @@
   flex: none;
 }
 
+.plugin-tile__pair {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.plugin-tile__pair input {
+  min-width: 0;
+}
+
 .plugin-tile__install {
   display: flex;
   align-items: center;
@@ -54,4 +66,9 @@
 
 .plugin-tile__event {
   color: var(--ink);
+}
+
+.plugin-tile .icon-btn[aria-busy="true"] {
+  opacity: 0.4;
+  cursor: progress;
 }

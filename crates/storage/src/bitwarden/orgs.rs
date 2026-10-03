@@ -31,7 +31,7 @@ pub mod member_type {
     pub const CUSTOM: i64 = 4;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BitwardenOrganization {
     pub id: String,
     pub name: String,

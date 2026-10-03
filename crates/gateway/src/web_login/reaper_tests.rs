@@ -1,4 +1,4 @@
-//! What a stopped gateway leaves behind is closed, truthfully (ADR 0156): a
+//! What a stopped gateway leaves behind is closed, truthfully (ADR 0159): a
 //! run whose task is dropped mid-flight is reconciled after its lease, at
 //! startup and by the periodic sweep, and nothing alive is ever touched.
 

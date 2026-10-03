@@ -1,4 +1,4 @@
-//! One agent-hooks policy per organization (ADR 0156).
+//! One agent-hooks policy per organization (ADR 0159).
 //!
 //! The row holds the policy document `opensesame-agent-hooks` parses, already
 //! in canonical form; this module never interprets it. What it owns is the

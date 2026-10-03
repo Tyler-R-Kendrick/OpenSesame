@@ -4,13 +4,19 @@
  */
 
 import {
+  type PasskeyUnlockRecord,
   type VaultHeader,
   WrongPasswordError,
   importVaultKey,
 } from "@opensesame/vault-core";
+import { protectorToUnlockRecord } from "./protection/adapters/webauthn-prf-ops.js";
+import { capsuleRecordsFor } from "./protection/unlock-protector-methods.js";
 import {
+  type PasskeyCeremony,
   getPasskeyUnlockCeremony,
+  getPasskeyUnlockCeremonyFor,
   unwrapVaultKeyWithPrf,
+  wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
 
 export type PasskeyUnlockSessionHost = Readonly<{
@@ -21,26 +27,103 @@ export type PasskeyUnlockSessionHost = Readonly<{
   afterPrimaryUnwrap: (vaultKey: CryptoKey) => Promise<void>;
 }>;
 
-export async function probePasskeyPrf(
+/** Wrap the raw vault key under the PRF output a create ceremony returned. */
+export function wrapVaultKeyWithCeremony(
+  raw: Uint8Array,
+  ceremony: PasskeyCeremony,
+): Promise<PasskeyUnlockRecord> {
+  return wrapVaultKeyWithPrf(
+    raw,
+    ceremony.prfOutput,
+    ceremony.prfSalt,
+    ceremony.credential.rawId,
+    ceremony.userId,
+  );
+}
+
+/**
+ * The passkey wraps this vault opens with: the header's own, then any passkey
+ * capsule the manifest enrolled beside it (ADR 0152). A capsule has no wrap in
+ * `unlocks`, so without this it could be tested but never used to unlock.
+ */
+export function passkeyUnlockRecords(
+  header: VaultHeader,
+): PasskeyUnlockRecord[] {
+  const own = header.unlocks?.passkey;
+  const records: PasskeyUnlockRecord[] = own ? [own] : [];
+  for (const record of capsuleRecordsFor(header, "passkey")) {
+    if (record.kind !== "webauthn-prf") continue;
+    const wrap = protectorToUnlockRecord(record);
+    if (!records.some((row) => row.credentialIdB64 === wrap.credentialIdB64)) {
+      records.push(wrap);
+    }
+  }
+  return records;
+}
+
+export type PasskeyProbe = Readonly<{
+  prfOutput: ArrayBuffer;
+  /** The credential that actually answered, not the one the header names first. */
+  credentialIdB64: string;
+}>;
+
+export type PasskeyProbeOptions = Readonly<{
+  signal?: AbortSignal | undefined;
+  /**
+   * Offer only these credentials. A duress trigger bound to one passkey asks
+   * for exactly that one: another credential's PRF output cannot carry it.
+   */
+  onlyCredentialIds?: readonly string[] | undefined;
+}>;
+
+export async function probePasskeyCeremony(
   host: PasskeyUnlockSessionHost,
-  signal?: AbortSignal,
-): Promise<ArrayBuffer> {
+  options: PasskeyProbeOptions = {},
+): Promise<PasskeyProbe> {
   host.assertNotLockedOut();
   const header = host.header();
   if (!header) throw new Error("There is no vault on this device yet.");
-  const record = header.unlocks?.passkey;
+  const { signal, onlyCredentialIds } = options;
+  const all = passkeyUnlockRecords(header);
+  const records = onlyCredentialIds
+    ? all.filter((row) => onlyCredentialIds.includes(row.credentialIdB64))
+    : all;
+  const [record] = records;
   if (!record) {
-    host.recordFailedUnlock();
+    // A restriction that left nothing to offer guessed nothing, so it does not
+    // count against the lockout; a vault with no passkey at all does.
+    if (all.length === 0) host.recordFailedUnlock();
     throw new WrongPasswordError("That passkey did not unlock the vault.");
   }
   try {
-    return await getPasskeyUnlockCeremony(record, undefined, signal);
+    if (records.length === 1) {
+      return {
+        prfOutput: await getPasskeyUnlockCeremony(record, undefined, signal),
+        credentialIdB64: record.credentialIdB64,
+      };
+    }
+    const ceremony = await getPasskeyUnlockCeremonyFor(
+      records,
+      signal ? { signal } : {},
+    );
+    return {
+      prfOutput: ceremony.prfOutput,
+      credentialIdB64: ceremony.credentialIdB64,
+    };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw error;
     }
     throw error instanceof Error ? error : new Error("Passkey unlock failed.");
   }
+}
+
+export async function probePasskeyPrf(
+  host: PasskeyUnlockSessionHost,
+  signal?: AbortSignal,
+): Promise<ArrayBuffer> {
+  const probe = await probePasskeyCeremony(host, signal ? { signal } : {});
+  return probe.prfOutput;
 }
 
 export async function unlockVaultWithHeldPrf(
@@ -50,16 +133,16 @@ export async function unlockVaultWithHeldPrf(
   host.assertNotLockedOut();
   const header = host.header();
   if (!header) throw new Error("There is no vault on this device yet.");
-  const record = header.unlocks?.passkey;
-  if (!record) {
-    host.recordFailedUnlock();
-    throw new WrongPasswordError("That passkey did not unlock the vault.");
+  let raw: Uint8Array | null = null;
+  for (const record of passkeyUnlockRecords(header)) {
+    try {
+      raw = await unwrapVaultKeyWithPrf(record, prfOutput);
+      break;
+    } catch (error) {
+      if (!(error instanceof WrongPasswordError)) throw error;
+    }
   }
-  let raw: Uint8Array;
-  try {
-    raw = await unwrapVaultKeyWithPrf(record, prfOutput);
-  } catch (error) {
-    if (!(error instanceof WrongPasswordError)) throw error;
+  if (!raw) {
     host.recordFailedUnlock();
     throw new WrongPasswordError("That passkey did not unlock the vault.");
   }

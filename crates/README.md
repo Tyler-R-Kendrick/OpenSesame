@@ -95,10 +95,10 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`security-events`](security-events) | The shared `SecurityNotice` envelope and its Alertmanager, PagerDuty and syslog renderings ([ADR 0080](../docs/adr/0080-security-event-hooks.md)). |
 | [`breach-intel`](breach-intel) | Value-blind breach detection: Pwned Passwords k-anonymity and public breach catalogues. |
 | [`agent-events`](agent-events) | Frozen `agent.*` event vocabulary for sandboxed runs. |
-| [`agent-hooks`](agent-hooks) | OpenSesame as an agent-hooks/0.1 interceptor: tool rules, result labels, a value-blind secret guard, digest-bound approvals and the Interaction-backed approver that puts an escalation to a person ([ADR 0156](../docs/adr/0156-agent-hooks-interceptor.md)). |
+| [`agent-hooks`](agent-hooks) | OpenSesame as an agent-hooks/0.1 interceptor: tool rules, result labels, a value-blind secret guard, digest-bound approvals and the Interaction-backed approver that puts an escalation to a person ([ADR 0159](../docs/adr/0159-agent-hooks-interceptor.md)). |
 | [`session-observe`](session-observe) | Live observation of agent runs and single-holder control handoff; a run lease revokes its credentials when it parks or ends. |
 | [`rotation`](rotation) | Credential rotation state machine. |
-| [`rotation-web`](rotation-web) | Web-login rotation: step IR, a tool boundary that never returns a credential, the agent-hooks/0.1 host for its runs (authority pinned, no lock across an approval) and the signed recipe document ([ADR 0156](../docs/adr/0156-agent-hooks-interceptor.md)). |
+| [`rotation-web`](rotation-web) | Web-login rotation: step IR, a tool boundary that never returns a credential, the agent-hooks/0.1 host for its runs (authority pinned, no lock across an approval) and the signed recipe document ([ADR 0159](../docs/adr/0159-agent-hooks-interceptor.md)). |
 | [`ceremony`](ceremony) | Connector registration ceremonies: tier ladder and typed capture slots. |
 | [`a2h`](a2h) | Agent-to-Human (A2H) v1.0 client; a human reply may only narrow authority. |
 | [`task-bus`](task-bus) | CloudEvents-shaped bus with in-memory and NATS JetStream adapters. |

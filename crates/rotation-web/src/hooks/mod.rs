@@ -1,7 +1,7 @@
 //! `OpenSesame` as an agent-hooks/0.1 **host** for its own agent-driven runs
-//! (ADR 0156, ADR 0076, ADR 0082).
+//! (ADR 0159, ADR 0076, ADR 0082).
 //!
-//! ADR 0156 put `OpenSesame` on the interceptor's side of Agent Hooks. The runs
+//! ADR 0159 put `OpenSesame` on the interceptor's side of Agent Hooks. The runs
 //! this crate orders — a web-login rotation, a registration ceremony's
 //! captures — are agent loops of their own, and this module is the other side:
 //! it emits the spec's interception points around them through the canonical

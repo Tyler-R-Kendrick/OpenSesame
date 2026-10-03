@@ -4,8 +4,12 @@
 //! The run ends on the first of: the parent closing the plugin's stdin (which
 //! the kernel does for it when the parent exits for any reason, a signal
 //! included), `SIGTERM`/`SIGINT` to the plugin, or the run's TTL. Every exit
-//! path calls [`SurrogateRuns::end_run`] — the surrogates are revoked in the
-//! ledger before the listener stops — and removes the run's CA file.
+//! path revokes through the run lease's own mechanism —
+//! [`end_and_revoke`] over the registry, which is [`SurrogateRuns::end_run`]:
+//! the surrogates and logins are revoked before the listener stops — and
+//! removes the run's CA file. While it runs, a misdirected surrogate revokes
+//! the run in place ([`crate::RunRevoker`]) and the parent hears it as an
+//! event line ([`super::events`]).
 
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -15,14 +19,20 @@ use std::time::Duration;
 
 use opensesame_invoke_through::Invoker;
 use opensesame_plugin_settings::plugin_state_dir;
+use opensesame_rotation_web::DeclareError;
+use opensesame_session_observe::end_and_revoke;
 use secrecy::ExposeSecret;
+use serde_json::Value;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::sync::mpsc::UnboundedReceiver;
+use zeroize::Zeroizing;
 
+use super::events;
 use super::gate::{Admitted, PLUGIN_ID};
 use super::notices::{create_private_dir, NoticeLog};
 use super::source::CliTokenSource;
 use super::wire::{self, ErrorReply, RunReply, SpecError, MAX_SPEC_BYTES};
-use crate::{ProviderSources, ProxyConfig, RunHandle, SurrogateRuns};
+use crate::{LoginError, ProviderSources, ProxyConfig, RunHandle, SurrogateRuns};
 
 /// Why a run ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,7 +93,7 @@ where
     W: AsyncWrite + Unpin,
     S: Future<Output = ()>,
 {
-    let run = match start(admitted, &options, &mut input).await {
+    let mut run = match start(admitted, &options, &mut input).await {
         Ok(run) => run,
         Err(error) => {
             let _ = write_line(
@@ -98,7 +108,7 @@ where
     };
     let outcome = match reply(&run) {
         Ok(reply) => match write_line(&mut output, &reply).await {
-            Ok(()) => Ok(wait(&mut input, stop, run.ttl).await),
+            Ok(()) => Ok(wait(&mut input, &mut output, &mut run.events, stop, run.ttl).await),
             Err(_) => Err(StartError("reply_unwritable".into())),
         },
         Err(error) => {
@@ -112,7 +122,7 @@ where
             Err(StartError(error))
         }
     };
-    run.runs.end_run(run.handle.run_id());
+    end_and_revoke(run.handle.run_id(), &run.runs);
     run.notices.flush_and_close();
     let _ = std::fs::remove_dir_all(&run.run_dir);
     outcome
@@ -123,6 +133,7 @@ struct Started {
     runs: SurrogateRuns,
     handle: RunHandle,
     notices: Arc<NoticeLog>,
+    events: UnboundedReceiver<Value>,
     unserved: Vec<String>,
     run_dir: PathBuf,
     ttl: Duration,
@@ -138,7 +149,9 @@ where
 {
     let line = read_spec(input).await?;
     let request = wire::parse_request(&line)?;
+    drop(line);
     let (spec, unserved) = wire::to_run_spec(&request)?;
+    drop(request.logins);
     let mut sources = ProviderSources::new();
     for grant in &spec.grants {
         if let Some(source) = CliTokenSource::for_provider(&grant.provider_id, &options.env) {
@@ -150,7 +163,10 @@ where
             .map_err(|_| StartError("notices_unwritable".into()))?,
     );
     let refusals: Arc<dyn crate::RefusalSink> = notices.clone();
-    let config = ProxyConfig::new(Arc::clone(&options.invoker), Arc::new(sources), refusals);
+    let (observer, events) = events::pipe();
+    let config = ProxyConfig::new(Arc::clone(&options.invoker), Arc::new(sources), refusals)
+        .with_observer(observer)
+        .with_login_switch(admitted.state().clone());
     let runs = SurrogateRuns::new(config);
     let run_dir = plugin_state_dir(admitted.settings_path(), PLUGIN_ID)
         .map_err(|_| StartError("state_dir".into()))?
@@ -163,6 +179,7 @@ where
         runs,
         handle,
         notices,
+        events,
         unserved,
         run_dir,
         ttl: Duration::from_secs(request.ttl_secs),
@@ -177,6 +194,12 @@ fn run_error_class(error: &crate::RunError) -> &'static str {
         RunError::EnvVar(_) => "spec_env_var",
         RunError::PassthroughHost(_) => "spec_passthrough_host",
         RunError::Issue(_) => "spec_scope",
+        RunError::Login(LoginError::Declare(DeclareError::PasswordSetField)) => {
+            "login_password_set_field"
+        }
+        RunError::Login(LoginError::Declare(_)) => "login_declaration",
+        RunError::Login(LoginError::NotArmed(_)) => "login_not_armed",
+        RunError::Login(LoginError::Trust) => "login_trust",
         RunError::Certificate(_) => "run_certificate",
         RunError::Listener(_) => "run_listener",
     }
@@ -217,8 +240,11 @@ fn write_private_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     options.open(path)?.write_all(bytes)
 }
 
-async fn read_spec<R: AsyncBufRead + Unpin>(input: &mut R) -> Result<Vec<u8>, StartError> {
-    let mut line = Vec::new();
+/// The spec line, zeroized when dropped: a login's secret rides in it.
+async fn read_spec<R: AsyncBufRead + Unpin>(
+    input: &mut R,
+) -> Result<Zeroizing<Vec<u8>>, StartError> {
+    let mut line = Zeroizing::new(Vec::new());
     let limit = u64::try_from(MAX_SPEC_BYTES).unwrap_or(u64::MAX) + 1;
     (&mut *input)
         .take(limit)
@@ -245,15 +271,33 @@ where
     output.flush().await
 }
 
-async fn wait<R, S>(input: &mut R, stop: S, ttl: Duration) -> Stopped
+/// Serve until the run ends, writing each event line as it comes.
+async fn wait<R, W, S>(
+    input: &mut R,
+    output: &mut W,
+    events: &mut UnboundedReceiver<Value>,
+    stop: S,
+    ttl: Duration,
+) -> Stopped
 where
     R: AsyncBufRead + Unpin,
+    W: AsyncWrite + Unpin,
     S: Future<Output = ()>,
 {
-    tokio::select! {
-        () = drain(input) => Stopped::InputClosed,
-        () = stop => Stopped::Signalled,
-        () = tokio::time::sleep(ttl) => Stopped::Expired,
+    let drained = drain(input);
+    let expired = tokio::time::sleep(ttl);
+    tokio::pin!(drained, stop, expired);
+    loop {
+        tokio::select! {
+            () = &mut drained => return Stopped::InputClosed,
+            () = &mut stop => return Stopped::Signalled,
+            () = &mut expired => return Stopped::Expired,
+            Some(event) = events.recv() => {
+                // A parent that stopped reading still has its run revoked;
+                // the line is the report, not the revocation.
+                let _ = write_line(output, &event).await;
+            }
+        }
     }
 }
 

@@ -31,10 +31,11 @@ pub async fn narrow_identity_role(
     sqlx::query("INSERT INTO outbox_events(id,event_type,payload_json,created_at) VALUES(?,?,?,?)")
         .bind(uuid::Uuid::now_v7().to_string())
         .bind("config.authorization.identity_narrowed")
-        .bind(
-            serde_json::json!({"organization_id":organization,"principal_id":principal})
+        .bind(crate::sealed::seal(
+            "outbox_events.payload_json",
+            &serde_json::json!({"organization_id":organization,"principal_id":principal})
                 .to_string(),
-        )
+        ))
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&mut **tx)
         .await?;

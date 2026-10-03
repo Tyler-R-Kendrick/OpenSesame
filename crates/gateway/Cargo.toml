@@ -9,6 +9,7 @@ opensesame-domain = { path = "../../crates/domain" }
 opensesame-authz = { path = "../../crates/authz" }
 opensesame-broker = { path = "../../crates/broker" }
 opensesame-connection-broker = { path = "../../crates/connection-broker" }
+opensesame-event-seal = { path = "../../crates/event-seal" }
 opensesame-task-access = { path = "../../crates/task-access" }
 opensesame-proof = { path = "../../crates/proof" }
 opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = ["experimental-aauth"] }
@@ -20,7 +21,7 @@ rand = { workspace = true }
 opensesame-a2h = { path = "../../crates/a2h" }
 opensesame-agent-events = { path = "../../crates/agent-events" }
 opensesame-agent-hooks = { path = "../../crates/agent-hooks" }
-# The web-login runner hosts its runs as agent-hooks sessions (ADR 0076, ADR 0156).
+# The web-login runner hosts its runs as agent-hooks sessions (ADR 0076, ADR 0159).
 opensesame-rotation-web = { path = "../../crates/rotation-web" }
 opensesame-session-observe = { path = "../../crates/session-observe" }
 url = { workspace = true }

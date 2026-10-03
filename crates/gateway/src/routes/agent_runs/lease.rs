@@ -8,7 +8,7 @@ use axum::{
 };
 use chrono::Utc;
 use opensesame_session_observe::{
-    AttachRefusal, Attachment, ControlLease, ControlState, HandoffOutcome, Quiescence,
+    AttachRefusal, Attachment, ControlLease, ControlState, HandoffOutcome,
 };
 use opensesame_storage::{ObservationControlUpdate, StoredObservationRun};
 use serde::Deserialize;
@@ -16,53 +16,12 @@ use serde_json::json;
 
 use super::{holder_is_caller, load, refusal, run_view, subject_of};
 use crate::app_state::AppState;
+use crate::run_lease::{lease_from, quiescence_name, state_name};
 
 /// Longest a control lease is held without being renewed.
 ///
 /// When it expires the run parks — it never returns to the agent (ADR 0081 §7).
 pub const LEASE_SECONDS: i64 = 900;
-
-/// Rebuild the lease machine from the persisted run.
-///
-/// The database holds a projection; `ControlLease` holds the rules. Reading the
-/// projection back into the machine before every transition is what stops the
-/// two from drifting — a state the machine forbids cannot be reached by writing
-/// a column, because the write only happens if the machine allowed it first.
-fn lease_from(run: &StoredObservationRun) -> Option<ControlLease> {
-    let state = match run.control_state.as_str() {
-        "agent_driving" => ControlState::AgentDriving,
-        "handoff_requested" => ControlState::HandoffRequested,
-        "awaiting_human" => ControlState::AwaitingHuman,
-        "human_driving" => ControlState::HumanDriving,
-        "resume_requested" => ControlState::ResumeRequested,
-        "suspended" => ControlState::Suspended,
-        _ => return None,
-    };
-    let quiescence = match run.quiescence.as_str() {
-        "quiescent" => Quiescence::Quiescent,
-        "critical" => Quiescence::Critical,
-        _ => return None,
-    };
-    ControlLease::restore(state, quiescence, run.handoff_queued)
-}
-
-const fn state_name(state: ControlState) -> &'static str {
-    match state {
-        ControlState::AgentDriving => "agent_driving",
-        ControlState::HandoffRequested => "handoff_requested",
-        ControlState::AwaitingHuman => "awaiting_human",
-        ControlState::HumanDriving => "human_driving",
-        ControlState::ResumeRequested => "resume_requested",
-        ControlState::Suspended => "suspended",
-    }
-}
-
-const fn quiescence_name(quiescence: Quiescence) -> &'static str {
-    match quiescence {
-        Quiescence::Quiescent => "quiescent",
-        Quiescence::Critical => "critical",
-    }
-}
 
 /// Persist a lease transition under the version it was decided on.
 ///
@@ -242,7 +201,7 @@ pub async fn take_control(
     let Some(holder) = subject_of(&who) else {
         return refusal(AttachRefusal::StepUpRequired);
     };
-    commit(
+    let taken = commit(
         &st,
         &organization_id,
         &run,
@@ -250,7 +209,13 @@ pub async fn take_control(
         Some(holder),
         (&headers, request.map(|Json(value)| value), "take"),
     )
-    .await
+    .await;
+    // The page is a person's now: the agent's autonomy, and what it was
+    // issued, is over (ADR 0150 §6.2).
+    if taken.status() == StatusCode::OK {
+        crate::run_lease::end_run(&st, &run.id);
+    }
+    taken
 }
 
 /// `POST /api/v1/agent/runs/{id}/release` — hand the page back.

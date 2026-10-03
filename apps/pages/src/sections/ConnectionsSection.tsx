@@ -37,6 +37,7 @@ import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
+import { useScopedState } from "./connections/use-scoped-state.js";
 import { useFlashNotice } from "./connections/useFlashNotice.js";
 import "./connections.css";
 
@@ -79,15 +80,19 @@ export function ConnectionsSection() {
   const [catalogError, setCatalogError] = useState<LoadFailure | null>(null);
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
   const [loading, setLoading] = useState(false);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const [rememberOffer, setRememberOffer] = useState<{
+  // A flash and the vault reminder belong to the page that raised them: the
+  // list, or one provider. Each is read back only on it, so an error from
+  // provider A never renders — or reaches the bell — on provider B.
+  const flashScope = providerId ?? "connections";
+  const [flash, setFlash] = useScopedState<Flash>(flashScope);
+  const [rememberOffer, setRememberOffer] = useScopedState<{
     provider: Provider;
     connection: Connection;
-  } | null>(null);
+  }>(flashScope);
 
   useFlashNotice(
     flash,
-    providerId ?? "connections",
+    flashScope,
     providers?.find((item) => item.id === providerId)?.displayName ??
       "Connections",
   );

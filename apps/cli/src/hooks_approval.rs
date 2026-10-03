@@ -1,5 +1,5 @@
 //! `opensesame hooks intercept --approver-url … --approver-ref …` — an
-//! interceptor that can put its own escalation to a person (ADR 0156, spec §9).
+//! interceptor that can put its own escalation to a person (ADR 0159, spec §9).
 //!
 //! An escalation is a liftable deny: the host that gets it either has an
 //! approval seam of its own or treats it as a deny. A host that spawns this

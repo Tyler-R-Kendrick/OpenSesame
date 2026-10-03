@@ -2,13 +2,13 @@ import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
  * The recipes a Host-run web-login rotation replays, and the keys that sign
- * them (ADR 0076 §4, ADR 0156). Every one of these is administered from the
+ * them (ADR 0076 §4, ADR 0159). Every one of these is administered from the
  * native CLI, by a person, and withheld from every agent surface: the recipes
  * govern the agent, so an agent that could write one — or pin the key that
  * signs one — would govern itself.
  */
 const ADR_WEB_LOGIN = "0076-autonomous-web-login-rotation.md";
-const ADR_AGENT_HOOKS = "0156-agent-hooks-interceptor.md";
+const ADR_AGENT_HOOKS = "0159-agent-hooks-interceptor.md";
 
 /**
  * Not an agent tool. An agent reading the recipes learns exactly which
@@ -17,7 +17,7 @@ const ADR_AGENT_HOOKS = "0156-agent-hooks-interceptor.md";
  */
 const RECIPES_GOVERN_THE_AGENT: CapabilityExclusion = {
   reason:
-    "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0156)",
+    "the recipes a hosted web-login run replays, and the keys that sign them, govern the agent (ADR 0076 §1: it orchestrates, deterministic tools hold the secrets); an agent that could read or write them would learn or choose the page that governs it, so they are for a person at the native CLI (ADR 0159)",
   adr: ADR_AGENT_HOOKS,
 };
 

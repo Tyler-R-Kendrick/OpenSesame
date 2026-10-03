@@ -5,6 +5,10 @@ import {
   notifyConnectRoads,
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
+import {
+  HOST_CONNECTIONS_WRITE,
+  hostGrantSeams,
+} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
@@ -22,9 +26,11 @@ installDoublePorts();
 installPanelFixture();
 
 const originalIdentity = { ...identitySeams };
+const originalGrant = { ...hostGrantSeams };
 
 afterEach(() => {
   Object.assign(identitySeams, originalIdentity);
+  Object.assign(hostGrantSeams, originalGrant);
   resetConnectRoadSeams();
 });
 
@@ -38,6 +44,7 @@ function installConnectRoads() {
 function openHostRoad() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
+  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 function unlockedVault() {
