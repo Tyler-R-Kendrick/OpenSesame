@@ -1,4 +1,8 @@
 import {
+  connectRoadSeams,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
+import {
   type Connection,
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
@@ -58,6 +62,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  resetConnectRoadSeams();
   connectionSeams.listConnections = originalList;
   lockAllTombs();
   vi.unstubAllGlobals();
@@ -73,6 +78,7 @@ function mount(tomb: string) {
 }
 
 it("lists a Connections-page connector someone holds, and links back to it", async () => {
+  connectRoadSeams.pagesOpen = () => true;
   const fixture = await localRequestFixture();
   await createLocalShare(fixture.tomb, {
     principalId: fixture.personId,
@@ -92,6 +98,25 @@ it("lists a Connections-page connector someone holds, and links back to it", asy
       .getByRole("link", { name: "Open in Connections" })
       .getAttribute("href"),
   ).toBe("/connections/slack/scn_slack");
+});
+
+it("offers no link back while Connections is off: its pages are not routed", async () => {
+  const fixture = await localRequestFixture();
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.personId,
+    resourceKind: "connection",
+    resourceId: "host:scn_slack",
+    resourceLabel: "Slack",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  mount(fixture.tomb);
+  await screen.findByRole("heading", { name: "Slack" });
+  const scoped = within(screen.getByRole("list", { name: "Connector access" }));
+  expect(scoped.getByRole("button", { name: "Configure" })).toBeTruthy();
+  expect(
+    scoped.queryByRole("link", { name: "Open in Connections" }),
+  ).toBeNull();
 });
 
 it("grants a Connections-page connector from Add, on the one share ledger", async () => {

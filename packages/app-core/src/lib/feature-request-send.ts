@@ -1,7 +1,8 @@
 /**
  * Perform a saved connector operation. Public fields are the body. Secret
  * material is attached only on the request headers. Nothing saved does not
- * send. Card data is refused before any request.
+ * send, and a provider with no declared address is not sent to. Card data is
+ * refused before any request.
  */
 
 import {
@@ -19,6 +20,12 @@ import {
 export const featureRequestSeams = {
   fetch: (url: string, init: RequestInit): Promise<Response> =>
     globalThis.fetch(url, init),
+  /**
+   * Told of every operation a feature performed, whether or not its provider
+   * has an address to send it to: what was performed is not the same thing as
+   * what left the device.
+   */
+  performed: (_request: FeatureRequest): void => undefined,
 };
 
 type CategorySend = () => FeatureRequest[];
@@ -61,14 +68,17 @@ function bodyHidesSecret(body: StringFields, secret: StringFields): boolean {
   );
 }
 
-function operationUrl(providerId: string, operation: string): string {
+/**
+ * Where a saved operation goes: the first authority its provider declares, or
+ * nowhere. A provider that declares none has no address to send to, and an
+ * address made up for it would be a request that can only fail.
+ */
+function operationUrl(providerId: string, operation: string): string | null {
   const provider = catalogProvider(providerId);
   const authority = provider?.egress.authorities[0];
+  if (!authority) return null;
   const scheme = provider?.egress.scheme === "http" ? "http" : "https";
-  const path = `/${providerId}/${operation}`;
-  return authority
-    ? `${scheme}://${authority}${path}`
-    : `https://connectors.invalid${path}`;
+  return `${scheme}://${authority}/${providerId}/${operation}`;
 }
 
 function refusesPayment(value: JsonValue): boolean {
@@ -99,26 +109,30 @@ export function sendFeatureOperation(
   if (!bodyHidesSecret(fields, secret)) {
     return { ok: false, providerId: operation.providerId };
   }
-  const headers = secretHeaders(secret);
-  void featureRequestSeams
-    .fetch(operationUrl(operation.providerId, operation.operation), {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        ...headers,
-      },
-      body: JSON.stringify(fields),
-      credentials: "omit",
-    })
-    .catch(() => undefined);
-  return {
+  const url = operationUrl(operation.providerId, operation.operation);
+  if (url !== null) {
+    void featureRequestSeams
+      .fetch(url, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          ...secretHeaders(secret),
+        },
+        body: JSON.stringify(fields),
+        credentials: "omit",
+      })
+      .catch(() => undefined);
+  }
+  const request: FeatureRequest = {
     ok: true,
     providerId: operation.providerId,
     operation: operation.operation,
     fields,
     secret,
   };
+  featureRequestSeams.performed(request);
+  return request;
 }
 
 /** Read the device record and send that connector's operation. */

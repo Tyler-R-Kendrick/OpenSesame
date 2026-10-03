@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   PERSONAL_SELECTION,
   installPanelFixture,
+  openConnectorPages,
   renderPanel,
   withReceipt,
 } from "./capabilities-panel.test-support.js";
@@ -78,7 +79,7 @@ describe("what a switch cannot say is said beside it", () => {
     // Connectors stay configurable by reference once Connect's roads are installed.
     connectRoadSeams.usesConnect = usesConnect;
     connectRoadSeams.hasConnectRoute = hasConnectRoute;
-    notifyConnectRoads();
+    openConnectorPages();
     cleanup();
     const referenced = renderPanel();
     expect(

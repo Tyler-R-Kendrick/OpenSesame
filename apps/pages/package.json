@@ -31,7 +31,7 @@
     "verify:ambient-sso": "node scripts/verify-ambient-sso.mjs",
     "verify:experience": "node scripts/verify-experience.mjs",
     "vectors:vault": "node scripts/emit-vault-vectors.mjs",
-    "verify:key-protection": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection src/lib/capability-bind.test.ts src/lib/age-keys",
+    "verify:key-protection": "pnpm --filter @opensesame/app-core exec vitest run src/lib/vault/protection src/lib/age-keys",
     "verify:duress": "node scripts/verify-duress.mjs",
     "verify:duress:offline": "node scripts/verify-duress-offline.mjs",
     "verify:duress:browser": "node scripts/verify-duress-browser.mjs",

@@ -1,8 +1,4 @@
-import {
-  type BackupTargetView,
-  filterPrivateGithubRepos,
-  getBackupStatus,
-} from "../../lib/backup.js";
+import { type BackupTargetView, getBackupStatus } from "../../lib/backup.js";
 import type { Connection } from "../../lib/connections.js";
 import { refreshGithubAppInstallations } from "../../lib/github-app-manifest.js";
 import {
@@ -10,10 +6,7 @@ import {
   listGithubAppInstallationRepos,
   listLocalAppInstallAccounts,
 } from "../../lib/github-app-repos.js";
-import {
-  DEFAULT_PASSWORD_REPO_NAME,
-  listGithubRepos,
-} from "../../lib/github-history.js";
+import { DEFAULT_PASSWORD_REPO_NAME } from "../../lib/github-history.js";
 import { mergeChoices } from "./GithubBackupRepoResolve.js";
 
 export function seedKey(rows: AppInstallAccount[]): string {
@@ -59,33 +52,13 @@ export async function loadRepoChoices(
     repositories: [],
     error: "Could not list repositories for the GitHub App install.",
   }));
-  let hostError: string | null = null;
-  let hostRepos: Array<{ fullName: string }> = [];
-  if (
-    connection.connectionId !== "local-github-app" &&
-    connection.status === "active"
-  ) {
-    try {
-      hostRepos = filterPrivateGithubRepos(
-        await listGithubRepos(connection.connectionId),
-      );
-    } catch {
-      hostError = "Could not list repositories from the GitHub connection.";
-    }
-  }
-  const repos = mergeChoices(
-    listed.repositories,
-    hostRepos,
-    accounts,
-    target,
-    seedRepos,
-  );
+  const repos = mergeChoices(listed.repositories, accounts, target, seedRepos);
   let draft = DEFAULT_PASSWORD_REPO_NAME;
   if (target) draft = `${target.owner}/${target.repo}`;
   else if (accounts[0]) {
     draft = `${accounts[0].accountLogin}/${DEFAULT_PASSWORD_REPO_NAME}`;
   }
-  const listError = listed.error ?? hostError ?? statusError;
+  const listError = listed.error ?? statusError;
   return {
     target,
     accounts,

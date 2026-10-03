@@ -1,5 +1,10 @@
 import { backupSeams } from "@opensesame/app-core/lib/backup.js";
 import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
+import {
   isHistorySelected,
   loadHistorySelections,
 } from "@opensesame/app-core/lib/history-backups.js";
@@ -23,6 +28,7 @@ const originalBackup = { ...backupSeams };
 
 afterEach(() => {
   cleanup();
+  resetConnectRoadSeams();
   Object.assign(backupSeams, originalBackup);
   const settings = loadSettings();
   saveSettings({
@@ -74,8 +80,8 @@ beforeEach(() => {
   });
 });
 
-describe("ProviderTiles Host reads", () => {
-  it("asks the Host for its backup target only for the backup group", async () => {
+describe("ProviderTiles backup target reads", () => {
+  it("reads the saved backup target only for the backup group", async () => {
     const status = vi.fn(async () => ({ target: null, pendingEvents: 0 }));
     Object.assign(backupSeams, { getBackupStatus: status });
     render(
@@ -115,7 +121,7 @@ describe("ProviderTiles backup toggles", () => {
     expect(screen.getByText("https://gitlab.com/acme/vault.git")).toBeTruthy();
   });
 
-  it("toggles vault history when no Host backup target is bound", async () => {
+  it("toggles vault history when no saved backup target is bound", async () => {
     render(
       <MemoryRouter>
         <ProviderTiles category="backup_recovery" label="Backups" />
@@ -171,7 +177,7 @@ describe("ProviderTiles backup toggles", () => {
     expect(loadHistorySelections()).toEqual([]);
   });
 
-  it("drives the Host backup actor enable flag for a configured GitHub App", async () => {
+  it("drives the saved target's enable flag for a configured GitHub App", async () => {
     Object.assign(backupSeams, {
       getBackupStatus: vi.fn(async () => ({
         target: {
@@ -217,5 +223,90 @@ describe("ProviderTiles backup toggles", () => {
           .getAttribute("aria-checked"),
       ).toBe("false"),
     );
+  });
+});
+
+describe("ProviderTiles never link to a page nothing routes", () => {
+  it("draws a history road as its switch alone while Connections is off", async () => {
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="backup_recovery" label="Backups" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("switch", { name: "GitLab vault history" }),
+      ).toBeTruthy(),
+    );
+    expect(screen.getByText("GitLab")).toBeTruthy();
+    expect(screen.queryAllByRole("link")).toEqual([]);
+  });
+
+  it("draws no status a person cannot change: the missing-repository mark needs the page that names one", async () => {
+    const settings = loadSettings();
+    saveSettings({
+      ...settings,
+      capabilityConnectors: {
+        ...settings.capabilityConnectors,
+        history: {
+          providerId: "github",
+          selections: [{ providerId: "github", group: "git" }],
+        },
+      },
+    });
+    const mark = "No repository yet — nothing is backed up";
+    const view = render(
+      <MemoryRouter>
+        <ProviderTiles category="backup_recovery" label="Backups" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("switch", { name: "GitHub vault history" }),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByRole("img", { name: mark })).toBeNull();
+    view.unmount();
+    connectRoadSeams.pagesOpen = () => true;
+    notifyConnectRoads();
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="backup_recovery" label="Backups" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: mark })).toBeTruthy(),
+    );
+  });
+
+  it("draws no tile for a connector whose only road is its page", () => {
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="password_managers" label="Password managers" />
+        <ProviderTiles category="identity" label="Identity providers" />
+      </MemoryRouter>,
+    );
+    expect(screen.queryAllByRole("listitem")).toEqual([]);
+  });
+
+  it("links each tile to its page once Connections routes them", async () => {
+    connectRoadSeams.pagesOpen = () => true;
+    notifyConnectRoads();
+    render(
+      <MemoryRouter>
+        <ProviderTiles category="backup_recovery" label="Backups" />
+        <ProviderTiles category="password_managers" label="Password managers" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("switch", { name: "GitLab vault history" }),
+      ).toBeTruthy(),
+    );
+    const hrefs = screen
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+    expect(hrefs).toContain("/settings/connections/gitlab");
+    expect(hrefs).toContain("/settings/connections/1password");
   });
 });

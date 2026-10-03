@@ -15,8 +15,6 @@ import {
   needsScopeSelection,
 } from "@opensesame/app-core/lib/connector-guidance.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
-import { ensureHostSession } from "@opensesame/app-core/lib/identity.js";
-import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
 import {
   type Flash,
   errorText,
@@ -32,10 +30,11 @@ import { useConnectSave } from "./useConnectSave.js";
 
 /**
  * A connector's own form. A git remote is sealed on this device and GitHub's
- * App is registered from the browser; every other form saves through a road
- * that must be open (`formRoad`), and with none open it is not drawn — a key
- * that could only fail is not offered (ADR 0158). What a person types stays
- * until the save has worked; a failure is said beside the key and in the bell.
+ * App is registered from the browser; a key or a configuration seals on this
+ * device; authorizing runs on Connect. A form whose road is not open
+ * (`formRoad`) is not drawn — a key that could only fail is not offered
+ * (ADR 0158). What a person types stays until the save has worked; a failure
+ * is said beside the key and in the bell.
  */
 export function ConnectForm({
   provider,
@@ -60,7 +59,6 @@ export function ConnectForm({
   );
   const [authorizing, setAuthorizing] = useState(false);
   const nameId = useId();
-  const keyId = useId();
   const sealing = useConnectSave(provider, {
     onFlash,
     onConnected,
@@ -85,7 +83,6 @@ export function ConnectForm({
     setAuthorizing(true);
     let created = false;
     try {
-      if (!usesConnect(provider.id)) await ensureHostSession();
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
@@ -222,19 +219,14 @@ export function ConnectForm({
       online={online}
       busy={busy}
       road={road}
-      failure={sealing.failure}
       name={name}
       nameId={nameId}
-      keyId={keyId}
-      apiKey={apiKey}
       scopes={scopes}
       missingScope={missingScope}
       onName={setName}
-      onApiKey={setApiKey}
       onToggleScope={toggle}
       onFlash={onFlash}
       onConnectOauth={connectOauth}
-      onSaveKey={saveKey}
     />
   );
 }

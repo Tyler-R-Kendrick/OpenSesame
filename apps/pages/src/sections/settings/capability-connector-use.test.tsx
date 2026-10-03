@@ -8,15 +8,15 @@ import {
   listConnections,
 } from "@opensesame/app-core/lib/connections.js";
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
-import { resetCategorySendsForTest } from "@opensesame/app-core/lib/feature-request-send.js";
+import {
+  featureRequestSeams,
+  resetCategorySendsForTest,
+} from "@opensesame/app-core/lib/feature-request-send.js";
 import { resetFeatureUsesForTest } from "@opensesame/app-core/lib/feature-request.js";
 import { beginSignIn } from "@opensesame/app-core/lib/federation.js";
 import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
-import {
-  performInference,
-  resetDeliveredModels,
-} from "@opensesame/app-core/lib/hosted-inference.js";
+import { resetDeliveredModels } from "@opensesame/app-core/lib/hosted-inference.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
 import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
@@ -57,128 +57,31 @@ import {
   listedProviders,
   saveListed,
 } from "./capability-connector-harness.js";
+import {
+  type Used,
+  headerRecord,
+  missed,
+  performed,
+  sentFetch,
+  sentModel,
+  tailnetUsed,
+} from "./capability-connector-observe.test-support.js";
 
 installDoublePorts();
 
 const originalIdentity = { ...identitySeams };
 const originalDriveFetch = driveClientSeams.fetch;
+const originalPerformed = featureRequestSeams.performed;
 const originalForgePut = vaultBackupSyncSeams.putForgeContents;
 const originalEnvelope = vaultBackupSyncSeams.sealedEnvelopeJson;
 
-type Used = {
-  ok: boolean;
-  fields: Record<string, string>;
-  secret: Record<string, string>;
-};
-
 type FeatureRuntime = Pick<CapabilityRuntime, "activate">;
-
-function missed(providerId: string): Used {
-  return { ok: false, fields: {}, secret: {} };
-}
-
-function headerRecord(
-  headers: HeadersInit | undefined,
-): Record<string, string> {
-  if (!headers) return {};
-  if (headers instanceof Headers) return Object.fromEntries(headers.entries());
-  if (Array.isArray(headers)) return Object.fromEntries(headers);
-  return headers;
-}
 
 async function runJob(runtime: FeatureRuntime, id: string): Promise<void> {
   const t = createTestContext();
   await runtime.activate(t.ctx);
   const job = t.entries("background-job").find((entry) => entry.id === id);
   job?.start(new AbortController().signal);
-}
-
-function fetchBody(body: BodyInit | null | undefined): string {
-  if (
-    body == null ||
-    body instanceof Blob ||
-    body instanceof FormData ||
-    body instanceof URLSearchParams ||
-    body instanceof ReadableStream ||
-    body instanceof ArrayBuffer ||
-    ArrayBuffer.isView(body)
-  ) {
-    return "";
-  }
-  return body;
-}
-
-function sentFetch(provider: Provider): Used {
-  const call = [...vi.mocked(globalThis.fetch).mock.calls]
-    .reverse()
-    .find((row) => String(row[0]).includes(`/${provider.id}/`));
-  if (!call) return missed(provider.id);
-  const bodyText = fetchBody(call[1]?.body);
-  try {
-    // SAFETY: this json body is the string record the feature request posted.
-    const fields = JSON.parse(bodyText) as Record<string, string>;
-    const headers = headerRecord(call[1]?.headers);
-    const secret: Record<string, string> = {};
-    for (const [name, value] of Object.entries(expectedSecrets(provider))) {
-      if (!Object.values(headers).includes(value)) return missed(provider.id);
-      secret[name] = value;
-    }
-    for (const value of Object.values(secret)) {
-      if (JSON.stringify(fields).includes(value)) return missed(provider.id);
-    }
-    return { ok: true, fields, secret };
-  } catch {
-    return missed(provider.id);
-  }
-}
-
-function sentModel(provider: Provider): Used {
-  const exchange = performInference(provider);
-  if (!exchange.ok) return missed(provider.id);
-  const call = [...vi.mocked(globalThis.fetch).mock.calls]
-    .reverse()
-    .find((row) => String(row[0]) === exchange.url);
-  if (!call) return missed(provider.id);
-  try {
-    // SAFETY: this json body is the string record the model request posted.
-    const fields = JSON.parse(fetchBody(call[1]?.body)) as Record<
-      string,
-      string
-    >;
-    const headers = headerRecord(call[1]?.headers);
-    for (const value of Object.values(expectedSecrets(provider))) {
-      if (!Object.values(headers).includes(value)) return missed(provider.id);
-      if (JSON.stringify(fields).includes(value)) return missed(provider.id);
-    }
-    return { ok: true, fields, secret: headers };
-  } catch {
-    return missed(provider.id);
-  }
-}
-
-function tailnetHeader(name: string, secret: boolean): string {
-  const normalized = name.replaceAll("_", "-");
-  if (secret && name === "auth_key") return "x-tailscale-auth-key";
-  return secret ? `x-tailscale-${normalized}` : `x-tailnet-${normalized}`;
-}
-
-function tailnetUsed(
-  provider: Provider,
-  headers: Record<string, string>,
-): Used {
-  const fields: Record<string, string> = {};
-  const secret: Record<string, string> = {};
-  for (const [name, value] of Object.entries(expectedPublic(provider))) {
-    if (headers[tailnetHeader(name, false)] !== value)
-      return missed(provider.id);
-    fields[name] = value;
-  }
-  for (const [name, value] of Object.entries(expectedSecrets(provider))) {
-    if (headers[tailnetHeader(name, true)] !== value)
-      return missed(provider.id);
-    secret[name] = value;
-  }
-  return { ok: true, fields, secret };
 }
 
 async function openPersonalVault(): Promise<void> {
@@ -357,6 +260,10 @@ describe("capability features use the saved connector", () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
     await forgetAllLocalGitRemotes();
     forgetDeviceConnectors();
+    performed.length = 0;
+    featureRequestSeams.performed = (request) => {
+      performed.push(request);
+    };
     resetFeatureUsesForTest();
     resetCategorySendsForTest();
     resetDeliveredModels();
@@ -367,6 +274,7 @@ describe("capability features use the saved connector", () => {
 
   afterEach(() => {
     Object.assign(identitySeams, originalIdentity);
+    featureRequestSeams.performed = originalPerformed;
     driveClientSeams.fetch = originalDriveFetch;
     vaultBackupSyncSeams.putForgeContents = originalForgePut;
     vaultBackupSyncSeams.sealedEnvelopeJson = originalEnvelope;

@@ -656,12 +656,6 @@ button.conn-tile__link {
   max-width: 64ch;
 }
 
-.conn-client-form {
-  display: grid;
-  gap: 0.75rem;
-  max-width: 34rem;
-}
-
 .conn-github-presence {
   display: grid;
   gap: 0.5rem;
@@ -751,32 +745,6 @@ button.conn-tile__link {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.35rem;
-}
-
-.conn-callback {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  font-size: 0.8125rem;
-}
-
-.conn-callback__label {
-  flex: none;
-  color: var(--ink-2);
-}
-
-.conn-callback code {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--mono);
-  font-size: 0.75rem;
 }
 
 .conn-client-alt > summary {

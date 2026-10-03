@@ -170,7 +170,7 @@ describe("instrumented screens", () => {
     ).toBe("/vault/new");
   });
 
-  it("binds the connector catalog, its search field and the custom-connector link", () => {
+  it("binds the connector catalog and its search field", () => {
     const { container } = render(
       <MemoryRouter>
         <CatalogPanel providers={[provider()]} />
@@ -179,16 +179,13 @@ describe("instrumented screens", () => {
 
     expect(isMountedGuideTarget("connections.catalog")).toBe(true);
     expect(isMountedGuideTarget("connections.provider-picker")).toBe(true);
-    expect(isMountedGuideTarget("connections.custom")).toBe(true);
 
     expect(resolveGuideTargetElement("connections.provider-picker")).toBe(
       container.querySelector('button[title="Search (/)"]'),
     );
-    expect(
-      resolveGuideTargetElement("connections.custom")?.getAttribute(
-        "aria-label",
-      ),
-    ).toBe("Custom connector");
+    // A custom connector was a form a Host took; with no Host there is no
+    // key to point at and no page behind it (ADR 0151).
+    expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
   });
 
   it("binds the connected panel", () => {
