@@ -35,6 +35,8 @@ export type StoreState = {
   provenance: PolicyProvenance;
   policy: InstanceCapabilityPolicy | null;
   policyValid: boolean;
+  /** The boot runtime config was invalid: the plan stays core-only until a reload. */
+  configInvalid: boolean;
   selection: InstallationCapabilitySelection | null;
   receipt: ConsentReceipt | null;
   vaultSelection: VaultCapabilitySelection | null;
@@ -62,6 +64,7 @@ export function initialState(): StoreState {
     provenance: "personal-local",
     policy: null,
     policyValid: true,
+    configInvalid: false,
     selection: null,
     receipt: null,
     vaultSelection: null,
@@ -99,6 +102,7 @@ export function readPolicy(
   note: Note,
 ): void {
   const section = config.capabilityComposition;
+  state.configInvalid = config.status === "invalid";
   if (config.status === "invalid") {
     state.provenance = section ? "same-origin-deployment" : "personal-local";
     state.policy = null;
@@ -120,10 +124,13 @@ export function readPolicy(
 
 /**
  * Re-read the device's own policy after its owner wrote it. A managed
- * instance's policy is the deployment's and is never re-read from the device.
+ * instance's policy is the deployment's and is never re-read from the device,
+ * and a boot whose runtime config was invalid stays core-only: no write to the
+ * device's policy repairs the config, so a lock or any other invalidate must
+ * not lift the fail-closed plan.
  */
 export function reloadLocalPolicy(state: StoreState, note: Note): void {
-  if (state.provenance !== "personal-local") return;
+  if (state.provenance !== "personal-local" || state.configInvalid) return;
   readLocalPolicy(state, readPersistedDocs(state.vaultId), note);
 }
 

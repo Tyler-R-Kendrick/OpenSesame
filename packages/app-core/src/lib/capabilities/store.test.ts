@@ -314,6 +314,24 @@ describe("invalidation", () => {
     expect(compositionStore.getSnapshot().policy).toEqual(before);
   });
 
+  it("invalidate does not lift a plan that failed closed on an invalid runtime config with no composition section", async () => {
+    await compositionStore.boot({
+      runtimeConfig: {
+        ...invalidRuntimeConfig(),
+        capabilityComposition: undefined,
+      },
+      vaultId: null,
+      facts: { ...FIXTURE_FACTS, now: NOW },
+    });
+    const core = ["settings.core", "vault.passwords"];
+    expect(approved(compositionStore)).toEqual(core);
+    expect(compositionStore.getSnapshot().plan?.policyValid).toBe(false);
+    compositionStore.invalidate("vault-lock");
+    expect(compositionStore.getSnapshot().plan?.policyValid).toBe(false);
+    expect(compositionStore.getSnapshot().status).toBe("managed-invalid");
+    expect(approved(compositionStore)).toEqual(core);
+  });
+
   it("revalidate adopts a newer durable commit and re-resolves", async () => {
     await bootPersonalLocal();
     const lease = compositionStore.currentLease();
