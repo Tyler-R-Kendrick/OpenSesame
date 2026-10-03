@@ -62,6 +62,36 @@ describe("the sheet drawn from the keys in force", () => {
     expect(keysOf(rows, "Open or activate")).toEqual(["Enter"]);
   });
 
+  it("still names Esc when the search key is unbound", () => {
+    const rows = sheet({ ...EMPTY_KEYMAP, bindings: { "/": "nop" } });
+    expect(keysOf(rows, "Leave the field, then the pane")).toEqual(["Esc"]);
+    expect(rows.some(([, action]) => action === "Search this pane")).toBe(
+      false,
+    );
+  });
+
+  it("still names Esc and Enter with single keys switched off", () => {
+    const rows = sheet({ ...EMPTY_KEYMAP, singleKeys: false });
+    expect(keysOf(rows, "Leave the field, then the pane")).toEqual(["Esc"]);
+    expect(keysOf(rows, "Open or activate")).toEqual(["Enter"]);
+  });
+
+  it("still names Enter when every dive and climb key is unbound", () => {
+    const rows = sheet({
+      ...EMPTY_KEYMAP,
+      bindings: {
+        l: "nop",
+        h: "nop",
+        ArrowRight: "nop",
+        ArrowLeft: "nop",
+        Backspace: "nop",
+      },
+    });
+    expect(keysOf(rows, "Dive in")).toEqual([]);
+    expect(keysOf(rows, "Climb out")).toEqual([]);
+    expect(keysOf(rows, "Open or activate")).toEqual(["Enter"]);
+  });
+
   it("follows a person's keys for a command the sheet has no row for", () => {
     const rows = sheet({
       ...EMPTY_KEYMAP,

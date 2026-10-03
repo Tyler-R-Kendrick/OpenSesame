@@ -63,7 +63,11 @@ function countedKeys(source: HelpSource, keysOf: KeysOf): string {
     .join("  ");
 }
 
-/** A changed row: one line per command that still has a key, then its fixed key. */
+/**
+ * A changed row: one line per command that still has a key, then its fixed
+ * key — which stays even when every command lost its keys, because Enter and
+ * Esc are not the person's to take away.
+ */
 function rebuilt(
   source: HelpSource,
   keysOf: KeysOf,
@@ -82,7 +86,7 @@ function rebuilt(
       commandById(id, commands)?.label ?? id,
     ]);
   }
-  if (rows.length > 0 && source.fixed) rows.push(source.fixed);
+  if (source.fixed) rows.push(source.fixed);
   return rows;
 }
 
