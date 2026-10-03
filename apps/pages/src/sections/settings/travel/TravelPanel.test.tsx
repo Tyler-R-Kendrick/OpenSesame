@@ -96,6 +96,17 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     expect(sheet.querySelectorAll('[role="switch"]')).toHaveLength(1);
   });
 
+  it("draws no way to leave while the open vault is the only one: packing would refuse", () => {
+    origin.vaults = [vault("personal", "open")];
+    render(<TravelPanel />);
+    expect(
+      screen.queryByRole("button", { name: "Turn on travel mode" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Turn off travel mode" }),
+    ).toBeTruthy();
+  });
+
   it("carries the open vault and sends the rest home, only once both halves are elsewhere", async () => {
     render(<TravelPanel />);
     fireEvent.click(
