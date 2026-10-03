@@ -1,4 +1,5 @@
 import { FIXED_ROWS } from "@opensesame/app-core/lib/keymap/commands.js";
+import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
 import { resetTarget } from "@opensesame/app-core/lib/keymap/effective.js";
 import { keycapLabel } from "@opensesame/app-core/lib/keymap/notation.js";
 import { resetKeymap } from "@opensesame/app-core/lib/keymap/store.js";
@@ -18,6 +19,7 @@ import { StatusMark } from "../../../components/StatusMark.js";
 import { BoundKeys } from "./BoundKeys.js";
 import { CommandCount } from "./CommandCount.js";
 import { KeymapFind } from "./KeymapFind.js";
+import { Refused } from "./Refused.js";
 import { UnavailableKeys } from "./UnavailableKeys.js";
 import { useFocusLanding } from "./useFocusLanding.js";
 import type { KeymapState } from "./useKeymap.js";
@@ -128,7 +130,15 @@ function FixedKeys() {
 
 function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
   const [armed, setArmed] = useState(false);
-  const [refused, setRefused] = useState<string | null>(null);
+  // A refusal is about the keymap it met: once the keymap changes (a later
+  // edit, another tab) it no longer describes anything on screen.
+  const [met, setMet] = useState<{
+    message: string;
+    n: number;
+    config: KeymapConfig;
+  } | null>(null);
+  const refusals = useRef(0);
+  const refused = met !== null && met.config === state.config ? met : null;
   const changed =
     changedCount(state.config, state.commands) +
     Object.keys(state.config.macros).length;
@@ -138,7 +148,7 @@ function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
     : "Reset every key and macro";
   return (
     <>
-      {refused ? <StatusMark tone="err" label={refused} /> : null}
+      {refused ? <Refused message={refused.message} n={refused.n} /> : null}
       <button
         type="button"
         className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
@@ -150,17 +160,22 @@ function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
         onBlur={() => setArmed(false)}
         onClick={() => {
           if (!armed) {
-            setRefused(null);
+            setMet(null);
             setArmed(true);
             return;
           }
           const reset = resetKeymap();
           setArmed(false);
           if (!reset.ok) {
-            setRefused(reset.message);
+            refusals.current += 1;
+            setMet({
+              message: reset.message,
+              n: refusals.current,
+              config: state.config,
+            });
             return;
           }
-          setRefused(null);
+          setMet(null);
           onLand([FILTER_LANDING]);
         }}
       >

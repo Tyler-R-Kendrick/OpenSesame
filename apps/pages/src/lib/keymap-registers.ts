@@ -53,17 +53,22 @@ export function createRegisterState(): RegisterState {
 function stopRecording(state: RegisterState): void {
   const recording = state.recording;
   if (recording === null) return;
-  state.recording = null;
   const next = withRecording(loadKeymap(), recording.register, recording.steps);
   // An empty recording is nothing; one with steps storage refused is not.
   if (next === null) {
+    state.recording = null;
     state.announcement = `nothing recorded in @${recording.register}`;
     return;
   }
   const saved = saveKeymap(next);
-  state.announcement = saved.ok
-    ? `recorded @${recording.register}`
-    : `@${recording.register} not kept: ${saved.message}`;
+  // A refused save keeps the recording, so the person can free some room
+  // and press `q` again; it ends only once something has taken it.
+  if (!saved.ok) {
+    state.announcement = `@${recording.register} not kept: ${saved.message}`;
+    return;
+  }
+  state.recording = null;
+  state.announcement = `recorded @${recording.register}`;
 }
 
 /**

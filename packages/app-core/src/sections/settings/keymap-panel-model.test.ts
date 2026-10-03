@@ -100,6 +100,24 @@ describe("recording a macro from keys", () => {
     ]);
   });
 
+  it("reads a count inside a prefix, and an uppercase after one, as the shell does", () => {
+    const read = (...tokens: string[]) =>
+      stepsFromKeys(tokens, EMPTY_KEYMAP, commands);
+    // The shell takes a digit as a count before it reads the prefix.
+    expect(read("g", "3", "j")).toEqual({
+      steps: [{ command: "listing.next", count: 3 }],
+      skipped: ["g"],
+    });
+    expect(read("g", "1", "2", "j").steps).toEqual([
+      { command: "listing.next", count: 12 },
+    ]);
+    // `g G` is `g g` (first row), not a swallowed `g` then `G` (last row).
+    expect(read("g", "G")).toEqual({
+      steps: [{ command: "listing.first", count: 1 }],
+      skipped: [],
+    });
+  });
+
   it("uses the person's own keys", () => {
     const config = bindKey(EMPTY_KEYMAP, commands, "w", "listing.next");
     expect(stepsFromKeys(["w"], config, commands).steps).toEqual([
