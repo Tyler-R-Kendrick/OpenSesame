@@ -114,7 +114,8 @@ who copies the file, so it rests sealed too.
    before. The key is derived by HKDF from `OPENSESAME_EVENT_KEY`, else from the
    claim pepper the deployment already requires; a persistent database with
    neither **refuses to start**. A sealed payload that does not open throws, and
-   is never read as empty. Existing rows are sealed in place at start-up.
+   is never read as empty, except in a queue claim, where the one row is
+   quarantined (item 11). Existing rows are sealed in place at start-up.
 9. **Event rows on the Host (SQLite).** The outbox, security deliveries,
    connection events, signing events (command, host, OS user, address),
    approval comments, runner steps, intents, invocations and receipts are sealed
@@ -124,11 +125,27 @@ who copies the file, so it rests sealed too.
    (`opensesame-event-seal`), because free functions inside transactions write
    these rows. A networked or production Host with no sealing key **refuses to
    start**; a development Host stores events unsealed and says so. A sealed value
-   with no sealer, or the wrong key, is an error, never ciphertext handed on as
-   the event. Existing rows are sealed in place at start-up.
+   with no sealer is an error, never ciphertext handed on as the event; one that
+   does not open under the installed key is an error on a read and is
+   quarantined in a queue claim (item 11). Existing rows are sealed in place at
+   start-up, by the exact, case-sensitive `osev1.` prefix the read path uses, and
+   failure text an older build stored unscrubbed (`last_error`, `status_detail`)
+   is scrubbed in place then too.
 10. **Failure text is scrubbed, not sealed.** `lastError` and delivery errors are
     text an operator reads, and the outbox reuses `lastError` as a claim token
     that SQL compares, so they are scrubbed by shape (item 3).
+11. **One unreadable row does not stall a queue.** A claim loop that failed its
+    whole batch on a row that will not open (the key changed, the value was
+    altered) would fail again on every tick and hold every newer row behind it.
+    The outbox and delivery claims (Rust and TypeScript) instead quarantine that
+    row on its own: it is marked dead through the table's existing failure
+    columns with the value-free reason `unreadable: sealed value did not open`,
+    its sealed value is left untouched, and the rest of the batch goes on. With
+    no sealer installed on the Host nothing can open, so that stays an error and
+    dead-letters nothing. The audit trail is the exception: a listing, and the
+    hash chain's read of its newest row, fail with an error rather than skip the
+    row, because a chain restarted at genesis would detach every later event.
+    Changing the key is therefore not rotation (see below).
 
 Left readable on purpose: ids, timestamps, event types, states and counters,
 which every queue and every operator query needs.
@@ -142,11 +159,24 @@ which every queue and every operator query needs.
   Its own key policy stands; only the value layer applies to it.
 - Free text a *person* types (an approval comment, a signing command line) is
   scrubbed by shape only where it is logged; where it is stored it is sealed.
+- **Sealing is confidentiality of an event value at rest, not row-level
+  integrity.** The associated data names the table and column, not the row, so
+  an attacker with database write access and no key cannot read or forge a
+  value but can copy a sealed value from one row into another of the same
+  column, or swap two rows' values, and neither is detected by the seal. What
+  does detect tampering is separate: the audit chain's digests cover the
+  Identity plane's audit rows, and signed receipts cover the Host's receipts.
+  The other event columns have no such cover. Binding a value to its row (its
+  id in the associated data) is a recorded limitation, not part of this
+  decision, because it changes the sealed format and needs a re-seal path first.
 - Someone who holds the process's memory, or both a sealed file and its key,
   reads it. Sealing protects a copied file, a backup, a snapshot and a
   read-only database account; it is not a defence against the host.
 - Losing the key makes sealed logs and events unreadable. That is the design; a
-  key is backed up like any other secret.
+  key is backed up like any other secret. Changing a key is the same thing:
+  there is no re-seal path yet, so **key rotation is not supported**. Rows
+  sealed under the old key are unreadable under the new one and, in a queue,
+  are quarantined (item 11).
 - Credentials that Postgres holds in columns of their own (the OIDC provider's
   stored sessions and refresh tokens, Better Auth's account tokens, webhook
   signing secrets, upstream client secrets) are not events and are out of this
