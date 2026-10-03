@@ -259,6 +259,50 @@ describe("macros in the Keybindings config.yaml", () => {
     });
   });
 
+  describe("anchors and aliases", () => {
+    // The config profile refuses aliases (`alias_forbidden`), so a file that
+    // uses one cannot be patched: the editor shows the freshly derived file.
+    // That drops the comments, deliberately — the safety net is the contract,
+    // not an alias-aware patcher.
+    const intended = {
+      ...base,
+      macros: {
+        a: { steps: ["listing.previous"] },
+        b: { steps: ["listing.next"] },
+      },
+    };
+    const files = {
+      "a steps list": [
+        "macros:",
+        "  # first",
+        "  a:",
+        "    steps: &s [listing.next]",
+        "  b:",
+        "    steps: *s",
+        "",
+      ].join("\n"),
+      "a macro mapping": [
+        "macros:",
+        "  # first",
+        "  a: &m { steps: [listing.next] }",
+        "  b: *m",
+        "",
+      ].join("\n"),
+    };
+
+    for (const [name, saved] of Object.entries(files)) {
+      it(`falls back to a fresh, valid file for ${name}`, () => {
+        expect(decodeSettings("keybindings", saved).ok).toBe(false);
+        const out = reconcileSource("keybindings", saved, intended);
+        expect(out).toBe(encodeSettings("keybindings", intended));
+        expect(out).not.toContain("# first");
+        expect(out).not.toMatch(/[&*]/);
+        const parsed = decodeSettings("keybindings", out);
+        expect(parsed.ok && parsed.doc.macros).toEqual(intended.macros);
+      });
+    }
+  });
+
   it("patches a macro written as a bare list of steps", () => {
     const bare = "macros:\n  tidy: [listing.next] # short\n";
     const out = reconcileSource("keybindings", bare, {
