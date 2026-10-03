@@ -77,8 +77,9 @@ pub trait Reported: Sized {
     /// is refused as `host_error:transform_invalid` and the report withheld.
     fn restate(self, report: Value) -> Option<Self>;
 
-    /// `summary.reason` for a run that delivered this report.
-    fn shutdown_reason(&self) -> ShutdownReason {
+    /// `summary.reason` for a run that delivered this report. `stood_down`
+    /// is whether the run stopped for a person ([`HookSession::stood_down`]).
+    fn shutdown_reason(&self, _stood_down: bool) -> ShutdownReason {
         ShutdownReason::Completed
     }
 }
@@ -104,12 +105,16 @@ impl Reported for RunReport {
         unchanged(self, &report)
     }
 
-    fn shutdown_reason(&self) -> ShutdownReason {
-        // The executor stood down because a person holds the page.
-        if self.outcome == RunOutcome::Blocked(BlockedReason::HumanDriving) {
-            ShutdownReason::Cancelled
-        } else {
-            ShutdownReason::Completed
+    /// A run that came to its outcome is `completed`; one a person holds, or
+    /// handed the page to, is `cancelled`; every other stop — a refused step,
+    /// a transport that could not act, a submit nobody can vouch for — is
+    /// `error`, because the run did not do what it was started to do.
+    fn shutdown_reason(&self, stood_down: bool) -> ShutdownReason {
+        match &self.outcome {
+            RunOutcome::Completed => ShutdownReason::Completed,
+            RunOutcome::Blocked(BlockedReason::HumanDriving) => ShutdownReason::Cancelled,
+            _ if stood_down => ShutdownReason::Cancelled,
+            RunOutcome::Blocked(_) | RunOutcome::ReconciliationRequired(_) => ShutdownReason::Error,
         }
     }
 }
@@ -232,7 +237,7 @@ where
             return Err(HostedRunError::Run(error));
         }
     };
-    let reason = report.shutdown_reason();
+    let reason = report.shutdown_reason(session.stood_down());
     match session.output(report).await {
         Ok(report) => {
             session.shutdown(reason).await;
@@ -300,4 +305,64 @@ pub async fn run_capture_steps_hooked<T: CeremonyTransport>(
         Ok(report)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use opensesame_session_observe::ControlLease;
+
+    use super::*;
+
+    fn report(outcome: RunOutcome) -> RunReport {
+        RunReport {
+            outcome,
+            steps: Vec::new(),
+            lease: ControlLease::new(),
+        }
+    }
+
+    #[test]
+    fn a_run_that_came_to_its_outcome_is_completed_whether_or_not_a_person_arrived() {
+        let completed = report(RunOutcome::Completed);
+        assert_eq!(completed.shutdown_reason(false), ShutdownReason::Completed);
+        assert_eq!(completed.shutdown_reason(true), ShutdownReason::Completed);
+    }
+
+    #[test]
+    fn a_person_holding_the_page_is_cancelled() {
+        let held = report(RunOutcome::Blocked(BlockedReason::HumanDriving));
+        assert_eq!(held.shutdown_reason(false), ShutdownReason::Cancelled);
+    }
+
+    #[test]
+    fn a_run_that_did_not_come_to_its_outcome_is_an_error() {
+        for reason in [
+            BlockedReason::Challenge,
+            BlockedReason::RecipeDrift,
+            BlockedReason::BackupNotAcknowledged,
+            BlockedReason::CandidateAbsent,
+            BlockedReason::Transport,
+            BlockedReason::HookRefused,
+        ] {
+            let blocked = report(RunOutcome::Blocked(reason));
+            assert_eq!(blocked.shutdown_reason(false), ShutdownReason::Error);
+        }
+        let unknown = report(RunOutcome::ReconciliationRequired("unknown".into()));
+        assert_eq!(unknown.shutdown_reason(false), ShutdownReason::Error);
+    }
+
+    #[test]
+    fn a_run_that_stood_down_for_a_person_is_cancelled_however_the_executor_saw_it() {
+        // A handoff reaches the executor as a refused channel step: a block on
+        // the transport, or a submit that did not complete.
+        for outcome in [
+            RunOutcome::Blocked(BlockedReason::Transport),
+            RunOutcome::ReconciliationRequired("the submit did not complete".into()),
+        ] {
+            assert_eq!(
+                report(outcome).shutdown_reason(true),
+                ShutdownReason::Cancelled
+            );
+        }
+    }
 }

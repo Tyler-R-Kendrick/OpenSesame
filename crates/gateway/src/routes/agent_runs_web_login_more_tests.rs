@@ -29,8 +29,51 @@ fn leaky(request: &Value) -> Value {
     happy(request)
 }
 
+/// A driver that reaches the queue by a road the outcome route does not guard
+/// — an older gateway process, another writer: it claims through the route and
+/// settles straight into the table. The executor's own guard is what is left,
+/// and this is how it is still exercised.
+async fn drive_past_the_route(
+    f: &Fixture,
+    done: &AtomicBool,
+    answer: fn(&Value) -> Value,
+) -> Drive {
+    let mut log = Drive::default();
+    while !done.load(Ordering::SeqCst) {
+        let runs = f.state.db.list_observation_runs(&f.org, 10).await.unwrap();
+        for run in runs.iter().filter(|run| run.closed_at.is_none()) {
+            let claim = format!("/api/v1/agent/runs/{}/steps/claim", run.id);
+            let (status, claimed) = f.browser.send(&f.app, "POST", &claim, None).await;
+            if status != StatusCode::OK {
+                continue;
+            }
+            let seq = claimed["seq"].as_i64().unwrap();
+            let step = f
+                .state
+                .db
+                .get_runner_step(&f.org, &run.id, seq)
+                .await
+                .unwrap()
+                .unwrap();
+            let outcome = answer(&claimed["request"]).to_string();
+            let held = step.claimed_by.unwrap();
+            let now = Utc::now().to_rfc3339();
+            f.state
+                .db
+                .settle_runner_step(&f.org, &run.id, seq, &held, &outcome, &now)
+                .await
+                .unwrap();
+            log.claimed.push(claimed.clone());
+            log.bodies.push(claimed);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    log
+}
+
 #[tokio::test]
-async fn a_secret_a_driver_settles_is_redacted_before_the_executor_or_the_record() {
+async fn a_secret_that_reaches_the_queue_unscrubbed_is_still_redacted_before_the_executor_or_the_record(
+) {
     let f = fixture().await;
     prerequisites(&f, Some(r#"{"version":1,"unlisted_tools":"allow"}"#)).await;
     let org = opensesame_domain::OrganizationId::parse(&f.org).unwrap();
@@ -56,7 +99,7 @@ async fn a_secret_a_driver_settles_is_redacted_before_the_executor_or_the_record
             done.store(true, Ordering::SeqCst);
             dom
         },
-        drive(&f, &done, leaky),
+        drive_past_the_route(&f, &done, leaky),
     );
     session.shutdown(ShutdownReason::Completed).await;
     harness.channel.flush_records().await.unwrap();
@@ -247,9 +290,16 @@ async fn a_driver_answering_after_the_run_stopped_stores_nothing() {
     // The executor stopped waiting and closed the run; the late answer, with
     // a credential in it, is refused rather than left in the queue.
     let settle = format!("/api/v1/agent/runs/{run_id}/steps/{seq}/outcome");
-    let body = json!({"outcome": {"outcome": "done", "note": secret()}});
+    // A well-formed answer is refused because the run is closed; one with a
+    // field the outcome does not have is refused as malformed. Either way the
+    // credential is not stored and not echoed.
+    let body = json!({"outcome": {"outcome": "done"}});
     let (status, _) = f.browser.send(&f.app, "POST", &settle, Some(body)).await;
     assert_eq!(status, StatusCode::CONFLICT);
+    let body = json!({"outcome": {"outcome": "done", "note": secret()}});
+    let (status, refused) = f.browser.send(&f.app, "POST", &settle, Some(body)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(!refused.to_string().contains(&secret()), "{refused}");
     let rows = queue(&f, &run_id).await;
     assert!(
         rows.iter().all(|(_, outcome)| outcome.is_none()),

@@ -2,55 +2,102 @@
  * Extension background: Host API + client-core sync cursor + optional daemon.
  * Never exposes getSecret to webpages.
  */
-import {
-  createApiClient,
-  normalizeLoopbackBaseUrl,
-} from "@opensesame/api-client";
-import {
-  isSealedForRest,
-  openFromRest,
-  sealForRest,
-} from "@opensesame/browser-at-rest";
+import { createApiClient } from "@opensesame/api-client";
+import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
 import { createCursor, persistSealedStore } from "@opensesame/client-core";
-import { ENDPOINTS, isString } from "@opensesame/os-domain";
+import { browserGrants, browserPages, closeRunTab } from "../runner/browser";
+import { connector } from "../runner/host";
+import { resolveHostBase } from "../runner/host-base";
+import { type MessageSender, isOwnPage } from "../runner/sender";
+import {
+  type RunnerService,
+  type RunnerStatus,
+  createRunnerService,
+} from "../runner/service";
+import { RunnerSettings } from "../runner/settings";
+import { SealedKv, browserStore } from "../runner/store";
+import { RunnerVault } from "../runner/vault";
 
-const DEFAULT_HOST = ENDPOINTS.host.default;
-/** Where `hostApiBase` rests, sealed (ADR 0149). */
-const STORE = "chrome.storage.local";
+/** The alarm that wakes the runner: a service worker does not stay up to poll. */
+const RUNNER_ALARM = "opensesame.runner.poll";
+
+/** What the options page asks of the runner. */
+interface RunnerMessage {
+  type?: string;
+  origin?: string;
+}
+
+/** What the runner answers: a result word, or that it could not. */
+interface RunnerReply {
+  result?: string;
+  error?: string;
+}
+
+/** Only this extension's own pages may ask the runner anything (`runner/sender.ts`). */
+function fromOwnPage(sender: MessageSender): boolean {
+  return isOwnPage(sender, browser.runtime.id, browser.runtime.getURL(""));
+}
 
 /**
- * Stored config is only trusted if it is still a loopback origin — a rewritten
- * `hostApiBase` must never repoint the extension at a remote Host API.
+ * The runner's messages, answered only to this extension's own pages. They are
+ * handled by a listener of their own so the health listener's contract (answer
+ * or pass) is untouched; a message that is not the runner's is passed on.
  */
-async function resolveHostBase(): Promise<string> {
-  try {
-    const stored = await chrome.storage.local.get("hostApiBase");
-    const raw = stored.hostApiBase;
-    // Sealed at rest (ADR 0149); a value from an older build reads as it is.
-    const value = isString(raw)
-      ? await openFromRest(STORE, "hostApiBase", raw)
-      : null;
-    if (isString(raw) && value && !isSealedForRest(raw)) {
-      // Written in the clear by an older build: seal it where it lies.
-      const sealed = await sealForRest(STORE, "hostApiBase", value);
-      if (sealed !== null) {
-        await chrome.storage.local.set({ hostApiBase: sealed });
-      }
+function runnerListener(runner: RunnerService) {
+  return (
+    message: RunnerMessage | undefined,
+    sender: MessageSender,
+    sendResponse: (response: RunnerReply | RunnerStatus) => void,
+  ) => {
+    if (message?.type === "opensesame.runner.status") {
+      if (!fromOwnPage(sender)) return undefined;
+      void runner
+        .status()
+        .then(sendResponse, () =>
+          sendResponse({ error: "runner_unavailable" }),
+        );
+      return true;
     }
-    if (value?.trim()) {
-      const normalized = normalizeLoopbackBaseUrl(value);
-      if (normalized) return normalized;
+    if (message?.type === "opensesame.runner.arm") {
+      if (!fromOwnPage(sender)) return undefined;
+      void runner.arm(String(message.origin ?? "")).then(
+        (result) => {
+          if (result === "armed") void runner.tick().catch(() => undefined);
+          sendResponse({ result });
+        },
+        () => sendResponse({ error: "runner_unavailable" }),
+      );
+      return true;
     }
-  } catch {
-    // storage may be unavailable in some test harnesses
-  }
-  return DEFAULT_HOST;
+    if (message?.type === "opensesame.runner.disarm") {
+      if (!fromOwnPage(sender)) return undefined;
+      void runner.disarm(String(message.origin ?? "")).then(
+        () => sendResponse({ result: "disarmed" }),
+        () => sendResponse({ error: "runner_unavailable" }),
+      );
+      return true;
+    }
+  };
 }
 
 export default defineBackground(() => {
   const cursor = createCursor("extension-device");
+  const kv = new SealedKv(browserStore());
+  const settings = new RunnerSettings(kv);
+  const runner = createRunnerService({
+    settings,
+    vault: new RunnerVault(kv),
+    grants: browserGrants(),
+    pagesFor: browserPages(settings),
+    closePage: closeRunTab,
+    connect: connector(settings, resolveHostBase),
+  });
+  void browser.alarms.create(RUNNER_ALARM, { periodInMinutes: 1 });
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === RUNNER_ALARM) void runner.tick().catch(() => undefined);
+  });
 
-  chrome.runtime.onInstalled.addListener(() => {
+  browser.runtime.onInstalled.addListener(() => {
     void persistSealedStore(
       cursor.deviceId,
       JSON.stringify({
@@ -62,7 +109,9 @@ export default defineBackground(() => {
     );
   });
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  browser.runtime.onMessage.addListener(runnerListener(runner));
+
+  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "opensesame.health") {
       void (async () => {
         try {

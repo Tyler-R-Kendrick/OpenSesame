@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   ApproveInteractionSchema,
@@ -43,6 +42,7 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
+import { approverMayBeAsked } from "../services/interaction-approver-guard.js";
 import {
   actorTypeFromProof,
   consumeAndSettle,
@@ -58,6 +58,11 @@ import {
   spendInteractionActivation,
 } from "./interaction-activation.js";
 import { requesterRef, resolveInboxRef } from "./interaction-handles.js";
+import {
+  consumeLinkBudget,
+  consumeReferenceBudget,
+  resetLinkBudgets,
+} from "./interaction-link-budget.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 import {
   type BindingRefusal,
@@ -150,6 +155,7 @@ const ERRORS = {
   interaction_already_live: { code: "interaction_already_live", status: 409 },
   proof_required: { code: "proof_required", status: 401 },
   approval_required: { code: "approval_required", status: 401 },
+  approval_denied: { code: "approval_denied", status: 403 },
   digest_mismatch: { code: "digest_mismatch", status: 409 },
   unsupported_kind: { code: "unsupported_kind", status: 422 },
   invalid_request: { code: "invalid_request", status: 400 },
@@ -259,36 +265,6 @@ async function loadByRef(
   const row = await ctx.repos.interactions.getById(id);
   if (!row) return null;
   return persistExpiry(ctx, row, now);
-}
-
-/**
- * Per-reference pacing for links that verify.
- *
- * Generous, because a real scan is followed by a page load, a sign-in and a
- * poll or two, and several people may hold the same link. Tight enough that
- * the endpoint is not a free status feed on somebody else's approval.
- */
-const REFERENCE_BUDGET = 120;
-const referenceAttempts = new Map<string, number[]>();
-
-function consumeReferenceBudget(ref: string): boolean {
-  const now = Date.now();
-  // Same shedding discipline as the probing budget: the map is keyed by a
-  // value a caller supplies, so it must be bounded whatever they send.
-  for (const [key, values] of referenceAttempts) {
-    const live = values.filter((at) => now - at < LINK_WINDOW_MS);
-    if (live.length === 0) referenceAttempts.delete(key);
-    else if (live.length !== values.length) referenceAttempts.set(key, live);
-  }
-  while (referenceAttempts.size > LINK_FENCE_ENTRIES) {
-    const oldest = referenceAttempts.keys().next().value;
-    if (oldest === undefined) break;
-    referenceAttempts.delete(oldest);
-  }
-  const seen = referenceAttempts.get(ref) ?? [];
-  if (seen.length >= REFERENCE_BUDGET) return false;
-  referenceAttempts.set(ref, [...seen, now]);
-  return true;
 }
 
 /** True when a reference was minted here. One HMAC; no database. */
@@ -442,80 +418,14 @@ function bindingErrorName(reason: BindingRefusal): ErrorName {
 }
 
 /**
- * A sliding-window budget for the unauthenticated short link.
- *
- * Module-global because it must outlive a request, bounded because it is keyed
- * by client-influenced values, and wall-clock rather than `ctx.clock()` because
- * pacing is about real elapsed time and a test's frozen clock must not be able
- * to hold a window open.
- *
- * This is not the enumeration defence — a reference carries 144 bits of
- * randomness *and* a MAC, so guessing is not a strategy anybody has, and a
- * forged reference is refused before any database lookup. What the budget
- * actually buys is that the endpoint cannot be turned into a free HMAC
- * verification loop against the deployment pepper.
- *
- * **Only unverifiable references spend it.** That asymmetry is the whole
- * design, and getting it backwards is worse than having no budget at all. A
- * caller holding a reference that verifies was handed the link; a caller
- * sending one that does not is probing. If both spent from a shared bucket,
- * an attacker rotating the two headers this fingerprint is built from — which
- * costs them nothing — could exhaust a global cap and every genuine QR scan on
- * the instance would answer 429. The evadable limit would constrain honest
- * users and the unevadable one would deny them, which is precisely inverted
- * for a feature whose premise is that somebody is standing in front of a
- * screen right now.
- *
- * So verification comes first, it is one HMAC and touches no database, and a
- * genuine link is never paced by what somebody else is doing.
- */
-const LINK_WINDOW_MS = 60_000;
-const LINK_GLOBAL_BUDGET = 3_000;
-const LINK_CLIENT_BUDGET = 240;
-const LINK_FENCE_ENTRIES = 4_096;
-const linkAttempts = new Map<string, number[]>();
-
-/**
  * Test hook: clear the short-link budget.
  *
  * Module-global state outlives the app instance a suite builds, so a suite
  * that resolves hundreds of links would otherwise pace the next one.
  */
 export function resetInteractionLinkBudget(): void {
-  linkAttempts.clear();
-  referenceAttempts.clear();
+  resetLinkBudgets();
   resetRequesterAdmission();
-}
-
-function consumeLinkBudget(c: Context<{ Variables: Variables }>): boolean {
-  const now = Date.now();
-  for (const [key, values] of linkAttempts) {
-    const live = values.filter((at) => now - at < LINK_WINDOW_MS);
-    if (live.length === 0) linkAttempts.delete(key);
-    else if (live.length !== values.length) linkAttempts.set(key, live);
-  }
-  while (linkAttempts.size > LINK_FENCE_ENTRIES) {
-    const oldest = linkAttempts.keys().next().value;
-    if (oldest === undefined) break;
-    linkAttempts.delete(oldest);
-  }
-  const fingerprint = createHash("sha256")
-    .update(c.req.header("user-agent") ?? "")
-    .update("|")
-    .update(c.req.header("x-forwarded-for") ?? c.req.header("origin") ?? "")
-    .digest("hex")
-    .slice(0, 16);
-  const global = linkAttempts.get("__global__") ?? [];
-  const client = linkAttempts.get(fingerprint) ?? [];
-  if (
-    global.length >= LINK_GLOBAL_BUDGET ||
-    client.length >= LINK_CLIENT_BUDGET
-  ) {
-    return false;
-  }
-  linkAttempts.set("__global__", [...global, now]);
-  linkAttempts.set(fingerprint, [...client, now]);
-  return true;
 }
 
 /** True when the caller asked for JSON rather than a page to look at. */
@@ -711,9 +621,8 @@ export function createInteractionHandoffRoutes(): Hono<{
         return fail(c, "rate_limited");
       }
 
-      // Knowing the handle is what authorizes the asking. A handle that does
-      // not verify, and one that verifies for a principal that is gone or must
-      // not be asked, answer identically: nothing here confirms an id.
+      // Knowing the handle authorizes the asking. A handle that does not
+      // verify and one for a principal that must not be asked answer alike.
       const approverId = resolveInboxRef(
         body.approverRef,
         ctx.config.claimPepper,
@@ -732,10 +641,22 @@ export function createInteractionHandoffRoutes(): Hono<{
         // must not be asked at all.
         return fail(c, "interaction_not_found");
       }
-
       const details: AuthorizationDetail[] = body.authorizationDetails.map(
         (detail) => overlapCast<typeof detail, AuthorizationDetail>(detail),
       );
+      // An agent's request: its addressee, never the caller, and only the
+      // request's own details (ADR 0159). Same refusal as the rest.
+      if (
+        !(await approverMayBeAsked(ctx, {
+          kind: body.kind,
+          subjectId: body.subject.subjectId,
+          callerId,
+          approverId,
+          authorizationDetails: details,
+        }))
+      ) {
+        return fail(c, "interaction_not_found");
+      }
       try {
         assertAuthorizationDetails(details);
       } catch (e) {
@@ -944,15 +865,17 @@ export function createInteractionHandoffRoutes(): Hono<{
       return fail(c, "interaction_not_found");
     }
     if (row.status === "expired") return fail(c, "interaction_expired");
-    // Nothing to spend: still waiting on a person, or refused by one. Not a
-    // 404 — the caller is the right caller and the interaction is theirs — and
-    // not a conflict either, because what is missing is the ceremony. An
-    // authenticated session is not an approval.
+    // Refused by a person: final, and said so. Folding it into "still
+    // waiting" left a requester polling a question that had been answered.
+    if (row.status === "denied") return fail(c, "approval_denied");
+    // Nothing to spend yet: still waiting on a person. Not a 404 — the caller
+    // is the right caller and the interaction is theirs — and not a conflict
+    // either, because what is missing is the ceremony. An authenticated
+    // session is not an approval.
     if (
       row.status === "pending" ||
       row.status === "presented" ||
-      row.status === "awaiting_approval" ||
-      row.status === "denied"
+      row.status === "awaiting_approval"
     ) {
       return fail(c, "approval_required");
     }

@@ -1,0 +1,12 @@
+{
+  "preset": 1,
+  "name": "strict",
+  "summary": "Deny every tool no person has named, and deny any emission that carries a credential-shaped string.",
+  "policy": {
+    "version": 1,
+    "unlisted_tools": "deny",
+    "secret_guard": "deny",
+    "refuse_labels": ["opensesame:credential_material"],
+    "tools": []
+  }
+}

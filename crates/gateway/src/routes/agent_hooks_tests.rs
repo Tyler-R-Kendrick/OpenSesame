@@ -2,7 +2,7 @@ use super::*;
 use crate::app_state::{test_demo_state, test_session_headers};
 use crate::test_principals::{P26, P27, P28};
 use axum::http::Request;
-use opensesame_domain::OrganizationRole;
+use opensesame_domain::{OrganizationId, OrganizationRole};
 use tower::ServiceExt;
 
 const INTERCEPT: &str = "/api/v1/agent-hooks/intercept";
@@ -81,17 +81,81 @@ fn operator(st: &AppState) -> HeaderMap {
     headers
 }
 
-async fn decision_rows(st: &AppState) -> Vec<Value> {
-    let rows: Vec<String> = sqlx::query_scalar(
-        "SELECT payload_json FROM outbox_events WHERE event_type = ? ORDER BY created_at, id",
+/// A native session for `subject` whose claims `shape` has adjusted, as the
+/// headers that present it.
+fn session_shaped(
+    st: &AppState,
+    subject: &str,
+    organization: OrganizationId,
+    role: OrganizationRole,
+    shape: impl FnOnce(&mut crate::session_claims::HostSessionClaims),
+) -> HeaderMap {
+    let token = uuid::Uuid::new_v4().to_string();
+    let mut claims = crate::session_claims::fixture(
+        crate::session_claims::parse_principal(subject).unwrap(),
+        organization,
+        role,
+        &st.resource,
+    );
+    shape(&mut claims);
+    st.sessions
+        .lock()
+        .unwrap()
+        .insert(opensesame_claims::hash_secret(&token), claims);
+    with(
+        HeaderMap::new(),
+        "authorization",
+        &format!("Bearer opaque-session:{token}"),
     )
-    .bind(crate::agent_hooks::EVENT_DECISION)
+}
+
+/// Claims that carry a passkey step-up taken `age_secs` ago (ADR 0084's
+/// evidence: phishing-resistant, `webauthn`, `last_step_up_at`).
+fn step_up_taken(claims: &mut crate::session_claims::HostSessionClaims, age_secs: i64) {
+    let at = chrono::Utc::now() - chrono::Duration::seconds(age_secs);
+    claims.assurance = crate::session_claims::Assurance::PhishingResistant;
+    claims.amr = vec!["webauthn".into()];
+    claims.issued_at = at;
+    claims.auth_time = at;
+    claims.last_step_up_at = Some(at);
+    claims.expires_at = chrono::Utc::now() + chrono::Duration::minutes(5);
+}
+
+/// A session that has just stepped up: what may replace the policy.
+fn stepped_up(
+    st: &AppState,
+    subject: &str,
+    organization: OrganizationId,
+    role: OrganizationRole,
+) -> HeaderMap {
+    session_shaped(st, subject, organization, role, |claims| {
+        step_up_taken(claims, 0);
+    })
+}
+
+/// The audit rows, oldest first, as the JSON the audit has always had.
+async fn decision_rows(st: &AppState) -> Vec<Value> {
+    use sqlx::Row as _;
+    sqlx::query(
+        "SELECT organization_id, caller, interception_point, decision, escalated, reason, \
+         policy_version FROM agent_hook_decisions ORDER BY id",
+    )
     .fetch_all(st.db.pool())
     .await
-    .unwrap();
-    rows.iter()
-        .map(|row| serde_json::from_str(row).unwrap())
-        .collect()
+    .unwrap()
+    .iter()
+    .map(|row| {
+        json!({
+            "organization_id": row.get::<String, _>("organization_id"),
+            "caller": row.get::<String, _>("caller"),
+            "interception_point": row.get::<Option<String>, _>("interception_point"),
+            "decision": row.get::<String, _>("decision"),
+            "escalated": row.get::<i64, _>("escalated") != 0,
+            "reason": row.get::<Option<String>, _>("reason"),
+            "policy_version": row.get::<i64, _>("policy_version"),
+        })
+    })
+    .collect()
 }
 
 #[tokio::test]
@@ -269,6 +333,10 @@ async fn decisions_are_audited_without_content() {
     .await;
     assert_eq!(denied.body["reason"], "opensesame:raw_secret");
 
+    // The audit is its own table: nothing reaches the backup actor's outbox,
+    // however much agent traffic there is.
+    assert_eq!(st.db.count_unpublished_outbox().await.unwrap(), 0);
+
     let rows = decision_rows(&st).await;
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["decision"], "transform");
@@ -295,3 +363,12 @@ async fn decisions_are_audited_without_content() {
 
 #[path = "agent_hooks_policy_tests.rs"]
 mod policy;
+
+#[path = "agent_hooks_decisions_tests.rs"]
+mod decisions;
+
+#[path = "agent_hooks_step_up_tests.rs"]
+mod step_up_gate;
+
+#[path = "agent_hooks_approver_tests.rs"]
+mod approver_gate;
