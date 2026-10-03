@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-03-duress-sheet-hardening/`](2026-10-03-duress-sheet-hardening/README.md) | Duress sheet hardening — visual evidence |
 | [`2026-10-02-vault-share/`](2026-10-02-vault-share/README.md) | Vault share, support, and a new item |
 | [`2026-10-01-vault-export/`](2026-10-01-vault-export/README.md) | Vault export for a PIN seal |
 | [`2026-10-01-vault-environments/`](2026-10-01-vault-environments/README.md) | Vault environments |
