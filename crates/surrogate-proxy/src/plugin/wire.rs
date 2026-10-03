@@ -4,10 +4,20 @@
 //! ```text
 //! parent → plugin  {"run_id","ttl_secs","entries":[{"env_var","provider_id",
 //!                   "connection_ref","site","methods","path_prefixes"}],
-//!                   "passthrough_hosts":[],"notices_path"}
+//!                   "logins":[{"env_var","origin","action","field","secret",
+//!                   "ca_pem"?}],"passthrough_hosts":[],"watched"?,"notices_path"}
 //! plugin → parent  {"proxy_url","ca_pem_path","env":{…},"unserved":[…]}
 //!              or  {"error":"<class>"}
+//! plugin → parent  {"event":"tripwire",…} | {"event":"login",…}  (while it runs)
 //! ```
+//!
+//! A login's `secret` is the credential itself, read by the parent from the
+//! person's sealed store (ADR 0150 §6.3). It travels only in this line, over
+//! this pipe — never argv, never a file — and nothing the plugin writes
+//! repeats it: the spec types have no `Serialize` and a `Debug` that names
+//! no value. `watched` defaults to true: the parent that spawned the run is
+//! reading its stdout, so a misdirected surrogate revokes the run at once
+//! (ADR 0150 §6.2) unless the parent says nobody is watching.
 //!
 //! `site` is `"authorization"` or `"header:<name>"`. An entry whose provider
 //! this build cannot broker (no egress rule, or no local credential source)
@@ -20,8 +30,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use opensesame_invoke_through::{rule_for, source_tool, SurrogateSite, EGRESS_RULES};
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 
+use crate::login::{LoginGrant, LoginTrust};
 use crate::runs::{RunSpec, SurrogateGrant};
 
 /// The longest spec line the plugin reads. Far above any real run; a parent
@@ -46,16 +58,54 @@ pub struct EntrySpec {
     pub path_prefixes: Vec<String>,
 }
 
+/// One login form the parent asks for, with the credential it signs in
+/// with. `Debug` names the site, never the secret.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LoginSpec {
+    pub env_var: String,
+    /// `https://host[:port]`, exact.
+    pub origin: String,
+    /// The form's action path, exact.
+    pub action: String,
+    /// The one field the credential goes into.
+    pub field: String,
+    pub secret: SecretString,
+    /// A private origin's trust anchor, replacing webpki for it alone.
+    #[serde(default)]
+    pub ca_pem: Option<String>,
+}
+
+impl std::fmt::Debug for LoginSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginSpec")
+            .field("env_var", &self.env_var)
+            .field("origin", &self.origin)
+            .field("action", &self.action)
+            .field("field", &self.field)
+            .field("ca_pem", &self.ca_pem.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 /// The one line the parent writes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunRequest {
     pub run_id: String,
     pub ttl_secs: u64,
     pub entries: Vec<EntrySpec>,
     #[serde(default)]
+    pub logins: Vec<LoginSpec>,
+    #[serde(default)]
     pub passthrough_hosts: Vec<String>,
+    #[serde(default = "watched_by_default")]
+    pub watched: bool,
     pub notices_path: PathBuf,
+}
+
+const fn watched_by_default() -> bool {
+    true
 }
 
 /// The one line the plugin writes on success. It carries the run's proxy
@@ -187,9 +237,26 @@ pub fn to_run_spec(request: &RunRequest) -> Result<(RunSpec, Vec<String>), SpecE
             ttl,
         });
     }
+    let logins = request
+        .logins
+        .iter()
+        .map(|login| LoginGrant {
+            env_var: login.env_var.clone(),
+            origin: login.origin.clone(),
+            action_path: login.action.clone(),
+            field: login.field.clone(),
+            credential: login.secret.clone(),
+            trust: login
+                .ca_pem
+                .clone()
+                .map_or(LoginTrust::Webpki, LoginTrust::Anchor),
+        })
+        .collect();
     let spec = RunSpec {
         grants,
+        logins,
         passthrough_hosts: request.passthrough_hosts.clone(),
+        watched: request.watched,
     };
     Ok((spec, unserved))
 }

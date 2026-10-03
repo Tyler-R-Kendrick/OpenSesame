@@ -4,9 +4,12 @@
 
 #![allow(dead_code)] // each suite uses a different subset
 
+pub mod login_stub;
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -55,23 +58,45 @@ impl Install {
     }
 
     pub fn spawn(&self, extra_env: &[(&str, &str)]) -> Plugin {
+        self.spawn_with(extra_env, Stdio::null())
+    }
+
+    /// Spawned with its stderr written to [`Install::stderr_log`], so a test
+    /// can scan everything the plugin said.
+    pub fn spawn_logged(&self) -> Plugin {
+        let log = std::fs::File::create(self.stderr_log()).unwrap();
+        self.spawn_with(&[], Stdio::from(log))
+    }
+
+    pub fn stderr_log(&self) -> PathBuf {
+        self.dir.path().join("plugin-stderr.log")
+    }
+
+    fn spawn_with(&self, extra_env: &[(&str, &str)], stderr: Stdio) -> Plugin {
         let mut command = Command::new(BIN);
         command
             .env("OPENSESAME_PLUGINS_FILE", &self.settings)
             .env_remove("OPENSESAME_PLUGIN_SURROGATE_PROXY")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(stderr);
         for (key, value) in extra_env {
             command.env(key, value);
         }
         let mut child = command.spawn().unwrap();
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().unwrap());
+        let (sender, lines) = mpsc::channel();
+        std::thread::spawn(move || {
+            stdout
+                .lines()
+                .map_while(Result::ok)
+                .try_for_each(|line| sender.send(line))
+        });
         Plugin {
             child,
             stdin,
-            stdout,
+            lines,
         }
     }
 
@@ -105,7 +130,9 @@ impl Install {
 pub struct Plugin {
     pub child: Child,
     pub stdin: Option<ChildStdin>,
-    pub stdout: BufReader<ChildStdout>,
+    /// Every line the plugin writes on stdout, read on a thread so a test
+    /// waiting for one that never comes fails instead of hanging.
+    pub lines: Receiver<String>,
 }
 
 impl Plugin {
@@ -117,10 +144,23 @@ impl Plugin {
         stdin.flush().unwrap();
     }
 
+    /// The next stdout line as JSON, or `Null` if none comes within 20s.
     pub fn reply(&mut self) -> Value {
-        let mut line = String::new();
-        self.stdout.read_line(&mut line).unwrap();
-        serde_json::from_str(&line).unwrap_or(Value::Null)
+        self.lines
+            .recv_timeout(Duration::from_secs(20))
+            .ok()
+            .and_then(|line| serde_json::from_str(&line).ok())
+            .unwrap_or(Value::Null)
+    }
+
+    /// Every line still unread, once the process has exited.
+    pub fn rest(&mut self) -> String {
+        let mut rest = String::new();
+        while let Ok(line) = self.lines.recv_timeout(Duration::from_secs(2)) {
+            rest.push_str(&line);
+            rest.push('\n');
+        }
+        rest
     }
 
     /// Wait up to `limit` for the process to exit; its code, or `None`.
@@ -157,10 +197,22 @@ pub fn proxy_parts(proxy_url: &str) -> (String, String) {
 /// CONNECT `host:443` through the proxy, TLS as `host` trusting only the CA
 /// file, send `request`, and return the status line's code and the body.
 pub async fn through_proxy(reply: &Value, host: &str, request: &str) -> Option<(u16, String)> {
+    let (status, _, body) = through_proxy_at(reply, host, 443, request).await?;
+    Some((status, body))
+}
+
+/// [`through_proxy`] to any port, returning the status, the response head
+/// and the body.
+pub async fn through_proxy_at(
+    reply: &Value,
+    host: &str,
+    port: u16,
+    request: &str,
+) -> Option<(u16, String, String)> {
     let (addr, auth) = proxy_parts(reply["proxy_url"].as_str()?);
     let mut stream = TcpStream::connect(&addr).await.ok()?;
     let connect = format!(
-        "CONNECT {host}:443 HTTP/1.1\r\nHost: {host}:443\r\nProxy-Authorization: {auth}\r\n\r\n"
+        "CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\nProxy-Authorization: {auth}\r\n\r\n"
     );
     stream.write_all(connect.as_bytes()).await.ok()?;
     let head = read_head(&mut stream).await;
@@ -189,8 +241,8 @@ pub async fn through_proxy(reply: &Value, host: &str, request: &str) -> Option<(
     let _ = tls.read_to_end(&mut raw).await;
     let text = String::from_utf8_lossy(&raw).into_owned();
     let status = text.split_whitespace().nth(1)?.parse().ok()?;
-    let body = text.split_once("\r\n\r\n").map(|(_, b)| b.to_owned())?;
-    Some((status, body))
+    let (head, body) = text.split_once("\r\n\r\n")?;
+    Some((status, head.to_owned(), body.to_owned()))
 }
 
 async fn read_head(stream: &mut TcpStream) -> String {
@@ -205,11 +257,29 @@ async fn read_head(stream: &mut TcpStream) -> String {
     String::from_utf8_lossy(&buf).into_owned()
 }
 
-/// Wait up to five seconds for `path` to have at least one line.
+/// Wait up to ten seconds for `path` to contain `needle`; its text either way.
+pub fn wait_for(path: &Path, needle: &str) -> String {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let tripwires = path.with_file_name(opensesame_plugin_settings::TRIPWIRES_FILE);
+    loop {
+        // Noise lands beside the path, evidence in the tripwires file.
+        let mut text = std::fs::read_to_string(path).unwrap_or_default();
+        text.push_str(&std::fs::read_to_string(&tripwires).unwrap_or_default());
+        if text.contains(needle) || Instant::now() > deadline {
+            return text;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// Wait up to five seconds for `path` (or the tripwires file beside it) to
+/// have at least one line.
 pub fn wait_for_lines(path: &Path) -> String {
     let deadline = Instant::now() + Duration::from_secs(5);
+    let tripwires = path.with_file_name(opensesame_plugin_settings::TRIPWIRES_FILE);
     loop {
-        let text = std::fs::read_to_string(path).unwrap_or_default();
+        let mut text = std::fs::read_to_string(path).unwrap_or_default();
+        text.push_str(&std::fs::read_to_string(&tripwires).unwrap_or_default());
         if !text.is_empty() || Instant::now() > deadline {
             return text;
         }

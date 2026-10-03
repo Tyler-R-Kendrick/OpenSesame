@@ -128,6 +128,10 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
 
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
+    // The daemon the plugin tiles reach is paired through the tailnet
+    // capability both plugin capabilities depend on (ADR 0150 §7).
+    "plugins.pair": "networking.tailnet",
+    "plugins.unpair": "networking.tailnet",
 
     // --- optional: runtime-installed plugins (ADR 0150 §7) ---------------
     "plugins.surrogate_proxy.switch": "agents.surrogate-credentials",

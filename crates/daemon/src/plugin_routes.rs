@@ -7,8 +7,12 @@
 //! GET  /v1/plugins/{id}/notices   -> {"notices":[…]} newest first, at most 50
 //! ```
 //!
-//! Every route takes the operator token (or the Unix-socket peer check) and
-//! refuses a browser, like every other operator route. They read and write the
+//! Every route takes the operator token (or the Unix-socket peer check), or —
+//! from a browser — the bearer a page traded a pairing code for, and then only
+//! from the exact origin it was paired at (`plugin_pairing.rs`). Switching a
+//! native plugin on re-verifies its install pin first, as
+//! `opensesame plugins enable` does, and leaves it off when the file changed.
+//! They read and write the
 //! one settings file `crates/plugin-settings` owns, so Settings and
 //! `opensesame plugins enable|disable` edit the same bytes. Installing is not
 //! here: it downloads and pins an executable, which is a person at a
@@ -28,17 +32,19 @@ use axum::{
     extract::{DefaultBodyLimit, Path as UrlPath, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use opensesame_plugin_settings::{
-    catalog, default_settings_path, notices_path, PluginSettings, SettingsError,
-    NOTICES_ROTATED_FILE,
+    catalog, default_settings_path, notices_path, PluginKind, PluginPairings, PluginSettings,
+    SettingsError, NOTICES_ROTATED_FILE, TRIPWIRES_FILE,
 };
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-use crate::{require_operator, App, UdsPeer};
+use crate::ratelimit::TokenBucket;
+use crate::{App, UdsPeer};
+use plugin_pairing::require_plugin_caller as require_operator;
 
 /// Most notices one response carries.
 pub(crate) const MAX_NOTICES: usize = 50;
@@ -47,13 +53,17 @@ const MAX_NOTICE_BYTES: u64 = 2 * 1024 * 1024;
 
 type EnvReader = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
 
-/// Where the settings file is, what the environment says, and one lock so two
-/// toggles cannot interleave a read-modify-write.
+/// Where the settings file is, what the environment says, the pairings kept
+/// beside it, and one lock so two writes cannot interleave a
+/// read-modify-write.
 #[derive(Clone)]
 pub(crate) struct PluginHost {
     settings_path: Option<PathBuf>,
     env: EnvReader,
-    write: Arc<Mutex<()>>,
+    pub(crate) write: Arc<Mutex<()>>,
+    pub(crate) pairings: Option<PluginPairings>,
+    /// Pairing exchanges: five at once, then one every twelve seconds.
+    pub(crate) pair_limiter: Arc<TokenBucket>,
 }
 
 impl PluginHost {
@@ -67,9 +77,11 @@ impl PluginHost {
 
     pub(crate) fn at(settings_path: Option<PathBuf>, env: EnvReader) -> Self {
         Self {
+            pairings: settings_path.as_deref().map(PluginPairings::beside),
             settings_path,
             env,
             write: Arc::new(Mutex::new(())),
+            pair_limiter: Arc::new(TokenBucket::new(5.0, 1.0 / 12.0)),
         }
     }
 }
@@ -80,14 +92,24 @@ struct Toggle {
     enabled: bool,
 }
 
-pub(crate) fn routes() -> Router<App> {
+pub(crate) fn routes(app: &App) -> Router<App> {
     Router::new()
         .route("/v1/plugins", get(list_plugins))
+        .route(
+            "/v1/plugins/pairing",
+            post(plugin_pairing::exchange)
+                .delete(plugin_pairing::revoke)
+                .layer(DefaultBodyLimit::max(1024)),
+        )
         .route(
             "/v1/plugins/{id}",
             axum::routing::put(set_plugin).layer(DefaultBodyLimit::max(1024)),
         )
         .route("/v1/plugins/{id}/notices", get(plugin_notices))
+        .layer(axum::middleware::from_fn_with_state(
+            app.clone(),
+            plugin_pairing::cors,
+        ))
 }
 
 fn error(status: StatusCode, code: &str) -> Response {
@@ -114,6 +136,21 @@ fn load(path: &Path) -> Result<PluginSettings, Response> {
 
 fn is_catalog_id(id: &str) -> bool {
     catalog().iter().any(|plugin| plugin.id == id)
+}
+
+/// Switching a native plugin on re-checks its pin, as the CLI does; a file
+/// changed since install leaves it off.
+fn verify_pin(settings: &PluginSettings, id: &str, enabled: bool) -> Result<(), SettingsError> {
+    let native = catalog()
+        .iter()
+        .any(|p| p.id == id && p.kind == PluginKind::NativeBinary);
+    if !enabled || !native {
+        return Ok(());
+    }
+    settings
+        .verified_binary(id, |_| None)
+        .map(|_| ())
+        .map_err(|_| SettingsError::PinMismatch { id: id.to_string() })
 }
 
 async fn list_plugins(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
@@ -148,25 +185,24 @@ async fn set_plugin(
         Err(resp) => return resp,
     };
     let _guard = host.write.lock().unwrap_or_else(PoisonError::into_inner);
-    let mut settings = match load(path) {
-        Ok(settings) => settings,
-        Err(resp) => return resp,
-    };
-    match settings.set_enabled(&id, toggle.enabled) {
-        Ok(()) => {}
-        Err(SettingsError::NotInstalled(_)) => {
-            return error(StatusCode::NOT_FOUND, "not_installed")
-        }
-        Err(_) => return error(StatusCode::BAD_REQUEST, "unknown_plugin"),
-    }
-    if settings.save(path).is_err() {
-        return error(
+    // One locked read-modify-write: the CLI edits this file too.
+    let changed = PluginSettings::update(path, |settings| {
+        settings.set_enabled(&id, toggle.enabled)?;
+        verify_pin(settings, &id, toggle.enabled)?;
+        settings.state(&id, |key| (host.env)(key))
+    });
+    match changed {
+        Ok(state) => Json(state).into_response(),
+        Err(SettingsError::NotInstalled(_)) => error(StatusCode::NOT_FOUND, "not_installed"),
+        Err(SettingsError::PinMismatch { .. }) => error(StatusCode::CONFLICT, "pin_mismatch"),
+        Err(SettingsError::Unreadable(_) | SettingsError::UnsupportedSchema(_)) => error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "plugin_settings_unreadable",
+        ),
+        Err(SettingsError::Io(_) | SettingsError::NoConfigDir) => error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "plugin_settings_unwritable",
-        );
-    }
-    match settings.state(&id, |key| (host.env)(key)) {
-        Ok(state) => Json(state).into_response(),
+        ),
         Err(_) => error(StatusCode::BAD_REQUEST, "unknown_plugin"),
     }
 }
@@ -194,17 +230,30 @@ async fn plugin_notices(
     }
 }
 
-/// The newest [`MAX_NOTICES`] notices across the file and its rotation.
+/// The [`MAX_NOTICES`] notices Settings shows: the evidence file first
+/// (Error and above, newest first — noise never rotates it away), then the
+/// newest of the noise across its file and rotation.
 #[must_use]
 pub fn recent_notices(file: &Path) -> Vec<Value> {
+    let mut notices = newest(&[file.with_file_name(TRIPWIRES_FILE)], MAX_NOTICES);
+    let room = MAX_NOTICES - notices.len();
+    notices.extend(newest(
+        &[
+            file.to_path_buf(),
+            file.with_file_name(NOTICES_ROTATED_FILE),
+        ],
+        room,
+    ));
+    notices
+}
+
+/// Up to `limit` notices, newest first, across `paths` in order.
+fn newest(paths: &[PathBuf], limit: usize) -> Vec<Value> {
     let mut notices = Vec::new();
-    for path in [
-        file.to_path_buf(),
-        file.with_file_name(NOTICES_ROTATED_FILE),
-    ] {
-        let text = read_tail(&path);
+    for path in paths {
+        let text = read_tail(path);
         for line in text.lines().rev() {
-            if notices.len() == MAX_NOTICES {
+            if notices.len() >= limit {
                 return notices;
             }
             if let Some(notice) = project(line) {
@@ -258,6 +307,9 @@ pub(crate) fn project(line: &str) -> Option<Value> {
     }
     Some(Value::Object(out))
 }
+
+#[path = "plugin_pairing.rs"]
+mod plugin_pairing;
 
 #[cfg(test)]
 #[path = "plugin_routes_tests.rs"]

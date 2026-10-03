@@ -37,6 +37,7 @@ import { fieldSteps } from "./lib/capture-field-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
+import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
@@ -337,9 +338,8 @@ const STEPS = {
 async function capture(browser, into) {
   fs.mkdirSync(into, { recursive: true });
   for (const screen of journey.screens) {
-    // A desktop pair has to be captured with a mouse: `phoneContext` forces
-    // `hasTouch`, and a width-and-pointer rule would then show the phone
-    // arrangement at 1280 — evidence of a screen nobody sees.
+    // A desktop pair needs a mouse: `phoneContext` forces `hasTouch`, and a
+    // width-and-pointer rule would then show the phone arrangement at 1280.
     const { page, context } = await harness.newPage(browser, {
       device: screen.desktop
         ? { viewport: { width: screen.width, height: screen.height } }
@@ -348,8 +348,8 @@ async function capture(browser, into) {
     });
     await prepareScreen(context, { origin, base, screen });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
-    // A fixed start time: both builds' timestamps read the same, and
-    // `elapse` can move the clock between steps.
+    await stubJourneyDaemon(page, screen, journey, origin);
+    // A fixed start time, so both builds' timestamps read the same.
     if (journey.clock)
       await page.clock.install({ time: new Date(journey.clock) });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });

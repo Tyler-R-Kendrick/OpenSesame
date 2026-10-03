@@ -3738,6 +3738,7 @@ dependencies = [
  "opensesame-redaction",
  "opensesame-sealed-log",
  "opensesame-sealed-store",
+ "opensesame-session-observe",
  "opensesame-storage",
  "opensesame-vault-item-types",
  "opensesame-worker",
@@ -4315,13 +4316,16 @@ dependencies = [
 name = "opensesame-plugin-settings"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "directories",
  "hex",
+ "rand_core 0.6.4",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.19",
+ "url",
 ]
 
 [[package]]
@@ -4639,6 +4643,8 @@ dependencies = [
  "opensesame-agent-events",
  "opensesame-invoke-through",
  "opensesame-plugin-settings",
+ "opensesame-rotation-web",
+ "opensesame-session-observe",
  "opensesame-transport-security",
  "rand_core 0.6.4",
  "rcgen 0.14.9",

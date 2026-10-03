@@ -9,15 +9,19 @@
  *
  * Installing is not offered here. A plugin is installed at a terminal on the
  * daemon's machine, so an uninstalled one shows its mark and the command.
+ * Pairing is: with no daemon paired, the tile takes the code
+ * `opensesame plugins pair --origin …` printed there, and once paired it
+ * carries one key that forgets the pairing.
  */
 
 import type { PluginSession } from "@opensesame/app-core/lib/plugins/session.js";
 import { standingOf } from "@opensesame/app-core/lib/plugins/wire.js";
 import { useEffect, useSyncExternalStore } from "react";
-import { IconPause, IconPlay } from "../../../components/Icons.js";
+import { IconPause, IconPlay, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { InstallCommand } from "./InstallCommand.js";
+import { PairForm } from "./PairForm.js";
 import { TripwireList } from "./TripwireList.js";
 import { markOf } from "./marks.js";
 import "./plugins.css";
@@ -42,6 +46,25 @@ function Switch({ session }: { session: PluginSession }) {
       onClick={() => void session.toggle()}
     >
       {on ? <IconPause size={16} /> : <IconPlay size={16} />}
+    </button>
+  );
+}
+
+const FORGET = "Forget the paired daemon";
+
+function Forget({ session }: { session: PluginSession }) {
+  const view = useSyncExternalStore(session.subscribe, session.view);
+  if (view.daemon === null || !session.pairable) return null;
+  return (
+    <button
+      type="button"
+      className="icon-btn"
+      aria-label={FORGET}
+      title={FORGET}
+      disabled={view.busy}
+      onClick={() => void session.forget()}
+    >
+      <IconX size={16} />
     </button>
   );
 }
@@ -80,7 +103,11 @@ export function PluginPanel({
         </span>
         <StatusMark tone={mark.tone} label={mark.label} />
         <Switch session={session} />
+        <Forget session={session} />
       </div>
+      {view.daemon === null && session.pairable ? (
+        <PairForm session={session} />
+      ) : null}
       {showInstall ? <InstallCommand command={plugin.installCommand} /> : null}
       {showTripwires ? <TripwireList notices={view.notices} /> : null}
     </div>

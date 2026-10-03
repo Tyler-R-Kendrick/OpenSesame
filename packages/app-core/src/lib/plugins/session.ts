@@ -4,8 +4,9 @@
  *
  * Created in `activate`, never at import. It reads nothing until something
  * asks (`ensure`): the panel on mount, the file viewer when it lists. With no
- * daemon paired it sends nothing at all. `dispose` aborts whatever is in
- * flight and forgets the view; it never sends anything.
+ * daemon paired it sends nothing at all until a person pastes a pairing code
+ * (`pair`). `dispose` aborts whatever is in flight and forgets the view; it
+ * never sends anything.
  */
 
 import type { PluginEntry } from "./catalog.js";
@@ -144,6 +145,21 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     else void load(target);
   }
 
+  /** Run one of the port's pairing calls, then read whatever it changed. */
+  async function pairing(
+    work: ((signal: AbortSignal) => Promise<void>) | undefined,
+  ): Promise<void> {
+    if (store.closed() || store.view().busy || work === undefined) return;
+    store.publish({ ...store.view(), busy: true, error: null });
+    try {
+      await bounded(work);
+      store.publish({ ...store.view(), busy: false });
+      ensure();
+    } catch (error) {
+      store.publish({ ...store.view(), busy: false, error: codeOf(error) });
+    }
+  }
+
   /** Switch the plugin; refused before sending when the last read forbids it. */
   async function toggle(): Promise<void> {
     const { state, busy } = store.view();
@@ -165,6 +181,16 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     subscribe: store.subscribe,
     ensure,
     toggle,
+    /** Whether this port can pair at all, and whether it could right now. */
+    pairable: daemon.pair !== undefined,
+    canPair: (): boolean => daemon.canPair?.() ?? false,
+    /** Trade a pasted pairing code for this page's own key. */
+    pair: (code: string) => {
+      const pair = daemon.pair;
+      return pairing(pair && ((signal) => pair(code, signal)));
+    },
+    /** Forget this page's key, revoking it at the daemon when it answers. */
+    forget: () => pairing(daemon.forget),
     /** Abort what is in flight and forget the view; nothing is sent. */
     dispose(): void {
       store.close();

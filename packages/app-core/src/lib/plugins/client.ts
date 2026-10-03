@@ -2,7 +2,8 @@
  * The three daemon calls Settings makes about a plugin (ADR 0150 §7), over a
  * port the capability hands in — so this file names no transport, holds no
  * key and imports no optional code. The port the plugin capabilities use is
- * the tailnet daemon a person paired (`lib/tailnet-sync/plugin-daemon.ts`).
+ * the daemon a person paired this page with (`opensesame plugins pair`,
+ * `lib/tailnet-sync/plugin-daemon.ts`).
  *
  * Installing is not here and never will be: a plugin is installed by a
  * person at a terminal (`opensesame plugins install …`), never over HTTP.
@@ -35,6 +36,16 @@ export type PluginErrorCode =
   | "not-installed"
   | "forced-off"
   | "unknown-plugin"
+  /** Switching on refused: the binary changed since it was installed. */
+  | "pin-mismatch"
+  /** What was pasted is not a plugin pairing code this page will use. */
+  | "not-a-code"
+  /** The code was printed for another origin than this page's. */
+  | "other-origin"
+  /** The daemon would not trade the code: used, expired, or asked too often. */
+  | "pairing-refused"
+  /** No open vault to seal a pairing in (locked, or a guest). */
+  | "locked"
   /** Any other refusal. */
   | "refused";
 
@@ -60,6 +71,12 @@ export type PluginDaemon = Readonly<{
   request(path: string, init: PluginDaemonRequest): Promise<Response>;
   /** Told when `target` may have changed (paired, forgotten, vault switched). */
   subscribe?(listener: () => void): () => void;
+  /** Whether a pairing could be kept now; absent where the port cannot pair. */
+  canPair?(): boolean;
+  /** Trade a pasted pairing code for this page's own key. */
+  pair?(code: string, signal: AbortSignal): Promise<void>;
+  /** Forget this page's key, and revoke it at the daemon when it answers. */
+  forget?(signal: AbortSignal): Promise<void>;
 }>;
 
 const MAX_BYTES = 64 * 1024;
@@ -95,6 +112,8 @@ async function refusal(response: Response): Promise<PluginError> {
     return new PluginError("not-installed");
   if (response.status === 400 && code === "unknown_plugin")
     return new PluginError("unknown-plugin");
+  if (response.status === 409 && code === "pin_mismatch")
+    return new PluginError("pin-mismatch");
   return new PluginError("refused");
 }
 

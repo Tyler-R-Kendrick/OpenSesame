@@ -1,0 +1,575 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "daemonStub": {
+        "url": "https://desk.tail4c2e.ts.net",
+        "code": "RXZpZGVuY2UtcGFpcmluZy1jb2RlLW5vdC1yZWFsISE",
+        "plugins": [
+          {
+            "id": "surrogate-proxy",
+            "capability": "agents.surrogate-credentials",
+            "installed": true,
+            "version": "0.1.0",
+            "enabled": false,
+            "forced_off": false,
+            "active": false
+          },
+          {
+            "id": "browser-autofill",
+            "capability": "vault.browser-autofill",
+            "installed": true,
+            "version": "0.1.0",
+            "enabled": true,
+            "forced_off": true,
+            "active": false
+          }
+        ],
+        "notices": {
+          "surrogate-proxy": [
+            {
+              "event_type": "surrogate.misdirected",
+              "severity": "error",
+              "occurred_at": "2026-09-28T09:41:00Z",
+              "summary": "a surrogate was sent to a host its provider does not use",
+              "subject_id": "run-4f2a"
+            },
+            {
+              "event_type": "surrogate.out_of_scope",
+              "severity": "warning",
+              "occurred_at": "2026-09-28T09:12:00Z",
+              "summary": "a surrogate was sent outside its path scope",
+              "subject_id": "run-4f2a"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Surrogate credentials"
+        },
+        {
+          "featureOptional": "Browser autofill"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "^AI$"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .plugin-tile__pair input, #plugin-surrogate-proxy .plugin-tile__pair .icon-btn"
+        },
+        {
+          "shot": "390-unpaired"
+        },
+        {
+          "fillOptional": {
+            "label": "Pairing code",
+            "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
+          }
+        },
+        {
+          "pressOptional": "Pair with the daemon"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .icon-btn"
+        },
+        {
+          "shot": "390-installed-off"
+        },
+        {
+          "pressOptional": "Surrogate proxy on the paired daemon"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .plugin-tile__tripwires"
+        },
+        {
+          "shot": "390-on"
+        },
+        {
+          "scrollToOptional": "^Local storage$"
+        },
+        {
+          "scrollToOptional": "^Browser autofill$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-browser-autofill, #plugin-browser-autofill .icon-btn"
+        },
+        {
+          "shot": "390-forced-off"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "daemonStub": {
+        "url": "https://desk.tail4c2e.ts.net",
+        "code": "RXZpZGVuY2UtcGFpcmluZy1jb2RlLW5vdC1yZWFsISE",
+        "plugins": [
+          {
+            "id": "surrogate-proxy",
+            "capability": "agents.surrogate-credentials",
+            "installed": false,
+            "version": null,
+            "enabled": false,
+            "forced_off": false,
+            "active": false
+          },
+          {
+            "id": "browser-autofill",
+            "capability": "vault.browser-autofill",
+            "installed": false,
+            "version": null,
+            "enabled": false,
+            "forced_off": false,
+            "active": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Surrogate credentials"
+        },
+        {
+          "featureOptional": "Browser autofill"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "^AI$"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "fillOptional": {
+            "label": "Pairing code",
+            "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
+          }
+        },
+        {
+          "pressOptional": "Pair with the daemon"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .plugin-tile__install"
+        },
+        {
+          "shot": "390-not-installed"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "daemonStub": {
+        "url": "https://desk.tail4c2e.ts.net",
+        "code": "RXZpZGVuY2UtcGFpcmluZy1jb2RlLW5vdC1yZWFsISE",
+        "plugins": [
+          {
+            "id": "surrogate-proxy",
+            "capability": "agents.surrogate-credentials",
+            "installed": true,
+            "version": "0.1.0",
+            "enabled": false,
+            "forced_off": false,
+            "active": false
+          },
+          {
+            "id": "browser-autofill",
+            "capability": "vault.browser-autofill",
+            "installed": true,
+            "version": "0.1.0",
+            "enabled": true,
+            "forced_off": true,
+            "active": false
+          }
+        ],
+        "notices": {
+          "surrogate-proxy": [
+            {
+              "event_type": "surrogate.misdirected",
+              "severity": "error",
+              "occurred_at": "2026-09-28T09:41:00Z",
+              "summary": "a surrogate was sent to a host its provider does not use",
+              "subject_id": "run-4f2a"
+            },
+            {
+              "event_type": "surrogate.out_of_scope",
+              "severity": "warning",
+              "occurred_at": "2026-09-28T09:12:00Z",
+              "summary": "a surrogate was sent outside its path scope",
+              "subject_id": "run-4f2a"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Surrogate credentials"
+        },
+        {
+          "featureOptional": "Browser autofill"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "^AI$"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .plugin-tile__pair input, #plugin-surrogate-proxy .plugin-tile__pair .icon-btn"
+        },
+        {
+          "shot": "1280-unpaired"
+        },
+        {
+          "fillOptional": {
+            "label": "Pairing code",
+            "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
+          }
+        },
+        {
+          "pressOptional": "Pair with the daemon"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .icon-btn"
+        },
+        {
+          "shot": "1280-installed-off"
+        },
+        {
+          "pressOptional": "Surrogate proxy on the paired daemon"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .plugin-tile__tripwires"
+        },
+        {
+          "shot": "1280-on"
+        },
+        {
+          "scrollToOptional": "^Local storage$"
+        },
+        {
+          "scrollToOptional": "^Browser autofill$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-browser-autofill, #plugin-browser-autofill .icon-btn"
+        },
+        {
+          "shot": "1280-forced-off"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "daemonStub": {
+        "url": "https://desk.tail4c2e.ts.net",
+        "code": "RXZpZGVuY2UtcGFpcmluZy1jb2RlLW5vdC1yZWFsISE",
+        "plugins": [
+          {
+            "id": "surrogate-proxy",
+            "capability": "agents.surrogate-credentials",
+            "installed": false,
+            "version": null,
+            "enabled": false,
+            "forced_off": false,
+            "active": false
+          },
+          {
+            "id": "browser-autofill",
+            "capability": "vault.browser-autofill",
+            "installed": false,
+            "version": null,
+            "enabled": false,
+            "forced_off": false,
+            "active": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Surrogate credentials"
+        },
+        {
+          "featureOptional": "Browser autofill"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "^AI$"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "fillOptional": {
+            "label": "Pairing code",
+            "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
+          }
+        },
+        {
+          "pressOptional": "Pair with the daemon"
+        },
+        {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']",
+            "#plugin-surrogate-proxy [aria-label='Installed, off']",
+            "#plugin-surrogate-proxy [aria-label='On']",
+            "#plugin-surrogate-proxy [aria-label='Not installed']",
+            "#plugin-browser-autofill [aria-label='Forced off on the daemon']",
+            ".plugin-tile__pair",
+            ".plugin-tile__tripwire",
+            ".plugin-tile__command"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy, #plugin-surrogate-proxy .plugin-tile__install"
+        },
+        {
+          "shot": "1280-not-installed"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-unpaired",
+      "width": 390,
+      "title": "Surrogate credentials, nothing paired yet — 390 × 844",
+      "caption": "An unlocked vault on a dedicated origin opens Settings › Capabilities with both plugin capabilities on. Before, the tile can only say no daemon is paired: the page had no way to reach the plugin routes. After, the same tile carries the pairing field and one icon key.",
+      "before": "mark only; no field, no way to pair",
+      "after": "Pairing code field + Pair with the daemon key"
+    },
+    {
+      "shot": "390-installed-off",
+      "width": 390,
+      "title": "Paired: the surrogate proxy installed, off — 390 × 844",
+      "caption": "The code opensesame plugins pair printed is pasted and traded once for this page's own key; the daemon answers GET /v1/plugins. Before, the paste had nowhere to go and the tile is unchanged.",
+      "before": "No daemon paired",
+      "after": "Installed, off; host and version; switch; forget key"
+    },
+    {
+      "shot": "390-on",
+      "width": 390,
+      "title": "Switched on from Settings — 390 × 844",
+      "caption": "The switch sends PUT /v1/plugins/surrogate-proxy with the paired key; the daemon re-verifies the install pin and answers on. The tripwires the plugin recorded are listed by event, time and subject — never a surrogate.",
+      "before": "No daemon paired",
+      "after": "On, with two tripwires"
+    },
+    {
+      "shot": "390-forced-off",
+      "width": 390,
+      "title": "Browser autofill forced off on the daemon — 390 × 844",
+      "caption": "The daemon's environment says OPENSESAME_PLUGIN_BROWSER_AUTOFILL=off, so the file's on does not count: the tile wears the warning mark and its switch is locked. Nothing on this page can turn on what the operator turned off.",
+      "before": "No daemon paired",
+      "after": "Forced off on the daemon; switch disabled"
+    },
+    {
+      "shot": "390-not-installed",
+      "width": 390,
+      "title": "Paired, nothing installed — 390 × 844",
+      "caption": "A daemon with neither plugin installed: the tile says so and shows the install command to copy to that machine's terminal. Pages never installs a plugin.",
+      "before": "No daemon paired",
+      "after": "Not installed; install command"
+    },
+    {
+      "shot": "1280-unpaired",
+      "width": 1280,
+      "title": "Surrogate credentials, nothing paired yet — 1280 × 900",
+      "caption": "An unlocked vault on a dedicated origin opens Settings › Capabilities with both plugin capabilities on. Before, the tile can only say no daemon is paired: the page had no way to reach the plugin routes. After, the same tile carries the pairing field and one icon key.",
+      "before": "mark only; no field, no way to pair",
+      "after": "Pairing code field + Pair with the daemon key"
+    },
+    {
+      "shot": "1280-installed-off",
+      "width": 1280,
+      "title": "Paired: the surrogate proxy installed, off — 1280 × 900",
+      "caption": "The code opensesame plugins pair printed is pasted and traded once for this page's own key; the daemon answers GET /v1/plugins. Before, the paste had nowhere to go and the tile is unchanged.",
+      "before": "No daemon paired",
+      "after": "Installed, off; host and version; switch; forget key"
+    },
+    {
+      "shot": "1280-on",
+      "width": 1280,
+      "title": "Switched on from Settings — 1280 × 900",
+      "caption": "The switch sends PUT /v1/plugins/surrogate-proxy with the paired key; the daemon re-verifies the install pin and answers on. The tripwires the plugin recorded are listed by event, time and subject — never a surrogate.",
+      "before": "No daemon paired",
+      "after": "On, with two tripwires"
+    },
+    {
+      "shot": "1280-forced-off",
+      "width": 1280,
+      "title": "Browser autofill forced off on the daemon — 1280 × 900",
+      "caption": "The daemon's environment says OPENSESAME_PLUGIN_BROWSER_AUTOFILL=off, so the file's on does not count: the tile wears the warning mark and its switch is locked. Nothing on this page can turn on what the operator turned off.",
+      "before": "No daemon paired",
+      "after": "Forced off on the daemon; switch disabled"
+    },
+    {
+      "shot": "1280-not-installed",
+      "width": 1280,
+      "title": "Paired, nothing installed — 1280 × 900",
+      "caption": "A daemon with neither plugin installed: the tile says so and shows the install command to copy to that machine's terminal. Pages never installs a plugin.",
+      "before": "No daemon paired",
+      "after": "Not installed; install command"
+    }
+  ]
+}

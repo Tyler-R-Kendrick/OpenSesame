@@ -222,3 +222,49 @@ fn a_callers_debug_never_prints_its_token() {
     assert!(!printed.contains(TOKEN));
     assert!(printed.contains(EXT));
 }
+
+#[tokio::test]
+async fn a_forger_claiming_the_extensions_origin_cannot_starve_the_real_extension() {
+    let app = paired_app(source());
+    // Any local process can send the extension's origin and a well-formed
+    // token. Twenty times over, that must not touch the paired extension's
+    // lookup budget.
+    let forged = with("authorization", Some(&format!("Bearer {}", "B".repeat(43))));
+    for _ in 0..20 {
+        let (status, _) = attempt(&app, "/v1/fill/pair", &forged).await;
+        assert!(
+            matches!(status, StatusCode::ACCEPTED | StatusCode::TOO_MANY_REQUESTS),
+            "{status}"
+        );
+    }
+    let body = json!({ "origin": "https://example.com" });
+    for _ in 0..5 {
+        let headers = extension_headers();
+        let borrowed: Vec<(&str, &str)> = headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
+        let (status, _, _) = call(&app, request("/v1/fill/match", &body, &borrowed)).await;
+        assert_eq!(status, StatusCode::OK, "the real extension was throttled");
+    }
+}
+
+#[tokio::test]
+async fn forged_pair_requests_are_throttled_together_whatever_origin_they_claim() {
+    let app = paired_app(source());
+    let mut limited = 0;
+    for n in 0..30 {
+        let origin = format!(
+            "chrome-extension://{}",
+            char::from(b'a' + (n % 16)).to_string().repeat(32)
+        );
+        let mut headers = with("origin", Some(&origin));
+        headers.retain(|(name, _)| *name != "authorization");
+        headers.push(("authorization", format!("Bearer {}", "C".repeat(43))));
+        let (status, _) = attempt(&app, "/v1/fill/pair", &headers).await;
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            limited += 1;
+        }
+    }
+    assert!(
+        limited > 0,
+        "thirty distinct forged origins were never throttled"
+    );
+}

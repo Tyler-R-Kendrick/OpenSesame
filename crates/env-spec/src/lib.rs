@@ -10,6 +10,9 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod login;
+pub use login::{web_login, WebLogin, LOGIN_RESOLVER};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnvSpecDocument {
     pub schema_path: String,
@@ -153,7 +156,7 @@ fn starts_with_from_type(t: Option<&Value>) -> Option<String> {
     None
 }
 
-fn arg_string(a: &EnvResolverArg) -> Option<String> {
+pub(crate) fn arg_string(a: &EnvResolverArg) -> Option<String> {
     match &a.value {
         Some(Value::String(s)) => Some(s.clone()),
         Some(v) => Some(v.to_string().trim_matches('"').to_string()),
@@ -193,6 +196,10 @@ pub struct ResolvedEnvEntry {
     pub projection: Option<LegacyProjection>,
     pub omitted: bool,
     pub warning: Option<String>,
+    /// A web login a surrogate stands in for (ADR 0150 §6.3). Always
+    /// `omitted`: only the surrogate-proxy plugin delivers anything for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub login: Option<WebLogin>,
 }
 
 /// Unguessable, per-projection placeholder suffix.
@@ -218,6 +225,7 @@ fn resolve_connection_entry(
             projection: None,
             omitted: false,
             warning: None,
+            login: None,
         });
     }
 
@@ -249,6 +257,7 @@ fn resolve_connection_entry(
         projection: Some(projection),
         omitted: false,
         warning: None,
+        login: None,
     })
 }
 
@@ -266,9 +275,14 @@ fn resolve_item(
             projection: None,
             omitted: false,
             warning: None,
+            login: None,
         }));
     }
     if let Some(resolver) = &item.resolver {
+        if resolver.fn_name == LOGIN_RESOLVER {
+            policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
+            return Ok(Some(login::resolve_login(item, resolver)));
+        }
         let Some(uri) = connection_uri_from_resolver(resolver) else {
             return Ok(Some(ResolvedEnvEntry {
                 key: item.key.clone(),
@@ -278,6 +292,7 @@ fn resolve_item(
                 projection: None,
                 omitted: true,
                 warning: Some(format!("unresolved resolver {}", resolver.fn_name)),
+                login: None,
             }));
         };
         return resolve_connection_entry(item, resolver, uri, policy).map(Some);
@@ -301,6 +316,7 @@ fn resolve_item(
         } else {
             "materialize allowed — legacy warning".into()
         }),
+        login: None,
     }))
 }
 

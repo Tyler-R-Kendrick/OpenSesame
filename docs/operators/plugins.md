@@ -10,7 +10,7 @@ The catalog is [`spec/plugins/catalog.json`](../../spec/plugins/catalog.json):
 
 | Plugin | Kind | What it adds | Settings capability |
 |---|---|---|---|
-| `surrogate-proxy` | native binary `opensesame-surrogate-proxy` | `opensesame dev run --agent` hands a child `osr_…` surrogates instead of placeholders, redeemed at the last hop (ADR 0150 §6.1) | `agents.surrogate-credentials` |
+| `surrogate-proxy` | native binary `opensesame-surrogate-proxy` | `opensesame dev run --agent` hands a child `osr_…` surrogates instead of placeholders, redeemed at the last hop (ADR 0150 §6.1), and signs its browser in to declared login forms without handing it the password (§6.3) | `agents.surrogate-credentials` |
 | `browser-autofill` | companion browser extension `@opensesame/browser-extension-autofill` | fill a login field by reference from extension-owned UI (ADR 0150 §6.4); answers the daemon's `/v1/fill` only while on | `vault.browser-autofill` |
 
 ## Install
@@ -54,19 +54,71 @@ opensesame plugins status surrogate-proxy   # state, location, pin: ok | mismatc
 opensesame plugins notices surrogate-proxy  # recent tripwires, newest first
 ```
 
-Settings does the same through the daemon's operator routes. They take the
-operator token, or the Unix-socket peer check, and refuse a browser origin:
+Settings does the same through the daemon's plugin routes. A caller with no
+`Origin` needs the operator token, or the Unix-socket peer check. A browser
+needs the key its page was paired with (next section), sent from exactly the
+origin it was paired at:
 
 ```text
 GET  /v1/plugins                 -> {"plugins":[PluginState,…]}   catalog order
 PUT  /v1/plugins/{id}            {"enabled":bool} -> PluginState
                                   | 404 {"error":"not_installed"} | 400 {"error":"unknown_plugin"}
+                                  | 409 {"error":"pin_mismatch"}
 GET  /v1/plugins/{id}/notices    -> {"notices":[{event_type,severity,occurred_at,summary,subject_id?}]}
 ```
 
 Enabling a plugin that is not installed fails, and says how to install it.
-Enabling a native plugin re-checks its pin first. A file that changed since
-install is left off.
+Enabling a native plugin re-checks its pin first, from the terminal and from
+Settings alike. A file that changed since install is left off.
+
+## Pairing Settings with the daemon
+
+Settings in Pages reaches these routes only after a person pairs that page,
+at the daemon's terminal:
+
+```bash
+opensesame plugins pair --origin https://vault.example.org \
+  --url https://desk.tail4c2e.ts.net     # the daemon's Tailscale Serve URL
+opensesame plugins pair --origin http://localhost:5180   # Pages on this machine
+opensesame plugins unpair --origin https://vault.example.org
+opensesame plugins unpair --all
+opensesame plugins list                  # also lists pairings: origin and time, never a key
+```
+
+`pair` prints a code (`opensesame-plugins:v1:…`, the wire form is
+`spec/conformance/plugin-pairing.json`). Paste it into the pairing field of
+the plugin's tile in Settings › Capabilities. The code:
+
+- works **once**, within **five minutes**, and only from the page at exactly
+  `--origin` (`https://host[:port]`, or `http://localhost:port`). A code
+  presented from any other origin is spent on the spot;
+- names a daemon address on this machine or the tailnet. Pages refuses any
+  other;
+- is taken only by a deployment that may hold local authority: Pages on its
+  own dedicated origin, or on this machine. The shared GitHub Pages origin
+  pairs nothing, because every page under it shares the origin a key would
+  be bound to;
+- is kept only as a SHA-256, in `plugin-pairings.json` beside `plugins.json`
+  (mode `0600`).
+
+The page trades the code (`POST /v1/plugins/pairing`, five tries at once then
+one every twelve seconds, for the whole daemon) for a key the daemon also keeps
+only as a SHA-256. The page seals the key in its open vault, never in plain
+storage, and a guest cannot pair. The key:
+
+- opens `GET /v1/plugins`, `PUT /v1/plugins/{id}` and
+  `GET /v1/plugins/{id}/notices`, and nothing else. Every other daemon route
+  still refuses a browser, and no other route knows this key;
+- is accepted only with the `Origin` it was paired at;
+- cannot install anything, and cannot switch on a plugin that is not
+  installed or whose pin no longer matches;
+- ends with `opensesame plugins unpair`, or when the page forgets the pairing
+  (`DELETE /v1/plugins/pairing` revokes that page's key alone).
+
+CORS on these routes answers only an origin that holds a key or a code still
+waiting. It echoes that exact origin, never `*`, allows no credentials, and
+always sends `Vary: Origin`. A preflight that asks for private-network access
+is answered for that origin alone.
 
 ## Forcing a plugin off
 
@@ -116,30 +168,117 @@ so a tampered settings file cannot aim `remove` at an arbitrary path.
 `opensesame dev run --agent -- <cmd>` with the plugin active:
 
 1. It collects the env-spec entries delivered as `Placeholder`, the
-   legacy-token projections, placed in one header.
+   legacy-token projections, placed in one header, and the web logins
+   (below).
 2. It spawns the plugin in its own process group and writes one JSON line to
    its stdin:
-   `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], passthrough_hosts, notices_path}`.
+   `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], logins:[{env_var, origin, action, field, secret, ca_pem?}], passthrough_hosts, watched, notices_path}`.
 3. The plugin answers with one line: `{proxy_url, ca_pem_path, env, unserved}`.
    `env` carries the surrogates, the run CA's trust variables
    (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`,
    `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`) and the proxy variables. An entry whose
    provider this build cannot broker is listed in `unserved` and keeps its
    placeholder.
-4. The child runs with that environment. Its HTTPS goes through the run's
-   proxy, and a request that carries no surrogate is refused (ADR 0150 §6.1:
+4. The child runs with that environment. It never inherits
+   `OPENSESAME_STORE_PASSWORD`. Its HTTPS goes through the run's proxy, and a
+   request that carries no surrogate is refused (ADR 0150 §6.1:
    un-surrogated traffic is refused by default). If the plugin can broker none
-   of the entries, it is not used: the run keeps its placeholders and no proxy
-   is set.
-5. The run ends when the child exits and the CLI closes the plugin's stdin.
+   of the entries and there is no web login, it is not used: the run keeps
+   its placeholders and no proxy is set.
+5. While the child runs, the plugin writes one JSON line per event:
+   `{"event":"tripwire",…}` or `{"event":"login",…}` (next two sections).
+6. The run ends when the child exits and the CLI closes the plugin's stdin.
    It also ends when the CLI is killed, because the kernel closes the pipe;
    when the plugin gets `SIGTERM` or `SIGINT`; or at the run's TTL. At the end
-   every surrogate is revoked, the listener stops and the CA file is deleted.
+   every surrogate and login is revoked, the listener stops and the CA file is
+   deleted.
 
 Every refused surrogate becomes a vetted `surrogate.*` notice line in
 `notices.jsonl`. A notice carries the run, the provider and the fence, never
 the surrogate. The daemon's notices route drops any line that names the
 `osr_` marker at all.
+
+### A misdirected surrogate stops the run
+
+The person at the terminal is watching the run, so the CLI sends
+`"watched": true`. When a surrogate reaches a host that is not its
+provider's (`surrogate.misdirected`), the plugin puts the run's lease through
+`opensesame-session-observe`'s `tripwire_verdict`: the run is parked and
+**every surrogate and login it holds is revoked at once**
+(ADR 0150 §6.2). The listener keeps serving, so any later use of those
+surrogates, even a correct one, is refused as `surrogate.revoked` and noticed.
+The plugin then writes:
+
+```json
+{"event":"tripwire","run_id":"dev-…","fence":"surrogate.misdirected","verdict":"park","revoked":2}
+```
+
+The CLI stops the child, ends the plugin's run, says so on stderr, and exits
+**77** whatever the child would have returned. A parent that sends
+`"watched": false` gets the notice and no revocation.
+
+### The Host's run lease
+
+A Host that holds observation runs applies the same rule
+(`crates/gateway/src/run_lease.rs`). Every notice published on the security
+feed is read against the run it names, before any fan-out:
+
+- a `surrogate.misdirected` for a run the Host holds parks it (suspends it
+  inside the critical section), writes that under the run's version, and
+  revokes through the Host's `RunCredentials`. A run someone is watching gets
+  the page back. A run the Host has no row for has no lease to move, and its
+  notice reaches subscribers as before;
+- an `agent.*` phase in which the agent no longer drives (blocked, awaiting a
+  person, control granted, completed, failed) revokes the run's credentials;
+- a person taking the page (`POST /api/v1/agent/runs/{id}/control`) revokes
+  them too.
+
+The Host issues no surrogates itself, so its `RunCredentials` is the no-op
+default until an embedder that does supplies one. Nothing on this path carries
+a surrogate: a notice names a run and a fence only.
+
+### Web logins
+
+A schema entry can declare a login form an agent's browser signs in to:
+
+```bash
+APP_PASSWORD=opensesameLogin(Web/app.example, origin=https://app.example, action=/session, field=password)
+```
+
+- `Web/app.example` is a sealed-store path. Its first line is the password.
+- **The entry must carry a `url:` line** (the `pass` convention), and
+  `origin=` must be that URL's origin exactly. `.env.schema` sits in a working
+  tree an agent can edit, so the destination of the person's password comes
+  from the sealed store, never from the schema alone. A mismatch, or an entry
+  with no `url:`, refuses the run.
+- `ca=<file>` names a PEM certificate that replaces the public web's roots
+  for that one origin, for a login site under a private CA.
+
+With the plugin active, the CLI unlocks the sealed store as `opensesame pass
+show` does (`OPENSESAME_STORE_PASSWORD`, else a hidden prompt) and reads each
+declared entry. The password goes to the plugin inside the stdin line only:
+never argv, never a file, never the child's environment. The child gets an
+`osr_…` surrogate in `APP_PASSWORD` and types that into the form. When its
+browser posts the form through the proxy, the plugin uses
+`opensesame-rotation-web`'s `login-surrogate` substitution: the surrogate must
+be the whole value of the one declared field of a form-encoded or JSON POST,
+with identity encoding, to the exact origin and path. Then the password is
+written into that field with the body format's own encoder, once. Every
+response from the login origin is scrubbed of the password before the child
+reads it.
+
+| What the child sends | What happens |
+|---|---|
+| the declared POST with the surrogate in the declared field | substituted, sent, the response scrubbed; `{"event":"login","outcome":"substituted"}` |
+| the surrogate anywhere else on that origin: another field, the query, a header | refused, `surrogate.misplaced`, a tripwire notice |
+| the surrogate to another host, or over plain http | refused, `surrogate.misdirected`: the run is revoked as above |
+| the declared POST a second time | refused, `surrogate.replayed`; substitution is never retried |
+| a multipart, compressed or non-UTF-8 body | refused, `surrogate.unsupported`; the person signs in another way |
+
+A field that sets a password (`new_password`, `confirm`, `autocomplete=new-password`
+and the rest of `rotation-web`'s list) is never a substitution site. The run
+refuses to start with `login_password_set_field`. With the plugin off, a web
+login delivers nothing at all: no surrogate, no placeholder, no password.
 
 ## The boundary gate
 

@@ -9,13 +9,15 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json",
-    "test": "vitest run && node --test tests/capability-parity.test.mjs tests/placement.test.mjs"
+    "test": "vitest run && node --test tests/capability-parity.test.mjs tests/placement.test.mjs tests/e2e-wiring.test.mjs",
+    "test:e2e": "wxt build && node --test --test-concurrency=1 e2e/*.e2e.mjs"
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.55.1",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
     "vitest": "4.1.11",

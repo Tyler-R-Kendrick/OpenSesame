@@ -567,7 +567,7 @@ fn router(state: App) -> Router {
         .route("/v1/duress/peer/health", get(duress_peer_health))
         .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
         .merge(vault_drive_routes::routes())
-        .merge(plugin_routes::routes())
+        .merge(plugin_routes::routes(&state))
         .merge(fill::routes(fill::FillState::from_env(), &state))
         .with_state(state)
 }

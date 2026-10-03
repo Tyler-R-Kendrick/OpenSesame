@@ -14,6 +14,7 @@ import { menuSteps } from "./capture-menu-steps.mjs";
 import { networkSteps } from "./capture-network-steps.mjs";
 import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
+import { pluginSteps } from "./capture-plugin-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
 import { keySteps } from "./key-steps.mjs";
@@ -47,6 +48,7 @@ export function extraSteps({ press }) {
       await unlockWithPassword(page);
       await page.waitForTimeout(1400);
     },
+    ...pluginSteps(),
     /**
      * Pick a labelled radio when this build has it — a connector's
      * connection method. A base build without the choice is a legitimate

@@ -31,6 +31,7 @@ mod middleware;
 mod oci_component;
 mod openfga_project;
 mod routes;
+mod run_lease;
 mod secret_debug;
 mod security;
 mod session_channel;

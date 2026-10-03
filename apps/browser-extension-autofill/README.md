@@ -88,3 +88,49 @@ standing host permission, no overlay, nothing in the default extension);
 `browser-autofill` rows of
 [`packages/capability-registry`](../../packages/capability-registry), which
 exclude every agent surface: a model never triggers a fill.
+`tests/e2e-wiring.test.mjs` keeps the browser suite below out of `pnpm test`.
+
+## Browser end-to-end suite
+
+```bash
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/browser-extension-autofill test:e2e   # wxt build, then e2e/*.e2e.mjs
+pnpm test:e2e                                                     # the repository aggregation (turbo)
+```
+
+`pnpm test` never needs a browser. `test:e2e` builds the extension and loads
+that build, unpacked, into a real Chromium in its new headless mode (extensions
+do not run in the headless shell; without `PLAYWRIGHT_CHROMIUM` it falls back
+to `/opt/pw-browsers/chromium`, then to Playwright's `chromium` channel). It
+also binds `127.0.0.1:18790`, the daemon port the extension is built to call,
+so stop a running daemon first; the suites run one at a time for that reason.
+
+| Piece | What it is |
+|---|---|
+| `e2e/harness/daemon-stub.mjs`, `daemon-admission.mjs` | A stub of the daemon's fill routes (`/v1/fill`, `/match`, `/pair`) that applies the daemon's own admission rules in its order: plugin gate, loopback `Host`, `chrome-extension://` `Origin`, pairing token per origin, exact-origin entries. It logs routes and statuses, never a value. |
+| `e2e/harness/sites.mjs` | The pages: one loopback listener reached as `app.test`, `frame.test` and lookalike hosts (`--host-resolver-rules` maps `*.test`), so a page, a cross-origin frame and a lookalike are real origins. |
+| `e2e/harness/cdp.mjs`, `popup.mjs` | Drives the **real** toolbar popup (`chrome.action.openPopup()`), attached over the browser's debugging port. Playwright does not surface it, and `popup.html` opened as a tab does not do: the background refuses a sender with a `tab` as `forbidden_sender`. Every click is a real input event. |
+| `e2e/fill.e2e.mjs` | Switch on, pair (code read off the popup, approved on the stub's operator channel), fill password and username, the registered-guard path, switch off; and that a page hooking `HTMLInputElement.prototype.value` and the field's own `value`, the console, the popup, `chrome.storage` and the network never see the value. |
+| `e2e/refusals-field.e2e.mjs` | `opacity:0` on the field and on an ancestor, an overlay above it, an off-screen field, an overlay or a focus change (to another kind of field and to another of the same kind) while the value is in flight, a cross-origin and a same-origin frame, a new-password field, an `autocomplete="webauthn"` page (the popup reports the passkey, nothing fills). |
+| `e2e/refusals-origin.e2e.mjs` | Lookalike origins (prefix, suffix, subdomain, scheme, port, non-canonical) refused by the daemon by name, a page that tries to message the extension or the daemon, a daemon with the plugin off. |
+| `e2e/manifest.e2e.mjs` | The shipped manifest with no grant: no content script, no host permission, the tab's address unreadable, the guard cannot be injected, the daemon's loopback unreachable. |
+
+**What headless cannot do, and the stand-in.** The site switch calls
+`permissions.request`, whose browser prompt no automation can press in
+headless mode (the promise never settles), and the toolbar click that grants
+`activeTab` cannot be made either. So the fill suites load the same build from
+a temporary copy whose manifest adds the two grants a person's "Allow" would
+give (`http://*.test/*` and the daemon's `http://127.0.0.1/*`) as
+`host_permissions`; a request for a host already held resolves at once, and
+everything after it is the shipped code: the popup's switch, the background's
+registration, the guard, the checks, the daemon round trip. The build under
+`.output/` is never modified, and `manifest.e2e.mjs` runs it byte for byte.
+Two consequences: the browser refuses to give back a grant the manifest holds,
+so the site switch's *off* is asserted on the registration and a fresh popup
+rather than on the first popup's mark; and the keyboard command
+(`Alt+Shift+O`) is not driven, because a browser shortcut does not travel over
+DevTools input, so it stays covered by `lib/fill/service.test.ts`.
+
+Each refusal test was run against a build with its check removed (opacity,
+hit test, the second look after the round trip, the identity of the focused
+field, passkey) and fails there.

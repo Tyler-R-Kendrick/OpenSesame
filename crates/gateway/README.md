@@ -28,6 +28,11 @@ Agent-facing routes deal in `ConnectionRef` and intents, never raw secrets.
   ([ADR 0005](../../docs/adr/0005-authority-handle-connectionref.md)). Deadlines
   publish on the `lifecycle.*` feed ([ADR 0074](../../docs/adr/0074-expiry-lifecycle-hooks.md));
   security facts go through `security::dispatch` ([ADR 0080](../../docs/adr/0080-security-event-hooks.md)).
+  `src/run_lease.rs` applies ADR 0150 §6.2 to the runs the Host holds: every
+  `agent.*` and `surrogate.*` notice on that feed is read against the run it
+  names, a `surrogate.misdirected` parks a watched run, and a run whose agent
+  stopped driving (or whose page a person took) has its credentials revoked
+  through `AppState::run_credentials`.
 
 ## Surface
 

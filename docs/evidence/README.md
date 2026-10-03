@@ -72,6 +72,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
 | [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
+| [`2026-09-28-surrogate-plugins-pairing/`](2026-09-28-surrogate-plugins-pairing/README.md) | Plugin settings pairing — Settings reaches the daemon's plugin routes (ADR 0150 §7) |
 | [`2026-09-28-surrogate-plugins/`](2026-09-28-surrogate-plugins/README.md) | Surrogate credentials and Browser autofill in Settings › Capabilities |
 | [`2026-09-28-settings-security-rows/`](2026-09-28-settings-security-rows/README.md) | Settings › Security: every row acts, or is not drawn |
 | [`2026-09-28-settings-no-approvals-view/`](2026-09-28-settings-no-approvals-view/README.md) | Settings › General: no approvals view |

@@ -16,6 +16,8 @@
 //! [`InvokeRequest`]: opensesame_invoke_through::InvokeRequest
 //! [`Invoker::execute`]: opensesame_invoke_through::Invoker::execute
 
+use std::sync::Arc;
+
 use bytes::Bytes;
 use http::StatusCode;
 use http_body_util::{BodyExt, Limited};
@@ -26,6 +28,7 @@ use hyper::{Request, Response};
 use opensesame_invoke_through::{Admission, InvokeError, RequestView, DEFAULT_REQUEST_BODY_CAP};
 
 use crate::listener::RunContext;
+use crate::login_route::{self, Claim, Seen};
 use crate::respond::{self, ProxyBody};
 use crate::target::Target;
 
@@ -48,6 +51,27 @@ pub(crate) async fn handle_tunnelled(
     };
     let (headers, exact) = header_pairs(&parts.headers);
     let path_and_query = path_and_query(&parts);
+    let url = format!(
+        "https://{}:{}{path_and_query}",
+        target.authority_host(),
+        target.port
+    );
+    let seen = Seen {
+        method: parts.method.as_str(),
+        url: &url,
+        headers: &headers,
+        body: &body,
+    };
+    let claim = ctx.logins.as_deref().map_or(Claim::None, |logins| {
+        login_route::claim(logins, target, &seen)
+    });
+    match claim {
+        Claim::Carrying(desk) => {
+            return login_route::carrying(ctx, desk, target, &parts, &seen).await;
+        }
+        Claim::Ambiguous => return login_route::ambiguous(ctx),
+        Claim::None | Claim::Origin(_) => {}
+    }
     let view = RequestView {
         method: parts.method.as_str(),
         scheme: "https",
@@ -64,21 +88,36 @@ pub(crate) async fn handle_tunnelled(
         }
         Ok(Some(_)) if !exact => respond::refused(StatusCode::BAD_REQUEST),
         Ok(Some(admission)) => broker(ctx, &admission, &view).await,
-        Ok(None) if ctx.is_passthrough(target) => {
-            let authority = target.authority();
-            let passthrough = &ctx.shared.config.passthrough;
-            passthrough
-                .forward(
-                    &parts.method,
-                    &authority,
-                    path_and_query,
-                    &parts.headers,
-                    body.clone(),
-                )
-                .await
-        }
-        Ok(None) => respond::refused(StatusCode::FORBIDDEN),
+        Ok(None) => match claim {
+            Claim::Origin(desk) => login_route::forward(desk, target, &parts, body.clone()).await,
+            _ => untouched(ctx, target, &parts, path_and_query, body.clone()).await,
+        },
     }
+}
+
+/// A request with no surrogate in it, to no login origin: a passthrough
+/// host's, or refused.
+async fn untouched(
+    ctx: &RunContext,
+    target: &Target,
+    parts: &Parts,
+    path_and_query: &str,
+    body: Bytes,
+) -> Response<ProxyBody> {
+    if !ctx.is_passthrough(target) {
+        return respond::refused(StatusCode::FORBIDDEN);
+    }
+    let authority = target.authority();
+    let passthrough = &ctx.shared.config.passthrough;
+    passthrough
+        .forward(
+            &parts.method,
+            &authority,
+            path_and_query,
+            &parts.headers,
+            body,
+        )
+        .await
 }
 
 /// A plain-HTTP request in absolute form. Scanned, so a surrogate in it is
@@ -93,12 +132,35 @@ pub(crate) async fn handle_plain(ctx: &RunContext, req: Request<Incoming>) -> Re
         Err(status) => return respond::refused(status),
     };
     let (headers, _) = header_pairs(&parts.headers);
+    let path_and_query = path_and_query(&parts);
+    let url = format!(
+        "http://{}:{}{path_and_query}",
+        target.authority_host(),
+        target.port
+    );
+    let seen = Seen {
+        method: parts.method.as_str(),
+        url: &url,
+        headers: &headers,
+        body: &body,
+    };
+    // A login surrogate over plain http is put to its declaration, which
+    // refuses it as misdirected: it never substitutes into cleartext.
+    match ctx.logins.as_deref().map_or(Claim::None, |logins| {
+        login_route::claim(logins, &target, &seen)
+    }) {
+        Claim::Carrying(desk) => {
+            return login_route::carrying(ctx, desk, &target, &parts, &seen).await;
+        }
+        Claim::Ambiguous => return login_route::ambiguous(ctx),
+        Claim::None | Claim::Origin(_) => {}
+    }
     let view = RequestView {
         method: parts.method.as_str(),
         scheme: "http",
         host: &target.host,
         port: target.view_port(HTTP_PORT),
-        path_and_query: path_and_query(&parts),
+        path_and_query,
         headers: &headers,
         body: &body,
     };
@@ -124,7 +186,24 @@ async fn broker(
     let Some(source) = config.sources.source_for(admission) else {
         return respond::upstream_failed(StatusCode::BAD_GATEWAY);
     };
-    let Ok(Ok(token)) = tokio::task::spawn_blocking(move || source.acquire()).await else {
+    // A slot per concurrent credential-tool run. The permit travels into the
+    // blocking task, so a client that gives up mid-request does not free a
+    // slot whose process is still running.
+    let Ok(Ok(permit)) = tokio::time::timeout(
+        config.acquire_wait,
+        Arc::clone(&ctx.acquisitions).acquire_owned(),
+    )
+    .await
+    else {
+        return respond::refused(StatusCode::TOO_MANY_REQUESTS);
+    };
+    let Ok(Ok(token)) = tokio::task::spawn_blocking(move || {
+        let acquired = source.acquire();
+        drop(permit);
+        acquired
+    })
+    .await
+    else {
         return respond::upstream_failed(StatusCode::BAD_GATEWAY);
     };
     match config.invoker.execute(&token, prepared).await {

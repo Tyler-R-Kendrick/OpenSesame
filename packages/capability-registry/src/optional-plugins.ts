@@ -44,6 +44,12 @@ const NO_PROCESSES_IN_PAGES: CapabilityExclusion = {
   adr: ADR_SURROGATES,
 };
 
+const PAIRING_HUMAN: CapabilityExclusion = {
+  reason:
+    "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+  adr: ADR_SURROGATES,
+};
+
 const PER_PLUGIN_IN_PAGES: CapabilityExclusion = {
   reason: "Pages uses the per-plugin operations",
   adr: "0130-operator-controlled-capability-composition.md",
@@ -143,10 +149,43 @@ export const optionalPluginCapabilities: readonly Capability[] = [
       pwa: PER_PLUGIN_IN_PAGES,
     },
   },
+  // Pairing a page with the daemon's plugin settings: the CLI prints a
+  // one-time code bound to one origin; the page trades it for a key that
+  // opens the plugin routes and nothing else (ADR 0150 §7).
+  {
+    id: "plugins.pair",
+    title:
+      "Pair one browser origin with the daemon's plugin settings (one-time code for a key scoped to /v1/plugins)",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame plugins pair",
+      pwa: "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: AGENTS_EXCLUDED(PAIRING_HUMAN),
+  },
+  {
+    id: "plugins.unpair",
+    title:
+      "Revoke a page's plugin-settings key: every pairing for an origin at the terminal, or this page's own from Settings",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame plugins unpair",
+      pwa: "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: AGENTS_EXCLUDED(PAIRING_HUMAN),
+  },
   {
     id: "agents.surrogate.dev_run",
     title:
-      "Run a child with surrogates in place of placeholders through the surrogate-proxy plugin",
+      "Run a child with surrogates in place of placeholders and web-login passwords through the surrogate-proxy plugin",
     plane: "client_local",
     kind: "act",
     surfaces: {

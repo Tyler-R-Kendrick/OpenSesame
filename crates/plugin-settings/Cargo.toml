@@ -8,12 +8,23 @@ description = "Optional runtime plugins: the catalog, the settings file that swi
 # Everything here is already in the daemon's tree (ADR 0048 §5): the daemon
 # reads this file to answer Settings, and never links a plugin itself.
 [dependencies]
+base64 = { workspace = true }
 directories = "6.0.0"
 hex = { workspace = true }
+# Pairing codes and bearers (plugin-pairings.json): OS randomness, as the
+# daemon already draws it.
+rand_core = { version = "0.6", features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+url = { workspace = true }
+
+[features]
+default = []
+# Honour `OPENSESAME_PLUGINS_FILE`. Test builds only: a shipped build reads
+# `<config dir>/plugins.json` and nothing an environment can name.
+path-override = []
 
 [dev-dependencies]
 tempfile = { workspace = true }

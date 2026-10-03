@@ -3,7 +3,7 @@ use axum::{
     body::{to_bytes, Body},
     http::Request,
 };
-use opensesame_plugin_settings::{sha256_file, NOTICES_FILE};
+use opensesame_plugin_settings::{sha256_file, NOTICES_FILE, TRIPWIRES_FILE};
 use tower::ServiceExt;
 
 const SURROGATE: &str = "osr_0123456789abcdef0123456789abcdef";
@@ -29,7 +29,7 @@ fn fixture_with_env(env: EnvReader) -> Fixture {
     state.plugins = PluginHost::at(Some(dir.path().join("plugins.json")), env);
     Fixture {
         dir,
-        app: routes().with_state(state),
+        app: routes(&state).with_state(state.clone()),
     }
 }
 
@@ -305,8 +305,68 @@ async fn a_plugin_with_no_notices_file_has_no_notices() {
 async fn with_no_settings_location_the_routes_say_so_rather_than_guess() {
     let mut state = crate::tests::test_state("http://127.0.0.1:1");
     state.plugins = PluginHost::at(None, Arc::new(|_| None));
-    let app = routes().with_state(state);
+    let app = routes(&state).with_state(state);
     let (status, json) = call(&app, request("GET", "/v1/plugins", None, true)).await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(json["error"], "plugin_settings_unavailable");
+}
+
+#[tokio::test]
+async fn switching_on_a_binary_changed_since_install_is_refused_and_left_off() {
+    let f = fixture();
+    install(&f, "surrogate-proxy");
+    std::fs::write(f.dir.path().join("surrogate-proxy.bin"), b"swapped").unwrap();
+    let (status, json) = call(
+        &f.app,
+        request(
+            "PUT",
+            "/v1/plugins/surrogate-proxy",
+            Some(&enable(true)),
+            true,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(json["error"], "pin_mismatch");
+    assert!(!PluginSettings::load(&f.settings()).unwrap().plugins["surrogate-proxy"].enabled);
+}
+
+fn info_notice(n: usize) -> String {
+    json!({
+        "event_type": "surrogate.unknown",
+        "severity": "info",
+        "state": "firing",
+        "organization_id": "local",
+        "subject_kind": "agent_run",
+        "subject_id": format!("noise-{n}"),
+        "occurred_at": format!("2026-09-28T01:00:{:02}Z", n % 60),
+        "summary": "a value shaped like a surrogate was not issued by this run",
+        "payload": { "surrogate_included": false },
+    })
+    .to_string()
+}
+
+#[tokio::test]
+async fn a_tripwire_outlives_any_amount_of_noise_in_what_settings_shows() {
+    let f = fixture();
+    let file = f.notices("surrogate-proxy");
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    std::fs::write(
+        file.with_file_name(TRIPWIRES_FILE),
+        notice(1, "a surrogate for github was sent to evil.test"),
+    )
+    .unwrap();
+    let noise: Vec<String> = (0..500).map(info_notice).collect();
+    std::fs::write(&file, noise.join("\n")).unwrap();
+    let (status, body) = call(
+        &f.app,
+        request("GET", "/v1/plugins/surrogate-proxy/notices", None, true),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let notices = body["notices"].as_array().unwrap();
+    assert_eq!(notices.len(), MAX_NOTICES);
+    assert_eq!(notices[0]["event_type"], "surrogate.misdirected");
+    assert_eq!(notices[0]["severity"], "error");
+    assert_eq!(notices[1]["event_type"], "surrogate.unknown");
 }

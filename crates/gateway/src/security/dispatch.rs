@@ -31,6 +31,9 @@ pub async fn publish(state: &AppState, notice: &SecurityNotice, now: DateTime<Ut
     // delivery ledger and every sink: a free-text field a detector filled from
     // an error, a path or a provider reply is scrubbed here (ADR 0157).
     let notice = &notice.scrubbed();
+    // First, before any fan-out that can be slow: a run whose agent stopped
+    // driving is revoked, and a misdirected surrogate parks it (ADR 0150 §6.2).
+    crate::run_lease::settle(state, notice).await;
     publish_to_bus(state, notice).await;
     let subscriptions = subscriptions(state, &notice.organization_id).await;
     enqueue_for_subscribers(state, notice, &subscriptions, now).await;
