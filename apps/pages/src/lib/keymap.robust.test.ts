@@ -6,6 +6,7 @@
  * a counted command spends the budget it uses, and a symbol made with Option
  * or AltGr is a key.
  */
+import { keymapCommands } from "@opensesame/app-core/lib/keymap/commands.js";
 import type {
   KeymapConfig,
   Macro,
@@ -16,7 +17,7 @@ import {
   saveKeymap,
 } from "@opensesame/app-core/lib/keymap/store.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runMacro, runTarget } from "./keymap-commands.js";
+import { isMotion, runMacro, runTarget } from "./keymap-commands.js";
 import {
   NO_PENDING,
   pendingSnapshot,
@@ -250,5 +251,16 @@ describe("a symbol made with Option or AltGr", () => {
     expect(items.next).not.toHaveBeenCalled();
     expect(items.enter).not.toHaveBeenCalled();
     release();
+  });
+});
+
+describe("what keeps its meaning after a stale prefix", () => {
+  it("is the catalogue's move group, which the macro recorder reads it by", () => {
+    for (const command of keymapCommands()) {
+      expect([command.id, isMotion(command.id)]).toEqual([
+        command.id,
+        command.group === "move",
+      ]);
+    }
   });
 });

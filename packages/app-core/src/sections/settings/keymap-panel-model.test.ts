@@ -83,6 +83,23 @@ describe("recording a macro from keys", () => {
     expect(recording.skipped).toEqual(["x", "q"]);
   });
 
+  it("reads a stale prefix as the shell does: swallowed, a motion kept", () => {
+    const read = (...tokens: string[]) =>
+      stepsFromKeys(tokens, EMPTY_KEYMAP, commands);
+    expect(read("g", "j")).toEqual({
+      steps: [{ command: "listing.next", count: 1 }],
+      skipped: ["g"],
+    });
+    expect(read("3", "g", "ArrowDown").steps).toEqual([
+      { command: "listing.next", count: 3 },
+    ]);
+    // `y` is not a motion: the stale `g` takes it along.
+    expect(read("g", "y")).toEqual({ steps: [], skipped: ["g y"] });
+    expect(read("g", "y", "k").steps).toEqual([
+      { command: "listing.previous", count: 1 },
+    ]);
+  });
+
   it("uses the person's own keys", () => {
     const config = bindKey(EMPTY_KEYMAP, commands, "w", "listing.next");
     expect(stepsFromKeys(["w"], config, commands).steps).toEqual([

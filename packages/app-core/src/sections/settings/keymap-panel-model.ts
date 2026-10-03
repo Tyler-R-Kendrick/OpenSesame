@@ -254,6 +254,39 @@ export function stepsFromKeys(
   const continues = (sequence: string) =>
     [...bindings.keys()].some((key) => key.startsWith(`${sequence} `));
 
+  /** The `move` group is the shell's motions (pinned by a drift test). */
+  const isMotionTarget = (target: string) =>
+    commandById(target, commands)?.group === "move";
+
+  // The shell's `resolveToken`: a key that continues nothing after a prefix
+  // swallows the prefix. A character key goes with it, unless it is a motion,
+  // which keeps its meaning (`g j` is `j`); a named key is read afresh.
+  const resolve = (token: string): void => {
+    const prefix = pending;
+    const sequence = [...prefix, token].join(" ");
+    if (continues(sequence)) {
+      pending = sequence.split(" ");
+      return;
+    }
+    pending = [];
+    const target = bindings.get(sequence);
+    if (target !== undefined) {
+      emit(target, sequence);
+      return;
+    }
+    const fresh = bindings.get(token);
+    const swallowed =
+      prefix.length === 0 ||
+      (token.length === 1 && !(fresh !== undefined && isMotionTarget(fresh)));
+    if (swallowed) {
+      skipped.push(sequence);
+      count = 0;
+      return;
+    }
+    skipped.push(prefix.join(" "));
+    resolve(token);
+  };
+
   for (const token of tokens) {
     if (pending.length === 0 && /^[1-9]$/.test(token)) {
       count = Math.min(count * 10 + Number(token), 99);
@@ -263,18 +296,7 @@ export function stepsFromKeys(
       count = Math.min(count * 10, 99);
       continue;
     }
-    const sequence = [...pending, token].join(" ");
-    if (continues(sequence)) {
-      pending = sequence.split(" ");
-      continue;
-    }
-    pending = [];
-    const target = bindings.get(sequence);
-    if (target !== undefined) emit(target, sequence);
-    else {
-      skipped.push(sequence);
-      count = 0;
-    }
+    resolve(token);
   }
   if (pending.length > 0) {
     const sequence = pending.join(" ");
