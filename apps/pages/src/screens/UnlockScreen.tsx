@@ -8,20 +8,15 @@ import type { FederatedProviderSummary } from "@opensesame/app-core/lib/provider
 import { noWayIn } from "@opensesame/app-core/lib/settings.js";
 import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
 import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
-import {
-  type UnlockTabId,
-  listProtectorUnlockTabs,
-} from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
+import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
 import {
   MIN_PIN_LENGTH,
   type SecondStepId,
   checkWebauthnHost,
-  listAvailableUnlockMethods,
   listSecondSteps,
   pinPolicyProblems,
-  preferredUnlockMethod,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   type DeviceVault,
@@ -79,6 +74,10 @@ import {
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
 import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
+import {
+  fallbackUnlockMethod,
+  unlockMethodTabs,
+} from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
@@ -209,28 +208,10 @@ function UnlockForm({
   // Not "no identity service" (ADR 0078) — the narrower and truer claim: setup left no way in.
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
 
-  const methods = useMemo<UnlockTabId[]>(() => {
-    // A returning vault offers exactly the challenges it enrolled. The screen
-    // used to show all three whatever the vault had, on the theory that which
-    // ones exist is the person's own knowledge — but the header on disk is
-    // plaintext and already says so, so hiding it protected nothing and cost
-    // the person their own configuration: a PIN tab for a vault with no PIN,
-    // and no sign of the authenticator code they set up.
-    // Beside them, the manifest's protectors that open the vault from material
-    // nothing sealed inside it holds (ADR 0152): the header is plaintext and
-    // says which are enrolled, so exactly those are drawn.
-    if (!firstRun) {
-      const own: UnlockTabId[] = listAvailableUnlockMethods(header);
-      return [
-        ...own,
-        ...listProtectorUnlockTabs(header).filter((tab) => !own.includes(tab)),
-      ];
-    }
-    const available: UnlockTabId[] = [];
-    if (passkeyHost.ok) available.push("passkey");
-    available.push("pin", "password");
-    return available;
-  }, [firstRun, header, passkeyHost.ok]);
+  const methods = useMemo<UnlockTabId[]>(
+    () => unlockMethodTabs({ firstRun, header, passkeyOk: passkeyHost.ok }),
+    [firstRun, header, passkeyHost.ok],
+  );
   // A guest tomb that enrolled no key at all: guest entry itself is the road
   // in, and the commit says so rather than pretending to unlock something.
   const guestKeyless = guestUnlock && methods.length === 0;
@@ -247,11 +228,12 @@ function UnlockForm({
   const [method, setMethod] = useState<UnlockTabId | null>(null);
   const [awaitingPasskeyDuressCode, setAwaitingPasskeyDuressCode] =
     useState(false);
-  const fallbackMethod: UnlockTabId = firstRun
-    ? passkeyHost.ok
-      ? "passkey"
-      : "password"
-    : (preferredUnlockMethod(header) ?? "password");
+  const fallbackMethod = fallbackUnlockMethod({
+    firstRun,
+    header,
+    passkeyOk: passkeyHost.ok,
+    methods,
+  });
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
   const showMethodTabs =

@@ -36,19 +36,22 @@ describe("unlock miss copy", () => {
 describe("passkey duress gate", () => {
   it("allows passkey when duress is inactive", async () => {
     const unlockWithPasskey = vi.fn(async () => undefined);
-    const probePasskeyPrf = vi.fn(async () => new ArrayBuffer(32));
+    const probePasskeyCeremony = vi.fn(async () => ({
+      prfOutput: new ArrayBuffer(32),
+      credentialIdB64: "cred-1",
+    }));
     const unlockWithHeldPrf = vi.fn(async () => undefined);
     const createGuest = vi.fn(async () => undefined);
     await expect(
       unlockWithPasskeyAfterDuressGate({
         unlockWithPasskey,
-        probePasskeyPrf,
+        probePasskeyCeremony,
         unlockWithHeldPrf,
         createGuest,
       }),
     ).resolves.toBe("vault_opened");
     expect(unlockWithPasskey).toHaveBeenCalledOnce();
-    expect(probePasskeyPrf).not.toHaveBeenCalled();
+    expect(probePasskeyCeremony).not.toHaveBeenCalled();
   });
 });
 
@@ -75,12 +78,15 @@ describe("passkey duress code completion", () => {
     );
     cancelPasskeyDuressCode();
     const unlockWithPasskey = vi.fn(async () => undefined);
-    const probePasskeyPrf = vi.fn(async () => new ArrayBuffer(32));
+    const probePasskeyCeremony = vi.fn(async () => ({
+      prfOutput: new ArrayBuffer(32),
+      credentialIdB64: "cred-1",
+    }));
     const unlockWithHeldPrf = vi.fn(async () => undefined);
     const createGuest = vi.fn(async () => undefined);
     await expect(
       completePasskeyDuressCode(
-        { unlockWithPasskey, probePasskeyPrf, unlockWithHeldPrf, createGuest },
+        { unlockWithPasskey, probePasskeyCeremony, unlockWithHeldPrf, createGuest },
         "11223344",
         { requireDurable: false },
       ),

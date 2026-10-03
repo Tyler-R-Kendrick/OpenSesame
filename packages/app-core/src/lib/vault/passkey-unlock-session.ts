@@ -61,31 +61,69 @@ export function passkeyUnlockRecords(
   return records;
 }
 
-export async function probePasskeyPrf(
+export type PasskeyProbe = Readonly<{
+  prfOutput: ArrayBuffer;
+  /** The credential that actually answered, not the one the header names first. */
+  credentialIdB64: string;
+}>;
+
+export type PasskeyProbeOptions = Readonly<{
+  signal?: AbortSignal;
+  /**
+   * Offer only these credentials. A duress trigger bound to one passkey asks
+   * for exactly that one: another credential's PRF output cannot carry it.
+   */
+  onlyCredentialIds?: readonly string[];
+}>;
+
+export async function probePasskeyCeremony(
   host: PasskeyUnlockSessionHost,
-  signal?: AbortSignal,
-): Promise<ArrayBuffer> {
+  options: PasskeyProbeOptions = {},
+): Promise<PasskeyProbe> {
   host.assertNotLockedOut();
   const header = host.header();
   if (!header) throw new Error("There is no vault on this device yet.");
-  const records = passkeyUnlockRecords(header);
+  const { signal, onlyCredentialIds } = options;
+  const all = passkeyUnlockRecords(header);
+  const records = onlyCredentialIds
+    ? all.filter((row) => onlyCredentialIds.includes(row.credentialIdB64))
+    : all;
   const [record] = records;
   if (!record) {
-    host.recordFailedUnlock();
+    // A restriction that left nothing to offer guessed nothing, so it does not
+    // count against the lockout; a vault with no passkey at all does.
+    if (all.length === 0) host.recordFailedUnlock();
     throw new WrongPasswordError("That passkey did not unlock the vault.");
   }
   try {
     if (records.length === 1) {
-      return await getPasskeyUnlockCeremony(record, undefined, signal);
+      return {
+        prfOutput: await getPasskeyUnlockCeremony(record, undefined, signal),
+        credentialIdB64: record.credentialIdB64,
+      };
     }
-    const options = signal ? { signal } : {};
-    return (await getPasskeyUnlockCeremonyFor(records, options)).prfOutput;
+    const ceremony = await getPasskeyUnlockCeremonyFor(
+      records,
+      signal ? { signal } : {},
+    );
+    return {
+      prfOutput: ceremony.prfOutput,
+      credentialIdB64: ceremony.credentialIdB64,
+    };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw error;
     }
     throw error instanceof Error ? error : new Error("Passkey unlock failed.");
   }
+}
+
+export async function probePasskeyPrf(
+  host: PasskeyUnlockSessionHost,
+  signal?: AbortSignal,
+): Promise<ArrayBuffer> {
+  const probe = await probePasskeyCeremony(host, signal ? { signal } : {});
+  return probe.prfOutput;
 }
 
 export async function unlockVaultWithHeldPrf(

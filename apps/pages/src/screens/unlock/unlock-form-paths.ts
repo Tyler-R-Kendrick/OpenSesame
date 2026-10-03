@@ -25,7 +25,10 @@ type UnlockStore = Readonly<{
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
   unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-  probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
+  probePasskeyCeremony: (options?: {
+    signal?: AbortSignal;
+    onlyCredentialIds?: readonly string[];
+  }) => Promise<Readonly<{ prfOutput: ArrayBuffer; credentialIdB64: string }>>;
   unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;

@@ -65,7 +65,10 @@ function store() {
     probeProtector: vi.fn(async () => new Uint8Array(32).fill(9).buffer),
     unlockWithHeldProtectorRoot: vi.fn(async () => undefined),
     unlockWithPasskey: vi.fn(async () => undefined),
-    probePasskeyPrf: vi.fn(async () => new ArrayBuffer(32)),
+    probePasskeyCeremony: vi.fn(async () => ({
+      prfOutput: new ArrayBuffer(32),
+      credentialIdB64: "cred-1",
+    })),
     unlockWithHeldPrf: vi.fn(async () => undefined),
     createGuest: vi.fn(async () => undefined),
     cancelTotpChallenge: vi.fn(),

@@ -215,8 +215,18 @@ of `unlock`:
   nothing typed: when a two-input trigger is armed it only opens the root and
   *holds* it (zeroed on every clear), and the complete code that follows decides
   between decoy and vault through the passkey road's own `completePasskeyDuressCode`.
-  A `prf_and_code` trigger cannot be satisfied by an age passkey, which has no
-  PRF output — by design, as for a code with no passkey;
+  **A `prf_and_code` trigger fails closed.** It is bound to one passkey's PRF
+  output, and an age-passkey tap has none: a typed duress code could never be
+  tried against it, "no match" would read as an ordinary code, and the real
+  vault would open past it. So while such a trigger is armed the **Age passkey**
+  tab is absent and the gate refuses it before any ceremony runs; the **Passkey**
+  tab offers only the credential the trigger is bound to (and is absent when the
+  vault holds none), and the credential that actually answered — not the header's
+  first — is what the evidence names; and a complete code whose evidence cannot
+  satisfy every armed `prf_and_code` trigger opens nothing (the held root and PRF
+  output are zeroed). The cost is stated plainly: with such a trigger armed, the
+  roads that cannot carry it are not available, and the password, PIN and typed
+  keys are unaffected (`unlock-prf-trigger.ts`);
 - the secret is a function argument and a React state value cleared on submit,
   failure and tab change. It is never logged, never written to a store, never
   given to the browser's autofill (`autocomplete="off"`), and the capsule's
