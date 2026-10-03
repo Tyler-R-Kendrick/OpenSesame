@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150: vim's registers in the shell. `q{a–z}` records what the keys ran
+ * ADR 0156: vim's registers in the shell. `q{a–z}` records what the keys ran
  * into macro `q-<letter>` until the next `q`; `@{a–z}` replays it, `@@` the
  * last one replayed, and a count in front repeats it. Authority is left out
  * of a recording, and nothing but a–z (or `@` after `@`) names a register.

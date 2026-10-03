@@ -448,7 +448,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0155).
+  0001–0156).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -623,7 +623,7 @@ Do not add new top-level directories or loose root files — find the group.
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
 - **Every key is a person's, and a few keep the road open**
-  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  ([ADR 0156](docs/adr/0156-keybindings-and-macros.md)). The shell's handler
   resolves every press through the effective keymap (the catalogue in
   `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
   sparse bindings), so a new key is a catalogue row, never a second

@@ -1,5 +1,5 @@
 /**
- * Event triggers (ADR 0150): a macro with `on: unlock` runs once when the
+ * Event triggers (ADR 0156): a macro with `on: unlock` runs once when the
  * vault opens, one with `on: enter:<section>` each time that section becomes
  * the page — vim's autocmd over a closed set of events.
  *

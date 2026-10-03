@@ -154,7 +154,7 @@ function Shell({ children }: { children?: ReactNode }) {
 
   useEffect(() => registerKeymapHelp(showKeymap), [showKeymap]);
 
-  // A macro bound to `on: unlock` or `on: enter:<section>` (ADR 0150).
+  // A macro bound to `on: unlock` or `on: enter:<section>` (ADR 0156).
   useKeymapEvents(useVaultStore(), navigate);
 
   return (
