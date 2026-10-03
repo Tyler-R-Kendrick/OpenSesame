@@ -139,6 +139,9 @@ function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
   // Read once, when the sheet opens: the rotation rewrites the header.
   const [lost] = useState(() => rotationLosses(header));
   const gone = lost.join(", ");
+  // With a master password enrolled, the one typed is proved against it and
+  // wrapped anew; with none, there is nothing to prove and it becomes the one.
+  const proves = Boolean(header?.wrap && header.kdf);
   return (
     <CeremonyShell
       ok={password.length > 0}
@@ -146,7 +149,9 @@ function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
       facts={[
         {
           key: "Effect",
-          value: "A new vault key; the password is wrapped anew",
+          value: proves
+            ? "A new vault key; the master password is wrapped anew"
+            : "A new vault key; the password entered becomes the master password",
         },
         { key: "Removed", value: gone === "" ? "nothing else" : gone },
       ]}
@@ -172,11 +177,11 @@ function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
       }}
     >
       <FieldShell
-        label="Master password"
+        label={proves ? "Master password" : "New master password"}
         type="password"
         value={password}
         onValueChange={setPassword}
-        autoComplete="current-password"
+        autoComplete={proves ? "current-password" : "new-password"}
         mono
       />
     </CeremonyShell>
