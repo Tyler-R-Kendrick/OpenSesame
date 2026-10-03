@@ -1,41 +1,35 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const state = { deployed: "", saved: "" };
-
-vi.mock("./settings.js", () => ({
-  defaultIdentityApi: () => state.deployed,
-  loadSettings: () => ({}),
-  saveSettings: vi.fn(),
-}));
-vi.mock("./device-identity.js", () => ({
-  remoteIdentityApi: () => state.saved.replace(/\/+$/, ""),
-}));
-vi.mock("../screens/setup/ways-in-patch.js", () => ({
-  applyWaysInPatch: (settings: object) => settings,
-}));
-
+import { afterEach, describe, expect, it } from "vitest";
+import { deviceIdentitySeams } from "./device-identity.js";
 import { signInServiceIsDeployed } from "./identity-service.js";
+import { applyRuntimeConfig } from "./settings.js";
+
+const realRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
+
+function inUse(address: string): void {
+  deviceIdentitySeams.remoteIdentityApi = () => address.replace(/\/+$/, "");
+}
 
 describe("signInServiceIsDeployed", () => {
-  beforeEach(() => {
-    state.deployed = "";
-    state.saved = "";
+  afterEach(() => {
+    deviceIdentitySeams.remoteIdentityApi = realRemoteIdentityApi;
+    applyRuntimeConfig({});
   });
 
   it("is false when the deployment supplies nothing", () => {
-    state.saved = "https://login.example.com";
+    applyRuntimeConfig({});
+    inUse("https://login.example.com");
     expect(signInServiceIsDeployed()).toBe(false);
   });
 
   it("is true when the address in use is the deployment's own, slashes aside", () => {
-    state.deployed = "https://id.corp.example/";
-    state.saved = "https://id.corp.example";
+    applyRuntimeConfig({ identityApi: "https://id.corp.example/" });
+    inUse("https://id.corp.example");
     expect(signInServiceIsDeployed()).toBe(true);
   });
 
   it("is false once a person has set a different address", () => {
-    state.deployed = "https://id.corp.example";
-    state.saved = "https://login.example.com";
+    applyRuntimeConfig({ identityApi: "https://id.corp.example" });
+    inUse("https://login.example.com");
     expect(signInServiceIsDeployed()).toBe(false);
   });
 });
