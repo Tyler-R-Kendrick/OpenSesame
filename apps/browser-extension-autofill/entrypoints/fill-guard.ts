@@ -15,6 +15,12 @@ import {
 } from "@/lib/fill/guard-runtime";
 import { armMessage, valueReply } from "@/lib/fill/wire";
 
+/** The browser's way to read a root the page closed, where it has one. */
+const closedRoots = browser.dom
+  ? (el: Element) =>
+      el instanceof HTMLElement ? browser.dom.openOrClosedShadowRoot(el) : null
+  : null;
+
 export default defineUnlistedScript(() => {
   if (!claimDocument(window)) return;
   const requestValue: RequestValue = async (request) => {
@@ -28,7 +34,7 @@ export default defineUnlistedScript(() => {
     if (!arm.success || !fromThisExtension(sender, browser.runtime.id)) {
       return undefined;
     }
-    answerArm(window, requestValue, arm.data).then(respond, () =>
+    answerArm(window, requestValue, arm.data, closedRoots).then(respond, () =>
       respond({ outcome: "guard_failed" }),
     );
     return true;

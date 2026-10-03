@@ -8,6 +8,13 @@
  * well as one on the field — and whether the field is what the browser would
  * hit at its own centre, which is how an overlay drawn over it is caught.
  */
+import {
+  type RootReader,
+  flatParent,
+  passkeyScope,
+  scopeOffersPasskey,
+  treeObservable,
+} from "./flat-tree";
 import type { FieldFacts, FieldKind, PageFacts } from "./guard";
 
 const USERNAME_HINT = /user|login|email|account|identifier/i;
@@ -53,17 +60,10 @@ function filterOpacity(filter: string): number {
   return factor;
 }
 
-/** The element's parent, stepping out of a shadow root to its host. */
-function parentOf(el: Element): Element | null {
-  if (el.parentElement) return el.parentElement;
-  const root = el.getRootNode();
-  return root instanceof ShadowRoot ? root.host : null;
-}
-
 /** Opacity as painted: the product over the element and every ancestor. */
 export function effectiveOpacity(el: Element, view: Window): number {
   let opacity = 1;
-  for (let node: Element | null = el; node; node = parentOf(node)) {
+  for (let node: Element | null = el; node; node = flatParent(node)) {
     const style = view.getComputedStyle(node);
     const own = Number.parseFloat(style.opacity);
     opacity *= (Number.isFinite(own) ? own : 1) * filterOpacity(style.filter);
@@ -71,24 +71,45 @@ export function effectiveOpacity(el: Element, view: Window): number {
   return opacity;
 }
 
-/** Whether the browser's own hit test at the field's centre finds the field. */
-function hitsSelf(input: HTMLInputElement, x: number, y: number): boolean {
+/**
+ * Whether the browser's own hit test at the field's centre finds the field,
+ * and the tree it is painted in can be read: a field whose slot assignment is
+ * hidden behind a closed root may be faded by wrappers no script can see.
+ */
+function hitsSelf(
+  input: HTMLInputElement,
+  x: number,
+  y: number,
+  roots: RootReader | null,
+): boolean {
   const root = input.getRootNode();
   const scope =
     root instanceof ShadowRoot || root instanceof Document ? root : null;
-  return scope?.elementFromPoint(x, y) === input;
+  return (
+    treeObservable(input, roots) && scope?.elementFromPoint(x, y) === input
+  );
 }
 
-/** Whether a passkey is offered beside `input`: passkeys come first. */
-export function passkeyOffered(input: HTMLInputElement): boolean {
+/**
+ * Whether a passkey is offered beside `input`: passkeys come first. The
+ * search is its form, else the outermost shadow host it sits under, else its
+ * document, and it enters every root below that scope.
+ */
+export function passkeyOffered(
+  input: HTMLInputElement,
+  roots: RootReader | null = null,
+): boolean {
   if (tokens(input.getAttribute("autocomplete")).includes("webauthn")) {
     return true;
   }
-  const scope: ParentNode = input.form ?? input.ownerDocument;
-  return scope.querySelector('input[autocomplete~="webauthn" i]') !== null;
+  return scopeOffersPasskey(passkeyScope(input), roots);
 }
 
-export function fieldFacts(input: HTMLInputElement, view: Window): FieldFacts {
+export function fieldFacts(
+  input: HTMLInputElement,
+  view: Window,
+  roots: RootReader | null = null,
+): FieldFacts {
   const box = input.getBoundingClientRect();
   const rect = {
     left: box.left,
@@ -106,18 +127,22 @@ export function fieldFacts(input: HTMLInputElement, view: Window): FieldFacts {
       input,
       rect.left + rect.width / 2,
       rect.top + rect.height / 2,
+      roots,
     ),
     disabled: input.disabled || input.readOnly,
   };
 }
 
 /** Everything `decideFill` needs about this frame, read now. */
-export function pageFacts(view: Window): PageFacts {
+export function pageFacts(
+  view: Window,
+  roots: RootReader | null = null,
+): PageFacts {
   const input = focusedInput(view.document);
   return {
     isTopFrame: view === view.top,
     origin: view.location.origin,
-    passkeyOffered: input ? passkeyOffered(input) : false,
-    field: input ? fieldFacts(input, view) : null,
+    passkeyOffered: input ? passkeyOffered(input, roots) : false,
+    field: input ? fieldFacts(input, view, roots) : null,
   };
 }

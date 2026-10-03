@@ -34,6 +34,16 @@ describe("a field a person could not see or aim at (DOM-based extension clickjac
     ["opacity:0 on an ancestor", "/opacity-ancestor", "transparent"],
     ["a transparent overlay above the field", "/covered", "covered"],
     ["a field placed off the screen", "/offscreen", "off_screen"],
+    [
+      "a field slotted into a closed root whose wrapper is opacity:0",
+      "/closed-slot-faded",
+      "covered",
+    ],
+    [
+      "a field slotted into a closed root, whose wrappers cannot be read",
+      "/closed-slot-visible",
+      "covered",
+    ],
   ];
   for (const [name, path, outcome] of cases) {
     it(`refuses ${name}, before the daemon is asked`, async () => {
@@ -154,6 +164,48 @@ describe("passkeys first", () => {
       // Whatever the popup drew, the background and the guard refuse alone.
       assert.deepEqual(await sendFill(popup), { outcome: "passkey_offered" });
       await assertUntouched(session, page, focus, since);
+      await popup.close();
+      await page.close();
+    });
+  }
+});
+
+describe("passkeys first inside shadow roots", () => {
+  const offered = [
+    ["a sibling in the same open shadow root", "/shadow-passkey"],
+    ["the same form inside a shadow root", "/shadow-form-passkey"],
+    ["a sibling in a nested shadow root", "/shadow-nested-passkey"],
+    ["a field in a root below its own", "/shadow-below-passkey"],
+    ["a web component inside its form", "/form-shadow-host-passkey"],
+    [
+      "a web component beside a form-less light-DOM field",
+      "/light-beside-component-passkey",
+    ],
+  ];
+  for (const [name, path] of offered) {
+    for (const focus of ["#pass", "#user"]) {
+      it(`reports a passkey for ${name} and fills nothing, focus on ${focus}`, async () => {
+        const since = served(session);
+        const page = await openLogin(session, path, { focus });
+        const popup = await openPopup(session, page);
+        assert.equal(await mark(popup), WORDS.passkey, "the popup says so");
+        assert.deepEqual(await sendFill(popup), { outcome: "passkey_offered" });
+        await assertUntouched(session, page, focus, since);
+        await popup.close();
+        await page.close();
+      });
+    }
+  }
+
+  for (const [name, path] of [
+    ["no passkey anywhere", "/shadow-plain"],
+    ["a passkey field only under another host", "/shadow-other-host-passkey"],
+  ]) {
+    it(`still fills a shadow-root password with ${name}`, async () => {
+      const page = await openLogin(session, path, { focus: "#pass" });
+      const popup = await openPopup(session, page);
+      assert.deepEqual(await pressFill(popup), { outcome: "filled" });
+      assert.equal(await fieldValue(page, "#pass"), session.secret);
       await popup.close();
       await page.close();
     });
