@@ -109,7 +109,7 @@ describe("createProviderSupportAgent", () => {
 
   it("destroy() aborts every in-flight run, not just the most recent", async () => {
     const fetchImpl = vi.fn(
-      (_input: unknown, init?: RequestInit) =>
+      (_input: RequestInfo | URL, init?: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
           init?.signal?.addEventListener("abort", () => {
             reject(

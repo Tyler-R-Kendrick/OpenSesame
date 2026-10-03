@@ -44,23 +44,27 @@ afterEach(() => {
 describe("command suggestions", () => {
   it("ignores Enter while an IME composition is active", () => {
     render(<Field />);
-    const field = screen.getByRole("textbox", { name: "Command" });
+    const field = screen.getByRole<HTMLInputElement>("textbox", {
+      name: "Command",
+    });
     fireEvent.focus(field);
     fireEvent.keyDown(field, { key: "Enter", isComposing: true });
-    expect((field as HTMLInputElement).value).toBe("/");
+    expect(field.value).toBe("/");
     fireEvent.keyDown(field, { key: "Enter" });
-    expect((field as HTMLInputElement).value).toBe("chosen");
+    expect(field.value).toBe("chosen");
   });
 
   it("chooses a row on click and keeps the field on mouse down", () => {
     render(<Field />);
-    const field = screen.getByRole("textbox", { name: "Command" });
+    const field = screen.getByRole<HTMLInputElement>("textbox", {
+      name: "Command",
+    });
     fireEvent.focus(field);
     const option = screen.getByRole("option", { name: /Vault/ });
     fireEvent.mouseDown(option);
-    expect((field as HTMLInputElement).value).toBe("/");
+    expect(field.value).toBe("/");
     fireEvent.click(option);
-    expect((field as HTMLInputElement).value).toBe("chosen");
+    expect(field.value).toBe("chosen");
   });
 
   it("scrolls the list so the active option is inside it", () => {
