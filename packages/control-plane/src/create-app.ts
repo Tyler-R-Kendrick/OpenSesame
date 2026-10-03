@@ -344,9 +344,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     securityStateReady: async () => {
       try {
         await systemPrincipalReady;
+        // The probe only checks; the one sweep runs at start-up (above), so an
+        // unauthenticated request never scans or writes event tables.
         if (drizzleBundle) await verifySecurityDatabase(drizzleBundle.db);
-        if (drizzleBundle)
-          await sealExistingEvents(drizzleBundle.db, eventSealer);
         return true;
       } catch {
         return false;

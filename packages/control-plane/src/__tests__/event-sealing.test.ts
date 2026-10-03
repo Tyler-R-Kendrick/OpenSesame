@@ -4,6 +4,7 @@ import { verifyAuditChain } from "@opensesame/audit";
 import { SEALED_FIELD } from "@opensesame/database";
 import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -119,5 +120,33 @@ describe("the control plane over Postgres", () => {
       listed.find((event) => event.id === first.id)?.previousDigest,
     );
     expect(verdict.ok).toBe(true);
+  });
+
+  it("sweeps once at start-up, and a readiness probe never sweeps", async () => {
+    const plane = createControlPlane({
+      database: overlapCast(db),
+      processEnv: { ...process.env, OPENSESAME_CLAIM_PEPPER: PEPPER },
+    });
+    await plane.ctx.systemPrincipalReady;
+    // A row an older release (or another replica) wrote in the clear after
+    // the start-up sweep. A probe is unauthenticated: it must leave it alone.
+    const legacy = randomUUID();
+    await db.insert(schema.auditEvents).values({
+      id: legacy,
+      occurredAt: new Date(),
+      eventType: "test.legacy",
+      outcome: "succeeded",
+      correlationId: randomUUID(),
+      metadata: { reason: SENTINEL },
+    });
+
+    for (let probe = 0; probe < 2; probe += 1) {
+      expect((await plane.app.request("/v1/health/ready")).status).toBe(200);
+    }
+    const [row] = await db
+      .select()
+      .from(schema.auditEvents)
+      .where(eq(schema.auditEvents.id, legacy));
+    expect(row?.metadata).toEqual({ reason: SENTINEL });
   });
 });
