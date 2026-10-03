@@ -150,7 +150,11 @@ async function tunnelWithout(browser, owner, init) {
   setStep("tunnel-no-address");
   await setRoutes(owner.page, {});
   const session = await startSession(owner.page, { admission: "open" });
-  const lost = await device(browser, { init });
+  const lost = await device(browser, {
+    init,
+    origin: owner.origin,
+    dist: owner.dist,
+  });
   const request = await joinerAsks(lost.page, {
     link: session.link,
     name: "Bo",
@@ -184,7 +188,12 @@ async function tunnelWith(browser, owner, init) {
     !session.link.includes("127.0.0.1"),
     "the owner's address is not in the link",
   );
-  const joiner = await device(browser, { ...PHONE, init });
+  const joiner = await device(browser, {
+    ...PHONE,
+    init,
+    origin: owner.origin,
+    dist: owner.dist,
+  });
   const request = await joinerAsks(joiner.page, {
     link: session.link,
     name: JOINER,
