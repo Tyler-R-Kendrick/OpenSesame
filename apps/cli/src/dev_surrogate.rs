@@ -305,7 +305,7 @@ fn spawn(binary: &Path, line: &[u8], run_id: String) -> anyhow::Result<Surrogate
     *lock(&session.stdin) = stdin;
     let reply = await_reply(&reply)?;
     if let Some(class) = reply.get("error").and_then(Value::as_str) {
-        anyhow::bail!("the surrogate-proxy plugin refused the run: {class}");
+        anyhow::bail!("{}", refusal(class));
     }
     let env = reply
         .get("env")
@@ -326,6 +326,18 @@ fn spawn(binary: &Path, line: &[u8], run_id: String) -> anyhow::Result<Surrogate
         })
         .unwrap_or_default();
     Ok(session)
+}
+
+/// What a refusal class means to the person who ran the command.
+fn refusal(class: &str) -> String {
+    match class.strip_prefix("spec_path_scope:") {
+        Some(var) => format!(
+            "the surrogate-proxy plugin refused the run and issued nothing: {var} has no bounded \
+             scope. Declare what the child may reach on its env-spec entry, for example \
+             paths=\"/repos/acme,/user\" (and methods=\"GET\"); the root is not a scope"
+        ),
+        None => format!("the surrogate-proxy plugin refused the run: {class}"),
+    }
 }
 
 /// One thread reads the plugin's stdout for the life of the run: the first

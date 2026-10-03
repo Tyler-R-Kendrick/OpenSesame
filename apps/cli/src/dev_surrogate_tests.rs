@@ -24,6 +24,7 @@ pub(crate) fn placeholder(key: &str, uri: &str) -> ResolvedEnvEntry {
         omitted: false,
         warning: None,
         login: None,
+        path_prefixes: Vec::new(),
     }
 }
 
@@ -96,7 +97,32 @@ fn only_placeholder_deliveries_become_run_entries() {
     assert_eq!(spec[0]["env_var"], "GITHUB_TOKEN");
     assert_eq!(spec[0]["provider_id"], "github");
     assert_eq!(spec[0]["site"], "authorization");
-    assert_eq!(spec[0]["path_prefixes"], json!(["/"]));
+    // No scope declared: nothing is widened to the root on the entry's behalf.
+    assert_eq!(spec[0]["path_prefixes"], json!([]));
+}
+
+#[test]
+fn a_declared_scope_is_what_the_plugin_is_asked_to_issue() {
+    let mut entry = placeholder("GITHUB_TOKEN", "conn://demo/github");
+    entry.path_prefixes = vec!["/repos/acme".into(), "/user".into()];
+    entry.projection.as_mut().unwrap().placement.methods = vec!["GET".into()];
+    let spec = run_entries(&[entry]);
+    assert_eq!(spec[0]["path_prefixes"], json!(["/repos/acme", "/user"]));
+    assert_eq!(spec[0]["methods"], json!(["GET"]));
+}
+
+#[test]
+fn an_entry_without_a_declared_scope_never_reaches_the_plugin_as_the_root() {
+    let entries = [placeholder("GITHUB_TOKEN", "conn://demo/github")];
+    let spec = run_entries(&entries);
+    assert!(
+        !spec[0]["path_prefixes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "/"),
+        "{spec:?}"
+    );
 }
 
 #[test]
@@ -221,6 +247,7 @@ fn login_entry() -> ResolvedEnvEntry {
         omitted: true,
         warning: None,
         login: Some(web_login("https://app.example")),
+        path_prefixes: Vec::new(),
     }
 }
 
@@ -269,4 +296,57 @@ fn a_login_the_store_does_not_bind_to_its_origin_never_starts_the_plugin() {
     let error = start(&[login_entry()], Some(&plugin.settings), &no_env, &store).unwrap_err();
     assert!(error.to_string().contains("refusing"), "{error}");
     assert!(!plugin.dir.path().join("spec.json").exists());
+}
+
+/// A stand-in for the plugin's rule: a served entry with no bounded path
+/// scope is refused before anything is issued.
+const SCOPE_CHECKING_PLUGIN: &str = r#"#!/bin/sh
+here="$(dirname "$0")"
+IFS= read -r line
+printf '%s\n' "$line" > "$here/spec.json"
+case "$line" in
+  *'"path_prefixes":[]'*|*'"path_prefixes":["/"]'*)
+    printf '%s\n' '{"error":"spec_path_scope:GITHUB_TOKEN"}'
+    : > "$here/refused"
+    exit 2;;
+esac
+printf '%s\n' '{"proxy_url":"http://u:p@127.0.0.1:9","ca_pem_path":"/run/ca.pem","env":{"GITHUB_TOKEN":"osr_00000000000000000000000000000000"},"unserved":[]}'
+cat > /dev/null
+: > "$here/ended"
+"#;
+
+#[cfg(unix)]
+#[test]
+fn without_a_bounded_scope_the_run_is_refused_with_a_clear_error_and_nothing_is_issued() {
+    let plugin = installed(SCOPE_CHECKING_PLUGIN, true, None);
+    let entries = [placeholder("GITHUB_TOKEN", "conn://demo/github")];
+    let error = start(&entries, Some(&plugin.settings), &no_env, &NoStore).unwrap_err();
+    let text = error.to_string();
+    assert!(text.contains("GITHUB_TOKEN"), "{text}");
+    assert!(text.contains("no bounded scope"), "{text}");
+    assert!(text.contains("paths="), "{text}");
+    assert!(text.contains("issued nothing"), "{text}");
+    assert!(plugin.dir.path().join("refused").exists());
+    // The CLI sent no root: it is the plugin that refused the unbounded entry.
+    let spec = std::fs::read_to_string(plugin.dir.path().join("spec.json")).unwrap();
+    assert!(spec.contains(r#""path_prefixes":[]"#), "{spec}");
+    assert!(!spec.contains(r#""path_prefixes":["/"]"#), "{spec}");
+}
+
+#[cfg(unix)]
+#[test]
+fn with_a_declared_scope_the_same_run_is_issued_and_the_spec_carries_it() {
+    let plugin = installed(SCOPE_CHECKING_PLUGIN, true, None);
+    let mut entry = placeholder("GITHUB_TOKEN", "conn://demo/github");
+    entry.path_prefixes = vec!["/repos/acme".into()];
+    let session = start(&[entry], Some(&plugin.settings), &no_env, &NoStore)
+        .unwrap()
+        .expect("a bounded run");
+    assert!(session.env()["GITHUB_TOKEN"].starts_with("osr_"));
+    let spec: Value = serde_json::from_str(
+        &std::fs::read_to_string(plugin.dir.path().join("spec.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(spec["entries"][0]["path_prefixes"], json!(["/repos/acme"]));
+    assert!(!plugin.dir.path().join("refused").exists());
 }

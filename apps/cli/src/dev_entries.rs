@@ -1,6 +1,12 @@
 //! Which env-spec entries a surrogate can stand in for (ADR 0150 §6.1): the
 //! legacy-token projections placed in one header, as run-spec entries for
 //! the surrogate-proxy plugin.
+//!
+//! The scope an entry is issued for is exactly what its env-spec declared
+//! (`paths=`, `methods=`): the projection's methods and the entry's path
+//! prefixes. An entry that declared no path is sent with none, never with the
+//! root, and the plugin refuses to issue a surrogate for a served entry that
+//! has none (ADR 0150 section 8: the narrowest operation scope).
 
 use opensesame_domain::{CredentialDeliveryMode, PlaceholderLocation};
 use opensesame_env_spec::ResolvedEnvEntry;
@@ -25,7 +31,7 @@ pub(crate) fn run_entries(entries: &[ResolvedEnvEntry]) -> Vec<Value> {
                 "connection_ref": connection_ref,
                 "site": site,
                 "methods": projection.placement.methods,
-                "path_prefixes": ["/"],
+                "path_prefixes": entry.path_prefixes,
             }))
         })
         .collect()

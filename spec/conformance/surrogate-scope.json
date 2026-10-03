@@ -1,0 +1,32 @@
+{
+  "$comment": "What bounds a surrogate's path scope (ADR 0150 section 8, docs/operators/plugins.md). One definition, two enforcers: the env-spec resolver (crates/env-spec/src/scope.rs) refuses an unbounded `paths=` entry when a schema is read, and the surrogate-proxy plugin (crates/surrogate-proxy/src/plugin/wire.rs) refuses it again on the wire before it issues anything. Each runs every case below. Change a case here and both must follow.",
+  "version": 1,
+  "bounded": [
+    "/user",
+    "/user/",
+    "/repos/acme",
+    "/repos/acme/app/pulls",
+    "/api/v2",
+    "/a%20b",
+    "/v1/charges"
+  ],
+  "unbounded": [
+    "",
+    "/",
+    "//",
+    "///",
+    "repos",
+    "repos/acme",
+    "/repos/../admin",
+    "/repos/./x",
+    "/repos//x",
+    "/..",
+    "/.",
+    "/a?b=1",
+    "/a#b",
+    "/a b",
+    "/a\tb",
+    "/a\\b",
+    "/a\nb"
+  ]
+}

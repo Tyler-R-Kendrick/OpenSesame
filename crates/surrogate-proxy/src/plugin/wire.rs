@@ -19,6 +19,13 @@
 //! reading its stdout, so a misdirected surrogate revokes the run at once
 //! (ADR 0150 §6.2) unless the parent says nobody is watching.
 //!
+//! `methods` and `path_prefixes` are the narrowest operation the child needs
+//! (ADR 0150 section 8) and are required to be bounded for a served entry:
+//! at least one method, and at least one absolute path prefix, none of them
+//! the root. The root, an empty list, a relative prefix, a dot or empty
+//! segment, a query or a fragment is refused as `spec_path_scope:<env_var>`
+//! before anything is issued; the run does not start.
+//!
 //! `site` is `"authorization"` or `"header:<name>"`. An entry whose provider
 //! this build cannot broker (no egress rule, or no local credential source)
 //! is listed in `unserved` and issued nothing, so the parent keeps whatever it
@@ -127,7 +134,7 @@ pub struct ErrorReply {
 }
 
 /// Why a spec was refused. Names no value the parent sent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SpecError {
     #[error("spec_too_large")]
     TooLarge,
@@ -141,12 +148,16 @@ pub enum SpecError {
     Site,
     #[error("spec_notices_path")]
     NoticesPath,
+    /// A served entry whose methods or path prefixes are not a bounded scope.
+    /// Names the entry's environment variable, never a value.
+    #[error("spec_path_scope:{0}")]
+    PathScope(String),
 }
 
 impl SpecError {
     /// The wire class.
     #[must_use]
-    pub fn class(self) -> String {
+    pub fn class(&self) -> String {
         self.to_string()
     }
 }
@@ -213,11 +224,30 @@ pub fn is_served(provider_id: &str) -> bool {
     rule_for(EGRESS_RULES, provider_id).is_some() && source_tool(provider_id).is_some()
 }
 
+/// Whether `prefix` bounds a path: absolute, with at least one named
+/// segment and no empty, `.` or `..` segment, query, fragment, backslash,
+/// whitespace or control character. The root bounds nothing.
+#[must_use]
+pub fn is_bounded_prefix(prefix: &str) -> bool {
+    let Some(rest) = prefix.strip_prefix('/') else {
+        return false;
+    };
+    let rest = rest.strip_suffix('/').unwrap_or(rest);
+    !rest.is_empty()
+        && rest
+            .split('/')
+            .all(|segment| !matches!(segment, "" | "." | ".."))
+        && !prefix
+            .chars()
+            .any(|c| c.is_control() || c.is_whitespace() || matches!(c, '?' | '#' | '\\'))
+}
+
 /// The run spec for the served entries, and the env vars of the rest.
 ///
 /// # Errors
 ///
-/// `Site` when a served entry names a site that does not parse.
+/// `Site` when a served entry names a site that does not parse, `PathScope`
+/// when a served entry has no method or a path prefix that is not bounded.
 pub fn to_run_spec(request: &RunRequest) -> Result<(RunSpec, Vec<String>), SpecError> {
     let ttl = Duration::from_secs(request.ttl_secs);
     let mut grants = Vec::new();
@@ -226,6 +256,12 @@ pub fn to_run_spec(request: &RunRequest) -> Result<(RunSpec, Vec<String>), SpecE
         if !is_served(&entry.provider_id) {
             unserved.push(entry.env_var.clone());
             continue;
+        }
+        if entry.methods.is_empty()
+            || entry.path_prefixes.is_empty()
+            || !entry.path_prefixes.iter().all(|p| is_bounded_prefix(p))
+        {
+            return Err(SpecError::PathScope(entry.env_var.clone()));
         }
         grants.push(SurrogateGrant {
             env_var: entry.env_var.clone(),

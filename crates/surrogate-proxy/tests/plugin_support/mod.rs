@@ -111,7 +111,7 @@ impl Install {
                     "connection_ref": "conn://local/github",
                     "site": "authorization",
                     "methods": ["GET", "POST"],
-                    "path_prefixes": ["/"],
+                    "path_prefixes": ["/user", "/repos/acme"],
                 },
                 {
                     "env_var": "WORKOS_API_KEY",

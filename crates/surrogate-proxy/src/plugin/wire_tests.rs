@@ -10,7 +10,7 @@ fn line(run_id: &str, ttl: u64, notices: &str) -> Vec<u8> {
             "connection_ref": "conn://local/github",
             "site": "authorization",
             "methods": ["GET"],
-            "path_prefixes": ["/"],
+            "path_prefixes": ["/user", "/repos/acme"],
         }],
         "notices_path": notices,
     }))
@@ -107,4 +107,71 @@ fn an_error_reply_is_a_class() {
         serde_json::to_string(&reply).unwrap(),
         r#"{"error":"spec_malformed"}"#
     );
+}
+
+/// The scope is the narrowest operation the child needs (ADR 0150 section 8):
+/// a served entry with no prefix, or only the root, would let a leaked
+/// surrogate reach every endpoint the provider's host serves.
+#[test]
+fn a_served_entry_without_a_bounded_path_scope_is_refused() {
+    for prefixes in [
+        serde_json::json!([]),
+        serde_json::json!(["/"]),
+        serde_json::json!(["//"]),
+        serde_json::json!(["/user", "/"]),
+        serde_json::json!(["repos"]),
+        serde_json::json!(["/repos/../admin"]),
+        serde_json::json!(["/repos/./x"]),
+        serde_json::json!(["/a?b=1"]),
+        serde_json::json!(["/a#b"]),
+        serde_json::json!(["/a b"]),
+        serde_json::json!(["/a//b"]),
+        serde_json::json!([""]),
+    ] {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&line("r", 60, "/tmp/n")).unwrap();
+        value["entries"][0]["path_prefixes"] = prefixes.clone();
+        let request = parse_request(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let error = to_run_spec(&request).expect_err(&format!("{prefixes} must be refused"));
+        assert_eq!(error.class(), "spec_path_scope:GITHUB_TOKEN", "{prefixes}");
+    }
+}
+
+#[test]
+fn a_bounded_scope_is_carried_into_the_grant_as_declared() {
+    let request = parse_request(&line("r", 60, "/tmp/n")).unwrap();
+    let (spec, _) = to_run_spec(&request).unwrap();
+    assert_eq!(spec.grants[0].path_prefixes, ["/user", "/repos/acme"]);
+    assert_eq!(spec.grants[0].methods, ["GET"]);
+}
+
+#[test]
+fn an_unserved_entry_needs_no_scope_because_nothing_is_issued_for_it() {
+    let mut request = parse_request(&line("r", 60, "/tmp/n")).unwrap();
+    request.entries[0].provider_id = "workos".into();
+    request.entries[0].path_prefixes.clear();
+    let (spec, unserved) = to_run_spec(&request).unwrap();
+    assert!(spec.grants.is_empty());
+    assert_eq!(unserved, vec!["GITHUB_TOKEN".to_owned()]);
+}
+
+#[test]
+fn a_served_entry_without_methods_is_refused_too() {
+    let mut request = parse_request(&line("r", 60, "/tmp/n")).unwrap();
+    request.entries[0].methods.clear();
+    assert!(to_run_spec(&request).is_err());
+}
+
+#[test]
+fn the_shared_vectors_decide_what_bounds_a_path() {
+    let all: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../spec/conformance/surrogate-scope.json"
+    ))
+    .unwrap();
+    for (kind, expected) in [("bounded", true), ("unbounded", false)] {
+        for prefix in all[kind].as_array().unwrap() {
+            let prefix = prefix.as_str().unwrap();
+            assert_eq!(is_bounded_prefix(prefix), expected, "{prefix:?}");
+        }
+    }
 }
