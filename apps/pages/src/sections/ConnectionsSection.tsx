@@ -37,6 +37,7 @@ import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
+import { useScopedState } from "./connections/use-scoped-state.js";
 import { useFlashNotice } from "./connections/useFlashNotice.js";
 import "./connections.css";
 
@@ -79,29 +80,15 @@ export function ConnectionsSection() {
   const [catalogError, setCatalogError] = useState<LoadFailure | null>(null);
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
   const [loading, setLoading] = useState(false);
-  // A flash belongs to the page that raised it: the list, or one provider. It
-  // is recorded with that scope and read back only on it, so an error from
+  // A flash and the vault reminder belong to the page that raised them: the
+  // list, or one provider. Each is read back only on it, so an error from
   // provider A never renders — or reaches the bell — on provider B.
   const flashScope = providerId ?? "connections";
-  const [flashed, setFlashed] = useState<{
-    scope: string;
-    flash: Flash;
-  } | null>(null);
-  const flash = flashed?.scope === flashScope ? flashed.flash : null;
-  const setFlash = useCallback(
-    (next: Flash | null) =>
-      setFlashed(next ? { scope: flashScope, flash: next } : null),
-    [flashScope],
-  );
-  useEffect(() => {
-    setFlashed((current) =>
-      current && current.scope !== flashScope ? null : current,
-    );
-  }, [flashScope]);
-  const [rememberOffer, setRememberOffer] = useState<{
+  const [flash, setFlash] = useScopedState<Flash>(flashScope);
+  const [rememberOffer, setRememberOffer] = useScopedState<{
     provider: Provider;
     connection: Connection;
-  } | null>(null);
+  }>(flashScope);
 
   useFlashNotice(
     flash,
