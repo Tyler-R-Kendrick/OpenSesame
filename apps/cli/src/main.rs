@@ -861,11 +861,6 @@ async fn main() {
     log_sink::exit_on_error(real_main().await);
 }
 
-#[expect(
-    clippy::too_many_lines,
-    clippy::cognitive_complexity,
-    reason = "this match is the stable declarative top-level Clap command dispatch catalog"
-)]
 async fn real_main() -> anyhow::Result<()> {
     if let Some(code) = entry::by_program_name() {
         std::process::exit(code);
