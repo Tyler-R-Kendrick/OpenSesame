@@ -16,6 +16,10 @@
 - Amended 2026-10-03: a protector that can open the vault is a way in at the
   unlock screen ("Opening the vault from a protector", below); the sentence that
   said only the header's own wraps do is replaced
+- Amended 2026-10-03 (security review): what authenticates a record before unlock
+  is stated per kind — age capsules are not self-authenticating, so every opened
+  root must verify the manifest MAC; and a `prf_and_code` duress trigger fails
+  closed for roads that cannot carry its PRF output
 
 ## Context
 
