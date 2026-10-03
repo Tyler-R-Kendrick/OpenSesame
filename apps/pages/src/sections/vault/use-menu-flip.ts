@@ -18,13 +18,15 @@ import {
   useState,
 } from "react";
 
+type MenuFlip = {
+  listRef: (node: HTMLDivElement | null) => void;
+  menuAbove: boolean;
+};
+
 export function useMenuFlip(
   menuFor: string | null,
   portRef: RefObject<HTMLDivElement | null>,
-): {
-  listRef: (node: HTMLDivElement | null) => void;
-  menuAbove: boolean;
-} {
+): MenuFlip {
   const [menuAbove, setMenuAbove] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const listRef = useCallback((node: HTMLDivElement | null) => {

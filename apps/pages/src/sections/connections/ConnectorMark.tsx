@@ -24,9 +24,11 @@ const MICROSOFT_PROVIDER_IDS = new Set([
 
 type MarkPath = { path: string; hex: string | null };
 
-export const connectorMarkLookup: {
+type ConnectorMarkLookup = {
   find: (providerId: string) => MarkPath | null;
-} = {
+};
+
+export const connectorMarkLookup: ConnectorMarkLookup = {
   find: () => null,
 };
 

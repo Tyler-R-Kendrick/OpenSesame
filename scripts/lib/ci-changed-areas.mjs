@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isString } from "./json-boundary.mjs";
 
 export const AREAS = ["typescript", "bundle", "rust", "mtls"];
 
@@ -229,7 +230,7 @@ export function bundlePackageDirs(root) {
   const byName = new Map();
   for (const dir of packageDirs(root)) {
     const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-    if (typeof pkg.name === "string") byName.set(pkg.name, { dir, pkg });
+    if (isString(pkg.name)) byName.set(pkg.name, { dir, pkg });
   }
   if (!byName.has("@opensesame/pages")) {
     throw new Error("workspace has no @opensesame/pages package");
