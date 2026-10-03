@@ -3,6 +3,7 @@
  * recorded line debt does not rise (ADR 0093).
  */
 
+import { DURESS_GOALS, DURESS_HELP } from "./duress-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 
 export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
@@ -50,6 +51,8 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+
+  ...DURESS_GOALS,
 ];
 
 /** The shell's help topics, drawn beside the walkthroughs they open. */
@@ -80,4 +83,5 @@ export const SHELL_HELP: readonly HelpTopic[] = [
       "sealed store",
     ],
   },
+  ...DURESS_HELP,
 ];

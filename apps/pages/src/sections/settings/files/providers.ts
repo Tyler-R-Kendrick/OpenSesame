@@ -10,6 +10,7 @@ import { defaultCapabilityPorts } from "@opensesame/app-core/lib/configuration/c
 import { tombUnlocked } from "@opensesame/app-core/lib/vfs.js";
 import { capabilityFiles } from "@opensesame/app-core/sections/settings/capability-files.js";
 import { itemTypeFiles } from "@opensesame/app-core/sections/settings/item-type-files.js";
+import { securityFiles } from "@opensesame/app-core/sections/settings/security-files.js";
 import {
   type VirtualFileProvider,
   mergeFileProviders,
@@ -17,6 +18,7 @@ import {
 import { useMemo, useRef } from "react";
 import { useContributions } from "../../../bindings/contributions.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
+import { useDuressPanelShown } from "../security/DuressPanel.js";
 import { useDeviceOperator } from "../useDeviceOperator.js";
 import {
   notifySettingsFilesChanged,
@@ -129,9 +131,31 @@ export function useCapabilityFiles(): VirtualFileProvider {
   );
 }
 
+/**
+ * Travel's safe list and the duress status, for the owner of an open vault —
+ * the Duress row's own test, so a guest or a locked device is shown neither.
+ * A write redraws the viewer; rebuilt when that test changes.
+ */
+export function useSecurityFiles(): VirtualFileProvider {
+  const shown = useDuressPanelShown();
+  useSettingsFilesRevision();
+  return useMemo(() => {
+    const provider = securityFiles(() => shown);
+    return {
+      ...provider,
+      write: async (path, text) => {
+        const outcome = await provider.write(path, text);
+        if (outcome.ok) notifySettingsFilesChanged();
+        return outcome;
+      },
+    };
+  }, [shown]);
+}
+
 export function useCategoryFiles(category: string): VirtualFileProvider | null {
   const itemTypes = useItemTypeFiles();
   const capabilities = useCapabilityFiles();
+  const security = useSecurityFiles();
   const contributed = useContributions("settings-category").find(
     (entry) => entry.id === category,
   )?.files;
@@ -141,6 +165,8 @@ export function useCategoryFiles(category: string): VirtualFileProvider | null {
       ? itemTypes
       : category === "capabilities"
         ? capabilities
-        : (contributed ?? null);
+        : category === "security" && security.list().length > 0
+          ? security
+          : (contributed ?? null);
   return useMerged(own === null ? panels : [own, ...panels]);
 }
