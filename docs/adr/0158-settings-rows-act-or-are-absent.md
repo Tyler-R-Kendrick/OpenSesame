@@ -81,9 +81,10 @@ that cannot supply every action supplies none, and the panel is absent.
   at all: the adapters exist, but the browser enrollment service does not enroll
   them (`browser-enroll.ts`), and a "setup intent" row with no action was the
   representation this decision removes. It returns with its enrollment.
-- The Better Auth / WorkOS / Auth0 tiles under Capabilities still create Host
-  connections and give no feedback on a device with no Host. That is a
-  separate defect; nothing on Security depends on it any more.
+- The Better Auth / WorkOS / Auth0 tiles under Capabilities created Host
+  connections and gave no feedback on a device with no Host. That road is
+  deleted ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md),
+  second amendment); nothing on Security depended on it.
 - **Transport follows the rule, and ADR 0132's acceptance scenario changed with
   it.** With no endpoint and no status read, Transport draws only its form —
   no five idle rows, no Refresh key, no verify key. `AT-STATIC-EMPTY` /
@@ -108,10 +109,12 @@ was fixed at its root:
   capability another running one is built on, and a section's switch when a
   running capability outside it needs one of its own, now say *needed by …*
   (`dependentsOf`, `heldOutside` in `features.ts`) instead of drawing a switch.
-- **A link to a blank page.** With Connections off — the default (ADR 0153) —
-  forty-four provider tiles linked to `/settings/connections/<id>`, a route only
-  the Connections capability registers. The tile, its section and its rail entry
-  now follow the running capability (`useConnectorTiles`).
+- **A link to a blank page** is fixed by the connectors work, not here: with
+  Connections off (the default, ADR 0153) a provider tile whose page only
+  Connections routes is not drawn, and a section left with nothing to act on is
+  absent ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md),
+  third amendment). This walk reproduced it (43 tiles, each opening a blank
+  page) and kept that mechanism rather than a second one.
 - **A switch for nothing.** External telemetry and Certificate authority have no
   Pages code (their modules say so); Push notifications had a library and no row.
   The first two draw no section (`NO_SURFACE`); Push gets *Push on this device*
