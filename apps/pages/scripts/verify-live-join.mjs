@@ -37,6 +37,9 @@
  *    **relayed-rest-wrong** is its negative control: the server holds another
  *    secret, refuses every authentication, and the browsers never meet.
  *
+ * The carrier and declined walks run on `dist-live-dedicated`
+ * (`pnpm build:live-dedicated`), a build stamped `dedicated_origin`.
+ *
  * `LIVE_NATS_SERVER` / `LIVE_NTFY_SERVER` / `LIVE_TURN_SERVER` name the
  * binaries; a missing one fails the walk unless `LIVE_CARRIERS` (or
  * `LIVE_SCENARIOS`) leaves its kind out. `LIVE_SCENARIOS` narrows the walks:
@@ -48,6 +51,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { dedicatedSite } from "./lib/live-dedicated.mjs";
 import {
   bindRelayed,
   relayed,
@@ -73,16 +77,8 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, "../../..");
 const ORIGIN = "https://tyler-r-kendrick.github.io";
-/**
- * A deployment of one's own. The shared GitHub Pages origin may not reach a
- * loopback or LAN address at all (`mayPairLocalAuthority`), whichever way it
- * asks, so the walks whose carrier server runs on this machine run on a build
- * stamped `dedicated_origin` for this origin (`pnpm build:live-dedicated`).
- */
-const DEDICATED_ORIGIN = "https://opensesame.example.test";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const DIST = path.resolve(here, "../dist");
-const DEDICATED_DIST = path.resolve(here, "../dist-live-dedicated");
 const OUT = path.resolve(ROOT, "artifacts/live-join");
 const SECRET = "correct-horse-battery-staple-2026";
 const KINDS = (
@@ -246,17 +242,11 @@ try {
   await shot(owner.page, "0-owner-live-settings");
   if (SCENARIOS.has("direct")) await direct(browser, owner);
   if (SCENARIOS.has("carriers") || SCENARIOS.has("declined")) {
-    if (!fs.existsSync(DEDICATED_DIST))
-      throw new Error(
-        "no dedicated build: run `pnpm --filter @opensesame/pages build:live-dedicated`",
-      );
-    const own = await device(browser, {
-      origin: DEDICATED_ORIGIN,
-      dist: DEDICATED_DIST,
-    });
+    const site = dedicatedSite();
+    const own = await device(browser, site);
     setStep("owner-enters-dedicated");
     await ownerEnters(own.page, {
-      origin: DEDICATED_ORIGIN,
+      origin: site.origin,
       base: BASE,
       secret: SECRET,
     });
