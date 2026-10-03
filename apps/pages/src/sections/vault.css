@@ -485,6 +485,21 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* A group head that carries its own key at the end: the rule sits under the
+   bar, so the key and its name share one line. */
+.detail__groupbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail__groupbar > .detail__grouphead {
+  padding: 0;
+  border-bottom: 0;
+}
+
 .detail__update {
   display: flex;
   flex-direction: column;

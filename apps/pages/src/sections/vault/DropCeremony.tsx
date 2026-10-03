@@ -133,10 +133,17 @@ export function ShareSecretDrop({
   }
 
   if (!open) {
+    // The key sits in a headed group like every other action on the page,
+    // so the glyph never floats alone under whatever group came before it.
     return (
-      <IconKey label="Share once" small onClick={() => setOpen(true)}>
-        <IconDrop size={15} />
-      </IconKey>
+      <section className="detail__group">
+        <div className="detail__groupbar">
+          <h2 className="detail__grouphead">Share once</h2>
+          <IconKey label="Share once" small onClick={() => setOpen(true)}>
+            <IconDrop size={15} />
+          </IconKey>
+        </div>
+      </section>
     );
   }
 

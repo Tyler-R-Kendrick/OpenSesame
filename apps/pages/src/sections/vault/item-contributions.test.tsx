@@ -56,7 +56,14 @@ describe("what the vault's item pages draw from other capabilities", () => {
         <DropForm />
       </>,
     );
-    expect(screen.getByRole("button", { name: "Share once" })).toBeTruthy();
+    const key = screen.getByRole("button", { name: "Share once" });
+    expect(key.getAttribute("title")).toBe("Share once");
+    // The key rides in a headed group's bar, never alone between groups.
+    const bar = key.closest(".detail__groupbar");
+    expect(bar?.querySelector("h2.detail__grouphead")?.textContent).toBe(
+      "Share once",
+    );
+    expect(bar?.closest("section.detail__group")).not.toBeNull();
     expect(screen.queryByDisplayValue("Deploy token")).toBeNull();
     revoke();
   });
