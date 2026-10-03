@@ -136,6 +136,47 @@ describe("Settings › Keybindings › Keymap", () => {
     });
   });
 
+  it("shows a refused swap in the prompt, and keeps the keymap as it was", () => {
+    vi.useFakeTimers();
+    renderPanels();
+    fireEvent.click(
+      within(row("Next row")).getByRole("button", {
+        name: "Change j for Next row",
+      }),
+    );
+    press("k");
+    act(() => {
+      vi.advanceTimersByTime(keymapSeams.goTimeoutMs);
+    });
+    const prompt = screen.getByRole("group", {
+      name: "k is taken by Previous row",
+    });
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    fireEvent.click(
+      within(prompt).getByRole("button", {
+        name: "Swap: Previous row takes the key you replaced",
+      }),
+    );
+    set.mockRestore();
+    expect(
+      within(
+        screen.getByRole("group", { name: "k is taken by Previous row" }),
+      ).getByRole("img", {
+        name: "The keymap could not be saved on this device.",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(
+        screen.getByRole("group", { name: "k is taken by Previous row" }),
+      ).getByRole("alert").textContent,
+    ).toBe("The keymap could not be saved on this device.");
+    expect(loadKeymap().bindings).toEqual({});
+  });
+
   it("refuses a fixed key in place, and keeps recording", () => {
     renderPanels();
     fireEvent.click(

@@ -4,7 +4,7 @@
  * ordinary macro once it is kept, so the Macros panel lists it, a key may be
  * bound to it, and every guardrail on a macro holds for it.
  */
-import { REGISTER_PREFIX } from "./commands.js";
+import { MACRO_PREFIX, REGISTER_PREFIX } from "./commands.js";
 import {
   type KeymapConfig,
   MACRO_LIMITS,
@@ -61,7 +61,17 @@ export function appendMacroRun(
   count: number,
 ): MacroStep[] {
   let next = [...steps];
-  const runs = Math.min(Math.max(1, count), MACRO_LIMITS.count);
+  // The shell's run budget is on primitive commands, not on runs: a macro of
+  // 99 commands replays ten times, not a thousand. Write as many runs as the
+  // shell would reach, and at least the one that was pressed.
+  const perRun = macro.steps.reduce(
+    (sum, step) =>
+      step.command.startsWith(MACRO_PREFIX) ? sum : sum + step.count,
+    0,
+  );
+  const reach =
+    perRun === 0 ? MACRO_LIMITS.runs : Math.floor(MACRO_LIMITS.runs / perRun);
+  const runs = Math.min(Math.max(1, count), Math.max(1, reach));
   for (let run = 0; run < runs; run++) {
     for (const step of macro.steps) next = appendRecorded(next, step);
   }
