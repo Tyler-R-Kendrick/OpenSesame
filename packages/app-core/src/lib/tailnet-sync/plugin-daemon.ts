@@ -31,6 +31,7 @@ import type {
 import { PluginError } from "../plugins/client.js";
 import { sameTarget } from "../plugins/pinned.js";
 import {
+  bindPluginPairing,
   currentPluginPairing,
   dropPluginPairing,
   keepPluginPairing,
@@ -62,6 +63,8 @@ export const pluginDaemonSeams = {
   /** An open vault to seal the key in, on a deployment that may hold local authority. */
   possible: (): boolean =>
     pluginPairingPossible() && localNetworkFetchSeams.eligible(),
+  /** The vault and pairing a call begins under. */
+  bind: bindPluginPairing,
   keep: keepPluginPairing,
   drop: dropPluginPairing,
   pageOrigin: (): string => pageOrigin(),
@@ -147,6 +150,7 @@ export function tailnetPluginDaemon(
       if (parsed.origin !== pluginDaemonSeams.pageOrigin())
         throw new PluginError("other-origin");
       if (!pluginDaemonSeams.possible()) throw new PluginError("locked");
+      const began = pluginDaemonSeams.bind();
       const response = await send(parsed, PLUGIN_PAIRING_EXCHANGE_PATH, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -157,20 +161,24 @@ export function tailnetPluginDaemon(
       });
       const token = await issuedToken(response, parsed.origin);
       const { url, origin, label } = parsed;
-      await pluginDaemonSeams.keep({ url, token, origin, label }).catch(() => {
-        throw new PluginError("locked");
-      });
+      try {
+        await pluginDaemonSeams.keep({ url, token, origin, label }, began);
+      } catch (error) {
+        throw error instanceof PluginError ? error : new PluginError("locked");
+      }
     },
     async forget(signal: AbortSignal): Promise<void> {
       const pairing = pluginDaemonSeams.pairing();
       if (!pairing) return;
-      // The daemon drops the key when it answers; the page forgets it either way.
+      const issuedFor = pluginDaemonSeams.revision();
+      // The daemon drops the key when it answers; the page forgets it either
+      // way, unless a newer pairing took its place while the call was out.
       await send(pairing, PLUGIN_PAIRING_EXCHANGE_PATH, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${pairing.token}` },
         signal,
       }).catch(() => null);
-      await pluginDaemonSeams.drop();
+      await pluginDaemonSeams.drop(issuedFor);
     },
   };
 }

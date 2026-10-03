@@ -245,7 +245,7 @@ describe("pairing from a pasted code", () => {
     expect(JSON.parse(String(init?.body))).toEqual({ code: CODE });
     expect(new Headers(init?.headers).get("Authorization")).toBeNull();
     expect(init?.credentials).toBe("omit");
-    expect(keep).toHaveBeenCalledWith(PAIRED);
+    expect(keep).toHaveBeenCalledWith(PAIRED, expect.anything());
   });
 
   it("refuses, and sends nothing for, a code printed for another page", async () => {
