@@ -135,7 +135,10 @@ was fixed at its root:
   records run on Certificate authority), when its one switch stays so it can be
   turned off and nothing is left "needed by" a capability with no control
   (`shown(feature, plan)`); Push gets *Push on this device*
-  under General, drawn where the browser, an Identity API and a session allow it.
+  under General, drawn to turn push on where the browser, an Identity API and a
+  session allow it, and kept (On, with its one key) wherever the browser is still
+  subscribed, so it can always be ended; turning it off says when the service
+  could not be told.
 - **A key drawn disabled.** Reset every key and macro with nothing changed, a
   macro step's move up on the first and down on the last, Add and Record at the
   step limit, New macro and Edit while an editor is open, the open vault's travel

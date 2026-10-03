@@ -4,10 +4,14 @@
  * for this browser (the browser asks for the `notifications` permission when,
  * and only when, the key is pressed) or turn it off.
  *
- * It is drawn only where it can act: a browser that can receive push, an
- * Identity API to register with, and a session on it. Without those there is
- * nothing to press, so there is no row (ADR 0158) — never a disabled key.
- * A refusal is a notice in the tray; the row's own mark is the state.
+ * It is drawn only where it can act. To turn push on: a browser that can
+ * receive push, an Identity API to register with, and a session on it. To turn
+ * it off, only the subscription itself: a browser still subscribed keeps the
+ * row (and its one key) even with no Identity API or session, because the
+ * subscription is the browser's and ends locally; the service is told too when
+ * there is one to tell. Otherwise there is nothing to press, so there is no row
+ * (ADR 0158) — never a disabled key. A refusal, or a service that could not be
+ * told, is a notice in the tray; the row's own mark is the state.
  */
 
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
@@ -49,7 +53,7 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
   const live = configured && session !== null && supported;
 
   useEffect(() => {
-    if (!live) return;
+    if (!supported) return;
     let current = true;
     void subscribed().then(
       (value) => {
@@ -62,27 +66,38 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
     return () => {
       current = false;
     };
-  }, [live]);
+  }, [supported]);
 
-  if (!live || on === null) return null;
+  // Off is drawn only where it can be turned on; On is drawn wherever the
+  // browser holds a subscription, so it can always be ended.
+  if (on === null || (!on && !live)) return null;
 
   const turn = async () => {
     dismissNotice(NOTICE_ID);
     setBusy(true);
     try {
-      const credentials = {
-        baseUrl: baseUrl(),
-        accessToken: session.accessToken,
-      };
       if (on) {
-        await disablePush({
-          ...credentials,
-          subscriptionId: kvGet(PUSH_SUBSCRIPTION_KEY) ?? "",
+        const told = live && session !== null;
+        const withdrawn = await disablePush({
+          baseUrl: told ? baseUrl() : undefined,
+          accessToken: told ? session.accessToken : undefined,
+          subscriptionId: kvGet(PUSH_SUBSCRIPTION_KEY) ?? undefined,
         });
         kvDelete(PUSH_SUBSCRIPTION_KEY);
         setOn(false);
-      } else {
-        const record = await enablePush(credentials);
+        if (!withdrawn.server) {
+          setStatusNotice({
+            id: NOTICE_ID,
+            tone: "warn",
+            title: "Push on this device",
+            body: "Push is off on this device. The sign-in service was not told, so it may still list it.",
+          });
+        }
+      } else if (session !== null) {
+        const record = await enablePush({
+          baseUrl: baseUrl(),
+          accessToken: session.accessToken,
+        });
         if (record.id) kvSet(PUSH_SUBSCRIPTION_KEY, record.id);
         setOn(true);
       }

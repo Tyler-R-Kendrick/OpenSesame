@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
-import { kvDelete, kvGet } from "@opensesame/app-core/lib/kv.js";
+import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
@@ -106,6 +106,58 @@ describe("Push on this device", () => {
     held = SUBSCRIPTION;
     show();
     expect(await screen.findByRole("img", { name: "On" })).toBeTruthy();
+  });
+
+  it("keeps the row and its one key while the browser is still subscribed with no Identity API or session, so push can always be turned off", async () => {
+    held = SUBSCRIPTION;
+    deviceIdentitySeams.remoteIdentityApi = () => "";
+    identityHookSeams.useIdentitySession = () => null;
+    const view = show();
+    expect(await screen.findByRole("img", { name: "On" })).toBeTruthy();
+    kvSet(PUSH_SUBSCRIPTION_KEY, "push_1");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Turn off push on this device" }),
+    );
+    await waitFor(() =>
+      expect(SUBSCRIPTION.unsubscribe).toHaveBeenCalledTimes(1),
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(kvGet(PUSH_SUBSCRIPTION_KEY)).toBeNull();
+    // Off with nothing to turn it on again: the row is gone, and says why.
+    await waitFor(() => expect(view.container.textContent).toBe(""));
+    expect(
+      listNotices().find((notice) => notice.id === "push-on-this-device"),
+    ).toMatchObject({ tone: "warn" });
+  });
+
+  it("says the service was not told when the subscription's id is not known", async () => {
+    held = SUBSCRIPTION;
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Turn off push on this device",
+      }),
+    );
+    expect(await screen.findByRole("img", { name: "Off" })).toBeTruthy();
+    expect(SUBSCRIPTION.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(
+      listNotices().find((notice) => notice.id === "push-on-this-device")?.body,
+    ).toMatch(/not told/);
+  });
+
+  it("says nothing when the service was told", async () => {
+    held = SUBSCRIPTION;
+    kvSet(PUSH_SUBSCRIPTION_KEY, "push_1");
+    fetchFn.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Turn off push on this device",
+      }),
+    );
+    expect(await screen.findByRole("img", { name: "Off" })).toBeTruthy();
+    expect(listNotices()).toEqual([]);
   });
 
   it("reports a refusal as a tray notice and leaves the row's mark true", async () => {
