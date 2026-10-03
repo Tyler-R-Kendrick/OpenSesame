@@ -913,6 +913,7 @@ fn decode_receipt_for_organization(
 pub mod a2h_replies;
 pub mod agent_capabilities;
 pub mod agent_hook_policy;
+pub mod agent_hook_records;
 pub mod bitwarden;
 pub mod callback_replay;
 pub mod host_authorizations;
@@ -1600,7 +1601,7 @@ pub use runner_steps::{StoredRunnerStep, STEP_CLAIM_SECONDS};
 
 pub use observation::{
     ObservationAppend, ObservationControlUpdate, StoredObservationEvent, StoredObservationRun,
-    MAX_BLOCKED_REASON_CHARS, OBSERVATION_READ_LIMIT,
+    MAX_BLOCKED_REASON_CHARS, NO_VIEWER_KEY_PREFIX, OBSERVATION_READ_LIMIT,
 };
 
 fn stored_certificate_policy(row: &SqliteRow) -> StoredCertificatePolicy {

@@ -190,6 +190,34 @@ This ordering is a good candidate for a `pact::assert_source_order` test
 alongside the existing `rotation_authorizes_then_loads_connection_then_enqueues`
 in `crates/gateway/src/lib.rs`.
 
+## A person asks for the page mid-run
+
+The Host's runner keeps the executor's `ControlLease` in memory, and the control
+routes write the run's *row*. `crates/gateway/src/web_login/control.rs` is the
+executor's lease projected onto that row, consulted around every step the step
+queue hands the owner's browser:
+
+- **Before a step**, `agent_driving` goes ahead; an accepted
+  `handoff_requested` parks the run right there — `awaiting_human`, nothing
+  enqueued — and every state that is a person's (`awaiting_human`,
+  `human_driving`, `resume_requested`, `suspended`) refuses the step. The queue
+  itself refuses too (`enqueue_runner_step` and `claim_runner_step` admit only
+  `agent_driving` and `handoff_requested`), so no caller has to remember it.
+- **Around the critical section.** The gate opens the span on the row when it
+  lets `assert_present` through, so a handoff asked for inside it is *queued* by
+  the routes, and it never parks between the assertion and the submit. When the
+  submit returns the span closes, the queued handoff is released, and the next
+  step — the verification — parks. The change was submitted and not confirmed,
+  so the job reconciles; it never reads as "not submitted".
+- A run a person asked for is left **open** so they can take it; the job is
+  settled at once, with the reason the run stopped. The reaper closes it once
+  it has outlived the policy lease and nobody holds it.
+
+A gateway that stops mid-run leaves a `discovering` job and an open run. The
+reaper (`web_login/reaper.rs`) closes runs and parks jobs that have outlived the
+policy lease, at startup and every minute, with the detail *the run stopped
+before it settled; whether the site received the change is unknown*.
+
 ## Runner contract
 
 The sandbox is remote and swappable. **Playwright is a local driver and is not

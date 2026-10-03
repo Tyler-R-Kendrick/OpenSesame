@@ -1,4 +1,5 @@
 mod access_area;
+mod agent_run_hooks;
 mod agent_runs;
 mod attach;
 mod bridge;
@@ -203,6 +204,18 @@ pub(crate) enum RotateCmd {
     Attach {
         /// The run id, from `opensesame rotate runs`.
         run: String,
+    },
+    /// Read a Host-run agent's hook records: what each interceptor decided,
+    /// value-blind (no messages, targets or transform values).
+    Hooks {
+        /// The run id, from `opensesame rotate runs`.
+        run: String,
+        /// Start after this record sequence number. Defaults to the start.
+        #[arg(long, default_value = "-1")]
+        after: i64,
+        /// Keep polling for new records.
+        #[arg(long)]
+        follow: bool,
     },
 }
 

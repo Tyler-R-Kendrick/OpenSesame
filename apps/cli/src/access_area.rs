@@ -162,6 +162,9 @@ async fn connectors(server: &str, output: &str, cmd: AccessConnectors) -> anyhow
                 crate::agent_runs::cmd_watch(server, output, &run, after, follow).await
             }
             RotateCmd::Attach { run } => crate::agent_runs::cmd_attach(server, output, &run).await,
+            RotateCmd::Hooks { run, after, follow } => {
+                crate::agent_run_hooks::cmd_hooks(server, output, &run, after, follow).await
+            }
         },
         // The catalog is compiled in. This verb is read before a Host exists.
         AccessConnectors::Ceremony { cmd } => match cmd {

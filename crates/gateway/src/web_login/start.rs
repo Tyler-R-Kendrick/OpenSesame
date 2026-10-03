@@ -1,0 +1,75 @@
+//! Starting a web-login run from the lifecycle scanner (ADR 0074, ADR 0150).
+//!
+//! The scanner is one loop over every tenant's deadlines. A web-login run
+//! takes up to 15 minutes, each step waiting on a person's browser, so running
+//! it inline would hold every other tenant's certificate renewal behind it —
+//! and one tenant's slow browser would decide when another tenant's
+//! credentials rotate. [`start`] hands the run to the process's
+//! [`RunRegistry`](super::registry::RunRegistry) and answers at once with
+//! [`Outcome::started`]; the dispatcher then publishes nothing, because
+//! nothing has happened yet that a subscriber could act on. The task publishes
+//! the run's real outcome itself — the `agent.*` event from the launcher, and
+//! the lifecycle outcome event from here — through the same feed and the same
+//! dispatcher code, when the run ends.
+//!
+//! What was decided inline before is decided by the task now, and unchanged:
+//! the policy lease is claimed when the run *starts executing*, so a second
+//! process — or a second rung for the same policy in this one — cannot start a
+//! duplicate. A start for a target that already has a task is answered here,
+//! before any task is made.
+
+use chrono::Utc;
+use opensesame_connection_broker::RotationTarget;
+use opensesame_domain::OrganizationId;
+use opensesame_lifecycle::LifecycleEvent;
+
+use super::registry::Refused;
+use super::WebLoginLauncher;
+use crate::app_state::AppState;
+use crate::lifecycle::dispatch::settle_outcome;
+use crate::lifecycle::responders::{enabled_policy_for, rotation_target, Outcome};
+
+/// The registry key for one organization's run against one origin.
+fn key_of(organization_id: &OrganizationId, origin: &str) -> String {
+    format!("{organization_id}|{origin}")
+}
+
+/// Start the web-login run `event` calls for, and return without waiting for
+/// it.
+pub(crate) async fn start(state: &AppState, event: &LifecycleEvent) -> Outcome {
+    let Some(target) = rotation_target(event) else {
+        return Outcome::failed("subject kind is not a web-login rotation target");
+    };
+    let RotationTarget::WebLogin { origin } = &target else {
+        return Outcome::failed("subject kind is not a web-login rotation target");
+    };
+    let Ok(organization_id) = OrganizationId::parse(&event.subject.organization_id) else {
+        return Outcome::failed("subject carries a non-canonical organization id");
+    };
+    let policy = enabled_policy_for(state, event, &target).await;
+
+    let task_state = state.clone();
+    let task_event = event.clone();
+    let task_origin = origin.clone();
+    let started = state.web_login_runs.spawn(
+        &organization_id.to_string(),
+        key_of(&organization_id, origin),
+        async move {
+            let launcher = WebLoginLauncher::from_state(&task_state);
+            let outcome = launcher
+                .rotate(&task_event, &task_origin, &organization_id, policy)
+                .await;
+            settle_outcome(&task_state, &task_event, &outcome, Utc::now()).await;
+        },
+    );
+    match started {
+        Ok(()) => Outcome::started(format!("web-login rotation for {origin} started")),
+        // The run already queued or executing will report for this rung too.
+        Err(Refused::InFlight) => Outcome::ok(format!(
+            "web-login rotation for {origin} skipped: a run for it is already in flight"
+        )),
+        Err(Refused::Full) => Outcome::failed(
+            "web-login rotation was not started: the runner has too many runs queued",
+        ),
+    }
+}

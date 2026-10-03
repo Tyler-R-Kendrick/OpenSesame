@@ -396,7 +396,7 @@
       "max-lines": 493
     },
     "crates/gateway/src/lifecycle/responders.rs": {
-      "max-lines": 510
+      "max-lines": 411
     },
     "crates/gateway/src/lifecycle/scanner.rs": {
       "max-lines": 638
@@ -561,7 +561,7 @@
       "max-lines": 2091
     },
     "crates/storage/src/observation.rs": {
-      "max-lines": 469
+      "max-lines": 467
     },
     "crates/storage/src/security.rs": {
       "max-lines": 1612
@@ -951,7 +951,7 @@
       "max-statements": 1
     },
     "packages/control-plane/src/openapi.ts": {
-      "max-lines": 2778,
+      "max-lines": 1755,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/agents.ts": {
@@ -989,7 +989,7 @@
     },
     "packages/control-plane/src/routes/interaction-handoff.ts": {
       "complexity": 2,
-      "max-lines": 1198,
+      "max-lines": 1122,
       "max-lines-per-function": 4
     },
     "packages/control-plane/src/routes/interactions-byo.ts": {

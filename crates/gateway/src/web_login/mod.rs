@@ -3,8 +3,10 @@
 //!
 //! The gateway already served the *driver's* half — a browser claims a
 //! queued step and settles its outcome (`routes/agent_runs.rs`). This is the
-//! other half. When the lifecycle scanner finds a web-login policy due, the
-//! rotation responder hands the job here, and the runner:
+//! other half. When the lifecycle scanner finds a web-login policy due, it
+//! [`start`]s a tracked task ([`registry`]) and moves on — a run takes minutes,
+//! and the scanner is one loop over every tenant. The task claims the policy,
+//! and the runner:
 //!
 //! 1. checks what a run needs and parks the job with the honest reason when
 //!    something is missing ([`prepare`]) — an owner to drive it, a recipe the
@@ -14,9 +16,16 @@
 //!    [`StepChannel`](opensesame_rotation_web::StepChannel) is the step
 //!    queue ([`channel`]), with the organization's own
 //!    `OpenSesameInterceptor` registered on the hook session and every
-//!    interception record persisted before the next step reaches the driver;
-//! 4. records how the run ended on the rotation job, closes the run, and
-//!    reports the outcome to the scanner.
+//!    interception record persisted before the next step reaches the driver.
+//!    Before each step the channel consults the run's persisted control state
+//!    ([`control`]): a person who asked for the page parks the run at a safe
+//!    point, and nothing is enqueued while a person holds it;
+//! 4. records how the run ended on the rotation job, closes the run (unless a
+//!    person has it), and publishes the outcome itself, on the `agent.*` and
+//!    lifecycle feeds.
+//!
+//! What a stopped process leaves half-run is closed by [`reaper`], and what
+//! ages out is trimmed by [`crate::retention`].
 //!
 //! # The credential boundary is unchanged
 //!
@@ -32,14 +41,30 @@
 //! the Interaction-backed approver lands, the launcher is built with
 //! `approval_resolver: None`, so every escalation stays a denial — the
 //! conformant reading of an unresolved approval (§9). The one place a
-//! resolver plugs in is [`WebLoginLauncher::new`].
+//! resolver plugs in is [`WebLoginLauncher::from_state`], which both the
+//! lifecycle responder and the scanner's tracked runs build their launcher
+//! through.
 
 pub(crate) mod channel;
+pub(crate) mod control;
 pub(crate) mod custody;
+#[cfg(test)]
+mod deadline_tests;
+#[cfg(test)]
+mod handoff_tests;
 mod launch;
 pub(crate) mod prepare;
+pub(crate) mod reaper;
+#[cfg(test)]
+mod reaper_tests;
 pub(crate) mod records;
+pub(crate) mod registry;
 mod settle;
+mod start;
+#[cfg(test)]
+mod start_tests;
+#[cfg(test)]
+mod test_support;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -50,6 +75,7 @@ use crate::app_state::AppState;
 
 #[cfg(test)]
 pub(crate) use launch::Harness;
+pub(crate) use start::start;
 
 /// Builds the §9 approval seam for one run. A resolver is consumed by the
 /// session it is registered on, so the launcher holds a factory.
@@ -112,6 +138,14 @@ impl WebLoginLauncher {
             approval_resolver,
             timing: RunTiming::default(),
         }
+    }
+
+    /// The launcher every production path builds: over `state`, with the
+    /// approval seam it is configured with. The one place a resolver is
+    /// plugged in, so the lifecycle responder and the scanner's tracked runs
+    /// cannot disagree about it.
+    pub(crate) fn from_state(state: &AppState) -> Self {
+        Self::new(state.clone(), None)
     }
 
     /// Replace the run's clock (tests drive a fake extension quickly).

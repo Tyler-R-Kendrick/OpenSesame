@@ -130,6 +130,9 @@ pub struct AppState {
     /// the live service-binding set, and the operator status facts. `None`
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,
+    /// The web-login runs this process has started, tracked and bounded
+    /// (ADR 0150). The lifecycle scanner starts a run here and moves on.
+    pub web_login_runs: Arc<crate::web_login::registry::RunRegistry>,
 }
 
 impl AppState {
@@ -224,6 +227,7 @@ async fn build_with_security(
         task_bus: Arc::new(RwLock::new(task_bus)),
         transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
         transport: None,
+        web_login_runs: Arc::new(crate::web_login::registry::RunRegistry::from_env()),
     };
     // Built after the state exists: a `managed` identity source resolves
     // through the Host's own custody bridge, which needs the state.

@@ -81,17 +81,29 @@ fn operator(st: &AppState) -> HeaderMap {
     headers
 }
 
+/// The audit rows, oldest first, as the JSON the audit has always had.
 async fn decision_rows(st: &AppState) -> Vec<Value> {
-    let rows: Vec<String> = sqlx::query_scalar(
-        "SELECT payload_json FROM outbox_events WHERE event_type = ? ORDER BY created_at, id",
+    use sqlx::Row as _;
+    sqlx::query(
+        "SELECT organization_id, caller, interception_point, decision, escalated, reason, \
+         policy_version FROM agent_hook_decisions ORDER BY id",
     )
-    .bind(crate::agent_hooks::EVENT_DECISION)
     .fetch_all(st.db.pool())
     .await
-    .unwrap();
-    rows.iter()
-        .map(|row| serde_json::from_str(row).unwrap())
-        .collect()
+    .unwrap()
+    .iter()
+    .map(|row| {
+        json!({
+            "organization_id": row.get::<String, _>("organization_id"),
+            "caller": row.get::<String, _>("caller"),
+            "interception_point": row.get::<Option<String>, _>("interception_point"),
+            "decision": row.get::<String, _>("decision"),
+            "escalated": row.get::<i64, _>("escalated") != 0,
+            "reason": row.get::<Option<String>, _>("reason"),
+            "policy_version": row.get::<i64, _>("policy_version"),
+        })
+    })
+    .collect()
 }
 
 #[tokio::test]
@@ -269,6 +281,10 @@ async fn decisions_are_audited_without_content() {
     .await;
     assert_eq!(denied.body["reason"], "opensesame:raw_secret");
 
+    // The audit is its own table: nothing reaches the backup actor's outbox,
+    // however much agent traffic there is.
+    assert_eq!(st.db.count_unpublished_outbox().await.unwrap(), 0);
+
     let rows = decision_rows(&st).await;
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["decision"], "transform");
@@ -295,3 +311,6 @@ async fn decisions_are_audited_without_content() {
 
 #[path = "agent_hooks_policy_tests.rs"]
 mod policy;
+
+#[path = "agent_hooks_decisions_tests.rs"]
+mod decisions;

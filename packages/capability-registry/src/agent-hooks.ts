@@ -65,6 +65,24 @@ const POLICY_EXCLUSIONS = {
   android: HOST_POLICY_FROM_THE_CLI,
 } as const;
 
+/**
+ * The audit of the verdicts an organization's Host has answered. It is the
+ * trail of the agent's own decisions: an agent that could read it could probe
+ * the policy that governs it one verdict at a time.
+ */
+const AUDIT_OF_THE_AGENTS_VERDICTS: CapabilityExclusion = {
+  reason:
+    "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
+  adr: ADR_AGENT_HOOKS,
+};
+
+const DECISIONS_EXCLUSIONS = {
+  ...POLICY_EXCLUSIONS,
+  mcp_host: AUDIT_OF_THE_AGENTS_VERDICTS,
+  mcp_client: AUDIT_OF_THE_AGENTS_VERDICTS,
+  webmcp: AUDIT_OF_THE_AGENTS_VERDICTS,
+} as const;
+
 const CLI_ONLY = {
   pwa: null,
   mcp_host: null,
@@ -72,6 +90,37 @@ const CLI_ONLY = {
   webmcp: null,
   extension: null,
   android: null,
+} as const;
+
+/**
+ * A Host-run agent's hook records are the audit of what governed it: which of
+ * its actions were refused, escalated or rewritten. An agent that could read
+ * them would learn what to route around.
+ */
+const RUN_RECORDS_ARE_THE_AGENTS_AUDIT: CapabilityExclusion = {
+  reason:
+    "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
+  adr: ADR_AGENT_HOOKS,
+};
+
+/**
+ * Read from the native CLI beside `rotate runs` and `rotate watch`. Pages
+ * reads a run's sealed log with the viewer key it holds, and never names a
+ * Host; the extension and Android run no agent loop.
+ */
+const RUN_RECORDS_FROM_THE_CLI: CapabilityExclusion = {
+  reason:
+    "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
+  adr: ADR_AGENT_HOOKS,
+};
+
+const RUN_RECORDS_EXCLUSIONS = {
+  pwa: RUN_RECORDS_FROM_THE_CLI,
+  mcp_host: RUN_RECORDS_ARE_THE_AGENTS_AUDIT,
+  mcp_client: RUN_RECORDS_ARE_THE_AGENTS_AUDIT,
+  webmcp: RUN_RECORDS_ARE_THE_AGENTS_AUDIT,
+  extension: RUN_RECORDS_FROM_THE_CLI,
+  android: RUN_RECORDS_FROM_THE_CLI,
 } as const;
 
 /**
@@ -129,5 +178,23 @@ export const agentHooksCapabilities: readonly Capability[] = [
     kind: "admin",
     surfaces: { cli: "opensesame hooks policy put", ...CLI_ONLY },
     excluded: POLICY_EXCLUSIONS,
+  },
+  {
+    id: "agent_hooks.decisions.read",
+    title:
+      "Read the audit of the agent-hooks verdicts the Host answered (value-blind, paginated, filterable)",
+    plane: "host",
+    kind: "read",
+    surfaces: { cli: "opensesame hooks decisions", ...CLI_ONLY },
+    excluded: DECISIONS_EXCLUSIONS,
+  },
+  {
+    id: "agent_hooks.run_records.read",
+    title:
+      "Read a Host-run agent's payload-free hook records and their verdict summary (ADR 0081 §9: the observation of a run that has no viewer key)",
+    plane: "host",
+    kind: "read",
+    surfaces: { cli: "opensesame rotate hooks", ...CLI_ONLY },
+    excluded: RUN_RECORDS_EXCLUSIONS,
   },
 ];

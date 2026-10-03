@@ -78,6 +78,7 @@ async fn an_approval_spent_exactly_once_lifts_the_deny() {
     let seen = server.seen.lock().unwrap();
     assert_eq!(seen.consumes, 3, "polls until spent, then stops");
     assert_eq!(seen.revokes, 0, "a spent approval is not withdrawn");
+    assert!(seen.cancels.is_empty(), "nor is the request it settled");
     assert!(seen
         .bearers
         .iter()
@@ -109,20 +110,21 @@ async fn an_approval_spent_exactly_once_lifts_the_deny() {
 }
 
 #[tokio::test]
-async fn a_declined_interaction_is_never_an_approval() {
-    // The Identity API answers a declined interaction to its requester as it
-    // answers an unanswered one; the deadline passes and the deny stands.
+async fn an_unanswered_interaction_is_unresolved_at_the_deadline() {
+    // Nobody answers (401 approval_required): the deadline passes and the
+    // deny stands. A refusal is not this case (`interaction_lifecycle.rs`).
     let server = serve(vec![Step::Reply(401, "approval_required")], 201).await;
     let approver =
         InteractionApprover::new(config(&server.base, Duration::from_millis(200))).unwrap();
     let blocked = emitter(approver)
         .emit(&mut deploy_context())
         .await
-        .expect_err("declined");
+        .expect_err("unanswered");
     denied_with(&Err(blocked.record), UNRESOLVED);
     let seen = server.seen.lock().unwrap();
     assert!(seen.consumes >= 2);
     assert_eq!(seen.revokes, 1, "the unanswered interaction is withdrawn");
+    assert_eq!(seen.cancels, ["areq_1"], "and so is the request it fronted");
 }
 
 #[tokio::test]

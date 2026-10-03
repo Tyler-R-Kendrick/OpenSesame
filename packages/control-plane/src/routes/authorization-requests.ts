@@ -221,7 +221,7 @@ function resolveInboxRef(ref: string, pepper: string): string | null {
  * sheds it. Racing writers are expected — whoever settles it first wins, and a
  * conflict here means someone already did.
  */
-async function persistExpiry(
+export async function persistExpiry(
   ctx: AppContext,
   row: AuthorizationRequest,
   now: Date,
@@ -253,7 +253,7 @@ async function persistExpiry(
  * decision time, because the answer can change between the list being drawn
  * and the button being pressed.
  */
-function toResponse(request: AuthorizationRequest, ctx?: AppContext) {
+export function toResponse(request: AuthorizationRequest, ctx?: AppContext) {
   // Same resolver settlement uses, so the summary a client sees and the gate
   // it will meet cannot describe different policies.
   const resolved = ctx ? policyFor(ctx, request) : undefined;

@@ -17,7 +17,13 @@ regex = "1.11.1"
 reqwest = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+# `float_roundtrip`: the digest reads every number as the nearest double, as
+# `JSON.parse` does, and serde_json's default float parser can be one ulp off.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+# The interaction request digest is recomputed here, not trusted (ADR 0150).
+# Already in the tree through the SDK; named so the digest does not depend on
+# a transitive dependency staying.
+sha2 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }

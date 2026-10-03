@@ -12,6 +12,8 @@
 //!   the envelope — is answered 200 with a deny verdict: a verdict endpoint
 //!   answers with verdicts. Every decision is recorded value-blind before it
 //!   is handed out, and one that cannot be recorded is not handed out.
+//! - `GET /api/v1/agent-hooks/decisions` — the value-blind audit of those
+//!   verdicts, paginated and filterable ([`decisions`]).
 //! - `GET /api/v1/agent-hooks/policy` — the policy with every default filled,
 //!   and its version (0 when none is stored), as the `ETag`.
 //! - `PUT /api/v1/agent-hooks/policy` — replace it: the body is the policy
@@ -53,12 +55,16 @@ use crate::session_claims::CredentialKind;
 /// bound on what one request may make the parser walk.
 pub(crate) const MAX_POLICY_BYTES: usize = 256 * 1024;
 
+/// The audit of every verdict answered here (`GET …/decisions`).
+mod decisions;
+
 /// The response header naming the policy version a verdict was decided under.
 pub(crate) const POLICY_VERSION_HEADER: &str = "opensesame-hook-policy-version";
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/v1/agent-hooks/intercept", post(intercept))
+        .route("/api/v1/agent-hooks/decisions", get(decisions::list))
         .route(
             "/api/v1/agent-hooks/policy",
             get(get_policy).put(put_policy),

@@ -11,21 +11,25 @@
 //! A decision's audit record keeps the interception point, the decision, the
 //! reason and the policy version — never the tool name, the target, a
 //! transform's value or a verdict's message, any of which can carry the
-//! content the guard exists to keep out of logs (spec §14).
+//! content the guard exists to keep out of logs (spec §14). It is a row in
+//! `agent_hook_decisions`, not an outbox event: an audit trail is not a change
+//! feed, and on the outbox every caller's traffic became a dead letter or a
+//! no-change snapshot commit in the backup actor and grew the outbox without
+//! bound. Retention trims it ([`crate::retention`]).
 
 use anyhow::Context as _;
 use opensesame_agent_hooks::interceptor::{MAX_CONTEXT_BYTES, REASON_CONTEXT_UNREADABLE};
 use opensesame_agent_hooks::sdk::{InterceptionPoint, Verdict};
 use opensesame_agent_hooks::{HookPolicy, OpenSesameInterceptor};
 use opensesame_domain::OrganizationId;
+use opensesame_storage::agent_hook_policy::decisions::NewAgentHookDecision;
 use opensesame_storage::agent_hook_policy::StoredAgentHookPolicy;
 use opensesame_storage::Db;
 use serde::Deserialize;
-use serde_json::{json, Value};
 
-/// Outbox event for one answered interception.
-pub(crate) const EVENT_DECISION: &str = "agent_hooks.decision";
-/// Outbox event for a replaced policy.
+/// Outbox event for a replaced policy. Rare (an operator's edit), and a
+/// change to configuration a snapshot should carry, so it stays on the
+/// outbox: the backup actor drains it like any other event.
 pub(crate) const EVENT_POLICY_UPDATED: &str = "agent_hooks.policy.updated";
 
 /// What an audit record says when a verdict's reason is not a short machine
@@ -143,30 +147,25 @@ pub(crate) struct DecisionRecord<'a> {
     pub policy_version: i64,
 }
 
-impl DecisionRecord<'_> {
-    /// The value-blind audit payload.
-    pub(crate) fn payload(&self) -> Value {
-        json!({
-            "organization_id": self.organization_id.to_string(),
-            "caller": self.caller,
-            "interception_point": self.point.map(InterceptionPoint::as_str),
-            "decision": self.verdict.decision.as_str(),
-            "escalated": self.verdict.approval.is_some(),
-            "reason": audit_reason(self.verdict),
-            "policy_version": self.policy_version,
-        })
-    }
-}
-
-/// Append the decision's audit record.
+/// Append the decision's audit row.
 ///
 /// # Errors
 ///
-/// The outbox append fails. The caller must not hand the verdict out
-/// unrecorded.
+/// The insert fails. The caller must not hand the verdict out unrecorded.
 pub(crate) async fn record_decision(db: &Db, record: &DecisionRecord<'_>) -> anyhow::Result<()> {
-    db.append_outbox(EVENT_DECISION, &record.payload().to_string())
-        .await?;
+    let organization_id = record.organization_id.to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
+    db.append_agent_hook_decision(&NewAgentHookDecision {
+        organization_id: &organization_id,
+        caller: record.caller,
+        interception_point: record.point.map(InterceptionPoint::as_str),
+        decision: record.verdict.decision.as_str(),
+        escalated: record.verdict.approval.is_some(),
+        reason: audit_reason(record.verdict),
+        policy_version: record.policy_version,
+        created_at: &created_at,
+    })
+    .await?;
     Ok(())
 }
 
@@ -199,8 +198,11 @@ mod tests {
         }
     }
 
-    #[test]
-    fn a_record_carries_no_message_transform_or_prose_reason() {
+    #[tokio::test]
+    async fn a_record_carries_no_message_transform_or_prose_reason() {
+        use opensesame_storage::agent_hook_policy::decisions::AgentHookDecisionFilter;
+
+        let db = Db::connect_memory().await.unwrap();
         let organization_id = OrganizationId::new();
         let secret = format!("ghp_{}", "x".repeat(36));
         let verdict = Verdict::deny(
@@ -214,18 +216,87 @@ mod tests {
             verdict: &verdict,
             policy_version: 3,
         };
-        let payload = record.payload();
-        assert_eq!(payload["reason"], REASON_WITHHELD);
-        assert_eq!(payload["decision"], "deny");
-        assert_eq!(payload["interception_point"], "output");
-        assert_eq!(payload["policy_version"], 3);
-        assert!(!payload.to_string().contains(&secret));
-
+        record_decision(&db, &record).await.unwrap();
         let named = Verdict::deny(Some("opensesame:secret_redacted".into()), None);
-        let record = DecisionRecord {
-            verdict: &named,
-            ..record
-        };
-        assert_eq!(record.payload()["reason"], "opensesame:secret_redacted");
+        record_decision(
+            &db,
+            &DecisionRecord {
+                verdict: &named,
+                ..record
+            },
+        )
+        .await
+        .unwrap();
+
+        let org = organization_id.to_string();
+        let rows = db
+            .list_agent_hook_decisions(&org, &AgentHookDecisionFilter::default(), None, 10)
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        let (named_row, prose_row) = (&rows[0], &rows[1]);
+        assert_eq!(prose_row.reason.as_deref(), Some(REASON_WITHHELD));
+        assert_eq!(prose_row.decision, "deny");
+        assert_eq!(prose_row.interception_point.as_deref(), Some("output"));
+        assert_eq!(prose_row.policy_version, 3);
+        assert!(!format!("{rows:?}").contains(&secret));
+        assert_eq!(
+            named_row.reason.as_deref(),
+            Some("opensesame:secret_redacted")
+        );
+        // An audit row is never a change event: the backup actor sees nothing.
+        assert_eq!(db.count_unpublished_outbox().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn policy_updates_are_tolerated_by_the_backup_actor_and_decisions_never_reach_it() {
+        use opensesame_storage::agent_hook_policy::{AgentHookPolicyAudit, AgentHookPolicyWrite};
+
+        let state = crate::app_state::test_demo_state().await;
+        let organization_id = state.connection_organization;
+        // Agent traffic, however much: none of it is the backup actor's.
+        let verdict = Verdict::allow();
+        for _ in 0..25 {
+            record_decision(
+                &state.db,
+                &DecisionRecord {
+                    organization_id: &organization_id,
+                    caller: "operator",
+                    point: Some(InterceptionPoint::Input),
+                    verdict: &verdict,
+                    policy_version: 0,
+                },
+            )
+            .await
+            .unwrap();
+        }
+        assert_eq!(state.db.count_unpublished_outbox().await.unwrap(), 0);
+
+        // A policy update is rare, and it does stay on the outbox: the actor
+        // drains it like any other event (here, with no backup target, by
+        // dead-lettering it) and does not fail on it.
+        let org = organization_id.to_string();
+        let payload = serde_json::json!({"organization_id": org, "version": 1}).to_string();
+        state
+            .db
+            .put_agent_hook_policy(
+                &AgentHookPolicyWrite {
+                    organization_id: &org,
+                    policy_json: r#"{"version":1}"#,
+                    expected_version: 0,
+                    updated_by: "operator",
+                },
+                &AgentHookPolicyAudit {
+                    event_type: EVENT_POLICY_UPDATED,
+                    payload_json: &payload,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(state.db.count_unpublished_outbox().await.unwrap(), 1);
+        crate::backup::pass(&state, &crate::backup::github_api_base(), &mut None)
+            .await
+            .unwrap();
+        assert_eq!(state.db.count_unpublished_outbox().await.unwrap(), 0);
     }
 }

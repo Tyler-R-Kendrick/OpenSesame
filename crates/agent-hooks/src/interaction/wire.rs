@@ -122,11 +122,16 @@ pub fn authorization_detail(prompt: &ApprovalPrompt<'_>) -> Value {
     Value::Object(detail)
 }
 
-/// `authReqId` of an `AuthorizationRequest`.
+/// `authReqId` of an `AuthorizationRequest`. It is used as a path segment
+/// (the withdrawal is `/v1/authorization-requests/{id}/cancel`), so anything
+/// outside the identifier alphabet makes the response unusable.
 #[must_use]
 pub fn auth_req_id(body: Option<&Value>) -> Option<&str> {
     let id = body?.get("authReqId")?.as_str()?;
-    (!id.is_empty() && id.len() <= MAX_REF).then_some(id)
+    let path_safe = id
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'));
+    (!id.is_empty() && id.len() <= MAX_REF && path_safe).then_some(id)
 }
 
 /// What `POST /v1/interactions` handed back that the approver keeps.
@@ -222,5 +227,25 @@ pub fn refused_binding(created: &Created) -> ApprovalBinding {
         request_digest: created.request_digest.clone(),
         bound_digest: None,
         carried_identity: None,
+    }
+}
+
+/// The binding of a refusal.
+///
+/// A decline needs no proof — refusing only ever removes authority — and the
+/// Identity API says nothing about *what* was refused beyond the fact: its
+/// deny route accepts only a body echoing the stored `requestDigest`, so a
+/// denied interaction is a denial of exactly the request this approver
+/// created, whose details are exactly the ones it sent. The binding states
+/// that (the created digest, bound to itself, carrying the identity that was
+/// sent), so the resolver — which reads any answer whose binding does not
+/// hold as `approval_not_bound` — reads a decline as what it is:
+/// `approval_declined`. It cannot lift a deny: the resolver rejects on it.
+#[must_use]
+pub fn declined_binding(created: &Created, sent: &[Value]) -> ApprovalBinding {
+    ApprovalBinding {
+        request_digest: created.request_digest.clone(),
+        bound_digest: Some(created.request_digest.clone()),
+        carried_identity: carried_identity(Some(&Value::Array(sent.to_vec())), sent),
     }
 }

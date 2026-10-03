@@ -12,6 +12,10 @@ use sqlx::{sqlite::SqliteRow, Row};
 
 use crate::Db;
 
+/// Retention and orphan reconciliation of the runs this module's records
+/// belong to.
+pub mod retention;
+
 /// Trust levels a run may replay unattended (rotation-recipe-schema.md,
 /// "Signing and trust"). A `candidate` is a hypothesis and never is.
 pub const REPLAYABLE_TRUST: [&str; 2] = ["canary_verified", "corpus"];
@@ -69,7 +73,7 @@ pub struct StoredAgentHookRecord {
     pub recorded_at: String,
 }
 
-fn record_from_row(row: &SqliteRow) -> StoredAgentHookRecord {
+pub(crate) fn record_from_row(row: &SqliteRow) -> StoredAgentHookRecord {
     StoredAgentHookRecord {
         run_id: row.get("run_id"),
         organization_id: row.get("organization_id"),

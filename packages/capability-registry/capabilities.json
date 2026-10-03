@@ -3628,6 +3628,88 @@
     }
   },
   {
+    "id": "agent_hooks.decisions.read",
+    "title": "Read the audit of the agent-hooks verdicts the Host answered (value-blind, paginated, filterable)",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame hooks decisions",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "the audit of an agent's own verdicts; an agent that could read it could probe the policy that governs it one decision at a time",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
+    "id": "agent_hooks.run_records.read",
+    "title": "Read a Host-run agent's payload-free hook records and their verdict summary (ADR 0081 §9: the observation of a run that has no viewer key)",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame rotate hooks",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_host": {
+        "reason": "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "mcp_client": {
+        "reason": "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "webmcp": {
+        "reason": "a hosted run's hook records are the audit of what governed the agent; an agent that could read them would learn which of its actions were refused and what to route around",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "extension": {
+        "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
+        "adr": "0150-agent-hooks-interceptor.md"
+      },
+      "android": {
+        "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
+        "adr": "0150-agent-hooks-interceptor.md"
+      }
+    }
+  },
+  {
     "id": "ceremony.catalog.read",
     "title": "Read which connector registrations this build can automate",
     "plane": "host",

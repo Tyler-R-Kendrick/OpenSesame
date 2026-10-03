@@ -31,6 +31,10 @@ use super::{
 use crate::error::{BrokerError, Result};
 use crate::ConnectionBroker;
 
+#[path = "rotation_web_login_reap.rs"]
+mod reap;
+pub use reap::{reconcile_stranded_web_login_rotation, stranded_web_login_jobs, STRANDED_DETAIL};
+
 /// How a hosted web-login run ended, as the job records it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WebLoginSettlement {

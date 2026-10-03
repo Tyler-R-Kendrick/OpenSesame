@@ -7,6 +7,21 @@ use tower::ServiceExt;
 #[path = "browser_metadata_tests.rs"]
 mod metadata;
 
+/// The hook record of a run is read under the same ceiling as its sealed log,
+/// and only read (ADR 0150): observing is not controlling.
+#[test]
+fn a_runs_hook_records_are_observe_only() {
+    let path = "/api/v1/agent/runs/run_0190:1/hook-records";
+    assert_eq!(required_capability("GET", path), Some("host.agent.observe"));
+    for method in ["POST", "PUT", "DELETE"] {
+        assert_eq!(required_capability(method, path), None, "{method}");
+    }
+    assert_eq!(
+        required_capability("GET", "/api/v1/agent/runs/run:1/hook-records/extra"),
+        None
+    );
+}
+
 #[test]
 fn ciphertext_grants_never_admit_administration_or_ambiguous_paths() {
     for path in [

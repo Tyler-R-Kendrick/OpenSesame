@@ -68,7 +68,11 @@ pub(super) async fn send_json(
 
 #[path = "agent_runs_test_support.rs"]
 mod support;
-pub(super) use support::{fixture, Browser};
+pub(super) use support::{fixture, Browser, Fixture};
+#[path = "agent_runs_hook_records_tests.rs"]
+mod hook_records;
+#[path = "agent_runs_settle_tests.rs"]
+mod settle;
 #[path = "agent_runs_web_login_tests.rs"]
 mod web_login;
 

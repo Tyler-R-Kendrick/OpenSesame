@@ -48,10 +48,16 @@ pub enum HooksCmd {
         #[command(subcommand)]
         cmd: policy::PolicyCmd,
     },
+    /// The audit of every verdict the Host's remote interceptor answered,
+    /// newest first, value-blind (no tool names, targets or messages).
+    Decisions(decisions::DecisionsArgs),
 }
 
 #[path = "hooks_policy.rs"]
 mod policy;
+
+#[path = "hooks_decisions.rs"]
+mod decisions;
 
 fn load_policy(path: Option<&Path>) -> Result<HookPolicy> {
     let Some(path) = path else {
@@ -94,11 +100,13 @@ fn check(policy: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
-/// `opensesame hooks …`. Only `policy` talks to the Host at `server`.
+/// `opensesame hooks …`. Only `policy` and `decisions` talk to the Host at
+/// `server`.
 pub async fn run(server: &str, cmd: HooksCmd) -> Result<()> {
     match cmd {
         HooksCmd::Intercept { policy } => intercept(policy.as_deref()),
         HooksCmd::Check { policy } => check(policy.as_deref()),
         HooksCmd::Policy { cmd } => policy::run(server, cmd).await,
+        HooksCmd::Decisions(args) => decisions::run(server, args).await,
     }
 }

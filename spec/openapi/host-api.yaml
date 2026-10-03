@@ -2553,11 +2553,13 @@ paths:
         UTF-8, or failing the §4 envelope — is answered 200 with a deny verdict
         (`opensesame:context_unreadable`): a verdict endpoint answers with
         verdicts, and never with a partial read. Every decision is recorded
-        before it is answered, as an `agent_hooks.decision` outbox event
-        carrying the interception point, decision, reason and policy version —
-        never the target, a message, or a transformed value. A decision that
-        cannot be recorded is not answered (500), which a conformant host
-        turns into `deny host_error:interceptor_failed` (spec §6.3).
+        before it is answered, as a row of the append-only decision audit
+        (`GET /agent-hooks/decisions`) carrying the interception point,
+        decision, reason and policy version — never the target, a message, or
+        a transformed value. The audit is its own table, not the outbox, so
+        agent traffic never reaches the backup actor. A decision that cannot
+        be recorded is not answered (500), which a conformant host turns into
+        `deny host_error:interceptor_failed` (spec §6.3).
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       parameters:
         - $ref: "#/components/parameters/OperatorOrganization"
@@ -2576,6 +2578,64 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentHookVerdict" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "500": { $ref: "#/components/responses/ContractError" }
+  /agent-hooks/decisions:
+    get:
+      summary: Read the audit of the agent-hooks verdicts the Host answered
+      description: >-
+        The append-only, value-blind audit of every verdict
+        `POST /agent-hooks/intercept` answered for the organization, newest
+        first. A row is the interception point (null when the context named
+        none of the eight), the decision, whether it escalated, a `reason`
+        that is a short machine identifier, the policy version it was decided
+        under, who asked, and when — never a tool name, a target, a transform's
+        value or a message (agent-hooks/0.1 §14).
+
+
+        Paginated: `next_cursor` (present when another page exists) is passed
+        back as `cursor`, and resumes exactly where the page ended even while
+        more verdicts are answered. Every filter is an exact match except
+        `since` (inclusive) and `until` (exclusive) on the time the verdict
+        was answered. An unknown parameter or a malformed value is a 400 —
+        never a filter that quietly matches everything.
+
+
+        Rows older than the retention (90 days unless the operator set
+        `OPENSESAME_AGENT_HOOK_DECISION_RETENTION_DAYS`) are removed by a
+        background actor; `retention_days` says which applies. Owner/admin or
+        operator only; never an agent surface — an agent must not read the
+        trail of the policy that governs it.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - name: cursor
+          in: query
+          required: false
+          description: The `next_cursor` of the page before.
+          schema: { type: string, pattern: '^[0-9]+$' }
+        - { name: decision, in: query, required: false, schema: { type: string, enum: [allow, deny, transform] } }
+        - name: interception_point
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown]
+        - { name: caller, in: query, required: false, description: "`operator` or a principal.", schema: { type: string, minLength: 1, maxLength: 256 } }
+        - { name: reason, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
+        - { name: escalated, in: query, required: false, schema: { type: boolean } }
+        - { name: policy_version, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: since, in: query, required: false, description: Inclusive lower bound, RFC 3339., schema: { type: string, format: date-time } }
+        - { name: until, in: query, required: false, description: Exclusive upper bound, RFC 3339., schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: One page of the audit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookDecisionPage" }
         "400": { $ref: "#/components/responses/ContractError" }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
@@ -2790,6 +2850,10 @@ paths:
   /agent/runs/{id}:
     get:
       summary: Read one run's state
+      description: >-
+        Carries `hook_records`, the count-and-verdict summary of the run's
+        agent-hooks records (ADR 0150): counts only, never a reason or a
+        digest. The listing does not carry it.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -2880,6 +2944,56 @@ paths:
                   next_after: { type: integer }
                   run_next_seq: { type: integer }
                   sealed: { type: boolean, const: true }
+                  observation: { $ref: "#/components/schemas/AgentRunObservation" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/hook-records:
+    get:
+      summary: Read one page of a run's agent-hooks records
+      description: >-
+        The payload-free agent-hooks record of a Host-run agent (ADR 0150): one
+        row per interception, in `sequence` order — interception point,
+        decision, a machine reason, and the `sha256:` identities of the context
+        before and after composition. No message, no target and no transform
+        value exists to return.
+
+
+        A run the Host opened holds no viewer key to seal to (ADR 0081 §9), so
+        its sealed log is empty and this is its observation; `observation` says
+        which a run has. Same entitlement as `log`: the credential's owner and
+        nobody else, and anyone else gets the same 404 a missing run does.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          description: Last `sequence` already held. Omit to read from the start.
+          schema: { type: integer, default: -1 }
+        - name: limit
+          in: query
+          required: false
+          description: Most records to return, capped at 256.
+          schema: { type: integer, minimum: 1, maximum: 256, default: 64 }
+      responses:
+        "200":
+          description: A page of records, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, records, next_after, has_more, summary, observation, sealed, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  records:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgentHookRecord" }
+                  next_after: { type: integer, description: The cursor to pass as `after` for the next page. }
+                  has_more: { type: boolean }
+                  summary: { $ref: "#/components/schemas/AgentHookRecordSummary" }
+                  observation: { $ref: "#/components/schemas/AgentRunObservation" }
+                  sealed: { type: boolean, const: false }
                   secrets_returned: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
@@ -3043,6 +3157,16 @@ paths:
         than settling a step somebody else is now executing. A run that has
         closed — its executor stopped waiting — takes no further outcome, so
         a late answer is refused rather than stored where nothing reads it.
+
+
+        The outcome is stored **scrubbed and bounded**, even when nobody is
+        still waiting for it (a step that timed out with its run still open):
+        credential-shaped strings and keys become `[redacted:<kind>]` markers
+        (`redacted: true`), and an outcome over 1 MiB is refused with 413. Under
+        a hook policy that denies credentials (`secret_guard: deny`, or
+        `refuse_labels` naming `opensesame:credential_material`) the step is
+        stored as refused instead (`refused: true`) — the executor fails closed,
+        as it does on a `post_tool_call` deny.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -3072,14 +3196,21 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required: [status, redacted, refused]
                 properties:
                   status: { type: string, const: settled }
+                  redacted: { type: boolean, description: Credential-shaped text was found and not stored as sent. }
+                  refused: { type: boolean, description: The step was stored as refused because the policy denies credentials. }
         "400": { $ref: "#/components/responses/ContractError" }
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "409":
           description: The caller does not hold this step's claim, or the run has closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+        "413":
+          description: The outcome is over 1 MiB, before or after redaction. The claim stands.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentRunError" }
@@ -3179,6 +3310,31 @@ components:
         transform: { type: object }
         evidence: { type: object }
         result_labels: { type: array, items: { type: string } }
+    AgentHookDecision:
+      type: object
+      description: >-
+        One answered interception, as the audit keeps it. Value-blind by
+        construction: there is no field able to hold a tool name, a target, a
+        transform's value or a message.
+      required: [id, caller, interception_point, decision, escalated, reason, policy_version, created_at]
+      properties:
+        id: { type: integer, minimum: 1, description: Rises with every verdict; the pagination order. }
+        caller: { type: string, description: "`operator`, or the calling session's principal." }
+        interception_point:
+          type: [string, "null"]
+          enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown, null]
+        decision: { type: string, enum: [allow, deny, transform] }
+        escalated: { type: boolean, description: The deny carried an approval block. }
+        reason: { type: [string, "null"], description: A short machine identifier; never prose. }
+        policy_version: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+    AgentHookDecisionPage:
+      type: object
+      required: [decisions, next_cursor, retention_days]
+      properties:
+        decisions: { type: array, items: { $ref: "#/components/schemas/AgentHookDecision" } }
+        next_cursor: { type: [string, "null"], description: Pass as `cursor` for the next page; null on the last. }
+        retention_days: { type: integer, minimum: 1, description: How long a decision is kept. }
     AgentHookToolRule:
       type: object
       additionalProperties: false
@@ -4322,6 +4478,48 @@ components:
         updated_at: { type: string }
         secrets_returned: { type: boolean, const: false }
         observation_included: { type: boolean, const: false }
+        observation: { $ref: "#/components/schemas/AgentRunObservation" }
+        hook_records:
+          allOf: [{ $ref: "#/components/schemas/AgentHookRecordSummary" }]
+          description: Present on a single-run read, absent from the listing.
+    AgentRunObservation:
+      type: string
+      enum: [sealed_log, hook_records_only]
+      description: >-
+        What observes the run. `sealed_log`: a viewer key exists and the log is
+        sealed to it. `hook_records_only`: the Host opened the run and holds no
+        viewer key (ADR 0081 §9), so it seals nothing and the agent-hooks records
+        are the observation.
+    AgentHookRecordSummary:
+      type: object
+      description: What a run's hook records add up to. Counts only.
+      required: [count, allow, deny, transform, escalated, last_sequence]
+      properties:
+        count: { type: integer }
+        allow: { type: integer }
+        deny: { type: integer }
+        transform: { type: integer }
+        escalated: { type: integer, description: Denials that carried an approval block. }
+        last_sequence: { type: integer, nullable: true }
+    AgentHookRecord:
+      type: object
+      description: >-
+        The payload-free agent-hooks/0.1 §10.3 projection of one interception.
+        There is no member for a message, a target or a transform value.
+      required: [sequence, interception_point, decision, escalated, policy_version, recorded_at]
+      properties:
+        sequence: { type: integer }
+        interception_point:
+          type: string
+          enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown]
+        decision: { type: string, enum: [allow, deny, transform] }
+        escalated: { type: boolean }
+        reason: { type: string, nullable: true, description: A short machine identifier, never prose. }
+        decided_by: { type: integer, nullable: true }
+        input_identity: { type: string, nullable: true }
+        enforced_identity: { type: string, nullable: true }
+        policy_version: { type: integer }
+        recorded_at: { type: string }
     AgentRunError:
       type: object
       required: [error]

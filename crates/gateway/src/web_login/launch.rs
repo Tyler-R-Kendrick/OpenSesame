@@ -26,12 +26,14 @@ use opensesame_session_observe::ControlLease;
 use opensesame_storage::StoredObservationRun;
 
 use super::channel::{BrowserChannel, RunChannel};
+use super::control::Stop;
 use super::custody::{DriverCandidateVault, CURRENT_PASSWORD_REF};
 use super::prepare::{prepare, Plan};
 use super::records::{RecordBuffer, RecordScope};
-use super::settle::settlement_of;
+use super::settle::{handed_over, overdue, settlement_of};
 use super::WebLoginLauncher;
-use crate::lifecycle::responders::{publish_agent_phase, release_policy, Outcome};
+use crate::lifecycle::agent_phase::{publish_agent_phase, RunRefs};
+use crate::lifecycle::responders::{release_policy, Outcome};
 
 /// `viewer_key_id` on a run this runner opens. It seals nothing to a viewer
 /// key — there is no viewer-key sealing on the Host yet — so it writes no
@@ -141,10 +143,10 @@ impl WebLoginLauncher {
             }
         }
         let owner = policy.as_ref().and_then(|p| p.owner_subject.clone());
-        let (outcome, job_id) = self
+        let (outcome, refs) = self
             .request_and_run(organization_id, origin, owner.as_deref(), policy.as_ref())
             .await;
-        publish_agent_phase(&self.state, event, owner, job_id, &outcome).await;
+        publish_agent_phase(&self.state, event, owner, &refs, &outcome).await;
         if let Some(policy) = policy {
             release_policy(broker, &policy, &outcome).await;
         }
@@ -157,7 +159,7 @@ impl WebLoginLauncher {
         origin: &str,
         owner: Option<&str>,
         policy: Option<&RotationPolicy>,
-    ) -> (Outcome, Option<String>) {
+    ) -> (Outcome, RunRefs) {
         let broker = self.state.connection_broker.as_ref();
         let target = RotationTarget::WebLogin {
             origin: origin.to_owned(),
@@ -172,11 +174,19 @@ impl WebLoginLauncher {
             Ok(job) => job,
             Err(error) => {
                 let detail = format!("rotation request failed: {}", error.hint());
-                return (Outcome::failed(detail), None);
+                return (Outcome::failed(detail), RunRefs::default());
             }
         };
+        let mut refs = RunRefs {
+            job_id: Some(job.id.clone()),
+            run_id: None,
+        };
         let outcome = match prepare(&self.state.db, organization_id, origin, owner).await {
-            Ok(plan) => self.run(&plan, &job.id).await,
+            Ok(plan) => {
+                let (outcome, run_id) = self.run(&plan, &job.id).await;
+                refs.run_id = run_id;
+                outcome
+            }
             Err(detail) => {
                 let bus = self.state.task_bus.read().await;
                 let parked = defer_web_login_rotation(
@@ -193,28 +203,42 @@ impl WebLoginLauncher {
                 }
             }
         };
-        (outcome, Some(job.id))
+        (outcome, refs)
     }
 
-    /// Run a prepared job to its settlement.
-    pub(crate) async fn run(&self, plan: &Plan, job_id: &str) -> Outcome {
+    /// Run a prepared job to its settlement. Also the observation run's id,
+    /// when one was opened.
+    pub(crate) async fn run(&self, plan: &Plan, job_id: &str) -> (Outcome, Option<String>) {
         let broker = self.state.connection_broker.as_ref();
         if let Err(error) = begin_web_login_rotation(broker, &plan.organization_id, job_id).await {
-            return Outcome::failed(format!("rotation {job_id}: {}", error.hint()));
+            return (
+                Outcome::failed(format!("rotation {job_id}: {}", error.hint())),
+                None,
+            );
         }
         let run_id = format!("run_{}", uuid::Uuid::now_v7());
-        let (settlement, channel) = match Harness::open(self, plan, &run_id, job_id).await {
+        let (settlement, channel, opened) = match Harness::open(self, plan, &run_id, job_id).await {
             Ok(harness) => (
                 self.drive(plan, &harness).await,
                 Some(Arc::clone(&harness.channel)),
+                Some(run_id.clone()),
             ),
             Err(error) => {
                 tracing::error!(%error, %job_id, "web-login run could not be opened");
                 let detail = "the run could not be opened".into();
-                (WebLoginSettlement::NotSubmitted(detail), None)
+                (WebLoginSettlement::NotSubmitted(detail), None, None)
             }
         };
-        self.close(plan, &run_id, &settlement).await;
+        // A run a person asked for, or already holds, is theirs: it is left
+        // open, parked, so they can take it — closing it would refuse the very
+        // control they requested.
+        let theirs = channel
+            .as_ref()
+            .and_then(|channel| channel.stopped())
+            .is_some_and(|stop| matches!(stop, Stop::HandedOff | Stop::PersonHasIt));
+        if !theirs {
+            self.close(plan, &run_id, &settlement).await;
+        }
         if let Some(channel) = channel {
             channel.narrow_settled().await;
         }
@@ -229,7 +253,7 @@ impl WebLoginLauncher {
             )
             .await
         };
-        match (settled, settlement) {
+        let outcome = match (settled, settlement) {
             (Err(error), _) => Outcome::failed(format!("rotation {job_id}: {}", error.hint())),
             (Ok(job), WebLoginSettlement::Completed) => {
                 Outcome::ok(format!("rotation {} completed by run {run_id}", job.id))
@@ -238,7 +262,8 @@ impl WebLoginLauncher {
                 Ok(job),
                 WebLoginSettlement::NotSubmitted(detail) | WebLoginSettlement::Reconcile(detail),
             ) => Outcome::failed(format!("rotation {} run {run_id}: {detail}", job.id)),
-        }
+        };
+        (outcome, opened)
     }
 
     /// Drive the hosted change-password run and read how it ended.
@@ -248,16 +273,36 @@ impl WebLoginLauncher {
             recipe: plan.recipe_id.clone(),
             origin: plan.origin.clone(),
         };
-        let report = run_change_password_hooked(
-            &harness.hooked,
-            &harness.vault,
-            &plan.recipe,
-            &CredentialRef::new(CURRENT_PASSWORD_REF),
-            ControlLease::new(),
-            &request,
+        // The whole run is bounded, not only each wait for the driver: a hook
+        // waiting on a person's approval is not a step, and a run that could
+        // outlast its deadline could outlast the lease that stops a second
+        // process starting the same rotation.
+        let run = tokio::time::timeout(
+            self.timing.run_deadline,
+            run_change_password_hooked(
+                &harness.hooked,
+                &harness.vault,
+                &plan.recipe,
+                &CredentialRef::new(CURRENT_PASSWORD_REF),
+                ControlLease::new(),
+                &request,
+            ),
         )
         .await;
-        let settlement = settlement_of(report, &harness.hooked, harness.vault.promoted()).await;
+        let settlement = match run {
+            Ok(report) => {
+                let settled =
+                    settlement_of(report, &harness.hooked, harness.vault.promoted()).await;
+                match harness.channel.stopped() {
+                    Some(stop) => handed_over(settled, stop),
+                    None => settled,
+                }
+            }
+            Err(_) => {
+                tracing::warn!("a web-login run ran past its deadline and was stopped");
+                overdue(harness.channel.submit_sent())
+            }
+        };
         // The records the last step, the output and the shutdown left behind.
         match harness.channel.flush_records().await {
             Ok(()) => settlement,
@@ -286,8 +331,9 @@ impl WebLoginLauncher {
                 organization_id: org.clone(),
                 expected_version: run.version,
                 control_state: run.control_state.clone(),
-                quiescence: run.quiescence.clone(),
-                handoff_queued: run.handoff_queued,
+                // The span is over with the run, whatever it ended on.
+                quiescence: "quiescent".into(),
+                handoff_queued: false,
                 lease_holder: run.lease_holder.clone(),
                 lease_expires_at: run.lease_expires_at.clone(),
                 blocked_reason: reason,

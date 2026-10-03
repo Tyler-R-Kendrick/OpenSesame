@@ -71,7 +71,9 @@ pub async fn cmd_runs(server: &str, output: &str) -> Result<()> {
 /// result. `--follow` polls that same page.
 ///
 /// Prints position, lane, timestamp and ciphertext size — not content. See the
-/// module docs for why a host CLI does not hold the viewer key.
+/// module docs for why a host CLI does not hold the viewer key. A run the Host
+/// opened has no viewer key and no sealed log; for those it shows the run's
+/// hook records instead (`rotate hooks`).
 pub async fn cmd_watch(
     server: &str,
     output: &str,
@@ -87,6 +89,18 @@ pub async fn cmd_watch(
         let body = connect::api(server, reqwest::Method::GET, &path, None)
             .await
             .context("reading the observation log")?;
+        // A run the Host opened has no viewer key, so nothing was ever sealed
+        // to one: its hook record is the observation (ADR 0081 §9, ADR 0150).
+        if body.get("observation").and_then(Value::as_str) == Some("hook_records_only") {
+            return crate::agent_run_hooks::observe(
+                server,
+                output,
+                run_id,
+                (after, follow),
+                Some(crate::agent_run_hooks::NO_SEALED_LOG),
+            )
+            .await;
+        }
         if output == "json" {
             print_json(&body)?;
             return Ok(());

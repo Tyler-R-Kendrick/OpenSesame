@@ -73,10 +73,24 @@ impl Db {
         now: &str,
     ) -> anyhow::Result<()> {
         let mut tx = self.pool().begin().await?;
+        // A step is enqueued only while the agent holds the page
+        // (`agent_driving`, or `handoff_requested` until its next safe point).
+        // Once a run is parked for a person, has one driving it, or has
+        // stopped, nothing may be queued for the browser it would otherwise
+        // drive — the check lives here, at the queue, so no caller has to
+        // remember it.
         let active: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM observation_runs WHERE organization_id=? AND id=? AND closed_at IS NULL")
-            .bind(organization_id).bind(run_id).fetch_one(&mut *tx).await?;
-        anyhow::ensure!(active == 1, "run is closed or unavailable");
+            "SELECT COUNT(*) FROM observation_runs WHERE organization_id=? AND id=? \
+             AND closed_at IS NULL AND control_state IN ('agent_driving', 'handoff_requested')",
+        )
+        .bind(organization_id)
+        .bind(run_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        anyhow::ensure!(
+            active == 1,
+            "run is closed, parked, or held by a person, and takes no new step"
+        );
         let outstanding: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM runner_steps \
              WHERE organization_id = ? AND run_id = ? AND state <> 'settled'",
@@ -134,7 +148,8 @@ impl Db {
              WHERE organization_id = ? AND run_id = ? AND state <> 'settled' \
              AND (state = 'pending' OR claim_expires_at <= ?) \
              AND EXISTS (SELECT 1 FROM observation_runs WHERE observation_runs.id=runner_steps.run_id \
-                 AND observation_runs.organization_id=runner_steps.organization_id AND closed_at IS NULL)",
+                 AND observation_runs.organization_id=runner_steps.organization_id \
+                 AND closed_at IS NULL AND control_state IN ('agent_driving', 'handoff_requested'))",
         )
         .bind(claimant)
         .bind(expires_at)

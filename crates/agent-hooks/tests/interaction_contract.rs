@@ -225,6 +225,7 @@ fn every_error_code_the_approver_branches_on_is_in_the_vocabulary() {
         .clone();
     for code in [
         "approval_required",
+        "approval_denied",
         "digest_mismatch",
         "interaction_consumed",
         "interaction_revoked",

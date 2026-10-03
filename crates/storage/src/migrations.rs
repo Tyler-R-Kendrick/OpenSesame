@@ -198,4 +198,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0050_web_login_runs",
         include_str!("../migrations/0050_web_login_runs.sql"),
     ),
+    (
+        "0051_agent_hook_decisions",
+        include_str!("../migrations/0051_agent_hook_decisions.sql"),
+    ),
 ];

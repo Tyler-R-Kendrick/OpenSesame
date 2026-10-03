@@ -10,6 +10,9 @@
 
 use super::{append_outbox_tx, Db, Row, Utc};
 
+/// The audit of every verdict answered under a policy (migration 0046).
+pub mod decisions;
+
 /// The stored policy of one organization.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredAgentHookPolicy {

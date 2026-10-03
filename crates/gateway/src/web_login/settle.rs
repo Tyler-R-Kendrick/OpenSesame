@@ -22,6 +22,7 @@ use opensesame_connection_broker::rotation::web_login::WebLoginSettlement;
 use opensesame_rotation_web::hooks::{HookedTransport, HostedRunError, Refusal};
 use opensesame_rotation_web::{ActionStep, BlockedReason, ExecutorError, RunOutcome, RunReport};
 
+use super::control::Stop;
 use crate::agent_hooks::machine_reason;
 
 /// `reason at point`, value-blind.
@@ -88,6 +89,41 @@ fn from_report(report: RunReport, refusal: Option<&Refusal>, promoted: bool) -> 
         RunOutcome::ReconciliationRequired(detail) => {
             WebLoginSettlement::Reconcile(refused(&detail))
         }
+    }
+}
+
+/// A settlement for a run a person stopped: they asked for the page and it
+/// parked for them, or it was already theirs. Whether the site received a
+/// change is exactly what the executor's report said — this only adds why the
+/// run ended, so the job never reads as a fault in the runner.
+pub(crate) fn handed_over(settlement: WebLoginSettlement, stop: Stop) -> WebLoginSettlement {
+    let note = match stop {
+        Stop::HandedOff => "the run parked at a safe point for the person who asked for the page",
+        Stop::PersonHasIt => "a person holds the page, so the run sent nothing more",
+        Stop::Gone => return settlement,
+    };
+    match settlement {
+        WebLoginSettlement::Completed => WebLoginSettlement::Completed,
+        WebLoginSettlement::NotSubmitted(detail) => {
+            WebLoginSettlement::NotSubmitted(format!("{detail}; {note}"))
+        }
+        WebLoginSettlement::Reconcile(detail) => {
+            WebLoginSettlement::Reconcile(format!("{detail}; {note}"))
+        }
+    }
+}
+
+/// A settlement for a run that ran past its deadline — waiting, say, on an
+/// approval nobody answered. It is stopped where it stands, so what the site
+/// received is known only by whether a submit ever went out.
+pub(crate) fn overdue(submit_sent: bool) -> WebLoginSettlement {
+    const DETAIL: &str = "the run ran past its deadline and was stopped";
+    if submit_sent {
+        WebLoginSettlement::Reconcile(format!(
+            "{DETAIL}; a submit had been sent, so the site may have taken the change"
+        ))
+    } else {
+        WebLoginSettlement::NotSubmitted(DETAIL.into())
     }
 }
 
