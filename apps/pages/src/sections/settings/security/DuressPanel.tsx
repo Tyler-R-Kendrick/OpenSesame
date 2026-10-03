@@ -139,10 +139,6 @@ export function DuressPanel({
       <div className="panel__head">
         <div>
           <h2>Duress</h2>
-          <p className="hint">
-            A second code that opens something else, in front of someone who
-            makes you unlock.
-          </p>
         </div>
       </div>
       <div className="panel__body">

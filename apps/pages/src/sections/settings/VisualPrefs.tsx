@@ -31,6 +31,8 @@ const CLIPBOARD = [
 
 type VisualPrefsProps = {
   prefs: VaultPrefs;
+  /** An Identity API is named or a session is held: signing out means something. */
+  identity: boolean;
   onTheme: (id: VaultPrefs["theme"]) => void;
   onNumber: (
     key: "autoLockMinutes" | "clipboardClearSeconds",
@@ -166,26 +168,23 @@ function LockingPrefs(props: VisualPrefsProps) {
             onClick={() => props.onToggle("lockOnHide", !prefs.lockOnHide)}
           />
         </div>
-        <div className="sw">
-          <span>
+        {/* With no Identity to sign out of, locking has nothing to add: the
+            row is not drawn (ADR 0158). */}
+        {props.identity ? (
+          <div className="sw">
             <span className="sw__name">Sign out of Identity too</span>
-            <span className="sw__sub">
-              {" "}
-              — otherwise auto-lock drops only the vault key and you stay signed
-              in.
-            </span>
-          </span>
-          <button
-            type="button"
-            className="toggle"
-            role="switch"
-            aria-checked={prefs.signOutOnLock}
-            aria-label="Also sign out of Identity when the vault locks"
-            onClick={() =>
-              props.onToggle("signOutOnLock", !prefs.signOutOnLock)
-            }
-          />
-        </div>
+            <button
+              type="button"
+              className="toggle"
+              role="switch"
+              aria-checked={prefs.signOutOnLock}
+              aria-label="Also sign out of Identity when the vault locks"
+              onClick={() =>
+                props.onToggle("signOutOnLock", !prefs.signOutOnLock)
+              }
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   );

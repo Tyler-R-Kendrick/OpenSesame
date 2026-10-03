@@ -3,7 +3,6 @@ export {
   persistEnrollmentStateForUnlock,
 } from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";
 import { AccountFactorError } from "@opensesame/app-core/lib/account-factors.js";
-import { describeRecovery } from "@opensesame/app-core/lib/configuration/recovery-outcomes.js";
 import { loadSession } from "@opensesame/app-core/lib/federation.js";
 import { readSignInService } from "@opensesame/app-core/lib/identity-service.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
@@ -191,10 +190,6 @@ function UnlockMethodsBody() {
         <div className="panel__head">
           <div>
             <h2>Unlock methods</h2>
-            <p className="hint">
-              Which key opens this vault on this device. Keep at least one.{" "}
-              {describeRecovery("identity")}
-            </p>
           </div>
         </div>
         <div className="panel__body">
@@ -240,10 +235,6 @@ function UnlockMethodsBody() {
         <div className="panel__head">
           <div>
             <h2>Second step</h2>
-            <p className="hint">
-              Asked after the key, every unlock. Nothing turns on until a code
-              from the new method matches.
-            </p>
           </div>
         </div>
         <div className="panel__body">
@@ -291,7 +282,6 @@ function UnlockMethodsBody() {
           <div className="panel__head">
             <div>
               <h2>Recovery</h2>
-              <p className="hint">For the day the phone is gone.</p>
             </div>
           </div>
           <div className="panel__body">

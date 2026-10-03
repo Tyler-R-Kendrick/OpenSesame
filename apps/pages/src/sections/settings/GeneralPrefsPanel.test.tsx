@@ -1,9 +1,11 @@
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { identityHookSeams } from "../../bindings/identity.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { GeneralPrefsPanel } from "./GeneralPrefsPanel.js";
 
@@ -70,5 +72,49 @@ describe("GeneralPrefsPanel", () => {
     );
     expect(screen.queryByRole("button", { name: "Source" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Visual" })).toBeNull();
+  });
+
+  it("draws no sign-out-of-Identity switch while there is no Identity to sign out of", () => {
+    render(
+      <MemoryRouter>
+        <GeneralPrefsPanel />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("switch", {
+        name: "Also sign out of Identity when the vault locks",
+      }),
+    ).toBeNull();
+    // Locking's other switch is the vault's own and always acts.
+    expect(
+      screen.getByRole("switch", {
+        name: "Lock when this tab goes to the background",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("draws it, with no caption, once an Identity session is held", async () => {
+    const original = identityHookSeams.useIdentitySession;
+    identityHookSeams.useIdentitySession = () =>
+      overlapCast({ accessToken: "t", issuerOrigin: "x" });
+    try {
+      const user = userEvent.setup();
+      const { container } = render(
+        <MemoryRouter>
+          <GeneralPrefsPanel />
+        </MemoryRouter>,
+      );
+      await user.click(
+        screen.getByRole("switch", {
+          name: "Also sign out of Identity when the vault locks",
+        }),
+      );
+      expect(commitPrefs).toHaveBeenCalledWith(
+        expect.objectContaining({ signOutOnLock: true }),
+      );
+      expect(container.textContent).not.toMatch(/otherwise auto-lock/);
+    } finally {
+      identityHookSeams.useIdentitySession = original;
+    }
   });
 });
