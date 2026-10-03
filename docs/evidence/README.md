@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-03-plugin-switch-absent/`](2026-10-03-plugin-switch-absent/README.md) | Plugin tiles draw no switch they cannot act on (ADR 0150, settings rows act or are absent) |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
 | [`2026-10-03-live-sessions-stack/`](2026-10-03-live-sessions-stack/README.md) | Live sessions: the feature and the stack that followed it (ADR 0150) |
 | [`2026-10-03-keybindings-statusline/`](2026-10-03-keybindings-statusline/README.md) | Keybindings: the half-typed keys on the statusline |
