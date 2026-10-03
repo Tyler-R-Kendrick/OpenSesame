@@ -1,4 +1,5 @@
 import {
+  rotationLosses,
   runCaught,
   status,
 } from "@opensesame/app-core/sections/settings/vault-key-protection-ceremonies-model.js";
@@ -15,7 +16,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
-import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   AgeRecipientBody,
   AwsKmsBody,
@@ -132,14 +133,22 @@ export function AddKeyProtection({
 
 function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
   const store = useVaultStore();
+  const { header } = useVault();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  // Read once, when the sheet opens: the rotation rewrites the header.
+  const [lost] = useState(() => rotationLosses(header));
+  const gone = lost.join(", ");
   return (
     <CeremonyShell
       ok={password.length > 0}
       name="Rotate compromised vault key"
       facts={[
-        { key: "Effect", value: "New root generation; re-enroll passkey/PIN" },
+        {
+          key: "Effect",
+          value: "A new vault key; the password is wrapped anew",
+        },
+        { key: "Removed", value: gone === "" ? "nothing else" : gone },
       ]}
       primary={{
         label: "Rotate",
@@ -153,7 +162,9 @@ function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
             status(
               "info",
               "Vault key protection",
-              "Vault key rotated. Re-enroll passkey/PIN if you used them.",
+              gone === ""
+                ? "Vault key rotated."
+                : `Vault key rotated. Removed with the old key: ${gone}. Add them again.`,
             );
             onDone();
           }, "Could not rotate the vault key.").finally(() => setBusy(false));

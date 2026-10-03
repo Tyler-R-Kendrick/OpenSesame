@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
@@ -297,6 +298,40 @@ describe("VaultKeyProtectionPanel", () => {
       screen.getByRole("button", { name: "Rotate compromised vault key" }),
     );
     expect(screen.getByRole("dialog", { name: "Rotate" })).toBeTruthy();
+  });
+
+  it("says on the rotate sheet what the rotation removes, read from the header", () => {
+    const base = headerWithRecords([recoveryKey, pin]);
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({
+        header: {
+          ...base,
+          unlocks: overlapCast({ totp: {}, recovery: {} }),
+        },
+        guest: false,
+        status: "unlocked",
+        tomb: "personal",
+      }),
+    });
+    render(<VaultKeyProtectionPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Rotate compromised vault key" }),
+    );
+    const sheet = screen.getByRole("dialog", { name: "Rotate" });
+    expect(sheet.textContent).toContain(
+      "Recovery key, PIN, Authenticator app, Recovery codes",
+    );
+    expect(sheet.textContent).not.toMatch(/re-enroll passkey\/PIN/);
+  });
+
+  it("says nothing else is removed when the password is the only protector", () => {
+    render(<VaultKeyProtectionPanel />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Rotate compromised vault key" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Rotate" }).textContent,
+    ).toContain("nothing else");
   });
 
   it("calls supplied action props", () => {
