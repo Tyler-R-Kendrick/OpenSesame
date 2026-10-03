@@ -1,6 +1,8 @@
 import { REDACTED, scrubValue } from "@opensesame/log-scrub";
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  type Bindings,
+  type ChildLoggerOptions,
   type DestinationStream,
   type Logger,
   type LoggerOptions,
@@ -60,6 +62,36 @@ export function redactDeep<T>(value: T): T {
   return scrubValue(value);
 }
 
+/**
+ * `child({ ... })` bindings are serialised once, when the child is made, and
+ * pino resets the `formatters.bindings` hook on every child, so neither that
+ * hook, `hooks.logMethod` nor `formatters.log` ever sees them: a `url` with a
+ * `?token=` or a bound `client_secret` would be written raw. Descendants
+ * inherit `child` and `setBindings` through the prototype chain, so replacing
+ * both on the root covers every logger made from it.
+ */
+function scrubChildBindings(logger: Logger): Logger {
+  const makeChild: Logger["child"] = logger.child;
+  const setBindings: Logger["setBindings"] = logger.setBindings;
+  Object.defineProperties(logger, {
+    child: {
+      configurable: true,
+      writable: true,
+      value(this: Logger, bindings: Bindings, options?: ChildLoggerOptions) {
+        return Reflect.apply(makeChild, this, [scrubValue(bindings), options]);
+      },
+    },
+    setBindings: {
+      configurable: true,
+      writable: true,
+      value(this: Logger, bindings: Bindings) {
+        Reflect.apply(setBindings, this, [scrubValue(bindings)]);
+      },
+    },
+  });
+  return logger;
+}
+
 export interface CreateLoggerOptions {
   name?: string;
   level?: string;
@@ -92,27 +124,30 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
       },
     },
     formatters: {
-      // Belt and braces: the merged object once more, after bindings.
+      // Belt and braces: the merged object of each call once more. Child
+      // bindings never reach this formatter; see `scrubChildBindings`.
       log: (obj) => overlapCast(scrubValue(obj)),
     },
   };
 
   if (options.destination) {
-    return pino(opts, options.destination);
+    return scrubChildBindings(pino(opts, options.destination));
   }
   // With OPENSESAME_LOG_FILE set, lines are sealed into that file and never
   // written to stdout (ADR 0155); a file that cannot be opened throws.
   const sealedFile = process.env.OPENSESAME_LOG_FILE;
   if (sealedFile) {
-    return pino(
-      opts,
-      createSealedLogDestination(
-        sealedFile,
-        process.env.OPENSESAME_LOG_KEY_FILE,
+    return scrubChildBindings(
+      pino(
+        opts,
+        createSealedLogDestination(
+          sealedFile,
+          process.env.OPENSESAME_LOG_KEY_FILE,
+        ),
       ),
     );
   }
-  return pino(opts);
+  return scrubChildBindings(pino(opts));
 }
 
 export type { Logger };

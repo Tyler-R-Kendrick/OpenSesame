@@ -48,6 +48,30 @@ describe("redactDeep", () => {
 });
 
 describe("createLogger", () => {
+  it("scrubs child-logger bindings by key and by shape", async () => {
+    const { chunks, destination } = capture();
+    const log = createLogger({ name: "test", level: "info", destination });
+    const child = log.child({
+      url: "https://example.test/cb?token=BIND-LEAK-1234567890",
+      client_secret: "BIND-SECRET",
+      nested: { password: "BIND-PW" },
+      route: "/ok",
+    });
+    child.info("hello");
+    const grandchild = child.child({ access_token: "GRANDCHILD-LEAK" });
+    grandchild.setBindings({ u: "https://x.test/?code=SETB-LEAK-12345" });
+    grandchild.info("again");
+    await new Promise((r) => setImmediate(r));
+    const text = chunks.join("");
+    expect(text).not.toContain("BIND-LEAK");
+    expect(text).not.toContain("BIND-SECRET");
+    expect(text).not.toContain("BIND-PW");
+    expect(text).not.toContain("GRANDCHILD-LEAK");
+    expect(text).not.toContain("SETB-LEAK");
+    expect(text).toContain("[REDACTED]");
+    expect(text).toContain("/ok");
+  });
+
   it("redacts deeply nested tokens", async () => {
     const { chunks, destination } = capture();
     const log = createLogger({ name: "test", level: "info", destination });
