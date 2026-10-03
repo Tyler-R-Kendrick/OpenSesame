@@ -85,6 +85,7 @@ const GOALS_SOURCES = [
   "goals.ts",
   // The shell's help topics close the core list (`SHELL_HELP`).
   "shell-goals.ts",
+  "duress-goals.ts",
   "connections-goals.ts",
   "access-goals.ts",
   "authority-help.ts",

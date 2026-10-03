@@ -8,7 +8,7 @@ Evidence: `docs/evidence/2026-09-21-duress/`.
 
 ## Turning it on in Pages
 
-**Settings › Security › Duress** (ADR 0150). There is no switch to find first:
+**Settings › Security › Duress** (ADR 0155). There is no switch to find first:
 the row is there for the owner of an open vault, and it is not drawn in a guest
 session — which is what a decoy is.
 
