@@ -22,6 +22,7 @@ fn init_tracing() {
     // `RUST_LOG` to (ADR 0155).
     tracing_subscriber::fmt()
         .with_env_filter(filter)
+        .with_ansi(false)
         .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
         .init();
 }

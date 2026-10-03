@@ -73,3 +73,27 @@ fn json_lines_reach_the_sink_scrubbed_and_stay_json() {
     }
     assert!(out.contains("\"page=2\"") || out.contains("page=2"));
 }
+
+#[test]
+fn the_default_ansi_builder_reaches_the_sink_clean_and_plain() {
+    // A subscriber that forgot `.with_ansi(false)` wraps field names and values
+    // in escape sequences, which can split a `key=value` the scrubber looks for.
+    let sink = Shared::default();
+    let handle = sink.clone();
+    let make = ScrubMakeWriter::new(move || handle.clone(), Format::Text);
+    let subscriber = tracing_subscriber::fmt()
+        .with_ansi(true)
+        .with_writer(make)
+        .finish();
+    tracing::subscriber::with_default(subscriber, || {
+        tracing::error!(password = "hunter2", token = "abc123xyz", "login failed");
+    });
+    let out = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+    assert!(!out.contains("hunter2"), "{out:?}");
+    assert!(!out.contains("abc123xyz"), "{out:?}");
+    assert!(
+        !out.bytes().any(|byte| byte == 0x1b),
+        "ESC remains: {out:?}"
+    );
+    assert!(out.contains("login failed"), "{out:?}");
+}
