@@ -103,6 +103,7 @@ fn a_flood_of_junk_refusals_cannot_erase_the_exfiltration_notice() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("notices.jsonl");
     let log = NoticeLog::open(&path).unwrap();
+    let started = std::time::Instant::now();
     log.refused(&refusal(RefusalCode::Misdirected, Some("evil.test")));
     for n in 0..6000 {
         // Forged surrogates that differ per request: distinct details, so
@@ -112,13 +113,21 @@ fn a_flood_of_junk_refusals_cannot_erase_the_exfiltration_notice() {
             Some(&format!("site-{n}.example")),
         ));
     }
+    let elapsed = started.elapsed().as_millis();
     log.flush_and_close();
     let tripwires = lines_of(&dir.path().join(TRIPWIRES_FILE));
     assert_eq!(tripwires.len(), 1, "{tripwires:?}");
     assert!(tripwires[0].contains("surrogate.misdirected"));
     assert!(tripwires[0].contains("evil.test"));
     let noise = lines_of(&path);
-    assert!(noise.len() <= 60, "{} noise lines written", noise.len());
+    // The burst plus what the limiter refills while the flood runs; a slow
+    // build earns more tokens, so the bound follows the elapsed time.
+    let allowed = 55 + 20 * elapsed / 1000;
+    assert!(
+        u128::try_from(noise.len()).unwrap() <= allowed,
+        "{} noise lines written, {allowed} allowed over {elapsed}ms",
+        noise.len()
+    );
     assert!(noise.iter().all(|l| !l.contains("surrogate.misdirected")));
 }
 
