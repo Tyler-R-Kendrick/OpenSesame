@@ -85,13 +85,13 @@ async function device(browser, options = {}) {
   return made;
 }
 
-async function createLogin(page, { name, username, password }) {
+/** New item is a secret (ADR 0153): a name and one concealed value. */
+async function createSecret(page, { name, value }) {
   const create = page.getByRole("link", { name: "New item", exact: true });
   await create.first().waitFor({ timeout: 20_000 });
   await create.first().click();
   await page.getByLabel("Name", { exact: true }).fill(name);
-  await page.getByLabel("Username", { exact: true }).fill(username);
-  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByLabel("Secret value", { exact: true }).fill(value);
   await page
     .getByRole("button", { name: "Save item", exact: true })
     .first()
@@ -126,16 +126,8 @@ async function hostVault(page) {
   setStep("owner-vault");
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await doorGuest(page).click();
-  await createLogin(page, {
-    name: "GitHub",
-    username: "octo",
-    password: secret,
-  });
-  await createLogin(page, {
-    name: "Payroll",
-    username: "ada",
-    password: privateSecret,
-  });
+  await createSecret(page, { name: "GitHub", value: secret });
+  await createSecret(page, { name: "Payroll", value: privateSecret });
   await addCapabilities(page, ["Live sessions"]);
 }
 
@@ -173,13 +165,13 @@ try {
   const reply = await ownerAdmitsByHand(owner.page, panel, request, joinerName);
   await joinerConnects(joiner.page, reply);
   await joiner.page
-    .getByRole("button", { name: "Reveal GitHub Password" })
+    .getByRole("button", { name: "Reveal GitHub Value" })
     .click();
   await expect(joiner.page.getByText(secret)).toBeVisible({ timeout: 45_000 });
   check(
     (await joiner.page.getByText(privateSecret).count()) === 0 &&
       (await joiner.page
-        .getByRole("button", { name: "Reveal Payroll Password" })
+        .getByRole("button", { name: "Reveal Payroll Value" })
         .count()) === 0,
     "scoped live view: the unshared item was not projected",
   );
@@ -241,11 +233,11 @@ try {
     joinerName,
   );
   await joinerConnects(joiner.page, editReply);
-  await joinerSaves(joiner.page, { label: "GitHub Password", value: edited });
+  await joinerSaves(joiner.page, { label: "GitHub Value", value: edited });
   check(
     (await joiner.page.getByText(privateSecret).count()) === 0 &&
       (await joiner.page
-        .getByRole("button", { name: "Reveal Payroll Password" })
+        .getByRole("button", { name: "Reveal Payroll Value" })
         .count()) === 0,
     "edit session: the unshared item was not projected",
   );
