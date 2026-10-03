@@ -25,6 +25,7 @@ import {
   modularCapabilityIds,
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
+import { CROSS_RULES } from "./classification-cross.js";
 import { DEVICE_CONNECTOR_RULES } from "./classification-device-connectors.js";
 import { LIB_RULES } from "./classification-lib.js";
 import { PACKAGE_RULES } from "./classification-packages.js";
@@ -75,6 +76,8 @@ function alwaysOnIsCore(rule: SourceClassification): SourceClassification {
 
 export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...MODULE_RULES,
+  // First, so a name listed there wins a tie with the same prefix below.
+  ...CROSS_RULES,
   ...SHELL_RULES,
   ...SECTION_RULES,
   ...LIB_RULES,

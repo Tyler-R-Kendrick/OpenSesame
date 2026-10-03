@@ -97,14 +97,7 @@ const SIGNIN_FILES = [
 const CONNECTOR_FILES = [
   "capability-bind",
   "connector-guidance",
-  "connector-settings",
   "connect-",
-  "connections",
-  "connections-integrations",
-  "connections-local-git",
-  "connector-directory",
-  "nango-directory",
-  "vercel-connect",
   "github-installation-access",
   "identity-graph",
 ];
@@ -130,46 +123,23 @@ const GIT_FILES = [
 const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
-  "local-access-audit",
-  "local-access-ledger-lock",
   "local-access-requests",
   "local-grant-admin",
   "local-grant-store",
-  "local-rbac",
-  "local-share-grants",
   "local-share-reach",
-  "standing-connection-grants",
 ];
 const LOCAL_IAM_FILES = [
   "local-access-bootstrap",
-  "local-agent-auth",
   "local-agent-authorization",
   "local-agent-channel",
-  "local-agent-keys",
   "local-application-approval",
-  "local-application-shape",
-  "local-applications",
   "local-authenticator",
   "local-authorization",
-  "local-credentials",
-  "local-devices",
-  "local-directory",
-  "local-directory-bootstrap",
-  "local-directory-memberships",
-  "local-directory-types",
   "local-iam-lock-resets",
   "local-issuer-channel",
-  "local-organizations",
-  "local-passkeys",
-  "local-passkey-prf",
   "local-request",
   "local-request-authorization",
   "local-request-issuance",
-  "local-request-store",
-  "local-sessions",
-  "local-vault-session-issue",
-  "local-vault-sessions",
-  "pages-dogfood",
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
@@ -177,7 +147,6 @@ const FEDERATION_FILES = [
   // shape, the method routing, the profile this tab is on) and declares the
   // four Identity-API calls as seams this capability installs.
   "orgs-directory",
-  "oauth-client-admin",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
