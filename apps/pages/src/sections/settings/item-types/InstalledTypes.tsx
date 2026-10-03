@@ -20,7 +20,8 @@ import {
 import { itemTypeRegistry } from "@opensesame/vault-core";
 import type { ItemTypeDefinition } from "@opensesame/vault-item-types";
 import { useState } from "react";
-import { IconTrash, IconX } from "../../../components/Icons.js";
+import { IconKey } from "../../../components/IconKey.js";
+import { IconPlus, IconTrash, IconX } from "../../../components/Icons.js";
 import { OpenFileKey } from "../files/OpenFileKey.js";
 import { useOpenSettingsFile } from "../files/context.js";
 import { TypeRow } from "./TypeRow.js";
@@ -96,30 +97,24 @@ function definitionsIn(
     .sort((a, b) => a.spec.title.localeCompare(b.spec.title));
 }
 
-function Empty({ onBrowse }: { onBrowse: () => void }) {
+/**
+ * With nothing installed the list is empty and says nothing: the Marketplace
+ * tab is beside it, and the one thing to do here is write a type, which is a
+ * key (ADR 0158) — where a file viewer exists to write it in.
+ */
+function Empty() {
   const openFile = useOpenSettingsFile();
+  if (!openFile) return null;
   return (
-    <p className="itype-empty">
-      No installed types yet.{" "}
-      <button type="button" className="itype-empty__go" onClick={onBrowse}>
-        Marketplace
-      </button>{" "}
-      has more
-      {openFile ? (
-        <>
-          , or write{" "}
-          <button
-            type="button"
-            className="itype-empty__go"
-            onClick={() => openFile(NEW_TYPE_PATH)}
-          >
-            a new file
-          </button>{" "}
-          in installed/
-        </>
-      ) : null}
-      .
-    </p>
+    <div className="itype-empty">
+      <IconKey
+        small
+        label="Write a new item type"
+        onClick={() => openFile(NEW_TYPE_PATH)}
+      >
+        <IconPlus size={16} />
+      </IconKey>
+    </div>
   );
 }
 
@@ -127,12 +122,10 @@ export function InstalledTypes({
   files,
   busy,
   onRemove,
-  onBrowse,
 }: {
   files: VirtualFileProvider;
   busy: boolean;
   onRemove: (id: string) => void;
-  onBrowse: () => void;
 }) {
   const [armed, setArmed] = useState<string | null>(null);
   const installed = definitionsIn(files, INSTALLED_DIR);
@@ -141,7 +134,7 @@ export function InstalledTypes({
   return (
     <>
       {installed.length === 0 ? (
-        <Empty onBrowse={onBrowse} />
+        <Empty />
       ) : (
         <ul className="itype-list" aria-label="Installed types">
           {installed.map((definition) => {

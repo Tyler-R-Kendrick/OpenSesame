@@ -119,9 +119,10 @@ describe("PluginPanel pairing", () => {
     expect(document.querySelector(".note, .conn-flash")).toBeNull();
   });
 
-  it("draws no field and no key with no vault to keep the key in", async () => {
+  it("draws no tile at all with no vault to keep the key in: a name and a mark nobody can act on", async () => {
     const { sent } = mount({ open: false, accept: true });
-    expect(screen.getByLabelText("No daemon paired")).toBeTruthy();
+    expect(document.getElementById("plugin-surrogate-proxy")).toBeNull();
+    expect(screen.queryByLabelText("No daemon paired")).toBeNull();
     expect(screen.queryByLabelText("Pairing code")).toBeNull();
     expect(noPairKey()).toBeNull();
     expect(document.querySelector("form, input")).toBeNull();

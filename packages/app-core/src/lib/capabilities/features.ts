@@ -23,6 +23,14 @@ import type {
   EffectivePlan,
 } from "@opensesame/capability-composition";
 import type { ProviderCategory } from "../connections.js";
+import { shown } from "./feature-surface.js";
+
+export {
+  NO_SURFACE,
+  dependentsOf,
+  heldOutside,
+  shown,
+} from "./feature-surface.js";
 
 export type FeatureId =
   | "identity"
@@ -167,9 +175,12 @@ export const FEATURES: readonly Feature[] = [
   section("telemetry", "Telemetry", ["telemetry.external"], []),
 ];
 
-/** Whether a section carries a switch: it has an optional capability. */
-export function isSwitchable(feature: Feature): boolean {
-  return feature.capabilities.length > 0;
+/** Whether a section carries a switch: it has an optional capability a switch changes. */
+export function isSwitchable(
+  feature: Feature,
+  plan: EffectivePlan | null = null,
+): boolean {
+  return shown(feature, plan).capabilities.length > 0;
 }
 
 export function featureById(id: FeatureId): Feature {

@@ -3202,12 +3202,14 @@ fieldset.picker {
   transition: transform 160ms var(--ease);
 }
 
-.toggle[aria-pressed="true"] {
+.toggle[aria-pressed="true"],
+.toggle[aria-checked="true"] {
   background: var(--accent);
   border-color: transparent;
 }
 
-.toggle[aria-pressed="true"]::after {
+.toggle[aria-pressed="true"]::after,
+.toggle[aria-checked="true"]::after {
   transform: translateX(1rem);
 }
 
@@ -3367,17 +3369,20 @@ fieldset.picker {
     background: var(--line-strong);
   }
 
-  .toggle[aria-pressed="true"] {
+  .toggle[aria-pressed="true"],
+  .toggle[aria-checked="true"] {
     background: transparent;
     border-color: transparent;
   }
 
-  .toggle[aria-pressed="true"]::before {
+  .toggle[aria-pressed="true"]::before,
+  .toggle[aria-checked="true"]::before {
     background: var(--accent);
     border-color: transparent;
   }
 
-  .toggle[aria-pressed="true"]::after {
+  .toggle[aria-pressed="true"]::after,
+  .toggle[aria-checked="true"]::after {
     transform: translate(calc(-0.2rem + 1px), -0.575rem);
   }
 

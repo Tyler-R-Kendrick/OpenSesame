@@ -317,8 +317,9 @@ export async function enablePush(
 }
 
 export interface PushWithdrawal {
-  baseUrl: string;
-  accessToken: string;
+  /** Identity API origin; with no session there is none to tell. */
+  baseUrl?: string;
+  accessToken?: string;
   /**
    * The id `enablePush` returned.
    *
@@ -331,22 +332,36 @@ export interface PushWithdrawal {
   subscriptionId?: string;
 }
 
+/** What `disablePush` actually undid; neither half is assumed from the other. */
+export interface PushWithdrawn {
+  /** A subscription was held here and is now dropped. */
+  browser: boolean;
+  /** The Identity API was told to forget it (already forgotten counts). */
+  server: boolean;
+}
+
 /**
  * Stop delivering here.
  *
- * The server is told first, and the local subscription is dropped either way —
- * a failed round trip must not leave a browser still receiving pushes it was
- * told to stop receiving. A subscription the server no longer knows about is
- * not an error: that is the state being asked for.
+ * The server is told first when there is an id and a session to tell it with,
+ * and the local subscription is dropped either way — a failed round trip must
+ * not leave a browser still receiving pushes it was told to stop receiving. A
+ * subscription the server no longer knows about is not an error: that is the
+ * state being asked for. The result says which halves were done, so a caller
+ * never reports "off" for a server that was not told.
  */
-export async function disablePush(input: PushWithdrawal): Promise<boolean> {
+export async function disablePush(
+  input: PushWithdrawal,
+): Promise<PushWithdrawn> {
+  const none = { browser: false, server: false };
   const container = pushSeams.serviceWorkerContainer();
-  if (!container) return false;
+  if (!container) return none;
   const worker = await container.ready;
   const subscription = await worker.pushManager.getSubscription();
-  if (!subscription) return false;
+  if (!subscription) return none;
+  let server = false;
   try {
-    if (input.subscriptionId) {
+    if (input.subscriptionId && input.baseUrl && input.accessToken) {
       await authorized(
         { baseUrl: input.baseUrl, accessToken: input.accessToken },
         `/v1/notification-channels/push/subscriptions/${encodeURIComponent(input.subscriptionId)}`,
@@ -354,9 +369,10 @@ export async function disablePush(input: PushWithdrawal): Promise<boolean> {
         // Already gone is the outcome we wanted.
         [404],
       );
+      server = true;
     }
   } finally {
     await subscription.unsubscribe();
   }
-  return true;
+  return { browser: true, server };
 }

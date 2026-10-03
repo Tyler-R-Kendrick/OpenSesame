@@ -19,9 +19,12 @@ import {
   FEATURES,
   type Feature,
   type FeatureProposal,
+  dependentsOf,
   featureState,
+  heldOutside,
   isSwitchable,
   neededBy,
+  shown,
   switchCapability,
   switchFeature,
 } from "@opensesame/app-core/lib/capabilities/features.js";
@@ -99,6 +102,17 @@ function SectionSwitch({
 }) {
   const { plan } = useComposition();
   const state = featureState(feature, plan);
+  // Running capabilities elsewhere are built on this section's: its switch
+  // could not take them off, so it says who needs it (ADR 0158 §3).
+  const held = state.on ? heldOutside(plan, feature) : [];
+  if (held.length > 0) {
+    return (
+      <StatusMark
+        tone="ok"
+        label={`needed by ${held.map(titleOf).join(", ")}`}
+      />
+    );
+  }
   if (!state.on && state.available.length === 0) {
     // Nothing here can run: say why, in the first capability's own words.
     const status = capabilityStatus(
@@ -150,10 +164,16 @@ function CapabilityTile({
   const snapshot = useComposition();
   const state = snapshot.plan?.capabilities[id];
   const on = state?.approved === true;
-  // Household sharing's transport is Shared drops: switching drops off alone
-  // would review a change that changes nothing, so its tile says who needs it.
+  // Household sharing's transport is Shared drops, and Self-issued OpenID runs
+  // on Browser-local IAM: switching either off alone would review a change
+  // that changes nothing, so its tile says who needs it.
   const needers = on
-    ? neededBy(current, id, capabilityPorts.CAPABILITY_CATALOG)
+    ? [
+        ...new Set([
+          ...neededBy(current, id, capabilityPorts.CAPABILITY_CATALOG),
+          ...dependentsOf(snapshot.plan, id),
+        ]),
+      ]
     : [];
   const switchable =
     needers.length === 0 &&
@@ -246,7 +266,7 @@ function CapabilitySection({
   const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch and no connector whose
   // page has something to do on this device (ADR 0158).
-  if (!featureDraws(feature, roads.tile)) return null;
+  if (!featureDraws(feature, roads.tile, plan)) return null;
   return (
     <section
       className="conn-group capsection"
@@ -256,7 +276,7 @@ function CapabilitySection({
     >
       <SectionHead id={`${id}-title`} title={feature.title}>
         <WithdrawnMark feature={feature} />
-        {isSwitchable(feature) ? (
+        {isSwitchable(feature, plan) ? (
           <SectionSwitch
             feature={feature}
             current={current}
@@ -318,10 +338,11 @@ export function CapabilitySections({
   onPropose: Propose;
 }) {
   const ref = useGuideTarget<HTMLDivElement>("settings.connectivity");
+  const { plan } = useComposition();
   return (
     <div className="capsections" id="settings-connections" ref={ref}>
       <GuestSection />
-      {FEATURES.map((feature) => {
+      {FEATURES.map((feature) => shown(feature, plan)).map((feature) => {
         const Section =
           feature.id === "backups" ? BackupsSection : CapabilitySection;
         return (

@@ -12,7 +12,7 @@ import {
 } from "@opensesame/app-core/lib/keymap/config.js";
 import { retargetKeys } from "@opensesame/app-core/lib/keymap/effective.js";
 import { ownMacro } from "@opensesame/app-core/lib/keymap/macros.js";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconTrash, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
@@ -81,6 +81,11 @@ function NameRow({
   onName: (name: string) => void;
 }) {
   const shown = name !== "" && problem !== null;
+  // The key that opened the editor is gone while it is open: focus starts in it.
+  const field = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    field.current?.focus();
+  }, []);
   return (
     <div className="kb-editor__row">
       <label htmlFor={`macro-name-${id}`}>Name</label>
@@ -90,6 +95,7 @@ function NameRow({
         </span>
         <input
           id={`macro-name-${id}`}
+          ref={field}
           value={name}
           autoComplete="off"
           spellCheck={false}
