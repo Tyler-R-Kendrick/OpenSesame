@@ -100,22 +100,61 @@ export function sharedItems(
     .slice(0, MAX_ITEMS);
 }
 
-function sharedField(field: Held): SharedField {
+function sharedField(field: Held, valueMax: number): SharedField {
   return {
     key: field.key,
     label: clip(field.label, LABEL_MAX),
     concealed: field.concealed,
-    value: field.concealed ? null : clip(field.text, VALUE_MAX),
+    value: field.concealed ? null : clip(field.text, valueMax),
   };
 }
 
-function sharedItem(item: VaultItem): SharedItem {
+function sharedItem(item: VaultItem, valueMax: number): SharedItem {
   return {
     id: item.id,
     name: clip(item.name, LABEL_MAX),
     type: clip(itemTypeId(item), 128),
-    fields: heldFields(item).map(sharedField),
+    fields: heldFields(item).map((field) => sharedField(field, valueMax)),
   };
+}
+
+/**
+ * What the catalog frame may weigh. The channel carries one frame of at most
+ * 1 MiB (`peer.ts`); 200 items of 32 fields with 16 KiB of text each is far
+ * past that, and a frame over the cap never arrives. The catalog is cut to
+ * fit instead: unconcealed text is clipped shorter, and only if names alone
+ * still do not fit are the last items left out (a joiner is never shown an
+ * item it could not reveal from, and the owner's own checks use this same
+ * catalog).
+ */
+export const CATALOG_BUDGET = 900 * 1024;
+const VALUE_STEPS = [VALUE_MAX, 1024, 128];
+
+function weight(catalog: Catalog): number {
+  return JSON.stringify({ t: "catalog", catalog }).length;
+}
+
+function fitted(
+  head: Pick<Catalog, "title" | "policy" | "expiresAt">,
+  items: readonly VaultItem[],
+): Catalog {
+  const build = (valueMax: number, count: number): Catalog => ({
+    ...head,
+    items: items.slice(0, count).map((item) => sharedItem(item, valueMax)),
+  });
+  for (const valueMax of VALUE_STEPS) {
+    const whole = build(valueMax, items.length);
+    if (weight(whole) <= CATALOG_BUDGET) return whole;
+  }
+  const shortest = VALUE_STEPS[VALUE_STEPS.length - 1] ?? 0;
+  let fits = 0;
+  let over = items.length;
+  while (fits < over) {
+    const middle = Math.ceil((fits + over) / 2);
+    if (weight(build(shortest, middle)) <= CATALOG_BUDGET) fits = middle;
+    else over = middle - 1;
+  }
+  return build(shortest, fits);
 }
 
 export type CatalogInput = Readonly<{
@@ -128,12 +167,14 @@ export type CatalogInput = Readonly<{
 
 /** The catalog a joiner is sent: names, types, and unconcealed fields. */
 export function vaultCatalog(input: CatalogInput): Catalog {
-  return {
-    title: clip(input.title, LABEL_MAX),
-    policy: input.policy,
-    expiresAt: input.expiresAt,
-    items: sharedItems(input.items(), input.scope).map(sharedItem),
-  };
+  return fitted(
+    {
+      title: clip(input.title, LABEL_MAX),
+      policy: input.policy,
+      expiresAt: input.expiresAt,
+    },
+    sharedItems(input.items(), input.scope),
+  );
 }
 
 /** One field's full text, if the item is still shared and the field exists. */

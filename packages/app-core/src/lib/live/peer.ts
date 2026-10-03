@@ -104,10 +104,13 @@ export class PeerChannel {
     });
   }
 
-  send(message: ChannelMessage): void {
-    if (this.channel.readyState !== "open") return;
+  /** Whether the frame went out: not while closed, never one over the cap. */
+  send(message: ChannelMessage): boolean {
+    if (this.channel.readyState !== "open") return false;
     const frame = JSON.stringify(message);
-    if (frame.length <= FRAME_MAX) this.channel.send(frame);
+    if (frame.length > FRAME_MAX) return false;
+    this.channel.send(frame);
+    return true;
   }
 
   onMessage(handler: (message: ChannelMessage) => void): void {
