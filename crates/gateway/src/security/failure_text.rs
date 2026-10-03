@@ -43,4 +43,25 @@ mod tests {
             "{text}"
         );
     }
+
+    #[tokio::test]
+    async fn a_path_token_in_the_endpoint_never_reaches_the_failure_text() {
+        // Slack-style hook URLs carry the token in the path, which the
+        // query-shaped scrub rules cannot see: the text must not name the URL.
+        let error = reqwest::Client::new()
+            .post("http://127.0.0.1:9/services/T0001/B0002/xoxb-pathtoken9876/v1/intent")
+            .send()
+            .await
+            .unwrap_err();
+        let text = persistable(&transport(error), 200);
+        for leaked in [
+            "pathtoken9876",
+            "xoxb",
+            "T0001",
+            "/services/",
+            "127.0.0.1:9",
+        ] {
+            assert!(!text.contains(leaked), "{leaked} leaked: {text}");
+        }
+    }
 }

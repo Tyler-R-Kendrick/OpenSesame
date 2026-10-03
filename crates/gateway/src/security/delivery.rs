@@ -396,7 +396,7 @@ async fn send_a2h(
         .body(body)
         .send()
         .await
-        .map_err(|error| Failure::Retryable(format!("a2h request failed: {error}")))?;
+        .map_err(|error| Failure::Retryable(super::failure_text::transport(error)))?;
 
     let status = response.status();
     if status.is_success() {
