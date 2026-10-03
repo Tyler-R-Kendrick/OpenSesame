@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-/** Settings › Keybindings › Keymap by scope, and its Unavailable group (ADR 0150 §6). */
+/** Settings › Keybindings › Keymap by scope, and its Unavailable group (ADR 0156 §6). */
 import {
   loadKeymap,
   resetKeymap,

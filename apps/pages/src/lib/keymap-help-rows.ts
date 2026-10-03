@@ -1,5 +1,5 @@
 /**
- * The `?` sheet drawn from the keys in force (ADR 0150), not from the
+ * The `?` sheet drawn from the keys in force (ADR 0156), not from the
  * defaults with a person's overrides appended: a row whose commands still
  * hold their default keys reads as authored; one a person changed is rebuilt
  * from the effective bindings, one line per command, with the keys that moved
@@ -140,7 +140,7 @@ function yourRow(
 
 /**
  * A person's own keys the authored rows do not already show: everywhere
- * first, then each listing's (ADR 0150 §6), each saying where it holds. A
+ * first, then each listing's (ADR 0156 §6), each saying where it holds. A
  * global key on a command the sheet has a row for, or an unbind of one, is in
  * that row already.
  */

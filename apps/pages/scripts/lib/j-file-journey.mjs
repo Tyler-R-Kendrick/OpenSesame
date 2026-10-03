@@ -29,7 +29,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
   );
   await snap(page, "J-FILE-yaml");
   await openConfigForm(page, "General");
-  // Keybindings left General for their own tab (ADR 0150). Pending approvals
+  // Keybindings left General for their own tab (ADR 0156). Pending approvals
   // are not a setting. Locking is the panel that stayed.
   await page
     .getByRole("heading", { name: "Locking" })
@@ -71,7 +71,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
       (await page.getByLabel("Clear copied secrets after").count()) > 0,
     "General link still reaches the same draft",
   );
-  // Keybindings is its own category with its own document (ADR 0150).
+  // Keybindings is its own category with its own document (ADR 0156).
   await openConfigFile(page, "keybindings");
   check(
     (await page.locator(".set-raw__path").innerText()).includes(

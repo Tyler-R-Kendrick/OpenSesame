@@ -97,7 +97,11 @@ export async function direct(browser, owner) {
     "with no route named, the link names no server",
   );
   await shot(owner.page, "direct-1-owner-live");
-  const joiner = await device(browser, PHONE);
+  const joiner = await device(browser, {
+    ...PHONE,
+    origin: owner.origin,
+    dist: owner.dist,
+  });
   const request = await joinerAsks(joiner.page, { link, code, name: JOINER });
   check(
     /^osl-request\./.test(request) && !request.includes(JOINER),
@@ -107,7 +111,7 @@ export async function direct(browser, owner) {
   await joinerConnects(joiner.page, reply);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   await joiner.page
-    .getByRole("button", { name: "Reveal GitHub Password" })
+    .getByRole("button", { name: "Reveal GitHub Value" })
     .click();
   await expect(joiner.page.getByText(SECRET)).toBeVisible({ timeout: 15_000 });
   await shot(joiner.page, "direct-2-joiner-revealed");
@@ -146,7 +150,11 @@ async function tunnelWithout(browser, owner, init) {
   setStep("tunnel-no-address");
   await setRoutes(owner.page, {});
   const session = await startSession(owner.page, { admission: "open" });
-  const lost = await device(browser, { init });
+  const lost = await device(browser, {
+    init,
+    origin: owner.origin,
+    dist: owner.dist,
+  });
   const request = await joinerAsks(lost.page, {
     link: session.link,
     name: "Bo",
@@ -180,7 +188,12 @@ async function tunnelWith(browser, owner, init) {
     !session.link.includes("127.0.0.1"),
     "the owner's address is not in the link",
   );
-  const joiner = await device(browser, { ...PHONE, init });
+  const joiner = await device(browser, {
+    ...PHONE,
+    init,
+    origin: owner.origin,
+    dist: owner.dist,
+  });
   const request = await joinerAsks(joiner.page, {
     link: session.link,
     name: JOINER,
@@ -258,7 +271,11 @@ export async function carried(browser, owner, kind) {
     const joiner =
       kind === "broadcast"
         ? { page: await owner.context.newPage(), sockets: [], context: null }
-        : await device(browser, PHONE);
+        : await device(browser, {
+            ...PHONE,
+            origin: owner.origin,
+            dist: owner.dist,
+          });
     if (kind === "broadcast") await joiner.page.addInitScript(WATCH_RTC);
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
@@ -313,7 +330,11 @@ export async function declined(browser, owner) {
     });
     const { panel, code, link } = await startSession(owner.page);
     const before = server.frames.length;
-    const joiner = await device(browser, PHONE);
+    const joiner = await device(browser, {
+      ...PHONE,
+      origin: owner.origin,
+      dist: owner.dist,
+    });
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: false });
     await joiner.page.waitForTimeout(1500);
     check(joiner.sockets.length === 0, "declined: the joiner opened no socket");

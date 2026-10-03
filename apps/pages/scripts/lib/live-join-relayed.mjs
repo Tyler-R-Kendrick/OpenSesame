@@ -128,7 +128,11 @@ async function through(browser, owner, label, hooks) {
     await prepare(relay.url);
     await shot(owner.page, `${label}-1-routes`);
     const { panel, code, link } = await startSession(owner.page);
-    const joiner = await device(browser, PHONE);
+    const joiner = await device(browser, {
+      ...PHONE,
+      origin: owner.origin,
+      dist: owner.dist,
+    });
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
     await admit.waitFor({ timeout: 30_000 });

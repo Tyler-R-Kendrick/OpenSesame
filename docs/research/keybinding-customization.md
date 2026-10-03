@@ -3,7 +3,7 @@
 How products with passionate power users let people rebind keys, compose
 sequences and record macros — and what a keyboard-first, vim-flavoured,
 terminal-styled settings page should take from them. Fed
-[ADR 0150](../adr/0150-keybindings-and-macros.md) (Settings › Keybindings) over
+[ADR 0156](../adr/0156-keybindings-and-macros.md) (Settings › Keybindings) over
 `apps/pages/src/lib/keymap.ts` (the `g` chord, its 1000 ms `goTimeoutMs`,
 counts) and [ADR 0064](../adr/0064-vault-vfs-keyboard-first.md). Surveyed 2026-09-28;
 details marked *(unverified)* come from memory of the product, not a page

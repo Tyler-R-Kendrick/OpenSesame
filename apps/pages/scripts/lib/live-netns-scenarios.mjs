@@ -20,6 +20,9 @@ import { ADDRESS } from "./live-netns-topology.mjs";
 
 const JOINER = "Ada Lovelace";
 
+/** The deployment the owner is on: the joiner opens the same one. */
+const site = (ctx) => ({ origin: ctx.owner.origin, dist: ctx.owner.dist });
+
 /** Every peer connection's configuration, as the page made it. */
 async function configs(page) {
   return (await page.evaluate(() => window.__rtcConfigs)).map((raw) =>
@@ -200,7 +203,7 @@ export async function carried(ctx) {
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
       .waitFor({ timeout: 20_000 });
-    const joiner = await ctx.device(ctx.browsers.b);
+    const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
     await admit.waitFor({ timeout: 30_000 });
@@ -251,7 +254,7 @@ export async function relayed(ctx) {
       carriers: [{ kind: "nostr", url: relay.url }],
     });
     const { panel, code, link } = await startSession(owner.page);
-    const joiner = await ctx.device(ctx.browsers.b);
+    const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
     await admit.waitFor({ timeout: 30_000 });
