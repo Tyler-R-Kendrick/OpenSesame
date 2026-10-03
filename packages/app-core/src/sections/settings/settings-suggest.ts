@@ -9,6 +9,7 @@ import {
   NOP,
   keymapCommands,
 } from "../../lib/keymap/commands.js";
+import { authorityLocked } from "../../lib/keymap/config.js";
 import { isKeymapContext } from "../../lib/keymap/context.js";
 import { defaultBindings } from "../../lib/keymap/effective.js";
 import { yamlKey, yamlWord } from "./settings-keymap-yaml.js";
@@ -155,14 +156,23 @@ export function bindingSuggestions(source: string, caret: number): string[] {
       .filter((sequence) => sequence.startsWith(typed))
       .map(yamlKey);
   }
+  const commands = keymapCommands();
+  const defaults = defaultBindings(commands);
+  const key = keyName(lineAt(source, caret).text) ?? "";
   const ids = [
-    ...keymapCommands().map((command) => command.id),
+    ...commands.map((command) => command.id),
     ...macroIds(source),
     NOP,
   ];
   // A finished action is not offered back. A finished key still is, so Tab
-  // can write the colon after it.
+  // can write the colon after it. Nor is one the file would refuse for this
+  // key: a command that asks first keeps only its own locked keys.
   return [...new Set(ids)]
-    .filter((id) => id !== typed && id.startsWith(typed))
+    .filter(
+      (id) =>
+        id !== typed &&
+        id.startsWith(typed) &&
+        !authorityLocked(key, id, commands, defaults),
+    )
     .map(yamlWord);
 }

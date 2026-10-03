@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseConfigYaml } from "../../lib/configuration/yaml-profile.js";
-import { suggestSettings } from "./settings-files.js";
+import { decodeSettings, suggestSettings } from "./settings-files.js";
 
 describe("suggesting inside the keymap file", () => {
   const at = (source: string) =>
@@ -37,11 +37,30 @@ describe("suggesting inside the keymap file", () => {
       expect.arrayContaining(['"g g"', '"g v"']),
     );
     expect(at("keybindings:\n  g")).not.toContain("j");
-    expect(at("keybindings:\n  w: item.")).toContain("item.trash");
-    expect(at("keybindings:\n  w: item.s")).toEqual(["item.share"]);
+    expect(at("keybindings:\n  w: item.")).toContain("item.edit");
+    expect(at("keybindings:\n  s: item.s")).toEqual(["item.share"]);
     expect(at("keybindings:\n  w: no")).toEqual(["nop"]);
     expect(at('keybindings:\n  "g v')).toEqual(['"g v"']);
     expect(at("keybindings:\n  w: nope")).toEqual([]);
+  });
+
+  it("offers a command that asks first only on its own locked key", () => {
+    // `readKeymap` refuses `w: item.trash`, so Tab must not write it.
+    expect(at("keybindings:\n  w: item.")).not.toContain("item.trash");
+    expect(at("keybindings:\n  w: item.")).not.toContain("item.share");
+    expect(at("keybindings:\n  w: item.s")).toEqual([]);
+    expect(at("contexts:\n  vault:\n    w: item.t")).toEqual([]);
+    expect(at("keybindings:\n  x: item.")).toContain("item.trash");
+    expect(at("keybindings:\n  x: item.")).not.toContain("item.share");
+    expect(at("contexts:\n  vault:\n    s: item.s")).toEqual(["item.share"]);
+    // Whatever is offered, the file accepts.
+    for (const id of at("keybindings:\n  w: ")) {
+      const parsed = decodeSettings(
+        "keybindings",
+        `keybindings:\n  w: ${id}\n`,
+      );
+      expect(parsed.ok, id).toBe(true);
+    }
   });
 
   it("offers the macros the file names", () => {
