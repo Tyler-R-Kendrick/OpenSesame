@@ -14,8 +14,8 @@
 import type { VaultHeader } from "@opensesame/vault-core";
 import { bindingMatchesTrigger } from "../../lib/duress/trigger/enrollment-match.js";
 import type { EnrolledTrigger } from "../../lib/duress/trigger/enrollment-state.js";
-import type { UnlockTabId } from "../../lib/vault/protection/unlock-protector-methods.js";
 import { passkeyUnlockRecords } from "../../lib/vault/passkey-unlock-session.js";
+import type { UnlockTabId } from "../../lib/vault/protection/unlock-protector-methods.js";
 import { loadEnrollmentStateForUnlock } from "../../sections/settings/security/duress-unlock-bridge.js";
 
 function armedPrfTriggers(): EnrolledTrigger[] {

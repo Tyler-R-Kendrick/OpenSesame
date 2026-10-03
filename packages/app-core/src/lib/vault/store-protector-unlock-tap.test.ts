@@ -19,6 +19,7 @@ import {
 } from "./protection/adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./protection/adapters/webauthn-prf-ops.js";
 import { ProtectionError } from "./protection/errors.js";
+import { sealAuthenticatedManifest } from "./protection/manifest-auth.js";
 import {
   HEADER_KEY,
   PASSWORD,
@@ -93,6 +94,10 @@ async function fixture(): Promise<Fixture> {
         purpose: m.purpose,
       };
       m.records.push(await make(context, root));
+      // Enrolled as the service would: the manifest is re-authenticated under
+      // the root, which is what the unlock path checks the opened root against.
+      const { authB64: _stale, ...body } = m;
+      header.protection = await sealAuthenticatedManifest(root, body);
       kvSet(HEADER_KEY, JSON.stringify(header));
     },
   };

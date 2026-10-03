@@ -54,7 +54,9 @@ describe("probePasskeyCeremony", () => {
     const seen: string[][] = [];
     Object.assign(unlockMethodsSeams, {
       getPasskeyUnlockCeremony: async () => new ArrayBuffer(32),
-      getPasskeyUnlockCeremonyFor: async (records: { credentialIdB64: string }[]) => {
+      getPasskeyUnlockCeremonyFor: async (
+        records: { credentialIdB64: string }[],
+      ) => {
         seen.push(records.map((row) => row.credentialIdB64));
         return {
           prfOutput: new ArrayBuffer(32),

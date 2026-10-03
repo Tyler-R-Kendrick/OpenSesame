@@ -28,6 +28,7 @@ import {
   openAgeWebauthn,
 } from "./adapters/age-webauthn.js";
 import { ProtectionError } from "./errors.js";
+import { verifyManifestAuth } from "./manifest-auth.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import {
   type ProtectorUnlockMethodId,
@@ -83,6 +84,23 @@ export function isUncountedProtectorFailure<Thrown>(error: Thrown): boolean {
   );
 }
 
+/**
+ * Whether the opened root is the one the manifest was authenticated under. The
+ * MAC is root-derived, so only the real root verifies it: this is the root
+ * commitment that an age capsule, which anyone can seal, does not carry itself.
+ */
+async function rootVerifiesManifest(
+  root: Uint8Array,
+  manifest: RootProtectionManifest,
+): Promise<boolean> {
+  try {
+    await verifyManifestAuth(root, manifest);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 type Opener = (
   record: ProtectionRecord,
   context: ProtectionContext,
@@ -131,7 +149,11 @@ export async function openRootWithProtector(
         root.fill(0);
         throw new DOMException("The operation was aborted.", "AbortError");
       }
-      return root;
+      if (await rootVerifiesManifest(root, manifest)) return root;
+      // An age capsule is public-key encryption with a public context: anyone
+      // who can write the header can seal one to a root of their choosing. A
+      // root the manifest's MAC does not verify under is not this vault's.
+      root.fill(0);
     } catch (error) {
       if (isUncountedProtectorFailure(error)) throw error;
       // This capsule is not the one the material opens; try the next.

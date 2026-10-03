@@ -86,7 +86,12 @@ describe("passkey duress code completion", () => {
     const createGuest = vi.fn(async () => undefined);
     await expect(
       completePasskeyDuressCode(
-        { unlockWithPasskey, probePasskeyCeremony, unlockWithHeldPrf, createGuest },
+        {
+          unlockWithPasskey,
+          probePasskeyCeremony,
+          unlockWithHeldPrf,
+          createGuest,
+        },
         "11223344",
         { requireDurable: false },
       ),

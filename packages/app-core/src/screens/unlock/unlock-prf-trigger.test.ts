@@ -125,9 +125,9 @@ describe("the passkey road with a prf_and_code trigger armed", () => {
   it("offers only the bound credential and opens the decoy on the duress code", async () => {
     await armPrfAndCode();
     const s = store();
-    await expect(
-      unlockWithPasskeyAfterDuressGate(s as never),
-    ).resolves.toBe("needs_duress_code");
+    await expect(unlockWithPasskeyAfterDuressGate(s as never)).resolves.toBe(
+      "needs_duress_code",
+    );
     expect(s.probePasskeyCeremony).toHaveBeenCalledWith({
       onlyCredentialIds: [BOUND],
     });
