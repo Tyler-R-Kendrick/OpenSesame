@@ -59,6 +59,8 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     {
       operationIds: [
         "device.browser_reset",
+        "vault.protectors.manage",
+        "vault.protectors.rotate",
         "vault.recovery_codes",
         "vault.second_step.code",
         "vaults.duress_code",

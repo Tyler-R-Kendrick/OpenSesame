@@ -168,6 +168,18 @@ describe("VaultKeyProtectionPanel", () => {
     ).toBeNull();
   });
 
+  it("marks a verified cloud key whose credential this vault seals as not a way back in", () => {
+    showRecords([recoveryKey, awsKms]);
+    const row = (id: string) =>
+      document.querySelector(`[data-protector-id="${id}"]`);
+    const note = "Its credential is sealed in this vault";
+    expect(row("aws_1")?.querySelector(`[aria-label^="${note}"]`)).toBeTruthy();
+    expect(row("aws_1")?.querySelector('[aria-label="Verified"]')).toBeTruthy();
+    expect(
+      row("recovery-key_a")?.querySelector(`[aria-label^="${note}"]`),
+    ).toBeNull();
+  });
+
   it("every key on the panel is enabled when it is drawn", () => {
     const { container } = render(<VaultKeyProtectionPanel />);
     const keys = container.querySelectorAll("button");

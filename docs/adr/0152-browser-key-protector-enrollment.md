@@ -8,7 +8,10 @@
   (the static front end needs no backend),
   [ADR 0149](0149-nothing-stored-in-the-clear.md) (nothing rests in the clear),
   [ADR 0005](0005-authority-handle-connectionref.md) (no raw secret on an agent
-  surface)
+  surface),
+  [ADR 0065](0065-agent-surface-parity.md) (every PWA action is mapped or
+  excluded), [ADR 0052](0052-password-manager-ecosystem-bridging.md) (key
+  ecosystems are human/device plane)
 - Amends: ADR 0129 §8 and the second consequence bullet of ADR 0150
 
 ## Context
@@ -84,6 +87,36 @@ the record reaches the manifest only through `commitEnrollment`.
   elsewhere, which is what ADR 0129 §5 already disclosed. The record is
   `verified` because the round trip was proved, not because it is independent of
   the vault's own tomb.
+- **Proof and independence are two facts.** `proofStatus` answers "did the
+  capsule open to the session root"; `dependsOnVault(record)` in
+  `lifecycle.ts` answers "does opening it need something sealed in this vault".
+  The last-verified-path guard (`assertCanRemoveProtector`, KP-11) counts a
+  record only when it is `verified` **and** does not depend on the vault.
+  Per kind: password, PIN, passkey wraps, passkey capsules, the recovery key,
+  PIV and device-local open from what the person presents — independent; an age
+  recipient reaches `verified` only through an identity held outside the vault
+  (a vault-sealed one is refused above) — independent, and an `untested` one
+  counts for nothing; AWS KMS, Google Cloud KMS and Azure Key Vault Keys read
+  their provider credential from Connections, sealed in this vault — **not**
+  independent, however often they are tested. This guard is a
+  manifest-level backstop, and it binds where nothing else does: the header's own
+  wraps (password, PIN, passkey) are removed under Unlock methods, which keeps
+  one primary unlock through `assertKeepsPrimaryUnlock` and never reaches the
+  manifest, and `removeProtector` already refuses a row the header wraps. The
+  legacy wrap records are always `verified` and independent, so while the header
+  has any wrap the manifest holds an independent record and a cloud key can never
+  be what keeps it from firing. What the guard does decide is a manifest whose
+  only remaining independent records are being removed: with a verified cloud key
+  and nothing else independent, removing the last independent record is refused;
+  add a verified recovery key (or an age recipient proved with an identity held
+  elsewhere) and it is allowed.
+  The answer is a function of the kind and adds no field to a record, so a
+  manifest an earlier build wrote keeps its bytes and its authentication tag and
+  gets the stricter answer on its next removal. A future enroller that holds a
+  cloud credential outside the vault (an ambient role on a native client) must
+  record that in an authenticated record field before `dependsOnVault` may say
+  otherwise. Settings › Security draws a second, idle mark on a verified row
+  that depends on the vault, so "Verified" is not read as "a way back in".
 
 ### Not enrolled: YubiKey PIV through age
 
@@ -151,6 +184,25 @@ panel draws each key only where the service accepts it:
 The manifest's copy of the header's wraps is reconciled whenever the header
 changes, because Unlock methods writes the header and nothing else.
 
+### Protector management is human-plane only on every agent surface
+
+Enrolling, testing, preferring, removing and rotating are two registry
+operations (`vault.protectors.manage`, `vault.protectors.rotate`,
+`packages/capability-registry/src/vault-protection.ts`), owned by the core
+`vault.local-unlock` capability and mapped onto the Pages action
+(`enroll-external.ts:provenExternalRecord`, `browser-lifecycle-ops.ts:rotateCompromisedRoot`).
+They are **excluded** from MCP host, MCP client and WebMCP, citing this ADR
+under ADR 0065's rule that every PWA action is mapped or excluded: the ceremonies
+take an age identity, a recovery secret or a cloud credential, none of which may
+transit agent context (ADR 0005), and an agent that could enroll a protector
+could add a way into the vault that it holds the other half of, while one that
+could remove or rotate could lock the owner out. Key-ecosystem bridging is
+human/device plane only for the same reason (ADR 0052). The CLIs are excluded
+because they hold no handle on the browser's tomb: the sealed store's own
+protectors are `opensesame pass protect`, a different object. The Android and
+extension targets are recorded in `surface-gaps.json`, as for the other
+vault ceremonies; nothing in this ADR builds them.
+
 ### The setup preference is retired
 
 `capabilityConnectors.encryption` is no longer written or read by any screen.
@@ -188,6 +240,10 @@ nothing consumes.
   SigV4 and Google transports with a faked network, in
   `vault-protector-enrollment-model.test.ts`; the token minting in
   `gcp-oauth.test.ts`.
+- Guard: `lifecycle-guard.test.ts` (password plus verified AWS or Google KMS
+  refused, recovery key or externally proved age recipient allowed, an
+  old-shape manifest read byte-for-byte and held to the same guard);
+  `VaultKeyProtectionPanel.test.tsx` for the row mark.
 - Panel and sheets: `VaultKeyProtectionExternalCeremonies.test.tsx`,
   `VaultKeyProtectionPanel.test.tsx`, `useVaultKeyProtectionActions.test.tsx`.
 - Live, in an attached Vite session: an age key pair made, its identity file
