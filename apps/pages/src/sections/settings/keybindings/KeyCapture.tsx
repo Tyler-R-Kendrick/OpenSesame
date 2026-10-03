@@ -96,6 +96,16 @@ function usePressedKeys(
   return { tokens, text, setText, onKeyDown, clear };
 }
 
+/**
+ * The keymap timeout as a custom property, not `animation-duration`: the
+ * global reduced-motion rule forces that one to 0.01ms, and only the
+ * stylesheet can answer it.
+ */
+function drainStyle(): CSSProperties {
+  // SAFETY: structurally a CSSProperties; the typing only lacks an index for custom properties.
+  return { "--kb-drain-ms": `${keymapSeams.goTimeoutMs}ms` } as CSSProperties;
+}
+
 /** A refused key: the mark, and the same words spoken — once per refusal. */
 function Refused({ problem }: { problem: Refusal }) {
   return (
@@ -172,11 +182,6 @@ export function KeyCapture({
     });
 
   const shown = tokens.length > 0 ? tokens.map(keycapLabel).join(" ") : text;
-  // A custom property, not `animation-duration`: the global reduced-motion rule
-  // forces that one to 0.01ms, and only the stylesheet can answer it.
-  const drain = {
-    "--kb-drain-ms": `${keymapSeams.goTimeoutMs}ms`,
-  } as CSSProperties;
 
   return (
     <span
@@ -212,7 +217,7 @@ export function KeyCapture({
           <span
             key={tokens.length}
             className="kb-capture__drain"
-            style={drain}
+            style={drainStyle()}
             aria-hidden="true"
           />
         ) : null}
