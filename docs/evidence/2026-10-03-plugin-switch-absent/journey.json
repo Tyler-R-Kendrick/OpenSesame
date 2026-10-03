@@ -69,13 +69,46 @@
           "scrollToOptional": "^Surrogate credentials$"
         },
         {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy form",
+            "#plugin-surrogate-proxy input",
+            "#plugin-surrogate-proxy form button",
+            "#plugin-surrogate-proxy form button[disabled]",
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy form input, #plugin-surrogate-proxy form .icon-btn"
+        },
+        {
+          "shot": "390-unpaired"
+        },
+        {
           "fillOptional": {
-            "label": "Pairing code",
+            "selector": "#plugin-pair-surrogate-proxy",
             "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
           }
         },
         {
-          "pressOptional": "Pair with the daemon"
+          "count": [
+            "#plugin-surrogate-proxy form",
+            "#plugin-surrogate-proxy input",
+            "#plugin-surrogate-proxy form button",
+            "#plugin-surrogate-proxy form button[disabled]",
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy form input, #plugin-surrogate-proxy form .icon-btn"
+        },
+        {
+          "shot": "390-code-typed"
+        },
+        {
+          "pressIn": ["#plugin-surrogate-proxy", "Pair with the daemon"]
         },
         {
           "scrollToOptional": "^Surrogate credentials$"
@@ -175,12 +208,12 @@
         },
         {
           "fillOptional": {
-            "label": "Pairing code",
+            "selector": "#plugin-pair-surrogate-proxy",
             "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
           }
         },
         {
-          "pressOptional": "Pair with the daemon"
+          "pressIn": ["#plugin-surrogate-proxy", "Pair with the daemon"]
         },
         {
           "scrollToOptional": "^Surrogate credentials$"
@@ -276,13 +309,46 @@
           "scrollToOptional": "^Surrogate credentials$"
         },
         {
+          "scrollToOptional": "^Surrogate credentials$"
+        },
+        {
+          "count": [
+            "#plugin-surrogate-proxy form",
+            "#plugin-surrogate-proxy input",
+            "#plugin-surrogate-proxy form button",
+            "#plugin-surrogate-proxy form button[disabled]",
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy form input, #plugin-surrogate-proxy form .icon-btn"
+        },
+        {
+          "shot": "1280-unpaired"
+        },
+        {
           "fillOptional": {
-            "label": "Pairing code",
+            "selector": "#plugin-pair-surrogate-proxy",
             "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
           }
         },
         {
-          "pressOptional": "Pair with the daemon"
+          "count": [
+            "#plugin-surrogate-proxy form",
+            "#plugin-surrogate-proxy input",
+            "#plugin-surrogate-proxy form button",
+            "#plugin-surrogate-proxy form button[disabled]",
+            "#plugin-surrogate-proxy [aria-label='No daemon paired']"
+          ]
+        },
+        {
+          "measure": "#plugin-surrogate-proxy form input, #plugin-surrogate-proxy form .icon-btn"
+        },
+        {
+          "shot": "1280-code-typed"
+        },
+        {
+          "pressIn": ["#plugin-surrogate-proxy", "Pair with the daemon"]
         },
         {
           "scrollToOptional": "^Surrogate credentials$"
@@ -386,12 +452,12 @@
         },
         {
           "fillOptional": {
-            "label": "Pairing code",
+            "selector": "#plugin-pair-surrogate-proxy",
             "text": "opensesame-plugins:v1:eyJjb2RlIjoiUlhacFpHVnVZMlV0Y0dGcGNtbHVaeTFqYjJSbExXNXZkQzF5WldGc0lTRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHBzOi8vdmF1bHQuZXhhbXBsZS5vcmciLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0"
           }
         },
         {
-          "pressOptional": "Pair with the daemon"
+          "pressIn": ["#plugin-surrogate-proxy", "Pair with the daemon"]
         },
         {
           "scrollToOptional": "^Surrogate credentials$"
@@ -420,6 +486,22 @@
   ],
   "sheets": [
     {
+      "shot": "390-unpaired",
+      "width": 390,
+      "title": "No daemon paired: the key waits for a code \u2014 390 \u00d7 844",
+      "caption": "With no daemon paired the tile shows the pairing field and nothing to press. The key used to be drawn disabled; it now appears when the field holds a code, and the field never loses focus when it does.",
+      "before": "Pairing field; DISABLED pair key",
+      "after": "Pairing field; no pair key"
+    },
+    {
+      "shot": "390-code-typed",
+      "width": 390,
+      "title": "A code typed: the pair key appears \u2014 390 \u00d7 844",
+      "caption": "The field holds a code, so the one key that acts is drawn. Pressing it pairs and the form leaves; focus moves to the tile's heading instead of the page.",
+      "before": "Pairing field; pair key (enabled once a code is typed)",
+      "after": "Pairing field; pair key"
+    },
+    {
       "shot": "390-installed-off",
       "width": 390,
       "title": "Installed, off: the switch stays \u2014 390 \u00d7 844",
@@ -442,6 +524,22 @@
       "caption": "Nothing is installed, so there is nothing to switch. The tile keeps its mark and the terminal command to copy; the disabled switch is gone.",
       "before": "Not installed mark; DISABLED switch; forget key; install command",
       "after": "Not installed mark; forget key; install command"
+    },
+    {
+      "shot": "1280-unpaired",
+      "width": 1280,
+      "title": "No daemon paired: the key waits for a code \u2014 1280 \u00d7 900",
+      "caption": "With no daemon paired the tile shows the pairing field and nothing to press. The key used to be drawn disabled; it now appears when the field holds a code, and the field never loses focus when it does.",
+      "before": "Pairing field; DISABLED pair key",
+      "after": "Pairing field; no pair key"
+    },
+    {
+      "shot": "1280-code-typed",
+      "width": 1280,
+      "title": "A code typed: the pair key appears \u2014 1280 \u00d7 900",
+      "caption": "The field holds a code, so the one key that acts is drawn. Pressing it pairs and the form leaves; focus moves to the tile's heading instead of the page.",
+      "before": "Pairing field; pair key (enabled once a code is typed)",
+      "after": "Pairing field; pair key"
     },
     {
       "shot": "1280-installed-off",
