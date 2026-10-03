@@ -5,7 +5,7 @@ import {
   duressStatus,
   type enableDuressCode,
 } from "@opensesame/app-core/lib/duress/settings/device-duress.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import {
   IconCheck,
@@ -116,6 +116,12 @@ export function DuressPanel({
   const refresh = () => setStatus(duressStatus());
   const { busy, message, setMessage, run } = useDuressRun();
 
+  // Locking takes the row away; it must take the sheet with it, or the next
+  // unlock opens a ceremony nobody asked for.
+  useEffect(() => {
+    if (!shown) setOpen(false);
+  }, [shown]);
+
   if (!shown) return null;
 
   return (
@@ -155,6 +161,7 @@ export function DuressPanel({
           subtitle="A second code. Typed where you unlock, it opens something else."
           mark={<IconShield size={20} />}
           foot="Nothing changes until you press the button in the card. Your vault is never opened by this code."
+          busy={busy}
           onClose={() => {
             setOpen(false);
             refresh();
