@@ -33,7 +33,7 @@ use crate::BitwardenServer;
 /// How long a request stays open, to be answered and then spent.
 pub(crate) const WINDOW_MINUTES: i64 = 15;
 /// Unanswered requests one account may have open at once.
-const MAX_PENDING: i64 = 5;
+pub(crate) const MAX_PENDING: i64 = 5;
 
 pub(super) fn routes() -> Router<BitwardenServer> {
     Router::new()
@@ -47,6 +47,13 @@ pub(super) fn routes() -> Router<BitwardenServer> {
 /// When the open window began: requests made before it are gone.
 pub(crate) fn window_start() -> chrono::DateTime<Utc> {
     Utc::now() - Duration::minutes(WINDOW_MINUTES)
+}
+
+/// How much longer a request made at `created_at` stays open.
+pub(crate) fn time_left(created_at: chrono::DateTime<Utc>) -> std::time::Duration {
+    (created_at + Duration::minutes(WINDOW_MINUTES) - Utc::now())
+        .to_std()
+        .unwrap_or_default()
 }
 
 fn digest(code: &str) -> String {
@@ -142,9 +149,13 @@ async fn create(
     let (Some(public_key), Some(identifier), Some(code)) = (public_key, identifier, code) else {
         return Err(ApiError::bad_request("The request is incomplete."));
     };
-    if server.sign_in_failures.blocked(&email) {
+    // Every address is charged the same, whether or not it has an account, so
+    // the answer to "too many" says nothing about who does. The count is its
+    // own: failed passwords neither spend it nor are blocked by it.
+    if server.sign_in_requests.blocked(&email) {
         return Err(ApiError::too_many_requests());
     }
+    server.sign_in_requests.record_failure(&email);
     let user = server.db.bitwarden_user_by_email(&email).await?;
     let request = BitwardenAuthRequest {
         id: uuid::Uuid::new_v4().to_string(),
@@ -238,6 +249,7 @@ async fn answer(
             .db
             .bitwarden_delete_auth_request(&user.id, &id)
             .await?;
+        server.hub.sign_in_ended(&id);
         return Ok(Json(request_json(&server, &request)));
     }
     let key = text(&body, "key")
@@ -314,4 +326,19 @@ pub(crate) async fn spend(
         .db
         .bitwarden_delete_auth_request(&user.id, id)
         .await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_request_stays_open_for_its_window_and_not_a_moment_more() {
+        let fresh = time_left(Utc::now());
+        assert!(fresh > std::time::Duration::from_secs(14 * 60));
+        assert_eq!(
+            time_left(Utc::now() - Duration::minutes(WINDOW_MINUTES + 1)),
+            std::time::Duration::ZERO
+        );
+    }
 }

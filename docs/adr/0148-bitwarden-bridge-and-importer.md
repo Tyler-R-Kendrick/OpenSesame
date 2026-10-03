@@ -278,10 +278,19 @@ its access code, and signs in with the same code on the password grant
 - The server keeps the wrap and a SHA-256 digest of the access code, never
   the code or the key. A request is open for fifteen minutes and is spent by
   the one sign-in it allows; a denial deletes it.
-- An account has at most five unanswered requests at once; wrong codes are
-  limited per request, and requests per address by the sign-in limiter.
+- An address may make five requests in a window, and the count is its own —
+  not the failed-password count — charged to every normalized address alike,
+  so a made-up address gets no fresh allowance and the refusal says nothing
+  about who has an account. An account also has at most five unanswered
+  requests at once, held by the store as the same bound; wrong codes are
+  limited per request.
 - An address with no account gets a well-formed request that nothing will
   ever answer, so asking reveals nothing about who has an account.
+- A device waiting on the anonymous hub takes its seat first and then looks
+  again at the request: an answer that landed in between is told to it, so
+  no one waits on an answer that came. The wait ends when the request is
+  answered or denied, and in any case when its fifteen minutes are up.
+  Requests are swept by when they were made, which is indexed.
 - The pinned SignalR client, connected as `AnonymousHubService` connects,
   hears the answer (`AuthRequestResponseRecieved`, Bitwarden's spelling)
   under the oracle; the signed-in client hears the request and its answer.
