@@ -33,11 +33,22 @@ application keeps working with none of this present. It does.
 
 | Property | Evidence |
 |---|---|
-| An empty device with no endpoints configured completes guest, vault and settings journeys with no network setup prompt; Settings › Security › Transport draws its configuration form alone — no status rows, no Refresh key, no verify key, and Tab walks the form in order (`AT-STATIC-EMPTY`, amended 2026-09-28 below) | `pnpm --filter @opensesame/pages verify:transport`, 109 checks, exit 0; fails on any loopback request |
+| An empty device with no endpoints configured completes guest, vault and settings journeys with no network setup prompt; Settings › Security draws no Transport panel at all — no form, no status rows, no Refresh key, no verify key (`AT-STATIC-EMPTY`, amended 2026-09-28 and again 2026-10-02 below) | `pnpm --filter @opensesame/pages verify:transport`, 109 checks, exit 0; fails on any loopback request |
 | A remote target with broken TLS degrades only that target | same harness, the bad-remote journey: exactly one status request and one verify request leave the tab, only the observed row degrades |
 | No native TLS, filesystem, workload-socket or process adapter reaches the shipped bundle | `scripts/mtls/mtls-static-imports.mjs`, 69 chunks scanned plus the transitive dependency graph, exit 0 |
 | Touch, keyboard, local sign-in and self-issued identity journeys unchanged | `verify:mobile`, `verify:keyboard`, `verify:local-iam`, `verify:siop`, all exit 0 |
 | A browser operation needing a vault-controlled TLS identity | returns a typed unsupported outcome; no key export, no silent proxy |
+
+**Amended 2026-10-02: the panel is gone.** The settings clean-up (#618) removed
+the Transport panel from Pages. `AT-STATIC-EMPTY`, `AT-STATIC-BADREMOTE`,
+`AT-BROWSER-CACHE` and `AT-BROWSER-UX` in `verify-transport.mjs` now assert its
+**absence** — no panel, no form, no `[data-dimension]` row, no probe of an
+endpoint set through the settings file, zero requests to another origin, and the
+phone contract on Security at 320/390/430 and landscape with no transport
+control to measure. The 2026-09-28 restatement below is the history of how the
+panel was first reduced; its journey names (`emptyJourney`, `badremote-open`,
+`phone-configured-tablet-portrait`) describe the harness before the removal. The
+run counts in this record are those runs, not a re-run.
 
 **Amended 2026-09-28: `AT-STATIC-EMPTY` and `AT-BROWSER-UX` no longer require
 idle rows.** As first written, `AT-STATIC-EMPTY` required Settings › Security ›

@@ -12,6 +12,11 @@ import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 
 const FILE_NAME = "vault-kv.json";
 
+/** What the store reads from disk through; a suite holds a read open here. */
+export const vaultKvSeams = {
+  readText: (path: string): Promise<string> => readFile(path, "utf8"),
+};
+
 let directory: string | null = null;
 let records = new Map<string, string>();
 let pending = Promise.resolve();
@@ -33,7 +38,7 @@ function isEnoent(error: Error): boolean {
 async function readRecords(dir: string): Promise<Map<string, string>> {
   let text: string;
   try {
-    text = await readFile(filePath(dir), "utf8");
+    text = await vaultKvSeams.readText(filePath(dir));
   } catch (error) {
     if (error instanceof Error && isEnoent(error)) return new Map();
     throw error;

@@ -12,14 +12,22 @@ import type { GitRemoteConfiguration } from "@opensesame/app-core/lib/git-auth-m
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { providerTileItems } from "./provider-tile-items.js";
 
+/**
+ * The listed connectors a person can save on this device: a key, a
+ * configuration or a remote. An authorize-only provider has no saved
+ * operation — Connect or its own App takes it — and `createConnection`
+ * refuses it (`connections.test.ts`).
+ */
 export function listedProviders(): Provider[] {
-  const acts = (provider: Provider) => connectorActs(provider, false);
+  const tile = (provider: Provider) =>
+    connectorActs(provider, false) ? ("page" as const) : null;
   const seen = new Set<string>();
   const providers: Provider[] = [];
   for (const feature of FEATURES) {
     for (const category of feature.providerCategories) {
-      for (const item of providerTileItems(category, acts)) {
+      for (const item of providerTileItems(category, tile)) {
         if (seen.has(item.provider.id)) continue;
+        if (item.provider.authKind === "oauth2_authorization_code") continue;
         seen.add(item.provider.id);
         providers.push(item.provider);
       }

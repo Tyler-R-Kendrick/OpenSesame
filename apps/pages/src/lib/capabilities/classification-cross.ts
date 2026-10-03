@@ -1,0 +1,125 @@
+/**
+ * Code two or more optional capabilities import.
+ *
+ * Connections, Access and Identity are separate optional extensions (ADR 0153),
+ * each with its own switch, yet the Access section is built over the local
+ * directory and the connector catalogue (its Connectors tab, its Policies and
+ * Requests forms, vault sessions), and the setup ceremony and the Identity
+ * federation tab draw connector and local-application pieces. A file that more
+ * than one optional capability reaches belongs to none of them: classified as
+ * `optional` it either mixed capabilities in one chunk (BUILD-05) or, in a
+ * hardened build that kept one capability and excluded the other, was emitted
+ * under the excluded one's name (BUILD-04).
+ *
+ * These are `shared`: present wherever something reachable imports them, owning
+ * no feature, and closed — nothing listed here imports optional feature code
+ * that is not listed here. The capability's own section, route and runtime
+ * module stay `optional`; only what both sides reach lives here. A file reached
+ * by exactly one capability does not belong in this list.
+ *
+ * Rules here are matched before the area files', so a name listed here wins a
+ * tie with the same prefix in `classification-lib.ts` or `-sections.ts`.
+ */
+
+import { shared } from "./classification-rule.js";
+
+const L = "src/lib/";
+const S = "src/sections/identity/";
+const NM = "node_modules/";
+
+/** Local directory, sessions and application records Access reads. */
+const LOCAL_RECORDS = [
+  // Identity › Applications edits OAuth clients through it; federation does too.
+  "oauth-client-admin",
+  "local-access-audit",
+  "local-access-ledger-lock",
+  "local-agent-auth",
+  "local-agent-keys",
+  "local-application-shape",
+  "local-applications",
+  "local-credentials",
+  "local-devices",
+  "local-directory",
+  "local-directory-bootstrap",
+  "local-directory-memberships",
+  "local-directory-types",
+  "local-organizations",
+  "local-passkey-prf",
+  "local-passkeys",
+  "local-rbac",
+  "local-request-store",
+  "local-sessions",
+  "local-share-grants",
+  "local-vault-session-issue",
+  "local-vault-sessions",
+  "pages-dogfood",
+  "standing-connection-grants",
+];
+
+/** The Identity panels the Access and federation surfaces draw. */
+const IDENTITY_PIECES = [
+  "ApplicationDiagnostics",
+  "ApplicationRecipePanel",
+  "ApplicationSetupCard",
+  "ApplicationSourceEditor",
+  "LocalAgentAuthentication",
+  "LocalAgentEnrollment",
+  "LocalAgentKeys",
+  "LocalApplicationFields",
+  "LocalApplicationSettings",
+  "LocalIdentitySession",
+  "LocalMemberOrganizationRows",
+  "LocalMemberOrganizations",
+  "RegistrationActions",
+  "RegistrationExtras",
+  "registration-draft",
+  "application-recipe-panel-model",
+  "member-organizations-model",
+  // The registry every capability contributes an Identity tab through.
+  "directory-panel-slot",
+  "identity-views",
+];
+
+/** The connector catalogue Access, setup and device connectors read. */
+const CONNECTOR_RECORDS = [
+  "connect-create",
+  "connect-plan",
+  "connect-presets.generated",
+  "connect-update",
+  "connections",
+  "connections-integrations",
+  "connections-local-git",
+  "connector-directory",
+  "connector-settings",
+  "nango-directory",
+  "vercel-connect",
+  "vercel-connect-catalog",
+  "vercel-connect-manage",
+  "vercel-connect-map",
+  "vercel-connect-ops",
+  "vercel-connect-relay",
+];
+
+export const CROSS_RULES = [
+  ...LOCAL_RECORDS.map((name) =>
+    shared(`${L}${name}`, "local directory records Access and Identity share"),
+  ),
+  ...IDENTITY_PIECES.map((name) =>
+    shared(`${S}${name}`, "Identity pieces Access and federation also draw"),
+  ),
+  ...CONNECTOR_RECORDS.map((name) =>
+    shared(`${L}${name}`, "connector catalogue Access and setup also read"),
+  ),
+  shared(
+    "src/screens/setup/steps/ConnectorCards",
+    "setup's connector cards, drawn by the federation steps as well",
+  ),
+  shared(
+    `${NM}@vercel/connect`,
+    "reached through lib/vercel-connect.ts, which Access also reads",
+  ),
+  shared(
+    `${NM}@opensesame/auth-upstream`,
+    "browser passkey helpers the local records import",
+  ),
+];

@@ -132,13 +132,13 @@ function sizeOf(path: string): number {
   try {
     return statSync(path).size;
   } catch (error) {
-    if (isMissing(error)) return 0;
+    if (error instanceof Error && isMissing(error)) return 0;
     throw error;
   }
 }
 
-function isMissing(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
+function isMissing(error: Error): boolean {
+  return "code" in error && error.code === "ENOENT";
 }
 
 /** Rename `from` to `to`; a `from` another process already moved is not an error. */
@@ -146,7 +146,7 @@ function shift(from: string, to: string): void {
   try {
     renameSync(from, to);
   } catch (error) {
-    if (!isMissing(error)) throw error;
+    if (!(error instanceof Error && isMissing(error))) throw error;
   }
 }
 

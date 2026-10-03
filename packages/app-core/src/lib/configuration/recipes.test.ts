@@ -140,6 +140,7 @@ describe("recipes", () => {
       },
     ];
     for (const manifest of malformed) {
+      /* SAFETY: the fixture is deliberately malformed; importRecipe's runtime parser must refuse what the RecipeManifest contract forbids. */
       expect(
         importRecipe(manifest as never, { organization: "org-b" }),
       ).toEqual({ ok: false, message: "Malformed recipe manifest." });

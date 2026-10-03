@@ -24,6 +24,13 @@
 //!   (a deny's labels, a truncated fold) comes back. An interceptor with no
 //!   name, or a name that is not a legal §4.6 namespace, has nowhere to be
 //!   resurfaced to, and its labels stay in the record alone.
+//!
+//! Emissions overlap (§12.2), so notes are kept **per emission**: every
+//! emission gets its own wrapped interceptors and its own buffer
+//! ([`instrument`]), and settling it reads only that buffer. A label an
+//! emission persists rides the contexts built after it settles; a context
+//! already built — a verb the remote model proposed before this result
+//! existed — cannot have derived from it, and does not carry it.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -35,8 +42,8 @@ use serde_json::{json, Map, Value};
 /// §4.6: namespaces the specification keeps for itself.
 const RESERVED: [&str; 3] = ["acs", "ctk", "agent_hooks"];
 
-/// Labels noted during the emission in flight, by namespace.
-type Noted = Arc<Mutex<Vec<(String, Vec<String>)>>>;
+/// Labels noted during one emission, by namespace.
+pub(crate) type Noted = Arc<Mutex<Vec<(String, Vec<String>)>>>;
 
 /// `^[a-z][a-z0-9_]*$` and not reserved (§4.6).
 fn namespace(name: Option<String>) -> Option<String> {
@@ -47,9 +54,44 @@ fn namespace(name: Option<String>) -> Option<String> {
     (legal && !RESERVED.contains(&name.as_str())).then_some(name)
 }
 
+/// An interceptor as registered: shared between emissions, with the
+/// namespace its labels are resurfaced under.
+#[derive(Clone)]
+pub(crate) struct Registered {
+    inner: Arc<dyn Interceptor>,
+    namespace: Option<String>,
+}
+
+impl Registered {
+    pub(crate) fn new(interceptor: Box<dyn Interceptor>) -> Self {
+        Self {
+            namespace: namespace(interceptor.name()),
+            inner: Arc::from(interceptor),
+        }
+    }
+}
+
+/// The registered interceptors, each wrapped to note its labels into one
+/// fresh buffer — one per emission, so two emissions in flight at once never
+/// see each other's notes.
+pub(crate) fn instrument(registered: &[Registered]) -> (Vec<Box<dyn Interceptor>>, Noted) {
+    let noted = Noted::default();
+    let wrapped = registered
+        .iter()
+        .map(|entry| {
+            Box::new(Labelled {
+                inner: Arc::clone(&entry.inner),
+                namespace: entry.namespace.clone(),
+                noted: Arc::clone(&noted),
+            }) as Box<dyn Interceptor>
+        })
+        .collect();
+    (wrapped, noted)
+}
+
 /// A registered interceptor that notes the labels on its own permit verdicts.
 struct Labelled {
-    inner: Box<dyn Interceptor>,
+    inner: Arc<dyn Interceptor>,
     namespace: Option<String>,
     noted: Noted,
 }
@@ -74,31 +116,26 @@ impl Interceptor for Labelled {
     }
 }
 
-/// The labels a session has persisted, and what it notes per emission.
+/// The labels a session has persisted.
 #[derive(Default)]
 pub(crate) struct LabelLedger {
-    noted: Noted,
     carried: BTreeMap<String, Vec<String>>,
 }
 
 impl LabelLedger {
-    /// Wrap `interceptor` so its labels reach this ledger.
-    pub(crate) fn wrap(&self, interceptor: Box<dyn Interceptor>) -> Box<dyn Interceptor> {
-        Box::new(Labelled {
-            namespace: namespace(interceptor.name()),
-            inner: interceptor,
-            noted: Arc::clone(&self.noted),
-        })
-    }
-
-    /// Close the emission just made. Its noted labels are persisted only when
-    /// the host acted on it (`applied`) and the combined verdict — the
-    /// record's — names them; otherwise they are discarded (§5.4).
+    /// Close the emission that filled `noted`. Its noted labels are persisted
+    /// only when the host acted on it (`applied`) and the combined verdict —
+    /// the record's — names them; otherwise they are discarded (§5.4).
     ///
     /// Returns the `extensions` object to put on every later context when the
     /// carried set grew, `None` when it did not.
-    pub(crate) fn settle(&mut self, applied: bool, combined: &Verdict) -> Option<Value> {
-        let noted = std::mem::take(&mut *self.noted.lock().unwrap_or_else(PoisonError::into_inner));
+    pub(crate) fn settle(
+        &mut self,
+        noted: &Noted,
+        applied: bool,
+        combined: &Verdict,
+    ) -> Option<Value> {
+        let noted = std::mem::take(&mut *noted.lock().unwrap_or_else(PoisonError::into_inner));
         if !applied || !combined.decision.permits() {
             return None;
         }

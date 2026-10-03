@@ -52,55 +52,6 @@ let grant: (BrowserGrant & { key: ProofKey; accessToken: string }) | null =
 let epoch = 0;
 let lifetime = new AbortController();
 
-/**
- * The grant is state the page draws from (which connector forms can save, what
- * a tile offers), so a change to it — approved, renewed, ended, lapsed — is
- * announced, and a reader subscribes rather than polling.
- */
-let grantEpoch = 0;
-const grantListeners = new Set<() => void>();
-let expiryTimer: ReturnType<typeof setTimeout> | null = null;
-
-/** Changes whenever the held grant is set, renewed, cleared or lapses. */
-export function browserGrantEpoch(): number {
-  return grantEpoch;
-}
-
-export function subscribeBrowserGrant(listener: () => void): () => void {
-  grantListeners.add(listener);
-  return () => {
-    grantListeners.delete(listener);
-  };
-}
-
-/**
- * Listeners run on a microtask: a read made while a component renders may be
- * the one that finds the grant lapsed, and a subscriber must not be told to
- * re-render in the middle of that render.
- */
-function grantChanged(): void {
-  grantEpoch += 1;
-  queueMicrotask(() => {
-    for (const listener of grantListeners) listener();
-  });
-}
-
-/** A grant ends when its token does, whether or not anything asks about it. */
-function armGrantExpiry(): void {
-  if (expiryTimer !== null) clearTimeout(expiryTimer);
-  expiryTimer = null;
-  if (!grant) return;
-  const active = grant;
-  expiryTimer = setTimeout(
-    () => {
-      expiryTimer = null;
-      if (grant === active && active.expiresAt <= Date.now())
-        clearBrowserPairing();
-    },
-    Math.max(0, active.expiresAt - Date.now()) + 1,
-  );
-}
-
 export const browserPairingSeams = {
   eligible: mayPairLocalAuthority,
   createKey: createDpopKeyPair,
@@ -224,20 +175,15 @@ export async function pollBrowserPairing(): Promise<BrowserGrant | null> {
     ...validated,
   };
   pending = null;
-  armGrantExpiry();
-  grantChanged();
   return currentBrowserGrant(active.hostApi);
 }
 
 export function clearBrowserPairing(): void {
-  const held = grant !== null;
   lifetime.abort();
   lifetime = new AbortController();
   epoch += 1;
   pending = null;
   grant = null;
-  armGrantExpiry();
-  if (held) grantChanged();
 }
 
 export function currentBrowserGrant(rawHost: string): BrowserGrant | null {
@@ -331,8 +277,6 @@ export async function renewBrowserGrant(rawHost: string): Promise<boolean> {
   const renewed = validatedToken(payload, active.capabilities);
   if (renewed.clientId !== active.clientId) return false;
   grant = { ...active, ...renewed };
-  armGrantExpiry();
-  grantChanged();
   return true;
 }
 

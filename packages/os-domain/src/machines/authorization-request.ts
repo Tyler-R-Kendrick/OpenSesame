@@ -91,6 +91,35 @@ export function settle(
   };
 }
 
+/**
+ * The requester withdraws a request nobody has answered.
+ *
+ * Not a decision, so unlike `settle` it records no decider: `decidedBy*` name
+ * the approver (or the agent acting for one) who allowed or refused, and
+ * writing the requester there would let a withdrawal read as somebody's
+ * answer. Only `pending` may be withdrawn — a request that was approved,
+ * refused or lapsed already has an ending, and a withdrawal must not rewrite
+ * it — and the same clock check as every other transition applies.
+ */
+export function withdrawRequest(
+  request: AuthorizationRequest,
+  now: Date,
+): AuthorizationRequest {
+  assertNotExpired(request, now);
+  if (!canTransition(request.status, "cancelled")) {
+    throw new DomainError(
+      "INVALID_TRANSITION",
+      `authorization request cannot go ${request.status} -> cancelled`,
+    );
+  }
+  return {
+    ...request,
+    status: "cancelled",
+    decidedAt: now,
+    version: request.version + 1,
+  };
+}
+
 /** Lazily mark a lapsed request expired when it is read. */
 export function maybeExpire(
   request: AuthorizationRequest,

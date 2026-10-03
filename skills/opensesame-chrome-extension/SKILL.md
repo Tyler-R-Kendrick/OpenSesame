@@ -29,4 +29,5 @@ Set Host API base (default `http://127.0.0.1:8787`) in extension options / env u
 
 - Background checks Host `/health/live` and daemon `/health`.
 - Never requests secrets; invoke uses ConnectionRef via api-client when wired.
+- Local runner: on the options page save a Host session token, pin a recovery key, save a credential for an origin, then **Allow this site** while a run for it is waiting. The extension claims that run's steps, fills from its own sealed store (never the Host), backs a candidate up to the recovery key before any submit, and gives the site grant back when the run ends. A person asking for the page stops it.
 - Pair with Identity for step-up (account passkeys and the authenticator app are rows in Pages › Settings › Security).

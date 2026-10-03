@@ -67,3 +67,41 @@ upstream broker token as a token minted for your application.
 The `service-accounts` view URL remains compatible; its visible label is now
 Applications. Agents have their own `?view=agents` URL, available through the
 authored WebMCP navigation tool. Administrative mutations still require a human.
+
+## Who may ask whom: authorization requests and interactions
+
+An agent's action that needs a person is an **authorization request** (ADR
+0046) fronted by an **interaction** (ADR 0086) the person answers with a
+passkey. The Identity API holds four rules here; they are not settings.
+
+- **The caller is never the approver.** `POST /v1/interactions` over an
+  `authorization_request` refuses a caller whose principal is the principal the
+  inbox handle names. An agent that runs as its owner therefore cannot put a
+  question to its owner and have the same principal answer it. The refusal is
+  `404 interaction_not_found`, the same answer as an unverifiable handle, so it
+  does not reveal who a handle belongs to. Device, pairing, claim and
+  transaction interactions are not bound this way: one person routinely starts
+  them on one device and approves them on another.
+- **Only the addressee is asked.** The interaction's approver must be the
+  principal the request was addressed to. A requester cannot raise a request to
+  one person and front it with a question to somebody else.
+- **The requester can take a question back.** `POST
+  /v1/authorization-requests/{id}/cancel` withdraws a request nobody has
+  answered (`cancelled`, no decider recorded) and revokes the interaction
+  fronting it, so nothing stays approvable and nothing stays in the approver's
+  inbox. Only the requester may call it; everyone else, the approver included,
+  gets `404 not_found`. Withdrawing twice answers the same state; a request
+  already approved, refused or lapsed keeps that ending (`409
+  request_not_pending`, `410 expired_request`). The agent-hooks Interaction
+  approver (`crates/agent-hooks`, ADR 0159) calls it on every exit that is not
+  an approval.
+- **A refusal is not silence.** Spending an interaction a person refused
+  (`POST /v1/interactions/{ref}/consume`) answers `403 approval_denied`, final.
+  An interaction nobody has answered yet still answers `401 approval_required`.
+
+If an approval never arrives, check first that the requester's bearer belongs
+to a different principal than the approver's inbox handle: a deployment that
+runs its agents under its operators' own credentials will see every such
+request refused with `interaction_not_found`, by design. Give the agent its own
+principal.
+

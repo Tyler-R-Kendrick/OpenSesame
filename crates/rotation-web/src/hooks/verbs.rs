@@ -18,23 +18,31 @@
 use std::future::Future;
 
 use opensesame_ceremony::{CaptureDigest, Slot};
-use opensesame_session_observe::{LayoutEpoch, MaskManifest};
+use opensesame_session_observe::LayoutEpoch;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use agent_hooks::InterceptionPoint;
+use agent_hooks::{HostError, InterceptionPoint};
 
+use super::args::{
+    CaptureDownloadArgs, CaptureFieldArgs, MaskArgs, NoArgs, PlacedRefArgs, RefArgs, SelectorArgs,
+    UrlArgs,
+};
+use super::authority::Authority;
+use super::refusal::Refusal;
 use super::session::HookSession;
 use crate::ceremony::CaptureError;
-use crate::tools::{AdmittedFrame, CredentialRef, RedactedDom, StepError};
+use crate::tools::{AdmittedFrame, RedactedDom, StepError};
 
 /// A tool verb, as the hook session sees it.
 pub(crate) trait Verb {
     /// `tool_call.name`.
     const NAME: &'static str;
-    /// `tool_call.args`, typed.
-    type Args: Serialize + DeserializeOwned + Send;
+    /// `tool_call.args`, typed. [`Authority`] is required so that a verb
+    /// cannot exist without saying which of its arguments an interceptor may
+    /// not rewrite (`hooks::authority`).
+    type Args: Serialize + DeserializeOwned + Authority + Send;
     /// What the inner transport returns.
     type Out: Send;
     /// `tool_result.value` and `tool_result.is_error`.
@@ -44,63 +52,6 @@ pub(crate) trait Verb {
     fn decode(out: Self::Out, value: Value) -> Option<Self::Out>;
     /// What a refused call returns: an error, never a plausible answer.
     fn refused() -> Self::Out;
-}
-
-/// `navigate`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct UrlArgs {
-    pub url: String,
-}
-
-/// `wait_for`, `submit`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct SelectorArgs {
-    pub selector: String,
-}
-
-/// `fill_credential`, `assert_present`: a reference and a place, never a value.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct PlacedRefArgs {
-    pub reference: CredentialRef,
-    pub selector: String,
-}
-
-/// `verify_login`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct RefArgs {
-    pub reference: CredentialRef,
-}
-
-/// `read_dom_redacted`, `outstanding`: `{}`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct NoArgs {}
-
-/// `screenshot_redacted`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct MaskArgs {
-    pub mask: MaskManifest,
-}
-
-/// `capture_credential`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CaptureFieldArgs {
-    pub slot: Slot,
-    pub selector: String,
-}
-
-/// `capture_download`.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CaptureDownloadArgs {
-    pub slot: Slot,
-    pub content_type: String,
 }
 
 /// A redacted DOM read, as `tool_result.value`.
@@ -326,25 +277,63 @@ impl HookSession {
         Fut: Future<Output = V::Out> + Send,
     {
         let id = self.next_call_id();
-        let proposed = serde_json::to_value(&args).ok()?;
-        let effective = self
+        self.bracket_named::<V, F, Fut>(&id, V::NAME, args, invoke)
+            .await
+            .ok()
+    }
+
+    /// The one bracket, under `id` and `name`: every verb goes through it with
+    /// a minted id and its own [`Verb::NAME`], and a tool the host does not
+    /// know statically ([`HookSession::tool_call`]) goes through it with the
+    /// id and name a model gave it. The refusal says where and why (a reason,
+    /// never content).
+    ///
+    /// A transform is applied only when it leaves the run's authority as the
+    /// executor proposed it: the credential, the slot and the origin a
+    /// navigation reaches are not an interceptor's to rewrite. Anything else
+    /// is `transform_invalid`, exactly as for a transform the verb cannot
+    /// decode.
+    pub(crate) async fn bracket_named<V, F, Fut>(
+        &self,
+        id: &str,
+        name: &str,
+        args: V::Args,
+        invoke: F,
+    ) -> Result<V::Out, Refusal>
+    where
+        V: Verb,
+        F: FnOnce(V::Args) -> Fut + Send,
+        Fut: Future<Output = V::Out> + Send,
+    {
+        let proposed =
+            serde_json::to_value(&args).map_err(|_| unencodable(InterceptionPoint::PreToolCall))?;
+        let pinned = args.pinned();
+        let args = self
             .emit(
                 InterceptionPoint::PreToolCall,
-                |builder| builder.pre_tool_call(&id, V::NAME, proposed),
-                |target| serde_json::from_value::<V::Args>(target).ok(),
+                |builder| builder.pre_tool_call(id, name, proposed),
+                |target| {
+                    serde_json::from_value::<V::Args>(target)
+                        .ok()
+                        .filter(|effective| effective.pinned() == pinned)
+                },
             )
-            .await;
-        let args = effective.ok()?;
+            .await?;
         // §4.2: `tool_call.args` at `post_tool_call` is what was passed.
-        let passed = serde_json::to_value(&args).ok()?;
+        let passed = serde_json::to_value(&args)
+            .map_err(|_| unencodable(InterceptionPoint::PostToolCall))?;
         let out = invoke(args).await;
         let (value, is_error) = V::encode(&out);
         self.emit(
             InterceptionPoint::PostToolCall,
-            |builder| builder.post_tool_call(&id, V::NAME, passed, value, is_error),
+            |builder| builder.post_tool_call(id, name, passed, value, is_error),
             move |target| V::decode(out, target),
         )
         .await
-        .ok()
     }
+}
+
+/// Arguments that cannot be put in a context are refused, not guessed at.
+pub(super) fn unencodable(point: InterceptionPoint) -> Refusal {
+    Refusal::new(point, Some(HostError::ContextInvalid.to_string()))
 }

@@ -1,7 +1,6 @@
 import { REDACTED, scrubValue } from "@opensesame/log-scrub";
-import { overlapCast } from "@opensesame/os-domain";
+import { type BoundaryObject, overlapCast } from "@opensesame/os-domain";
 import {
-  type Bindings,
   type ChildLoggerOptions,
   type DestinationStream,
   type Logger,
@@ -77,15 +76,23 @@ function scrubChildBindings(logger: Logger): Logger {
     child: {
       configurable: true,
       writable: true,
-      value(this: Logger, bindings: Bindings, options?: ChildLoggerOptions) {
-        return Reflect.apply(makeChild, this, [scrubValue(bindings), options]);
+      value(
+        this: Logger,
+        bindings: BoundaryObject,
+        options?: ChildLoggerOptions,
+      ) {
+        return makeChild.call<
+          Logger,
+          [BoundaryObject, ChildLoggerOptions | undefined],
+          Logger
+        >(this, scrubValue(bindings), options);
       },
     },
     setBindings: {
       configurable: true,
       writable: true,
-      value(this: Logger, bindings: Bindings) {
-        Reflect.apply(setBindings, this, [scrubValue(bindings)]);
+      value(this: Logger, bindings: BoundaryObject) {
+        setBindings.call(this, scrubValue(bindings));
       },
     },
   });

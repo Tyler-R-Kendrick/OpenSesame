@@ -319,14 +319,11 @@ describe("PACT — browser extension loopback pin", () => {
   it("popup and background refuse a rewritten remote hostApiBase", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const ext = join(here, "../../../apps/browser-extension");
-    assertSourceOrder(
-      readFileSync(join(ext, "entrypoints/background.ts"), "utf8"),
-      [
-        "normalizeLoopbackBaseUrl",
-        "if (normalized) return normalized",
-        "DEFAULT_HOST",
-      ],
-    );
+    assertSourceOrder(readFileSync(join(ext, "runner/host-base.ts"), "utf8"), [
+      "normalizeLoopbackBaseUrl",
+      "if (normalized) return normalized",
+      "DEFAULT_HOST",
+    ]);
     assertSourceOrder(
       readFileSync(join(ext, "entrypoints/popup/main.ts"), "utf8"),
       [
@@ -334,7 +331,7 @@ describe("PACT — browser extension loopback pin", () => {
         "if (!value)",
         // Only the normalized value is stored, sealed at rest (ADR 0149).
         'sealForRest(STORE, "hostApiBase", value)',
-        "chrome.storage.local.set({ hostApiBase: sealed })",
+        "browser.storage.local.set({ hostApiBase: sealed })",
       ],
     );
     expect(normalizeLoopbackBaseUrl("https://evil.example")).toBeNull();

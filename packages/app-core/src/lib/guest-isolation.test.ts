@@ -55,7 +55,6 @@ it("does not load Host installs or mint grants for a guest session", async () =>
   expect(snapshot).toEqual({
     integrations: [],
     installations: [],
-    repos: [],
     shares: [],
     ownerId: null,
     auditEvents: [],
