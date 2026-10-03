@@ -60,6 +60,15 @@ describe("UnlockMethodsPanel outcomes", () => {
     await userEvent.click(dialog.getByRole("button", { name: "Set PIN" }));
   }
 
+  it("states, beside the keys it governs, that identity recovery never unwraps the vault (J-RECOVERY), and says nothing else under the heading", () => {
+    render(<UnlockMethodsPanel />);
+    const head = screen
+      .getByRole("heading", { name: "Unlock methods" })
+      .closest("div");
+    expect(head?.textContent).toMatch(/does not unwrap the vault/i);
+    expect(head?.textContent).not.toMatch(/Which key opens/);
+  });
+
   it("announces a success and draws no box: the row's mark is the state", async () => {
     await setPin();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

@@ -3,6 +3,7 @@ export {
   persistEnrollmentStateForUnlock,
 } from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";
 import { AccountFactorError } from "@opensesame/app-core/lib/account-factors.js";
+import { describeRecovery } from "@opensesame/app-core/lib/configuration/recovery-outcomes.js";
 import { loadSession } from "@opensesame/app-core/lib/federation.js";
 import { readSignInService } from "@opensesame/app-core/lib/identity-service.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
@@ -190,6 +191,10 @@ function UnlockMethodsBody() {
         <div className="panel__head">
           <div>
             <h2>Unlock methods</h2>
+            {/* The one sentence that is a security boundary, not an
+                explainer: signing in again through the identity provider
+                never opens the vault (J-RECOVERY). */}
+            <p className="hint">{describeRecovery("identity")}</p>
           </div>
         </div>
         <div className="panel__body">
