@@ -2,31 +2,19 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useFinePointer, useMediaQuery, useNarrow } from "./use-narrow.js";
+import { stubMatchMedia } from "./use-narrow.test-support.js";
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
-function media(matching: readonly string[]) {
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string) =>
-      ({
-        matches: matching.some((part) => query.includes(part)),
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList,
-  );
-}
-
 describe("media hooks", () => {
   it("answers what the browser says", () => {
-    media(["max-width: 900px"]);
+    stubMatchMedia((query) => query.includes("max-width: 900px"));
     expect(renderHook(() => useNarrow()).result.current).toBe(true);
     expect(renderHook(() => useFinePointer()).result.current).toBe(false);
-    media(["any-pointer: fine"]);
+    stubMatchMedia((query) => query.includes("any-pointer: fine"));
     expect(renderHook(() => useNarrow()).result.current).toBe(false);
     expect(renderHook(() => useFinePointer()).result.current).toBe(true);
   });

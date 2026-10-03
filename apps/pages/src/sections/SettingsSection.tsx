@@ -4,6 +4,7 @@ import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { useFinePointer } from "../lib/use-narrow.js";
 import { settingsPageSources } from "./settings/page-tree.js";
+import { useSettingsCategory } from "./settings/use-settings-category.js";
 
 import {
   settingsCategoryFromLocation,
@@ -50,20 +51,20 @@ export type { SettingsPanels } from "./SettingsSectionNav.js";
  */
 function useSettingsLocation(category: string, hash: string, pathname: string) {
   const navigate = useNavigate();
-  // Nothing on a touch-only device can press a key, so a link to the key
-  // editor lands on General rather than on a page the tabs do not list.
   const keys = useFinePointer();
+  // One navigation per address. Nothing on a touch-only device can press a
+  // key, so any road to the key editor (its path, its legacy hash) goes
+  // straight to General; every other `#fragment` lands on its category's path.
   useEffect(() => {
-    if (keys || category !== "keybindings") return;
-    navigate(settingsPath("general"), { replace: true });
-  }, [category, keys, navigate]);
-
-  useEffect(() => {
-    const fromHash = categoryFromHash(hash);
-    if (fromHash && !pathname.match(/\/settings\/[^/]+/)) {
-      navigate(settingsPath(fromHash, hash), { replace: true });
+    const fromPath = pathname.match(/\/settings\/[^/]+/) !== null;
+    const target = fromPath ? null : categoryFromHash(hash);
+    const named = settingsCategoryFromLocation(pathname, hash);
+    if (!keys && named === "keybindings") {
+      navigate(settingsPath("general"), { replace: true });
+    } else if (target) {
+      navigate(settingsPath(target, hash), { replace: true });
     }
-  }, [hash, navigate, pathname]);
+  }, [hash, keys, navigate, pathname]);
 
   // Keybindings were a panel of General before they had a tab (ADR 0156).
   useEffect(() => {
@@ -96,8 +97,7 @@ export function SettingsSection({
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { hash, pathname, search } = useLocation();
   const tabs = useSettingsTabs();
-  const keys = useFinePointer();
-  const category = settingsCategoryFromLocation(pathname, hash);
+  const category = useSettingsCategory();
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
   const contributedPanels = useCategoryPanels(category);
   // A directory's files are the same page spelled as files: its
@@ -148,7 +148,7 @@ export function SettingsSection({
             <GeneralPrefsPanel />
           </>
         ) : null}
-        {form && category === "keybindings" && keys ? (
+        {form && category === "keybindings" ? (
           <Suspense fallback={null}>
             <KeybindingsPanels />
           </Suspense>

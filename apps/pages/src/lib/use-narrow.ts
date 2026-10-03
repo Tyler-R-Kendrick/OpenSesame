@@ -46,9 +46,11 @@ export function useNarrow(): boolean {
 }
 
 /**
- * False only on a touch-only device, where nothing can press a key.
- * A laptop, a tablet with a mouse or Bluetooth keyboard, and a renderer with
- * no `matchMedia` all count as having one.
+ * False where no pointing device is attached, which is how a touch-only
+ * phone reads. `(any-pointer: fine)` detects pointers, not keyboards, so a
+ * phone whose only extra is a hardware keyboard also reads false and loses
+ * the Keybindings tab (DESIGN.md § Touch). A laptop, a tablet with a mouse or
+ * trackpad, and a renderer with no `matchMedia` all count as having a key.
  */
 export function useFinePointer(): boolean {
   return useMediaQuery(FINE_POINTER_QUERY, true);
