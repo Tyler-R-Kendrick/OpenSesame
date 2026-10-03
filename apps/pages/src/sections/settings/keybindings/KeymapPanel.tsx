@@ -229,7 +229,7 @@ function HeadChoice<T extends string>({
 }
 
 /**
- * Settings › Keybindings › Keymap (ADR 0150): every command, its keys as
+ * Settings › Keybindings › Keymap (ADR 0155): every command, its keys as
  * keycaps, found by words or by pressing the keys themselves — everywhere,
  * or as they hold in one listing (§6).
  */

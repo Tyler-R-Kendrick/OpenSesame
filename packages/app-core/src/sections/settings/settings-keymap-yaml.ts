@@ -1,5 +1,5 @@
 /**
- * The Keybindings `config.yaml`'s own keys (ADR 0150): `keybindings:`,
+ * The Keybindings `config.yaml`'s own keys (ADR 0155): `keybindings:`,
  * `contexts:` and `macros:`, spelled and read here so `settings-files.ts`
  * stays the directory-agnostic codec.
  */

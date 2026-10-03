@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150: which presses become a token. Alt, Option and AltGr make
+ * ADR 0155: which presses become a token. Alt, Option and AltGr make
  * characters on many layouts (`@` is Option+L on a German Mac, AltGr+Q on a
  * German Windows keyboard), and the keymap must be able to bind them; Alt with
  * a letter or a digit is the browser's mnemonic and Meta is the platform's.

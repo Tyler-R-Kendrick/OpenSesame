@@ -1,5 +1,5 @@
 /**
- * Registers (ADR 0150): vim's `q{a–z}` records what the keys ran into a
+ * Registers (ADR 0155): vim's `q{a–z}` records what the keys ran into a
  * macro named `q-<letter>`, and `@{a–z}` replays it. A recording is an
  * ordinary macro once it is kept, so the Macros panel lists it, a key may be
  * bound to it, and every guardrail on a macro holds for it.

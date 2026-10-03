@@ -1,5 +1,5 @@
 /**
- * Key notation for the keymap (ADR 0150): one token per key press, a
+ * Key notation for the keymap (ADR 0155): one token per key press, a
  * sequence of tokens per binding.
  *
  * A token is the key's own name, with `Control+` in front when Control was

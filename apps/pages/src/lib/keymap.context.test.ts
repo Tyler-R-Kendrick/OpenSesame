@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150 §6: a key a person scoped to the vault list or the rail tree holds
+ * ADR 0155 §6: a key a person scoped to the vault list or the rail tree holds
  * only while the keyboard is in that listing, and everywhere else the global
  * keymap answers as it always did.
  */

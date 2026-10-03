@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150: event triggers. A trigger moves the vault list and nothing else,
+ * ADR 0155: event triggers. A trigger moves the vault list and nothing else,
  * however a hand-written file pairs two of them; it fires when the section
  * segment changes and not for each item opened inside it; `unlock` survives
  * the shell's `navigate` changing identity and is retried while a field holds

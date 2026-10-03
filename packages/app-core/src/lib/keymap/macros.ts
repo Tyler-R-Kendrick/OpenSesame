@@ -1,5 +1,5 @@
 /**
- * Macros (ADR 0150 §4): named step lists, each step a command and a count,
+ * Macros (ADR 0155 §4): named step lists, each step a command and a count,
  * and the closed set of events one may run on. Read from boundary data and
  * refused whole, like the rest of the keymap.
  */

@@ -69,7 +69,7 @@ function useSettingsState(): SettingsState {
 
 /**
  * Tab completes a half-typed word and otherwise moves focus, as it always
- * does: a person must be able to Tab out of the file (ADR 0150). It applies
+ * does: a person must be able to Tab out of the file (ADR 0155). It applies
  * only once they have typed in the file since it took focus, with the caret at
  * the end of a partly typed key or value that a suggestion goes on to finish.
  */

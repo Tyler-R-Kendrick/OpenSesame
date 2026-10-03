@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-/** The recording hairline is the only sign the timer is running (ADR 0150). */
+/** The recording hairline is the only sign the timer is running (ADR 0155). */
 import { describe, expect, it } from "vitest";
 
 function reducedMotionBlock(source: string): string {

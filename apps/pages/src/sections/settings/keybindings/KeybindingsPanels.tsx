@@ -8,7 +8,7 @@ import "./keybindings.css";
 /**
  * Settings › Keybindings: the keymap, then the macros that bind into it. The
  * scope the keymap is read in is shared, so a key bound to a macro in one
- * listing shows, and is edited, beside the macro (ADR 0150 §6).
+ * listing shows, and is edited, beside the macro (ADR 0155 §6).
  */
 export function KeybindingsPanels() {
   const [scope, setScope] = useState<KeymapScope>("everywhere");

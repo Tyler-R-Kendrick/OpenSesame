@@ -1,5 +1,5 @@
 /**
- * Every command a key or a macro may name (ADR 0150). The shell's keymap binds
+ * Every command a key or a macro may name (ADR 0155). The shell's keymap binds
  * these ids to what they do; Settings › Keybindings draws one row per command;
  * the `config.yaml` names them. A command id is stable — a person's file names
  * it — so one is never renamed. A retired id is refused by a panel or a file,

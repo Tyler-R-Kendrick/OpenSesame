@@ -109,7 +109,7 @@ let cached: {
 
 /**
  * The keymap in force — everywhere, or with a listing's own keys laid over
- * it (ADR 0150 §6) — rebuilt only when the keymap or the jumps change.
+ * it (ADR 0155 §6) — rebuilt only when the keymap or the jumps change.
  */
 export function currentBindings(
   context?: KeymapContext | null,
@@ -162,7 +162,7 @@ function otherListing(event: KeyboardEvent): void {
 }
 
 /**
- * The shell's key handler (ADR 0150). Every binding comes from the keymap in
+ * The shell's key handler (ADR 0155). Every binding comes from the keymap in
  * force — the defaults with a person's changes — through a sequence trie:
  * counts first (`5j`), then the half-typed sequence (`g` of `g v`), which
  * waits `goTimeoutMs` like vim's `timeoutlen`. The keys that keep the
@@ -306,7 +306,7 @@ function countKey(event: KeyboardEvent, chord: ChordState): boolean {
   return true;
 }
 
-/** The keys no keymap may take: Escape, F6 and Enter (ADR 0150). */
+/** The keys no keymap may take: Escape, F6 and Enter (ADR 0155). */
 function fixedKey(event: KeyboardEvent): boolean {
   if (event.key === "Escape") {
     leavePane(event);

@@ -72,9 +72,9 @@ export type SettingsValue = string | number | boolean | string[];
 export type SettingsDoc = {
   values: Record<string, SettingsValue>;
   keybindings: Record<string, string>;
-  /** Settings › Keybindings only (ADR 0150). */
+  /** Settings › Keybindings only (ADR 0155). */
   macros?: Record<string, MacroDoc>;
-  /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0150 §6). */
+  /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0155 §6). */
   contexts?: ContextsDoc;
 };
 
@@ -93,7 +93,7 @@ const GENERAL = [
 ] as const satisfies readonly SettingsField[];
 
 /**
- * Settings › Keybindings (ADR 0150): only what the person changed — the
+ * Settings › Keybindings (ADR 0155): only what the person changed — the
  * character-key switch, the bindings laid over the defaults, the keys that
  * hold in one listing, their macros.
  */

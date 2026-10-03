@@ -8,7 +8,7 @@ import { readKeymap } from "../keymap/config.js";
 import { defaultBindings } from "../keymap/effective.js";
 import { canonicalSequence } from "../keymap/notation.js";
 
-/** Flat `sequence → command` view of a keymap (ADR 0150 keeps it sparse). */
+/** Flat `sequence → command` view of a keymap (ADR 0155 keeps it sparse). */
 export type KeybindingMap = Record<string, string>;
 
 /** Every default binding the core shell has, before any capability adds jumps. */

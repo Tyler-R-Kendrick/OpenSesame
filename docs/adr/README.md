@@ -190,7 +190,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0148](0148-bitwarden-bridge-and-importer.md) | The Bitwarden server as an optional bridge, and moving onto it | Accepted |
 | [0149](0149-nothing-stored-in-the-clear.md) | Nothing the client stores rests in the clear | Accepted |
 | [0150](0150-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor | Accepted |
-| [0150](0150-keybindings-and-macros.md) | Keybindings are their own settings, and every key is a person's | Accepted |
 | [0150](0150-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |
 | [0150](0150-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
 | [0150](0150-surrogate-credentials-at-the-last-hop.md) | Surrogate credentials at the last hop | Proposed |
@@ -199,3 +198,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0152](0152-browser-key-protector-enrollment.md) | Which key protectors the static browser client enrolls | Accepted |
 | [0153](0153-minimal-pwa-optional-sections.md) | Minimal PWA: vault, activity, settings | Accepted |
 | [0154](0154-setup-configuration-choice.md) | Setup starts with a configuration choice | Accepted |
+| [0155](0155-keybindings-and-macros.md) | Keybindings are their own settings, and every key is a person's | Accepted |

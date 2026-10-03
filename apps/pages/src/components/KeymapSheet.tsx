@@ -25,7 +25,7 @@ export function KeymapSheet({
   useContributions("command-assist");
   useContributions("secret-share");
   const keymap = useSyncExternalStore(subscribeKeymap, loadKeymap, loadKeymap);
-  // Drawn from the keys in force (ADR 0150): a key moved onto another command
+  // Drawn from the keys in force (ADR 0155): a key moved onto another command
   // is on that command, and one taken away is gone, so the sheet never
   // promises a key the handler would not run.
   const rows = keymapHelp({ config: keymap, commands: keymapCommands() });

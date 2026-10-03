@@ -51,7 +51,7 @@ function authorizedJumpPath(jump: { key: string; path: string }):
 }
 
 /**
- * The path a `section.<id>` command opens (ADR 0150), gated exactly as a
+ * The path a `section.<id>` command opens (ADR 0155), gated exactly as a
  * `g <key>` press is: null when no jump names it or its capability no longer
  * holds authority, so a stale binding is swallowed rather than obeyed.
  */

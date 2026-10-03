@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150 guardrail: Tab, Shift+Tab, Enter, Escape and F6 keep the
+ * ADR 0155 guardrail: Tab, Shift+Tab, Enter, Escape and F6 keep the
  * keyboard-only road open. The model refuses them at read time; this proves
  * the handler holds even if the map it reads somehow carried them — its fixed
  * keys are read before the keymap is, so a stray binding can never win.

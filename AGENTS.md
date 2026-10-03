@@ -616,7 +616,7 @@ Do not add new top-level directories or loose root files — find the group.
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
 - **Every key is a person's, and a few keep the road open**
-  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  ([ADR 0155](docs/adr/0155-keybindings-and-macros.md)). The shell's handler
   resolves every press through the effective keymap (the catalogue in
   `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
   sparse bindings), so a new key is a catalogue row, never a second
