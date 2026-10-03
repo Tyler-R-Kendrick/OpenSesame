@@ -24,10 +24,9 @@ export function vaultListPath(search: string, narrow: boolean): string {
 }
 
 /** The way back from an item: where it goes, and what the key says. */
-export function useVaultList(search: string): {
-  listPath: string;
-  backLabel: string;
-} {
+export type VaultListWay = { listPath: string; backLabel: string };
+
+export function useVaultList(search: string): VaultListWay {
   const listPath = vaultListPath(search, useNarrow());
   return { listPath, backLabel: vaultBackLabel(listPath) };
 }

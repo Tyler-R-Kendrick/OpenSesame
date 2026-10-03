@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { KeymapSheet } from "./KeymapSheet.js";
 
 afterEach(() => {
@@ -9,16 +10,7 @@ afterEach(() => {
 });
 
 function pointer(coarse: boolean) {
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string) =>
-      ({
-        matches: coarse && query.includes("pointer: coarse"),
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList,
-  );
+  stubScreen({ narrow: false, coarse });
 }
 
 describe("the help sheet", () => {
