@@ -232,7 +232,7 @@
   height: 2px;
   background: var(--accent);
   transform-origin: left center;
-  animation: kb-drain 1000ms linear forwards;
+  animation: kb-drain var(--kb-drain-ms, 1000ms) linear forwards;
 }
 
 @keyframes kb-drain {
@@ -244,9 +244,14 @@
   }
 }
 
+/* Reduced motion keeps the countdown, in steps rather than a glide: the
+   hairline is the only sign the keys are about to be kept. The global
+   reduced-motion rule forces every duration to 0.01ms with !important, so the
+   real one is restated here — a class beats `*` at equal importance. */
 @media (prefers-reduced-motion: reduce) {
   .kb-capture__drain {
-    animation: none;
+    animation-duration: var(--kb-drain-ms, 1000ms) !important;
+    animation-timing-function: steps(4, end);
   }
   .keycap {
     transition: none;
