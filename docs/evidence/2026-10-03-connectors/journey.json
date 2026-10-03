@@ -1,0 +1,441 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-grid",
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            ".conn-tile [role=switch]",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "1280-tiles-off"
+        },
+        {
+          "open": "GitLab"
+        },
+        {
+          "count": [".conn-settings", "h1", "h2", ".conn-grid"]
+        },
+        {
+          "shot": "1280-tile-opened"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-grid",
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            ".conn-tile [role=switch]",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "390-tiles-off"
+        },
+        {
+          "open": "GitLab"
+        },
+        {
+          "count": [".conn-settings", "h1", "h2", ".conn-grid"]
+        },
+        {
+          "shot": "390-tile-opened"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-grid",
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            ".conn-tile [role=switch]",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "1280-tiles-on"
+        },
+        {
+          "open": "Better Auth"
+        },
+        {
+          "count": [
+            ".conn-settings",
+            ".conn-settings form",
+            ".conn-settings form button"
+          ]
+        },
+        {
+          "shot": "1280-connector-page"
+        },
+        {
+          "visit": "connections"
+        },
+        {
+          "count": ["a[aria-label='Custom connector']", "a.conn-tile__link"]
+        },
+        {
+          "shot": "1280-catalog"
+        },
+        {
+          "open": "Custom connector"
+        },
+        {
+          "count": [".conn-settings", "h1"]
+        },
+        {
+          "report": "h1"
+        },
+        {
+          "shot": "1280-custom-opened"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-grid",
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            ".conn-tile [role=switch]",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "390-tiles-on"
+        },
+        {
+          "open": "Better Auth"
+        },
+        {
+          "count": [
+            ".conn-settings",
+            ".conn-settings form",
+            ".conn-settings form button"
+          ]
+        },
+        {
+          "shot": "390-connector-page"
+        },
+        {
+          "visit": "connections"
+        },
+        {
+          "count": ["a[aria-label='Custom connector']", "a.conn-tile__link"]
+        },
+        {
+          "shot": "390-catalog"
+        },
+        {
+          "open": "Custom connector"
+        },
+        {
+          "count": [".conn-settings", "h1"]
+        },
+        {
+          "report": "h1"
+        },
+        {
+          "shot": "390-custom-opened"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Access"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "pressOptional": "Add connector access"
+        },
+        {
+          "count": ["[aria-label='Choose a connector'] a"]
+        },
+        {
+          "shot": "1280-access-add"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Access"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "access/connectors"
+        },
+        {
+          "pressOptional": "Add connector access"
+        },
+        {
+          "count": ["[aria-label='Choose a connector'] a"]
+        },
+        {
+          "shot": "390-access-add"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            "[aria-label='Encryption providers'] .conn-tile",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "1280-sealed-off"
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            "[aria-label='Encryption providers'] .conn-tile",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "1280-sealed-on"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            "[aria-label='Encryption providers'] .conn-tile",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "390-sealed-off"
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".conn-tile",
+            ".conn-tile a.conn-tile__link",
+            "[aria-label='Encryption providers'] .conn-tile",
+            ".capsection__title"
+          ]
+        },
+        {
+          "shot": "390-sealed-on"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-tiles-off",
+      "width": 1280,
+      "title": "Settings › Capabilities with Connections off (the default) — 1280 × 900",
+      "caption": "Every connector tile used to be a link into a page that exists only while Connections is on. Now a tile is drawn only where something on it acts: the git history roads keep their own enable switch, and the connectors that have only a page are not drawn until Connections is.",
+      "before": "57 tiles, 43 links, 21 switches; 20 sections",
+      "after": "21 tiles, 0 links, 21 switches; 17 sections"
+    },
+    {
+      "shot": "390-tiles-off",
+      "width": 390,
+      "title": "Settings › Capabilities with Connections off (the default) — 390 × 844",
+      "caption": "Every connector tile used to be a link into a page that exists only while Connections is on. Now a tile is drawn only where something on it acts: the git history roads keep their own enable switch, and the connectors that have only a page are not drawn until Connections is.",
+      "before": "57 tiles, 43 links, 21 switches; 20 sections",
+      "after": "21 tiles, 0 links, 21 switches; 17 sections"
+    },
+    {
+      "shot": "1280-tile-opened",
+      "width": 1280,
+      "title": "Opening a connector tile (GitLab) with Connections off — 1280 × 900",
+      "caption": "The tile led to /settings/connections/gitlab, which nothing routes: a blank page under a breadcrumb. The tile is now its switch alone, so there is nothing to open.",
+      "before": "blank page: 0 headings, 0 connector pages",
+      "after": "tile is not a link; Settings stays: 1 h1, 1 h2"
+    },
+    {
+      "shot": "390-tile-opened",
+      "width": 390,
+      "title": "Opening a connector tile (GitLab) with Connections off — 390 × 844",
+      "caption": "The tile led to /settings/connections/gitlab, which nothing routes: a blank page under a breadcrumb. The tile is now its switch alone, so there is nothing to open.",
+      "before": "blank page: 0 headings, 0 connector pages",
+      "after": "tile is not a link; Settings stays: 1 h1, 1 h2"
+    },
+    {
+      "shot": "1280-tiles-on",
+      "width": 1280,
+      "title": "Settings › Capabilities with Connections on (control) — 1280 × 900",
+      "caption": "Once Connections is on its pages are routed, and every tile links to one: the same tiles, the same links, the same switches in both builds.",
+      "before": "60 tiles, 46 links, 21 switches; 23 sections",
+      "after": "identical"
+    },
+    {
+      "shot": "390-tiles-on",
+      "width": 390,
+      "title": "Settings › Capabilities with Connections on (control) — 390 × 844",
+      "caption": "Once Connections is on its pages are routed, and every tile links to one: the same tiles, the same links, the same switches in both builds.",
+      "before": "60 tiles, 46 links, 21 switches; 23 sections",
+      "after": "identical"
+    },
+    {
+      "shot": "1280-catalog",
+      "width": 1280,
+      "title": "Connections catalog: the Custom connector key — 1280 × 900",
+      "caption": "The key at the head of Add a connection led to a page that said Connector not found. A custom provider was a form only a Host took; with no Host the key is not drawn.",
+      "before": "Custom connector links: 1",
+      "after": "Custom connector links: 0"
+    },
+    {
+      "shot": "390-catalog",
+      "width": 390,
+      "title": "Connections catalog: the Custom connector key — 390 × 844",
+      "caption": "The key at the head of Add a connection led to a page that said Connector not found. A custom provider was a form only a Host took; with no Host the key is not drawn.",
+      "before": "Custom connector links: 1",
+      "after": "Custom connector links: 0"
+    },
+    {
+      "shot": "1280-access-add",
+      "width": 1280,
+      "title": "Access › Connectors › Add, Connections off — 1280 × 900",
+      "caption": "Add ended in a New connector tile that linked to /connections#catalog, a section that is not there while Connections is off. With the pages unrouted the tile is not drawn; the list of connectors to grant on is unchanged.",
+      "before": "New connector links: 1",
+      "after": "New connector links: 0"
+    },
+    {
+      "shot": "390-access-add",
+      "width": 390,
+      "title": "Access › Connectors › Add, Connections off — 390 × 844",
+      "caption": "Add ended in a New connector tile that linked to /connections#catalog, a section that is not there while Connections is off. With the pages unrouted the tile is not drawn; the list of connectors to grant on is unchanged.",
+      "before": "New connector links: 1",
+      "after": "New connector links: 0"
+    },
+    {
+      "shot": "1280-sealed-off",
+      "width": 1280,
+      "title": "An unlocked vault with Connections off — 1280 × 900",
+      "caption": "Encryption's tiles (AWS KMS, Google Cloud KMS) open pages that seal a key in the vault — pages that are routed only with Connections. They were drawn, and opened a blank page. Now the section is absent until Connections is on.",
+      "before": "59 tiles, 45 links, 2 Encryption tiles; 23 sections",
+      "after": "21 tiles, 0 links, 0 Encryption tiles; 19 sections"
+    },
+    {
+      "shot": "390-sealed-off",
+      "width": 390,
+      "title": "An unlocked vault with Connections off — 390 × 844",
+      "caption": "Encryption's tiles (AWS KMS, Google Cloud KMS) open pages that seal a key in the vault — pages that are routed only with Connections. They were drawn, and opened a blank page. Now the section is absent until Connections is on.",
+      "before": "59 tiles, 45 links, 2 Encryption tiles; 23 sections",
+      "after": "21 tiles, 0 links, 0 Encryption tiles; 19 sections"
+    }
+  ]
+}
