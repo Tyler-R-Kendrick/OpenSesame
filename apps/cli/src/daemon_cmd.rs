@@ -15,7 +15,7 @@ use std::{
 };
 
 /// Flags shared by every `opensesame daemon` verb.
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args)]
 pub struct DaemonArgs {
     #[arg(long, env = endpoints::env(DAEMON), default_value_t = endpoints::fallback(DAEMON))]
     url: String,
@@ -26,6 +26,20 @@ pub struct DaemonArgs {
     operator_token: Option<String>,
     #[command(subcommand)]
     cmd: DaemonCmd,
+}
+
+impl std::fmt::Debug for DaemonArgs {
+    /// The operator token gates every daemon route; it never prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DaemonArgs")
+            .field("url", &self.url)
+            .field(
+                "operator_token",
+                &self.operator_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("cmd", &self.cmd)
+            .finish()
+    }
 }
 
 impl DaemonArgs {
@@ -116,18 +130,55 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// What `daemon logs` finds at the logfile.
+#[derive(Debug)]
+enum LogRead {
+    /// No logfile: the health probe is the next thing to try.
+    Missing,
+    Lines(Vec<String>),
+    Unreadable(std::io::Error),
+}
+
+/// Read the logfile's tail. The file is looked for first and the key only if it
+/// is there, so a fresh machine reaches the health probe. A log an older build
+/// wrote in the clear needs no key (its lines are scrubbed on the way out); a
+/// sealed line that no key opens makes the whole log unreadable, never a wall of
+/// placeholders.
+fn read_log(logfile: &Path, key_override: Option<&str>) -> LogRead {
+    if !logfile.exists() {
+        return LogRead::Missing;
+    }
+    let key_path = opensesame_sealed_log::key_path_for(logfile, key_override);
+    let key = match opensesame_sealed_log::LogKey::load(&key_path) {
+        Ok(key) => Some(key),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return LogRead::Unreadable(error),
+    };
+    // Without a key a throwaway one opens nothing, so every sealed line comes
+    // back as the placeholder and is caught below.
+    let keyless = key.is_none();
+    let key = key.unwrap_or_else(opensesame_sealed_log::LogKey::generate);
+    match opensesame_sealed_log::read_tail(logfile, &key, 40) {
+        Ok(lines) if keyless && lines.iter().any(|l| l == opensesame_sealed_log::UNREADABLE) => {
+            LogRead::Unreadable(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("the log key {} is missing", key_path.display()),
+            ))
+        }
+        Ok(lines) => LogRead::Lines(lines),
+        Err(error) => LogRead::Unreadable(error),
+    }
+}
+
 async fn show_logs(base: &str, logfile: &str) {
-    let key_path = opensesame_sealed_log::key_path_for(
+    let tail = match read_log(
         Path::new(logfile),
         crate::log_sink::key_override().as_deref(),
-    );
-    let tail = opensesame_sealed_log::LogKey::load(&key_path).and_then(|key| {
-        if Path::new(logfile).exists() {
-            opensesame_sealed_log::read_tail(Path::new(logfile), &key, 40).map(Some)
-        } else {
-            Ok(None)
-        }
-    });
+    ) {
+        LogRead::Missing => Ok(None),
+        LogRead::Lines(lines) => Ok(Some(lines)),
+        LogRead::Unreadable(error) => Err(error),
+    };
     if let Ok(Some(out)) = tail {
         println!("{}", out.join("\n"));
         if out.is_empty() {
@@ -233,5 +284,81 @@ fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
                 "hint": "run it in the foreground with: opensesame daemon run"
             })
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{read_log, LogRead};
+    use std::path::Path;
+
+    fn dir() -> tempfile::TempDir {
+        tempfile::tempdir().expect("tempdir")
+    }
+
+    #[test]
+    fn no_logfile_falls_through_to_the_health_probe() {
+        let d = dir();
+        let log = d.path().join("daemon.log");
+        assert!(matches!(read_log(&log, None), LogRead::Missing));
+    }
+
+    #[test]
+    fn plaintext_log_with_no_key_is_read_scrubbed() {
+        let d = dir();
+        let log = d.path().join("daemon.log");
+        std::fs::write(&log, "started ok\nlogin password=hunter2value\n").unwrap();
+        assert!(!d.path().join("daemon.log.key").exists());
+        match read_log(&log, None) {
+            LogRead::Lines(lines) => {
+                assert_eq!(lines.len(), 2);
+                assert_eq!(lines[0], "started ok");
+                assert!(!lines.join("\n").contains("hunter2value"), "{lines:?}");
+            }
+            other => panic!("expected lines, got {other:?}"),
+        }
+        assert!(
+            !d.path().join("daemon.log.key").exists(),
+            "never creates a key"
+        );
+    }
+
+    #[test]
+    fn sealed_log_with_no_key_is_unreadable() {
+        let d = dir();
+        let log = d.path().join("daemon.log");
+        let key = opensesame_sealed_log::LogKey::generate();
+        let sealed = opensesame_sealed_log::seal_line(&key, "secret line");
+        std::fs::write(&log, format!("{sealed}\n")).unwrap();
+        assert!(matches!(read_log(&log, None), LogRead::Unreadable(_)));
+    }
+
+    #[test]
+    fn sealed_log_with_its_key_is_opened() {
+        let d = dir();
+        let log: &Path = &d.path().join("daemon.log");
+        let key_path = d.path().join("daemon.log.key");
+        let key = opensesame_sealed_log::LogKey::load_or_create(&key_path).unwrap();
+        let sealed = opensesame_sealed_log::seal_line(&key, "hello");
+        std::fs::write(log, format!("{sealed}\n")).unwrap();
+        match read_log(log, None) {
+            LogRead::Lines(lines) => assert_eq!(lines, vec!["hello".to_owned()]),
+            other => panic!("expected lines, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn daemon_args_print_no_operator_token() {
+        let args = super::DaemonArgs {
+            url: "http://127.0.0.1:18790".into(),
+            operator_token: Some("operator-12345".into()),
+            cmd: super::DaemonCmd::Status,
+        };
+        let shown = format!("{args:?}");
+        assert!(
+            shown.contains("[REDACTED]") && shown.contains("18790"),
+            "{shown}"
+        );
+        assert!(!shown.contains("operator-12345"), "{shown}");
     }
 }
