@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -116,7 +117,28 @@ describe("UnlockMethodsPanel", () => {
       expect(store.enrollPin).toHaveBeenCalledWith("48291037"),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(await screen.findByText(/PIN unlock enrolled/)).toBeTruthy();
+    // Announced, never drawn: the row's own mark is the state, and a box that
+    // outlived the header it described once claimed a PIN that was gone.
+    const said = await screen.findByText(/PIN unlock enrolled/);
+    expect(said.closest("output")?.className).toContain("visually-hidden");
+    expect(document.querySelector(".note")).toBeNull();
+  });
+
+  it("reports a failed enrollment as a tray notice, not a box in the page", async () => {
+    clearNotices();
+    store.enrollPin.mockRejectedValueOnce(new Error("The device refused."));
+    render(<UnlockMethodsPanel />);
+    await userEvent.click(row("PIN").getByRole("button", { name: "Add" }));
+    const dialog = sheet();
+    await userEvent.type(dialog.getByLabelText("PIN"), "48291037");
+    await userEvent.type(dialog.getByLabelText("Confirm PIN"), "48291037");
+    await userEvent.click(dialog.getByRole("button", { name: "Set PIN" }));
+    await waitFor(() =>
+      expect(
+        listNotices().find((notice) => notice.id === "unlock-methods")?.body,
+      ).toContain("The device refused."),
+    );
+    expect(document.querySelector(".note")).toBeNull();
   });
 
   it("names the PIN rule live and keeps the button disabled until it holds", async () => {

@@ -7,6 +7,10 @@ import { describeRecovery } from "@opensesame/app-core/lib/configuration/recover
 import { loadSession } from "@opensesame/app-core/lib/federation.js";
 import { readSignInService } from "@opensesame/app-core/lib/identity-service.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
+import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 import { RemoteCodeError } from "@opensesame/app-core/lib/vault/remote-code.js";
 import {
   type UnlockMethodId,
@@ -24,7 +28,6 @@ import {
   IconPlus,
   IconTrash,
 } from "../../components/Icons.js";
-import { StatusNote } from "../../components/StatusNote.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AccountFactorsPanel } from "./security/AccountFactorsPanel.js";
@@ -39,6 +42,7 @@ import {
 import type { Run } from "./security/run.js";
 
 const ENROLL_PASSKEY_PARAM = "enroll-passkey";
+const NOTICE_ID = "unlock-methods";
 
 /**
  * Settings › Security. Three lists — the keys that open this vault, the
@@ -69,11 +73,8 @@ function UnlockMethodsBody() {
   const offersCodes = enrolled.length > 0;
   const accountEmail = loadSession()?.email ?? null;
 
-  const [message, setMessage] = useState<{
-    tone: "ok" | "err";
-    text: string;
-  } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState("");
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
   // Bumped when a sheet closes, so the account's rows read the list again.
   const [closed, setClosed] = useState(0);
@@ -92,16 +93,23 @@ function UnlockMethodsBody() {
     setWebauthnHost(checkWebauthnHost());
   }, []);
 
+  // What an action did shows where it can be read: a success is the row's own
+  // state (a ceremony's card says the rest) and is only announced; a failure
+  // is a notice in the tray — never a box in the page, behind the sheet that
+  // asked (DESIGN.md).
   const run = useCallback<Run>(async (action, ok) => {
-    setMessage(null);
+    dismissNotice(NOTICE_ID);
+    setSaid("");
     setBusy(true);
     try {
       await action();
-      if (ok !== null) setMessage({ tone: "ok", text: ok });
+      if (ok !== null) setSaid(ok);
     } catch (caught) {
-      setMessage({
+      setStatusNotice({
+        id: NOTICE_ID,
         tone: "err",
-        text:
+        title: "Unlock methods",
+        body:
           caught instanceof RemoteCodeError ||
           caught instanceof AccountFactorError
             ? caught.message
@@ -127,11 +135,11 @@ function UnlockMethodsBody() {
   }, [hasPasskey, busy, store, run]);
 
   const open = (kind: MethodKind, view: SheetRequest["view"]) => () => {
-    setMessage(null);
+    dismissNotice(NOTICE_ID);
     setSheet({ kind, view });
   };
   const openAccount = (request: SheetRequest) => {
-    setMessage(null);
+    dismissNotice(NOTICE_ID);
     setSheet(request);
   };
 
@@ -190,7 +198,9 @@ function UnlockMethodsBody() {
           </div>
         </div>
         <div className="panel__body">
-          <StatusNote message={message} />
+          <output className="visually-hidden" aria-live="polite">
+            {said}
+          </output>
           {/* True only while there is no key behind this vault: enrolling one
               puts the header on disk like any other vault, and the note would
               then be claiming something that is no longer so. */}
