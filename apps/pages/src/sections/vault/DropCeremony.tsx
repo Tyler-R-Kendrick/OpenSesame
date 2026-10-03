@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 /**
  * Drop ceremonies (docs/design/secret-drop.md §3/§4/§5).
  *
@@ -103,6 +103,18 @@ export function ShareSecretDrop({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drop, setDrop] = useState<SharedOnce | null>(null);
+  const keyRef = useRef<HTMLButtonElement>(null);
+  const ttlRef = useRef<HTMLSelectElement>(null);
+  // The key that was pressed unmounts with its own state, so focus follows the
+  // ceremony: to the first control when it opens, back to the offer on Cancel.
+  const moveFocus = useRef<"ttl" | "key" | null>(null);
+
+  useEffect(() => {
+    const target = moveFocus.current;
+    moveFocus.current = null;
+    if (target === "ttl" && open) ttlRef.current?.focus();
+    if (target === "key" && !open) keyRef.current?.focus();
+  }, [open]);
 
   async function share() {
     if (text === null) return;
@@ -133,13 +145,24 @@ export function ShareSecretDrop({
   }
 
   if (!open) {
-    // The key sits in a headed group like every other action on the page,
-    // so the glyph never floats alone under whatever group came before it.
+    // On a phone the key sits in a headed group like every other action on the
+    // page; the stylesheet draws the bar there and nowhere else. The head is
+    // aria-hidden because the key already carries the name.
     return (
-      <section className="detail__group">
+      <section className="detail__group detail__offer">
         <div className="detail__groupbar">
-          <h2 className="detail__grouphead">Share once</h2>
-          <IconKey label="Share once" small onClick={() => setOpen(true)}>
+          <h2 className="detail__grouphead" aria-hidden="true">
+            Share once
+          </h2>
+          <IconKey
+            label="Share once"
+            small
+            keyRef={keyRef}
+            onClick={() => {
+              moveFocus.current = "ttl";
+              setOpen(true);
+            }}
+          >
             <IconDrop size={15} />
           </IconKey>
         </div>
@@ -150,7 +173,7 @@ export function ShareSecretDrop({
   return (
     <section className="detail__group" aria-label="Share this item once">
       <h2 className="detail__grouphead">Share once</h2>
-      <TtlPicker value={ttlMs} onChange={setTtlMs} />
+      <TtlPicker value={ttlMs} onChange={setTtlMs} selectRef={ttlRef} />
       {error ? (
         <p className="note note--err" role="alert">
           <span>{error}</span>
@@ -168,7 +191,10 @@ export function ShareSecretDrop({
           label="Cancel"
           small
           disabled={busy}
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            moveFocus.current = "key";
+            setOpen(false);
+          }}
         >
           <IconX size={16} />
         </IconKey>
