@@ -21,11 +21,6 @@ export const PACKAGE_RULES = [
     "reached only through @azure/msal-browser",
   ),
   optional(
-    `${NM}@vercel/connect`,
-    "connectors.external",
-    "only lib/vercel-connect.ts",
-  ),
-  optional(
     `${NM}simple-icons`,
     "connectors.external",
     "connector marks (sections/connections/connector-marks.ts)",
@@ -158,11 +153,6 @@ export const PACKAGE_RULES = [
     `${NM}@opensesame/audit`,
     "activity.log",
     "redaction for the sealed activity log",
-  ),
-  optional(
-    `${NM}@opensesame/auth-upstream`,
-    "identity.local-iam",
-    "browser helpers for local passkeys",
   ),
   optional(
     `${NM}age-encryption`,

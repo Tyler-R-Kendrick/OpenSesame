@@ -202,7 +202,14 @@ function closeOverDependencies(byId, descriptor, id, permitted, diagnostics) {
   return next;
 }
 
-function closeOverAlternatives(descriptor, id, chosen, permitted, diagnostics) {
+function closeOverAlternatives(
+  byId,
+  descriptor,
+  id,
+  chosen,
+  permitted,
+  diagnostics,
+) {
   const next = [];
   for (const slot of asArray(descriptor?.alternatives)) {
     const pick = chosen[slot.slot];
@@ -218,6 +225,10 @@ function closeOverAlternatives(descriptor, id, chosen, permitted, diagnostics) {
       );
       continue;
     }
+    // A core pick (an always-on capability such as `sharing.drops`) is carried
+    // by every build; like a core dependency it needs no permission and adds
+    // nothing to the optional closure.
+    if (byId.get(pick)?.tier === "core") continue;
     if (!permitted(pick))
       diagnostics.push(
         `alternative "${pick}" for slot "${slot.slot}" is not permitted`,
@@ -238,7 +249,14 @@ function closure(byId, roots, chosen, permitted, diagnostics) {
     const descriptor = byId.get(id);
     queue.push(
       ...closeOverDependencies(byId, descriptor, id, permitted, diagnostics),
-      ...closeOverAlternatives(descriptor, id, chosen, permitted, diagnostics),
+      ...closeOverAlternatives(
+        byId,
+        descriptor,
+        id,
+        chosen,
+        permitted,
+        diagnostics,
+      ),
     );
   }
   return seen;
