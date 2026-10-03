@@ -74,6 +74,9 @@
     width: 2.75rem;
     height: 2.75rem;
     margin: 0 -0.25rem 0 -0.75rem;
+    /* The app's field rule is an underline; this square draws no line. */
+    border: 0;
+    background: none;
     cursor: pointer;
   }
 
