@@ -112,15 +112,26 @@ describe("a WebSocket carrier (Nostr, MQTT, NATS)", () => {
     ).toBe("capability-not-approved");
   });
 
-  it("is plain ws:// only on this device", () => {
-    const gate = gateFor(planUnder(policy(ALLOW_ALL)));
-    expect(carrierRefusal(nostr("ws://127.0.0.1:7777"), gate)).toBeNull();
-    expect(carrierRefusal(nostr("ws://relay.example.test"), gate)).toBe(
-      "unsupported-scheme",
-    );
-    expect(carrierRefusal(nostr("ws://100.64.0.1:7777"), gate)).toBe(
-      "unsupported-scheme",
-    );
+  it("is plain ws:// only on this device, and only where this device may be reached", () => {
+    const eligible = localNetworkFetchSeams.eligible;
+    try {
+      const gate = gateFor(planUnder(policy(ALLOW_ALL)));
+      localNetworkFetchSeams.eligible = () => true;
+      expect(carrierRefusal(nostr("ws://127.0.0.1:7777"), gate)).toBeNull();
+      expect(carrierRefusal(nostr("ws://relay.example.test"), gate)).toBe(
+        "unsupported-scheme",
+      );
+      expect(carrierRefusal(nostr("ws://100.64.0.1:7777"), gate)).toBe(
+        "unsupported-scheme",
+      );
+      // The shared origin may not reach this device through a socket either.
+      localNetworkFetchSeams.eligible = () => false;
+      expect(carrierRefusal(nostr("ws://127.0.0.1:7777"), gate)).toBe(
+        "local-authority-not-permitted",
+      );
+    } finally {
+      localNetworkFetchSeams.eligible = eligible;
+    }
   });
 });
 
