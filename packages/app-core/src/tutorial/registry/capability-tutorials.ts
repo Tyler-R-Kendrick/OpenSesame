@@ -31,6 +31,8 @@ export const CAPABILITY_TUTORIALS = {
   "plugins.surrogate_proxy.switch": "settings.surrogate-credentials",
   "plugins.surrogate_proxy.tripwires": "settings.surrogate-credentials",
   "plugins.browser_autofill.switch": "settings.browser-autofill",
+  "plugins.pair": "settings.surrogate-credentials",
+  "plugins.unpair": "settings.surrogate-credentials",
   "identity.notification.channels.read": "settings.notifications",
   "identity.notification.bindings.manage": "settings.notifications",
   "identity.notification.preferences.manage": "settings.notifications",

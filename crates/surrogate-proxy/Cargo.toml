@@ -37,10 +37,19 @@ path = "src/bin/opensesame-surrogate-proxy.rs"
 # conversion, and serde/chrono for the control protocol — all already in the
 # workspace. None of it reaches `opensesame` or the daemon, which never link
 # this crate.
+#
+# * `opensesame-session-observe` (serde + thiserror): the run lease, whose
+#   `RunCredentials` and `tripwire_verdict` revoke a run whose surrogate was
+#   misdirected (ADR 0150 §6.2).
+# * `opensesame-rotation-web` with `login-surrogate`: login-form substitution
+#   (ADR 0150 §6.3). This crate is the only normal edge that enables the
+#   feature; `rotation-web`'s `tests/default_build.rs` holds it to that.
 [dependencies]
 opensesame-invoke-through = { path = "../invoke-through" }
 opensesame-plugin-settings = { path = "../plugin-settings" }
 opensesame-agent-events = { path = "../agent-events" }
+opensesame-session-observe = { path = "../session-observe" }
+opensesame-rotation-web = { path = "../rotation-web", features = ["login-surrogate"] }
 base64 = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -65,4 +74,7 @@ zeroize = { workspace = true }
 [dev-dependencies]
 # Disposable PKI for the loopback TLS upstream stub; never a normal edge.
 opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+# The process tests point the plugin at their own settings file, which a
+# shipped build refuses to take from the environment.
+opensesame-plugin-settings = { path = "../plugin-settings", features = ["path-override"] }
 tempfile = { workspace = true }

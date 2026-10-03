@@ -130,6 +130,7 @@ async fn a_passthrough_host_is_tunnelled_without_any_credential() {
         &RunSpec {
             grants: vec![grant()],
             passthrough_hosts: vec![STATIC.to_uppercase()],
+            ..RunSpec::default()
         },
     );
     let seen = through_proxy(&run, STATIC, request("GET", STATIC, "/pkg", &[]))
@@ -225,6 +226,7 @@ async fn a_run_refuses_names_it_cannot_honour() {
             g
         }],
         passthrough_hosts: vec![],
+        ..RunSpec::default()
     };
     assert!(matches!(
         h.runs.create_run("run-x", &reserved),
@@ -233,6 +235,7 @@ async fn a_run_refuses_names_it_cannot_honour() {
     let twice = RunSpec {
         grants: vec![grant(), grant()],
         passthrough_hosts: vec![],
+        ..RunSpec::default()
     };
     assert!(matches!(
         h.runs.create_run("run-x", &twice),
@@ -241,6 +244,7 @@ async fn a_run_refuses_names_it_cannot_honour() {
     let bad_host = RunSpec {
         grants: vec![],
         passthrough_hosts: vec!["*.github.com".into()],
+        ..RunSpec::default()
     };
     assert!(matches!(
         h.runs.create_run("run-x", &bad_host),
@@ -251,6 +255,7 @@ async fn a_run_refuses_names_it_cannot_honour() {
     let spec = RunSpec {
         grants: vec![grant_named("A"), unknown],
         passthrough_hosts: vec![],
+        ..RunSpec::default()
     };
     assert!(matches!(
         h.runs.create_run("run-x", &spec),

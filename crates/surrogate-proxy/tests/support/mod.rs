@@ -35,11 +35,20 @@ pub const STATIC: &str = "static.test";
 
 pub struct CountingSource {
     pub calls: AtomicUsize,
+    /// How long one acquisition takes (a credential tool running).
+    pub delay: Duration,
+    /// Acquisitions running now, and the most there ever were at once.
+    pub live: AtomicUsize,
+    pub peak: AtomicUsize,
 }
 
 impl TokenSource for CountingSource {
     fn acquire(&self) -> Result<SecretString, InvokeError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
+        let now = self.live.fetch_add(1, Ordering::SeqCst) + 1;
+        self.peak.fetch_max(now, Ordering::SeqCst);
+        std::thread::sleep(self.delay);
+        self.live.fetch_sub(1, Ordering::SeqCst);
         Ok(SecretString::from(CANARY))
     }
 }
@@ -109,6 +118,7 @@ impl Harness {
             &RunSpec {
                 grants: vec![grant()],
                 passthrough_hosts: vec![],
+                ..RunSpec::default()
             },
         )
     }
@@ -131,6 +141,12 @@ pub fn grant() -> SurrogateGrant {
 }
 
 pub async fn harness() -> Harness {
+    harness_with(Duration::ZERO, None).await
+}
+
+/// A harness whose credential tool takes `delay` per run, and whose proxy
+/// allows `slots` concurrent runs of it (the default when `None`).
+pub async fn harness_with(delay: Duration, slots: Option<(usize, Duration)>) -> Harness {
     let upstream = spawn_upstream(HOST).await;
     let passthrough = spawn_upstream(STATIC).await;
     let invoker = Invoker::with_tls(
@@ -148,6 +164,9 @@ pub async fn harness() -> Harness {
     );
     let source = Arc::new(CountingSource {
         calls: AtomicUsize::new(0),
+        delay,
+        live: AtomicUsize::new(0),
+        peak: AtomicUsize::new(0),
     });
     let refusals = Arc::new(Refusals::default());
     let receipts = Arc::new(Receipts::default());
@@ -156,12 +175,16 @@ pub async fn harness() -> Harness {
         .unwrap()
         .as_secs();
     let clock = Arc::new(ManualClock(AtomicU64::new(now)));
-    let config = ProxyConfig::new(
+    let mut config = ProxyConfig::new(
         Arc::new(invoker),
         Arc::new(ProviderSources::new().with("github", source.clone())),
         refusals.clone(),
-    )
-    .with_receipts(receipts.clone())
+    );
+    if let Some((concurrent, wait)) = slots {
+        config = config.with_acquisition_limit(concurrent, wait);
+    }
+    let config = config
+        .with_receipts(receipts.clone())
     .with_clock(clock.clone())
     .with_passthrough_client(PassthroughClient::with_tls(
         passthrough.client_config(),

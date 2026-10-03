@@ -47,6 +47,7 @@ mod decl;
 mod form;
 mod gate;
 mod json;
+mod json_numbers;
 mod outcome;
 mod request;
 mod runner;
@@ -167,10 +168,16 @@ impl ArmedSubstitution {
         if target.path != self.action_path {
             return Err(Refusal::new(RefusalCode::Misdirected, "path"));
         }
+        refuse_outside_body(&target, request.headers)?;
         if request.method != "POST" {
+            // Where the surrogate sits outranks the verb: another verb that
+            // carries one is a beacon to park on, and only a request with no
+            // surrogate at all is an unsupported shape to fall back from.
+            if sighting::count(request.body) > 0 {
+                return Err(Refusal::new(RefusalCode::Misplaced, "body"));
+            }
             return Err(Refusal::new(RefusalCode::Unsupported, "method"));
         }
-        refuse_outside_body(&target, request.headers)?;
         refuse_encoded(request.headers)?;
         let surrogate = self.surrogate.as_str();
         let secret = credential.expose_secret();

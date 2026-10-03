@@ -19,11 +19,20 @@ const ERRORS = {
   "not-installed": "Not installed",
   "forced-off": "Forced off on the daemon",
   "unknown-plugin": "The daemon does not know this plugin",
+  "pin-mismatch": "Changed since it was installed",
+  "not-a-code": "Not a plugin pairing code",
+  "other-origin": "That code is for another page",
+  "pairing-refused": "The daemon would not take that code",
+  locked: "Unlock the vault to pair",
   refused: "The daemon refused",
 } as const satisfies Readonly<Record<PluginErrorCode, string>>;
 
 export function markOf(view: PluginView): PluginMark {
-  if (view.daemon === null) return { tone: "idle", label: ERRORS["no-daemon"] };
+  if (view.daemon === null) {
+    return view.error === null
+      ? { tone: "idle", label: ERRORS["no-daemon"] }
+      : { tone: "err", label: ERRORS[view.error] };
+  }
   if (view.error !== null && view.state === null)
     return { tone: "err", label: ERRORS[view.error] };
   if (view.state === null) {

@@ -19,14 +19,16 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use opensesame_invoke_through::Refusal;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::watch;
+use tokio::sync::{watch, Semaphore};
 
 use crate::auth::ProxyCredential;
 use crate::ca::RunCa;
 use crate::config::Shared;
+use crate::login::RunLogins;
+use crate::ports::LoginRefusal;
 use crate::respond::{self, ProxyBody};
 use crate::target::Target;
-use crate::{broker, tunnel};
+use crate::{broker, tripwire, tunnel};
 
 /// How long a client may take to send a request head.
 pub(crate) const HEADER_TIMEOUT: Duration = Duration::from_secs(30);
@@ -36,28 +38,52 @@ const HTTPS_PORT: u16 = 443;
 
 /// What one run's listener and tunnels know.
 pub(crate) struct RunContext {
+    pub(crate) run_id: String,
     /// The identity admission compares a surrogate's issued caller against:
     /// this run instance, and nothing a client can choose.
     pub(crate) caller: String,
     pub(crate) credential: ProxyCredential,
     pub(crate) ca: RunCa,
     pub(crate) passthrough_hosts: Vec<String>,
+    /// The run's declared logins, if any (ADR 0150 §6.3).
+    pub(crate) logins: Option<Arc<RunLogins>>,
     pub(crate) shared: Arc<Shared>,
     pub(crate) shutdown: watch::Receiver<bool>,
+    /// Slots for credential-tool runs: one per concurrent acquisition.
+    pub(crate) acquisitions: Arc<Semaphore>,
 }
 
 impl std::fmt::Debug for RunContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RunContext")
+            .field("run_id", &self.run_id)
             .field("passthrough_hosts", &self.passthrough_hosts)
+            .field("logins", &self.logins.as_ref().map_or(0, |l| l.desks.len()))
             .finish_non_exhaustive()
     }
 }
 
 impl RunContext {
-    /// Hand a refusal to the embedder's sink: the tripwire.
+    /// Hand a refusal to the embedder's sink, then to the run's lease: a
+    /// misdirected surrogate on a watched run revokes the run (ADR 0150 §6.2).
     pub(crate) fn report(&self, refusal: &Refusal) {
         self.shared.config.refusals.refused(refusal);
+        tripwire::observe(
+            &self.shared,
+            refusal.code.as_str(),
+            refusal.run_id.as_deref(),
+        );
+    }
+
+    /// The same for a refused login-form surrogate, which is always this
+    /// run's: a login surrogate is recognized only by the run that holds it.
+    pub(crate) fn report_login(&self, code: &str, detail: Option<&str>) {
+        self.shared.config.refusals.login_refused(&LoginRefusal {
+            code,
+            run_id: &self.run_id,
+            detail,
+        });
+        tripwire::observe(&self.shared, code, Some(&self.run_id));
     }
 
     /// A passthrough host is named exactly, and served on 443 only.

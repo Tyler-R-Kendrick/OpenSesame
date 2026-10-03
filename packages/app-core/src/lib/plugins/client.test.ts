@@ -117,6 +117,7 @@ describe("switching a plugin from the page", () => {
     const cases: [Response, string][] = [
       [json({ error: "not_installed" }, 404), "not-installed"],
       [json({ error: "unknown_plugin" }, 400), "unknown-plugin"],
+      [json({ error: "pin_mismatch" }, 409), "pin-mismatch"],
       [json({ error: "operator_unauthorized" }, 401), "unauthorized"],
       [json({}, 403), "unauthorized"],
       [json({ error: "operator_token_unconfigured" }, 503), "refused"],

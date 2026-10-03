@@ -408,7 +408,7 @@
       "max-lines": 637
     },
     "crates/gateway/src/routes/agent_runs.rs": {
-      "max-lines": 966
+      "max-lines": 935
     },
     "crates/gateway/src/routes/agents.rs": {
       "max-lines": 440

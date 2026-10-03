@@ -6,7 +6,7 @@ use opensesame_storage::StoredObservationRun;
 use serde_json::Value;
 use tower::ServiceExt;
 
-const ALICE: &str = "principal:00000000-0000-4000-8000-000000000011";
+pub(super) const ALICE: &str = "principal:00000000-0000-4000-8000-000000000011";
 const BOB: &str = "principal:00000000-0000-4000-8000-000000000012";
 
 pub(super) fn seed(id: &str, owner: &str, org: &str, state: &str) -> StoredObservationRun {

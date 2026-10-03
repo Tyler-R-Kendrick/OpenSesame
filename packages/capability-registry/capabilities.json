@@ -1112,8 +1112,62 @@
     }
   },
   {
+    "id": "plugins.pair",
+    "title": "Pair one browser origin with the daemon's plugin settings (one-time code for a key scoped to /v1/plugins)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins pair",
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.unpair",
+    "title": "Revoke a page's plugin-settings key: every pairing for an origin at the terminal, or this page's own from Settings",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins unpair",
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "agents.surrogate.dev_run",
-    "title": "Run a child with surrogates in place of placeholders through the surrogate-proxy plugin",
+    "title": "Run a child with surrogates in place of placeholders and web-login passwords through the surrogate-proxy plugin",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {

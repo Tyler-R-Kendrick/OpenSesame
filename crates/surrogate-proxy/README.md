@@ -60,19 +60,46 @@ certificate reaches the child only through its own trust variables
 |---|---|
 | `SurrogateRuns::new(ProxyConfig)` | The registry: one ledger over the invoker's own egress rules |
 | `SurrogateRuns::create_run(run_id, &RunSpec)` | Mint the run CA, issue surrogates from OS entropy, open the listener |
-| `SurrogateRuns::end_run(run_id)` | Revoke the run's surrogates, stop its listener, close its tunnels |
-| `RunSpec`, `SurrogateGrant` | Grants (env var, provider, `conn://…`, site, methods, path prefixes, ttl) and passthrough hosts |
+| `SurrogateRuns::end_run(run_id)` | Revoke the run's surrogates and logins, stop its listener, close its tunnels; also its `RunCredentials::revoke` |
+| `SurrogateRuns::credentials()` | A `RunRevoker`: the `RunCredentials` that revokes a run and leaves its listener up, so a late use reads `surrogate.revoked` |
+| `SurrogateRuns::lease(run_id)` | Where the run's `ControlLease` stands |
+| `RunSpec`, `SurrogateGrant`, `LoginGrant` | Grants (env var, provider, `conn://…`, site, methods, path prefixes, ttl), web logins (env var, origin, action, field, credential, trust), passthrough hosts, `watched` |
+| `RunObserver`, `Tripped`, `LoginEvent` | What the embedder hears: a tripwire that revoked a run, a login substituted or refused |
 | `RunHandle` | `proxy_url()` (secret), `ca_pem()`, `surrogates()`, `child_env(ca_file)`; `Debug` names neither secret |
-| `ProxyConfig` | Invoker, `TokenSources`, `RefusalSink`; optional `ReceiptSink`, `Clock`, `PassthroughClient`, CA validity |
+| `ProxyConfig` | Invoker, `TokenSources`, `RefusalSink`; optional `ReceiptSink`, `Clock`, `PassthroughClient`, CA validity, `RunObserver`, and the plugin's `PluginState` that arms login substitution |
 | `TokenSources`, `ProviderSources` | Pick the credential source for an admission (per provider by default) |
 | `RefusalSink`, `ReceiptSink`, `Clock`, `SystemClock` | The embedder's ports |
 | `env` | The trust, proxy and `NO_PROXY` variable names; `is_reserved`, `is_valid_name` |
 | `plugin::main_entry` | The plugin binary: gate, then one run over stdio |
 | `plugin::gate::admit` | Refuse unless the settings file says the plugin is active and this executable hashes to its pin |
-| `plugin::wire` | The control protocol: one spec line in, one reply line out |
-| `plugin::serve::serve` | Start the run, reply, serve until stdin EOF, a signal or the TTL, then revoke and remove the CA file |
+| `plugin::wire` | The control protocol: one spec line in (logins' passwords ride only here), one reply line out |
+| `plugin::serve::serve` | Start the run, reply, write event lines while serving until stdin EOF, a signal or the TTL, then `end_and_revoke` and remove the CA file |
 | `plugin::source::CliTokenSource` | invoke-through's `source_tool` per provider, scrubbed env, timeout, capped capture |
 | `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`, capped and rotated |
+
+## The run lease and the tripwire (ADR 0150 §6.2)
+
+Every run gets a `ControlLease` from `opensesame-session-observe` and a
+`watched` flag. Every refusal — invoke-through's and a login form's — goes
+through `tripwire_verdict`: a `surrogate.misdirected` naming a watched run
+that the agent still drives parks it (or suspends it inside a critical
+section) and `apply_tripwire` revokes through `RunRevoker`. The listener keeps
+serving, so the next use of any of the run's surrogates is refused as
+`surrogate.revoked`. The embedder's `RunObserver` hears it; the plugin writes
+it to its parent as `{"event":"tripwire",…}`.
+
+## Login forms (ADR 0150 §6.3)
+
+A run may declare logins. Each is `opensesame-rotation-web`'s
+`LoginSubstitution`, armed by `LoginRoad::choose` over the plugin's own
+switch — this crate is the only one that enables `rotation-web`'s
+`login-surrogate` feature. Every request is first read for a login
+surrogate, raw or percent-encoded, anywhere: one that carries it goes to
+`ArmedSubstitution::egress` and nowhere else (substituted once into the one
+declared field, or refused — misdirected and misplaced are tripwires); one
+bound for a declared login origin without it is forwarded with no credential.
+Every login-origin response is buffered (8 MiB cap), refused if it is not
+identity-encoded, and scrubbed by `ResponseScrub` before the child sees it.
 
 ## Residual, stated
 
@@ -94,6 +121,11 @@ cargo +1.88.0 test -p opensesame-surrogate-proxy
 upstream; `tests/destination.rs` covers misdirection, SNI/`Host`
 disagreement, pinning and plain HTTP; `tests/lifecycle.rs` covers the proxy
 credential, run end, foreign callers, expiry, passthrough and the body cap.
+`tests/plugin_tripwire.rs` runs the built plugin binary through a
+misdirected surrogate and proves the next, correct use is refused as revoked;
+`tests/plugin_login.rs` runs it against a loopback HTTPS login site and
+proves the password crossed the wire once, in its field, and appears in no
+file, argv, environment, notice, stdout or stderr of the plugin.
 `tests/plugin_process.rs` runs the built plugin binary as a person's machine
 does: the install gate (not installed, off, forced off, pin mismatch), the
 reply, the TTL, `SIGTERM`, stdin close, and a misdirected surrogate becoming

@@ -124,3 +124,71 @@ fn bridge_roundtrip_fixture() {
     assert_eq!(workos_e.delivery, CredentialDeliveryMode::Placeholder);
     assert!(workos_e.env_value.as_ref().unwrap().starts_with("ostest_"));
 }
+
+const LOGIN_FIXTURE: &str = r#"{
+  "schema_path": "login.env.schema",
+  "parser": "@env-spec/parser",
+  "items": [
+{
+  "key": "APP_PASSWORD",
+  "sensitive": true,
+  "required": true,
+  "resolver": {
+    "fn": "opensesameLogin",
+    "args": [
+      {"value": "Web/app.example"},
+      {"key": "origin", "value": "https://app.example"},
+      {"key": "action", "value": "/session"},
+      {"key": "field", "value": "password"}
+    ]
+  }
+},
+{
+  "key": "HALF_DECLARED",
+  "sensitive": true,
+  "required": false,
+  "resolver": {
+    "fn": "opensesameLogin",
+    "args": [{"value": "Web/other"}, {"key": "origin", "value": "https://other.example"}]
+  }
+}
+  ]
+}"#;
+
+#[test]
+fn a_web_login_resolves_omitted_with_its_declaration_and_no_value() {
+    let doc = parse_schema_json(LOGIN_FIXTURE).unwrap();
+    for agent in [true, false] {
+        let policy = if agent {
+            DevDeliveryPolicy::agent_default()
+        } else {
+            DevDeliveryPolicy::development_default()
+        };
+        let entries = resolve_for_delivery(&doc, &policy, agent).unwrap();
+        let login = &entries[0];
+        assert!(login.omitted);
+        assert!(login.env_value.is_none(), "a login never materializes");
+        assert_eq!(
+            login.login,
+            Some(WebLogin {
+                store_path: "Web/app.example".into(),
+                origin: "https://app.example".into(),
+                action: "/session".into(),
+                field: "password".into(),
+                ca_file: None,
+            })
+        );
+        let half = &entries[1];
+        assert!(half.omitted);
+        assert!(half.login.is_none());
+        assert!(half.warning.as_deref().unwrap().contains("field="));
+    }
+}
+
+#[test]
+fn an_entry_without_a_login_serializes_as_before() {
+    let doc = parse_schema_json(FIXTURE).unwrap();
+    let entries = resolve_for_delivery(&doc, &DevDeliveryPolicy::agent_default(), true).unwrap();
+    let text = serde_json::to_string(&entries).unwrap();
+    assert!(!text.contains("\"login\""), "{text}");
+}

@@ -15,16 +15,20 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use opensesame_invoke_through::{IssueError, Surrogate, SurrogateSite, SurrogateSpec};
+use opensesame_session_observe::{ControlLease, RunCredentials};
 use secrecy::{ExposeSecret, SecretString};
-use tokio::sync::watch;
+use tokio::sync::{watch, Semaphore};
 use tokio::task::JoinHandle;
+use zeroize::Zeroizing;
 
 use crate::auth::{random_entropy, random_hex, ProxyCredential};
 use crate::ca::{CertError, RunCa};
 use crate::config::{ProxyConfig, Shared};
 use crate::env;
 use crate::listener::{self, unpoison, RunContext};
+use crate::login::{LoginError, LoginGrant, RunLogins};
 use crate::target::normalize_host;
+use crate::tripwire::{RunRevoker, RunWatch};
 
 /// One surrogate a run's child receives, and the environment variable it
 /// arrives in.
@@ -42,12 +46,17 @@ pub struct SurrogateGrant {
 }
 
 /// What a run is given.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct RunSpec {
     pub grants: Vec<SurrogateGrant>,
+    /// Login forms the child signs in to with a surrogate (ADR 0150 §6.3).
+    pub logins: Vec<LoginGrant>,
     /// Hosts whose un-surrogated requests are forwarded with no credential.
     /// Empty by default: un-surrogated traffic is refused.
     pub passthrough_hosts: Vec<String>,
+    /// Whether someone is watching the run, so a `surrogate.misdirected`
+    /// parks it and revokes what it holds (ADR 0150 §6.2).
+    pub watched: bool,
 }
 
 /// Why a run could not start. Names no secret.
@@ -64,6 +73,8 @@ pub enum RunError {
     #[error(transparent)]
     Issue(#[from] IssueError),
     #[error(transparent)]
+    Login(#[from] LoginError),
+    #[error(transparent)]
     Certificate(#[from] CertError),
     #[error("the run's listener could not start: {0}")]
     Listener(String),
@@ -77,6 +88,7 @@ pub struct RunHandle {
     proxy_url: SecretString,
     ca_pem: String,
     surrogates: Vec<(String, Surrogate)>,
+    logins: Vec<(String, Zeroizing<String>)>,
 }
 
 impl std::fmt::Debug for RunHandle {
@@ -85,6 +97,7 @@ impl std::fmt::Debug for RunHandle {
             .field("run_id", &self.run_id)
             .field("proxy_addr", &self.proxy_addr)
             .field("surrogates", &self.surrogates.len())
+            .field("logins", &self.logins.len())
             .finish_non_exhaustive()
     }
 }
@@ -120,13 +133,23 @@ impl RunHandle {
         &self.surrogates
     }
 
+    /// The variables the run's login surrogates arrive in, in grant order.
+    #[must_use]
+    pub fn login_vars(&self) -> Vec<&str> {
+        self.logins.iter().map(|(name, _)| name.as_str()).collect()
+    }
+
     /// Everything the child's environment needs: the trust variables naming
     /// `ca_file` (which the caller writes from [`RunHandle::ca_pem`]), the
-    /// proxy variables, `NO_PROXY`, and one variable per surrogate.
+    /// proxy variables, `NO_PROXY`, and one variable per surrogate, API and
+    /// login alike.
     #[must_use]
     pub fn child_env(&self, ca_file: &Path) -> Vec<(String, OsString)> {
         let mut vars = env::trust_and_proxy(ca_file, self.proxy_url.expose_secret());
         for (name, surrogate) in &self.surrogates {
+            vars.push((name.clone(), OsString::from(surrogate.as_str())));
+        }
+        for (name, surrogate) in &self.logins {
             vars.push((name.clone(), OsString::from(surrogate.as_str())));
         }
         vars
@@ -182,13 +205,14 @@ impl SurrogateRuns {
         if runs.contains_key(run_id) {
             return Err(RunError::AlreadyActive(run_id.to_owned()));
         }
-        check_env_vars(&spec.grants)?;
+        check_env_vars(&spec.grants, &spec.logins)?;
         let passthrough_hosts = spec
             .passthrough_hosts
             .iter()
             .map(|host| normalize_host(host).ok_or_else(|| RunError::PassthroughHost(host.clone())))
             .collect::<Result<Vec<_>, _>>()?;
         let now = self.shared.config.clock.now_unix();
+        let logins = RunLogins::arm(&spec.logins, self.shared.config.login_switch.as_ref())?;
         let ca = RunCa::mint(run_id, now, self.shared.config.ca_validity.as_secs())?;
         let listener = bind(&runtime)?;
         let proxy_addr = listener
@@ -199,12 +223,25 @@ impl SurrogateRuns {
         let credential = ProxyCredential::generate();
         let proxy_url = credential.proxy_url(proxy_addr);
         let ca_pem = ca.cert_pem().to_owned();
+        let login_surrogates = logins
+            .as_ref()
+            .map(|logins| logins.surrogates())
+            .unwrap_or_default();
+        if let Some(logins) = &logins {
+            unpoison(self.shared.logins.lock()).insert(run_id.to_owned(), Arc::clone(logins));
+        }
+        unpoison(self.shared.watches.lock()).insert(run_id.to_owned(), RunWatch::new(spec.watched));
         let (stop, shutdown) = watch::channel(false);
         let ctx = Arc::new(RunContext {
+            run_id: run_id.to_owned(),
             caller,
             credential,
             ca,
             passthrough_hosts,
+            logins,
+            acquisitions: Arc::new(Semaphore::new(
+                self.shared.config.max_concurrent_acquisitions,
+            )),
             shared: Arc::clone(&self.shared),
             shutdown,
         });
@@ -216,6 +253,7 @@ impl SurrogateRuns {
             proxy_url,
             ca_pem,
             surrogates,
+            logins: login_surrogates,
         })
     }
 
@@ -250,23 +288,57 @@ impl SurrogateRuns {
         Ok(issued)
     }
 
-    /// End `run_id`: revoke every surrogate it was issued, stop its
-    /// listener, and close its open tunnels. Returns how many surrogates were
+    /// End `run_id`: revoke every surrogate and login it was issued, stop
+    /// its listener, and close its open tunnels. Returns how many were
     /// revoked. Revocation happens even for a run this registry no longer
     /// serves, so it is safe to call twice.
     pub fn end_run(&self, run_id: &str) -> usize {
-        let revoked = unpoison(self.shared.ledger.write()).revoke_run(run_id);
-        if let Some(state) = unpoison(self.runs.lock()).remove(run_id) {
+        // The registry first, then the ledger. `create_run` holds the
+        // registry while it issues, so taking it first waits for a run that
+        // is starting to finish issuing; revoking afterwards then covers
+        // everything it issued. Revoking first would count nothing, and the
+        // surrogates issued a moment later would outlive their run.
+        let state = unpoison(self.runs.lock()).remove(run_id);
+        let revoked = self.credentials().revoke(run_id);
+        unpoison(self.shared.watches.lock()).remove(run_id);
+        unpoison(self.shared.logins.lock()).remove(run_id);
+        if let Some(state) = state {
             let _ = state.stop.send(true);
             state.accept.abort();
         }
         revoked
     }
 
+    /// What revokes a run and leaves its listener serving, so a late use is
+    /// refused as revoked: the tripwire's [`RunCredentials`], for an embedder
+    /// that parks a run itself.
+    #[must_use]
+    pub fn credentials(&self) -> RunRevoker {
+        RunRevoker::new(Arc::clone(&self.shared))
+    }
+
+    /// Where `run_id`'s lease stands, while the run is live.
+    #[must_use]
+    pub fn lease(&self, run_id: &str) -> Option<ControlLease> {
+        unpoison(self.shared.watches.lock())
+            .get(run_id)
+            .map(|watch| watch.lease)
+    }
+
     /// Whether `run_id` is live.
     #[must_use]
     pub fn is_active(&self, run_id: &str) -> bool {
         unpoison(self.runs.lock()).contains_key(run_id)
+    }
+}
+
+/// Ending is the registry's revocation: [`end_and_revoke`] over a
+/// `SurrogateRuns` ends the run.
+///
+/// [`end_and_revoke`]: opensesame_session_observe::end_and_revoke
+impl RunCredentials for SurrogateRuns {
+    fn revoke(&self, run_id: &str) -> usize {
+        self.end_run(run_id)
     }
 }
 
@@ -279,10 +351,13 @@ impl Drop for SurrogateRuns {
     }
 }
 
-fn check_env_vars(grants: &[SurrogateGrant]) -> Result<(), RunError> {
-    let mut seen: Vec<&str> = Vec::with_capacity(grants.len());
-    for grant in grants {
-        let name = grant.env_var.as_str();
+fn check_env_vars(grants: &[SurrogateGrant], logins: &[LoginGrant]) -> Result<(), RunError> {
+    let mut seen: Vec<&str> = Vec::with_capacity(grants.len() + logins.len());
+    let names = grants
+        .iter()
+        .map(|grant| grant.env_var.as_str())
+        .chain(logins.iter().map(|login| login.env_var.as_str()));
+    for name in names {
         if !env::is_valid_name(name) || env::is_reserved(name) || seen.contains(&name) {
             return Err(RunError::EnvVar(name.to_owned()));
         }

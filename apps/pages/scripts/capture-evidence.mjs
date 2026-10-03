@@ -36,6 +36,7 @@ import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
+import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -349,6 +350,7 @@ async function capture(browser, into) {
       remote,
     });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
+    await stubJourneyDaemon(page, screen, journey, origin);
     // A fixed start time: both builds' timestamps read the same, and
     // `elapse` can move the clock between steps.
     if (journey.clock)

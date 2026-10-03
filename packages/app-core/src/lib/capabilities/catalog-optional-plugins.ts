@@ -13,6 +13,8 @@ import { type AuthoredDescriptor, optional } from "./descriptor.js";
 /** The one purpose a plugin capability's requests declare (egress port). */
 export const PLUGIN_DAEMON_PURPOSE =
   "the daemon a person paired over the tailnet, for one plugin's state and switch";
+// The purpose text is part of the capability's exposure digest; pairing
+// (`opensesame plugins pair`) is a request to that same daemon.
 
 const DAEMON_EGRESS = {
   class: "peer-or-local-network",
@@ -29,7 +31,8 @@ export const PLUGIN_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Surrogate credentials",
     "Show whether the surrogate proxy plugin is installed on the paired daemon, switch it on or off there, and list its recent tripwires. The proxy is a separate binary installed at a terminal; nothing of it runs in this page.",
     {
-      // The daemon is reached through the tailnet pairing (ADR 0144).
+      // The daemon is reached on this machine or over the tailnet, paired
+      // with `opensesame plugins pair` (ADR 0150 §7).
       dependencies: ["networking.tailnet"],
       operationIds: [
         "plugins.surrogate_proxy.switch",

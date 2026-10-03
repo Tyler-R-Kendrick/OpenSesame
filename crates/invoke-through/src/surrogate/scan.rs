@@ -8,7 +8,7 @@ use super::{Refusal, RefusalCode, SurrogateSpec, SURROGATE_HEX_LEN, SURROGATE_MA
 /// One place a surrogate-shaped token was seen.
 pub(super) struct Sighting {
     pub(super) value: String,
-    /// `path`, `body`, or the lowercased header name.
+    /// `path`, `body`, `method`, or the lowercased header name.
     pub(super) site: String,
 }
 
@@ -48,10 +48,16 @@ pub(super) fn check_placement(
     Ok(())
 }
 
-/// Every surrogate-shaped token anywhere in the request: header names and
-/// values, the request target (raw and percent-decoded), and the body.
+/// Every surrogate-shaped token anywhere in the request: the method, header
+/// names and values, the request target (raw and percent-decoded), and the body.
 pub(super) fn sightings(req: &RequestView<'_>) -> Vec<Sighting> {
-    let mut out = Vec::new();
+    let mut out: Vec<Sighting> = shaped(req.method.as_bytes())
+        .into_iter()
+        .map(|value| Sighting {
+            value,
+            site: "method".into(),
+        })
+        .collect();
     for (name, value) in req.headers {
         let site = name.to_ascii_lowercase();
         for found in shaped(name.as_bytes())

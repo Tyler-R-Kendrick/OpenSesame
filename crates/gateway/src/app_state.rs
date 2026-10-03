@@ -11,6 +11,7 @@ use opensesame_domain::{
 };
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
+use opensesame_session_observe::{NoRunCredentials, RunCredentials};
 use opensesame_storage::Db;
 use opensesame_task_access::{
     distributed_task_authority_ok, is_postgres_database_url, PostgresTaskStore,
@@ -130,6 +131,11 @@ pub struct AppState {
     /// the live service-binding set, and the operator status facts. `None`
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,
+    /// What a sandboxed run's lease revokes when the agent stops driving
+    /// (ADR 0150 §6.2). The Host issues no surrogates itself, so this is
+    /// [`NoRunCredentials`] until an embedder that does supplies its own; the
+    /// lease hooks in `run_lease` call it either way.
+    pub run_credentials: Arc<dyn RunCredentials + Send + Sync>,
 }
 
 impl AppState {
@@ -224,6 +230,7 @@ async fn build_with_security(
         task_bus: Arc::new(RwLock::new(task_bus)),
         transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
         transport: None,
+        run_credentials: Arc::new(NoRunCredentials),
     };
     // Built after the state exists: a `managed` identity source resolves
     // through the Host's own custody bridge, which needs the state.
