@@ -176,6 +176,18 @@ const STEPS = {
       await page.waitForTimeout(1000);
     }
   },
+  /**
+   * Tap a tree entry by its name, when this build draws it. A phone's
+   * section tree is a screen of its own; a base build that opens on a list
+   * has no such row, and its picture is then the list it already shows.
+   */
+  async openRowOptional(page, name) {
+    const row = page.getByRole("treeitem", { name, exact: true }).first();
+    if (await row.isVisible()) {
+      await press(row);
+      await page.waitForTimeout(900);
+    }
+  },
   async open(page, name) {
     const link = page.getByRole("link", { name, exact: true }).first();
     if (await link.count()) {
