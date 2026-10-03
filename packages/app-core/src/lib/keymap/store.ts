@@ -174,6 +174,7 @@ export function refreshKeymap(): boolean {
 }
 
 const NOT_SAVED = "The keymap could not be saved on this device.";
+const NOT_RESET = "The keymap could not be reset on this device.";
 
 /**
  * Keep a keymap written as data (the stored JSON, the parsed file). The live
@@ -201,10 +202,13 @@ export function saveKeymap(config: KeymapConfig): KeymapResult {
   return saveKeymapData(overlapCast(keymapJson(config)));
 }
 
-/** Forget every change: the defaults, no macros, character keys on. */
-export function resetKeymap(): KeymapConfig {
-  loaded = true;
-  live = EMPTY_KEYMAP;
+/**
+ * Forget every change: the defaults, no macros, character keys on. As with a
+ * save, the live copy changes only once storage has taken it: when neither
+ * the removal nor the empty keymap written in its place gets through, the old
+ * keymap would return on the next load, so the reset is refused.
+ */
+export function resetKeymap(): KeymapResult {
   const storage = webStorage();
   if (storage) {
     const gone = [KEYMAP_KEY, LEGACY_KEYMAP_KEY].map((key) =>
@@ -212,11 +216,16 @@ export function resetKeymap(): KeymapConfig {
     );
     // A key that would not go must not come back on the next load: an empty
     // keymap stored over it says the same thing.
-    if (gone.includes(false))
-      putItem(storage, KEYMAP_KEY, JSON.stringify(keymapJson(EMPTY_KEYMAP)));
+    if (
+      gone.includes(false) &&
+      !putItem(storage, KEYMAP_KEY, JSON.stringify(keymapJson(EMPTY_KEYMAP)))
+    )
+      return { ok: false, message: NOT_RESET };
   }
+  loaded = true;
+  live = EMPTY_KEYMAP;
   emit();
-  return live;
+  return { ok: true, config: live };
 }
 
 /** Forget the live copy, as a fresh page load would (tests). */

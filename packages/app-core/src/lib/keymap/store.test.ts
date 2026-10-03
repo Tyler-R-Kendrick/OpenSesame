@@ -234,8 +234,29 @@ describe("a store that refuses", () => {
     const { refuse } = flaky();
     saveKeymap({ bindings: { w: "item.edit" }, macros: {}, singleKeys: true });
     refuse.remove = true;
-    expect(resetKeymap().bindings).toEqual({});
+    const reset = resetKeymap();
+    expect(reset.ok && reset.config.bindings).toEqual({});
     refuse.remove = false;
     expect(reloadKeymap().bindings).toEqual({});
+  });
+
+  it("refuses a reset storage will not take, leaving the live keymap as it was", () => {
+    const { refuse, inner } = flaky();
+    saveKeymap({ bindings: { w: "item.edit" }, macros: {}, singleKeys: true });
+    let heard = 0;
+    const off = subscribeKeymap(() => {
+      heard += 1;
+    });
+    refuse.remove = true;
+    refuse.set = true;
+    const reset = resetKeymap();
+    off();
+    expect(reset.ok).toBe(false);
+    expect(heard).toBe(0);
+    expect(loadKeymap().bindings).toEqual({ w: "item.edit" });
+    refuse.remove = false;
+    refuse.set = false;
+    expect(reloadKeymap().bindings).toEqual({ w: "item.edit" });
+    expect(inner.getItem(KEYMAP_KEY)).not.toBeNull();
   });
 });

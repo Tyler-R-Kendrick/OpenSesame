@@ -123,6 +123,7 @@ function FixedKeys() {
 
 function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
   const [armed, setArmed] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
   const changed =
     changedCount(state.config, state.commands) +
     Object.keys(state.config.macros).length;
@@ -131,27 +132,36 @@ function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
     ? "Press again to forget every change and macro"
     : "Reset every key and macro";
   return (
-    <button
-      type="button"
-      className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
-      aria-label={label}
-      title={label}
-      aria-pressed={armed}
-      disabled={pristine}
-      data-resets=""
-      onBlur={() => setArmed(false)}
-      onClick={() => {
-        if (!armed) {
-          setArmed(true);
-          return;
-        }
-        resetKeymap();
-        setArmed(false);
-        onLand([FILTER_LANDING]);
-      }}
-    >
-      <IconRefresh size={14} />
-    </button>
+    <>
+      {refused ? <StatusMark tone="err" label={refused} /> : null}
+      <button
+        type="button"
+        className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
+        aria-label={label}
+        title={label}
+        aria-pressed={armed}
+        disabled={pristine}
+        data-resets=""
+        onBlur={() => setArmed(false)}
+        onClick={() => {
+          if (!armed) {
+            setRefused(null);
+            setArmed(true);
+            return;
+          }
+          const reset = resetKeymap();
+          setArmed(false);
+          if (!reset.ok) {
+            setRefused(reset.message);
+            return;
+          }
+          setRefused(null);
+          onLand([FILTER_LANDING]);
+        }}
+      >
+        <IconRefresh size={14} />
+      </button>
+    </>
   );
 }
 
