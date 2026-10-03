@@ -1,0 +1,79 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "openRowOptional": "all"
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "shot": "390-item"
+        },
+        {
+          "open": "Back to all items"
+        },
+        {
+          "holdFirstRow": null
+        },
+        {
+          "shot": "390-actions"
+        },
+        {
+          "tapMenuitemOptional": "Share"
+        },
+        {
+          "shot": "390-submenu"
+        },
+        {
+          "escape": null
+        },
+        {
+          "escape": null
+        },
+        {
+          "press": "More"
+        },
+        {
+          "shot": "390-more"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-submenu",
+      "width": 390,
+      "title": "A submenu on a phone \u2014 390 \u00d7 844",
+      "caption": "Share opens inside the sheet, with a way back, instead of a box hung under the list.",
+      "before": "6 entries drawn at once; the submenu's box sits below Trash, its entry painted as a keyboard cursor with no key pressed",
+      "after": "1 of 1 submenu entries drawn; a 44px back row names Share; no cursor paint under a finger; 18px top radius like every other sheet"
+    },
+    {
+      "shot": "390-item",
+      "width": 390,
+      "title": "An item's header \u2014 390 \u00d7 844",
+      "caption": "The name stays on one line; the keys drop under it when it would have to give.",
+      "before": "name over 2 lines, meta over 3, beside 140px of keys",
+      "after": "name 1 line, meta 1 line, keys on their own row"
+    },
+    {
+      "shot": "390-more",
+      "width": 390,
+      "title": "Help row \u2014 390 \u00d7 844",
+      "caption": "A phone has no keyboard to list: the row is Gestures, and its sheet lists swipes and holds.",
+      "before": "Keyboard shortcuts (j/k, Ctrl-d, F6 \u2026)",
+      "after": "Gestures: tap, hold, swipe left, swipe right"
+    }
+  ]
+}

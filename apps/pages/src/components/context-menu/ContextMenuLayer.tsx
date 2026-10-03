@@ -76,6 +76,7 @@ export function ContextMenuLayer() {
           label={open.label}
           title={open.label}
           className="ctxmenu ctxmenu--sheet"
+          sheet
           ignoreOutside=".ctxmenu-scrim"
           onClose={close}
         />

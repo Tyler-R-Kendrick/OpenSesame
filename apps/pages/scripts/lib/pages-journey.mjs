@@ -226,3 +226,48 @@ export async function setShowHidden(page, on) {
   await toggle.click();
   return true;
 }
+
+/**
+ * The steps a phone's rows and menus need, for the evidence journeys. Each
+ * works on both a base build and a branch: a row or entry this build does not
+ * draw is skipped, and its picture is then the screen it already shows.
+ */
+export function rowSteps(press) {
+  return {
+    /** Tap a tree entry by its name, when this build draws it. */
+    async openRowOptional(page, name) {
+      const row = page.getByRole("treeitem", { name, exact: true }).first();
+      if (await row.isVisible()) {
+        await press(row);
+        await page.waitForTimeout(900);
+      }
+    },
+    /** A real touch hold on the first row of the list. */
+    async holdFirstRow(page) {
+      const box = await page.locator(".vtree__row").first().boundingBox();
+      if (!box) return;
+      const x = Math.round(box.x + Math.min(box.width / 2, 48));
+      const y = Math.round(box.y + box.height / 2);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x, y }],
+      });
+      await page.waitForTimeout(900);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await cdp.detach();
+      await page.waitForTimeout(500);
+    },
+    /** Choose an entry of the open menu, when it has one by that name. */
+    async tapMenuitemOptional(page, name) {
+      const entry = page.getByRole("menuitem", { name: new RegExp(name) });
+      if (await entry.count()) {
+        await press(entry.first());
+        await page.waitForTimeout(500);
+      }
+    },
+  };
+}

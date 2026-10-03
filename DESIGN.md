@@ -336,6 +336,18 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   rule that sizes a field reads `max(<its size>, var(--field-min))`; the token
   is `0` on a desktop and `1rem` under coarse/narrow, so the trap cannot be
   reopened by adding one more field style.
+- **A finger gets gestures where the keyboard has keys.** The keymap is for a
+  keyboard: under a coarse pointer the help row says *Gestures* and its sheet
+  lists the ones the shell recognises (`lib/gesture-help.ts`) — tap opens, hold
+  or swipe a row left asks for its actions, swipe right goes back, and the
+  keys that matter (new, search) are visible 44px keys. A row never lists a
+  gesture with no recogniser behind it. Gestures are twins, never the only
+  road, and a command that asks before it acts (trash, share) is still never a
+  gesture of its own — it is an entry in the actions a hold or swipe opens.
+- **A submenu is a drill-in, not a box.** A sheet's nested choices replace its
+  list under a 44px back row that names the parent; the floating menu keeps its
+  submenu beside the row. A finger is never shown the keyboard's inverse-video
+  cursor: that paint belongs to `:focus-visible`.
 - **Nothing waits to find out it was a tap.** Interactive elements set
   `touch-action: manipulation`, drop the platform tap highlight, and answer
   with a `:active` ink instead.

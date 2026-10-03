@@ -20,6 +20,8 @@ import {
 } from "@opensesame/app-core/lib/keymap/store.js";
 import { useRef, useSyncExternalStore } from "react";
 
+import { GESTURE_HELP } from "../lib/gesture-help.js";
+import { isTouchPointer } from "../lib/gestures.js";
 import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
@@ -71,13 +73,16 @@ export function KeymapSheet({
   useContributions("keymap-jump");
   useContributions("command-assist");
   useContributions("secret-share");
-  const rows = keymapHelp();
+  // Under a finger the keys are not what is there to learn: the gestures are.
+  const touch = isTouchPointer();
+  const title = touch ? "Gestures" : "Keyboard shortcuts";
+  const rows = touch ? GESTURE_HELP : keymapHelp();
   const keymap = useSyncExternalStore(subscribeKeymap, loadKeymap, loadKeymap);
   const commands = keymapCommands();
   // A person's own keys (ADR 0150), after the defaults: what they bound,
   // and the defaults they took away, so the sheet never promises a key the
   // handler would not run.
-  const yours = yourKeys(keymap, commands);
+  const yours = touch ? [] : yourKeys(keymap, commands);
 
   if (!open) return null;
   return (
@@ -94,11 +99,11 @@ export function KeymapSheet({
         // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and conflicts with the shared sheet layer
         role="dialog"
         aria-modal="true"
-        aria-label="Keyboard shortcuts"
+        aria-label={title}
       >
         <div className="sheet__head">
           <div className="sheet__grow">
-            <h2>Keyboard shortcuts</h2>
+            <h2>{title}</h2>
           </div>
           <button
             ref={closeRef}
