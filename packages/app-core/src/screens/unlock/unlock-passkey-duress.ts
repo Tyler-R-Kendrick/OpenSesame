@@ -7,6 +7,7 @@
  */
 
 import { type VaultHeader, WrongPasswordError } from "@opensesame/vault-core";
+import type { ProtectorUnlockInput } from "../../lib/vault/protection/unlock-protector-open.js";
 import { maybePage } from "../../ports.js";
 import {
   loadEnrollmentStateForUnlock,
@@ -24,7 +25,10 @@ import {
 } from "./unlock-duress-refuse.js";
 import {
   clearPasskeyDuressEvidence,
+  hasHeldProtectorRoot,
+  holdProtectorRoot,
   stashPasskeyDuressEvidence,
+  takeHeldProtectorRoot,
   takePasskeyDuressEvidence,
   toSelectOptions,
 } from "./unlock-passkey-evidence.js";
@@ -39,11 +43,15 @@ type PasskeyUnlockStore = DuressContinueStore &
     unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
     probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
     unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
+    unlockWithHeldProtectorRoot?: (
+      root: ArrayBuffer,
+      input: Pick<ProtectorUnlockInput, "method">,
+    ) => Promise<void>;
     /** The unlocking vault's header: names the passkey the PRF output came from. */
     getSnapshot?: () => Readonly<{ header: VaultHeader | null }>;
   }>;
 
-function armedTwoInputTrigger(): boolean {
+export function armedTwoInputTrigger(): boolean {
   const state = loadEnrollmentStateForUnlock();
   if (!state?.armed || state.triggers.length === 0) return false;
   return state.triggers.some(
@@ -108,7 +116,20 @@ export async function completePasskeyDuressCode(
 
   if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
     if (!select.prfOutput) {
-      throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+      // An age-passkey tap carries no PRF output: it holds the root it opened.
+      const root = takeHeldProtectorRoot();
+      if (!root || !store.unlockWithHeldProtectorRoot) {
+        throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+      }
+      try {
+        await store.unlockWithHeldProtectorRoot(root.root, root);
+      } catch (error) {
+        holdProtectorRoot(root.root, root.method);
+        stashPasskeyDuressEvidence(select);
+        throw error;
+      }
+      new Uint8Array(root.root).fill(0);
+      return "vault_opened";
     }
     const held = select.prfOutput.buffer.slice(
       select.prfOutput.byteOffset,
@@ -119,7 +140,9 @@ export async function completePasskeyDuressCode(
     return "vault_opened";
   }
 
-  if (select.prfOutput) stashPasskeyDuressEvidence(select);
+  if (select.prfOutput || hasHeldProtectorRoot()) {
+    stashPasskeyDuressEvidence(select);
+  }
   throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
 }
 
