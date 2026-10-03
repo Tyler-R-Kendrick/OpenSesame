@@ -13,6 +13,7 @@ export type PluginMark = Readonly<{ tone: StatusTone; label: string }>;
 
 const ERRORS = {
   "no-daemon": "No daemon paired",
+  "target-changed": "The daemon changed; asking again",
   unreachable: "The daemon did not answer",
   unauthorized: "The daemon did not let this device in",
   malformed: "The daemon's answer was unreadable",

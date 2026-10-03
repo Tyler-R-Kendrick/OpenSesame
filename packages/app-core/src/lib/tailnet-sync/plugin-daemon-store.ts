@@ -9,6 +9,7 @@
  * shows in the other.
  */
 
+import { PluginError } from "../plugins/client.js";
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
 import {
   type PluginDaemonPairing,
@@ -20,10 +21,18 @@ let pairing: PluginDaemonPairing | null = null;
 /** The tomb `pairing` was read from; any other open vault has none. */
 let pairedTomb: string | null = null;
 let seenKey = "";
+/**
+ * Opaque counter, bumped on every change of the pairing (kept, dropped, read
+ * again after a vault change, forgotten on the last unsubscribe). It lets a
+ * caller tell "the same daemon, paired again" from "the pairing it started
+ * with"; it is not a secret and is not derived from the key.
+ */
+let revision = 0;
 let unfollow: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
 function notify(): void {
+  revision += 1;
   for (const listener of listeners) listener();
 }
 
@@ -36,6 +45,19 @@ export function pluginPairingPossible(): boolean {
 function vaultKey(): string {
   const snap = vaultStore.getSnapshot();
   return `${snap.tomb}:${snap.status}:${snap.guest}`;
+}
+
+/** The revision of the pairing in force; changes whenever the pairing does. */
+export function pluginPairingRevision(): number {
+  return revision;
+}
+
+/** The vault open and the pairing in force when a call began. */
+export type PairingBinding = Readonly<{ tomb: string; revision: number }>;
+
+/** Where a call that will seal or drop a pairing began. */
+export function bindPluginPairing(): PairingBinding {
+  return { tomb: vaultStore.activeTomb(), revision: revision };
 }
 
 /** The pairing of the vault open now, or null. */
@@ -53,6 +75,7 @@ async function load(): Promise<void> {
   pairing = null;
   pairedTomb = null;
   if (had) notify();
+  else revision += 1;
   if (!pluginPairingPossible()) return;
   const key = vaultKey();
   const tomb = vaultStore.activeTomb();
@@ -85,25 +108,35 @@ export function subscribePluginPairing(listener: () => void): () => void {
     unfollow = null;
     pairing = null;
     pairedTomb = null;
+    revision += 1;
   };
 }
 
-/** Seal a traded pairing into the vault open now. */
+/**
+ * Seal a traded pairing into the vault open now, provided it is the vault
+ * the exchange began in and the pairing has not moved since.
+ */
 export async function keepPluginPairing(
   next: PluginDaemonPairing,
+  began: PairingBinding = bindPluginPairing(),
 ): Promise<void> {
-  if (!pluginPairingPossible()) throw new Error("locked");
+  if (!pluginPairingPossible()) throw new PluginError("locked");
   const tomb = vaultStore.activeTomb();
+  if (tomb !== began.tomb) throw new PluginError("locked");
+  if (revision !== began.revision) throw new PluginError("target-changed");
   await writePluginDaemonConfig(tomb, next);
-  if (vaultStore.activeTomb() !== tomb) throw new Error("locked");
+  if (vaultStore.activeTomb() !== tomb) throw new PluginError("locked");
   pairing = next;
   pairedTomb = tomb;
   notify();
 }
 
-/** Forget this vault's pairing; the daemon revokes the key separately. */
-export async function dropPluginPairing(): Promise<void> {
-  if (!pluginPairingPossible()) return;
+/**
+ * Forget this vault's pairing, but only the one in force at `expected`; a
+ * pairing made since is left alone. The daemon revokes the key separately.
+ */
+export async function dropPluginPairing(expected: number): Promise<void> {
+  if (!pluginPairingPossible() || revision !== expected) return;
   await writePluginDaemonConfig(vaultStore.activeTomb(), null);
   pairing = null;
   pairedTomb = null;

@@ -15,10 +15,12 @@ import {
   vfsFlush,
 } from "../vfs.js";
 import {
+  bindPluginPairing,
   currentPluginPairing,
   dropPluginPairing,
   keepPluginPairing,
   pluginPairingPossible,
+  pluginPairingRevision,
   subscribePluginPairing,
 } from "./plugin-daemon-store.js";
 import {
@@ -98,9 +100,43 @@ describe("the plugin-daemon pairing", () => {
     await vaultStore.create(PASSWORD);
     stop = subscribePluginPairing(() => {});
     await keepPluginPairing(PAIRED);
-    await dropPluginPairing();
+    await dropPluginPairing(pluginPairingRevision());
     expect(currentPluginPairing()).toBeNull();
     expect(await readPluginDaemonConfig(vaultStore.activeTomb())).toBeNull();
+  });
+
+  it("moves its revision whenever the pairing does, and keeps no key in it", async () => {
+    await vaultStore.create(PASSWORD);
+    stop = subscribePluginPairing(() => {});
+    const seen = [pluginPairingRevision()];
+    await keepPluginPairing(PAIRED);
+    seen.push(pluginPairingRevision());
+    // The same daemon, paired again with a rotated key.
+    await keepPluginPairing({ ...PAIRED, token: `${PAIRED.token.slice(1)}A` });
+    seen.push(pluginPairingRevision());
+    await dropPluginPairing(pluginPairingRevision());
+    seen.push(pluginPairingRevision());
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.every((n) => Number.isInteger(n))).toBe(true);
+  });
+
+  it("drops only the pairing it was told about, and keeps only where the call began", async () => {
+    await vaultStore.create(PASSWORD);
+    stop = subscribePluginPairing(() => {});
+    const began = bindPluginPairing();
+    await keepPluginPairing(PAIRED, began);
+    const stale = pluginPairingRevision() - 1;
+    await dropPluginPairing(stale);
+    expect(currentPluginPairing()).toEqual(PAIRED);
+    expect(await readPluginDaemonConfig(vaultStore.activeTomb())).toEqual(
+      PAIRED,
+    );
+    await expect(keepPluginPairing(PAIRED, began)).rejects.toMatchObject({
+      code: "target-changed",
+    });
+    await expect(
+      keepPluginPairing(PAIRED, { ...began, tomb: "project-4f2a" }),
+    ).rejects.toMatchObject({ code: "locked" });
   });
 
   it("is never kept for a guest", async () => {

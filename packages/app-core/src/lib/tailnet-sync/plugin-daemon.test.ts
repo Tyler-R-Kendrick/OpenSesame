@@ -180,8 +180,42 @@ describe("the paired daemon as the plugin port", () => {
     expect(daemon.target()).toEqual({
       label: "Desk",
       host: "desk.tail4c2e.ts.net",
+      revision: pluginDaemonSeams.revision(),
     });
     expect(JSON.stringify(daemon.target())).not.toContain(TOKEN);
+  });
+
+  it("refuses, and sends no key, a call issued for a pairing no longer in force", async () => {
+    const { fetchImpl, daemon } = setup([CAPABILITY], PAIRED);
+    const issuedFor = daemon.target();
+    if (!issuedFor) throw new Error("no target");
+    const init = { method: "GET", signal, expect: issuedFor } as const;
+    vi.spyOn(pluginDaemonSeams, "revision").mockReturnValue(
+      issuedFor.revision + 1,
+    );
+    await expect(daemon.request("/v1/plugins", init)).rejects.toMatchObject({
+      code: "target-changed",
+    });
+    vi.spyOn(pluginDaemonSeams, "revision").mockReturnValue(issuedFor.revision);
+    vi.spyOn(pluginDaemonSeams, "pairing").mockReturnValue({
+      ...PAIRED,
+      url: "https://lab.tail4c2e.ts.net",
+    });
+    await expect(daemon.request("/v1/plugins", init)).rejects.toMatchObject({
+      code: "target-changed",
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("sends a call issued for the pairing that is in force", async () => {
+    const { fetchImpl, daemon } = setup([CAPABILITY], PAIRED);
+    const expect_ = daemon.target() ?? undefined;
+    await daemon.request("/v1/plugins", {
+      method: "GET",
+      signal,
+      expect: expect_,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("has no pairing to offer with no vault open", () => {
@@ -211,7 +245,7 @@ describe("pairing from a pasted code", () => {
     expect(JSON.parse(String(init?.body))).toEqual({ code: CODE });
     expect(new Headers(init?.headers).get("Authorization")).toBeNull();
     expect(init?.credentials).toBe("omit");
-    expect(keep).toHaveBeenCalledWith(PAIRED);
+    expect(keep).toHaveBeenCalledWith(PAIRED, expect.anything());
   });
 
   it("refuses, and sends nothing for, a code printed for another page", async () => {

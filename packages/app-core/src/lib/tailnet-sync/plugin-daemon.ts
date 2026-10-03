@@ -29,11 +29,14 @@ import type {
   PluginDaemonTarget,
 } from "../plugins/client.js";
 import { PluginError } from "../plugins/client.js";
+import { sameTarget } from "../plugins/pinned.js";
 import {
+  bindPluginPairing,
   currentPluginPairing,
   dropPluginPairing,
   keepPluginPairing,
   pluginPairingPossible,
+  pluginPairingRevision,
   subscribePluginPairing,
 } from "./plugin-daemon-store.js";
 import {
@@ -54,10 +57,14 @@ function hostOf(url: string): string {
 /** Seams a test replaces: the stored pairing, who says it moved, this page. */
 export const pluginDaemonSeams = {
   pairing: currentPluginPairing,
+  /** Which pairing is in force; moves whenever the pairing does. */
+  revision: pluginPairingRevision,
   subscribe: subscribePluginPairing,
   /** An open vault to seal the key in, on a deployment that may hold local authority. */
   possible: (): boolean =>
     pluginPairingPossible() && localNetworkFetchSeams.eligible(),
+  /** The vault and pairing a call begins under. */
+  bind: bindPluginPairing,
   keep: keepPluginPairing,
   drop: dropPluginPairing,
   pageOrigin: (): string => pageOrigin(),
@@ -86,6 +93,15 @@ async function issuedToken(
   return token;
 }
 
+/** The paired daemon as the panels name it: host and revision, never the key. */
+function targetOf(pairing: PluginDaemonPairing): PluginDaemonTarget {
+  return {
+    label: pairing.label,
+    host: hostOf(pairing.url),
+    revision: pluginDaemonSeams.revision(),
+  };
+}
+
 export function tailnetPluginDaemon(
   egress: EgressPort,
   capability: CapabilityId,
@@ -108,14 +124,16 @@ export function tailnetPluginDaemon(
     subscribe: (listener) => pluginDaemonSeams.subscribe(listener),
     target(): PluginDaemonTarget | null {
       const pairing = pluginDaemonSeams.pairing();
-      return pairing
-        ? { label: pairing.label, host: hostOf(pairing.url) }
-        : null;
+      return pairing ? targetOf(pairing) : null;
     },
     canPair: () => pluginDaemonSeams.possible(),
     async request(path: string, init: PluginDaemonRequest): Promise<Response> {
       const pairing = pluginDaemonSeams.pairing();
       if (!pairing) throw new PluginError("no-daemon");
+      // Resolved here, so a call issued for another pairing is refused here:
+      // the key of the pairing now in force never goes with an old call.
+      if (init.expect && !sameTarget(init.expect, targetOf(pairing)))
+        throw new PluginError("target-changed");
       const headers = new Headers({ Authorization: `Bearer ${pairing.token}` });
       if (init.body !== undefined)
         headers.set("Content-Type", "application/json");
@@ -132,6 +150,7 @@ export function tailnetPluginDaemon(
       if (parsed.origin !== pluginDaemonSeams.pageOrigin())
         throw new PluginError("other-origin");
       if (!pluginDaemonSeams.possible()) throw new PluginError("locked");
+      const began = pluginDaemonSeams.bind();
       const response = await send(parsed, PLUGIN_PAIRING_EXCHANGE_PATH, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,20 +161,24 @@ export function tailnetPluginDaemon(
       });
       const token = await issuedToken(response, parsed.origin);
       const { url, origin, label } = parsed;
-      await pluginDaemonSeams.keep({ url, token, origin, label }).catch(() => {
-        throw new PluginError("locked");
-      });
+      try {
+        await pluginDaemonSeams.keep({ url, token, origin, label }, began);
+      } catch (error) {
+        throw error instanceof PluginError ? error : new PluginError("locked");
+      }
     },
     async forget(signal: AbortSignal): Promise<void> {
       const pairing = pluginDaemonSeams.pairing();
       if (!pairing) return;
-      // The daemon drops the key when it answers; the page forgets it either way.
+      const issuedFor = pluginDaemonSeams.revision();
+      // The daemon drops the key when it answers; the page forgets it either
+      // way, unless a newer pairing took its place while the call was out.
       await send(pairing, PLUGIN_PAIRING_EXCHANGE_PATH, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${pairing.token}` },
         signal,
       }).catch(() => null);
-      await pluginDaemonSeams.drop();
+      await pluginDaemonSeams.drop(issuedFor);
     },
   };
 }

@@ -11,7 +11,7 @@ const PLUGIN = pluginById("surrogate-proxy");
 
 function view(overrides: Partial<PluginView> = {}): PluginView {
   return {
-    daemon: { label: "desk", host: "desk.tail.ts.net" },
+    daemon: { label: "desk", host: "desk.tail.ts.net", revision: 1 },
     state: {
       id: "surrogate-proxy",
       installed: true,

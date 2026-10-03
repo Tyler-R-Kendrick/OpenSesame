@@ -53,7 +53,8 @@ function mount(daemonState: Daemon = { open: true, accept: true }) {
     moved();
   });
   const daemon: PluginDaemon = {
-    target: () => (paired ? { label: "Desk", host: "desk.tail.ts.net" } : null),
+    target: () =>
+      paired ? { label: "Desk", host: "desk.tail.ts.net", revision: 1 } : null,
     request: async (path, init) => {
       sent.push(`${init.method} ${path}`);
       const body =

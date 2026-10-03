@@ -27,6 +27,8 @@ import {
 export type PluginErrorCode =
   /** No daemon is paired with the open vault. */
   | "no-daemon"
+  /** The pairing the call was issued for is no longer the one in force. */
+  | "target-changed"
   /** The request never got an answer (offline, refused by the browser, timed out). */
   | "unreachable"
   /** The daemon would not let this device in. */
@@ -56,13 +58,29 @@ export class PluginError extends Error {
   }
 }
 
-/** Where the daemon is, for a label: never its key, never a full URL. */
-export type PluginDaemonTarget = Readonly<{ label: string; host: string }>;
+/**
+ * Where the daemon is, for a label: never its key, never a full URL.
+ *
+ * `revision` is an opaque counter the pairing store bumps on every change of
+ * the pairing (paired again, key rotated, forgotten, another vault opened).
+ * It is not a secret and says nothing about the key; two targets are the same
+ * pairing only when host and revision both match.
+ */
+export type PluginDaemonTarget = Readonly<{
+  label: string;
+  host: string;
+  revision: number;
+}>;
 
 export type PluginDaemonRequest = Readonly<{
   method: "GET" | "PUT";
   body?: string;
   signal: AbortSignal;
+  /**
+   * The pairing this call was issued for. A port that resolves its pairing
+   * when the call runs refuses, without sending, when that is not this one.
+   */
+  expect?: PluginDaemonTarget;
 }>;
 
 /** The daemon a capability talks to; it adds whatever proves the caller. */

@@ -53,7 +53,7 @@ function fakeDaemon(initial: PluginDaemonTarget | null) {
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-const DESK = { label: "desk", host: "desk.tail.ts.net" };
+const DESK = { label: "desk", host: "desk.tail.ts.net", revision: 1 };
 
 describe("a plugin session", () => {
   it("sends nothing until asked, and nothing with no daemon paired", async () => {
@@ -83,7 +83,7 @@ describe("a plugin session", () => {
       "GET /v1/plugins/surrogate-proxy/notices",
     ]);
     expect(session.view().state?.active).toBe(true);
-    daemon.move({ label: "lab", host: "lab.tail.ts.net" });
+    daemon.move({ label: "lab", host: "lab.tail.ts.net", revision: 1 });
     await settle();
     expect(daemon.paths).toHaveLength(4);
     daemon.move(null);
