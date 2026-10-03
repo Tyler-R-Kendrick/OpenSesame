@@ -52,6 +52,15 @@ paired, through that daemon's two device routes, holding only the slot's
 access key. It sends no operator token, calls no slot or Host route, and
 never configures the app's Host.
 
+**Amendment (2026-10-03,
+[ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md)):** the
+connector pages kept the Host's forms and calls after this ADR removed the
+rest — organisation OAuth clients, custom providers, token forms, Host
+repository listing, and a "Host road" that no build could open. They are gone,
+and `connections.ts` refuses what no road on the device can take instead of
+sending it. No ceremony was added to open that road: it would be a
+Host-speaking surface, which this ADR says must overturn it first.
+
 ## Consequences
 
 - A Host API URL in Endpoints is optional advanced wiring for deployments

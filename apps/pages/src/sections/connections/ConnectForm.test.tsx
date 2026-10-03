@@ -6,10 +6,6 @@ import {
 } from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
-import {
-  HOST_CONNECTIONS_WRITE,
-  hostGrantSeams,
-} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
@@ -24,13 +20,11 @@ import { ConnectForm } from "./ConnectForm.js";
 
 const originalIntegrations = connectionSeams.listIntegrations;
 const originalIdentity = { ...identitySeams };
-const originalGrant = { ...hostGrantSeams };
 
-/** A Host is named and this browser holds an approved grant to it. */
-function openHostRoad() {
+/** A Host is named and this browser holds a live grant to it: it opens nothing. */
+function nameAHostWithALiveGrant() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
-  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 function memoryStorage(): Storage {
@@ -68,7 +62,6 @@ afterEach(() => {
   applyConnectCallbackBase("");
   connectionSeams.listIntegrations = originalIntegrations;
   Object.assign(identitySeams, originalIdentity);
-  Object.assign(hostGrantSeams, originalGrant);
   resetConnectRoadSeams();
   notifyConnectRoads();
   vi.unstubAllGlobals();
@@ -123,7 +116,7 @@ it("authorizes a Connect-managed provider through the relay", () => {
   );
 });
 
-it("offers GitHub App registration and nothing that needs a Host with none open", async () => {
+it("offers GitHub App registration and nothing a Host would take", async () => {
   connectionSeams.listIntegrations = vi.fn(async () => []);
   render(
     <ConnectForm
@@ -138,7 +131,7 @@ it("offers GitHub App registration and nothing that needs a Host with none open"
       name: /Create GitHub App for this organization/i,
     }),
   ).toBeTruthy();
-  // Each of these saves through a Host, which this device has none of: a key
+  // Each of these saved through a Host, which Pages does not speak to: a key
   // that could only fail is not drawn.
   expect(
     screen.queryByLabelText(/Or connect with a personal access token/i),
@@ -152,8 +145,8 @@ it("offers GitHub App registration and nothing that needs a Host with none open"
   ).toBeNull();
 });
 
-it("offers the token and the OAuth client beside the App once a Host road is open", async () => {
-  openHostRoad();
+it("offers the same with a Host named and granted: it opens no road", async () => {
+  nameAHostWithALiveGrant();
   connectionSeams.listIntegrations = vi.fn(async () => []);
   render(
     <ConnectForm
@@ -169,14 +162,16 @@ it("offers the token and the OAuth client beside the App once a Host road is ope
     }),
   ).toBeTruthy();
   expect(
-    screen.getByLabelText(/Or connect with a personal access token/i),
-  ).toBeTruthy();
-  expect(screen.queryByText(/Connect relay/i)).toBeNull();
+    screen.queryByLabelText(/Or connect with a personal access token/i),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Authorize with GitHub/i }),
+  ).toBeNull();
+  expect(screen.queryByLabelText(/Client ID/i)).toBeNull();
 });
 
-it("hides Create App and PAT once a local GitHub App is registered", async () => {
-  openHostRoad();
-  connectionSeams.listIntegrations = vi.fn(async () => []);
+it("draws nothing to authorize once a local GitHub App is registered", async () => {
+  nameAHostWithALiveGrant();
   localStorage.setItem(
     "opensesame.github-app.public",
     JSON.stringify({
@@ -198,13 +193,14 @@ it("hides Create App and PAT once a local GitHub App is registered", async () =>
       onConnected={vi.fn()}
     />,
   );
-  await screen.findByRole("button", {
-    name: /Authorize with GitHub/i,
-  });
+  // The App's own presence panel owns what follows; this form has no key left.
   expect(
     screen.queryByRole("button", {
       name: /Create GitHub App for this organization/i,
     }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Authorize with GitHub/i }),
   ).toBeNull();
   expect(
     screen.queryByLabelText(/Or connect with a personal access token/i),

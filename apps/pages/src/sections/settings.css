@@ -147,12 +147,6 @@
   gap: 0.35rem;
 }
 
-.cap-pat {
-  margin-top: 0.35rem;
-  padding-top: 0.75rem;
-  border-top: 1px dashed var(--line);
-}
-
 @media (pointer: coarse), (max-width: 900px) {
   /* Three keys in a row, each one a key. They were 36px: a comfortable click
      and a miss under a thumb. */

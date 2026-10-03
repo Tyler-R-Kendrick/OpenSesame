@@ -1,10 +1,7 @@
 import { backupSeams } from "@opensesame/app-core/lib/backup.js";
 import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import { githubAppRepoSeams } from "@opensesame/app-core/lib/github-app-repos.js";
-import {
-  DEFAULT_PASSWORD_REPO_NAME,
-  githubHistorySeams,
-} from "@opensesame/app-core/lib/github-history.js";
+import { DEFAULT_PASSWORD_REPO_NAME } from "@opensesame/app-core/lib/github-history.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -19,13 +16,10 @@ import {
 } from "./GithubBackupRepo.js";
 
 const originalBackup = { ...backupSeams };
-const originalHistory = { ...githubHistorySeams };
 const originalAppRepos = { ...githubAppRepoSeams };
 
 const getBackupStatus = vi.fn();
 const putBackupTarget = vi.fn();
-const listGithubRepos = vi.fn();
-const createGithubPasswordRepo = vi.fn();
 const postRelay = vi.fn();
 
 const connection = overlapCast({
@@ -60,10 +54,6 @@ const connection = overlapCast({
 
 beforeEach(() => {
   Object.assign(backupSeams, { getBackupStatus, putBackupTarget });
-  Object.assign(githubHistorySeams, {
-    listGithubRepos,
-    createGithubPasswordRepo,
-  });
   Object.assign(githubAppRepoSeams, {
     credentials: () => ({
       appId: "1",
@@ -79,7 +69,6 @@ beforeEach(() => {
     postRelay,
   });
   getBackupStatus.mockResolvedValue({ target: null, pendingEvents: 0 });
-  listGithubRepos.mockResolvedValue([]);
   putBackupTarget.mockImplementation(
     async (body: {
       owner: string;
@@ -141,7 +130,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   Object.assign(backupSeams, originalBackup);
-  Object.assign(githubHistorySeams, originalHistory);
   Object.assign(githubAppRepoSeams, originalAppRepos);
 });
 

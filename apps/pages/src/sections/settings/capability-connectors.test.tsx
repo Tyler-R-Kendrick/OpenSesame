@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCapabilityFeature } from "../../lib/capability-feature-operation.js";
 import {
   installPanelFixture,
+  openConnectorPages,
   renderPanel,
 } from "./capabilities-panel.test-support.js";
 import {
@@ -116,6 +117,7 @@ describe("capability connectors the page lists", () => {
   });
 
   it("turns a section on and off in place and keeps its connectors listed", async () => {
+    openConnectorPages();
     renderPanel();
     const ai = screen.getByRole("switch", { name: "AI" });
     expect(ai.getAttribute("aria-checked")).toBe("true");

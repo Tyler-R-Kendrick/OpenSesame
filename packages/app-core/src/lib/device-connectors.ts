@@ -1,13 +1,12 @@
 /**
  * Device-local connector configuration.
  *
- * An api-key or configuration connector saves on this device when no Host is
- * reachable. The connection record and `publicFields` hold only non-secret
+ * An api-key or configuration connector saves on this device (Pages speaks no
+ * Host, ADR 0128). The connection record and `publicFields` hold only non-secret
  * values. Secret material stays in a second record and is copied only onto
  * the feature operation (`runFeatureConnector`).
  */
 
-import { ConnectionsError } from "./connections-error.js";
 import {
   localGitToConnection,
   mergeLocalGitConnections,
@@ -55,18 +54,6 @@ type SaveBody = {
   projectId?: string;
   integrationId?: string;
 };
-
-export function connectionCreateJson(body: SaveBody): string {
-  return JSON.stringify({
-    provider_id: body.providerId,
-    ...(body.displayName ? { display_name: body.displayName } : undefined),
-    ...(body.scopes ? { scopes: body.scopes } : undefined),
-    ...(body.projectId ? { project_id: body.projectId } : undefined),
-    ...(body.integrationId
-      ? { integration_id: body.integrationId }
-      : undefined),
-  });
-}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -206,23 +193,6 @@ export function createDeviceConnection(body: SaveBody): Connection {
   };
   upsert(row, {});
   return toConnection(row);
-}
-
-function unreachable(error: ConnectionsError): boolean {
-  return error.code === "unreachable" || error.status === 0;
-}
-
-/** Host create when it answers; a device record when it cannot be reached. */
-export function createHostOrDevice(
-  body: SaveBody,
-  host: () => Promise<Connection>,
-): Promise<Connection> {
-  if (isGitBackupProvider(body.providerId)) return host();
-  return host().catch((error) => {
-    if (!(error instanceof ConnectionsError) || !unreachable(error))
-      throw error;
-    return createDeviceConnection(body);
-  });
 }
 
 export function sealDeviceCredential(
