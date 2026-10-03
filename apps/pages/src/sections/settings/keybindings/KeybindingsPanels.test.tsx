@@ -65,6 +65,15 @@ describe("Settings › Keybindings › Keymap", () => {
     expect(screen.getByRole("heading", { name: "Fixed" })).toBeTruthy();
   });
 
+  it("lists the Menu key among the fixed keys beside Shift-F10", () => {
+    renderPanels();
+    const actions = row("Actions for the row");
+    const caps = [...actions.querySelectorAll("kbd")].map(
+      (kbd) => kbd.textContent,
+    );
+    expect(caps).toEqual(["Shift-F10", "Shift-Enter", "Menu"]);
+  });
+
   it("records a new key by pressing it, and keeps it after the timeout", () => {
     vi.useFakeTimers();
     renderPanels();

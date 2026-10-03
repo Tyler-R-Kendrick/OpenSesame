@@ -393,6 +393,6 @@ export const FIXED_ROWS: readonly (readonly [keys: string, label: string])[] = [
   ["Enter", "Open or activate"],
   ["Escape", "Leave the field, then the pane"],
   ["F6", "Other listing"],
-  ["Shift+F10 / Shift+Enter", "Actions for the row"],
+  ["Shift+F10 / Shift+Enter / ContextMenu", "Actions for the row"],
   ["1 … 9", "Count before a key"],
 ];

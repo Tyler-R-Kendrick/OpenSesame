@@ -90,7 +90,7 @@ export const HELP_SOURCES: readonly HelpSource[] = [
     commands: ["register.record", "register.replay"],
   },
   {
-    keys: "Shift-F10 / Shift-Enter",
+    keys: "Shift-F10 / Shift-Enter / Menu",
     action: "Actions for the focused row",
     commands: [],
   },
