@@ -2,7 +2,7 @@
  * J-RECOVERY: Settings › Security states that identity recovery does not
  * unwrap the vault key. The sentence sits with the keys it governs (Unlock
  * methods), so a fresh vault — which has no recovery codes and therefore no
- * Recovery panel (ADR 0150) — still says it.
+ * Recovery panel (ADR 0158) — still says it.
  */
 import { openSettingsCategory, sealWithPassword } from "./pages-journey.mjs";
 

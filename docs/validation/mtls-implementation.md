@@ -44,7 +44,7 @@ idle rows.** As first written, `AT-STATIC-EMPTY` required Settings › Security 
 Transport to draw five idle "Not checked" rows and a keyboard-reachable Refresh
 key with no endpoint, and `AT-BROWSER-UX` measured that Refresh key on the phone
 journeys. Both were rows and keys that did nothing on a device with nothing to
-ask. [ADR 0150](../adr/0150-settings-rows-act-or-are-absent.md) ("a Settings
+ask. [ADR 0158](../adr/0158-settings-rows-act-or-are-absent.md) ("a Settings
 row acts, or it is not drawn") now governs the panel, and the scenarios are
 restated:
 

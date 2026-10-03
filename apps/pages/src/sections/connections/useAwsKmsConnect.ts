@@ -47,7 +47,7 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
   const publicView = saved ? toAwsKmsPublic(saved) : null;
   // A saved connection is what Test opens the protector with, so it is not
   // removable, and its key is not replaceable, while a protector on this key
-  // is enrolled (ADR 0150 §3). Credentials for the same key may rotate.
+  // is enrolled (ADR 0158 §3). Credentials for the same key may rotate.
   const enrolled = Boolean(
     saved?.keyArn &&
       header?.protection?.records.some(

@@ -23,7 +23,7 @@ export function isConnectConnection(connection: Connection | null): boolean {
  * A connector page on Vercel Connect: never blank. Before a connector exists
  * the page asks for the Connect credential; with it held, the whole
  * configuration is on the page, filled from the plan — a Create key that
- * could not act without the credential is not drawn (ADR 0150). Once a
+ * could not act without the credential is not drawn (ADR 0158). Once a
  * connector exists, its settings and a person's own token. Who may use it is decided
  * on Access › Connectors, which lists every connector this page configures.
  */
