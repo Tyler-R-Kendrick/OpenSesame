@@ -621,9 +621,8 @@ export function createInteractionHandoffRoutes(): Hono<{
         return fail(c, "rate_limited");
       }
 
-      // Knowing the handle is what authorizes the asking. A handle that does
-      // not verify, and one that verifies for a principal that is gone or must
-      // not be asked, answer identically: nothing here confirms an id.
+      // Knowing the handle authorizes the asking. A handle that does not
+      // verify and one for a principal that must not be asked answer alike.
       const approverId = resolveInboxRef(
         body.approverRef,
         ctx.config.claimPepper,
@@ -642,14 +641,15 @@ export function createInteractionHandoffRoutes(): Hono<{
         // must not be asked at all.
         return fail(c, "interaction_not_found");
       }
-      // Who may be asked about an agent's request: its addressee, and never
-      // the caller (ADR 0156). Same answer as every other refusal here.
+      // An agent's request: its addressee, never the caller, and only the
+      // request's own details (ADR 0156). Same refusal as the rest.
       if (
         !(await approverMayBeAsked(ctx, {
           kind: body.kind,
           subjectId: body.subject.subjectId,
           callerId,
           approverId,
+          authorizationDetails: body.authorizationDetails,
         }))
       ) {
         return fail(c, "interaction_not_found");

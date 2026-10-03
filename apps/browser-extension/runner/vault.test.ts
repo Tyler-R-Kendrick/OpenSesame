@@ -81,6 +81,24 @@ describe("the vault's entries", () => {
     expect(await r.vault.origins()).toEqual([]);
   });
 
+  it("keeps the rollback credential when the same password is saved again", async () => {
+    const r = await rig();
+    const save = (password: string) =>
+      r.vault.putEntry({ origin: RP, username: "ada", password });
+    await save("second-pass");
+    await save("second-pass");
+    expect(await r.vault.getEntry(RP)).toMatchObject({
+      password: "second-pass",
+      previous: CURRENT,
+    });
+    // A real change still replaces it: the rollback is one step back.
+    await save("third-pass");
+    expect(await r.vault.getEntry(RP)).toMatchObject({
+      password: "third-pass",
+      previous: "second-pass",
+    });
+  });
+
   it("does not return an entry stored for a different origin's name", async () => {
     const r = await rig();
     expect(await r.vault.getEntry("https://other.example")).toBeNull();

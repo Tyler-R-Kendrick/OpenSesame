@@ -194,7 +194,14 @@ export class RunnerVault {
   async putEntry(entry: Omit<VaultEntry, "updatedAt">): Promise<void> {
     const kept = await this.getEntry(entry.origin);
     const next: VaultEntry = { ...entry, updatedAt: this.now() };
-    if (kept && kept.password !== entry.password) next.previous = kept.password;
+    if (kept) {
+      // The rollback credential lives until the next promotion (ADR 0076
+      // §3.5): re-saving the same password must not erase it.
+      if (kept.password !== entry.password) next.previous = kept.password;
+      else if (entry.previous === undefined && kept.previous !== undefined) {
+        next.previous = kept.previous;
+      }
+    }
     await this.kv.setJson(await this.entryName(entry.origin), next);
   }
 
