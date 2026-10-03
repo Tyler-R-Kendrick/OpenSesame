@@ -23,7 +23,12 @@ import {
   invalidRuntimeConfig,
   managedRuntimeConfig,
 } from "./__tests__/harness.js";
-import { GENERATION_KEY, SELECTION_KEY, vaultSelectionKey } from "./keys.js";
+import {
+  GENERATION_KEY,
+  LOCAL_POLICY_KEY,
+  SELECTION_KEY,
+  vaultSelectionKey,
+} from "./keys.js";
 import { compositionStore, storeSeams } from "./store.js";
 
 const PASSKEYS = "vault.passkey-records";
@@ -277,6 +282,36 @@ describe("invalidation", () => {
     expect(compositionStore.getSnapshot().generation).toBe(
       lease.generation + 2,
     );
+  });
+
+  it("invalidate re-reads the device's own policy: a preset the owner just wrote governs now, not at the next load", async () => {
+    await bootPersonalLocal();
+    expect(compositionStore.getSnapshot().policy).toBeNull();
+    const written = {
+      ...FIXTURE_POLICIES.family,
+      instanceId: "personal-local",
+      presetProvenance: { id: "family", version: 2 },
+    };
+    durable.set(LOCAL_POLICY_KEY, JSON.stringify(written));
+    compositionStore.invalidate("local-policy-updated");
+    const snap = compositionStore.getSnapshot();
+    expect(snap.policy?.presetProvenance?.id).toBe("family");
+    expect(snap.provenance).toBe("personal-local");
+  });
+
+  it("invalidate leaves a managed instance's policy alone: a device cannot rewrite it", async () => {
+    await compositionStore.boot({
+      runtimeConfig: managedRuntimeConfig(FIXTURE_POLICIES.family),
+      vaultId: null,
+      facts: { ...FIXTURE_FACTS, now: NOW },
+    });
+    const before = compositionStore.getSnapshot().policy;
+    durable.set(
+      LOCAL_POLICY_KEY,
+      JSON.stringify({ ...FIXTURE_POLICIES.family, revision: "hijack" }),
+    );
+    compositionStore.invalidate("local-policy-updated");
+    expect(compositionStore.getSnapshot().policy).toEqual(before);
   });
 
   it("revalidate adopts a newer durable commit and re-resolves", async () => {

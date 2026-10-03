@@ -115,6 +115,19 @@ export function readPolicy(
     return;
   }
   state.provenance = "personal-local";
+  readLocalPolicy(state, docs, note);
+}
+
+/**
+ * The device's own policy, as its owner last wrote it. Read at boot, and again
+ * whenever the owner writes it (`invalidate`): a preset or a saved
+ * `instance-policy.yaml` governs from that moment, not from the next load.
+ */
+export function readLocalPolicy(
+  state: StoreState,
+  docs: PersistedDocs,
+  note: Note,
+): void {
   if (docs.localPolicy.present && docs.localPolicy.policy === null) {
     state.policy = null;
     state.policyValid = false;

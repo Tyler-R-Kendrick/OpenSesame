@@ -41,6 +41,7 @@ import {
   documentDiagnostics,
   initialState,
   instanceIdOf,
+  readLocalPolicy,
   readPolicy,
   resolveInputFor,
   scopedVaultSelection,
@@ -221,6 +222,15 @@ export class CompositionStore {
   }
 
   invalidate(reason: string): void {
+    // A managed instance's policy is the deployment's and is never re-read
+    // from the device; the owner's own is, because they may just have written it.
+    if (this.#state.provenance === "personal-local") {
+      readLocalPolicy(
+        this.#state,
+        readPersistedDocs(this.#state.vaultId),
+        this.#note,
+      );
+    }
     this.#bump(`invalidate:${reason}`);
     this.#resolve();
   }
