@@ -4,6 +4,7 @@ import {
   loadKeymap,
   resetKeymap,
 } from "@opensesame/app-core/lib/keymap/store.js";
+import { isMountedGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
 import {
   act,
   cleanup,
@@ -202,6 +203,18 @@ describe("Settings › Keybindings › Keymap", () => {
       }),
     );
     expect(loadKeymap().singleKeys).toBe(false);
+  });
+});
+
+describe("Settings › Keybindings › tutorial target", () => {
+  it("leaves the category link the one owner of settings.keybindings", () => {
+    // The Keybindings tab link carries the target; a panel-wrapping one made
+    // every click inside the editor read as activating the tab.
+    renderPanels();
+    expect(isMountedGuideTarget("settings.keybindings")).toBe(false);
+    expect(
+      document.querySelector('[data-guide-target="settings.keybindings"]'),
+    ).toBeNull();
   });
 });
 
