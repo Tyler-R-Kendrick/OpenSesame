@@ -150,7 +150,19 @@ confirmation is what decides who is in.
 Policies are set from the web vault's Admin Console. Clients enforce most of
 them; the Host itself enforces two-step login, single organization, personal
 ownership and the Send policies on members who are neither owners nor
-admins. Groups, single sign-on and account recovery are not served.
+admins. The membership ones are decided as the membership changes, so a
+member is never confirmed, restored or demoted into an organization whose
+policy excludes them, and enabling one revokes the members it excludes at
+once; an owner or admin is held to a single-organization policy that binds
+them in another organization. Turning off an account's last two-step
+provider removes it, as revoked, from the organizations that require one.
+Groups, single sign-on and account recovery are not served.
+
+An organization imported from vaultwarden is held to its enabled policies as
+it arrives: members they exclude — an account whose authenticator did not
+come across, for instance — arrive revoked, and the importer says how many,
+and when no owner is left standing (restore one before anyone can run it).
+Restore them once they meet the policy.
 
 ## Emergency access and key rotation
 
@@ -187,7 +199,9 @@ server a host name of its own for the web vault, as for Sends.
 A new device can sign in by asking one already signed in, with no master
 password typed: approve the request on the signed-in device after checking
 that both show the same fingerprint phrase. Requests expire after fifteen
-minutes; an account can have five waiting at once.
+minutes, and the waiting device is let go then, or as soon as the request is
+answered or denied. An address can ask five times in a window, whether or not
+it has an account; an account can have five waiting at once.
 
 ## What is not served
 

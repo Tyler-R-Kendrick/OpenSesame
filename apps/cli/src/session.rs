@@ -180,20 +180,20 @@ fn ceremony(state: &Path, input: &mut impl BufRead) -> anyhow::Result<bool> {
             "minimal" => {
                 record(
                     state,
-                    serde_json::json!({"plan": "minimal", "optional": []}),
+                    &serde_json::json!({"plan": "minimal", "optional": []}),
                 )?;
                 return Ok(true);
             }
             "default" => {
                 record(
                     state,
-                    serde_json::json!({"plan": "default", "optional": DEFAULT_EXTENSIONS}),
+                    &serde_json::json!({"plan": "default", "optional": DEFAULT_EXTENSIONS}),
                 )?;
                 return Ok(true);
             }
             "custom" => return custom(state, input),
             "skip" | "skip all" => {
-                record(state, serde_json::json!({"plan": "skip"}))?;
+                record(state, &serde_json::json!({"plan": "skip"}))?;
                 return Ok(true);
             }
             _ => {}
@@ -220,7 +220,7 @@ fn custom(state: &Path, input: &mut impl BufRead) -> anyhow::Result<bool> {
                     }
                     None => serde_json::json!({"plan": "custom", "optional": []}),
                 };
-                record(state, body)?;
+                record(state, &body)?;
                 return Ok(true);
             }
             _ => {}
@@ -240,7 +240,7 @@ fn customize(state: &Path, input: &mut impl BufRead) -> anyhow::Result<bool> {
         if line.eq_ignore_ascii_case("finish") {
             record(
                 state,
-                serde_json::json!({"plan": "custom", "road": "customize", "optional": chosen}),
+                &serde_json::json!({"plan": "custom", "road": "customize", "optional": chosen}),
             )?;
             return Ok(true);
         }
@@ -276,10 +276,10 @@ fn session(input: &mut impl BufRead) -> anyhow::Result<()> {
     }
 }
 
-fn record(state: &Path, body: serde_json::Value) -> anyhow::Result<()> {
+fn record(state: &Path, body: &serde_json::Value) -> anyhow::Result<()> {
     let dir = marker(state);
     std::fs::create_dir_all(&dir)?;
-    std::fs::write(dir.join("plan.json"), serde_json::to_vec(&body)?)?;
+    std::fs::write(dir.join("plan.json"), serde_json::to_vec(body)?)?;
     Ok(())
 }
 

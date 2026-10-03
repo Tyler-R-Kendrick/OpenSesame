@@ -2,6 +2,9 @@
 //! here, by its request's id, to hear that one of the account's devices
 //! answered. It learns only that — the answer itself is fetched with the
 //! access code only it holds.
+//!
+//! A connection lives no longer than the request it waits on, and ends when
+//! the request is answered or denied.
 
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Query, State};
@@ -33,18 +36,29 @@ pub async fn anonymous_hub(
     upgrade: WebSocketUpgrade,
 ) -> ApiResult<Response> {
     let since = crate::routes::sign_in_request_window_start();
-    let pending = server
+    let request = server
         .db
         .bitwarden_auth_request(&query.token, since)
         .await?
-        .is_some_and(|r| r.approved.is_none());
-    if !pending {
-        return Err(ApiError::not_found());
-    }
+        .filter(|r| r.approved.is_none())
+        .ok_or_else(ApiError::not_found)?;
     let (seat, rx) = server
         .hub
         .waiting
         .join(&query.token, PER_REQUEST, WAITING)
         .ok_or_else(ApiError::too_many_requests)?;
-    Ok(upgrade.on_upgrade(move |socket| serve(socket, rx, seat)))
+    // An answer can land between the read above and the seat: look again now
+    // the seat is taken. Whatever happens after this finds the seat; what
+    // happened before is read here, and told to it.
+    match server
+        .db
+        .bitwarden_auth_request(&query.token, since)
+        .await?
+    {
+        Some(r) if r.approved.is_none() => {}
+        Some(r) => server.hub.deliver_answer(&r.user_id, &query.token),
+        None => server.hub.sign_in_ended(&query.token),
+    }
+    let lifetime = crate::routes::sign_in_request_time_left(request.created_at);
+    Ok(upgrade.on_upgrade(move |socket| serve(socket, rx, seat, Some(lifetime))))
 }

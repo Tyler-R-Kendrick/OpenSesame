@@ -7,6 +7,7 @@ import type { EnrollmentState } from "../trigger/enrollment.js";
 import {
   type JournalWriteResult,
   clearJournal,
+  clearJournalDurable,
   readJournalPayload,
   recoverJournal,
   writeJournal,
@@ -34,4 +35,9 @@ export function loadEnrollmentStateForUnlock(): EnrollmentState | null {
 
 export function clearEnrollmentStateForUnlock(): void {
   clearJournal(ENROLLMENT_STATE_KEY);
+}
+
+/** Remove the enrollment and wait for storage, so a reload cannot bring it back. */
+export function clearEnrollmentStateDurable(): Promise<void> {
+  return clearJournalDurable(ENROLLMENT_STATE_KEY);
 }
