@@ -116,6 +116,37 @@ describe("a recording", () => {
     ]);
   });
 
+  it("writes a replay counted past 99, up to the run budget", () => {
+    const hop = { steps: [{ command: "listing.next", count: 1 }] };
+    const total = (runs: number) =>
+      appendMacroRun([], hop, runs).reduce((sum, step) => sum + step.count, 0);
+    expect(total(999)).toBe(999);
+    expect(total(5_000)).toBe(MACRO_LIMITS.runs);
+  });
+
+  it("caps a replay by the commands the shell would run, not by runs", () => {
+    const wide = { steps: [{ command: "listing.next", count: 99 }] };
+    const steps = appendMacroRun([], wide, 999);
+    // 1,000 / 99 is ten runs: 990 commands, in ten steps, not 32 x 99.
+    expect(steps).toHaveLength(10);
+    expect(steps.reduce((sum, step) => sum + step.count, 0)).toBe(990);
+    // Room is left for what was recorded after it.
+    expect(
+      appendRecorded(steps, { command: "item.edit", count: 1 }).at(-1),
+    ).toEqual({ command: "item.edit", count: 1 });
+    // A macro wider than the budget is still written once.
+    const huge = {
+      steps: [
+        { command: "listing.next", count: 99 },
+        ...Array.from({ length: 11 }, () => ({
+          command: "listing.previous",
+          count: 99,
+        })),
+      ],
+    };
+    expect(appendMacroRun([], huge, 5)).toHaveLength(huge.steps.length);
+  });
+
   it("is kept as q-<register>, replacing an older one, and an empty one keeps nothing", () => {
     const older = withRecording(EMPTY_KEYMAP, "a", [
       { command: "listing.next", count: 1 },

@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 /** Where focus lands after a reset, what a locked row draws, what is announced. */
 import {
+  loadKeymap,
   resetKeymap,
   saveKeymapData,
 } from "@opensesame/app-core/lib/keymap/store.js";
@@ -11,7 +12,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderPanels, row } from "./keybindings-test-kit.js";
 
 afterEach(() => {
@@ -65,6 +66,58 @@ describe("Focus after a reset", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("combobox", { name: "Show" }),
     );
+  });
+
+  it("says so, and keeps the keymap, when storage will not take Reset all", () => {
+    changed();
+    renderPanels();
+    const remove = vi
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {
+        throw new Error("blocked");
+      });
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    const all = focused("Reset every key and macro");
+    fireEvent.click(all);
+    fireEvent.click(all);
+    remove.mockRestore();
+    set.mockRestore();
+    expect(
+      screen.getByRole("img", {
+        name: "The keymap could not be reset on this device.",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "The keymap could not be reset on this device.",
+    );
+    expect(loadKeymap().bindings).toEqual({ w: "listing.next" });
+    expect(row("Next row").hasAttribute("data-changed")).toBe(true);
+  });
+
+  it("drops the refusal once the keymap changes, so a later edit leaves none on screen", () => {
+    changed();
+    renderPanels();
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    const all = focused("Reset every key and macro");
+    fireEvent.click(all);
+    fireEvent.click(all);
+    set.mockRestore();
+    expect(screen.getByRole("alert")).toBeTruthy();
+    fireEvent.click(focused("Reset Next row to its default keys"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      screen.queryByRole("img", {
+        name: "The keymap could not be reset on this device.",
+      }),
+    ).toBeNull();
   });
 
   it("does not take focus the person already moved", () => {
