@@ -191,8 +191,12 @@ that round-trips with the table.
   prefix is marked, because it waits. Commands can be found by name or by
   pressing the keys (VS Code's Record Keys). The editor loads as its own
   chunk on a Keybindings visit.
-- `KEYMAP_HELP_CORE` still describes the defaults. The `?` sheet adds a row
-  for each of the person's own bindings and struck defaults.
+- `KEYMAP_HELP_CORE` still describes the defaults, and the `?` sheet reads
+  that way while nothing is rebound. Once a person moves or strikes a key, the
+  sheet is drawn from the effective bindings: a row whose commands changed is
+  rebuilt one line per command, a key moved onto another command is on that
+  command, a row whose commands lost every key is dropped, and only keys for
+  commands the sheet has no row for (and context-scoped keys) follow.
 - `j` and `gg` now bring the keyboard to the listing they move, exactly as
   `k` and `G` always did. The overlay that ran them used to skip that step.
 - The Keymap panel head has a scope choice beside the view filter:
