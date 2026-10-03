@@ -139,6 +139,33 @@ describe("recording a register", () => {
     release();
   });
 
+  it.each([
+    ["Tab", {}],
+    ["Tab", { shiftKey: true }],
+    ["Enter", { shiftKey: true }],
+    ["F10", { shiftKey: true }],
+    ["ContextMenu", {}],
+  ])(
+    "lets %s %o pass untouched while a register letter is awaited",
+    (key, init) => {
+      for (const first of ["q", "@"]) {
+        const { release, type, handler } = setup();
+        type(first);
+        expect(pendingSnapshot().awaiting).not.toBeNull();
+        const event = press(handler, key, init);
+        // The fixed key still does its own work: nothing swallowed it.
+        expect(event.defaultPrevented, `${first} ${key}`).toBe(false);
+        expect(pendingSnapshot().awaiting).toBeNull();
+        // Held down, it is still not swallowed as a repeat of a half-typed key.
+        type(first);
+        const held = press(handler, key, { ...init, repeat: true });
+        expect(held.defaultPrevented, `${first} ${key} held`).toBe(false);
+        release();
+        resetKeymap();
+      }
+    },
+  );
+
   it("forgets a register key left waiting past the timeout", () => {
     vi.useFakeTimers();
     const { release, type } = setup();
