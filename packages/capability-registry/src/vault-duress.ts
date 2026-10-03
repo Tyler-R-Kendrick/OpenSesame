@@ -1,14 +1,14 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
- * The device's duress code (ADR 0150): a second code that, typed where a
+ * The device's duress code (ADR 0155): a second code that, typed where a
  * vault unlocks, shows a decoy or a refusal. A coerced person's own decision;
  * an agent that could set or clear it could arm a trap or disarm a defence.
  */
 const OWNER_ONLY: CapabilityExclusion = {
   reason:
     "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-  adr: "0150-the-device-duress-code.md",
+  adr: "0155-the-device-duress-code.md",
 };
 
 export const vaultDuressCapabilities: readonly Capability[] = [
