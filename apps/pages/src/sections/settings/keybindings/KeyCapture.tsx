@@ -12,8 +12,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { StatusMark } from "../../../components/StatusMark.js";
 import { keymapSeams } from "../../../lib/keymap.js";
+import { Refused } from "./Refused.js";
 import type { Refusal } from "./useBindFlow.js";
 
 /**
@@ -199,7 +199,7 @@ export function KeyCapture({
           />
         ) : null}
       </span>
-      {problem ? <StatusMark tone="err" label={problem.message} /> : null}
+      {problem ? <Refused {...problem} /> : null}
       {children}
     </span>
   );

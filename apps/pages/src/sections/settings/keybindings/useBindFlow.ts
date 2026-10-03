@@ -91,6 +91,7 @@ export function useBindFlow(target: string, state: KeymapState) {
       return;
     }
     setEditing(null);
+    setProblem(null);
     setPending({ sequence, holder: conflict.target, previous });
   };
 

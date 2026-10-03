@@ -58,6 +58,8 @@ that round-trips with the table.
        steps: [listing.search, "3 listing.next"]
    ```
 
+   Reset all reports a refused reset and leaves storage unchanged.
+
 4. **Macros are named step lists.** Each step is a command and a count, and a
    macro is bound like any command. A count typed before its key repeats it
    (`3 Space t`). The Macros panel builds steps by picking or by *recording*:
@@ -136,6 +138,7 @@ that round-trips with the table.
    still repeats), and a command that throws is not recorded. `register.*` is refused
    as a macro step and never runs from an event trigger. Because a recording
    is an ordinary macro it shows in the Macros panel and can be bound.
+   A recording that storage refuses is announced as not kept and stays for a retry.
 
 ### Guardrails
 

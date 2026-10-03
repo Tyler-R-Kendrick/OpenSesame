@@ -89,6 +89,49 @@ describe("recording a register", () => {
     release();
   });
 
+  it("announces the save's own error when storage refuses a recording with steps", () => {
+    const { release, type } = setup();
+    type("q", "e", "j", "k");
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    type("q");
+    set.mockRestore();
+    expect(pendingSnapshot().announcement).toBe(
+      "@e not kept: The keymap could not be saved on this device.",
+    );
+    expect(loadKeymap().macros["q-e"]).toBeUndefined();
+    release();
+  });
+
+  it("keeps a refused recording, so a second q retries once there is room", () => {
+    const { release, type } = setup();
+    type("q", "e", "j", "k");
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    type("q");
+    expect(pendingSnapshot().announcement).toMatch(/^@e not kept: /);
+    // Still recording: the same refusal again, not a new recording or nothing.
+    type("q");
+    expect(pendingSnapshot().announcement).toMatch(/^@e not kept: /);
+    set.mockRestore();
+    type("q");
+    expect(pendingSnapshot().announcement).toBe("recorded @e");
+    expect(loadKeymap().macros["q-e"]?.steps).toEqual([
+      { command: "listing.next", count: 1 },
+      { command: "listing.previous", count: 1 },
+    ]);
+    // Done: the next `q` starts a recording rather than stopping one.
+    type("q", "f");
+    expect(pendingSnapshot().announcement).toBe("recording @f");
+    release();
+  });
+
   it("writes a bound macro's steps in, since a macro cannot name another", () => {
     const saved = saveKeymap({
       bindings: { "Space h": "macro.hop" },
