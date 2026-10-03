@@ -59,6 +59,36 @@ const shadowPage = (outer, inner) =>
 </script>`,
   );
 
+// Light-DOM markup (`light`) around a web component whose open root holds
+// `shadow`, the host sitting where `#host` is in `light`.
+const componentPage = (light, shadow) =>
+  page(
+    `${light}
+<script>
+  document.getElementById("host").attachShadow({ mode: "open" }).innerHTML = ${JSON.stringify(SHADOW_STYLE + shadow)};
+</script>`,
+  );
+
+// Two web components side by side, each with its own open root.
+const siblingsPage = (first, second) =>
+  page(
+    `<div id="one"></div><div id="two"></div>
+<script>
+  document.getElementById("one").attachShadow({ mode: "open" }).innerHTML = ${JSON.stringify(SHADOW_STYLE + first)};
+  document.getElementById("two").attachShadow({ mode: "open" }).innerHTML = ${JSON.stringify(SHADOW_STYLE + second)};
+</script>`,
+  );
+
+// A light-DOM password slotted into a closed root whose wrapper has `style`:
+// no script can ask the field where it is slotted.
+const closedSlotPage = (style) =>
+  page(
+    `<div id="host">${PASS}</div>
+<script>
+  document.getElementById("host").attachShadow({ mode: "closed" }).innerHTML = ${JSON.stringify(`<div style="${style}"><slot></slot></div>`)};
+</script>`,
+  );
+
 /** Build the routes; `frameOrigin` is where the cross-origin frame comes from. */
 export function pages({ frameOrigin }) {
   return {
@@ -95,13 +125,28 @@ export function pages({ frameOrigin }) {
       `<div id="inner-host"></div>`,
       `${PASSKEY_USER}${PASS}`,
     ),
-    // Controls: a shadow login with no passkey anywhere, and one whose only
-    // passkey field lives in another root (not beside it).
-    "/shadow-plain": shadowPage(`${USER}${PASS}`),
-    "/shadow-other-root-passkey": shadowPage(
-      `${PASSKEY_USER}<div id="inner-host"></div>`,
-      `${USER}${PASS}`,
+    // The passkey field is in a root below the one holding the password.
+    "/shadow-below-passkey": shadowPage(
+      `${PASS}<div id="inner-host"></div>`,
+      PASSKEY_USER,
     ),
+    // A password in a form, the passkey field inside a web component in it.
+    "/form-shadow-host-passkey": componentPage(
+      `<form>${PASS}<div id="host"></div></form>`,
+      PASSKEY_USER,
+    ),
+    // A form-less light-DOM password beside a login web component.
+    "/light-beside-component-passkey": componentPage(
+      `${PASS}<div id="host"></div>`,
+      PASSKEY_USER,
+    ),
+    // Controls: a shadow login with no passkey anywhere, and one whose only
+    // passkey field lives under another top-level host (not beside it).
+    "/shadow-plain": shadowPage(`${USER}${PASS}`),
+    "/shadow-other-host-passkey": siblingsPage(PASSKEY_USER, `${USER}${PASS}`),
+    // The field is slotted into a closed root: its wrappers cannot be read.
+    "/closed-slot-faded": closedSlotPage("opacity:0"),
+    "/closed-slot-visible": closedSlotPage("opacity:1"),
     "/new-password": page(
       `<form>${USER}<input id="pass" type="password" autocomplete="new-password"></form>`,
     ),

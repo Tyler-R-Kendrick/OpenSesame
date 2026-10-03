@@ -34,6 +34,16 @@ describe("a field a person could not see or aim at (DOM-based extension clickjac
     ["opacity:0 on an ancestor", "/opacity-ancestor", "transparent"],
     ["a transparent overlay above the field", "/covered", "covered"],
     ["a field placed off the screen", "/offscreen", "off_screen"],
+    [
+      "a field slotted into a closed root whose wrapper is opacity:0",
+      "/closed-slot-faded",
+      "covered",
+    ],
+    [
+      "a field slotted into a closed root, whose wrappers cannot be read",
+      "/closed-slot-visible",
+      "covered",
+    ],
   ];
   for (const [name, path, outcome] of cases) {
     it(`refuses ${name}, before the daemon is asked`, async () => {
@@ -165,6 +175,12 @@ describe("passkeys first inside shadow roots", () => {
     ["a sibling in the same open shadow root", "/shadow-passkey"],
     ["the same form inside a shadow root", "/shadow-form-passkey"],
     ["a sibling in a nested shadow root", "/shadow-nested-passkey"],
+    ["a field in a root below its own", "/shadow-below-passkey"],
+    ["a web component inside its form", "/form-shadow-host-passkey"],
+    [
+      "a web component beside a form-less light-DOM field",
+      "/light-beside-component-passkey",
+    ],
   ];
   for (const [name, path] of offered) {
     for (const focus of ["#pass", "#user"]) {
@@ -183,7 +199,7 @@ describe("passkeys first inside shadow roots", () => {
 
   for (const [name, path] of [
     ["no passkey anywhere", "/shadow-plain"],
-    ["a passkey field only in another root", "/shadow-other-root-passkey"],
+    ["a passkey field only under another host", "/shadow-other-host-passkey"],
   ]) {
     it(`still fills a shadow-root password with ${name}`, async () => {
       const page = await openLogin(session, path, { focus: "#pass" });
