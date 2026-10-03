@@ -363,14 +363,14 @@ describe("bindings", () => {
     release();
   });
 
-  it("Control n/p move and n/p without Control create/previous-verb", () => {
+  it("Control p moves, Control n is left alone, n/p create/previous-verb", () => {
     const tree = vault();
     const release = registerVaultKeymap(tree);
     const handler = createKeymapHandler({
       navigate: vi.fn(),
       showHelp: vi.fn(),
     });
-    press(handler, "n", { ctrlKey: true });
+    expect(press(handler, "n", { ctrlKey: true }).defaultPrevented).toBe(false);
     press(handler, "p", { ctrlKey: true });
     press(handler, "n");
     press(handler, "u");
@@ -381,7 +381,7 @@ describe("bindings", () => {
     press(handler, "y");
     press(handler, "$");
     press(handler, "?");
-    expect(tree.next).toHaveBeenCalledWith(1);
+    expect(tree.next).not.toHaveBeenCalled();
     expect(tree.previous).toHaveBeenCalledWith(1);
     expect(tree.create).toHaveBeenCalledOnce();
     expect(tree.copyUsername).toHaveBeenCalledOnce();
