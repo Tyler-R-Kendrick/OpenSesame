@@ -90,7 +90,7 @@ function startServer() {
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
+      const port = address?.port ?? 0;
       resolve({ server, origin: `http://localhost:${port}` });
     });
   });
