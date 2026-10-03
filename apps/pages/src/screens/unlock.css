@@ -293,8 +293,15 @@
 
 .unlock__methods {
   display: flex;
-  gap: 1.1rem;
+  flex-wrap: wrap;
+  gap: 0 1.1rem;
   border-bottom: 1px solid var(--line);
+}
+
+/* A recovery key or an age identity: long, case-sensitive, copied from a file —
+   monospace keeps its characters tell-apart. The size floor is the field's. */
+.unlock__key {
+  font-family: var(--mono);
 }
 
 .unlock__method {
@@ -596,6 +603,14 @@
   .signin__social {
     width: 2.75rem;
     min-height: 2.75rem;
+  }
+
+  /* The method tabs are keys too: Password, PIN, Passkey and each protector a
+     vault enrolled (ADR 0152). Padding grows the box and the label stays on
+     the baseline the underline already sits under. */
+  .unlock__method {
+    min-height: 2.75rem;
+    padding-bottom: 0.35rem;
   }
 
   /* Every road off this screen is a key a thumb can hit. The guest roads

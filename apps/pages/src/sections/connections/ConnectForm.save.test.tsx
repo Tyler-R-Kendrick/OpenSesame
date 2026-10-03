@@ -5,6 +5,10 @@ import {
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import {
+  HOST_CONNECTIONS_WRITE,
+  hostGrantSeams,
+} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -15,6 +19,7 @@ import { makeConnection } from "./section-fixtures.test-support.js";
 
 const originalSeams = { ...connectionSeams };
 const originalIdentity = { ...identitySeams };
+const originalGrant = { ...hostGrantSeams };
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -40,6 +45,7 @@ function provider(id: string): Provider {
 function openHostRoad() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
+  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 const refusal = new ConnectionsError(403, "refused", "Host said no.");
@@ -54,6 +60,7 @@ afterEach(() => {
   clearNotices();
   Object.assign(connectionSeams, originalSeams);
   Object.assign(identitySeams, originalIdentity);
+  Object.assign(hostGrantSeams, originalGrant);
   vi.unstubAllGlobals();
 });
 
@@ -220,6 +227,7 @@ describe("an API key save that fails", () => {
 
   it("is drawn on this device with no road open", () => {
     Object.assign(identitySeams, originalIdentity);
+    Object.assign(hostGrantSeams, originalGrant);
     render(
       <ConnectForm
         provider={provider("lithic")}

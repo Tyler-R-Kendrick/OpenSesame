@@ -227,6 +227,7 @@ export const LIB_RULES = [
       "configuration/",
       "capabilities",
       "connect-roads",
+      "host-grant",
       "embedded-catalog",
       "idp-presets",
       "local-application-policy",

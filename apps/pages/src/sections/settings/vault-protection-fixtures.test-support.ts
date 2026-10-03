@@ -90,30 +90,44 @@ export const agePasskey: ProtectionRecord = {
   proofStatus: "verified",
 };
 
-export const awsKms: ProtectionRecord = {
-  kind: "aws-kms",
-  protectorId: "aws_1",
-  keyArn: "arn:aws:kms:us-east-1:123456789012:key/x",
-  region: "us-east-1",
-  connectionId: "aws-kms",
-  connectionConfigVersion: "1",
-  wrappedSecretB64: "d3JhcHBlZA==",
-  localCapsule: sealed,
-  encryptionContext: {},
-  proofStatus: "verified",
-};
+/** An AWS KMS protector wrapping with the key `keyArn`. */
+export function awsKmsOn(keyArn: string): ProtectionRecord {
+  return {
+    kind: "aws-kms",
+    protectorId: "aws_1",
+    keyArn,
+    region: "us-east-1",
+    connectionId: "aws-kms",
+    connectionConfigVersion: "1",
+    wrappedSecretB64: "d3JhcHBlZA==",
+    localCapsule: sealed,
+    encryptionContext: {},
+    proofStatus: "verified",
+  };
+}
 
-export const gcpKms: ProtectionRecord = {
-  kind: "gcp-kms",
-  protectorId: "gcp_1",
-  keyName: "projects/p/locations/l/keyRings/r/cryptoKeys/k",
-  connectionId: "gcp-kms",
-  connectionConfigVersion: "1",
-  wrappedSecretB64: "d3JhcHBlZA==",
-  localCapsule: sealed,
-  aadB64: "YWFk",
-  proofStatus: "verified",
-};
+export const awsKms: ProtectionRecord = awsKmsOn(
+  "arn:aws:kms:us-east-1:123456789012:key/x",
+);
+
+/** A Google Cloud KMS protector wrapping with the crypto key `keyName`. */
+export function gcpKmsOn(keyName: string): ProtectionRecord {
+  return {
+    kind: "gcp-kms",
+    protectorId: "gcp_1",
+    keyName,
+    connectionId: "gcp-kms",
+    connectionConfigVersion: "1",
+    wrappedSecretB64: "d3JhcHBlZA==",
+    localCapsule: sealed,
+    aadB64: "YWFk",
+    proofStatus: "verified",
+  };
+}
+
+export const gcpKms: ProtectionRecord = gcpKmsOn(
+  "projects/p/locations/l/keyRings/r/cryptoKeys/k",
+);
 
 export const yubikey: ProtectionRecord = {
   kind: "yubikey-piv-age",

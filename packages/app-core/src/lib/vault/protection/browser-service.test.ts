@@ -1,6 +1,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
+import { generateAgeKeyPair } from "../../age-keys.js";
 import { kvDelete, kvGet } from "../../kv.js";
 import {
   BODY_PATH,
@@ -133,6 +134,33 @@ describe("VaultProtectionBrowserService", () => {
     ).rejects.toMatchObject({ code: "unavailable" });
   });
 
+  it("refuses to prefer a protector that opens nothing at the unlock screen", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const pair = await generateAgeKeyPair();
+    const pasted = await store.protection.enrollExternal({
+      kind: "age-recipient",
+      recipients: [pair.recipient],
+    });
+    await store.protection.commitEnrollment(pasted.operationId);
+    // Published untested: it has never been opened with its identity.
+    await expect(
+      store.protection.setPreferred(pasted.record.protectorId),
+    ).rejects.toMatchObject({ code: "unavailable" });
+    await store.protection.testProtector(pasted.record.protectorId, {
+      ageIdentity: pair.identity,
+    });
+    await store.protection.setPreferred(pasted.record.protectorId);
+    expect(store.getSnapshot().header?.protection?.preferredProtectorId).toBe(
+      pasted.record.protectorId,
+    );
+    // Removing the preferred row drops the preference with it.
+    await store.protection.removeProtector(pasted.record.protectorId);
+    expect(
+      store.getSnapshot().header?.protection?.preferredProtectorId,
+    ).toBeUndefined();
+  });
+
   it("setPreferred / remove / rotate lifecycle mutations", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
@@ -146,11 +174,12 @@ describe("VaultProtectionBrowserService", () => {
     await store.protection.commitEnrollment(recovery.operationId);
     const recoveryId = recovery.record.protectorId;
 
-    // A recovery key never opens the vault at the unlock screen, so it cannot
-    // be the preferred way in; the password wrap can.
-    await expect(
-      store.protection.setPreferred(recoveryId),
-    ).rejects.toMatchObject({ code: "unavailable" });
+    // A verified recovery key opens the vault at the unlock screen (ADR 0152),
+    // so it can be the preferred way in, and so can the password wrap.
+    await store.protection.setPreferred(recoveryId);
+    expect(store.getSnapshot().header?.protection?.preferredProtectorId).toBe(
+      recoveryId,
+    );
     await store.protection.setPreferred(passwordId);
     expect(store.getSnapshot().header?.protection?.preferredProtectorId).toBe(
       passwordId,

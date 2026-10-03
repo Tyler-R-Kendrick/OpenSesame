@@ -453,7 +453,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0157).
+  0001–0158).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -568,8 +568,10 @@ Do not add new top-level directories or loose root files — find the group.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)
   and **which key** opens the vault (the passkey/PIN/password wraps in the
-  plaintext header, then the authenticator gate if enrolled). The unlock tabs
-  are exactly the enrolled methods, never a uniform three; an enrolled
+  plaintext header, plus the manifest's verified recovery key, age key, age
+  passkey and passkey capsule — never a cloud KMS record, whose credential is
+  sealed in the vault, ADR 0152 — then the authenticator gate if enrolled). The
+  unlock tabs are exactly the enrolled methods, never a uniform three; an enrolled
   authenticator code is announced as step 2 before step 1 is taken. Sign out
   is one operation in `packages/app-core/src/lib/session-exit.ts` (forget the
   assertion, revoke Identity, lock, note it for the sign-in panel); "switch
@@ -663,7 +665,7 @@ Do not add new top-level directories or loose root files — find the group.
   scoped to a closed set of contexts (`vault`, `rail`, read from
   `listingOf(event)`), never an expression, and every guardrail holds in each.
 - **A Settings row acts, or it is not drawn**
-  ([ADR 0150](docs/adr/0150-settings-rows-act-or-are-absent.md)). No disabled
+  ([ADR 0158](docs/adr/0158-settings-rows-act-or-are-absent.md)). No disabled
   key, no lock glyph standing for "not yet", no link to a page that does not
   configure the thing, no static status a person cannot change. A control
   whose precondition is unmet is absent; the row that needs a setting opens the

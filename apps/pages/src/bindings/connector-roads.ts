@@ -1,4 +1,8 @@
 import {
+  browserGrantEpoch,
+  subscribeBrowserGrant,
+} from "@opensesame/app-core/lib/browser-pairing.js";
+import {
   type FormRoad,
   connectRoadEpoch,
   connectorActs,
@@ -11,7 +15,7 @@ import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useVault } from "../lib/vault/hooks.js";
 
 export type ConnectorRoads = {
-  /** The page has something a person can do here (ADR 0150). */
+  /** The page has something a person can do here (ADR 0158). */
   acts: (provider: Pick<Provider, "id">) => boolean;
   /** The road a key, configuration or authorize form saves through. */
   form: (provider: Pick<Provider, "id" | "authKind">) => FormRoad | null;
@@ -19,8 +23,9 @@ export type ConnectorRoads = {
 
 /**
  * What connectors can do on this device, read again when a road opens or
- * closes: the Host named in settings, a Connect credential sealed or
- * forgotten, a vault unlocked or locked.
+ * closes: the Host named in settings, the Host grant approved, renewed, ended
+ * or lapsed, a Connect credential sealed or forgotten, a vault unlocked or
+ * locked.
  */
 export function useConnectorRoads(): ConnectorRoads {
   useSettingsEpoch();
@@ -28,6 +33,11 @@ export function useConnectorRoads(): ConnectorRoads {
     subscribeConnectRoads,
     connectRoadEpoch,
     connectRoadEpoch,
+  );
+  useSyncExternalStore(
+    subscribeBrowserGrant,
+    browserGrantEpoch,
+    browserGrantEpoch,
   );
   const { status, guest, tomb } = useVault();
   const sealedVault = status === "unlocked" && !guest && Boolean(tomb);

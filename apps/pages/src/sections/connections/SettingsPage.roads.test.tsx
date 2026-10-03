@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import {
+  HOST_CONNECTIONS_WRITE,
+  hostGrantSeams,
+} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -11,12 +15,14 @@ import { ConnectorSettingsPage } from "./SettingsPage.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 const originalIdentity = { ...identitySeams };
+const originalGrant = { ...hostGrantSeams };
 const originalVault = vaultHooksSeams.useVault;
 const originalAws = { ...awsKmsConnectDependencies };
 
 afterEach(() => {
   cleanup();
   Object.assign(identitySeams, originalIdentity);
+  Object.assign(hostGrantSeams, originalGrant);
   vaultHooksSeams.useVault = originalVault;
   Object.assign(awsKmsConnectDependencies, originalAws);
 });
@@ -54,6 +60,7 @@ function draw(id: string) {
 function openHostRoad() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
+  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 function unlocked() {

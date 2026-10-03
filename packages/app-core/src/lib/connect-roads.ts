@@ -1,5 +1,5 @@
 /**
- * Which roads a connector's own page has on this device (ADR 0150, ADR 0128).
+ * Which roads a connector's own page has on this device (ADR 0158, ADR 0128).
  *
  * A connector page is a place to act. What it can act through is one of:
  *
@@ -8,7 +8,8 @@
  *   in an unlocked vault, the vault-history switch;
  * - **connect** — Vercel Connect, once its credential is held: the page's own
  *   Connect panels seal it, then create and authorize a connector;
- * - **host** — a configured Host with a live, approved browser grant. Pages
+ * - **host** — a configured Host with a live, approved browser grant that
+ *   carries `host.connections.write` (a join or sync grant does not). Pages
  *   opens no pairing ceremony (ADR 0128), so on the static deployment this is
  *   closed, and every form that can only run through it must not be drawn:
  *   pressing its key could only fail.
@@ -22,6 +23,7 @@ import type { AuthKind, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import { HISTORY_BACKUP_GROUPS } from "./history-backups.js";
+import { HOST_CONNECTIONS_WRITE, hostGrantAllows } from "./host-grant.js";
 import { hostBase, hostLocalSessionEligible } from "./identity.js";
 
 /**
@@ -71,9 +73,18 @@ function deviceConfigurable(authKind: AuthKind): boolean {
   return authKind === "api_key" || authKind === "configuration";
 }
 
-/** A Host is configured and this browser holds a live approved grant to it. */
+/**
+ * A Host is configured and this browser holds a live approved grant to it that
+ * carries `host.connections.write`. A grant that only joins or syncs is live
+ * and approved, and still cannot create a connection or write a credential,
+ * so it opens none of the connector forms (ADR 0151).
+ */
 export function hostRoadOpen(): boolean {
-  return hostBase() !== "" && hostLocalSessionEligible();
+  return (
+    hostBase() !== "" &&
+    hostLocalSessionEligible() &&
+    hostGrantAllows(HOST_CONNECTIONS_WRITE)
+  );
 }
 
 /**
@@ -121,7 +132,7 @@ function actsLocally(providerId: string): boolean {
 
 /**
  * Does this connector's page have anything a person can do on this device?
- * A tile whose page has nothing to act on is not drawn (ADR 0150): no row
+ * A tile whose page has nothing to act on is not drawn (ADR 0158): no row
  * that leads to a page that does not configure the thing.
  */
 export function connectorActs(

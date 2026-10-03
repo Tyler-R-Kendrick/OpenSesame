@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
+import { fieldSteps } from "./lib/capture-field-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
@@ -196,6 +197,7 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...fieldSteps({ press }),
   ...readSteps(),
   ...liveSteps({ harness }),
   ...livePolicySteps({ press, openSettings }),

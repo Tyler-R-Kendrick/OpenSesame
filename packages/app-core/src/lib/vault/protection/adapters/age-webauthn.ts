@@ -251,7 +251,17 @@ export async function openAgeWebauthn(input: {
       b64ToBytes(input.record.capsuleAgeB64),
       identity,
     );
-  } catch {
+  } catch (error) {
+    // A prompt the person dismissed is not a wrong key.
+    if (
+      error instanceof DOMException &&
+      (error.name === "NotAllowedError" || error.name === "AbortError")
+    ) {
+      throw new ProtectionError(
+        "canceled",
+        "The passkey prompt was dismissed.",
+      );
+    }
     throw new ProtectionError(
       "enrollment_proof_failed",
       "Age WebAuthn capsule could not be opened.",

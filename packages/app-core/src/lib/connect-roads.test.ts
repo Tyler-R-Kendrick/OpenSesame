@@ -8,24 +8,35 @@ import {
   hostRoadOpen,
   resetConnectRoadSeams,
 } from "./connect-roads.js";
+import { HOST_CONNECTIONS_WRITE, hostGrantSeams } from "./host-grant.js";
 import { identitySeams } from "./identity.js";
 import { hasConnectRoute } from "./vercel-connect-catalog.js";
 import { setVercelConnectAuth, usesConnect } from "./vercel-connect.js";
 
 const original = { ...identitySeams };
-const host = { base: "", live: false };
+const originalGrant = { ...hostGrantSeams };
+const host = { base: "", live: false, capabilities: new Array<string>() };
+
+/** A live approved grant that can create connections and write credentials. */
+function approveConnectionsWrite() {
+  host.live = true;
+  host.capabilities = [HOST_CONNECTIONS_WRITE];
+}
 
 beforeEach(() => {
   host.base = "";
   host.live = false;
+  host.capabilities = [];
   identitySeams.hostBase = () => host.base;
   identitySeams.hostLocalSessionEligible = () => host.live;
+  hostGrantSeams.capabilities = () => host.capabilities;
   connectRoadSeams.usesConnect = usesConnect;
   connectRoadSeams.hasConnectRoute = hasConnectRoute;
 });
 
 afterEach(() => {
   Object.assign(identitySeams, original);
+  Object.assign(hostGrantSeams, originalGrant);
   resetConnectRoadSeams();
   setVercelConnectAuth(null);
 });
@@ -40,10 +51,35 @@ describe("the Host road", () => {
     expect(hostRoadOpen()).toBe(false);
   });
 
-  it("opens only with a named Host and a live grant", () => {
+  it("opens only with a named Host and a live grant that writes connections", () => {
     host.base = "https://host.example";
-    host.live = true;
+    approveConnectionsWrite();
     expect(hostRoadOpen()).toBe(true);
+  });
+
+  it("stays closed for a live grant that only joins or syncs", () => {
+    host.base = "https://host.example";
+    approveConnectionsWrite();
+    host.capabilities = ["host.join"];
+    expect(hostRoadOpen()).toBe(false);
+    host.capabilities = ["host.sync.read", "host.sync.write"];
+    expect(hostRoadOpen()).toBe(false);
+    host.capabilities = ["host.connections.read"];
+    expect(hostRoadOpen()).toBe(false);
+  });
+
+  it("stays closed with the capability but no live grant", () => {
+    host.base = "https://host.example";
+    host.capabilities = [HOST_CONNECTIONS_WRITE];
+    expect(hostRoadOpen()).toBe(false);
+  });
+
+  it("closes again when the grant is withdrawn", () => {
+    host.base = "https://host.example";
+    approveConnectionsWrite();
+    expect(hostRoadOpen()).toBe(true);
+    host.capabilities = [];
+    expect(hostRoadOpen()).toBe(false);
   });
 });
 
@@ -58,7 +94,7 @@ describe("the road a form saves through", () => {
     setVercelConnectAuth({ token: "t" });
     expect(formRoad("doppler", "api_key")).toBe("local");
     host.base = "https://host.example";
-    host.live = true;
+    approveConnectionsWrite();
     expect(formRoad("doppler", "api_key")).toBe("host");
     expect(formRoad("1password", "configuration")).toBe("host");
   });
@@ -87,7 +123,7 @@ describe("the form a connector page draws", () => {
     ).toBe(true);
     expect(connectFormDraws({ id: "lithic", authKind: "api_key" })).toBe(true);
     host.base = "https://host.example";
-    host.live = true;
+    approveConnectionsWrite();
     expect(
       connectFormDraws({ id: "1password", authKind: "configuration" }),
     ).toBe(true);
@@ -104,6 +140,16 @@ describe("a connector that has something to do", () => {
   it("hides an authorize-only connector until Connect or a Host can take it", () => {
     resetConnectRoadSeams();
     expect(connectorActs({ id: "slack" }, false)).toBe(false);
+  });
+
+  it("hides an authorize-only connector from a join or sync grant", () => {
+    resetConnectRoadSeams();
+    host.base = "https://host.example";
+    host.live = true;
+    host.capabilities = ["host.join"];
+    expect(connectorActs({ id: "slack" }, false)).toBe(false);
+    approveConnectionsWrite();
+    expect(connectorActs({ id: "slack" }, false)).toBe(true);
   });
 
   it("draws that connector once Connect holds a route for it", () => {
@@ -125,7 +171,7 @@ describe("a connector that has something to do", () => {
       expect(connectorActs({ id }, false)).toBe(true);
     }
     host.base = "https://host.example";
-    host.live = true;
+    approveConnectionsWrite();
     expect(connectorActs({ id: "better-auth" }, false)).toBe(true);
   });
 
@@ -137,7 +183,7 @@ describe("a connector that has something to do", () => {
     // A live Host does not open these while the vault is locked. YubiKey is
     // not among them: the browser does not enroll it (ADR 0152).
     host.base = "https://host.example";
-    host.live = true;
+    approveConnectionsWrite();
     for (const id of VAULT_SEALED_PANELS) {
       expect(connectorActs({ id }, false)).toBe(false);
     }
