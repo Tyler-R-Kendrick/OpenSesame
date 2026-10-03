@@ -96,6 +96,14 @@ function database(stores: Map<string, FakeStore>) {
   };
 }
 
+type FakeTransaction = {
+  oncomplete: (() => void) | undefined;
+  onabort: (() => void) | undefined;
+  onerror: (() => void) | undefined;
+  error: BoundaryValue | undefined;
+  objectStore(name: string): ReturnType<typeof objectStore>;
+};
+
 /** Completes after this turn's requests, on the same object the caller holds. */
 function countingTransaction(stores: Map<string, FakeStore>) {
   let pending = 0;
@@ -118,11 +126,11 @@ function countingTransaction(stores: Map<string, FakeStore>) {
       if (pending === 0) finish();
     });
   };
-  const tx = {
-    oncomplete: undefined as (() => void) | undefined,
-    onabort: undefined as (() => void) | undefined,
-    onerror: undefined as (() => void) | undefined,
-    error: undefined as BoundaryValue | undefined,
+  const tx: FakeTransaction = {
+    oncomplete: undefined,
+    onabort: undefined,
+    onerror: undefined,
+    error: undefined,
     objectStore(name: string) {
       const store = stores.get(name);
       if (!store) throw new DOMException("no store", "NotFoundError");

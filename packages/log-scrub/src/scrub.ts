@@ -16,6 +16,7 @@ import {
   type BoundaryValue,
   type MutableBoundaryObject,
   isBoolean,
+  isFunction,
   isString,
   isTypeofObject,
   overlapCast,
@@ -116,7 +117,7 @@ function serialised(value: BoundaryObject): BoundaryValue | undefined {
   const proto = Object.getPrototypeOf(value);
   if (proto === Object.prototype || proto === null) return undefined;
   const holder: { toJSON?: () => BoundaryValue } = overlapCast(value);
-  return typeof holder.toJSON === "function" ? holder.toJSON() : undefined;
+  return isFunction(holder.toJSON) ? holder.toJSON() : undefined;
 }
 
 function walkObject(

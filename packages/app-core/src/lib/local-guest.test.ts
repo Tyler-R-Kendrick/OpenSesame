@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../host.js";
 import { createTestHost } from "../test-host.js";
@@ -101,6 +102,8 @@ describe("local-guest principals", () => {
   });
 });
 
+type Granted<T> = (lock: Lock | null) => Promise<T>;
+
 describe("cross-tab guest ordinal minting", () => {
   const durableFiles = new Map<string, string>();
   const fakeDirectory = {
@@ -126,18 +129,22 @@ describe("cross-tab guest ordinal minting", () => {
     },
   };
   let lockChain: Promise<unknown> = Promise.resolve();
-  const locks = {
-    request<T>(
-      _name: string,
-      actionOrOptions: LockOptions | LockGrantedCallback,
-      maybeAction?: LockGrantedCallback,
-    ): Promise<T> {
-      const action = (maybeAction ?? actionOrOptions) as () => Promise<T>;
-      const run = lockChain.then(action);
-      lockChain = run.catch(() => undefined);
-      return run;
-    },
-  };
+  function request<T>(name: string, action: Granted<T>): Promise<T>;
+  function request<T>(
+    name: string,
+    options: LockOptions,
+    action: Granted<T>,
+  ): Promise<T>;
+  function request<T>(
+    _name: string,
+    ...rest: [Granted<T>] | [LockOptions, Granted<T>]
+  ): Promise<T> {
+    const action = rest.length === 1 ? rest[0] : rest[1];
+    const run = lockChain.then(() => action(null));
+    lockChain = run.catch(() => undefined);
+    return run;
+  }
+  const locks = { request };
 
   beforeEach(() => {
     durableFiles.clear();
@@ -145,8 +152,7 @@ describe("cross-tab guest ordinal minting", () => {
     configureHost(
       createTestHost({
         locks,
-        originFiles: async () =>
-          fakeDirectory as unknown as FileSystemDirectoryHandle,
+        originFiles: async () => overlapCast(fakeDirectory),
       }),
     );
     kvDelete(ORDINAL_KEY);

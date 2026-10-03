@@ -8,6 +8,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isString } from "./json-boundary.mjs";
 
 export const EXPERIENCE_PACKAGES = [
   "@opensesame/app-core",
@@ -110,7 +111,7 @@ export function loadPackageNodes(root) {
   const nodes = [];
   for (const dir of packageDirs(root)) {
     const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-    if (typeof pkg.name !== "string" || !NAME_OK.test(pkg.name)) continue;
+    if (!isString(pkg.name) || !NAME_OK.test(pkg.name)) continue;
     nodes.push({
       name: pkg.name,
       dir: relative(root, dir).replaceAll("\\", "/"),
