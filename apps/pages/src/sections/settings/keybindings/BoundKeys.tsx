@@ -132,6 +132,7 @@ export function BoundKeys({
           holder={pending.holder}
           commands={state.commands}
           canSwap={pending.previous !== undefined && !holderLocked}
+          problem={flow.problem}
           onSwap={() => flow.commit(pending.sequence, pending.previous, "swap")}
           onReplace={() => flow.commit(pending.sequence, pending.previous)}
           onCancel={() => flow.close(pending.previous ?? ADD_KEY)}
