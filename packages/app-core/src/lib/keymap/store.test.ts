@@ -19,7 +19,13 @@ import {
 /** A store that can be told to refuse a read, a write or a removal. */
 function flaky() {
   const inner = createMemoryStorage();
-  const refuse = { get: false, set: false, remove: false };
+  const refuse = {
+    get: false,
+    set: false,
+    remove: false,
+    /** Refuse the removal of this one key only. */
+    removeKey: null as string | null,
+  };
   const storage: WebStorage = {
     get length() {
       return inner.length;
@@ -34,7 +40,7 @@ function flaky() {
       inner.setItem(key, value);
     },
     removeItem(key) {
-      if (refuse.remove) throw new Error("blocked");
+      if (refuse.remove || refuse.removeKey === key) throw new Error("blocked");
       inner.removeItem(key);
     },
   };
@@ -258,5 +264,43 @@ describe("a store that refuses", () => {
     refuse.set = false;
     expect(reloadKeymap().bindings).toEqual({ w: "item.edit" });
     expect(inner.getItem(KEYMAP_KEY)).not.toBeNull();
+  });
+
+  it("leaves storage as it was when a reset is refused after the new key could go", () => {
+    const { refuse, inner } = flaky();
+    // A v1 map beside a v2 keymap, and a store that refuses the v1 removal
+    // and every write: the v2 key must not be dropped first.
+    inner.setItem(LEGACY_KEYMAP_KEY, JSON.stringify({ j: "item.edit" }));
+    inner.setItem(
+      KEYMAP_KEY,
+      JSON.stringify({ bindings: { w: "item.edit" }, macros: {} }),
+    );
+    forgetKeymapForTest();
+    expect(loadKeymap().bindings).toEqual({ w: "item.edit" });
+    refuse.set = true;
+    refuse.removeKey = LEGACY_KEYMAP_KEY;
+    const before = [
+      inner.getItem(KEYMAP_KEY),
+      inner.getItem(LEGACY_KEYMAP_KEY),
+    ];
+    const reset = resetKeymap();
+    expect(reset.ok).toBe(false);
+    expect([
+      inner.getItem(KEYMAP_KEY),
+      inner.getItem(LEGACY_KEYMAP_KEY),
+    ]).toEqual(before);
+    refuse.set = false;
+    refuse.removeKey = null;
+    expect(reloadKeymap().bindings).toEqual({ w: "item.edit" });
+  });
+
+  it("stays reset on the next load when only the legacy key will not go", () => {
+    const { refuse, inner } = flaky();
+    saveKeymap({ bindings: { w: "item.edit" }, macros: {}, singleKeys: true });
+    inner.setItem(LEGACY_KEYMAP_KEY, JSON.stringify({ j: "item.edit" }));
+    refuse.removeKey = LEGACY_KEYMAP_KEY;
+    expect(resetKeymap().ok).toBe(true);
+    refuse.removeKey = null;
+    expect(reloadKeymap().bindings).toEqual({});
   });
 });

@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import { IconCheck, IconSwap, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { Keycaps } from "./Keycaps.js";
+import { Refused } from "./Refused.js";
 import type { Refusal } from "./useBindFlow.js";
 
 /**
@@ -59,7 +60,7 @@ export function ConflictPrompt({
         <Keycaps sequence={sequence} />
         <span className="kb-conflict__holder">{name}</span>
       </span>
-      {problem ? <StatusMark tone="err" label={problem.message} /> : null}
+      {problem ? <Refused {...problem} /> : null}
       <span className="actions">
         {canSwap ? (
           <button

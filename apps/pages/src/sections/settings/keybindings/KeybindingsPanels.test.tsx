@@ -170,6 +170,11 @@ describe("Settings › Keybindings › Keymap", () => {
         name: "The keymap could not be saved on this device.",
       }),
     ).toBeTruthy();
+    expect(
+      within(
+        screen.getByRole("group", { name: "k is taken by Previous row" }),
+      ).getByRole("alert").textContent,
+    ).toBe("The keymap could not be saved on this device.");
     expect(loadKeymap().bindings).toEqual({});
   });
 
