@@ -33,13 +33,20 @@ function visibleTop(pane: HTMLElement): number {
   return Math.max(edge, strip.getBoundingClientRect().bottom);
 }
 
+/** The lowest edge a person can see: the pane's, or the visual viewport's when a keyboard has shrunk it. */
+function visibleBottom(pane: HTMLElement): number {
+  const edge = pane.getBoundingClientRect().bottom;
+  const viewport = window.visualViewport;
+  return viewport ? Math.min(edge, viewport.offsetTop + viewport.height) : edge;
+}
+
 /** Scroll `target`'s pane, vertically, until `target` sits clear of the sticky strip and the pane's edges. */
 export function revealClear(target: Element): void {
   const pane = scroller(target);
   if (!pane) return;
   const box = target.getBoundingClientRect();
   const top = visibleTop(pane) + GAP_PX;
-  const bottom = pane.getBoundingClientRect().bottom - GAP_PX;
+  const bottom = visibleBottom(pane) - GAP_PX;
   if (box.top < top) pane.scrollTop -= top - box.top;
   else if (box.bottom > bottom) pane.scrollTop += box.bottom - bottom;
 }
