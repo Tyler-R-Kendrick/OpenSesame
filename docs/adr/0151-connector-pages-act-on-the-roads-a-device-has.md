@@ -123,3 +123,12 @@ lapsed on its own expiry) so `useConnectorRoads` redraws and tiles and forms
 appear and go with it. Today no Pages pairing ceiling carries that capability,
 so the road stays closed in every Pages build; a ceiling that adds it opens the
 forms with no further change here.
+
+## Amendment (2026-10-03): a tile is a link to a route that exists
+
+A connector page is a route the Connections capability registers (ADR 0153).
+With Connections off, the default, every tile on Capabilities linked to a page
+that was not there and opened blank. A tile is now drawn only while Connections
+is running as well as only where its page has something to do, and a section
+left with no switch and no tile is not drawn; the Connections switch is what
+brings them in (`useConnectorTiles`).

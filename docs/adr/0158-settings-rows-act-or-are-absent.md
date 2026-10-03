@@ -94,3 +94,47 @@ that cannot supply every action supplies none, and the panel is absent.
   is drawn is enabled. A live sweep of every key on Security, as a guest and
   with a sealed personal vault, found none that does nothing except "Seal
   identity", a form submit that stays disabled until its own field has text.
+
+## Amendment (2026-10-03): a second walk of every Settings tab
+
+A second walk — as a guest and as a password-sealed vault with a PIN, an
+authenticator and a recovery key, at 1280 and 390 wide, with every optional
+capability switched on — found the rule still broken in places the first sweep
+did not reach, and one claim above ("found none that does nothing") untrue. Each
+was fixed at its root:
+
+- **A switch that cannot take.** Turning Browser-local IAM off while Self-issued
+  OpenID runs changed nothing: the plan pulls a dependency back in. A tile whose
+  capability another running one is built on, and a section's switch when a
+  running capability outside it needs one of its own, now say *needed by …*
+  (`dependentsOf`, `heldOutside` in `features.ts`) instead of drawing a switch.
+- **A link to a blank page.** With Connections off — the default (ADR 0153) —
+  forty-four provider tiles linked to `/settings/connections/<id>`, a route only
+  the Connections capability registers. The tile, its section and its rail entry
+  now follow the running capability (`useConnectorTiles`).
+- **A switch for nothing.** External telemetry and Certificate authority have no
+  Pages code (their modules say so); Push notifications had a library and no row.
+  The first two draw no section (`NO_SURFACE`); Push gets *Push on this device*
+  under General, drawn where the browser, an Identity API and a session allow it.
+- **A key drawn disabled.** Reset every key and macro with nothing changed, a
+  macro step's move up on the first and down on the last, Add and Record at the
+  step limit, New macro and Edit while an editor is open, the open vault's travel
+  switch, Leave for a trip with one vault, Relay only with no TURN server, the
+  Environments value rows with no environment, and the preferred unlock's own
+  star. Each is absent until it can act, and focus follows.
+- **A row with nothing to change.** Notifications on a device with no Identity
+  API (one inbox row), the plugin tiles with nothing paired and no way to pair,
+  and the *Sign out of Identity too* switch for a guest.
+- **A preset that did nothing.** Choosing a purpose card wrote the policy but the
+  composition store read it only at boot, so the card never marked itself.
+- **A message that outlived its subject.** Security's page-level success box
+  still said "PIN unlock enrolled" after a rotation had removed the PIN, and
+  failures drew behind the sheet that caused them. Success is the row's own mark
+  (announced), a failure is a notice in the tray.
+- **A rotation that said less than it did.** Rotating the vault key kept only
+  the password and silently removed the recovery key, the authenticator and the
+  recovery codes; the sheet named only "passkey/PIN". It now lists exactly the
+  enrolled ones before and after.
+- **Dev only, and fatal there.** `main.tsx` renders under StrictMode; the
+  authenticator sheet's cleanup cancelled an enrollment its re-mount never began,
+  so the first code was refused with "Start authenticator enrollment first."
