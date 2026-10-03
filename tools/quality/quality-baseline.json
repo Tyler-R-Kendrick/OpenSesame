@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 438,
-    "violations": 688,
-    "oversizedLines": 225813
+    "files": 437,
+    "violations": 687,
+    "oversizedLines": 225499
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -137,7 +137,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 535
+      "max-lines": 482
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
@@ -183,9 +183,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/NeedsAttention.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/OauthClientPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/SettingsPage.tsx": {
@@ -617,7 +614,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/connections.ts": {
-      "max-lines": 737
+      "max-lines": 472
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1

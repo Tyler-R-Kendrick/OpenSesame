@@ -95,7 +95,6 @@ const SIGNIN_FILES = [
   "orgs",
 ];
 const CONNECTOR_FILES = [
-  "capability-bind",
   "connector-guidance",
   "connector-settings",
   "connect-",
@@ -227,7 +226,6 @@ export const LIB_RULES = [
       "configuration/",
       "capabilities",
       "connect-roads",
-      "host-grant",
       "embedded-catalog",
       "idp-presets",
       "local-application-policy",

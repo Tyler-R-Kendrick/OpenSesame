@@ -5,8 +5,14 @@ import { IconRefresh, IconTrash } from "../../components/Icons.js";
 import { PURGE_CONFIRM } from "./vault-menu.js";
 
 type TrashStore = {
-  restoreItem: (id: string) => unknown;
-  purgeItem: (id: string) => unknown;
+  restoreItem: (id: string) => Promise<void> | void;
+  purgeItem: (id: string) => Promise<void> | void;
+};
+
+type TrashItemActions = {
+  restore: (item: VaultItem) => void;
+  purge: (item: VaultItem) => void;
+  commitPurge: (item: VaultItem) => void;
 };
 
 /** Restore, and delete that arms once, for a row that is already in the trash. */
@@ -14,11 +20,7 @@ export function trashItemActions(
   store: TrashStore,
   armedId: string | null,
   setArmedId: Dispatch<SetStateAction<string | null>>,
-): {
-  restore: (item: VaultItem) => void;
-  purge: (item: VaultItem) => void;
-  commitPurge: (item: VaultItem) => void;
-} {
+): TrashItemActions {
   const trashed = (item: VaultItem) => item.deletedAt !== null;
   return {
     restore: (item) => {

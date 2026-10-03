@@ -30,14 +30,21 @@ installDoublePorts();
 installPanelFixture();
 
 /**
- * Sections that draw nothing on a device with no Host, no Connect credential
- * and no unlocked vault. Encryption's panels seal a key in the vault, so a
- * locked vault draws no tile and no switch (ADR 0158). A key or a
- * configuration seals on this device, so those sections stay. External
+ * Sections that draw nothing while Connections is off, the default (ADR 0153).
+ * Their tiles open connector pages, and those pages are routed only while
+ * Connections is on, so a tile would lead nowhere (ADR 0158). Backups keeps
+ * its tiles: each is the history switch, which acts without a page. External
  * telemetry and Certificate authority have no Pages code behind them, so
- * their sections have no switch to draw and are absent (ADR 0158).
+ * their sections have no switch to draw and are absent too.
  */
-const NOTHING_TO_DO_HERE = new Set(["encryption", "telemetry", "certificates"]);
+const NOTHING_TO_DO_HERE = new Set([
+  "encryption",
+  "password-managers",
+  "cloud-secret-storage",
+  "local-storage",
+  "telemetry",
+  "certificates",
+]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
   it("draws every section once, as a subheader, never as a card row", () => {
@@ -183,7 +190,7 @@ describe("sections — one list, one style, a switch only where something is opt
     for (const id of NO_SURFACE) expect(featureOf(id), id).not.toBeNull();
   });
 
-  it("draws a section's providers whether or not anything is switched on", () => {
+  it("draws a section's backup tiles whether or not anything is switched on", () => {
     renderPanel();
     const tiles = screen.getByRole("list", { name: "Backups providers" });
     expect(tiles.textContent).toContain("GitHub");
@@ -191,8 +198,9 @@ describe("sections — one list, one style, a switch only where something is opt
     // password-store is a git history road: it is a Backups tile, and Local
     // storage no longer draws it a second time.
     expect(tiles.textContent).toContain("password-store");
-    const local = screen.getByRole("list", { name: "Local storage providers" });
-    expect(local.textContent).not.toContain("password-store");
+    expect(
+      screen.queryByRole("list", { name: "Local storage providers" }),
+    ).toBeNull();
     for (const group of ["Identity providers", "Password managers"]) {
       expect(screen.queryByRole("switch", { name: group })).toBeNull();
     }

@@ -123,11 +123,15 @@ export async function publishEnrollment(input: {
   };
 }
 
-async function commitEnrollmentJournals(input: {
+type EnrollmentJournalInput = {
   manifest: EnrollmentManifest;
   registry: CompartmentRegistry;
   requireDurable: boolean;
-}): Promise<
+};
+
+async function commitEnrollmentJournals(
+  input: EnrollmentJournalInput,
+): Promise<
   { ok: true; revision: number } | { ok: false; code: string; message: string }
 > {
   const priorRegistry = recoverJournal<CompartmentRegistry>(

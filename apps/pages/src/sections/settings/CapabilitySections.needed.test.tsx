@@ -34,7 +34,7 @@ function selecting(selectedOptional: string[]) {
   });
 }
 
-describe("a switch that could not take is not drawn (ADR 0158 §3)", () => {
+describe("a switch that could not take is not drawn (ADR 0158)", () => {
   it("says Connections is needed while Git remote backup runs on it, instead of offering a switch that cannot take", () => {
     selecting(["backup.git-remote"]);
     renderPanel();
@@ -42,28 +42,6 @@ describe("a switch that could not take is not drawn (ADR 0158 §3)", () => {
     expect(
       screen.getByRole("img", { name: "needed by Git remote backup" }),
     ).toBeTruthy();
-  });
-
-  it("draws no connector tile while Connections is off: its pages are Connections' routes, so a tile is a link to a blank page", () => {
-    selecting(["agents.webmcp"]);
-    renderPanel();
-    expect(screen.queryByRole("list", { name: "AI providers" })).toBeNull();
-    expect(
-      screen.queryByRole("list", { name: "Backups providers" }),
-    ).toBeNull();
-    expect(screen.queryByRole("link", { name: /Anthropic/ })).toBeNull();
-    expect(
-      document.querySelector("a[href*='/settings/connections/']"),
-    ).toBeNull();
-    // The sections' own switches are still there to turn on.
-    expect(screen.getByRole("switch", { name: "Connections" })).toBeTruthy();
-  });
-
-  it("draws the tiles once Connections runs", () => {
-    selecting(["agents.webmcp", "connectors.external"]);
-    double.setActive("connectors.external");
-    renderPanel();
-    expect(screen.getByRole("list", { name: "AI providers" })).toBeTruthy();
   });
 
   it("offers Connections' switch again once nothing runs on it", () => {

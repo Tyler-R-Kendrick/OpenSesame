@@ -19,27 +19,27 @@ const OWNED_ELSEWHERE: ReadonlySet<string> = new Set([
 ]);
 
 /** Legacy rail orders. Later derived types follow, in id order. */
-const LEGACY_ORDER: Readonly<Record<string, number>> = {
-  login: 0,
-  card: 30,
-  note: 60,
-};
+const LEGACY_ORDER: ReadonlyMap<string, number> = new Map([
+  ["login", 0],
+  ["card", 30],
+  ["note", 60],
+]);
 
 /** Directory names the rail already used for the kinds that used to be core. */
-const LEGACY_SEGMENT: Readonly<Record<string, string>> = {
-  login: "logins",
-  card: "cards",
-  note: "notes",
-};
+const LEGACY_SEGMENT: ReadonlyMap<string, string> = new Map([
+  ["login", "logins"],
+  ["card", "cards"],
+  ["note", "notes"],
+]);
 
 export const DERIVED_ITEM_KINDS: readonly string[] = BUILTIN_TYPE_IDS.filter(
   (id) => !OWNED_ELSEWHERE.has(id),
 );
 
 export function derivedKindOrder(id: string, index: number): number {
-  return LEGACY_ORDER[id] ?? 80 + index;
+  return LEGACY_ORDER.get(id) ?? 80 + index;
 }
 
 export function derivedKindSegment(id: string, fallback: string): string {
-  return LEGACY_SEGMENT[id] ?? fallback;
+  return LEGACY_SEGMENT.get(id) ?? fallback;
 }

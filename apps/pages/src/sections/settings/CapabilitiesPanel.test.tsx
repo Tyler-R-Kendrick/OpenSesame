@@ -57,7 +57,6 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).toEqual([
-      "connectors.external",
       "vault.passkey-records",
     ]);
     expect(double.disabled).toHaveLength(0);

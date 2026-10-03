@@ -123,7 +123,7 @@ export function previewRecipe(manifest: RecipeManifest): RecipePreview {
   };
 }
 
-function isRecipeManifestShape(manifest: RecipeManifest): boolean {
+function isWellFormedRecipeManifest(manifest: RecipeManifest): boolean {
   return (
     Array.isArray(manifest.requiredInputs) &&
     manifest.requiredInputs.every(isString) &&
@@ -145,7 +145,7 @@ export function importRecipe(
   if (manifest.schema !== "opensesame.recipe.v1") {
     return { ok: false, message: "Unsupported recipe schema." };
   }
-  if (!isRecipeManifestShape(manifest)) {
+  if (!isWellFormedRecipeManifest(manifest)) {
     return { ok: false, message: "Malformed recipe manifest." };
   }
   for (const required of manifest.requiredInputs) {

@@ -3,7 +3,6 @@ import {
   type Connection,
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
-import { githubHistorySeams } from "@opensesame/app-core/lib/github-history.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import {
@@ -21,14 +20,12 @@ import { GithubCardDetails } from "./GithubInstallationPanel.js";
 
 const originalConnectionSeams = { ...connectionSeams };
 const originalBackupSeams = { ...backupSeams };
-const originalGithubHistorySeams = { ...githubHistorySeams };
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 const originalIdentitySeams = { ...identitySeams };
 
 const listIntegrations = vi.fn();
 const listConnections = vi.fn();
 const listGithubInstallations = vi.fn();
-const listGithubRepos = vi.fn();
 /** Every request a Pages library could send a Host goes through this seam. */
 const hostFetch = vi.fn(async () => new Response(null, { status: 599 }));
 
@@ -73,7 +70,6 @@ beforeEach(() => {
   Object.assign(identitySeams, { hostFetch });
   Object.assign(connectionSeams, { listIntegrations, listConnections });
   Object.assign(backupSeams, { listGithubInstallations });
-  Object.assign(githubHistorySeams, { listGithubRepos });
   listIntegrations.mockResolvedValue([
     {
       id: "int_gh",
@@ -102,23 +98,12 @@ beforeEach(() => {
       repositories: ["octocat/secrets"],
     },
   ]);
-  listGithubRepos.mockResolvedValue([
-    {
-      fullName: "octocat/secrets",
-      name: "secrets",
-      private: true,
-      cloneUrl: "https://github.com/octocat/secrets.git",
-      htmlUrl: "https://github.com/octocat/secrets",
-      defaultBranch: "main",
-    },
-  ]);
 });
 
 afterEach(() => {
   cleanup();
   Object.assign(connectionSeams, originalConnectionSeams);
   Object.assign(backupSeams, originalBackupSeams);
-  Object.assign(githubHistorySeams, originalGithubHistorySeams);
   Object.assign(vaultHooksSeams, originalVaultHooksSeams);
   Object.assign(identitySeams, originalIdentitySeams);
   lockAllTombs();

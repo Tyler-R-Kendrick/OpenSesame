@@ -62,7 +62,6 @@ run("KP-model-ts", "pnpm", [
   "vitest",
   "run",
   "src/lib/vault/protection",
-  "src/lib/capability-bind.test.ts",
 ]);
 
 run("KP-cloud-adapters", "pnpm", [
