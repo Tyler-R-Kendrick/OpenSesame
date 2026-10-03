@@ -1,19 +1,136 @@
 /* Settings › Security › Duress code (ADR 0155). */
 
+/* A write is in flight: the sheet's close key is held (SheetFrame `busy`) and
+   says so the way a disabled icon key does, while staying in the tab order. */
+.sheet[aria-busy="true"] .icon-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .duress__pick {
-  display: grid;
-  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .duress__legend {
+  padding: 0;
+  margin-bottom: 0.35rem;
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--ink-3);
 }
 
+.duress__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.duress__choice,
 .duress__ack {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.5rem;
   font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.duress__ack {
+  align-items: flex-start;
+}
+
+/* Focus on a box or a dot is a ring around it. The app's field rule draws
+   focus as a thickened underline, which a checkbox or radio has no line for. */
+.duress__choice input:focus-visible,
+.duress__ack input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* The touch floor. A native box is 13px; the label is the row and the input
+   is the target, so the input itself is drawn 44px square with the glyph
+   centred in it, and the row never grows past what a thumb needs. */
+@media (pointer: coarse), (max-width: 900px) {
+  .duress__choice,
+  .duress__ack {
+    min-height: 2.75rem;
+  }
+
+  .duress__ack {
+    align-items: center;
+  }
+
+  .duress__ack input[type="checkbox"],
+  .duress__choice input[type="radio"] {
+    appearance: none;
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0 -0.25rem 0 -0.75rem;
+    cursor: pointer;
+  }
+
+  /* The input is the 44px target and draws nothing itself, so the ring goes
+     on the glyph the person sees, not on the invisible square. */
+  .duress__ack input[type="checkbox"]:focus-visible,
+  .duress__choice input[type="radio"]:focus-visible {
+    outline: none;
+  }
+
+  .duress__ack input[type="checkbox"]:focus-visible::before,
+  .duress__choice input[type="radio"]:focus-visible::before {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .duress__ack input[type="checkbox"]::before,
+  .duress__choice input[type="radio"]::before {
+    content: "";
+    box-sizing: border-box;
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 1.5px solid var(--line-strong);
+    background: var(--surface);
+  }
+
+  .duress__ack input[type="checkbox"]::before {
+    border-radius: 3px;
+  }
+
+  .duress__choice input[type="radio"]::before {
+    border-radius: 50%;
+  }
+
+  .duress__ack input[type="checkbox"]:checked::before,
+  .duress__choice input[type="radio"]:checked::before {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .duress__choice input[type="radio"]:checked::before {
+    box-shadow: inset 0 0 0 3px var(--surface);
+  }
+
+  .duress__ack input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    width: 0.3rem;
+    height: 0.6rem;
+    margin-top: -0.1rem;
+    border: solid var(--canvas);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .duress__ack input[type="checkbox"]:disabled::before,
+  .duress__choice input[type="radio"]:disabled::before {
+    opacity: 0.4;
+  }
 }
