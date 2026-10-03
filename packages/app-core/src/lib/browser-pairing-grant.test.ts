@@ -130,6 +130,34 @@ describe("announcing a change to the held grant", () => {
     stop();
   });
 
+  it("does not bring a cleared grant back when sign-out lands while the renewal is read", async () => {
+    await approve("host.join", "join");
+    await settle();
+    let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          stream = controller;
+        },
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+    const fetchMock = vi.fn().mockResolvedValueOnce(response);
+    vi.stubGlobal("fetch", fetchMock);
+    const renewing = renewBrowserGrant(host);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await settle();
+    clearBrowserPairing();
+    stream?.enqueue(
+      new TextEncoder().encode(
+        JSON.stringify(issued("host.join", renewedToken)),
+      ),
+    );
+    stream?.close();
+    expect(await renewing).toBe(false);
+    expect(currentBrowserGrant(host)).toBeNull();
+  });
+
   it("tells a subscriber when the grant lapses, with nothing asking about it", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     await approve("host.sync.read");

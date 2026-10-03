@@ -324,7 +324,11 @@ export async function renewBrowserGrant(rawHost: string): Promise<boolean> {
     { method: "POST" },
   );
   if (!response.ok || grant !== active) return false;
-  const renewed = validatedToken(await body(response), active.capabilities);
+  const payload = await body(response);
+  // Signing out or clearing the pairing during the read must not bring the
+  // grant back with a fresh token.
+  if (grant !== active) return false;
+  const renewed = validatedToken(payload, active.capabilities);
   if (renewed.clientId !== active.clientId) return false;
   grant = { ...active, ...renewed };
   armGrantExpiry();
