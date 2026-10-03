@@ -24,7 +24,7 @@ pub struct BitwardenArrival {
 }
 
 /// The sign-in methods an account brings beside its master password.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct ArrivingSignIn {
     pub api_key: Option<String>,
     pub recovery_code: Option<String>,

@@ -11,6 +11,7 @@ import {
   ClaimSessionResponseSchema,
   RegisterAgentResponseSchema,
 } from "@opensesame/contracts";
+import { scrubStrings, scrubText } from "@opensesame/log-scrub";
 import { overlapCast } from "@opensesame/os-domain";
 import { createControlPlaneClient, redactSecrets } from "@opensesame/sdk-cli";
 
@@ -87,11 +88,21 @@ export interface AnonymousAgentDemoOptions {
   fetchImpl?: typeof fetch;
   pollTimes?: number;
   sleep?: (ms: number) => Promise<void>;
+  /** What scrubs the registration before it is shown; the guard behind it is tested by passing a no-op. */
+  redact?: typeof redactSecrets;
 }
 
 export interface AnonymousAgentDemoResult {
   claimId: string;
   finalState: string;
+}
+
+function redactWith(
+  options: AnonymousAgentDemoOptions | undefined,
+  registered: ReturnType<typeof RegisterAgentResponseSchema.parse>,
+): ReturnType<typeof redactSecrets> {
+  if (options?.redact) return options.redact(registered);
+  return scrubStrings(redactSecrets(registered));
 }
 
 export async function runAnonymousAgentDemo(
@@ -107,7 +118,7 @@ export async function runAnonymousAgentDemo(
     publicKeyJkt: jkt(),
   });
   const registered = RegisterAgentResponseSchema.parse(raw);
-  const safe = redactSecrets(registered);
+  const safe = redactWith(options, registered);
   if (JSON.stringify(safe).includes(registered.claimToken)) {
     throw new Error("claimToken was not redacted");
   }
@@ -172,7 +183,7 @@ const invokedDirectly =
 if (invokedDirectly && process.env.VITEST !== "true") {
   runAnonymousAgentDemo().catch((err) => {
     process.stderr.write(
-      `${err instanceof Error ? err.message : String(err)}\n`,
+      `${scrubText(err instanceof Error ? err.message : String(err))}\n`,
     );
     process.exit(1);
   });

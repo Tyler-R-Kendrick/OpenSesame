@@ -144,7 +144,7 @@ pub fn build_manifest(
     Value::Object(manifest)
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct GithubAppCredentials {
     pub id: i64,
     pub name: String,
@@ -156,6 +156,25 @@ pub struct GithubAppCredentials {
     pub pem: Option<String>,
     #[serde(default)]
     pub webhook_secret: Option<String>,
+}
+
+impl std::fmt::Debug for GithubAppCredentials {
+    /// The manifest conversion returns a client secret, a webhook secret and
+    /// the app's private key; only the public identity prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GithubAppCredentials")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"[REDACTED]")
+            .field("html_url", &self.html_url)
+            .field("pem", &self.pem.as_ref().map(|_| "[REDACTED]"))
+            .field(
+                "webhook_secret",
+                &self.webhook_secret.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 /// Exchange the temporary manifest `code` for app credentials.
@@ -201,6 +220,21 @@ pub async fn convert_manifest_code(
 mod tests {
     use super::*;
     use crate::config::BrokerConfig;
+
+    #[test]
+    fn app_credentials_print_no_secret_or_key() {
+        let credentials: GithubAppCredentials = serde_json::from_str(
+            r#"{"id":7,"name":"os","client_id":"Iv1.public","client_secret":"cs-12345",
+                "pem":"-----BEGIN RSA PRIVATE KEY-----pem-12345","webhook_secret":"ws-12345"}"#,
+        )
+        .unwrap();
+        let shown = format!("{credentials:?}");
+        assert!(shown.contains("[REDACTED]"), "{shown}");
+        for leaked in ["cs-12345", "pem-12345", "ws-12345"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
+        assert!(shown.contains("Iv1.public"), "{shown}");
+    }
 
     #[test]
     fn manifest_points_oauth_and_manifest_callbacks_at_this_host() {

@@ -27,6 +27,7 @@ mod export;
 mod import;
 mod limits;
 pub mod map;
+mod secret_debug;
 
 pub use export::{
     export_kdbx, zeroize_buffer, Argon2Params, ExportCipher, ExportOptions, ROOT_GROUP_NAME,

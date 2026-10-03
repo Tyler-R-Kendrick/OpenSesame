@@ -7,6 +7,7 @@
  */
 
 import { redactAuditMetadata } from "@opensesame/audit/redact";
+import { scrubText } from "@opensesame/log-scrub";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -205,6 +206,10 @@ function repeats(
   return gap >= 0 && gap < REPEAT_WINDOW_MS;
 }
 
+function scrubNullable(value: string | null | undefined): string | null {
+  return value === undefined || value === null ? null : scrubText(value);
+}
+
 /**
  * Per tomb, so a body-saved note and the item note that follows it both
  * read the log the other one just wrote. Unchained, each reads the old
@@ -222,10 +227,10 @@ async function appendActivityEvent(
     occurredAt: new Date().toISOString(),
     category: input.category,
     type: input.type.trim() || "system.unknown",
-    summary: input.summary.trim() || input.type,
+    summary: scrubText(input.summary.trim() || input.type),
     outcome: input.outcome ?? "info",
-    targetType: input.targetType ?? null,
-    targetId: input.targetId ?? null,
+    targetType: scrubNullable(input.targetType),
+    targetId: scrubNullable(input.targetId),
     metadata,
   };
   let wrote = false;

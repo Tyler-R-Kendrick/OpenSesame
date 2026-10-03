@@ -9,6 +9,7 @@ use super::{
     decode_receipt_for_organization, Db, Intent, Invocation, InvocationReceipt, OrganizationId,
     Row, StoredReceipt,
 };
+use crate::sealed;
 
 impl Db {
     /// Persist an invocation intent and its idempotency key.
@@ -22,7 +23,7 @@ impl Db {
         )
         .bind(intent.id.to_string())
         .bind(intent.organization_id.to_string())
-        .bind(serde_json::to_string(intent)?)
+        .bind(sealed::seal("intents.body_json", &serde_json::to_string(intent)?))
         .bind(&intent.idempotency_key)
         .bind(intent.issued_at.to_rfc3339())
         .execute(&self.pool)
@@ -45,7 +46,7 @@ impl Db {
         .bind(i64::from(inv.attempt))
         .bind(&inv.lease_owner)
         .bind(inv.lease_expires_at.map(|t| t.to_rfc3339()))
-        .bind(serde_json::to_string(inv)?)
+        .bind(sealed::seal("invocations.body_json", &serde_json::to_string(inv)?))
         .bind(inv.created_at.to_rfc3339())
         .bind(inv.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -64,7 +65,7 @@ impl Db {
         )
         .bind(receipt.id.to_string())
         .bind(receipt.invocation_id.to_string())
-        .bind(serde_json::to_string(receipt)?)
+        .bind(sealed::seal("receipts.body_json", &serde_json::to_string(receipt)?))
         .bind(&receipt.signature)
         .bind(receipt.completed_at.to_rfc3339())
         .execute(&self.pool)
@@ -99,7 +100,7 @@ impl Db {
         .await?;
         Ok(match row {
             Some(r) => {
-                let body: String = r.get("body_json");
+                let body = sealed::open("receipts.body_json", &r.get::<String, _>("body_json"))?;
                 let organization_id: String = r.get("authoritative_organization_id");
                 Some(decode_receipt_for_organization(&body, &organization_id)?)
             }
@@ -163,7 +164,7 @@ impl Db {
         .await?;
         Ok(match row {
             Some(r) => {
-                let body: String = r.get("body_json");
+                let body = sealed::open("receipts.body_json", &r.get::<String, _>("body_json"))?;
                 let organization_id: String = r.get("authoritative_organization_id");
                 Some(decode_receipt_for_organization(&body, &organization_id)?.receipt)
             }
@@ -190,7 +191,7 @@ impl Db {
         .await?;
         Ok(match row {
             Some(r) => {
-                let body: String = r.get("body_json");
+                let body = sealed::open("intents.body_json", &r.get::<String, _>("body_json"))?;
                 Some(serde_json::from_str(&body)?)
             }
             None => None,

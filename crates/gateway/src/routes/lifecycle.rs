@@ -235,7 +235,7 @@ fn is_known_subject_kind(kind: &str) -> bool {
         || SURROGATE_SUBJECT_KINDS.contains(&kind)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HookBody {
     /// Stable id. Omit to create; supply to edit in place.

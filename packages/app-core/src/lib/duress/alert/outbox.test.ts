@@ -105,6 +105,37 @@ describe("ALERT outbox statuses", () => {
     expect(box2.diagnostics()[0]?.lastError).toBeDefined();
   });
 
+  it("scrubs a secret a relay error echoes before it is kept", async () => {
+    const store = createMemoryOutboxStore();
+    const { encryptKey, macKey } = await sealingMaterial();
+    const pkg = await sealAlertPackage({
+      incidentId: "inc-scrub",
+      profileId: "p",
+      routeRef: "r",
+      templateRef: "t",
+      payload: { kind: "duress_alert" },
+      encryptKey,
+      macKey,
+      expiryMs: 60_000,
+      policyRevision: 1,
+      keyEpoch: 1,
+    });
+    const box = new AlertOutbox({ store });
+    box.enqueue(pkg, 0);
+    await box.attemptDelivery(
+      pkg.packageId,
+      async () => {
+        throw new Error("POST https://relay.example/hook?token=abc123 refused");
+      },
+      macKey,
+    );
+    await box.persist();
+    const kept = box.diagnostics()[0]?.lastError ?? "";
+    expect(kept).not.toContain("abc123");
+    expect(kept).toContain("refused");
+    expect(JSON.stringify(await store.load())).not.toContain("abc123");
+  });
+
   it("dedupes enqueue and expires overdue queued packages", async () => {
     const { encryptKey, macKey } = await sealingMaterial();
     const now = Date.now();

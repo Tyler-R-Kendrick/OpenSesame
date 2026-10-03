@@ -169,7 +169,7 @@ pub async fn set_role_ceiling(
     }
     sqlx::query("INSERT INTO outbox_events(id,event_type,payload_json,created_at) VALUES(?,?,?,?)")
         .bind(uuid::Uuid::now_v7().to_string()).bind("config.authorization.role_changed")
-        .bind(serde_json::json!({"organization_id":organization.to_string(),"principal_id":principal.to_string(),"revision":next}).to_string())
+        .bind(opensesame_event_seal::seal("outbox_events.payload_json", &serde_json::json!({"organization_id":organization.to_string(),"principal_id":principal.to_string(),"revision":next}).to_string()))
         .bind(chrono::Utc::now().to_rfc3339()).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(u64::try_from(next)?)
@@ -216,7 +216,7 @@ pub async fn set_project_access(
         .bind(organization.to_string()).bind(project).bind(principal.to_string()).bind(access.metadata_read).bind(access.keys_read).execute(&mut *tx).await?;
     sqlx::query("INSERT INTO outbox_events(id,event_type,payload_json,created_at) VALUES(?,?,?,?)")
         .bind(uuid::Uuid::now_v7().to_string()).bind("config.authorization.project_changed")
-        .bind(serde_json::json!({"organization_id":organization.to_string(),"project_id":project,"principal_id":principal.to_string(),"metadata_read":access.metadata_read,"keys_read":access.keys_read}).to_string())
+        .bind(opensesame_event_seal::seal("outbox_events.payload_json", &serde_json::json!({"organization_id":organization.to_string(),"project_id":project,"principal_id":principal.to_string(),"metadata_read":access.metadata_read,"keys_read":access.keys_read}).to_string()))
         .bind(chrono::Utc::now().to_rfc3339()).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(())
