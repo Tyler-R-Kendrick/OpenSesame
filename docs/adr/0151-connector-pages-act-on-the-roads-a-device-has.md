@@ -177,8 +177,11 @@ rule reads it (`connectorTile`):
   do (`connectorActs`), as before.
 - **Connections off:** a connector with only a page is not drawn. A git history
   road keeps its tile as its enable switch alone — the switch acts without a
-  page — with no link, and without the "No repository yet" mark, which names
-  something only that page could change. A section left with no switch and no
+  page — with no link and no hover (`conn-tile__face`, not the link's class).
+  It keeps the "No repository yet — nothing is backed up" mark while its
+  switch is on and no repository is named: the tile never claims a history is
+  backed up when it is not, and the person can change that, by switching
+  Connections on and naming one on the page. A section left with no switch and no
   tile is not drawn (`featureDraws`), so Password managers, Local storage,
   Cloud secret storage and Encryption are absent until Connections is switched
   on, which is the switch on the same page.

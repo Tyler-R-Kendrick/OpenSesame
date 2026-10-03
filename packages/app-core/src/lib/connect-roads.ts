@@ -85,10 +85,21 @@ export function formRoad(
   providerId: string,
   authKind: AuthKind,
 ): FormRoad | null {
-  if (authKind === "oauth2_authorization_code") {
-    return connectRoadSeams.usesConnect(providerId) ? "connect" : null;
+  switch (authKind) {
+    case "oauth2_authorization_code":
+      return connectRoadSeams.usesConnect(providerId) ? "connect" : null;
+    case "api_key":
+    case "configuration":
+      return "local";
+    default:
+      return unhandledAuthKind(authKind);
   }
-  return "local";
+}
+
+/** A new `AuthKind` opens no road until this file says which one it takes. */
+function unhandledAuthKind(kind: never): null {
+  void kind;
+  return null;
 }
 
 /**

@@ -106,10 +106,11 @@ export function FeatureBindingTile({
       </span>
       {/* On with nowhere to go: GitHub is the history default, so its
           switch read "on" for a guest who had named no repository and
-          was backing nothing up. The mark is drawn where the tile's page
-          can name one; with no page it would be a status nothing here can
-          change (ADR 0158). */}
-      {enabled && !remote && href !== null ? (
+          was backing nothing up. The mark is drawn whether or not the
+          tile's page is routed: a person can change it, by naming a
+          repository on that page, or by switching Connections on to reach
+          it (ADR 0158). */}
+      {enabled && !remote ? (
         <StatusMark
           tone="warn"
           label="No repository yet — nothing is backed up"
@@ -122,7 +123,7 @@ export function FeatureBindingTile({
     <li className={`conn-tile${enabled ? " is-on" : ""}`}>
       <div className="conn-tile__row">
         {href === null ? (
-          <span className="conn-tile__link">{face}</span>
+          <span className="conn-tile__face">{face}</span>
         ) : (
           <Link className="conn-tile__link" to={href}>
             {face}

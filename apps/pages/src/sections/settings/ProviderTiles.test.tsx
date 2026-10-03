@@ -240,9 +240,12 @@ describe("ProviderTiles never link to a page nothing routes", () => {
     );
     expect(screen.getByText("GitLab")).toBeTruthy();
     expect(screen.queryAllByRole("link")).toEqual([]);
+    // Nothing interactive wears the link's hover: the linkless face is its own class.
+    expect(document.querySelector("span.conn-tile__link")).toBeNull();
+    expect(document.querySelector("span.conn-tile__face")).not.toBeNull();
   });
 
-  it("draws no status a person cannot change: the missing-repository mark needs the page that names one", async () => {
+  it("never says history is backed up when no repository is named, routed page or not", async () => {
     const settings = loadSettings();
     saveSettings({
       ...settings,
@@ -265,7 +268,10 @@ describe("ProviderTiles never link to a page nothing routes", () => {
         screen.getByRole("switch", { name: "GitHub vault history" }),
       ).toBeTruthy(),
     );
-    expect(screen.queryByRole("img", { name: mark })).toBeNull();
+    // On, no remote, and no page to name one: the mark is still there, and a
+    // person can act on it by switching Connections on.
+    expect(screen.getByRole("img", { name: mark })).toBeTruthy();
+    expect(screen.queryAllByRole("link")).toEqual([]);
     view.unmount();
     connectRoadSeams.pagesOpen = () => true;
     notifyConnectRoads();

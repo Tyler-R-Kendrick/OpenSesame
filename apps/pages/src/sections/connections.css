@@ -463,9 +463,25 @@ button.conn-tile__link {
   padding-inline-end: 0.75rem;
 }
 
-.conn-tile__row > .conn-tile__link {
+.conn-tile__row > .conn-tile__link,
+.conn-tile__row > .conn-tile__face {
   flex: 1;
   min-width: 0;
+}
+
+/* A tile with no page behind it is a label beside its switch: the link's
+   layout, none of its hover or focus ring. */
+.conn-tile__face {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  color: var(--ink);
+}
+
+.conn-tile__face > .status-mark {
+  margin-left: auto;
 }
 
 .conn-tile__row > .toggle {

@@ -55,6 +55,14 @@ describe("the road a form saves through", () => {
   });
 });
 
+describe("an auth kind this file does not know", () => {
+  it("opens no road", () => {
+    // SAFETY: a kind added to the catalog before this file learns it.
+    const future = "future_kind" as unknown as Parameters<typeof formRoad>[1];
+    expect(formRoad("anything", future)).toBeNull();
+  });
+});
+
 describe("the form a connector page draws", () => {
   it("is drawn for a remote and GitHub's App with no service at all", () => {
     expect(connectFormDraws({ id: "git", authKind: "configuration" })).toBe(

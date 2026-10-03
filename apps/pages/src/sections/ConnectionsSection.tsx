@@ -1,7 +1,6 @@
 import { mergeLocalGitConnections } from "@opensesame/app-core/lib/connections-local-git.js";
 import {
   type Connection,
-  ConnectionsError,
   type Provider,
   listConnections,
 } from "@opensesame/app-core/lib/connections.js";
@@ -145,8 +144,7 @@ export function ConnectionsSection() {
       setConnections(mergeLocalGitConnections([]));
       setLoadError({
         message: errorText(error),
-        unreachable:
-          error instanceof ConnectionsError && error.code === "unreachable",
+        unreachable: false,
         setupRequired: false,
       });
     } finally {
