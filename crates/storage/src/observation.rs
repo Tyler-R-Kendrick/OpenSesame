@@ -25,6 +25,11 @@ use crate::Db;
 /// than accruing an unbounded buffer.
 pub const OBSERVATION_READ_LIMIT: usize = 256;
 
+/// A `viewer_key_id` starting with this names no key: the Host opened the run
+/// and holds none of the owner's to seal to (ADR 0081 §9), so it appends no
+/// event to it.
+pub const NO_VIEWER_KEY_PREFIX: &str = "none:";
+
 /// Longest value-blind hint persisted against a run.
 pub const MAX_BLOCKED_REASON_CHARS: usize = 160;
 
@@ -268,9 +273,9 @@ impl Db {
     ///
     /// # Errors
     ///
-    /// Fails when the run is unknown or closed, and propagates database
-    /// failures. A closed run refuses appends rather than growing after its
-    /// receipt was written.
+    /// Fails when the run is unknown, closed (rather than growing after its
+    /// receipt was written) or keyless ([`NO_VIEWER_KEY_PREFIX`]), and
+    /// propagates database failures.
     pub async fn append_observation_event(
         &self,
         append: &ObservationAppend<'_>,
@@ -287,7 +292,7 @@ impl Db {
         anyhow::ensure!(!payload.is_empty(), "observation payload is empty");
         let mut tx = self.pool().begin().await?;
         let row = sqlx::query(
-            "SELECT next_seq, closed_at FROM observation_runs \
+            "SELECT next_seq, closed_at, viewer_key_id FROM observation_runs \
              WHERE organization_id = ? AND id = ?",
         )
         .bind(organization_id)
@@ -299,6 +304,12 @@ impl Db {
         if row.get::<Option<String>, _>("closed_at").is_some() {
             anyhow::bail!("observation run `{run_id}` is closed");
         }
+        // A log entry is ciphertext, and there is no key to seal this one to.
+        anyhow::ensure!(
+            !row.get::<String, _>("viewer_key_id")
+                .starts_with(NO_VIEWER_KEY_PREFIX),
+            "observation run `{run_id}` has no viewer key to seal to"
+        );
         let seq: i64 = row.get("next_seq");
         sqlx::query(
             "INSERT INTO observation_events \
@@ -433,31 +444,18 @@ impl Db {
         Ok(())
     }
 
-    /// Drop runs past their retention window, and their logs with them.
+    /// Drop runs past their retention window, with everything that hangs off
+    /// them — sealed log, step queue and hook records.
     ///
     /// ADR 0076 §5's retention default is the observation window, not forever.
-    /// Returns how many runs were removed.
+    /// Returns how many runs were removed; the per-table counts are
+    /// [`Db::purge_expired_web_login_runs`].
     ///
     /// # Errors
     ///
     /// Propagates database failures.
     pub async fn purge_expired_observation_runs(&self, now: &str) -> anyhow::Result<u64> {
-        // The events table cascades, but SQLite enforces that only with foreign
-        // keys switched on, so the child rows are deleted explicitly first.
-        sqlx::query(
-            "DELETE FROM observation_events WHERE run_id IN \
-             (SELECT id FROM observation_runs WHERE expires_at <= ?)",
-        )
-        .bind(now)
-        .execute(self.pool())
-        .await
-        .context("purge observation events")?;
-        let outcome = sqlx::query("DELETE FROM observation_runs WHERE expires_at <= ?")
-            .bind(now)
-            .execute(self.pool())
-            .await
-            .context("purge observation runs")?;
-        Ok(outcome.rows_affected())
+        Ok(self.purge_expired_web_login_runs(now).await?.runs)
     }
 }
 

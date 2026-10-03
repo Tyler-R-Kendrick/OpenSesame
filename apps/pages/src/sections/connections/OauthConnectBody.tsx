@@ -5,12 +5,12 @@ import {
   subscribeLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useState, useSyncExternalStore } from "react";
+import { type FormEvent, useSyncExternalStore } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconExternal } from "../../components/Icons.js";
 import { PasskeyCeremonyNote } from "../../components/PasskeyCeremonyNote.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { OauthClientPanel } from "./OauthClientPanel.js";
+import { GithubAppRegistrationPanel } from "./GithubAppRegistrationPanel.js";
 
 function ScopePicker({
   provider,
@@ -40,63 +40,6 @@ function ScopePicker({
         </label>
       ))}
     </fieldset>
-  );
-}
-
-function PatForm({
-  provider,
-  online,
-  busy,
-  failure,
-  keyId,
-  apiKey,
-  onApiKey,
-  onSaveKey,
-}: {
-  provider: Provider;
-  online: boolean;
-  busy: boolean;
-  /** The sentence for the last try that failed, drawn beside the key. */
-  failure: string;
-  keyId: string;
-  apiKey: string;
-  onApiKey: (value: string) => void;
-  onSaveKey: (event: FormEvent) => Promise<void>;
-}) {
-  return (
-    <form className="cap-pat" onSubmit={(event) => void onSaveKey(event)}>
-      <div className="field">
-        <label className="label" htmlFor={`${keyId}-pat`}>
-          Or connect with a personal access token
-        </label>
-        <input
-          id={`${keyId}-pat`}
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder={
-            provider.id === "github"
-              ? "ghp_… or github_pat_… (repo scope)"
-              : provider.id === "bitbucket"
-                ? "Bitbucket HTTP access token"
-                : provider.id === "codeberg"
-                  ? "Codeberg access token"
-                  : provider.id === "origin"
-                    ? "oit_… installation token"
-                    : "glpat-…"
-          }
-          value={apiKey}
-          onChange={(event) => onApiKey(event.target.value)}
-        />
-      </div>
-      <FormCommit
-        label={busy ? "Saving" : `Connect ${provider.displayName} with token`}
-        busy={busy}
-        disabled={busy || !online || apiKey.trim() === ""}
-      >
-        {failure ? <StatusMark tone="err" label={failure} /> : null}
-      </FormCommit>
-    </form>
   );
 }
 
@@ -161,74 +104,57 @@ function AuthorizeForm({
   );
 }
 
-/** OAuth half of the connect form: client panel, scopes, Authorize, optional PAT. */
+/**
+ * OAuth half of the connect form: GitHub's own App registration, then scopes
+ * and Authorize on Connect. With no road open only what the browser does
+ * alone is drawn.
+ */
 export function OauthConnectBody({
   provider,
   online,
   busy,
   road,
-  failure,
   name,
   nameId,
-  keyId,
-  apiKey,
   scopes,
   missingScope,
   onName,
-  onApiKey,
   onToggleScope,
   onFlash,
   onConnectOauth,
-  onSaveKey,
 }: {
   provider: Provider;
   online: boolean;
   busy: boolean;
   /**
-   * The road the OAuth client, Authorize and token forms save through; null
-   * when none is open, and only what the browser does alone is drawn.
+   * The road Authorize runs on; null when none is open, and only what the
+   * browser does alone is drawn.
    */
   road: FormRoad | null;
-  failure: string;
   name: string;
   nameId: string;
-  keyId: string;
-  apiKey: string;
   scopes: string[];
   missingScope: boolean;
   onName: (value: string) => void;
-  onApiKey: (value: string) => void;
   onToggleScope: (scope: string) => void;
   onFlash: (flash: Flash) => void;
   onConnectOauth: (event: FormEvent) => Promise<void>;
-  onSaveKey: (event: FormEvent) => Promise<void>;
 }) {
-  const acceptsPat =
-    provider.id === "github" ||
-    provider.id === "gitlab" ||
-    provider.id === "bitbucket" ||
-    provider.id === "codeberg" ||
-    provider.id === "origin";
-  const [hasClient, setHasClient] = useState(false);
   const localGithubApp = useSyncExternalStore(
     subscribeLocalGithubApp,
     readLocalGithubApp,
     () => null,
   );
-  // PAT is a fallback when no App/OAuth client exists — never after one does.
   const oauthReady =
     provider.configured ||
-    hasClient ||
     (provider.id === "github" && localGithubApp !== null);
 
   return (
     <div className="conn-tile__body">
-      <OauthClientPanel
+      <GithubAppRegistrationPanel
         provider={provider}
         online={online}
-        clientForm={road !== null}
         onFlash={onFlash}
-        onClientState={setHasClient}
       />
       {road === null ? null : (
         <AuthorizeForm
@@ -245,18 +171,6 @@ export function OauthConnectBody({
           onConnectOauth={onConnectOauth}
         />
       )}
-      {road === "host" && acceptsPat && !oauthReady ? (
-        <PatForm
-          provider={provider}
-          online={online}
-          busy={busy}
-          failure={failure}
-          keyId={keyId}
-          apiKey={apiKey}
-          onApiKey={onApiKey}
-          onSaveKey={onSaveKey}
-        />
-      ) : null}
     </div>
   );
 }

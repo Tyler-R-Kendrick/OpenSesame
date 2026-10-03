@@ -10,6 +10,11 @@ import {
   double,
   resetDouble,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import {
+  connectRoadSeams,
+  notifyConnectRoads,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, vi } from "vitest";
@@ -25,6 +30,15 @@ export function renderPanel() {
       <CapabilitiesPanel />
     </MemoryRouter>,
   );
+}
+
+/**
+ * What `connectors.external` does when Connections is on: the connector pages
+ * are routed, so tiles link to them. Reset after every test.
+ */
+export function openConnectorPages(): void {
+  connectRoadSeams.pagesOpen = () => true;
+  notifyConnectRoads();
 }
 
 /** Who is in front of the panel; reset before every test. */
@@ -78,6 +92,7 @@ export function installPanelFixture(): void {
   });
   afterEach(() => {
     cleanup();
+    resetConnectRoadSeams();
     capabilitiesPanelSeams.now = realNow;
     vaultHooksSeams.useVault = realUseVault;
   });

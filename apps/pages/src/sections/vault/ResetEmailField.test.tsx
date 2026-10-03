@@ -1,22 +1,40 @@
 /** @vitest-environment jsdom */
+import type { CompositionSnapshot } from "@opensesame/app-core/lib/capabilities/store-types.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import {
+  double,
+  installDoublePorts,
+} from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import {
   addResetEmail,
   resetPasswordResetMailForTest,
 } from "@opensesame/app-core/lib/password-reset-mail.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-const state = vi.hoisted(() => ({ approved: false }));
-
-vi.mock("../../bindings/capabilities.js", () => ({
-  useComposition: () => ({
-    plan: {
-      approvedCapabilities: state.approved ? ["ai.password-reset"] : [],
-    },
-  }),
-}));
-
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ResetEmailField } from "./ResetEmailField.js";
+
+installDoublePorts();
+
+const state = { approved: false };
+
+/** The double's snapshot, with exactly `approved` as the approved capabilities. */
+function snapshotApproving(approved: readonly string[]): CompositionSnapshot {
+  const base = double.getSnapshot();
+  if (base.plan === null) throw new Error("the double resolves a plan");
+  return { ...base, plan: { ...base.plan, approvedCapabilities: approved } };
+}
+
+beforeEach(() => {
+  state.approved = false;
+  const hidden = snapshotApproving([]);
+  const shown = snapshotApproving(["ai.password-reset"]);
+  Object.assign(capabilityPorts, {
+    compositionStore: {
+      ...double,
+      getSnapshot: () => (state.approved ? shown : hidden),
+    },
+  });
+});
 
 afterEach(() => {
   cleanup();

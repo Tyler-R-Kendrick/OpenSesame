@@ -5,7 +5,6 @@ import {
   backupSeams,
   branchForEnvironment,
   filterGithubBackupConnections,
-  filterPrivateGithubRepos,
   getBackupStatus,
   installationIdFromLocation,
   ownerRepoFromRemote,
@@ -140,15 +139,6 @@ describe("browser-local backup target", () => {
         { providerId: "gitlab", status: "active" },
       ]),
     ).toEqual([{ providerId: "github", status: "active" }]);
-  });
-
-  it("keeps only private repos for backup binding", () => {
-    expect(
-      filterPrivateGithubRepos([
-        { private: true, name: "a" },
-        { private: false, name: "b" },
-      ]),
-    ).toEqual([{ private: true, name: "a" }]);
   });
 
   it("reads installation id from the return location", () => {

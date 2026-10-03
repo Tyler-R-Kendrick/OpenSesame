@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "recipe_id": "rcp_login_example",
+  "origin": "https://login.example",
+  "expires_at": "2030-01-01T00:00:00Z",
+  "change_password": {
+    "change_url": "https://login.example/.well-known/change-password",
+    "current_password_selector": "#current-password",
+    "new_password_selector": "#new-password",
+    "confirm_password_selector": "#confirm-password",
+    "submit_selector": "button[type=submit]"
+  }
+}

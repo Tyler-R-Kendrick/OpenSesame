@@ -56,14 +56,6 @@ export const CONNECTIONS_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "providers.list",
   },
   {
-    id: "connections.custom",
-    description:
-      "Opens the form for describing a provider the catalog does not ship, so it can be connected like any other.",
-    role: "ceremony",
-    routes: ["/connections"],
-    capabilityId: null,
-  },
-  {
     id: "connections.back",
     description:
       "Returns from one connector's page to the full Connections list.",

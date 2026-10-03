@@ -12,6 +12,7 @@
 import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
 import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
@@ -94,6 +95,7 @@ export function ConnectorPicker({
   onCancel: () => void;
   onClose: () => void;
 }) {
+  const { pages } = useConnectorRoads();
   const chosenRow = rows.find((row) => row.id === chosen) ?? null;
   function onKeyDown(event: KeyboardEvent<HTMLFieldSetElement>) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -122,16 +124,18 @@ export function ConnectorPicker({
             onChoose={() => onChoose(row.id === chosen ? null : row)}
           />
         ))}
-        <li className="conn-tile access-pick__new">
-          <Link className="conn-tile__link" to={NEW_CONNECTOR_PATH}>
-            <span className="access-pick__plus" aria-hidden="true">
-              <IconPlus size={18} />
-            </span>
-            <span className="conn-tile__copy">
-              <span className="conn-tile__name">New connector</span>
-            </span>
-          </Link>
-        </li>
+        {pages ? (
+          <li className="conn-tile access-pick__new">
+            <Link className="conn-tile__link" to={NEW_CONNECTOR_PATH}>
+              <span className="access-pick__plus" aria-hidden="true">
+                <IconPlus size={18} />
+              </span>
+              <span className="conn-tile__copy">
+                <span className="conn-tile__name">New connector</span>
+              </span>
+            </Link>
+          </li>
+        ) : null}
       </ul>
       {chosenRow ? (
         <ConnectorBindForm

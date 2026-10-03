@@ -5,10 +5,6 @@ import {
   notifyConnectRoads,
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
-import {
-  HOST_CONNECTIONS_WRITE,
-  hostGrantSeams,
-} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
@@ -26,25 +22,23 @@ installDoublePorts();
 installPanelFixture();
 
 const originalIdentity = { ...identitySeams };
-const originalGrant = { ...hostGrantSeams };
 
 afterEach(() => {
   Object.assign(identitySeams, originalIdentity);
-  Object.assign(hostGrantSeams, originalGrant);
   resetConnectRoadSeams();
 });
 
-/** What `connectors.external` installs: Connect's own answers. */
-function installConnectRoads() {
+/** What `connectors.external` installs: Connect's answers, and the pages. */
+function installConnections() {
   connectRoadSeams.usesConnect = usesConnect;
   connectRoadSeams.hasConnectRoute = hasConnectRoute;
+  connectRoadSeams.pagesOpen = () => true;
   notifyConnectRoads();
 }
 
-function openHostRoad() {
+function nameAHostWithALiveGrant() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
-  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 function unlockedVault() {
@@ -64,8 +58,51 @@ function tileNames(list: string): string[] {
   ].map((node) => node.textContent ?? "");
 }
 
-describe("connector tiles on a device with no Host", () => {
-  it("draws a key or a configuration with no Host and no Connect credential", () => {
+describe("connector tiles while Connections is off", () => {
+  it("draws no tile that would open a page nothing routes", () => {
+    renderPanel();
+    for (const name of [
+      "WorkOS",
+      "Auth0",
+      "Doppler",
+      "Better Auth",
+      "1Password",
+      "Bitwarden",
+      "Tailscale",
+      "AWS Parameter Store",
+    ]) {
+      expect(screen.queryByText(name), name).toBeNull();
+    }
+    expect(screen.queryByText("AWS KMS")).toBeNull();
+  });
+
+  it("keeps a history road as its switch, with no link", () => {
+    renderPanel();
+    expect(
+      screen.getByRole("switch", { name: "GitLab vault history" }),
+    ).toBeTruthy();
+    const backups = screen.getByRole("list", { name: "Backups providers" });
+    expect(backups.querySelectorAll("a")).toHaveLength(0);
+  });
+
+  it("does not draw the vault-sealed keys either: their pages are not routed", () => {
+    unlockedVault();
+    renderPanel();
+    expect(screen.queryByText("AWS KMS")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
+  });
+
+  it("is not changed by a Host that is named and granted", () => {
+    nameAHostWithALiveGrant();
+    renderPanel();
+    expect(screen.queryByText("Better Auth")).toBeNull();
+    expect(screen.queryByText("1Password")).toBeNull();
+  });
+});
+
+describe("connector tiles once Connections routes its pages", () => {
+  it("draws a key or a configuration with no Connect credential", () => {
+    installConnections();
     renderPanel();
     for (const name of [
       "WorkOS",
@@ -84,16 +121,23 @@ describe("connector tiles on a device with no Host", () => {
     expect(screen.queryByText("Google Cloud KMS")).toBeNull();
   });
 
-  it("keeps those connectors when Connections installs its roads", () => {
-    installConnectRoads();
+  it("links them to their pages and keeps Connect's connectors", () => {
+    installConnections();
     renderPanel();
     expect(tileNames("Identity providers")).toEqual(
       expect.arrayContaining(["WorkOS", "Auth0", "Better Auth"]),
     );
     expect(tileNames("Cloud secret storage providers")).toContain("Doppler");
+    const hrefs = [
+      ...screen
+        .getByRole("list", { name: "Identity providers" })
+        .querySelectorAll("a"),
+    ].map((link) => link.getAttribute("href"));
+    expect(hrefs).toContain("/settings/connections/better-auth");
   });
 
   it("leaves out a section that still has nothing to configure", () => {
+    installConnections();
     renderPanel();
     expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
     for (const title of [
@@ -107,7 +151,8 @@ describe("connector tiles on a device with no Host", () => {
     expect(screen.getByRole("switch", { name: "Sharing" })).toBeTruthy();
   });
 
-  it("draw the vault-sealed keys only for an unlocked vault", () => {
+  it("draws the vault-sealed keys only for an unlocked vault", () => {
+    installConnections();
     unlockedVault();
     renderPanel();
     expect(tileNames("Encryption providers")).toEqual([
@@ -116,14 +161,15 @@ describe("connector tiles on a device with no Host", () => {
     ]);
   });
 
-  it("come back, sections and all, once a Host is open", () => {
-    openHostRoad();
-    renderPanel();
-    expect(tileNames("Identity providers")).toContain("Better Auth");
-    expect(
-      screen.getByRole("heading", { name: "Password managers" }),
-    ).toBeTruthy();
-    expect(tileNames("Password managers providers")).toContain("1Password");
+  it("draws the same with a Host named and granted: it opens nothing more", () => {
+    installConnections();
+    const before = (() => {
+      renderPanel();
+      return tileNames("Identity providers");
+    })();
+    nameAHostWithALiveGrant();
+    notifyConnectRoads();
+    expect(tileNames("Identity providers")).toEqual(before);
   });
 });
 

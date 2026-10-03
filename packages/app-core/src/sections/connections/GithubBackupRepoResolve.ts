@@ -138,7 +138,6 @@ function pushNamedRepos(
 
 export function mergeChoices(
   appRepos: AppRepoSummary[],
-  hostRepos: Array<{ fullName: string }>,
   accounts: AppInstallAccount[],
   target: BackupTargetView | null,
   seedRepos: string[] = [],
@@ -149,7 +148,6 @@ export function mergeChoices(
     accountLogin: repo.accountLogin,
     accountType: repo.accountType,
   }));
-  pushNamedRepos(rows, hostRepos, accounts);
   pushNamedRepos(
     rows,
     seedRepos.map((fullName) => ({ fullName })),

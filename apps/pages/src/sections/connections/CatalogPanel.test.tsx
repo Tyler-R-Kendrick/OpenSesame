@@ -6,7 +6,7 @@ import { expect, it } from "vitest";
 import { CatalogPanel } from "./CatalogPanel.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
-// The catalog mounts `connections.catalog`, `.provider-picker` and `.custom`,
+// The catalog mounts `connections.catalog` and `.provider-picker`,
 // which `connectors.external` declares when it activates (ADR 0130).
 declareConnectionsTutorial();
 
@@ -21,9 +21,9 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   ];
   expect(tiles.length).toBeGreaterThan(100);
   for (const tile of tiles) expect(tile.tabIndex).toBe(-1);
-  expect(screen.getByRole("link", { name: "Custom connector" }).tabIndex).toBe(
-    0,
-  );
+  // Nothing leads to a page that does not exist: the catalog's own tiles are
+  // its only links.
+  expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
   const stripe = container.querySelector("#catalog-stripe");
   // A catalog entry Vercel Connect cannot broker is no link at all, and says
   // so with a StatusMark glyph — the sentence is its name, not a pill.

@@ -66,6 +66,7 @@ mod extension;
 pub mod hooks;
 #[cfg(feature = "login-surrogate")]
 mod login_surrogate;
+pub mod recipe_doc;
 mod tools;
 
 pub use capture::{

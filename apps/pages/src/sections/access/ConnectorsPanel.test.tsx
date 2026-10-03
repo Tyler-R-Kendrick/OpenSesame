@@ -1,3 +1,7 @@
+import {
+  connectRoadSeams,
+  resetConnectRoadSeams,
+} from "@opensesame/app-core/lib/connect-roads.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import {
   clearPendingConnectorDirectory,
@@ -61,6 +65,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetConnectRoadSeams();
   cleanup();
   vi.unstubAllGlobals();
   clearPendingConnectorDirectory();
@@ -180,7 +185,8 @@ it("Add offers the connectors this device knows; choosing one grants it and list
   );
 });
 
-it("with nothing configured, Add offers the way to configure a connector", async () => {
+it("with nothing configured and Connections on, Add offers the way to configure a connector", async () => {
+  connectRoadSeams.pagesOpen = () => true;
   const fixture = await localRequestFixture();
   mount(fixture.tomb);
   await userEvent.click(
@@ -196,6 +202,18 @@ it("with nothing configured, Add offers the way to configure a connector", async
   expect(
     choices.getByRole("link", { name: "New connector" }).getAttribute("href"),
   ).toBe("/connections#catalog");
+});
+
+it("with Connections off, Add leads to no page that is not there", async () => {
+  const fixture = await localRequestFixture();
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  const choices = within(
+    screen.getByRole("list", { name: "Choose a connector" }),
+  );
+  expect(choices.queryAllByRole("link")).toHaveLength(0);
 });
 
 it("Escape closes the choices and returns the keyboard to Add", async () => {

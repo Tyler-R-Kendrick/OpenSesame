@@ -2,9 +2,10 @@
  * The connectors one family binds to, drawn as tiles — the rows Settings ›
  * Connections used to carry, now drawn under the feature (or the always-on
  * group) that uses them on Settings › Capabilities. Each tile opens its
- * connector page (`/settings/connections/<provider>`), and a backup road
- * wears its enable switch. A connector whose page has nothing to do on this
- * device draws no tile (`providerTileItems`).
+ * connector page (`/settings/connections/<provider>`) while Connections is on,
+ * and a backup road wears its enable switch. A connector with nothing to do
+ * on this device draws no tile, and a tile never links to a page that is not
+ * routed (`providerTileItems`).
  */
 
 import type { ProviderCategory } from "@opensesame/app-core/lib/connections.js";
@@ -13,8 +14,8 @@ import { useSettingsEpoch } from "../../lib/use-settings.js";
 import "../connections.css";
 import {
   FeatureBindingTile,
-  hostTargetProviderId,
-  useHostBackupTarget,
+  backupTargetProvider,
+  useBackupTarget,
 } from "./FeatureBindingTile.js";
 import { providerTileItems } from "./provider-tile-items.js";
 
@@ -26,11 +27,11 @@ export function ProviderTiles({
   /** Names the list for assistive technology. */
   label: string;
 }) {
-  const target = useHostBackupTarget(category === "backup_recovery");
+  const target = useBackupTarget(category === "backup_recovery");
   const roads = useConnectorRoads();
   useSettingsEpoch();
-  const hostProviderId = hostTargetProviderId(target);
-  const items = providerTileItems(category, roads.acts);
+  const targetProviderId = backupTargetProvider(target);
+  const items = providerTileItems(category, roads.tile);
   if (items.length === 0) return null;
   return (
     <ul className="conn-grid" id={category} aria-label={label}>
@@ -39,7 +40,7 @@ export function ProviderTiles({
           key={provider.id}
           provider={provider}
           href={href}
-          hostTarget={hostProviderId === provider.id ? target : null}
+          target={targetProviderId === provider.id ? target : null}
         />
       ))}
     </ul>

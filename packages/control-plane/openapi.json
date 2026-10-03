@@ -3057,6 +3057,215 @@
         }
       }
     },
+    "/v1/authorization-requests/{id}/cancel": {
+      "post": {
+        "summary": "The requester withdraws a request nobody has answered",
+        "description": "Requester only (ADR 0159): the approver has /deny, which records a decision, and a withdrawal records none. Everyone else, the approver included, gets the same 404 as an id that never existed. Idempotent: withdrawing a request already withdrawn answers its current state. A request that already has another ending keeps it (409 request_not_pending, 410 expired_request). Also closes the interaction fronting the request, if one is live, so nothing stays approvable for a question that no longer exists.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawn, or already withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found"
+          },
+          "409": {
+            "description": "request_not_pending, or conflict"
+          },
+          "410": {
+            "description": "expired_request"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/requirement": {
+      "get": {
+        "summary": "What this request will take to settle (ADR 0084)",
+        "description": "Reason codes and policy digest, so an approval screen can say why an authenticator is being asked for. Approver only; anyone else gets 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approval requirement"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's request"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/activation": {
+      "post": {
+        "summary": "Mint a WebAuthn ceremony bound to one approval transaction",
+        "description": "The challenge is bound to a digest over the request, the decision and the effective policy, so it cannot be spent on another request, the other decision, or under a policy that has since been tightened.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Activation and request options"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "The request changed since it was shown"
+          },
+          "422": {
+            "description": "The request is no longer pending"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/activation/complete": {
+      "post": {
+        "summary": "Verify the assertion and activate the ceremony",
+        "description": "Verification only: the activation is spent by the settlement that follows, as a compare-and-set on the stored row.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activated"
+          },
+          "401": {
+            "description": "Assertion or challenge binding refused"
+          },
+          "404": {
+            "description": "No such activation for this caller"
+          },
+          "410": {
+            "description": "Activation expired"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/comparison": {
+      "get": {
+        "summary": "Issue the comparison value to the requesting surface",
+        "description": "Server-generated, returned exactly once, stored only as a digest, and never sent to the approver or to any notification body.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The six-digit value"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's request"
+          },
+          "409": {
+            "description": "Already issued, or the request is settled"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/report": {
+      "post": {
+        "summary": "Report a prompt the approver does not recognize",
+        "description": "Refuses the request and raises a security event. Grants nothing, and deliberately publishes no notification: a report must not become an amplifier.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refused"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's request"
+          },
+          "409": {
+            "description": "Digest mismatch"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/receipt": {
+      "get": {
+        "summary": "The approval receipt: required vs achieved assurance",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receipt"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "No receipt the caller may read"
+          }
+        }
+      }
+    },
     "/i/{ref}": {
       "get": {
         "summary": "Resolve an interaction reference (ADR 0086 canonical link)",
@@ -3488,7 +3697,7 @@
     "/v1/interactions/{ref}/consume": {
       "post": {
         "summary": "Spend the approval, exactly once",
-        "description": "The requester's route. A compare-and-set on the row version serializes two executors racing to spend one approval; the loser gets 409. Spending an interaction that carries no approval answers 401 approval_required — the caller is authenticated and is the right caller, and what is missing is the ceremony.",
+        "description": "The requester's route. A compare-and-set on the row version serializes two executors racing to spend one approval; the loser gets 409. Spending an interaction nobody has answered yet answers 401 approval_required — the caller is authenticated and is the right caller, and what is missing is the ceremony. Spending one a person refused answers 403 approval_denied, which is final: the requester should stop waiting.",
         "security": [
           {
             "bearerAuth": []
@@ -3520,6 +3729,16 @@
           },
           "401": {
             "description": "Unauthorized, or approval_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "approval_denied: a person refused; final",
             "content": {
               "application/json": {
                 "schema": {
@@ -3974,167 +4193,6 @@
         }
       }
     },
-    "/v1/authorization-requests/{id}/requirement": {
-      "get": {
-        "summary": "What this request will take to settle (ADR 0084)",
-        "description": "Reason codes and policy digest, so an approval screen can say why an authenticator is being asked for. Approver only; anyone else gets 404.",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "provisionalCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Approval requirement"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "404": {
-            "description": "Not the caller's request"
-          }
-        }
-      }
-    },
-    "/v1/authorization-requests/{id}/activation": {
-      "post": {
-        "summary": "Mint a WebAuthn ceremony bound to one approval transaction",
-        "description": "The challenge is bound to a digest over the request, the decision and the effective policy, so it cannot be spent on another request, the other decision, or under a policy that has since been tightened.",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "provisionalCookie": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Activation and request options"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "409": {
-            "description": "The request changed since it was shown"
-          },
-          "422": {
-            "description": "The request is no longer pending"
-          }
-        }
-      }
-    },
-    "/v1/authorization-requests/{id}/activation/complete": {
-      "post": {
-        "summary": "Verify the assertion and activate the ceremony",
-        "description": "Verification only: the activation is spent by the settlement that follows, as a compare-and-set on the stored row.",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "provisionalCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Activated"
-          },
-          "401": {
-            "description": "Assertion or challenge binding refused"
-          },
-          "404": {
-            "description": "No such activation for this caller"
-          },
-          "410": {
-            "description": "Activation expired"
-          }
-        }
-      }
-    },
-    "/v1/authorization-requests/{id}/comparison": {
-      "get": {
-        "summary": "Issue the comparison value to the requesting surface",
-        "description": "Server-generated, returned exactly once, stored only as a digest, and never sent to the approver or to any notification body.",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "provisionalCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The six-digit value"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "404": {
-            "description": "Not the caller's request"
-          },
-          "409": {
-            "description": "Already issued, or the request is settled"
-          }
-        }
-      }
-    },
-    "/v1/authorization-requests/{id}/report": {
-      "post": {
-        "summary": "Report a prompt the approver does not recognize",
-        "description": "Refuses the request and raises a security event. Grants nothing, and deliberately publishes no notification: a report must not become an amplifier.",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "provisionalCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Refused"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "404": {
-            "description": "Not the caller's request"
-          },
-          "409": {
-            "description": "Digest mismatch"
-          }
-        }
-      }
-    },
-    "/v1/authorization-requests/{id}/receipt": {
-      "get": {
-        "summary": "The approval receipt: required vs achieved assurance",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "provisionalCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Receipt"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "404": {
-            "description": "No receipt the caller may read"
-          }
-        }
-      }
-    },
     "/v1/notification-channels": {
       "get": {
         "summary": "Channel capabilities, and whether an adapter is configured",
@@ -4480,11 +4538,11 @@
       "OrganizationAuthMethod": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["kind", "label", "issuer"],
+        "required": ["kind", "label"],
         "properties": {
           "kind": {
             "type": "string",
-            "enum": ["sso", "saml"]
+            "enum": ["sso", "saml", "ldap"]
           },
           "label": {
             "type": "string"
@@ -4492,6 +4550,9 @@
           "issuer": {
             "type": "string",
             "format": "uri"
+          },
+          "native": {
+            "type": "boolean"
           }
         }
       },
@@ -4524,7 +4585,7 @@
         "properties": {
           "method": {
             "type": "string",
-            "enum": ["sso", "saml"]
+            "enum": ["sso", "saml", "ldap"]
           },
           "idToken": {
             "type": "string"
@@ -4584,6 +4645,15 @@
           "samlIssuer": {
             "type": "string",
             "format": "uri"
+          },
+          "samlMetadataUrl": {
+            "type": "string"
+          },
+          "samlMetadataConfigured": {
+            "type": "boolean"
+          },
+          "provisioningEnabled": {
+            "type": "boolean"
           }
         }
       },
@@ -4940,6 +5010,39 @@
           },
           "decidedByKind": {
             "$ref": "#/components/schemas/ApprovalDecidedByKind"
+          },
+          "requesterRef": {
+            "type": "string",
+            "description": "The opaque handle for whoever is asking (ADR 0084). Not a principal id."
+          },
+          "approval": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "What it will take to settle this request, summarised for a list. A projection of the effective policy, not the gate: settlement re-resolves the policy.",
+            "required": [
+              "riskClass",
+              "requireTransactionBoundActivation",
+              "requireComparison",
+              "required"
+            ],
+            "properties": {
+              "riskClass": {
+                "type": "string",
+                "enum": ["low", "moderate", "high", "critical"]
+              },
+              "requireTransactionBoundActivation": {
+                "type": "boolean"
+              },
+              "requireComparison": {
+                "type": "boolean"
+              },
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
@@ -4992,6 +5095,8 @@
           "interaction_settled",
           "interaction_already_live",
           "approval_required",
+          "approval_denied",
+          "proof_required",
           "digest_mismatch",
           "unsupported_kind",
           "invalid_request",

@@ -628,11 +628,11 @@ pub async fn execute_rotation(
             defer_store_path_rotation(broker, bus, organization_id, job).await
         }
         RotationTarget::WebLogin { .. } => {
-            defer_rotation(
+            web_login::defer_web_login_rotation(
                 broker,
                 bus,
                 organization_id,
-                job,
+                job_id,
                 WEB_LOGIN_NO_RUNNER_DETAIL,
             )
             .await

@@ -49,9 +49,17 @@ enum CustodyStep<'a> {
     Promote { handle: &'a str },
 }
 
-#[derive(Deserialize)]
+/// The `step` tags of the three custody requests, which the settle route
+/// matches a custody outcome against (it holds the request as JSON).
+pub(crate) const GENERATE_STEP: &str = "generate_candidate";
+pub(crate) const SEAL_STEP: &str = "seal_candidate";
+pub(crate) const PROMOTE_STEP: &str = "promote_candidate";
+
+/// What a custody step settles with. `Serialize` too, so the settle route can
+/// store the canonical form of what it decoded rather than what a driver sent.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "outcome")]
-enum CustodyOutcome {
+pub(crate) enum CustodyOutcome {
     Done,
     Sealed { backed_up: bool },
     Failed { error: StepError },

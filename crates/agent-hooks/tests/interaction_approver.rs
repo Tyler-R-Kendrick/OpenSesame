@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use interaction_mock::{
-    approver, config, serve, Step, APPROVER_REF, BEARER, OTHER_DIGEST, SERVER_PROSE,
+    approver, config, serve, serve_under, Step, APPROVER_REF, BEARER, OTHER_DIGEST, SERVER_PROSE,
 };
 use opensesame_agent_hooks::approval::REASON_APPROVAL_NOT_BOUND;
 use opensesame_agent_hooks::sdk::{
@@ -78,6 +78,7 @@ async fn an_approval_spent_exactly_once_lifts_the_deny() {
     let seen = server.seen.lock().unwrap();
     assert_eq!(seen.consumes, 3, "polls until spent, then stops");
     assert_eq!(seen.revokes, 0, "a spent approval is not withdrawn");
+    assert!(seen.cancels.is_empty(), "nor is the request it settled");
     assert!(seen
         .bearers
         .iter()
@@ -109,20 +110,21 @@ async fn an_approval_spent_exactly_once_lifts_the_deny() {
 }
 
 #[tokio::test]
-async fn a_declined_interaction_is_never_an_approval() {
-    // The Identity API answers a declined interaction to its requester as it
-    // answers an unanswered one; the deadline passes and the deny stands.
+async fn an_unanswered_interaction_is_unresolved_at_the_deadline() {
+    // Nobody answers (401 approval_required): the deadline passes and the
+    // deny stands. A refusal is not this case (`interaction_lifecycle.rs`).
     let server = serve(vec![Step::Reply(401, "approval_required")], 201).await;
     let approver =
         InteractionApprover::new(config(&server.base, Duration::from_millis(200))).unwrap();
     let blocked = emitter(approver)
         .emit(&mut deploy_context())
         .await
-        .expect_err("declined");
+        .expect_err("unanswered");
     denied_with(&Err(blocked.record), UNRESOLVED);
     let seen = server.seen.lock().unwrap();
     assert!(seen.consumes >= 2);
     assert_eq!(seen.revokes, 1, "the unanswered interaction is withdrawn");
+    assert_eq!(seen.cancels, ["areq_1"], "and so is the request it fronted");
 }
 
 #[tokio::test]
@@ -341,4 +343,23 @@ async fn a_dropped_ask_still_withdraws_its_interaction() {
         "the ask had raised an interaction"
     );
     assert_eq!(seen.revokes, 1, "a cancelled ask leaves nothing answerable");
+}
+
+#[tokio::test]
+async fn an_identity_api_behind_a_path_prefix_is_reached_under_it() {
+    // A base with a path (`/idp`), with and without its trailing slash, keeps
+    // that path on every route the approver speaks.
+    for suffix in ["", "/"] {
+        let server = serve_under("/idp", vec![Step::Spend], 201).await;
+        let base = format!("{}{suffix}", server.base);
+        let outcome = emitter(approver(&base))
+            .emit(&mut deploy_context())
+            .await
+            .map(|o| o.record);
+        let record = outcome.unwrap_or_else(|_| panic!("approved under {base}"));
+        assert_eq!(record.verdict.decision, Decision::Allow);
+        let seen = server.seen.lock().unwrap();
+        assert_eq!(seen.auth_requests.len(), 1, "{base}");
+        assert_eq!(seen.interactions.len(), 1, "{base}");
+    }
 }

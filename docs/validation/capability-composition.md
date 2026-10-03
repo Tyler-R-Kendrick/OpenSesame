@@ -132,6 +132,21 @@ Observed 2026-09-22: **2 test files, 24 tests, all passing.**
 - `--all` runs the eight-build matrix and aggregates sizes into
   `dist-profiles/measurements.json`.
 
+- **What two optional capabilities both reach is `shared`, not either's**
+  (`classification-cross.ts`). Making Connections, Access and Identity separate
+  optional extensions (ADR 0153) left Access built over the local directory and
+  the connector catalogue, and setup's federation steps drawing connector cards.
+  Those files classified `optional` mixed capabilities in one selective chunk
+  and, in `enterprise-selected` (hardened, which keeps Access and excludes
+  browser-local IAM and Connections), were emitted under the excluded
+  capability's name: 117 violations, plus `rich-explicit` failing to validate
+  once `sharing.drops` became always-on. `--all` is clean again;
+  `classification-closure.test.ts` reads the same rule off the source
+  (`shared` imports no optional file), `capability-profiles.real.test.mjs`
+  validates every checked-in profile against the real catalog, and CI builds
+  `enterprise-selected` (hardened) and `rich-explicit` (selective) beside the
+  two budgeted profiles.
+
 **The verifier is deliberately not the plugin.** A build step that certifies
 its own output proves nothing; the separation is the evidence.
 

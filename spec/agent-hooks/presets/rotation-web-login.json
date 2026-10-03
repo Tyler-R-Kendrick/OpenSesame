@@ -1,0 +1,32 @@
+{
+  "preset": 1,
+  "name": "rotation-web-login",
+  "summary": "A hosted web-login rotation or capture ceremony: exactly the BrowserTransport and CeremonyTransport verbs, nothing else; page reads are labelled, and once credential material has flowed anywhere no further verb runs.",
+  "policy": {
+    "version": 1,
+    "unlisted_tools": "deny",
+    "secret_guard": "redact",
+    "refuse_labels": ["opensesame:credential_material"],
+    "tools": [
+      { "name": "navigate", "decision": "allow" },
+      { "name": "wait_for", "decision": "allow" },
+      { "name": "fill_credential", "decision": "allow" },
+      { "name": "assert_present", "decision": "allow" },
+      { "name": "submit", "decision": "allow" },
+      {
+        "name": "read_dom_redacted",
+        "decision": "allow",
+        "labels": ["opensesame:untrusted_page"]
+      },
+      {
+        "name": "screenshot_redacted",
+        "decision": "allow",
+        "labels": ["opensesame:untrusted_page"]
+      },
+      { "name": "verify_login", "decision": "allow" },
+      { "name": "outstanding", "decision": "allow" },
+      { "name": "capture_credential", "decision": "allow" },
+      { "name": "capture_download", "decision": "allow" }
+    ]
+  }
+}

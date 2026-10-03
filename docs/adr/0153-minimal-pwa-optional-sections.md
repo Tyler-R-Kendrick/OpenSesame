@@ -55,5 +55,10 @@ secret through `spec.native`.
   optional capabilities those descriptors already depend on
   (`identity.federation`, `access.authority`, `vault.certificate-records`),
   and the instance policy has to permit them.
+- The connector pages are routed only while Connections is on, so a
+  Settings › Capabilities tile links to one only then; with it off, a git
+  history road is its enable switch alone and the connectors that have only a
+  page are not drawn ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md),
+  third amendment).
 - A version-1 preset residue no longer strips `identity.local-iam` or
   `identity.siop`. The site broker and git backup are still stripped.

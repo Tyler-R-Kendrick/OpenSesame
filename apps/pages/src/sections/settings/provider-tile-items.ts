@@ -10,6 +10,7 @@ import {
   isSwitchable,
 } from "@opensesame/app-core/lib/capabilities/features.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/catalog-provider.js";
+import type { TileRoad } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Provider,
   ProviderCategory,
@@ -37,7 +38,11 @@ function placed(provider: Provider): Provider {
     : provider;
 }
 
-export type ProviderTileItem = { provider: Provider; href: string };
+/**
+ * `href` is the connector's page, or null where only the tile's own enable
+ * switch acts (`TileRoad`): a tile never links to a page nothing routes.
+ */
+export type ProviderTileItem = { provider: Provider; href: string | null };
 
 /** One category's catalog brokers, skipping managed Connect ids. */
 function bindingItems(
@@ -56,21 +61,26 @@ function bindingItems(
 }
 
 /**
- * One category's tiles, in catalog order, keeping the connectors whose page
- * has something to do on this device (`acts`). A tile is a link to that page:
- * never a row that leads to a dead end.
+ * One category's tiles, in catalog order, keeping the connectors a tile has
+ * something to offer for on this device (`tile`): a link to a page that has
+ * something to do, or a switch that acts without one. Never a row that leads
+ * to a dead end.
  */
 export function providerTileItems(
   category: ProviderCategory,
-  acts: (provider: Provider) => boolean,
+  tile: (provider: Provider) => TileRoad | null,
 ): ProviderTileItem[] {
   const providers = getBundledProviders().map(placed);
   const items: ProviderTileItem[] = [];
   for (const provider of bindingItems(providers).get(category) ?? []) {
-    if (!acts(provider)) continue;
+    const road = tile(provider);
+    if (road === null) continue;
     items.push({
       provider,
-      href: connectorPath(provider.id, undefined, "/settings/connections"),
+      href:
+        road === "page"
+          ? connectorPath(provider.id, undefined, "/settings/connections")
+          : null,
     });
   }
   return items;
@@ -82,12 +92,12 @@ export function providerTileItems(
  */
 export function featureDraws(
   feature: Feature,
-  acts: (provider: Provider) => boolean,
+  tile: (provider: Provider) => TileRoad | null,
 ): boolean {
   return (
     isSwitchable(feature) ||
     feature.providerCategories.some(
-      (category) => providerTileItems(category, acts).length > 0,
+      (category) => providerTileItems(category, tile).length > 0,
     )
   );
 }

@@ -48,11 +48,7 @@ export function GithubCardDetails({ connection }: { connection: Connection }) {
         ...initial.installations.flatMap((row) => row.permissions ?? []),
         ...scopes.map((name) => ({ name, access: "" })),
       ]);
-      setRepos(
-        initial.repos.length > 0
-          ? initial.repos.map((repo) => repo.fullName)
-          : initial.installations.flatMap((row) => row.repositories ?? []),
-      );
+      setRepos(initial.installations.flatMap((row) => row.repositories ?? []));
     })();
     return () => {
       cancel = true;

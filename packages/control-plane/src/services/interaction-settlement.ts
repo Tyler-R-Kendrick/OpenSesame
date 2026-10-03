@@ -26,6 +26,7 @@ import {
   type SettledSubjectFacts,
   settleHostSubject,
 } from "./host-settlement.js";
+import { assertDetailsMatchRequest } from "./interaction-approver-guard.js";
 
 export { resolveEntitledSubject };
 
@@ -46,6 +47,7 @@ async function applyIdentitySubject(
     if (request.expiresAt.getTime() <= now.getTime()) {
       throw new DomainError("INVARIANT_VIOLATION", "subject expired");
     }
+    assertDetailsMatchRequest(interaction, request);
     await ctx.repos.authorizationRequests.updateWithVersion(
       request.id,
       request.version,
