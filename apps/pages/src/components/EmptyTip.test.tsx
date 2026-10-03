@@ -1,8 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { EmptyTip, emptyTips } from "./EmptyTip.js";
+import { EmptyTip, emptyTipKeys, emptyTips, touchTips } from "./EmptyTip.js";
+
+const KEYS = emptyTipKeys;
 
 describe("EmptyTip", () => {
   afterEach(cleanup);
@@ -15,9 +17,9 @@ describe("EmptyTip", () => {
     expect(tip.querySelector("svg")).not.toBeNull();
   });
 
-  it("carries a touch counterpart where a keyboard tip has one", () => {
+  it("carries both voices where the call site names a tip", () => {
     // Hidden whole on a phone, a keyboard tip left the empty state bare.
-    render(<EmptyTip>{emptyTips.rail}</EmptyTip>);
+    render(<EmptyTip tip="rail" />);
     const tip = screen.getByRole("note");
     expect(tip.className).toBe("empty__tip");
     expect(tip.querySelector(".empty__tip-keys")?.textContent).toBe(
@@ -30,10 +32,13 @@ describe("EmptyTip", () => {
 
   it("gives every keyboard tip the finger's own voice", () => {
     // A tip that names a key and has no twin is hidden outright on a phone.
-    for (const tip of Object.values(emptyTips)) {
-      render(<EmptyTip>{tip}</EmptyTip>);
+    expect(Object.keys(touchTips).sort()).toEqual([...KEYS].sort());
+    for (const key of KEYS) {
+      render(<EmptyTip tip={key} />);
       const note = screen.getByRole("note");
-      expect(note.querySelector(".empty__tip-keys")?.textContent).toBe(tip);
+      expect(note.querySelector(".empty__tip-keys")?.textContent).toBe(
+        emptyTips[key],
+      );
       const touch = note.querySelector(".empty__tip-touch")?.textContent ?? "";
       expect(touch).not.toBe("");
       expect(touch).not.toMatch(/\b(esc|enter|press|keyboard|j\/k)\b/i);
@@ -42,14 +47,14 @@ describe("EmptyTip", () => {
   });
 
   it("swaps the help and back tips for the gesture that does the same", () => {
-    render(<EmptyTip>{emptyTips.escBack}</EmptyTip>);
+    render(<EmptyTip tip="escBack" />);
     expect(document.querySelector(".empty__tip-touch")?.textContent).toBe(
       "Swipe right to go back.",
     );
     cleanup();
-    render(<EmptyTip>{emptyTips.keymap}</EmptyTip>);
+    render(<EmptyTip tip="keymap" />);
     expect(document.querySelector(".empty__tip-touch")?.textContent).toBe(
-      "Help in the ⋯ menu lists every gesture.",
+      "Gestures in the ⋯ menu lists every gesture.",
     );
   });
 

@@ -19,7 +19,7 @@ import {
   sortItems,
 } from "@opensesame/vault-core";
 import { useContributions } from "../bindings/contributions.js";
-import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
+import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft, IconPlus } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
 import { swipeBack } from "../lib/gestures.js";
@@ -330,7 +330,7 @@ export function VaultWelcome() {
         {shown.length} {shown.length === 1 ? "item" : "items"}
         {what ? ` · ${what}` : ""}
       </p>
-      <EmptyTip>{emptyTips.vaultMove}</EmptyTip>
+      <EmptyTip tip="vaultMove" />
       <WelcomeKeys inTrash={inTrash} empty={false} />
     </div>
   );

@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { matchMediaFor } from "../host/fake-media-query.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { CommandBar, commandPlaceholder } from "./CommandBar.js";
 
@@ -20,16 +21,7 @@ afterAll(() => {
 });
 
 function pointer(coarse: boolean) {
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string) =>
-      ({
-        matches: coarse && query.includes("pointer: coarse"),
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList,
-  );
+  vi.stubGlobal("matchMedia", matchMediaFor(coarse));
 }
 
 function placeholder(): string | null {
@@ -52,9 +44,9 @@ describe("the command bar's hint", () => {
   it("says a short line a phone's field can show whole", () => {
     pointer(true);
     const hint = placeholder();
-    expect(hint).toBe("go to · search · copy");
-    // The 390px field is ~25 mono characters wide; the desktop line is cut.
-    expect((hint ?? "").length).toBeLessThanOrEqual(24);
+    expect(hint).toBe("go · search · copy");
+    // The 320px field is ~18 mono characters wide; the desktop line is cut.
+    expect((hint ?? "").length).toBeLessThanOrEqual(18);
   });
 
   it("has a touch twin for the ask road too", () => {
