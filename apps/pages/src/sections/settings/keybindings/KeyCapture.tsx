@@ -95,6 +95,19 @@ function usePressedKeys(
   return { tokens, text, setText, onKeyDown, clear };
 }
 
+/** A refused key: the mark, and the same words spoken — once per refusal. */
+function Refused({ problem }: { problem: Refusal }) {
+  return (
+    <>
+      <StatusMark tone="err" label={problem.message} />
+      {/* Keyed by the refusal, so the same message twice is announced twice. */}
+      <span key={problem.n} role="alert" className="visually-hidden">
+        {problem.message}
+      </span>
+    </>
+  );
+}
+
 /**
  * Where a key is recorded, in place of the keycap it replaces — never a
  * dialog. Press the keys: one press, or a sequence (`g v`, `Space f`), which
@@ -199,13 +212,7 @@ export function KeyCapture({
           />
         ) : null}
       </span>
-      {problem ? <StatusMark tone="err" label={problem.message} /> : null}
-      {problem ? (
-        // Keyed by the refusal, so the same message twice is announced twice.
-        <span key={problem.n} role="alert" className="visually-hidden">
-          {problem.message}
-        </span>
-      ) : null}
+      {problem ? <Refused problem={problem} /> : null}
       {children}
     </span>
   );

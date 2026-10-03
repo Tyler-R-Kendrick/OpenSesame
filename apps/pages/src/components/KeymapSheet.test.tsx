@@ -20,10 +20,16 @@ function rowFor(action: string): HTMLElement | null {
   return cell?.closest("tr") ?? null;
 }
 
+function mustRow(action: string): HTMLElement {
+  const found = rowFor(action);
+  if (found === null) throw new Error(`no row for ${action}`);
+  return found;
+}
+
 describe("the keyboard sheet", () => {
   it("draws the defaults as authored on an untouched keymap", () => {
     render(<KeymapSheet open close={() => {}} />);
-    expect(within(rowFor("Move") as HTMLElement).getByText("j / k or arrows"));
+    expect(within(mustRow("Move")).getByText("j / k or arrows")).toBeTruthy();
   });
 
   it("moves j from Move to Edit instead of appending a second row", () => {
@@ -45,8 +51,6 @@ describe("the keyboard sheet", () => {
       saveKeymapData({ bindings: { j: "nop", k: "nop" }, macros: {} });
     });
     expect(screen.queryByText("j / k or arrows")).toBeNull();
-    expect(
-      within(rowFor("Next row") as HTMLElement).getByText("↓"),
-    ).toBeTruthy();
+    expect(within(mustRow("Next row")).getByText("↓")).toBeTruthy();
   });
 });
