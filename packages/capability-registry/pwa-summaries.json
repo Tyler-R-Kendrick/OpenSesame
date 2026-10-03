@@ -40,6 +40,22 @@
     }
   },
   {
+    "id": "plugins.pair",
+    "title": "Pair one browser origin with the daemon's plugin settings (one-time code for a key scoped to /v1/plugins)",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon"
+    }
+  },
+  {
+    "id": "plugins.unpair",
+    "title": "Revoke a page's plugin-settings key: every pairing for an origin at the terminal, or this page's own from Settings",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon"
+    }
+  },
+  {
     "id": "plugins.surrogate_proxy.switch",
     "title": "Switch the surrogate proxy plugin on or off on the paired daemon",
     "plane": "host",
