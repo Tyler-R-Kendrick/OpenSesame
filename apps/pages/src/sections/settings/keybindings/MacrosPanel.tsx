@@ -104,7 +104,7 @@ function MacroRow({
 }
 
 /**
- * Settings › Keybindings › Macros (ADR 0155): named lists of steps, each run
+ * Settings › Keybindings › Macros (ADR 0156): named lists of steps, each run
  * by the keys bound to it — or by an event, vim's autocmd. One opens for
  * editing at a time, in place, never over the page.
  */

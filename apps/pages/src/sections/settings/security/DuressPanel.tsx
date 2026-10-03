@@ -134,10 +134,15 @@ export function DuressPanel({
         <DuressRow
           status={status}
           busy={busy}
-          onClear={() => {
-            setStatus(clearDuressIncidents());
-            setMessage({ tone: "ok", text: "Cleared. The code is still on." });
-          }}
+          onClear={() =>
+            void run(async () => {
+              const result = await clearDuressIncidents();
+              if (!result.ok) {
+                throw new Error("It could not be cleared. Try again.");
+              }
+              setStatus(result.status);
+            }, "Cleared. The code is still on.")
+          }
           onOpen={() => {
             setMessage(null);
             setOpen(true);

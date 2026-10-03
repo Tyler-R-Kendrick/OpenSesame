@@ -56,7 +56,7 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
     }
   }, [hash, navigate, pathname]);
 
-  // Keybindings were a panel of General before they had a tab (ADR 0155).
+  // Keybindings were a panel of General before they had a tab (ADR 0156).
   useEffect(() => {
     if (category !== "general" || hash !== "#settings-keybindings") return;
     navigate(settingsPath("keybindings"), { replace: true });

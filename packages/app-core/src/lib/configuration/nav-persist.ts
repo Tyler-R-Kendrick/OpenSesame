@@ -19,7 +19,7 @@ export function loadKeybindings(): KeybindingMap {
 }
 
 /**
- * Lay a flat map of keys over the person's keymap (ADR 0155). A key that
+ * Lay a flat map of keys over the person's keymap (ADR 0156). A key that
  * restates its default is dropped rather than kept, so the stored keymap only
  * ever holds what the person changed.
  */

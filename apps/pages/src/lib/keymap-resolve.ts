@@ -1,5 +1,5 @@
 /**
- * Resolve one token against the keymap in force (ADR 0155): counts are the
+ * Resolve one token against the keymap in force (ADR 0156): counts are the
  * handler's, and this is the rest — the half-typed sequence, vim's
  * `timeoutlen`, and the rule that a stale prefix is swallowed, not
  * reinterpreted. Split out of `keymap.ts` to keep it inside the module-size
@@ -76,7 +76,7 @@ function waitForMore(
 
 /**
  * Resolve `token` after whatever is pending; true when it was taken. The
- * keys in force are the listing's the press landed in (ADR 0155 §6).
+ * keys in force are the listing's the press landed in (ADR 0156 §6).
  */
 export function resolveToken(
   resolver: Resolver,

@@ -1,6 +1,6 @@
 # Keybindings: the half-typed keys on the statusline
 
-[ADR 0155](../../adr/0155-keybindings-and-macros.md) §8 gives the workspace
+[ADR 0156](../../adr/0156-keybindings-and-macros.md) §8 gives the workspace
 statusline a segment that shows keys while they are half-typed. The pull request
 that added it (#574) shipped without a before/after sheet; this gallery is it.
 

@@ -3,7 +3,7 @@ import { reconcileSource } from "./settings-config.js";
 import { decodeSettings, encodeSettings } from "./settings-files.js";
 import { yamlKey } from "./settings-keymap-yaml.js";
 
-/** Keys YAML would read as a number or a boolean (ADR 0155). */
+/** Keys YAML would read as a number or a boolean (ADR 0156). */
 describe("keys YAML reads as something else", () => {
   const at = (...bound: (readonly [string, string])[]) => ({
     values: { singleKeys: true },

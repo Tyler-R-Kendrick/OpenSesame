@@ -33,7 +33,7 @@ function where(scope: KeymapContext | undefined): string {
 /**
  * One binding as a keycap. Pressing it records another key in its place; a
  * struck default brings itself back; a locked command's key is only drawn.
- * A key added or struck in one listing says so (ADR 0155 §6).
+ * A key added or struck in one listing says so (ADR 0156 §6).
  */
 export function KeyButton({
   cell,

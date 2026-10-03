@@ -1,5 +1,5 @@
 /**
- * Live macro recording in the shell (ADR 0155): vim's `q{a–z}` … `q` and
+ * Live macro recording in the shell (ADR 0156): vim's `q{a–z}` … `q` and
  * `@{a–z}` / `@@`. The handler hands every command it runs to `recordRun`
  * while a recording is on; the register keys wait for their letter here.
  *

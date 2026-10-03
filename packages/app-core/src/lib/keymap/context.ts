@@ -1,5 +1,5 @@
 /**
- * Where a key applies (ADR 0155 §6). The keymap holds everywhere; a context
+ * Where a key applies (ADR 0156 §6). The keymap holds everywhere; a context
  * lays a person's own keys over it only while the keyboard is in one listing.
  * A closed set — VS Code's `when`, Steam's action sets, vim's modes — with no
  * expression language: the vault listing or the rail tree, nothing else.

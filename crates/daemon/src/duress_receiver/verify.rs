@@ -120,7 +120,7 @@ fn push_field(out: &mut String, first: &mut bool, key: &str, value: &impl serde:
 }
 
 /// Signing input identical to Pages `signingInput` (camelCase JSON, no
-/// spaces, keys in `envelope.ts` insertion order — serde_json's `Map` sorts
+/// spaces, keys in `envelope.ts` insertion order — `serde_json`'s `Map` sorts
 /// keys, so an object literal would not produce the signed byte string).
 pub fn signing_input_bytes(env: &PeerEnvelopeView) -> Vec<u8> {
     let mut out = String::from("{");

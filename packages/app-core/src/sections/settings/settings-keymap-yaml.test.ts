@@ -11,7 +11,7 @@ import { reconcileSource } from "./settings-config.js";
 import { decodeSettings, encodeSettings } from "./settings-files.js";
 import { keymapData, keymapDoc } from "./settings-raw-editor-model.js";
 
-/** Settings › Keybindings with keys that hold in one listing (ADR 0155 §6). */
+/** Settings › Keybindings with keys that hold in one listing (ADR 0156 §6). */
 const scoped = {
   values: { singleKeys: true },
   keybindings: { w: "listing.next" },

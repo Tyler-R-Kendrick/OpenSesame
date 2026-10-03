@@ -1,5 +1,5 @@
 /**
- * What the keyboard has half-typed (ADR 0155): vim's `showcmd`. The shell's
+ * What the keyboard has half-typed (ADR 0156): vim's `showcmd`. The shell's
  * handler publishes a count, a sequence prefix, a register key waiting for
  * its letter and a recording in progress; the statusline reads them here,
  * and which-key reads the prefix's continuations from the keymap in force.

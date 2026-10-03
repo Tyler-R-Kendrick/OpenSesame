@@ -193,9 +193,9 @@ looks arbitrary, the ADR it cites explains it.
 | [0150](0150-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |
 | [0150](0150-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
 | [0150](0150-surrogate-credentials-at-the-last-hop.md) | Surrogate credentials at the last hop | Proposed |
-| [0150](0150-the-device-duress-code.md) | The device's duress code, in Settings | Accepted |
 | [0151](0151-connector-pages-act-on-the-roads-a-device-has.md) | A connector page acts on the roads a device has, or is not drawn | Accepted |
 | [0152](0152-browser-key-protector-enrollment.md) | Which key protectors the static browser client enrolls | Accepted |
 | [0153](0153-minimal-pwa-optional-sections.md) | Minimal PWA: vault, activity, settings | Accepted |
 | [0154](0154-setup-configuration-choice.md) | Setup starts with a configuration choice | Accepted |
-| [0155](0155-keybindings-and-macros.md) | Keybindings are their own settings, and every key is a person's | Accepted |
+| [0155](0155-the-device-duress-code.md) | The device's duress code, in Settings | Accepted |
+| [0156](0156-keybindings-and-macros.md) | Keybindings are their own settings, and every key is a person's | Accepted |

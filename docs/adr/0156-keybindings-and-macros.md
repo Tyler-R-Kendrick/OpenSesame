@@ -1,4 +1,4 @@
-# ADR 0155 — Keybindings are their own settings, and every key is a person's
+# ADR 0156 — Keybindings are their own settings, and every key is a person's
 
 - Status: Accepted
 - Date: 2026-09-28

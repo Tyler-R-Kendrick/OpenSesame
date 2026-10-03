@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0155: the handler keeps working when a press is odd. A held `q` is one
+ * ADR 0156: the handler keeps working when a press is odd. A held `q` is one
  * deliberate press, a command that throws neither records nor leaves the
  * statusline stale, a macro named `constructor` is not a function to call,
  * a counted command spends the budget it uses, and a symbol made with Option

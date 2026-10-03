@@ -6,6 +6,7 @@
 
 import {
   kvDelete,
+  kvDeleteDurable,
   kvDurability,
   kvGet,
   kvSet,
@@ -22,6 +23,7 @@ import {
 export const journalSeams = {
   durability: (): ReturnType<typeof kvDurability> => kvDurability(),
   setDurable: kvSetDurable,
+  deleteDurable: kvDeleteDurable,
 };
 
 export type JournalWriteResult =
@@ -144,6 +146,7 @@ export async function writeJournal<T>(
   try {
     return await commitJournalWrite(key, body, nextRevision, durability);
   } catch (error) {
+    await dropStaged(key);
     return {
       ok: false,
       code: "interrupted_write",
@@ -163,7 +166,13 @@ async function commitJournalWrite(
   kvSet(commitKey(key), String(nextRevision));
   if (durability === "persistent") {
     const durableFailure = await persistJournalPrimary(key, body);
-    if (durableFailure) return durableFailure;
+    if (durableFailure) {
+      // The caller is told the write failed, so what it staged must not
+      // survive to be promoted by the next read: the code would be live for
+      // this session and gone after a reload.
+      await dropStaged(key);
+      return durableFailure;
+    }
   } else {
     kvSet(key, body);
   }
@@ -174,6 +183,20 @@ async function commitJournalWrite(
     durable: durability === "persistent",
     revision: nextRevision,
   };
+}
+
+/** Forget a staged write, waiting for storage to agree; memory goes either way. */
+async function dropStaged(key: string): Promise<void> {
+  for (const staged of [stagingKey(key), commitKey(key)]) {
+    try {
+      await journalSeams.deleteDurable(staged);
+    } catch {
+      // kvDeleteDurable has already dropped it from memory, which is what
+      // reads consult; a file that will not go is reported by the caller's
+      // refusal, and recovery only promotes a staging record that has a
+      // matching commit marker.
+    }
+  }
 }
 
 async function persistJournalPrimary(
@@ -201,4 +224,21 @@ export function clearJournal(key: string): void {
   kvDelete(key);
   kvDelete(stagingKey(key));
   kvDelete(commitKey(key));
+}
+
+/**
+ * Remove a journal and wait for storage to forget it, so a caller can say it
+ * is gone rather than that it was asked to go. Every record is attempted
+ * even if one refuses; the first refusal is then reported.
+ */
+export async function clearJournalDurable(key: string): Promise<void> {
+  let refusal: unknown;
+  for (const record of [key, stagingKey(key), commitKey(key)]) {
+    try {
+      await journalSeams.deleteDurable(record);
+    } catch (error) {
+      refusal ??= error;
+    }
+  }
+  if (refusal !== undefined) throw refusal;
 }

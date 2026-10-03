@@ -1,5 +1,5 @@
 /**
- * What each keymap command does (ADR 0155). The catalogue in app-core names
+ * What each keymap command does (ADR 0156). The catalogue in app-core names
  * the commands and their default keys; this is the shell's half — the one
  * place a command id turns into a motion, a pane, a verb or a jump. The key
  * handler, a macro and an event trigger all run commands through here, so a

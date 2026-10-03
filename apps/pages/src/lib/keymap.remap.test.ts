@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0155: the shell's handler reads the keymap in force — a person's
+ * ADR 0156: the shell's handler reads the keymap in force — a person's
  * remaps, unbinds, sequences, macros and the character-key switch — and the
  * fixed keys stay fixed whatever the keymap says.
  */

@@ -157,6 +157,8 @@ pub struct Inner {
     /// Clients holding the live-sync hub open.
     pub hub: notifications::Hub,
     pub(crate) sign_in_failures: limiter::FailureLimiter,
+    /// Sign-in requests made per address (ADR 0148 §8), apart from failures.
+    pub(crate) sign_in_requests: limiter::FailureLimiter,
     hash_admission: Semaphore,
     hash_permits: Semaphore,
     decoy_hash: OnceCell<String>,
@@ -193,6 +195,10 @@ impl BitwardenServer {
             sign_in_failures: limiter::FailureLimiter::new(
                 config.max_failed_sign_ins.max(1),
                 config.failure_window,
+            ),
+            sign_in_requests: limiter::FailureLimiter::new(
+                u32::try_from(routes::SIGN_IN_REQUESTS_PER_WINDOW).unwrap_or(5),
+                routes::sign_in_request_window(),
             ),
             hash_admission: Semaphore::new(permits + config.hash_queue),
             hash_permits: Semaphore::new(permits),
