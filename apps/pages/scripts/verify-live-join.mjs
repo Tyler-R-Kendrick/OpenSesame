@@ -37,7 +37,8 @@
  *    **relayed-rest-wrong** is its negative control: the server holds another
  *    secret, refuses every authentication, and the browsers never meet.
  *
- * The carrier and declined walks run on `dist-live-dedicated`
+ * The carrier, declined and relayed walks (each passes its codes through a
+ * carrier on loopback) run on `dist-live-dedicated`
  * (`pnpm build:live-dedicated`), a build stamped `dedicated_origin`.
  *
  * `LIVE_NATS_SERVER` / `LIVE_NTFY_SERVER` / `LIVE_TURN_SERVER` name the
@@ -91,6 +92,15 @@ const SCENARIOS = new Set(
     "direct,carriers,declined,relayed,relayed-tcp,relayed-tls,relayed-rest,relayed-rest-wrong,tunnel"
   ).split(","),
 );
+const LOCAL_CARRIER_WALKS = [
+  "carriers",
+  "declined",
+  "relayed",
+  "relayed-tcp",
+  "relayed-tls",
+  "relayed-rest",
+  "relayed-rest-wrong",
+];
 const NATS =
   process.env.LIVE_NATS_SERVER ??
   path.join(ROOT, ".cache/mtls-fixtures/nats-server-2.11.17/nats-server");
@@ -241,7 +251,9 @@ try {
   await openLive(owner.page);
   await shot(owner.page, "0-owner-live-settings");
   if (SCENARIOS.has("direct")) await direct(browser, owner);
-  if (SCENARIOS.has("carriers") || SCENARIOS.has("declined")) {
+  // A carrier server runs on this machine, so these walks run on a build of
+  // one's own (see DEDICATED_ORIGIN): the shared origin may not reach it.
+  if (LOCAL_CARRIER_WALKS.some((name) => SCENARIOS.has(name))) {
     const site = dedicatedSite();
     const own = await device(browser, site);
     setStep("owner-enters-dedicated");
@@ -254,16 +266,16 @@ try {
     if (SCENARIOS.has("carriers"))
       for (const kind of KINDS) await carried(browser, own, kind);
     if (SCENARIOS.has("declined")) await declined(browser, own);
+    if (SCENARIOS.has("relayed")) await relayed(browser, own);
+    if (SCENARIOS.has("relayed-tcp"))
+      await relayedOver(browser, own, "tcp", turnFixture);
+    if (SCENARIOS.has("relayed-tls"))
+      await relayedOver(browser, own, "tls", turnFixture);
+    if (SCENARIOS.has("relayed-rest"))
+      await relayedRest(browser, own, turnFixture);
+    if (SCENARIOS.has("relayed-rest-wrong"))
+      await relayedRest(browser, own, { ...turnFixture, wrong: true });
   }
-  if (SCENARIOS.has("relayed")) await relayed(browser, owner);
-  if (SCENARIOS.has("relayed-tcp"))
-    await relayedOver(browser, owner, "tcp", turnFixture);
-  if (SCENARIOS.has("relayed-tls"))
-    await relayedOver(browser, owner, "tls", turnFixture);
-  if (SCENARIOS.has("relayed-rest"))
-    await relayedRest(browser, owner, turnFixture);
-  if (SCENARIOS.has("relayed-rest-wrong"))
-    await relayedRest(browser, owner, { ...turnFixture, wrong: true });
 } catch (error) {
   failures.push(
     `[${log.at(-1)?.step ?? "?"}] ${error instanceof Error ? error.message : error}`,
