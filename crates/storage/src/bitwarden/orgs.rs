@@ -351,21 +351,8 @@ impl Db {
     ///
     /// Returns an error when the write fails.
     pub async fn bitwarden_update_member(&self, member: &BitwardenOrgMember) -> anyhow::Result<()> {
-        sqlx::query(
-            "UPDATE bitwarden_org_members SET member_type = ?, access_all = ?, permissions = ?, \
-             status = ?, reset_password_key = ?, revision_at = ? WHERE id = ? AND org_id = ?",
-        )
-        .bind(member.member_type)
-        .bind(i64::from(member.access_all))
-        .bind(&member.permissions)
-        .bind(member.status)
-        .bind(&member.reset_password_key)
-        .bind(bitwarden_timestamp(Utc::now()))
-        .bind(&member.id)
-        .bind(&member.org_id)
-        .execute(&self.pool)
-        .await?;
-        Ok(())
+        let mut conn = self.pool.acquire().await?;
+        update_member(&mut conn, member).await
     }
 
     /// Remove a member.
@@ -385,4 +372,25 @@ impl Db {
             .await?;
         Ok(done.rows_affected() == 1)
     }
+}
+
+pub(super) async fn update_member(
+    conn: &mut sqlx::SqliteConnection,
+    member: &BitwardenOrgMember,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE bitwarden_org_members SET member_type = ?, access_all = ?, permissions = ?, \
+         status = ?, reset_password_key = ?, revision_at = ? WHERE id = ? AND org_id = ?",
+    )
+    .bind(member.member_type)
+    .bind(i64::from(member.access_all))
+    .bind(&member.permissions)
+    .bind(member.status)
+    .bind(&member.reset_password_key)
+    .bind(bitwarden_timestamp(Utc::now()))
+    .bind(&member.id)
+    .bind(&member.org_id)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
 }

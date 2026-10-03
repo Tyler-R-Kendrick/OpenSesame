@@ -46,14 +46,18 @@ async fn act(server: &BitwardenServer, view: &OrgView, member: &str, verb: Verb)
             server.db.bitwarden_update_member(&target).await?;
         }
         Verb::Restore if target.status == member_status::REVOKED => {
-            // Back in, a member meets the policies as a confirmed one must.
-            super::policy_rules::may_confirm(server, &view.org.id, &target).await?;
             target.status = match (&target.key, &target.user_id) {
                 (Some(_), _) => member_status::CONFIRMED,
                 (None, Some(_)) => member_status::ACCEPTED,
                 (None, None) => member_status::INVITED,
             };
-            server.db.bitwarden_update_member(&target).await?;
+            // Back in, a member meets the policies as a confirmed one must —
+            // decided in the transaction that restores them.
+            server
+                .db
+                .bitwarden_update_member_enforced(&target, true)
+                .await?
+                .map_err(super::policy_rules::refusal)?;
         }
         Verb::Restore => {}
     }

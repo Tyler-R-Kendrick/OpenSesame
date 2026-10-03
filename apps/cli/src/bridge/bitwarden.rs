@@ -187,6 +187,13 @@ mod imp {
                 org.ciphers,
                 org.attachments
             );
+            if org.revoked > 0 {
+                println!(
+                    "  revoked: {} members its policies exclude (two-step login, single \
+                     organization); restore them once they meet them",
+                    org.revoked
+                );
+            }
             for (kind, count) in &org.left_behind {
                 println!("  left behind: {count} {kind}");
             }
