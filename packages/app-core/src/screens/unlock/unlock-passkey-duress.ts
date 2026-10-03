@@ -24,6 +24,7 @@ import {
   resolveRequireDurable,
 } from "./unlock-duress-refuse.js";
 import {
+  type PasskeyDuressEvidence,
   clearHeldProtectorRoot,
   clearPasskeyDuressEvidence,
   hasHeldProtectorRoot,
@@ -144,28 +145,7 @@ export async function completePasskeyDuressCode(
       clearHeldProtectorRoot();
       throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
     }
-    if (!select.prfOutput) {
-      // An age-passkey tap carries no PRF output: it holds the root it opened.
-      const root = takeHeldProtectorRoot();
-      if (!root || !store.unlockWithHeldProtectorRoot) {
-        throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
-      }
-      try {
-        await store.unlockWithHeldProtectorRoot(root.root, root);
-      } catch (error) {
-        holdProtectorRoot(root.root, root.method);
-        stashPasskeyDuressEvidence(select);
-        throw error;
-      }
-      new Uint8Array(root.root).fill(0);
-      return "vault_opened";
-    }
-    const held = select.prfOutput.buffer.slice(
-      select.prfOutput.byteOffset,
-      select.prfOutput.byteOffset + select.prfOutput.byteLength,
-    );
-    await store.unlockWithHeldPrf(held);
-    select.prfOutput.fill(0);
+    await spendHeld(store, select);
     return "vault_opened";
   }
 
@@ -173,6 +153,37 @@ export async function completePasskeyDuressCode(
     stashPasskeyDuressEvidence(select);
   }
   throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+}
+
+/** The code was no duress code: spend what the ceremony held. */
+async function spendHeld(
+  store: PasskeyUnlockStore,
+  select: PasskeyDuressEvidence,
+): Promise<void> {
+  if (!select.prfOutput) {
+    // An age-passkey tap carries no PRF output: it holds the root it opened.
+    const root = takeHeldProtectorRoot();
+    if (!root || !store.unlockWithHeldProtectorRoot) {
+      // A root that cannot be spent is not kept: zero it before refusing.
+      if (root) new Uint8Array(root.root).fill(0);
+      throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+    }
+    try {
+      await store.unlockWithHeldProtectorRoot(root.root, root);
+    } catch (error) {
+      holdProtectorRoot(root.root, root.method);
+      stashPasskeyDuressEvidence(select);
+      throw error;
+    }
+    new Uint8Array(root.root).fill(0);
+    return;
+  }
+  const held = select.prfOutput.buffer.slice(
+    select.prfOutput.byteOffset,
+    select.prfOutput.byteOffset + select.prfOutput.byteLength,
+  );
+  await store.unlockWithHeldPrf(held);
+  select.prfOutput.fill(0);
 }
 
 export function cancelPasskeyDuressCode(): void {

@@ -24,15 +24,7 @@ import {
   listDeviceVaults,
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
-import { cancelPasskeyDuressCode } from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
@@ -79,6 +71,7 @@ import {
   unlockMethodTabs,
 } from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
+import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -283,20 +276,10 @@ function UnlockForm({
   const acceptRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const passkeyAbort = useRef<AbortController | null>(null);
-
-  // Switching methods (or leaving the passkey tab) must cancel any pending
-  // platform prompt — a blocking WebAuthn request must never hold the other
-  // unlock modes hostage.
-  const cancelPasskeyCeremony = useCallback(() => {
-    if (passkeyAbort.current) {
-      passkeyAbort.current.abort();
-      passkeyAbort.current = null;
-    }
-    cancelPasskeyDuressCode();
-    setAwaitingPasskeyDuressCode(false);
-    setBusy(false);
-  }, []);
+  const { passkeyAbort, cancelPasskeyCeremony } = usePasskeyCeremony(
+    setAwaitingPasskeyDuressCode,
+    setBusy,
+  );
 
   const formGated = lockedFor > 0;
   useUnlockFormFocus({

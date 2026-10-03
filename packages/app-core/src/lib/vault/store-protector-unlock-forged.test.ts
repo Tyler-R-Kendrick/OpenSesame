@@ -4,7 +4,11 @@
  * around a root of their choosing (ADR 0152). The opened root must therefore
  * verify the manifest's root-derived MAC, or it is not this vault's.
  */
-import { WrongPasswordError, createItem, randomBytes } from "@opensesame/vault-core";
+import {
+  WrongPasswordError,
+  createItem,
+  randomBytes,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvGet, kvSet } from "../kv.js";
 import { publishUntestedAgeRecipient } from "./protection/adapters/age-recipient.js";
