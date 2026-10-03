@@ -1,3 +1,4 @@
+import { isString } from "@opensesame/os-domain";
 import {
   type VaultItem,
   createItem,
@@ -145,7 +146,7 @@ export function itemMatchesProvider(
     const ref = item.connectionRef.toLowerCase();
     return ref.includes(`/${id}/`) || ref.includes(id) || haystack.includes(id);
   }
-  if (item.kind === "typed" && typeof item.values.connectionRef === "string") {
+  if (item.kind === "typed" && isString(item.values.connectionRef)) {
     const ref = item.values.connectionRef.toLowerCase();
     return ref.includes(`/${id}/`) || ref.includes(id);
   }
@@ -173,7 +174,7 @@ function storedConnectionRef(item: VaultItem): string {
   if (item.kind === "secret") return item.connectionRef;
   if (item.kind !== "typed") return "";
   const ref = item.values.connectionRef;
-  return typeof ref === "string" ? ref : "";
+  return isString(ref) ? ref : "";
 }
 
 export function hasConnectorReminder(

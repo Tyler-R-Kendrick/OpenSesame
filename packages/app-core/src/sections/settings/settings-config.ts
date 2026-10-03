@@ -141,7 +141,7 @@ function patchMacros(
   for (const [name, macro] of Object.entries(after)) {
     const pair = written.items.find((item) => nameOf(item) === name);
     if (pair === undefined) written.set(name, macroNode(document, macro));
-    else if (stableMacro(was[name]) !== stableMacro(macro))
+    else if (stableMacro(was.get(name)) !== stableMacro(macro))
       patchMacro(document, pair, macro);
   }
 }
@@ -156,21 +156,21 @@ function renameInPlace(
   written: YAMLMap,
   before: Readonly<Record<string, MacroDoc>>,
   after: Readonly<Record<string, MacroDoc>>,
-): Record<string, MacroDoc> {
-  const was = { ...before };
+): ReadonlyMap<string, MacroDoc | undefined> {
+  const was = new Map<string, MacroDoc | undefined>(Object.entries(before));
   const names = written.items.map(nameOf);
   const fresh = Object.keys(after).filter((name) => !names.includes(name));
   for (const pair of written.items) {
     const old = nameOf(pair);
     if (Object.hasOwn(after, old) || !isScalar(pair.key)) continue;
     const to = fresh.find(
-      (name) => stableMacro(after[name]) === stableMacro(was[old]),
+      (name) => stableMacro(after[name]) === stableMacro(was.get(old)),
     );
     if (to === undefined) continue;
     fresh.splice(fresh.indexOf(to), 1);
     pair.key.value = to;
-    was[to] = was[old] as MacroDoc;
-    delete was[old];
+    was.set(to, was.get(old));
+    was.delete(old);
   }
   return was;
 }

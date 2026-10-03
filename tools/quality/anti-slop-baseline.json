@@ -11,21 +11,21 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 183,
-    "violations": 595,
+    "files": 175,
+    "violations": 579,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 217,
+      "anti-slop/no-known-value-widening": 205,
       "anti-slop/no-module-mocking": 2,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 162,
       "anti-slop/no-shape-in-symbol-names": 13,
-      "anti-slop/no-unknown-parameters": 38,
+      "anti-slop/no-unknown-parameters": 35,
       "anti-slop/no-unknown-returns": 3,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 109
+      "anti-slop/require-safety-comment-for-type-assertion": 108
     }
   },
   "files": {
@@ -130,9 +130,6 @@
     "apps/pages/src/components/PasskeyCeremonyNote.test.tsx": {
       "anti-slop/no-known-value-widening": 1
     },
-    "apps/pages/src/components/app-shell.test-harness.tsx": {
-      "anti-slop/no-known-value-widening": 1
-    },
     "apps/pages/src/lib/capabilities/__tests__/vault-profiles.ts": {
       "anti-slop/no-unsafe-dictionary-type": 2,
       "anti-slop/require-safety-comment-for-type-assertion": 2
@@ -221,16 +218,6 @@
       "anti-slop/no-unknown-parameters": 1
     },
     "apps/pages/src/sections/settings/security/AccountFactorsPanel.tsx": {
-      "anti-slop/no-unknown-parameters": 1
-    },
-    "apps/pages/src/sections/settings/sops/SopsDocumentSheet.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/sections/settings/sops/useSopsDocument.ts": {
-      "anti-slop/no-unknown-parameters": 1
-    },
-    "apps/pages/src/sections/settings/transport/TransportPanel.test.tsx": {
-      "anti-slop/no-known-value-widening": 1,
       "anti-slop/no-unknown-parameters": 1
     },
     "apps/pages/src/sections/vault/creation-kinds.test.tsx": {
@@ -429,19 +416,6 @@
     },
     "packages/app-core/src/lib/sops/yaml-resolve.ts": {
       "anti-slop/no-known-value-widening": 1
-    },
-    "packages/app-core/src/lib/transport-browser.ts": {
-      "anti-slop/no-known-value-widening": 1
-    },
-    "packages/app-core/src/lib/transport-rows.ts": {
-      "anti-slop/no-known-value-widening": 2
-    },
-    "packages/app-core/src/lib/transport-settings.ts": {
-      "anti-slop/no-known-value-widening": 3
-    },
-    "packages/app-core/src/lib/transport-status.test.ts": {
-      "anti-slop/no-known-value-widening": 4,
-      "anti-slop/no-unknown-parameters": 1
     },
     "packages/app-core/src/lib/vault/password-conformance.test.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 1

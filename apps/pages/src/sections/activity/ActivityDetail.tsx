@@ -4,7 +4,12 @@
  */
 
 import type { ActivityEvent } from "@opensesame/app-core/lib/activity-log.js";
-import type { BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isBoolean,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import { Link } from "react-router";
 import { FieldRow } from "../../components/FieldRow.js";
 import { IconChevronLeft } from "../../components/Icons.js";
@@ -16,8 +21,8 @@ function formatWhen(iso: string): string {
 }
 
 function metadataText(value: BoundaryValue): string | null {
-  if (typeof value === "string") return value === "" ? null : value;
-  if (typeof value === "number" || typeof value === "boolean") {
+  if (isString(value)) return value === "" ? null : value;
+  if (isNumber(value) || isBoolean(value)) {
     return String(value);
   }
   if (value === null) return null;
