@@ -5711,6 +5711,68 @@
     }
   },
   {
+    "id": "vault.protectors.manage",
+    "title": "Vault key protection: enroll a recovery key, passkey, age recipient, AWS KMS or Google Cloud KMS protector, test it, prefer an unlock, or remove it",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/protection/enroll-external.ts:provenExternalRecord",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the protectors of the vault in the browser are enrolled, proved and removed in the page that holds its tomb; a CLI has no handle on that manifest (the sealed store's own protectors are `opensesame pass protect`)",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_host": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_client": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "webmcp": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      }
+    }
+  },
+  {
+    "id": "vault.protectors.rotate",
+    "title": "Vault key protection: rotate the vault's root key so a compromised protector stops opening it",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/protection/browser-lifecycle-ops.ts:rotateCompromisedRoot",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the protectors of the vault in the browser are enrolled, proved and removed in the page that holds its tomb; a CLI has no handle on that manifest (the sealed store's own protectors are `opensesame pass protect`)",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_host": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_client": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "webmcp": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      }
+    }
+  },
+  {
     "id": "wallet.capabilities.read",
     "title": "Read Wallet capability and evidence inventory (never secrets)",
     "plane": "client_local",

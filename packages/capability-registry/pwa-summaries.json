@@ -688,6 +688,22 @@
     }
   },
   {
+    "id": "vault.protectors.manage",
+    "title": "Vault key protection: enroll a recovery key, passkey, age recipient, AWS KMS or Google Cloud KMS protector, test it, prefer an unlock, or remove it",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/protection/enroll-external.ts:provenExternalRecord"
+    }
+  },
+  {
+    "id": "vault.protectors.rotate",
+    "title": "Vault key protection: rotate the vault's root key so a compromised protector stops opening it",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/protection/browser-lifecycle-ops.ts:rotateCompromisedRoot"
+    }
+  },
+  {
     "id": "vault.items.reveal",
     "title": "Reveal a vault item secret",
     "plane": "client_local",

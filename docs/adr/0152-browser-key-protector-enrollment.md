@@ -8,7 +8,10 @@
   (the static front end needs no backend),
   [ADR 0149](0149-nothing-stored-in-the-clear.md) (nothing rests in the clear),
   [ADR 0005](0005-authority-handle-connectionref.md) (no raw secret on an agent
-  surface)
+  surface),
+  [ADR 0065](0065-agent-surface-parity.md) (every PWA action is mapped or
+  excluded), [ADR 0052](0052-password-manager-ecosystem-bridging.md) (key
+  ecosystems are human/device plane)
 - Amends: ADR 0129 §8 and the second consequence bullet of ADR 0150
 
 ## Context
@@ -171,6 +174,25 @@ panel draws each key only where the service accepts it:
 
 The manifest's copy of the header's wraps is reconciled whenever the header
 changes, because Unlock methods writes the header and nothing else.
+
+### Protector management is human-plane only on every agent surface
+
+Enrolling, testing, preferring, removing and rotating are two registry
+operations (`vault.protectors.manage`, `vault.protectors.rotate`,
+`packages/capability-registry/src/vault-protection.ts`), owned by the core
+`vault.local-unlock` capability and mapped onto the Pages action
+(`enroll-external.ts:provenExternalRecord`, `browser-lifecycle-ops.ts:rotateCompromisedRoot`).
+They are **excluded** from MCP host, MCP client and WebMCP, citing this ADR
+under ADR 0065's rule that every PWA action is mapped or excluded: the ceremonies
+take an age identity, a recovery secret or a cloud credential, none of which may
+transit agent context (ADR 0005), and an agent that could enroll a protector
+could add a way into the vault that it holds the other half of, while one that
+could remove or rotate could lock the owner out. Key-ecosystem bridging is
+human/device plane only for the same reason (ADR 0052). The CLIs are excluded
+because they hold no handle on the browser's tomb: the sealed store's own
+protectors are `opensesame pass protect`, a different object. The Android and
+extension targets are recorded in `surface-gaps.json`, as for the other
+vault ceremonies; nothing in this ADR builds them.
 
 ### The setup preference is retired
 
