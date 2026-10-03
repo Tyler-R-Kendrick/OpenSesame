@@ -20,7 +20,7 @@ import { CommandCount } from "./CommandCount.js";
 import { KeymapFind } from "./KeymapFind.js";
 import { UnavailableKeys } from "./UnavailableKeys.js";
 import { useFocusLanding } from "./useFocusLanding.js";
-import { type KeymapState, useScopedKeymap } from "./useKeymap.js";
+import type { KeymapState } from "./useKeymap.js";
 
 /** The filter choice in the head: where focus goes when a row is gone. */
 const FILTER_LANDING = '[data-land="filter"]';
@@ -228,12 +228,19 @@ function HeadChoice<T extends string>({
  * keycaps, found by words or by pressing the keys themselves — everywhere,
  * or as they hold in one listing (§6).
  */
-export function KeymapPanel({ state: global }: { state: KeymapState }) {
+export function KeymapPanel({
+  state,
+  scope,
+  onScope,
+}: {
+  /** The keymap as it holds in `scope`. */
+  state: KeymapState;
+  scope: KeymapScope;
+  onScope: (scope: KeymapScope) => void;
+}) {
   const [query, setQuery] = useState("");
   const [recorded, setRecorded] = useState<string | null>(null);
   const [filter, setFilter] = useState<KeymapFilter>("all");
-  const [scope, setScope] = useState<KeymapScope>("everywhere");
-  const state = useScopedKeymap(global, scope);
   const panel = useRef<HTMLElement>(null);
   const land = useFocusLanding(panel);
   const groups = keymapGroups(state.config, state.commands, {
@@ -256,7 +263,7 @@ export function KeymapPanel({ state: global }: { state: KeymapState }) {
               label="Keys that hold"
               value={scope}
               options={KEYMAP_SCOPES}
-              onChange={setScope}
+              onChange={onScope}
             />
             <HeadChoice
               label="Show"
