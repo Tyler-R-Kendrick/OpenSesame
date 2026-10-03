@@ -148,7 +148,7 @@ describe("the repository", () => {
       }
     }
     // A derived Debug prints every field. Replace the derive with a hand-written
-    // `impl fmt::Debug` that prints `[REDACTED]` for the secret (AGENTS.md, ADR 0155).
+    // `impl fmt::Debug` that prints `[REDACTED]` for the secret (AGENTS.md, ADR 0156).
     expect(offenders).toEqual([]);
     // An allow-list entry that no longer matches is a stale justification.
     expect(Object.keys(allowed).filter((key) => !used.has(key))).toEqual([]);

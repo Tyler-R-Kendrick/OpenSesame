@@ -153,7 +153,7 @@ describe("the sealed file", () => {
   });
 });
 
-describe("createLogger with OPENSESAME_LOG_FILE (ADR 0155)", () => {
+describe("createLogger with OPENSESAME_LOG_FILE (ADR 0156)", () => {
   it("seals what it logs, scrubbed, and writes nothing in the clear", () => {
     const log = join(dir(), "svc.log");
     process.env.OPENSESAME_LOG_FILE = log;

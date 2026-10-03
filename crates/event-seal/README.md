@@ -1,6 +1,6 @@
 # opensesame-event-seal
 
-Sealing for the Host's event and audit rows at rest ([ADR 0155](../../docs/adr/0155-logs-and-events-carry-no-secrets.md)).
+Sealing for the Host's event and audit rows at rest ([ADR 0156](../../docs/adr/0156-logs-and-events-carry-no-secrets.md)).
 
 The Host's SQLite file holds what happened: the outbox, security deliveries,
 connection events, signing events, approval comments, runner steps, intents,

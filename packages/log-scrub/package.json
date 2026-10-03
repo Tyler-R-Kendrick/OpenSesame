@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "sideEffects": false,
-  "description": "The secret scrubber every log line, event, audit row and error string passes through, compiled from spec/log-scrub/log-scrub.json (ADR 0155)",
+  "description": "The secret scrubber every log line, event, audit row and error string passes through, compiled from spec/log-scrub/log-scrub.json (ADR 0156)",
   "exports": {
     ".": {
       "types": "./src/index.ts",

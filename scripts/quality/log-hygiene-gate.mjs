@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Log hygiene -- the gate that keeps every log line behind the scrubber
- * (ADR 0155).
+ * (ADR 0156).
  *
  *   node scripts/quality/log-hygiene-gate.mjs            # check
  *   node scripts/quality/log-hygiene-gate.mjs --update   # record improvements only

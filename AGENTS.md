@@ -75,7 +75,7 @@ pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
 pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
-                          #   tools/quality/log-hygiene-baseline.json (ADR 0155)
+                          #   tools/quality/log-hygiene-baseline.json (ADR 0156)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
@@ -326,9 +326,9 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
-| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0155): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
-| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0155): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
-| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0155): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
+| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0156): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
+| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0156): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
+| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0156): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
@@ -446,7 +446,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0155).
+  0001–0156).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -497,7 +497,7 @@ Do not add new top-level directories or loose root files — find the group.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
 - **Logs and events carry no secrets, by key or by shape**
-  ([ADR 0155](docs/adr/0155-logs-and-events-carry-no-secrets.md)). Redaction
+  ([ADR 0156](docs/adr/0156-logs-and-events-carry-no-secrets.md)). Redaction
   by key name alone misses a bearer in an error message, a `#token=` in a URL,
   a JWT in a stack trace and a DSN with a password in it, so every log line,
   event, audit row, activity entry and persisted failure passes the shared
@@ -510,7 +510,7 @@ Do not add new top-level directories or loose root files — find the group.
   holding a secret never derives `Debug`: write `impl fmt::Debug` and print
   `[REDACTED]` for it; `scripts/lib/secret-debug.test.mjs` (in `pnpm quality`) fails on a
   derived `Debug` over a field named like a credential. Log an id, never the secret.
-- **Logs and events rest sealed** (ADR 0155 items 7–9). A log file a process
+- **Logs and events rest sealed** (ADR 0156 items 7–9). A log file a process
   writes goes through `crates/sealed-log` / `packages/observability`'s sealed
   destination (`OPENSESAME_LOG_FILE`); a new event or audit column the Host
   writes is sealed through `opensesame-event-seal` and read back through it (add

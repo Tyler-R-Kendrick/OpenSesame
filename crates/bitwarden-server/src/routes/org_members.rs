@@ -283,7 +283,11 @@ async fn update(
     }
     target.permissions = permissions_from(body.get("permissions"));
     let access = collection_access(&view, &target.id, &body)?;
-    server.db.bitwarden_update_member(&target).await?;
+    server
+        .db
+        .bitwarden_edit_member_enforced(&target)
+        .await?
+        .map_err(super::policy_rules::refusal)?;
     server
         .db
         .bitwarden_set_member_collections(&org, &target.id, &access)

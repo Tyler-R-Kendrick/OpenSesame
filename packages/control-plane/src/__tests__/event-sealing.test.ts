@@ -12,7 +12,7 @@ import { createControlPlane } from "../create-app.js";
 import { resolveEventSealer } from "../event-sealing.js";
 
 /**
- * The Identity plane seals its event rows (ADR 0155). The rows are read
+ * The Identity plane seals its event rows (ADR 0156). The rows are read
  * straight from the table: what a dump, a replica or a read-only SQL account
  * would see. The hash chain is computed over the plaintext before the row is
  * sealed, so it must still verify from what the repository lists.

@@ -1,5 +1,5 @@
 //! Value-blind scrubbing of secrets in log lines, events, error strings and JSON
-//! on the Host / authority plane (ADR 0155).
+//! on the Host / authority plane (ADR 0156).
 //!
 //! The rules are not written here. They are `spec/log-scrub/log-scrub.json`,
 //! embedded at build time and read by `@opensesame/log-scrub` too, so both

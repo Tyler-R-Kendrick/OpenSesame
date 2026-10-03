@@ -1,5 +1,5 @@
 /**
- * The scrubber (ADR 0155). It is compiled from `spec/log-scrub/log-scrub.json`,
+ * The scrubber (ADR 0156). It is compiled from `spec/log-scrub/log-scrub.json`,
  * the same file `crates/redaction` reads, so a secret is recognised the same
  * way on both planes and one vector table proves both.
  *

@@ -1,5 +1,5 @@
 /**
- * Secret-holding structs that derive `Debug` (ADR 0155).
+ * Secret-holding structs that derive `Debug` (ADR 0156).
  *
  * `#[derive(Debug)]` prints every field, so a struct with a plaintext secret
  * field leaks it into any `{:?}`, `tracing` field or panic message that is

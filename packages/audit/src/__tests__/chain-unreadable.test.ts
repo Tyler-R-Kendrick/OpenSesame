@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { appendAuditEvent } from "../append.js";
 import { AUDIT_CHAIN_GENESIS, createChainedAuditSink } from "../chain.js";
 
-/** What a sealed store raises for a newest row that will not open (ADR 0155). */
+/** What a sealed store raises for a newest row that will not open (ADR 0156). */
 class Unreadable extends Error {
   readonly code = "event_unreadable";
 }

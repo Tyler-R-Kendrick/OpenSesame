@@ -1,4 +1,4 @@
-//! `Debug` for the request bodies that carry a plaintext secret (ADR 0155).
+//! `Debug` for the request bodies that carry a plaintext secret (ADR 0156).
 //!
 //! `#[derive(Debug)]` prints every field, so a body holding a secret would put
 //! it in any `{:?}`, `tracing` field or panic message handed the body. Each

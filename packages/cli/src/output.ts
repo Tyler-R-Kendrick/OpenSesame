@@ -21,7 +21,7 @@ export function emit(
   process.stdout.write(`${safeHuman}\n`);
 }
 
-/** What went wrong, as one scrubbed line for stderr (ADR 0155). */
+/** What went wrong, as one scrubbed line for stderr (ADR 0156). */
 export function errorLine(err: BoundaryValue): string {
   return `${scrubText(err instanceof Error ? err.message : String(err))}\n`;
 }

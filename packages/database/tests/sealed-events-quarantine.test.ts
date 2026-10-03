@@ -9,7 +9,7 @@ import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
 
 /**
  * A queued row whose sealed value will not open is quarantined by itself, and
- * a delivery read back is opened (ADR 0155). Assertions read the table.
+ * a delivery read back is opened (ADR 0156). Assertions read the table.
  */
 const sealer = createEventSealer("test-event-secret-with-at-least-32-chars");
 const oldSealer = createEventSealer(

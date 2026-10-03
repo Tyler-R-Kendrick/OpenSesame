@@ -1,4 +1,4 @@
-//! The Host's event rows rest sealed (ADR 0155). Every assertion reads the
+//! The Host's event rows rest sealed (ADR 0156). Every assertion reads the
 //! table itself, not the API: what a copied database file would show.
 
 use opensesame_storage::{Db, StoredSecurityDelivery};

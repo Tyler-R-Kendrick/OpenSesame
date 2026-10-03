@@ -29,7 +29,7 @@ const BUS_SOURCE: &str = "opensesame://gateway/security";
 pub async fn publish(state: &AppState, notice: &SecurityNotice, now: DateTime<Utc>) {
     // The one place every detector's notice passes on its way to the bus, the
     // delivery ledger and every sink: a free-text field a detector filled from
-    // an error, a path or a provider reply is scrubbed here (ADR 0155).
+    // an error, a path or a provider reply is scrubbed here (ADR 0156).
     let notice = &notice.scrubbed();
     publish_to_bus(state, notice).await;
     let subscriptions = subscriptions(state, &notice.organization_id).await;

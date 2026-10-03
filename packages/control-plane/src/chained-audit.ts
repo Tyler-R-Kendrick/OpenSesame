@@ -13,7 +13,7 @@ import type { ControlPlaneRepositories } from "./context.js";
  *
  * The digest is taken over the plaintext event before it is appended, and the
  * sealed repository opens what it lists, so the chain verifies whether or not
- * the rows beneath it rest sealed (ADR 0155).
+ * the rows beneath it rest sealed (ADR 0156).
  */
 export function withChainedAudit(
   baseRepos: Repositories,

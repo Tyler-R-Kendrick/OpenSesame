@@ -26,7 +26,7 @@ function printed(
 
 const JSON_FLAGS = { json: true } as const;
 
-describe("emit prints the command's own output (ADR 0155)", () => {
+describe("emit prints the command's own output (ADR 0156)", () => {
   const bearer = "osc_clm_AbCdEfGh1234567890.signature_part";
   const key = "k3yK3yK3yK3yK3yK3yK3yK3yK3yK3yK3yK3y";
   const link = dropLink("https://app.example/claim", bearer, key);

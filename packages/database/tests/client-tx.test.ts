@@ -38,7 +38,7 @@ describe("createRepositories", () => {
     expect(repos).toBeInstanceOf(PostgresRepositories);
   });
 
-  it("refuses Postgres with no secret to seal its events under (ADR 0155)", () => {
+  it("refuses Postgres with no secret to seal its events under (ADR 0156)", () => {
     vi.stubEnv("OPENSESAME_EVENT_KEY", "");
     vi.stubEnv("OPENSESAME_CLAIM_PEPPER", "");
     expect(() =>
