@@ -153,7 +153,7 @@ export function isDeniedAuditMetadataKey(key: string): boolean {
 }
 
 /**
- * Scrubbed before it is cut (ADR 0156): an allowlisted key such as `note`,
+ * Scrubbed before it is cut (ADR 0157): an allowlisted key such as `note`,
  * `reason`, `path` or `issuer` holds free text, and the key being safe says
  * nothing about what a caller put in the value. Cutting first could leave the
  * front of a token that no pattern recognises any more.

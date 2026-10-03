@@ -16,6 +16,7 @@ import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
+import { keySteps } from "./key-steps.mjs";
 import { sealWithPin, unlockWithPassword } from "./pages-journey.mjs";
 
 async function sealPin(page) {
@@ -30,6 +31,7 @@ export function extraSteps({ press }) {
     ...factorSteps({ press }),
     ...fileSteps({ press }),
     ...invokeSteps(),
+    ...keySteps(),
     ...markSteps({ press }),
     ...memberSteps({ press }),
     ...placeSteps(),

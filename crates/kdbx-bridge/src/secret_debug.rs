@@ -1,4 +1,4 @@
-//! `Debug` for the types here that carry plaintext (ADR 0156).
+//! `Debug` for the types here that carry plaintext (ADR 0157).
 //!
 //! `#[derive(Debug)]` prints every field, and these hold an entry's line one,
 //! a KDBX string field (`Password` among them) or a keyfile. Each impl prints

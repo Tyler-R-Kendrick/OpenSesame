@@ -3,7 +3,7 @@ name = "opensesame-sealed-log"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "An encrypted, rotating log file: every line sealed on its own under a key kept apart from it (ADR 0156)"
+description = "An encrypted, rotating log file: every line sealed on its own under a key kept apart from it (ADR 0157)"
 
 [dependencies]
 opensesame-redaction = { path = "../redaction" }

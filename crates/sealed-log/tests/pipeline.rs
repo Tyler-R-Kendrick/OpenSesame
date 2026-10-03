@@ -1,4 +1,4 @@
-//! The whole path a log line takes on the Host (ADR 0156): a `tracing` event,
+//! The whole path a log line takes on the Host (ADR 0157): a `tracing` event,
 //! scrubbed of secrets at the sink, sealed into a file that holds no plaintext,
 //! and read back through the key. A secret a call site logged by mistake must
 //! be in neither the file nor the reading.

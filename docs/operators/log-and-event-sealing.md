@@ -1,7 +1,7 @@
 # Logs and events at rest
 
 Logs and event rows carry no secrets and rest sealed
-([ADR 0156](../adr/0156-logs-and-events-carry-no-secrets.md)). This page is what an
+([ADR 0157](../adr/0157-logs-and-events-carry-no-secrets.md)). This page is what an
 operator sets, what refuses to start, and how to read a sealed log.
 
 ## What is sealed, and under what
@@ -75,7 +75,7 @@ sealed value into another row of the same column, or swap two rows' values, and
 the seal does not notice. Tamper evidence comes from elsewhere: the audit
 chain's digests cover the Identity plane's audit rows, and signed receipts
 cover the Host's receipts. Other event columns have no such cover. Binding a
-value to its row is a recorded limitation (ADR 0156).
+value to its row is a recorded limitation (ADR 0157).
 
 ## Reading a sealed log
 

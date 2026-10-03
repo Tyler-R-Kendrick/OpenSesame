@@ -247,7 +247,7 @@ fn stop_daemon(pidfile: &str) {
 
 fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
     let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
-    // The daemon's log is sealed (ADR 0156): opened and keyed here first, so a
+    // The daemon's log is sealed (ADR 0157): opened and keyed here first, so a
     // log that cannot be kept is reported now rather than lost, and one an older
     // build wrote in the clear is sealed before the daemon appends to it.
     if let Err(error) = crate::log_sink::open(Path::new(logfile)) {

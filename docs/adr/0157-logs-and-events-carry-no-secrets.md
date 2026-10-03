@@ -1,4 +1,4 @@
-# ADR 0156 — Logs and events carry no secrets, and rest sealed
+# ADR 0157 — Logs and events carry no secrets, and rest sealed
 
 - Status: Accepted
 - Date: 2026-09-28

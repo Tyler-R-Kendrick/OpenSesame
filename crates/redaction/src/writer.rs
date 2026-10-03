@@ -1,4 +1,4 @@
-//! A writer that scrubs whole lines on their way to a sink (ADR 0156).
+//! A writer that scrubs whole lines on their way to a sink (ADR 0157).
 //!
 //! Tracing call sites are many and written by many hands; a redaction that
 //! depends on each of them remembering is not a guarantee. This wraps the sink

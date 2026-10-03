@@ -1,4 +1,4 @@
-//! The sealed log line format is one definition (ADR 0156): the lines in
+//! The sealed log line format is one definition (ADR 0157): the lines in
 //! `spec/conformance/sealed-log-vectors.json` were sealed once and every
 //! implementation must open them. `packages/observability` runs the same file.
 //!

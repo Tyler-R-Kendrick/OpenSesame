@@ -41,7 +41,7 @@ describe("PACT — observability redaction", () => {
   });
 
   it("source: deep walk has a depth ceiling before recurse", () => {
-    // The walk moved to the shared scrubber (ADR 0156); the logger runs it.
+    // The walk moved to the shared scrubber (ADR 0157); the logger runs it.
     assertSourceOrder(
       readFileSync(join(here, "../../../log-scrub/src/scrub.ts"), "utf8"),
       ["const MAX_DEPTH = 12", "if (depth >= MAX_DEPTH) return REDACTED"],

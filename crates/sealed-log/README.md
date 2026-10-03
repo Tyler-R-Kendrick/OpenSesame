@@ -1,6 +1,6 @@
 # opensesame-sealed-log
 
-An encrypted, rotating log file ([ADR 0156](../../docs/adr/0156-logs-and-events-carry-no-secrets.md)).
+An encrypted, rotating log file ([ADR 0157](../../docs/adr/0157-logs-and-events-carry-no-secrets.md)).
 
 A log a process writes for itself (the daemon's `~/.opensesame/daemon.log`, a
 Host run with `OPENSESAME_LOG_FILE`) rests sealed. Every line is sealed on its

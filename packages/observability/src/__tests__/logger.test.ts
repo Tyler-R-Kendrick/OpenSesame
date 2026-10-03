@@ -115,7 +115,7 @@ describe("createLogger", () => {
   });
 });
 
-describe("createLogger scrubs values, not just keys (ADR 0156)", () => {
+describe("createLogger scrubs values, not just keys (ADR 0157)", () => {
   async function line(write: (log: ReturnType<typeof createLogger>) => void) {
     const { chunks, destination } = capture();
     const log = createLogger({ name: "test", level: "info", destination });

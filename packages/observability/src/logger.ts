@@ -52,7 +52,7 @@ export const LOG_REDACT_PATHS = [
 /**
  * A copy of `value` with every secret gone: sensitive keys censored at any
  * depth, every string scrubbed, errors flattened to scrubbed plain objects
- * (ADR 0156). The rules are `spec/log-scrub/log-scrub.json`, the same file the
+ * (ADR 0157). The rules are `spec/log-scrub/log-scrub.json`, the same file the
  * Host's log pipeline reads.
  *
  * Pino's `redact.paths` wildcard only matches one level, so `*.token` misses
@@ -134,7 +134,7 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
     return scrubChildBindings(pino(opts, options.destination));
   }
   // With OPENSESAME_LOG_FILE set, lines are sealed into that file and never
-  // written to stdout (ADR 0156); a file that cannot be opened throws.
+  // written to stdout (ADR 0157); a file that cannot be opened throws.
   const sealedFile = process.env.OPENSESAME_LOG_FILE;
   if (sealedFile) {
     return scrubChildBindings(

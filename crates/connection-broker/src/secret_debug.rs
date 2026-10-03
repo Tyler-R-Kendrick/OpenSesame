@@ -1,4 +1,4 @@
-//! `Debug` for the wire types that carry a bearer, once (ADR 0156).
+//! `Debug` for the wire types that carry a bearer, once (ADR 0157).
 //!
 //! `#[derive(Debug)]` prints every field, so a mint response or a claim request
 //! would put its token in any `{:?}`, `tracing` field or panic message handed

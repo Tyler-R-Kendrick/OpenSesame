@@ -128,7 +128,7 @@ describe("example-agent behavior", () => {
     expect(result.finalState).toBe("pending");
   });
 
-  it("scrubs a token in a secret-named URL parameter by shape (ADR 0156)", async () => {
+  it("scrubs a token in a secret-named URL parameter by shape (ADR 0157)", async () => {
     // Redaction by key name alone would let this through: the token rides in a
     // parameter of a field nobody listed.
     const lines = await captureStdout(() =>

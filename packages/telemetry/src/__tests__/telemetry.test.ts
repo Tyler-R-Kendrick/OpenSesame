@@ -176,7 +176,7 @@ describe("createTelemetry — forbidden content is dropped, not redacted", () =>
   });
 });
 
-describe("telemetry drops a value shaped like a credential (ADR 0156)", () => {
+describe("telemetry drops a value shaped like a credential (ADR 0157)", () => {
   it("never forwards a JWT, a bearer-bearing URL or a vendor key under an allowed prop", () => {
     const events: Array<{ event: string; props: JsonObject }> = [];
     const telemetry = createTelemetry({

@@ -2,7 +2,7 @@
 
 Scope: every place either plane writes a log line, an event, an audit row, an
 activity entry, a telemetry property or a persisted failure. Decision:
-[ADR 0156](../../adr/0156-logs-and-events-carry-no-secrets.md).
+[ADR 0157](../../adr/0157-logs-and-events-carry-no-secrets.md).
 
 ## Method
 
@@ -69,7 +69,7 @@ URL, under an unlisted key.
 - The six structs print `[REDACTED]`.
 - `pnpm quality:log-hygiene` counts the ways round the logger; the ledger only
   falls.
-- Logs and events rest sealed (ADR 0156 items 7–9): an encrypted, rotating,
+- Logs and events rest sealed (ADR 0157 items 7–9): an encrypted, rotating,
   owner-only log file for the Host and the TypeScript services
   (`OPENSESAME_LOG_FILE`; the daemon's by default); sealed event rows in Postgres
   and SQLite under keys derived from secrets the deployment already holds;

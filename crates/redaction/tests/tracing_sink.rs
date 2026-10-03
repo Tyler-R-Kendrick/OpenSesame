@@ -1,5 +1,5 @@
 //! The real pipeline: `tracing` events through a fmt layer whose sink is the
-//! scrubbing writer (ADR 0156). A call site that logs a secret by mistake must
+//! scrubbing writer (ADR 0157). A call site that logs a secret by mistake must
 //! still reach the sink scrubbed, in both line formats.
 
 #![cfg(feature = "tracing")]

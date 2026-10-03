@@ -356,7 +356,7 @@ export class DeviceFlowClient {
  *
  * Keys are this CLI's own policy: a `user_code` is printed on purpose, for a
  * person to type, and a share link is printed because it is what was asked
- * for. The value-shape scrubber (ADR 0156) therefore runs only over fields
+ * for. The value-shape scrubber (ADR 0157) therefore runs only over fields
  * that are diagnostic text, never over data a command exists to print.
  */
 export function redactSecrets(

@@ -1,5 +1,5 @@
 {
-  "$comment": "The one definition of what may never reach a log line, an event, an audit row, a telemetry property or an error string (ADR 0156). Read by packages/log-scrub (TypeScript) and crates/redaction (Rust); each runs every vector below. Patterns use the syntax both engines share: no lookaround, no backreferences, no named groups. `flags` is `i` for case-insensitive. `replace` is a template: `$1`..`$9` are capture groups, everything else is literal.",
+  "$comment": "The one definition of what may never reach a log line, an event, an audit row, a telemetry property or an error string (ADR 0157). Read by packages/log-scrub (TypeScript) and crates/redaction (Rust); each runs every vector below. Patterns use the syntax both engines share: no lookaround, no backreferences, no named groups. `flags` is `i` for case-insensitive. `replace` is a template: `$1`..`$9` are capture groups, everything else is literal.",
   "version": 1,
   "marker": "[REDACTED]",
   "keys": {

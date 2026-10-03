@@ -26,7 +26,7 @@ import { auditConflictRetryLimit } from "./conflict.js";
 
 /**
  * The `code` of the error a sealed store raises for a row that will not open
- * (`EventSealError` in `@opensesame/database`, ADR 0156).
+ * (`EventSealError` in `@opensesame/database`, ADR 0157).
  */
 const EVENT_UNREADABLE = "event_unreadable";
 

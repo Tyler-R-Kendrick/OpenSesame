@@ -1,7 +1,7 @@
 # @opensesame/log-scrub
 
 The secret scrubber every log line, event, audit row, telemetry property and
-error string passes through (ADR 0156). It is compiled from
+error string passes through (ADR 0157). It is compiled from
 [`spec/log-scrub/log-scrub.json`](../../spec/log-scrub/log-scrub.json), which
 [`crates/redaction`](../../crates/redaction) reads too: the rule set and its
 test vectors are written once, and each plane runs every vector.

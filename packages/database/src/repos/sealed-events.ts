@@ -1,5 +1,5 @@
 /**
- * Event repositories that seal what they store (ADR 0156).
+ * Event repositories that seal what they store (ADR 0157).
  *
  * A decorator over `Repositories`, so the Postgres implementation, its schema
  * and its migrations do not change: the audit trail's metadata, the outbox

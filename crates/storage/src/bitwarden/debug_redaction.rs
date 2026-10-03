@@ -1,4 +1,4 @@
-//! `Debug` for the Bitwarden records that hold key material (ADR 0156).
+//! `Debug` for the Bitwarden records that hold key material (ADR 0157).
 //!
 //! The server stores a hash of each master-password hash, the client-wrapped
 //! user and organization keys, an API key, a recovery code and an

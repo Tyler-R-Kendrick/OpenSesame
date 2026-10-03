@@ -151,7 +151,7 @@ function sanitizeProps(props: JsonObject | undefined): JsonObject {
     // cutoff must still be caught, not sliced away and waved through.
     if (containsForbidden(String(rawValue))) continue;
     // A value shaped like a credential (a JWT, a bearer, a `#token=` URL) is
-    // dropped whole rather than scrubbed: telemetry has no use for it (ADR 0156).
+    // dropped whole rather than scrubbed: telemetry has no use for it (ADR 0157).
     if (scrubText(String(rawValue)) !== String(rawValue)) continue;
 
     out[key] = coercePrimitive(rawValue);

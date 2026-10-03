@@ -159,7 +159,7 @@ async fn build_with_security(
     } else {
         Db::connect_sqlite(&args.database_url).await?
     };
-    // Before anything writes an event: they rest sealed (ADR 0156).
+    // Before anything writes an event: they rest sealed (ADR 0157).
     let broker_config = BrokerConfig::from_env()?;
     let production = security.deployment.production_safeguards();
     crate::event_sealing::install(&db, &broker_config, production).await?;

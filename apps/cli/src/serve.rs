@@ -36,7 +36,7 @@ pub async fn worker(cmd: WorkerCmd) -> anyhow::Result<()> {
 /// collectors expect); every other command logs warnings to stderr so its
 /// stdout stays the command's output.
 ///
-/// Every sink is wrapped in a scrubbing writer (ADR 0156): a call site that
+/// Every sink is wrapped in a scrubbing writer (ADR 0157): a call site that
 /// logs a secret by mistake, a library error that echoes a URL with a token in
 /// it and a panic message all reach the collector or the file already scrubbed.
 /// With `OPENSESAME_LOG_FILE` set the server's lines are sealed into that file

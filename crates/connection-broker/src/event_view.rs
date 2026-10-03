@@ -1,4 +1,4 @@
-//! A connection event read back: its detail rests sealed (ADR 0156).
+//! A connection event read back: its detail rests sealed (ADR 0157).
 
 use sqlx::{sqlite::SqliteRow, Row};
 

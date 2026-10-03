@@ -1,5 +1,5 @@
 /**
- * Reading a keymap back from storage (ADR 0150). A panel or a file is refused
+ * Reading a keymap back from storage (ADR 0156). A panel or a file is refused
  * whole, so a person is told and nothing is half-applied. What was stored is
  * different: it was valid when it was written, and a later build may retire a
  * command or tighten a rule. One entry that no longer passes must not take the

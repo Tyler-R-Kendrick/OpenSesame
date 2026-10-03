@@ -1,5 +1,5 @@
 /**
- * An encrypted, rotating log file for the TypeScript services (ADR 0156).
+ * An encrypted, rotating log file for the TypeScript services (ADR 0157).
  *
  * The same format as `crates/sealed-log`, so one reader opens both: each line is
  * `osl1.` + base64url(24-byte nonce | XChaCha20-Poly1305 ciphertext and tag),

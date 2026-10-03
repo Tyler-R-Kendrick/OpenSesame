@@ -1,4 +1,4 @@
-//! Text about a failed delivery that outlives the attempt (ADR 0156).
+//! Text about a failed delivery that outlives the attempt (ADR 0157).
 //!
 //! A sink's endpoint is the hook's secret-bearing address: it can carry a token
 //! in its query, and a transport error names it. That text is persisted on the

@@ -1,5 +1,5 @@
 //! A queued row whose sealed value will not open is set aside, not retried
-//! (ADR 0156).
+//! (ADR 0157).
 //!
 //! A claim loop that failed its whole batch on one unreadable row (a key that
 //! changed, a value that was altered) would fail again on every tick and hold

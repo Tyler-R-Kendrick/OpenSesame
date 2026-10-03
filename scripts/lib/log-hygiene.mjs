@@ -1,6 +1,6 @@
 /**
  * The log-hygiene rules -- what `scripts/quality/log-hygiene-gate.mjs` enforces
- * (ADR 0156).
+ * (ADR 0157).
  *
  * Every log line passes through the shared scrubber only if it goes through the
  * logger that runs it. A call site that writes straight to the console, builds

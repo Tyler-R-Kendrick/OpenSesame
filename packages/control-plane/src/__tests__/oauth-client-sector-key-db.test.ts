@@ -31,7 +31,7 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: MIGRATIONS });
   // Two replicas of the Identity API over one database.
   // Replicas share their configuration; the one they must share is the secret
-  // event rows are sealed under (ADR 0156).
+  // event rows are sealed under (ADR 0157).
   const options = {
     database: overlapCast(db),
     processEnv: { ...process.env, OPENSESAME_CLAIM_PEPPER: "r".repeat(48) },
