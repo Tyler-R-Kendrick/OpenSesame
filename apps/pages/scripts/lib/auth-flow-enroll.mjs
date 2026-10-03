@@ -35,6 +35,20 @@ export async function enterEnrollmentCode(page, code) {
   await dialog.getByRole("button", { name: "Turn on" }).click();
 }
 
+/**
+ * A wrong enrollment code is refused on the field that was refused — a mark
+ * whose sentence is its name — not in a box on the page behind the sheet
+ * (DESIGN.md).
+ */
+export async function expectRefusedOnField(page, check) {
+  const dialog = page.getByRole("dialog");
+  check(
+    (await dialog.getByRole("img", { name: "Did not match" }).count()) === 1 &&
+      (await page.locator(".note").count()) === 0,
+    "a wrong enrollment code is refused, on the field",
+  );
+}
+
 /** Trash the vault's self-supplied authenticator: an item in the vault. */
 export async function withdrawSelfAuthenticator(page, check) {
   // Enrollment happens under Settings, which replaces the vault tree.
