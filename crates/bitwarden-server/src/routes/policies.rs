@@ -29,8 +29,6 @@ use crate::error::{ApiError, ApiResult};
 use crate::wire::cipher::normalize;
 use crate::BitwardenServer;
 
-pub(crate) const TWO_FACTOR: i64 = 0;
-pub(crate) const SINGLE_ORG: i64 = 3;
 pub(crate) const PERSONAL_OWNERSHIP: i64 = 5;
 pub(crate) const DISABLE_SEND: i64 = 6;
 pub(crate) const SEND_OPTIONS: i64 = 7;
@@ -146,9 +144,10 @@ async fn set(
         revision_at: Utc::now(),
         ..current.unwrap_or_else(|| unset(&org, kind))
     };
-    server.db.bitwarden_put_policy(&policy).await?;
-    if enabled {
-        super::policy_rules::enforce_on_enable(&server, &org, kind).await?;
+    // Set, and the members it excludes revoked, in one transaction.
+    let revoked = server.db.bitwarden_put_policy_enforcing(&policy).await?;
+    for user_id in &revoked {
+        super::touch(&server, user_id).await?;
     }
     super::touch_org(&server, &org).await?;
     Ok(Json(policy_json(&policy)))
