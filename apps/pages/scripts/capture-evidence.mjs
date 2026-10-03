@@ -338,9 +338,8 @@ const STEPS = {
 async function capture(browser, into) {
   fs.mkdirSync(into, { recursive: true });
   for (const screen of journey.screens) {
-    // A desktop pair has to be captured with a mouse: `phoneContext` forces
-    // `hasTouch`, and a width-and-pointer rule would then show the phone
-    // arrangement at 1280 — evidence of a screen nobody sees.
+    // A desktop pair needs a mouse: `phoneContext` forces `hasTouch`, and a
+    // width-and-pointer rule would then show the phone arrangement at 1280.
     const { page, context } = await harness.newPage(browser, {
       device: screen.desktop
         ? { viewport: { width: screen.width, height: screen.height } }
