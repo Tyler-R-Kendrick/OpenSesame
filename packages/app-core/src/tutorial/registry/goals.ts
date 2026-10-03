@@ -135,7 +135,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "settings.security.review"',
       'navigate "/settings/security"',
       'wait route "/settings/security" timeout=15000',
-      'say "Security holds the unlock methods enrolled on this device, and the master password those unlocks are wrapped under."',
+      'say "Security holds the unlock methods enrolled on this device, the keys enrolled on each open vault (Vault key protection), and the master password those unlocks are wrapped under."',
       'focus "settings.master-password" "Changing it re-wraps the vault key. No item is re-encrypted, and nothing is re-uploaded." side=top',
       "end",
     ].join("\n"),

@@ -16,6 +16,10 @@
 - Amended 2026-10-03: a protector that can open the vault is a way in at the
   unlock screen ("Opening the vault from a protector", below); the sentence that
   said only the header's own wraps do is replaced
+- Amended 2026-10-03 (security review): what authenticates a record before unlock
+  is stated per kind — age capsules are not self-authenticating, so every opened
+  root must verify the manifest MAC; and a `prf_and_code` duress trigger fails
+  closed for roads that cannot carry its PRF output
 
 ## Context
 
@@ -102,9 +106,18 @@ the record reaches the manifest only through `commitEnrollment`.
   (a vault-sealed one is refused above) — independent, and an `untested` one
   counts for nothing; AWS KMS, Google Cloud KMS and Azure Key Vault Keys read
   their provider credential from Connections, sealed in this vault — **not**
-  independent, however often they are tested. So with a password and a verified
-  AWS KMS key, removing the password is refused; add a verified recovery key (or
-  an age recipient proved with an identity held elsewhere) and it is allowed.
+  independent, however often they are tested. This guard is a
+  manifest-level backstop, and it binds where nothing else does: the header's own
+  wraps (password, PIN, passkey) are removed under Unlock methods, which keeps
+  one primary unlock through `assertKeepsPrimaryUnlock` and never reaches the
+  manifest, and `removeProtector` already refuses a row the header wraps. The
+  legacy wrap records are always `verified` and independent, so while the header
+  has any wrap the manifest holds an independent record and a cloud key can never
+  be what keeps it from firing. What the guard does decide is a manifest whose
+  only remaining independent records are being removed: with a verified cloud key
+  and nothing else independent, removing the last independent record is refused;
+  add a verified recovery key (or an age recipient proved with an identity held
+  elsewhere) and it is allowed.
   The answer is a function of the kind and adds no field to a record, so a
   manifest an earlier build wrote keeps its bytes and its authentication tag and
   gets the stricter answer on its next removal. A future enroller that holds a
@@ -175,7 +188,7 @@ capsule needs at the moment the vault is still locked:
 | Passkey capsule (manifest `webauthn-prf`, not the header's own wrap) | the existing **Passkey** tab | a PRF output opens the wrap; it joins the header passkey's ceremony, so one prompt offers every credential |
 | AWS KMS, Google Cloud KMS | **never** | the credential is sealed in the vault it protects (KP-37); presenting it needs the vault already open |
 | YubiKey PIV through age | never | no browser road exists (above) |
-| Azure Key Vault Keys, device-local | never | not enrolled by the browser (above), and a header edited to carry one opens nothing |
+| Azure Key Vault Keys, device-local | never | not enrolled by the browser (above); no opener exists for them, so a header edited to carry one offers no road |
 
 The cloud decision is final: the unlock screen never draws a cloud tab, and
 `unlock-protector-methods.ts` never lists a record of those kinds, whatever the
@@ -185,11 +198,34 @@ holds the credential somewhere else, tested from Settings.
 **The manifest is readable before unlock; its MAC is not.** `header.protection`
 is plaintext, so the records and their capsules are there to read; only the
 manifest's MAC (`authB64`) needs the root. The screen therefore lists tabs from
-the unauthenticated records, and authenticity falls on the capsule itself: each
-is AES-GCM (or age) bound to its context — vault id, root key id, root epoch,
-protector id, purpose — so a record edited, moved or forged opens nothing, and a
-root that does not open the vault's own body is refused at activation. An edit
-to the header can hide a tab or draw one that fails; it can never open a vault.
+the unauthenticated records, and what authenticates a record depends on its kind,
+stated here as it is:
+
+- **AES-GCM kinds** (recovery key, passkey capsule) are bound to their context —
+  vault id, root key id, root epoch, protector id, purpose — as additional
+  authenticated data under a key only the person's material derives. A record
+  edited, moved or forged does not open: whoever lacks the secret cannot make
+  one.
+- **Age kinds** (age recipient, age passkey) are **not** authenticated by the
+  capsule. Age encryption to a public recipient needs no secret, and the context
+  inside the payload is public, so anyone who can write the header can seal a
+  capsule around a root of their choosing, to the vault's own recipient, with a
+  context that matches. The capsule proves only that the holder of the identity
+  opened *a* root.
+- **What stands behind both is the root.** After any capsule opens — every kind
+  on this road — the root must verify the manifest's root-derived MAC
+  (`authB64`), or it is treated as the next capsule not opening: a wrong key, one
+  counted miss, nothing stashed or held. A capsule swapped into an authenticated
+  manifest fails there. A forger who rewrites the whole manifest under a root of
+  their own verifies it, and is stopped by the last check: that root does not
+  open the vault's own body, and activation refuses it.
+- **What protects the header is the at-rest seal** ([ADR 0149](0149-nothing-stored-in-the-clear.md)),
+  not these records. An attacker with write access to the device's storage can
+  still delete or corrupt a header, hide a tab, or draw one that fails — a
+  denial, never an entry. The passkey road keeps its own check (an AES-GCM wrap
+  under a PRF-derived key, then the body) and is not made to depend on the
+  manifest's MAC, because the header's own passkey wrap predates the manifest and
+  a lockout of the daily way in must not hang on housekeeping data.
 
 **A protector is offered only while its proof is current.** A record is a tab
 when its `proofStatus` is `verified`. A recipient pasted with no identity is
@@ -215,8 +251,18 @@ of `unlock`:
   nothing typed: when a two-input trigger is armed it only opens the root and
   *holds* it (zeroed on every clear), and the complete code that follows decides
   between decoy and vault through the passkey road's own `completePasskeyDuressCode`.
-  A `prf_and_code` trigger cannot be satisfied by an age passkey, which has no
-  PRF output — by design, as for a code with no passkey;
+  **A `prf_and_code` trigger fails closed.** It is bound to one passkey's PRF
+  output, and an age-passkey tap has none: a typed duress code could never be
+  tried against it, "no match" would read as an ordinary code, and the real
+  vault would open past it. So while such a trigger is armed the **Age passkey**
+  tab is absent and the gate refuses it before any ceremony runs; the **Passkey**
+  tab offers only the credential the trigger is bound to (and is absent when the
+  vault holds none), and the credential that actually answered — not the header's
+  first — is what the evidence names; and a complete code whose evidence cannot
+  satisfy every armed `prf_and_code` trigger opens nothing (the held root and PRF
+  output are zeroed). The cost is stated plainly: with such a trigger armed, the
+  roads that cannot carry it are not available, and the password, PIN and typed
+  keys are unaffected (`unlock-prf-trigger.ts`);
 - the secret is a function argument and a React state value cleared on submit,
   failure and tab change. It is never logged, never written to a store, never
   given to the browser's autofill (`autocomplete="off"`), and the capsule's

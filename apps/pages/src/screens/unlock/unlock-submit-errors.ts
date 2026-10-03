@@ -2,6 +2,7 @@ import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlo
 import { describeWebauthnError } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { WrongPasswordError } from "@opensesame/vault-core";
 import type { MutableRefObject } from "react";
+import type { PendingFocus } from "./use-refocus-after-failure.js";
 
 export function applyUnlockSubmitFailure(input: {
   caught: unknown;
@@ -16,6 +17,7 @@ export function applyUnlockSubmitFailure(input: {
   pinRef: MutableRefObject<HTMLInputElement | null>;
   passwordRef: MutableRefObject<HTMLInputElement | null>;
   protectorRef: MutableRefObject<HTMLInputElement | null>;
+  pendingFocus: PendingFocus;
 }): void {
   if (
     input.caught instanceof DOMException &&
@@ -40,15 +42,12 @@ export function applyUnlockSubmitFailure(input: {
   input.setProtectorSecret("");
   input.setPin("");
   input.setTotp("");
-  // The field is disabled while the attempt is in flight, and focus() on a
-  // disabled control does nothing — a browser also drops focus from a control
-  // the moment it is disabled. Put the caret back once the form has re-enabled.
-  const target = input.awaitingSecondStep
+  // Granted by useRefocusAfterFailure once the form has re-enabled.
+  input.pendingFocus.current = input.awaitingSecondStep
     ? input.totpRef
     : input.activeMethod === "pin"
       ? input.pinRef
       : input.activeMethod === "recovery" || input.activeMethod === "age"
         ? input.protectorRef
         : input.passwordRef;
-  setTimeout(() => target.current?.focus(), 0);
 }

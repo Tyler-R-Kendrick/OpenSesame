@@ -1,3 +1,7 @@
+import type {
+  PasskeyProbe,
+  PasskeyProbeOptions,
+} from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
@@ -10,6 +14,7 @@ import {
   submitSecondStepUnlock,
 } from "./unlock-form-paths.js";
 import { applyUnlockSubmitFailure } from "./unlock-submit-errors.js";
+import type { PendingFocus } from "./use-refocus-after-failure.js";
 
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
@@ -21,7 +26,9 @@ type UnlockStore = Readonly<{
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
   unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-  probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
+  probePasskeyCeremony: (
+    options?: PasskeyProbeOptions,
+  ) => Promise<PasskeyProbe>;
   unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
@@ -66,6 +73,7 @@ export async function submitUnlockForm(input: {
   passwordRef: MutableRefObject<HTMLInputElement | null>;
   protectorRef: MutableRefObject<HTMLInputElement | null>;
   totpRef: MutableRefObject<HTMLInputElement | null>;
+  pendingFocus: PendingFocus;
 }): Promise<void> {
   input.event.preventDefault();
   if (input.busy) return;
@@ -108,6 +116,7 @@ export async function submitUnlockForm(input: {
       pinRef: input.pinRef,
       passwordRef: input.passwordRef,
       protectorRef: input.protectorRef,
+      pendingFocus: input.pendingFocus,
     });
   } finally {
     input.setBusy(false);

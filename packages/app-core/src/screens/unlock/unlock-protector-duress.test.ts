@@ -22,6 +22,8 @@ import { completePasskeyDuressCode } from "./unlock-passkey-duress.js";
 import {
   clearPasskeyDuressEvidence,
   hasHeldProtectorRoot,
+  holdProtectorRoot,
+  stashPasskeyDuressEvidence,
 } from "./unlock-passkey-evidence.js";
 import { unlockWithProtectorAfterDuressGate } from "./unlock-protector-duress.js";
 
@@ -65,7 +67,10 @@ function store() {
     probeProtector: vi.fn(async () => new Uint8Array(32).fill(9).buffer),
     unlockWithHeldProtectorRoot: vi.fn(async () => undefined),
     unlockWithPasskey: vi.fn(async () => undefined),
-    probePasskeyPrf: vi.fn(async () => new ArrayBuffer(32)),
+    probePasskeyCeremony: vi.fn(async () => ({
+      prfOutput: new ArrayBuffer(32),
+      credentialIdB64: "cred-1",
+    })),
     unlockWithHeldPrf: vi.fn(async () => undefined),
     createGuest: vi.fn(async () => undefined),
     cancelTotpChallenge: vi.fn(),
@@ -176,6 +181,20 @@ describe("an age-passkey tap", () => {
     await unlockWithProtectorAfterDuressGate(store(), input, OPTIONS);
     expect(hasHeldProtectorRoot()).toBe(true);
     clearPasskeyDuressEvidence();
+    expect(hasHeldProtectorRoot()).toBe(false);
+  });
+
+  it("zeroes a held root it has no way to spend before refusing", async () => {
+    await arm("restricted", "verified_uv_then_code");
+    const s = store();
+    const held = new Uint8Array(32).fill(9);
+    holdProtectorRoot(held.buffer, "agePasskey");
+    stashPasskeyDuressEvidence({ userVerified: true, prfOutput: null });
+    const { unlockWithHeldProtectorRoot: _unspendable, ...incapable } = s;
+    await expect(
+      completePasskeyDuressCode(incapable, "99887766", OPTIONS),
+    ).rejects.toBeInstanceOf(WrongPasswordError);
+    expect([...held].every((byte) => byte === 0)).toBe(true);
     expect(hasHeldProtectorRoot()).toBe(false);
   });
 

@@ -14,6 +14,7 @@
 import { WrongPasswordError } from "@opensesame/vault-core";
 import {
   type ProtectorUnlockInput,
+  UNLOCK_AGE_PASSKEY_MISS,
   protectorUnlockMiss,
 } from "../../lib/vault/protection/unlock-protector-open.js";
 import { maybePage } from "../../ports.js";
@@ -33,6 +34,7 @@ import {
   stashPasskeyDuressEvidence,
   toSelectOptions,
 } from "./unlock-passkey-evidence.js";
+import { prfTriggerArmed } from "./unlock-prf-trigger.js";
 
 export type ProtectorUnlockResult =
   | "vault_opened"
@@ -67,7 +69,14 @@ export async function unlockWithProtectorAfterDuressGate(
   input: ProtectorUnlockInput,
   options: UnlockDuressGateOptions = DEFAULT_UNLOCK_DURESS_GATE_OPTIONS,
 ): Promise<ProtectorUnlockResult> {
-  if (input.method === "agePasskey") return tapUnlock(store, input);
+  if (input.method === "agePasskey") {
+    // A tap has no PRF output, so it cannot carry a prf_and_code trigger: the
+    // road is absent from the screen while one is armed, and refused here
+    // before any ceremony runs, rather than opening past a duress code.
+    if (prfTriggerArmed())
+      throw new WrongPasswordError(UNLOCK_AGE_PASSKEY_MISS);
+    return tapUnlock(store, input);
+  }
   const miss = protectorUnlockMiss(input.method);
   const duressOutcome = await onCompleteUnlockCodeSubmission(
     input.secret ?? "",
