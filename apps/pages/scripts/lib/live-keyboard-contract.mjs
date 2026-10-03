@@ -30,14 +30,54 @@ function whereFocus(selector) {
   return "ok";
 }
 
-/** The keyboard is inside `selector`, on something drawn and ringed — not <body>. */
+/**
+ * Ringed is not seen: the focused control must sit inside the viewport and be
+ * what a finger or a pointer hits at its centre, not the sticky strip or bar
+ * that scrolled over it (AGENTS.md §5, "visible, useful focus").
+ */
+function whereSeen() {
+  const el = document.activeElement;
+  const box = el.getBoundingClientRect();
+  const name = el.getAttribute("aria-label") || el.id || el.tagName;
+  const where = `${Math.round(box.width)}x${Math.round(box.height)} at (${Math.round(box.left)},${Math.round(box.top)})`;
+  const inside =
+    box.top >= 0 &&
+    box.left >= 0 &&
+    box.bottom <= window.innerHeight &&
+    box.right <= window.innerWidth;
+  if (!inside) return `outside the viewport: ${name}, ${where}`;
+  const x = box.left + box.width / 2;
+  const hit = document.elementFromPoint(x, box.top + box.height / 2);
+  if (hit && (el === hit || el.contains(hit) || hit.contains(el))) return "ok";
+  return `covered by ${hit?.className || hit?.tagName}: ${name}, ${where}`;
+}
+
+/**
+ * The keyboard is inside `selector`, on something drawn, ringed, inside the
+ * viewport and not covered by other chrome — not <body>.
+ */
 export async function focusIn(page, selector, what) {
+  const read = async () => {
+    const found = await page.evaluate(whereFocus, selector);
+    return found === "ok" ? page.evaluate(whereSeen) : found;
+  };
   await expect
-    .poll(() => page.evaluate(whereFocus, selector), {
-      message: `${what}: focus`,
-      timeout: 10_000,
-    })
+    .poll(read, { message: `${what}: focus`, timeout: 10_000 })
     .toBe("ok");
+}
+
+/** Print where the focused control sits and what is at its centre (evidence). */
+async function measure(page, what) {
+  const found = await page.evaluate(() => {
+    const el = document.activeElement;
+    const b = el.getBoundingClientRect();
+    const x = b.left + b.width / 2;
+    const hit = document.elementFromPoint(x, b.top + b.height / 2);
+    const at = `(${Math.round(b.left)},${Math.round(b.top)})`;
+    return `${el.getAttribute("aria-label")}: ${Math.round(b.width)}x${Math.round(b.height)} at ${at}; at its centre: ${hit?.className || hit?.tagName}`;
+  });
+  const { width, height } = page.viewportSize();
+  console.log(`MEASURE ${what} (${width}x${height}): ${found}`);
 }
 
 /** The name of the focused control: its label, else its text. */
@@ -102,6 +142,7 @@ async function ownerStarts(page, tabTo) {
   await page.keyboard.press("Enter");
   const copyLink = panel.getByRole("button", { name: "Copy the link" });
   await expect(copyLink, "Start lands on the Copy link key").toBeFocused();
+  if (process.env.LIVE_MEASURE) await measure(page, "after Start");
   await focusIn(page, "#live-session", "after Start");
   await page.keyboard.press("Enter");
   const link = await copied(page);
@@ -146,12 +187,14 @@ async function ownerAdmits(page, { request, tabTo }) {
   const letIn = panel.getByRole("button", { name: "Let Ada Lovelace in" });
   await expect(letIn).toBeVisible();
   await expect(field, "a paste returns to its field").toBeFocused();
+  await focusIn(page, "#live-session", "after a paste");
   await tabTo(page, letIn);
   await page.keyboard.press("Enter");
   const reply = panel.getByRole("button", {
     name: "Copy the reply code for Ada Lovelace",
   });
   await expect(reply, "Let in lands on the reply code").toBeFocused();
+  await focusIn(page, "#live-session", "after Let in");
   await page.keyboard.press("Enter");
   return copied(page);
 }
@@ -166,6 +209,7 @@ async function joinerConnects(page, { reply, tabTo }) {
     page.getByRole("img", { name: "That reply is not for this request" }),
   ).toBeVisible();
   await expect(field, "a wrong reply returns to its field").toBeFocused();
+  await focusIn(page, ".live-join", "after a wrong reply");
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
@@ -193,6 +237,7 @@ async function endings(owner, joiner, { tabTo }) {
     panel.getByLabel("A request code", { exact: true }),
     "Remove lands on the request field",
   ).toBeFocused();
+  await focusIn(owner, "#live-session", "after Remove");
 
   await expect(
     joiner.getByRole("img", { name: "The session ended" }),
@@ -253,7 +298,10 @@ export async function liveKeyboardContract({
           origin,
         },
       );
-      await made.page.setViewportSize({ width, height: 900 });
+      await made.page.setViewportSize({
+        width,
+        height: width < 600 ? 640 : 900,
+      });
       return made;
     };
     const owner = await device();
