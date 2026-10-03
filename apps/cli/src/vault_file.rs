@@ -193,10 +193,10 @@ fn forward(args: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn push_flag(args: &mut Vec<String>, flag: &str, value: &Option<String>) {
+fn push_flag(args: &mut Vec<String>, flag: &str, value: Option<&str>) {
     if let Some(value) = value {
         args.push(flag.to_string());
-        args.push(value.clone());
+        args.push(value.to_string());
     }
 }
 
@@ -217,7 +217,7 @@ fn item_args(output: &str, cmd: &VaultCmd) -> Option<Vec<String>> {
                 "--name".to_string(),
                 name.clone(),
             ]);
-            push_flag(&mut args, "--username", username);
+            push_flag(&mut args, "--username", username.as_deref());
         }
         VaultCmd::List => args.push("list".to_string()),
         VaultCmd::Import { file } => {
@@ -229,7 +229,9 @@ fn item_args(output: &str, cmd: &VaultCmd) -> Option<Vec<String>> {
             push_flag(
                 &mut args,
                 "--out",
-                &out.as_ref().map(|path| path.display().to_string()),
+                out.as_ref()
+                    .map(|path| path.display().to_string())
+                    .as_deref(),
             );
         }
         VaultCmd::Set {
@@ -239,8 +241,8 @@ fn item_args(output: &str, cmd: &VaultCmd) -> Option<Vec<String>> {
             secret,
         } => {
             args.extend(["set".to_string(), query.clone()]);
-            push_flag(&mut args, "--name", name);
-            push_flag(&mut args, "--username", username);
+            push_flag(&mut args, "--name", name.as_deref());
+            push_flag(&mut args, "--username", username.as_deref());
             if *secret {
                 args.push("--secret".to_string());
             }
