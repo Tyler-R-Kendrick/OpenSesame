@@ -9,7 +9,7 @@
  */
 import { applyWaysInPatch } from "../screens/setup/ways-in-patch.js";
 import { remoteIdentityApi } from "./device-identity.js";
-import { loadSettings, saveSettings } from "./settings.js";
+import { defaultIdentityApi, loadSettings, saveSettings } from "./settings.js";
 
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -31,7 +31,7 @@ export function normalizeSignInService(raw: string): string | null {
   const secure = url.protocol === "https:";
   const local = url.protocol === "http:" && LOOPBACK.has(url.hostname);
   if (!secure && !local) return null;
-  return url.href.replace(/\/$/, "");
+  return url.href.replace(/\/+$/, "");
 }
 
 /** The address kept on this device, or "" when there is none. */
@@ -42,6 +42,16 @@ export function readSignInService(): string {
 /** Keep `address` (already normalised). Everything else in Settings stands. */
 export function writeSignInService(address: string): void {
   saveSettings(applyWaysInPatch(loadSettings(), { identityApi: address }));
+}
+
+/**
+ * True when the address in use is the one the deployment supplies. Forgetting
+ * it would fall straight back to it, so there is nothing to forget: Change
+ * overrides it, and Remove is not offered.
+ */
+export function signInServiceIsDeployed(): boolean {
+  const deployed = defaultIdentityApi().trim().replace(/\/+$/, "");
+  return deployed.length > 0 && readSignInService() === deployed;
 }
 
 /** Forget the address; email and text codes stop being offered. */
