@@ -363,14 +363,16 @@ describe("bindings", () => {
     release();
   });
 
-  it("Control n/p move and n/p without Control create/previous-verb", () => {
+  it("Control p moves, Control n is the browser's, and n/p without Control create/previous-verb", () => {
     const tree = vault();
     const release = registerVaultKeymap(tree);
     const handler = createKeymapHandler({
       navigate: vi.fn(),
       showHelp: vi.fn(),
     });
-    press(handler, "n", { ctrlKey: true });
+    // Ctrl+N opens a browser window: the shell leaves it alone.
+    const newWindow = press(handler, "n", { ctrlKey: true });
+    expect(newWindow.defaultPrevented).toBe(false);
     press(handler, "p", { ctrlKey: true });
     press(handler, "n");
     press(handler, "u");
@@ -381,7 +383,7 @@ describe("bindings", () => {
     press(handler, "y");
     press(handler, "$");
     press(handler, "?");
-    expect(tree.next).toHaveBeenCalledWith(1);
+    expect(tree.next).not.toHaveBeenCalled();
     expect(tree.previous).toHaveBeenCalledWith(1);
     expect(tree.create).toHaveBeenCalledOnce();
     expect(tree.copyUsername).toHaveBeenCalledOnce();

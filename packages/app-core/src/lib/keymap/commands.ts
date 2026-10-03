@@ -74,7 +74,7 @@ const COMMANDS: readonly KeymapCommand[] = [
     label: "Next row",
     group: "move",
     kind: "navigate",
-    defaults: ["j", "ArrowDown", "Control+n"],
+    defaults: ["j", "ArrowDown"],
     counts: true,
   },
   {
@@ -373,6 +373,7 @@ const reserved = new Map([
   ["Control+t", "The browser's"],
   ["Control+T", "The browser's"],
   ["Control+W", "The browser's"],
+  ["Control+n", "The browser's"],
   ["Control+N", "The browser's"],
   ["Control+q", "The browser's"],
   ["Control+r", "The browser's"],

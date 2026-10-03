@@ -146,7 +146,7 @@ that round-trips with the table.
   or AltGr (`@` on a German layout) is that symbol and binds as one. The
   browser's own tab, window and
   reload keys are refused too (Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+PageUp/Down,
-  Ctrl+1–9, Ctrl+W/T, Ctrl+Shift+T/W/N, Ctrl+Q, Ctrl+R, F5, F11, F12).
+  Ctrl+1–9, Ctrl+N/W/T, Ctrl+Shift+T/W/N, Ctrl+Q, Ctrl+R, F5, F11, F12).
 - **A command that asks before it acts** (`item.trash`, `item.share`) is
   locked. No key may be moved onto it, so a remap cannot turn a key that
   used to move the cursor into a share. No macro may run it. Its own key

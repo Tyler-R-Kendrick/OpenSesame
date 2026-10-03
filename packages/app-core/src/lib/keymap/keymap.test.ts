@@ -98,6 +98,7 @@ describe("reading a keymap", () => {
       "Control+Shift+t",
       "Control+Shift+w",
       "Control+Shift+n",
+      "Control+n",
       "Control+q",
       "Control+r",
       "F5",
@@ -109,8 +110,17 @@ describe("reading a keymap", () => {
       expect(read({ bindings: { [key]: "listing.next" } }).ok, key).toBe(false);
     }
     // The shipped Control defaults stay bindable.
-    for (const key of ["Control+n", "Control+p", "Control+d", "Control+l"])
+    for (const key of ["Control+p", "Control+d", "Control+l"])
       expect(reservedReason(key), key).toBeNull();
+  });
+
+  it("ships no default on a key the browser keeps for its windows and tabs", () => {
+    for (const command of CORE_COMMANDS)
+      for (const sequence of command.defaults)
+        expect(
+          reservedReason(sequence),
+          `${command.id} ${sequence}`,
+        ).toBeNull();
   });
 
   it("never moves a key onto a command that asks before it acts", () => {
