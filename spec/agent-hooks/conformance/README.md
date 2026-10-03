@@ -19,9 +19,9 @@ feature) but not the vectors, so they live here.
 
 | Path | Upstream path | Read by |
 |---|---|---|
-| `vectors/AH-CTK-*.json` (47) | `conformance/vectors/` | `crates/rotation-web/tests/agent_hooks_ctk.rs` through `agent_hooks::ctk::run_vector`; `tests/ctk_tool_seam.rs` replays the tool-seam `interceptor_script`s (not part of the claim) |
+| `vectors/AH-CTK-*.json` (47) | `conformance/vectors/` | `crates/rotation-web/tests/agent_hooks_ctk.rs` (the rotation host, as it is) and `tests/agent_hooks_ctk_mock_loop.rs` (the emission engine through a mock-agent loop), each through `agent_hooks::ctk::run_vector`; `tests/ctk_tool_seam.rs` replays the tool-seam `interceptor_script`s (not part of either claim) |
 | `vectors.schema.json` | `conformance/vectors.schema.json` | reference only — the vectors' JSON Schema |
-| `golden/identity.json` | `conformance/golden/identity.json` | the same test, against `agent_hooks::context_identity` (§10.2 applies because the declared provider is `jcs-sha256`) |
+| `golden/identity.json` | `conformance/golden/identity.json` | `agent_hooks_ctk.rs`'s identity test, against `agent_hooks::context_identity` (§10.2 applies because the declared provider is `jcs-sha256`) |
 
 Nothing here is edited. A vector that fails is fixed in the adapter, never
 here, and never filtered out of the run. The declared surface, the observed

@@ -189,7 +189,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0147](0147-connector-plans-and-user-token-proof.md) | Connector plans, whole-configuration connectors, and the user-token proof | Accepted |
 | [0148](0148-bitwarden-bridge-and-importer.md) | The Bitwarden server as an optional bridge, and moving onto it | Accepted |
 | [0149](0149-nothing-stored-in-the-clear.md) | Nothing the client stores rests in the clear | Accepted |
-| [0150](0150-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor | Accepted |
 | [0150](0150-live-sessions-browser-to-browser.md) | Live sessions: joining someone's vault browser to browser | Accepted |
 | [0150](0150-surrogate-credentials-at-the-last-hop.md) | Surrogate credentials at the last hop | Proposed |
 | [0151](0151-connector-pages-act-on-the-roads-a-device-has.md) | A connector page acts on the roads a device has, or is not drawn | Accepted |
@@ -200,3 +199,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0156](0156-keybindings-and-macros.md) | Keybindings are their own settings, and every key is a person's | Accepted |
 | [0157](0157-logs-and-events-carry-no-secrets.md) | Logs and events carry no secrets, and rest sealed | Accepted |
 | [0158](0158-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
+| [0159](0159-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor and host | Accepted |

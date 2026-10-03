@@ -12,11 +12,13 @@
 
 use chrono::DateTime;
 use chrono::Utc;
-use opensesame_lifecycle::{should_respond, LifecycleEvent, Watermark, MAX_DETAIL_CHARS};
+use opensesame_lifecycle::{
+    should_respond, LifecycleEvent, SubjectKind, Watermark, MAX_DETAIL_CHARS,
+};
 use opensesame_storage::StoredLifecycleWatermark;
 
 use crate::app_state::AppState;
-use crate::lifecycle::responders;
+use crate::lifecycle::responders::{self, Outcome};
 use crate::security;
 
 /// Publish one ladder event and settle everything it implies.
@@ -40,9 +42,39 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
     if !claimed || !should_respond(event) {
         return;
     }
-    let outcome = responders::respond(state, event).await;
+    let outcome = respond_or_start(state, event).await;
+    settle_outcome(state, event, &outcome, now).await;
+}
+
+/// The scanner's entry to the platform responder.
+///
+/// A web login is a run of up to 15 minutes, every step waiting on a person's
+/// browser, so it is *started* as a tracked task and the scanner moves on;
+/// every other kind is an act of moments and is done inline.
+async fn respond_or_start(state: &AppState, event: &LifecycleEvent) -> Outcome {
+    if event.subject.kind == SubjectKind::WebLogin {
+        return crate::web_login::start(state, event).await;
+    }
+    responders::respond(state, event).await
+}
+
+/// Log a responder's outcome and publish it as a subscribable event.
+///
+/// A run that was only *started* has no outcome yet, so nothing is published
+/// for it here: the run calls this itself when it ends. Publishing "success"
+/// for a run that has begun would resolve the alert an approaching deadline
+/// opened before anything was fixed.
+pub(crate) async fn settle_outcome(
+    state: &AppState,
+    event: &LifecycleEvent,
+    outcome: &Outcome,
+    now: DateTime<Utc>,
+) {
     let detail: String = outcome.detail.chars().take(MAX_DETAIL_CHARS).collect();
-    log_outcome(event, outcome.succeeded, &detail);
+    log_outcome(event, outcome, &detail);
+    if outcome.pending {
+        return;
+    }
 
     // The outcome is itself a subscribable event: a tool that wants to take
     // over when our rotation fails needs to hear that it failed. It is never
@@ -60,12 +92,13 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
     security::dispatch::publish(state, &outcome_event.notice(), now).await;
 }
 
-fn log_outcome(event: &LifecycleEvent, succeeded: bool, detail: &str) {
-    if succeeded {
+fn log_outcome(event: &LifecycleEvent, outcome: &Outcome, detail: &str) {
+    if outcome.succeeded {
         tracing::info!(
             event_type = %event.event_type,
             subject_kind = event.subject.kind.as_str(),
             subject_id = %event.subject.subject_id,
+            pending = outcome.pending,
             detail,
             "lifecycle responder acted",
         );

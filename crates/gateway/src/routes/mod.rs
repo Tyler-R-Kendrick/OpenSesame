@@ -54,6 +54,7 @@ mod sync_page;
 mod sync_targets;
 mod taskbus_config;
 mod tasks;
+mod web_login_recipes;
 mod wire_connections;
 use crate::app_state::AppState;
 use crate::config;
@@ -344,30 +345,7 @@ pub fn router(state: AppState) -> Router {
             post(a2h::callback).layer(axum::extract::DefaultBodyLimit::max(65536)),
         )
         .route("/api/v1/ceremonies", get(ceremonies::list_ceremonies))
-        .route("/api/v1/agent/runs", get(agent_runs::list_runs))
-        .route("/api/v1/agent/runs/{id}", get(agent_runs::get_run))
-        .route("/api/v1/agent/runs/{id}/observe", get(agent_runs::observe))
-        .route("/api/v1/agent/runs/{id}/log", get(agent_runs::read_log))
-        .route(
-            "/api/v1/agent/runs/{id}/handoff",
-            post(agent_runs::request_handoff),
-        )
-        .route(
-            "/api/v1/agent/runs/{id}/control",
-            post(agent_runs::take_control),
-        )
-        .route(
-            "/api/v1/agent/runs/{id}/release",
-            post(agent_runs::release_control),
-        )
-        .route(
-            "/api/v1/agent/runs/{id}/steps/claim",
-            post(agent_runs::claim_step),
-        )
-        .route(
-            "/api/v1/agent/runs/{id}/steps/{seq}/outcome",
-            post(agent_runs::settle_step),
-        )
+        .merge(agent_runs::routes())
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",
@@ -383,8 +361,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
         .route("/api/v1/tasks/{id}", get(tasks::get_task))
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
-        // ADR 0150: agent-hooks verdicts and the organization's hook policy.
+        // ADR 0159: agent-hooks verdicts and the organization's hook policy.
         .merge(agent_hooks::routes())
+        // ADR 0076 §4, ADR 0159: the recipes a web-login run replays, and their signers.
+        .merge(web_login_recipes::routes())
         .merge(aauth::routes());
     // Vault KV v2 read facade (ops plane, default off). Merged rather than
     // chained so that with the flag unset the routes are absent entirely: an

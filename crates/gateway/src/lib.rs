@@ -3,6 +3,7 @@
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 #![cfg_attr(test, allow(clippy::await_holding_lock))] // Tests serialize process-global env mutations.
 
+mod agent_hook_approver;
 mod agent_hooks;
 mod app_state;
 mod backup;
@@ -30,6 +31,7 @@ mod middleware;
 #[cfg_attr(not(feature = "wasm-connectors"), allow(dead_code))]
 mod oci_component;
 mod openfga_project;
+mod retention;
 mod routes;
 mod run_lease;
 mod secret_debug;
@@ -69,6 +71,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // fans out `sync_all_for_config`; config-value mutations wake it via
     // `sync_notify`, the tick covers everything else.
     tokio::spawn(sync_actor::run(state.clone()));
+    // What a stopped gateway left half-run — a `discovering` web-login job, an
+    // observation run still open — is closed *before* the scanner starts
+    // anything of this process's own, and then swept on a timer (ADR 0159).
+    web_login::reaper::reconcile_at_startup(&state).await;
+    tokio::spawn(web_login::reaper::run(state.clone()));
+    // RETENTION: trims the agent-hooks decision audit and expired web-login
+    // runs (with their step queues and hook records), which nothing did before.
+    tokio::spawn(retention::run(state.clone()));
     // LIFECYCLE_SCANNER: the single expiry detector (ADR 0074). Gathers every
     // deadline — certificates, authorities, signers, credentials, rotation
     // policies — and publishes what each one owes. Rotation is a *subscriber*

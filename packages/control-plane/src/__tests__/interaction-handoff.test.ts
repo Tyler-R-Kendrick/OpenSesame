@@ -678,8 +678,8 @@ describe("interaction handoff", () => {
       `/v1/interactions/${body.ref}/consume`,
       requester.accessToken,
     );
-    expect(spent.status).toBe(401);
-    expect(await spent.json()).toEqual({ error: "approval_required" });
+    expect(spent.status).toBe(403);
+    expect(await spent.json()).toEqual({ error: "approval_denied" });
   });
 
   it("adversarial: the requester cannot write the sentence the approver reads", async () => {

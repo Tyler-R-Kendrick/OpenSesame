@@ -2,6 +2,7 @@ use super::*;
 use axum::{body::Body, http::Request};
 use futures::StreamExt;
 use opensesame_storage::ObservationAppend;
+use std::time::Duration;
 use tower::ServiceExt;
 
 #[tokio::test]

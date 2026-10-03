@@ -11,44 +11,54 @@
 //!    interaction. The server derives the binding message and computes the
 //!    `requestDigest` over the authorization details, so the spec's
 //!    `context_identity` rides *inside* the one detail this approver sends,
-//!    and the digest covers it (`wire::authorization_detail`);
+//!    and the digest covers it (`wire::authorization_detail`). The Identity
+//!    API refuses to let a requester ask its own principal, or ask anybody
+//!    but the request's addressee, so the person asked is never the caller;
 //! 3. the person approves in their interaction inbox with a `WebAuthn`
 //!    activation the server binds to that digest (phishing-resistant, as the
 //!    kind requires);
 //! 4. the approver polls `POST /v1/interactions/{ref}/consume` — the
 //!    requester's exactly-once, compare-and-set spend. It answers
-//!    `approval_required` until there is an approval to spend, and spends it
+//!    `approval_required` until somebody answers, `approval_denied` (403,
+//!    final) once a person has refused, and otherwise spends the approval
 //!    only after re-checking that the proof is bound to the digest. The spend
 //!    happens *before* the approver reports an approval, so one approval can
 //!    never lift two emissions.
 //!
 //! The approver reports what it observed as an [`ApprovalBinding`]; the
-//! resolver decides whether it holds. Every other outcome is an
-//! [`ApproverError`], which the resolver answers `unresolved` — a deny. In
-//! particular, the Identity API answers a *declined* interaction to its
-//! requester exactly as an unanswered one (`approval_required`), so a decline
-//! surfaces here as the deadline passing: a deny, never an approval.
+//! resolver decides whether it holds. A refusal is reported at once, as a
+//! declined [`HumanDecision`] (the resolver's `approval_declined` reject),
+//! not as the deadline passing. Before it reports an approval the approver
+//! recomputes the interaction's `requestDigest` itself from the fields the
+//! server reports it stores ([`digest`]), so a digest over anything but this
+//! request is never believed. Every other outcome is an [`ApproverError`],
+//! which the resolver answers `unresolved` — a deny.
 //!
-//! On every exit without an approval — including the host dropping `ask`
-//! mid-wait — the approver withdraws its interaction (best effort), so
-//! nothing it raised stays answerable. The deadline is a wall: an attempt in
-//! flight when it passes is abandoned, and nothing is reported from it.
+//! The whole `ask` runs in a task the caller's drop cannot cancel
+//! ([`session`]): the host cancelling the emission, or wrapping it in its own
+//! timeout, stops the wait but never the cleanup. On every exit without an
+//! approval the approver withdraws what it raised — the interaction is
+//! revoked and the authorization request it fronted is cancelled, so nothing
+//! it raised stays answerable, or stale in the approver's inbox. The deadline
+//! is a wall: an attempt in flight when it passes is abandoned, and nothing is
+//! reported from it.
 
+pub mod digest;
 mod http;
+mod session;
 pub mod wire;
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use reqwest::StatusCode;
 use secrecy::SecretString;
-use serde_json::Value;
-use tokio::time::Instant;
+use tokio::sync::oneshot;
 
 use crate::approval::{ApprovalPrompt, ApproverError, HumanApprover, HumanDecision};
-pub use http::MAX_RESPONSE_BYTES;
-use http::{IdentityClient, Reply};
+use http::IdentityClient;
+pub use http::{DEFAULT_REQUEST_TIMEOUT, MAX_RESPONSE_BYTES};
+use session::Session;
 
 /// The Identity API's floor and ceiling on an interaction's window.
 pub const MIN_TTL: Duration = Duration::from_secs(30);
@@ -113,6 +123,7 @@ pub struct InteractionApprover {
     ttl_seconds: u64,
     poll_interval: Duration,
     deadline: Duration,
+    request_timeout: Duration,
     on_pending: Option<OnPending>,
 }
 
@@ -123,6 +134,7 @@ impl std::fmt::Debug for InteractionApprover {
             .field("ttl_seconds", &self.ttl_seconds)
             .field("poll_interval", &self.poll_interval)
             .field("deadline", &self.deadline)
+            .field("request_timeout", &self.request_timeout)
             .finish_non_exhaustive()
     }
 }
@@ -158,8 +170,28 @@ impl InteractionApprover {
             ttl_seconds: config.ttl.as_secs(),
             poll_interval: config.poll_interval,
             deadline: config.deadline,
+            request_timeout: DEFAULT_REQUEST_TIMEOUT,
             on_pending: None,
         })
+    }
+
+    /// How long one request to the Identity API may take, whole. The default
+    /// is [`DEFAULT_REQUEST_TIMEOUT`]; a request that gets no reply in this
+    /// time is treated as no reply (a create is retried once, under the same
+    /// idempotency key).
+    ///
+    /// # Errors
+    ///
+    /// [`InteractionConfigError::InvalidTiming`] for a zero timeout.
+    pub fn with_request_timeout(
+        mut self,
+        timeout: Duration,
+    ) -> Result<Self, InteractionConfigError> {
+        if timeout.is_zero() {
+            return Err(InteractionConfigError::InvalidTiming);
+        }
+        self.request_timeout = timeout;
+        Ok(self)
     }
 
     /// Call `on_pending` with each interaction's canonical link.
@@ -168,194 +200,32 @@ impl InteractionApprover {
         self.on_pending = Some(on_pending);
         self
     }
-
-    async fn raise(
-        &self,
-        details: &[Value],
-        prompt: &ApprovalPrompt<'_>,
-    ) -> Result<wire::Created, ApproverError> {
-        let subject = self
-            .client
-            .post(
-                "/v1/authorization-requests",
-                Some(&wire::CreateAuthorizationRequest {
-                    approver_ref: &self.approver_ref,
-                    authorization_details: details,
-                    binding_message: wire::binding_message(prompt),
-                    ttl_seconds: self.ttl_seconds,
-                }),
-            )
-            .await
-            .map_err(|_| ApproverError::Unavailable)?;
-        if !matches!(subject.status, StatusCode::OK | StatusCode::CREATED) {
-            return Err(ApproverError::Unavailable);
-        }
-        let subject_id =
-            wire::auth_req_id(subject.body.as_ref()).ok_or(ApproverError::Unavailable)?;
-        let created = self
-            .client
-            .post(
-                "/v1/interactions",
-                Some(&wire::CreateInteraction {
-                    kind: wire::INTERACTION_KIND,
-                    subject: wire::InteractionSubject {
-                        kind: wire::INTERACTION_KIND,
-                        subject_id,
-                    },
-                    approver_ref: &self.approver_ref,
-                    authorization_details: details,
-                    ttl_seconds: self.ttl_seconds,
-                }),
-            )
-            .await
-            .map_err(|_| ApproverError::Unavailable)?;
-        if created.status != StatusCode::CREATED {
-            return Err(ApproverError::Unavailable);
-        }
-        wire::created(created.body.as_ref()).ok_or(ApproverError::Unavailable)
-    }
-
-    /// Withdraw an interaction, best effort: a failure changes nothing about
-    /// the answer already decided (never an approval).
-    async fn withdraw(&self, created: &wire::Created) {
-        let _ = self.client.post::<Value>(&revoke_path(created), None).await;
-    }
-
-    async fn wait_for_spend(
-        &self,
-        created: &wire::Created,
-        details: &[Value],
-    ) -> Result<HumanDecision, ApproverError> {
-        let path = format!("/v1/interactions/{}/consume", created.reference);
-        let give_up = Instant::now() + self.deadline;
-        loop {
-            // The deadline is a wall, not a hint: an attempt still in flight
-            // when it passes is abandoned. If the server spent the approval in
-            // that attempt, nobody reports it — a deny, never an approval.
-            let remaining = give_up.saturating_duration_since(Instant::now());
-            let attempt = self.client.post::<Value>(&path, None);
-            let Ok(reply) = tokio::time::timeout(remaining, attempt).await else {
-                return Err(ApproverError::TimedOut);
-            };
-            match classify(reply) {
-                Poll::Spent(body) => {
-                    return Ok(HumanDecision {
-                        approved: true,
-                        binding: wire::consumed_binding(body.as_ref(), created, details),
-                    })
-                }
-                Poll::Unbound => {
-                    return Ok(HumanDecision {
-                        approved: true,
-                        binding: wire::refused_binding(created),
-                    })
-                }
-                Poll::Failed(error) => return Err(error),
-                Poll::Waiting => {}
-            }
-            let now = Instant::now();
-            if now >= give_up {
-                return Err(ApproverError::TimedOut);
-            }
-            tokio::time::sleep(self.poll_interval.min(give_up - now)).await;
-        }
-    }
-}
-
-fn revoke_path(created: &wire::Created) -> String {
-    format!("/v1/interactions/{}/revoke", created.reference)
-}
-
-/// Withdraws the interaction if `ask` is dropped before it decides (the host
-/// cancelled the emission, or wrapped it in its own timeout), so nothing it
-/// raised stays answerable for an action that will never run. The normal
-/// exits withdraw inline and disarm it.
-///
-/// The runtime handle is captured when the guard is armed. `Drop` often runs
-/// after the host's timeout has left the task, where `Handle::try_current`
-/// is empty, and a revoke that never starts leaves the interaction live.
-struct WithdrawOnDrop {
-    client: Arc<IdentityClient>,
-    path: Option<String>,
-    runtime: tokio::runtime::Handle,
-}
-
-impl WithdrawOnDrop {
-    fn arm(client: &Arc<IdentityClient>, created: &wire::Created) -> Self {
-        Self {
-            client: Arc::clone(client),
-            path: Some(revoke_path(created)),
-            runtime: tokio::runtime::Handle::current(),
-        }
-    }
-
-    fn disarm(&mut self) {
-        self.path = None;
-    }
-}
-
-impl Drop for WithdrawOnDrop {
-    fn drop(&mut self) {
-        let Some(path) = self.path.take() else {
-            return;
-        };
-        let client = Arc::clone(&self.client);
-        self.runtime.spawn(async move {
-            let _ = client.post::<Value>(&path, None).await;
-        });
-    }
-}
-
-/// One consume attempt, read.
-enum Poll {
-    /// Consumed: the body is the server's attestation of the binding.
-    Spent(Option<Value>),
-    /// Approved, but the server refused to spend it: the proof did not bind.
-    Unbound,
-    /// Nothing to spend yet (unanswered, or declined).
-    Waiting,
-    /// No decision will come from this interaction.
-    Failed(ApproverError),
-}
-
-fn classify(reply: Result<Reply, http::TransportFailed>) -> Poll {
-    let Ok(reply) = reply else {
-        return Poll::Failed(ApproverError::Unavailable);
-    };
-    match (reply.status.as_u16(), reply.error_code()) {
-        (200, _) => Poll::Spent(reply.body),
-        (401, Some("approval_required")) => Poll::Waiting,
-        (409, Some("digest_mismatch")) => Poll::Unbound,
-        // Spent already. Only this requester can consume, so another emission
-        // (or a retry of this one) holds the approval; reporting it here would
-        // replay one person's answer. Unresolved, never approve — and not a
-        // reject either: nobody refused *this* emission.
-        (409, Some("interaction_consumed")) => Poll::Failed(ApproverError::Spent),
-        (409, Some("interaction_revoked")) => Poll::Failed(ApproverError::Withdrawn),
-        (410, _) => Poll::Failed(ApproverError::TimedOut),
-        _ => Poll::Failed(ApproverError::Unavailable),
-    }
 }
 
 #[async_trait]
 impl HumanApprover for InteractionApprover {
     async fn ask(&self, prompt: ApprovalPrompt<'_>) -> Result<HumanDecision, ApproverError> {
-        let details = [wire::authorization_detail(&prompt)];
-        let created = self.raise(&details, &prompt).await?;
-        let mut guard = WithdrawOnDrop::arm(&self.client, &created);
-        if let Some(on_pending) = &self.on_pending {
-            if http::parse_base(&created.url).is_ok() {
-                on_pending(&created.url);
-            }
-        }
-        let decision = self.wait_for_spend(&created, &details).await;
-        let spent = decision
-            .as_ref()
-            .is_ok_and(|d| d.binding.bound_digest.is_some());
-        if !spent {
-            self.withdraw(&created).await;
-        }
-        guard.disarm();
-        decision
+        let runtime =
+            tokio::runtime::Handle::try_current().map_err(|_| ApproverError::Unavailable)?;
+        let session = Session {
+            client: Arc::clone(&self.client),
+            approver_ref: self.approver_ref.clone(),
+            ttl_seconds: self.ttl_seconds,
+            poll_interval: self.poll_interval,
+            deadline: self.deadline,
+            request_timeout: self.request_timeout,
+            on_pending: self.on_pending.clone(),
+            details: vec![wire::authorization_detail(&prompt)],
+            binding_message: wire::binding_message(&prompt),
+        };
+        let (cancel, signal) = oneshot::channel();
+        // The ask runs in its own task, so a caller that drops this future
+        // (the host cancelled the emission, or wrapped it in its own timeout)
+        // cannot cancel it half way through raising something. Dropping this
+        // future drops `_cancel_on_drop`, which tells the task to stop
+        // waiting; the task then withdraws whatever it had raised and ends.
+        let task = runtime.spawn(session.run(signal));
+        let _cancel_on_drop = cancel;
+        task.await.unwrap_or(Err(ApproverError::Unavailable))
     }
 }

@@ -16,7 +16,9 @@ fn required_capability(method: &str, path: &str) -> Option<&'static str> {
     match (method, path) {
         ("POST", "/api/v1/host-authorizations" | "/api/v1/host-authorizations/verify") => Some(""),
         ("GET", "/api/v1/agent/runs") => Some("host.agent.observe"),
-        ("GET", path) if agent_path(path, &["", "observe", "log"]) => Some("host.agent.observe"),
+        ("GET", path) if agent_path(path, &["", "observe", "log", "hook-records"]) => {
+            Some("host.agent.observe")
+        }
         ("POST", path) if agent_path(path, &["handoff", "control", "release"]) => {
             Some("host.agent.control")
         }

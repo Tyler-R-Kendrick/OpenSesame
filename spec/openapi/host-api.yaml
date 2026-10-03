@@ -2538,7 +2538,7 @@ paths:
     post:
       summary: Answer one agent-hooks/0.1 interception with a verdict
       description: >-
-        OpenSesame as a remote agent-hooks/0.1 interceptor (ADR 0150), for an
+        OpenSesame as a remote agent-hooks/0.1 interceptor (ADR 0159), for an
         agent framework that cannot spawn `opensesame hooks intercept`. The body
         is one `AgentContext`; the answer is its `Verdict`, decided under the
         caller organization's hook policy (the built-in default — every tool
@@ -2553,11 +2553,13 @@ paths:
         UTF-8, or failing the §4 envelope — is answered 200 with a deny verdict
         (`opensesame:context_unreadable`): a verdict endpoint answers with
         verdicts, and never with a partial read. Every decision is recorded
-        before it is answered, as an `agent_hooks.decision` outbox event
-        carrying the interception point, decision, reason and policy version —
-        never the target, a message, or a transformed value. A decision that
-        cannot be recorded is not answered (500), which a conformant host
-        turns into `deny host_error:interceptor_failed` (spec §6.3).
+        before it is answered, as a row of the append-only decision audit
+        (`GET /agent-hooks/decisions`) carrying the interception point,
+        decision, reason and policy version — never the target, a message, or
+        a transformed value. The audit is its own table, not the outbox, so
+        agent traffic never reaches the backup actor. A decision that cannot
+        be recorded is not answered (500), which a conformant host turns into
+        `deny host_error:interceptor_failed` (spec §6.3).
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       parameters:
         - $ref: "#/components/parameters/OperatorOrganization"
@@ -2576,6 +2578,64 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentHookVerdict" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "500": { $ref: "#/components/responses/ContractError" }
+  /agent-hooks/decisions:
+    get:
+      summary: Read the audit of the agent-hooks verdicts the Host answered
+      description: >-
+        The append-only, value-blind audit of every verdict
+        `POST /agent-hooks/intercept` answered for the organization, newest
+        first. A row is the interception point (null when the context named
+        none of the eight), the decision, whether it escalated, a `reason`
+        that is a short machine identifier, the policy version it was decided
+        under, who asked, and when — never a tool name, a target, a transform's
+        value or a message (agent-hooks/0.1 §14).
+
+
+        Paginated: `next_cursor` (present when another page exists) is passed
+        back as `cursor`, and resumes exactly where the page ended even while
+        more verdicts are answered. Every filter is an exact match except
+        `since` (inclusive) and `until` (exclusive) on the time the verdict
+        was answered. An unknown parameter or a malformed value is a 400 —
+        never a filter that quietly matches everything.
+
+
+        Rows older than the retention (90 days unless the operator set
+        `OPENSESAME_AGENT_HOOK_DECISION_RETENTION_DAYS`) are removed by a
+        background actor; `retention_days` says which applies. Owner/admin or
+        operator only; never an agent surface — an agent must not read the
+        trail of the policy that governs it.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - name: cursor
+          in: query
+          required: false
+          description: The `next_cursor` of the page before.
+          schema: { type: string, pattern: '^[0-9]+$' }
+        - { name: decision, in: query, required: false, schema: { type: string, enum: [allow, deny, transform] } }
+        - name: interception_point
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown]
+        - { name: caller, in: query, required: false, description: "`operator` or a principal.", schema: { type: string, minLength: 1, maxLength: 256 } }
+        - { name: reason, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
+        - { name: escalated, in: query, required: false, schema: { type: boolean } }
+        - { name: policy_version, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: since, in: query, required: false, description: Inclusive lower bound, RFC 3339., schema: { type: string, format: date-time } }
+        - { name: until, in: query, required: false, description: Exclusive upper bound, RFC 3339., schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: One page of the audit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookDecisionPage" }
         "400": { $ref: "#/components/responses/ContractError" }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
@@ -2612,7 +2672,15 @@ paths:
         checked by the same parser the interceptor uses — closed shape, version
         1, unambiguous rules — whose errors name a rule's position and pass
         through as the `hint`. What is stored is the parsed policy with its
-        defaults filled. Owner/admin or operator only; the replacement and its
+        defaults filled. Owner/admin or operator only, and it takes a
+        **step-up** (ADR 0159, on ADR 0146): the operator token, or a native
+        session carrying a fresh passkey step-up (`assurance`
+        `phishing_resistant`, `amr` `["webauthn"]`, `last_step_up_at` within
+        five minutes) and no agent capability. A role alone is not enough —
+        the loop this policy governs may run under that very role. Without
+        it the answer is `403` `step_up_required`, with `reason`
+        (`no_step_up`, `stale_step_up`, `delegated_credential`) and a `hint`
+        naming the remedy. The replacement and its
         `agent_hooks.policy.updated` outbox event commit together.
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       parameters:
@@ -2639,7 +2707,13 @@ paths:
               schema: { $ref: "#/components/schemas/AgentHookPolicyView" }
         "400": { $ref: "#/components/responses/ContractError" }
         "401": { $ref: "#/components/responses/ContractError" }
-        "403": { $ref: "#/components/responses/ContractError" }
+        "403":
+          description: >-
+            Not an owner, admin or operator; or no step-up (`error`
+            `step_up_required`, with `reason` and a remedy in `hint`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
         "412":
           description: The policy changed since that version was read; nothing was written.
           content:
@@ -2653,6 +2727,462 @@ paths:
                   current_version: { type: integer, minimum: 0 }
         "413": { $ref: "#/components/responses/ContractError" }
         "428": { $ref: "#/components/responses/ContractError" }
+  /agent-hooks/presets:
+    get:
+      summary: List the named agent-hooks policy presets
+      description: >-
+        Named policies an operator may start from (`rotation-web-login`,
+        `strict`, `observe`), one file each under `spec/agent-hooks/presets/`
+        — the single source the CLI and this route both embed (ADR 0139).
+        Each carries its policy, parsed and with every default filled, and the
+        `policy_sha256` the audit of a `PUT /agent-hooks/policy` carries, so a
+        stored policy can be told to be a preset byte for byte. Applying one
+        is that ordinary `PUT`, with its compare-and-set and its step-up.
+        Owner/admin or operator only; never an agent surface.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      responses:
+        "200":
+          description: The presets, by name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookPresets" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /agent-hooks/approver:
+    get:
+      summary: Read who the organization's escalated agent actions are put to
+      description: >-
+        An escalation (a tool rule that needs a person) is lifted only by an
+        approval, and this says whose. It is stored beside the policy, not in
+        it, with its own compare-and-set version, which is also the `ETag`
+        (0 when none is stored). `asks` is `organization` (this setting's
+        handle), `operator_default` (the deployment's default handle, never
+        shown, because no setting names one) or `nobody` (every escalation is
+        a denial). `transport_configured` says whether the deployment has an
+        Identity API and a requester bearer at all
+        (`OPENSESAME_AGENT_HOOKS_APPROVER_*`); without them nobody is ever
+        asked, whatever the handle says. Owner/admin or operator only; never
+        an agent surface — an agent must not learn whom to target.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      responses:
+        "200":
+          description: Who is asked
+          headers:
+            ETag:
+              description: The approver version as a strong entity tag, like `"3"`.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookApproverView" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Set or clear who the organization's escalated agent actions are put to
+      description: >-
+        Compare-and-set: `If-Match` names the version the replacement was made
+        against (`"0"` when none is stored). The body is exactly one member,
+        `approver_ref`: the approver's Identity-plane inbox handle
+        (`inbox_…`, from their own `GET /v1/authorization-requests/inbox-ref`),
+        or `null` to ask nobody (the setting stays, so the version keeps
+        rising, and the operator's default no longer applies). Owner/admin or
+        operator only, and it takes the same **step-up** as replacing the
+        policy: choosing who may lift a refusal decides what an agent may do
+        without the operator. Without it the answer is `403`
+        `step_up_required`. The replacement and its
+        `agent_hooks.approver.updated` outbox event commit together; the
+        event carries the handle's SHA-256, never the handle.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - name: If-Match
+          in: header
+          required: true
+          description: The version read from GET, as a strong entity tag (`"3"`).
+          schema: { type: string, pattern: '^"[0-9]+"$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approver_ref]
+              additionalProperties: false
+              properties:
+                approver_ref:
+                  type: [string, "null"]
+                  pattern: '^inbox_[A-Za-z0-9_.-]{2,250}$'
+      responses:
+        "200":
+          description: The approver now in force
+          headers:
+            ETag:
+              description: The new version as a strong entity tag.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHookApproverView" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403":
+          description: >-
+            Not an owner, admin or operator; or no step-up (`error`
+            `step_up_required`, with `reason` and a remedy in `hint`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
+        "412":
+          description: The approver changed since that version was read; nothing was written.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, current_version]
+                properties:
+                  error: { type: string, const: precondition_failed }
+                  hint: { type: string }
+                  current_version: { type: integer, minimum: 0 }
+        "413": { $ref: "#/components/responses/ContractError" }
+        "428": { $ref: "#/components/responses/ContractError" }
+  /web-login/recipes:
+    get:
+      summary: List the organization's web-login recipes
+      description: >-
+        The recipes a web-login rotation may replay (ADR 0076 §4), each with
+        what the Host has verified about it and whether a run may replay it
+        right now — `runnable.attended` (a person drives the run) and
+        `runnable.unattended` (the lifecycle scanner runs it alone, which also
+        needs a passing canary). Owner/admin or operator only; never an agent
+        surface — an agent must not read, let alone write, the recipes that
+        govern it (ADR 0159).
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      responses:
+        "200":
+          description: The recipes, by origin
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recipes]
+                properties:
+                  recipes:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebLoginRecipeSummary" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /web-login/recipes/{origin}:
+    parameters:
+      - $ref: "#/components/parameters/WebLoginOrigin"
+    get:
+      summary: Read one web-login recipe and what the Host verified about it
+      description: >-
+        The stored document, signature included, and its summary. The
+        compare-and-set version is also the `ETag`. Owner/admin or operator
+        only; never an agent surface.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      responses:
+        "200":
+          description: The recipe
+          headers:
+            ETag:
+              description: The recipe version as a strong entity tag, like `"3"`.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recipe, document]
+                properties:
+                  recipe: { $ref: "#/components/schemas/WebLoginRecipeSummary" }
+                  document:
+                    oneOf:
+                      - { $ref: "#/components/schemas/WebLoginRecipeDocument" }
+                      - { type: "null" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Store a web-login recipe (compare-and-set); the Host verifies its trust
+      description: >-
+        The body is the recipe document: strict JSON, version 1, one origin
+        (the one in the path), an expiry at most 93 days out, and the
+        executor's own change-password selectors — no second step language,
+        no value, no account. **The request names no trust.** When the document
+        carries a `signature`, the Host checks it (Ed25519 over the document's
+        RFC 8785 canonical form, domain-tagged) against the organization's
+        pinned, unrevoked signers, and derives the recipe's trust from that in
+        the same transaction as the write: a verified signature with a
+        `canary` attestation is `canary_verified`; a verified signature alone,
+        or an unsigned document, is `candidate`, and a candidate is never
+        replayed unattended. A signature that does not verify — an unpinned or
+        revoked key, a tampered document, a `canary` claim with no signature —
+        is refused `422` and nothing is stored. `If-Match` names the version
+        the write was made against (`"0"` for a new recipe). Owner/admin or
+        operator only; never an agent surface. The write and its
+        `web_login.recipe.put` outbox event (digests and ids, never the
+        document) commit together.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - name: If-Match
+          in: header
+          required: true
+          description: The version read from GET, as a strong entity tag (`"3"`); `"0"` for a new recipe.
+          schema: { type: string, pattern: '^"[0-9]+"$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebLoginRecipeDocument" }
+      responses:
+        "200":
+          description: Replaced
+          headers:
+            ETag:
+              description: The new version as a strong entity tag.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebLoginRecipeWritten" }
+        "201":
+          description: Created
+          headers:
+            ETag:
+              description: The new version as a strong entity tag.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebLoginRecipeWritten" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "412":
+          description: The recipe changed since that version was read; nothing was written.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, current_version]
+                properties:
+                  error: { type: string, const: precondition_failed }
+                  hint: { type: string }
+                  current_version: { type: integer, minimum: 0 }
+        "413": { $ref: "#/components/responses/ContractError" }
+        "422":
+          description: >-
+            The signature cannot be verified (`error` `unknown_signer`,
+            `signer_revoked`, `invalid_signature`) or a canary is claimed with
+            no signature behind it (`canary_unsigned`); nothing was stored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
+        "428": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Remove a web-login recipe (compare-and-set)
+      description: >-
+        `If-Match` names the version being removed. Owner/admin or operator
+        only; never an agent surface. The removal and its
+        `web_login.recipe.deleted` outbox event commit together.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - name: If-Match
+          in: header
+          required: true
+          description: The version read from GET, as a strong entity tag (`"3"`).
+          schema: { type: string, pattern: '^"[0-9]+"$' }
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted, origin]
+                properties:
+                  deleted: { type: boolean, const: true }
+                  origin: { type: string }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "412":
+          description: The recipe changed since that version was read; nothing was removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, current_version]
+                properties:
+                  error: { type: string, const: precondition_failed }
+                  hint: { type: string }
+                  current_version: { type: integer, minimum: 0 }
+        "428": { $ref: "#/components/responses/ContractError" }
+  /web-login/recipes/{origin}/canary:
+    parameters:
+      - $ref: "#/components/parameters/WebLoginOrigin"
+    post:
+      summary: Start one attended run of a verified recipe (its canary)
+      description: >-
+        An unattended web-login run needs a recipe a real change has already
+        proven (ADR 0076 §4), and the first proof has to come from a run
+        somebody is watching. This starts that run for the caller, who drives
+        it from their own browser — only the owner of a run may claim its steps
+        (ADR 0081 §8) — and answers `202` while it goes on without the
+        request. A completed run is recorded by the Host as the recipe's
+        canary, against the document it replayed; a run that finds the page
+        changed demotes it. The recipe must already be signed by a pinned,
+        unrevoked key. Only the own native session of an owner or admin: never a
+        member, the operator (no browser to drive), an agent capability, a
+        browser grant, or a session whose ceiling carries agent capabilities.
+      security: [{ HostBearer: [] }]
+      responses:
+        "202":
+          description: The run was started
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, origin]
+                properties:
+                  status: { type: string, const: started }
+                  origin: { type: string }
+                  hint: { type: string }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: >-
+            No verified recipe is stored for the origin (`recipe_not_runnable`),
+            or a run for it is already queued or executing (`run_in_flight`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /web-login/signers:
+    get:
+      summary: List the keys the organization trusts to sign web-login recipes
+      description: >-
+        Pinned Ed25519 public keys, revoked ones included. Owner/admin or
+        operator only; never an agent surface.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      responses:
+        "200":
+          description: The signers, in the order they were pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [signers]
+                properties:
+                  signers:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebLoginRecipeSigner" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Pin a public key as a web-login recipe signer
+      description: >-
+        The body is the public key and a label; the key id is derived from the
+        key (`rsk_` and 32 hex of its SHA-256), so a request cannot choose one.
+        The private half never reaches the Host. Owner/admin or operator only,
+        and it takes the same **step-up** as replacing the agent-hooks policy
+        (ADR 0159, on ADR 0146): a key an agent framework could pin under an
+        administrator's own token would sign the recipes that govern it.
+        Without it the answer is `403` `step_up_required`. A key already
+        pinned, or revoked (revocation is final), is `409` `signer_exists`;
+        an organization holds at most 32 (`signer_limit`). The pin and its
+        `web_login.signer.pinned` outbox event commit together.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [public_key, label]
+              additionalProperties: false
+              properties:
+                public_key: { type: string, pattern: '^[0-9a-fA-F]{64}$', description: The Ed25519 public key, hex }
+                label: { type: string, minLength: 1, maxLength: 80 }
+      responses:
+        "201":
+          description: Pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [signer]
+                properties:
+                  signer: { $ref: "#/components/schemas/WebLoginRecipeSigner" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403":
+          description: >-
+            Not an owner, admin or operator; or no step-up (`error`
+            `step_up_required`, with `reason` and a remedy in `hint`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
+        "409":
+          description: Already pinned or revoked (`signer_exists`), or the limit is reached (`signer_limit`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
+        "413": { $ref: "#/components/responses/ContractError" }
+  /web-login/signers/{key_id}:
+    delete:
+      summary: Revoke a web-login recipe signer, for good
+      description: >-
+        Revocation is final: the row stays, so the key can never be pinned
+        again. Recipes the key signed stop being replayable at their next run
+        (the signature is checked against the key as it stands when a run
+        starts), and none can be written under it. It is the safe direction,
+        so it takes no step-up. Owner/admin or operator only; never an agent
+        surface. The revocation and its `web_login.signer.revoked` outbox
+        event commit together.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - $ref: "#/components/parameters/OperatorOrganization"
+        - name: key_id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^rsk_[0-9a-f]{32}$' }
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [signer]
+                properties:
+                  signer: { $ref: "#/components/schemas/WebLoginRecipeSigner" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: Already revoked (`already_revoked`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractError" }
   /a2h/callback:
     post:
       summary: Receive a human's A2H reply
@@ -2790,6 +3320,10 @@ paths:
   /agent/runs/{id}:
     get:
       summary: Read one run's state
+      description: >-
+        Carries `hook_records`, the count-and-verdict summary of the run's
+        agent-hooks records (ADR 0159): counts only, never a reason or a
+        digest. The listing does not carry it.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -2880,6 +3414,56 @@ paths:
                   next_after: { type: integer }
                   run_next_seq: { type: integer }
                   sealed: { type: boolean, const: true }
+                  observation: { $ref: "#/components/schemas/AgentRunObservation" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/hook-records:
+    get:
+      summary: Read one page of a run's agent-hooks records
+      description: >-
+        The payload-free agent-hooks record of a Host-run agent (ADR 0159): one
+        row per interception, in `sequence` order — interception point,
+        decision, a machine reason, and the `sha256:` identities of the context
+        before and after composition. No message, no target and no transform
+        value exists to return.
+
+
+        A run the Host opened holds no viewer key to seal to (ADR 0081 §9), so
+        its sealed log is empty and this is its observation; `observation` says
+        which a run has. Same entitlement as `log`: the credential's owner and
+        nobody else, and anyone else gets the same 404 a missing run does.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          description: Last `sequence` already held. Omit to read from the start.
+          schema: { type: integer, default: -1 }
+        - name: limit
+          in: query
+          required: false
+          description: Most records to return, capped at 256.
+          schema: { type: integer, minimum: 1, maximum: 256, default: 64 }
+      responses:
+        "200":
+          description: A page of records, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, records, next_after, has_more, summary, observation, sealed, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  records:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgentHookRecord" }
+                  next_after: { type: integer, description: The cursor to pass as `after` for the next page. }
+                  has_more: { type: boolean }
+                  summary: { $ref: "#/components/schemas/AgentHookRecordSummary" }
+                  observation: { $ref: "#/components/schemas/AgentRunObservation" }
+                  sealed: { type: boolean, const: false }
                   secrets_returned: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
@@ -3001,7 +3585,7 @@ paths:
 
 
         Steps are enqueued by the Host's web-login runner, which hosts each run
-        as an agent-hooks/0.1 session (ADR 0150): a verb the organization's
+        as an agent-hooks/0.1 session (ADR 0159): a verb the organization's
         hook policy refuses at `pre_tool_call` is never enqueued. Besides the
         browser's verbs (`navigate`, `wait_for`, `fill_credential` with
         `reference` `current_password` or a candidate handle, `assert_present`,
@@ -3043,6 +3627,29 @@ paths:
         than settling a step somebody else is now executing. A run that has
         closed — its executor stopped waiting — takes no further outcome, so
         a late answer is refused rather than stored where nothing reads it.
+
+
+        The outcome is checked against the step it answers before anything is
+        stored: it must be one that step may produce (a `navigate` is answered
+        `done` or `failed`, a `read_dom_redacted` `dom` or `failed`, a custody
+        `seal_candidate` `sealed` or `failed`, and so on) and carry exactly that
+        outcome's fields. An outcome that answers another step is refused with
+        422 `wrong_outcome`; one with a field it does not have (`{"outcome":
+        "done", "password": "x"}`), at any depth, is refused with 422
+        `invalid_outcome`, never trimmed. What is stored is the canonical
+        encoding of the decoded outcome. The claim stands after a refusal. A
+        claim past its lease cannot settle even before another driver has
+        reclaimed the step (409).
+
+
+        The outcome is stored **scrubbed and bounded**, even when nobody is
+        still waiting for it (a step that timed out with its run still open):
+        credential-shaped strings and keys become `[redacted:<kind>]` markers
+        (`redacted: true`), and an outcome over 1 MiB is refused with 413. Under
+        a hook policy that denies credentials (`secret_guard: deny`, or
+        `refuse_labels` naming `opensesame:credential_material`) the step is
+        stored as refused instead (`refused: true`) — the executor fails closed,
+        as it does on a `post_tool_call` deny.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -3072,14 +3679,26 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required: [status, redacted, refused]
                 properties:
                   status: { type: string, const: settled }
+                  redacted: { type: boolean, description: Credential-shaped text was found and not stored as sent. }
+                  refused: { type: boolean, description: The step was stored as refused because the policy denies credentials. }
         "400": { $ref: "#/components/responses/ContractError" }
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "409":
-          description: The caller does not hold this step's claim, or the run has closed
+          description: The caller does not hold this step's live claim (it was never theirs, or its lease ran out), or the run has closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+        "413":
+          description: The outcome is over 1 MiB, before or after redaction. The claim stands.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+        "422":
+          description: The outcome is not one this step may be answered with (`wrong_outcome`), or carries more than its own fields (`invalid_outcome`). Nothing was stored; the claim stands.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentRunError" }
@@ -3120,6 +3739,16 @@ components:
       name: id
       in: path
       required: true
+      schema: { type: string }
+    WebLoginOrigin:
+      name: origin
+      in: path
+      required: true
+      description: >-
+        The relying party's origin, percent-encoded (`https%3A%2F%2Flogin.example`):
+        https, no path, query, fragment or credentials. The default port and
+        the host's case are normalized, so it is the same origin a rotation
+        target names.
       schema: { type: string }
     OperatorOrganization:
       name: X-OpenSesame-Organization
@@ -3179,6 +3808,31 @@ components:
         transform: { type: object }
         evidence: { type: object }
         result_labels: { type: array, items: { type: string } }
+    AgentHookDecision:
+      type: object
+      description: >-
+        One answered interception, as the audit keeps it. Value-blind by
+        construction: there is no field able to hold a tool name, a target, a
+        transform's value or a message.
+      required: [id, caller, interception_point, decision, escalated, reason, policy_version, created_at]
+      properties:
+        id: { type: integer, minimum: 1, description: Rises with every verdict; the pagination order. }
+        caller: { type: string, description: "`operator`, or the calling session's principal." }
+        interception_point:
+          type: [string, "null"]
+          enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown, null]
+        decision: { type: string, enum: [allow, deny, transform] }
+        escalated: { type: boolean, description: The deny carried an approval block. }
+        reason: { type: [string, "null"], description: A short machine identifier; never prose. }
+        policy_version: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+    AgentHookDecisionPage:
+      type: object
+      required: [decisions, next_cursor, retention_days]
+      properties:
+        decisions: { type: array, items: { $ref: "#/components/schemas/AgentHookDecision" } }
+        next_cursor: { type: [string, "null"], description: Pass as `cursor` for the next page; null on the last. }
+        retention_days: { type: integer, minimum: 1, description: How long a decision is kept. }
     AgentHookToolRule:
       type: object
       additionalProperties: false
@@ -3212,6 +3866,122 @@ components:
         policy: { $ref: "#/components/schemas/AgentHookPolicy" }
         updated_at: { type: [string, "null"] }
         updated_by: { type: [string, "null"] }
+    AgentHookApproverView:
+      type: object
+      required: [version, stored, approver_ref, asks, transport_configured]
+      properties:
+        version: { type: integer, minimum: 0, description: 0 when none is stored }
+        stored: { type: boolean }
+        approver_ref: { type: [string, "null"], description: This setting's handle; never the operator's default }
+        asks: { type: string, enum: [organization, operator_default, nobody] }
+        transport_configured: { type: boolean }
+        updated_at: { type: [string, "null"] }
+        updated_by: { type: [string, "null"] }
+    AgentHookPresets:
+      type: object
+      required: [spec, presets]
+      properties:
+        spec: { type: string, const: agent-hooks/0.1 }
+        presets:
+          type: array
+          items:
+            type: object
+            required: [name, summary, policy, policy_sha256]
+            properties:
+              name: { type: string }
+              summary: { type: string }
+              policy: { $ref: "#/components/schemas/AgentHookPolicy" }
+              policy_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    WebLoginRecipeDocument:
+      type: object
+      description: >-
+        A recipe document, version 1 (ADR 0076 §4). Every object is closed. It
+        names the page and the fields the executor acts on and nothing about
+        any user: no value, no account, no session. `canary` and `signature`
+        are claims; only a signature the Host verifies against a pinned signer
+        makes either of them count.
+      required: [schema_version, recipe_id, origin, expires_at, change_password]
+      additionalProperties: false
+      properties:
+        schema_version: { type: integer, const: 1 }
+        recipe_id: { type: string, pattern: '^rcp_[a-z0-9_-]{1,63}$' }
+        origin: { type: string, description: A canonical https origin; it must be the origin in the path }
+        expires_at: { type: string, format: date-time, description: At most 93 days from now }
+        change_password:
+          type: object
+          required: [change_url, new_password_selector, submit_selector]
+          additionalProperties: false
+          properties:
+            change_url: { type: string, description: An https URL on the recipe's own origin }
+            current_password_selector: { type: [string, "null"], maxLength: 512 }
+            new_password_selector: { type: string, maxLength: 512 }
+            confirm_password_selector: { type: [string, "null"], maxLength: 512 }
+            submit_selector: { type: string, maxLength: 512 }
+        canary:
+          type: object
+          description: A signer's attestation that the recipe completed a real change, verified by a fresh login. Counts only inside a verified signature.
+          required: [verified_at]
+          additionalProperties: false
+          properties:
+            verified_at: { type: string, format: date-time, description: Within the last 90 days }
+        signature:
+          type: object
+          required: [alg, key_id, value]
+          additionalProperties: false
+          properties:
+            alg: { type: string, const: ed25519 }
+            key_id: { type: string, pattern: '^rsk_[0-9a-f]{32}$' }
+            value: { type: string, pattern: '^[0-9a-f]{128}$', description: The signature, hex }
+    WebLoginRecipeSummary:
+      type: object
+      required: [origin, recipe_id, version, trust, runnable]
+      properties:
+        origin: { type: string }
+        recipe_id: { type: string }
+        version: { type: integer, minimum: 1 }
+        trust:
+          type: string
+          enum: [candidate, canary_verified, corpus]
+          description: Derived by the Host from a verification, never from a request.
+        digest: { type: [string, "null"], description: "`sha256:` of the document's signed form" }
+        signer_key_id: { type: [string, "null"] }
+        verified_at: { type: [string, "null"], description: When the Host verified the signature }
+        canary:
+          oneOf:
+            - type: object
+              required: [result, at, source]
+              properties:
+                result: { type: string, enum: [passed, failed] }
+                at: { type: string }
+                source: { type: string, enum: [signed, run] }
+                run_id: { type: [string, "null"] }
+            - { type: "null" }
+        expires_at: { type: string }
+        updated_at: { type: string }
+        updated_by: { type: string }
+        runnable:
+          type: object
+          required: [attended, unattended]
+          properties:
+            attended: { type: boolean }
+            unattended: { type: boolean }
+    WebLoginRecipeWritten:
+      type: object
+      required: [recipe]
+      properties:
+        recipe: { $ref: "#/components/schemas/WebLoginRecipeSummary" }
+    WebLoginRecipeSigner:
+      type: object
+      required: [key_id, algorithm, public_key, label, pinned_by, pinned_at]
+      properties:
+        key_id: { type: string, pattern: '^rsk_[0-9a-f]{32}$' }
+        algorithm: { type: string, const: ed25519 }
+        public_key: { type: string, pattern: '^[0-9a-f]{64}$' }
+        label: { type: string }
+        pinned_by: { type: string }
+        pinned_at: { type: string }
+        revoked_at: { type: [string, "null"] }
+        revoked_by: { type: [string, "null"] }
     AgentAudience:
       type: string
       enum: ['urn:opensesame:agent:mcp-host', 'urn:opensesame:agent:mcp-client']
@@ -4322,6 +5092,48 @@ components:
         updated_at: { type: string }
         secrets_returned: { type: boolean, const: false }
         observation_included: { type: boolean, const: false }
+        observation: { $ref: "#/components/schemas/AgentRunObservation" }
+        hook_records:
+          allOf: [{ $ref: "#/components/schemas/AgentHookRecordSummary" }]
+          description: Present on a single-run read, absent from the listing.
+    AgentRunObservation:
+      type: string
+      enum: [sealed_log, hook_records_only]
+      description: >-
+        What observes the run. `sealed_log`: a viewer key exists and the log is
+        sealed to it. `hook_records_only`: the Host opened the run and holds no
+        viewer key (ADR 0081 §9), so it seals nothing and the agent-hooks records
+        are the observation.
+    AgentHookRecordSummary:
+      type: object
+      description: What a run's hook records add up to. Counts only.
+      required: [count, allow, deny, transform, escalated, last_sequence]
+      properties:
+        count: { type: integer }
+        allow: { type: integer }
+        deny: { type: integer }
+        transform: { type: integer }
+        escalated: { type: integer, description: Denials that carried an approval block. }
+        last_sequence: { type: integer, nullable: true }
+    AgentHookRecord:
+      type: object
+      description: >-
+        The payload-free agent-hooks/0.1 §10.3 projection of one interception.
+        There is no member for a message, a target or a transform value.
+      required: [sequence, interception_point, decision, escalated, policy_version, recorded_at]
+      properties:
+        sequence: { type: integer }
+        interception_point:
+          type: string
+          enum: [agent_startup, input, pre_model_call, post_model_call, pre_tool_call, post_tool_call, output, agent_shutdown]
+        decision: { type: string, enum: [allow, deny, transform] }
+        escalated: { type: boolean }
+        reason: { type: string, nullable: true, description: A short machine identifier, never prose. }
+        decided_by: { type: integer, nullable: true }
+        input_identity: { type: string, nullable: true }
+        enforced_identity: { type: string, nullable: true }
+        policy_version: { type: integer }
+        recorded_at: { type: string }
     AgentRunError:
       type: object
       required: [error]

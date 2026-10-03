@@ -1,6 +1,8 @@
 //! Append-only upgrades preserve the previous journal and roll back failed DDL.
 use super::*;
 
+#[path = "agent_hook_records_fk_tests.rs"]
+mod agent_hook_records_fk_tests;
 #[path = "bitwarden_upgrade_tests.rs"]
 mod bitwarden_upgrade_tests;
 

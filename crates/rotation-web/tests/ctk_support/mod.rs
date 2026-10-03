@@ -23,10 +23,8 @@
 use std::sync::Mutex;
 
 use agent_hooks::ctk::{async_trait, Harness, IdentityPair, RunRecord, VectorSetup};
-use agent_hooks::{apply_transform_to_ctx, AgentContext, Transform};
 use opensesame_rotation_web::hooks::{
-    host_run, HookSession, HookedTransport, HostInput, HostedRunError, InputRole, Reported,
-    SessionConfig, BROWSER_VERBS,
+    host_run, HookSession, HookedTransport, HostInput, HostedRunError, SessionConfig, BROWSER_VERBS,
 };
 use opensesame_rotation_web::{
     AdmittedFrame, BrowserTransport, CredentialRef, Filled, Presence, RedactedDom, StepError,
@@ -34,6 +32,8 @@ use opensesame_rotation_web::{
 };
 use opensesame_session_observe::MaskManifest;
 use serde_json::{json, Value};
+
+use crate::ctk_common::{redacted, role, AgentReport};
 
 /// The capability subset this host declares (§3.2, §13.1).
 pub const CAPABILITIES: [&str; 2] = ["tool_calls", "int64_json"];
@@ -86,18 +86,6 @@ impl BrowserTransport for MockedIo {
     }
 }
 
-/// The remote agent's final report, as the run's `output`.
-struct AgentReport(Value);
-
-impl Reported for AgentReport {
-    fn report(&self) -> Value {
-        self.0.clone()
-    }
-    fn restate(self, report: Value) -> Option<Self> {
-        Some(Self(report))
-    }
-}
-
 /// A scenario this host cannot be handed: tool calls proposed by a model.
 #[derive(Debug)]
 struct ModelProposedToolCalls;
@@ -115,28 +103,6 @@ fn remote_agent(scenario: &Value) -> Result<AgentReport, ModelProposedToolCalls>
         return Err(ModelProposedToolCalls);
     }
     Ok(AgentReport(respond["content"].clone()))
-}
-
-/// The CTK's §9 redaction convention: each listed path becomes "[redacted]";
-/// a path that does not resolve at the escalating point is left alone.
-fn redacted(context: &AgentContext, paths: &[String]) -> AgentContext {
-    let mut shown = context.clone();
-    for path in paths {
-        let redaction = Transform {
-            path: path.clone(),
-            value: json!("[redacted]"),
-        };
-        let _ = apply_transform_to_ctx(&mut shown, &redaction);
-    }
-    shown
-}
-
-fn role(input: &Value) -> InputRole {
-    match input["role"].as_str() {
-        Some("system") => InputRole::System,
-        Some("external") => InputRole::External,
-        _ => InputRole::User,
-    }
 }
 
 /// `opensesame-rotation-web` under the CTK.

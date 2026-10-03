@@ -156,6 +156,31 @@ mod tests {
     #[tokio::test]
     async fn a_failed_write_poisons_every_later_flush() {
         let db = Db::connect_memory().await.unwrap();
+        // The records belong to a run, and the store holds them to that.
+        let now = chrono::Utc::now().to_rfc3339();
+        db.create_observation_run(&opensesame_storage::StoredObservationRun {
+            id: "run_1".into(),
+            organization_id: "org".into(),
+            job_id: "job_1".into(),
+            target_origin: "https://login.example".into(),
+            tier: "t3".into(),
+            control_state: "agent_driving".into(),
+            quiescence: "quiescent".into(),
+            handoff_queued: false,
+            lease_holder: None,
+            lease_expires_at: None,
+            owner_principal_id: "principal:owner".into(),
+            viewer_key_id: "none:hook-records-only".into(),
+            next_seq: 0,
+            blocked_reason: None,
+            expires_at: "2999-01-01T00:00:00+00:00".into(),
+            closed_at: None,
+            version: 1,
+            created_at: now.clone(),
+            updated_at: now,
+        })
+        .await
+        .unwrap();
         let buffer = Arc::new(RecordBuffer::default());
         let scope = RecordScope {
             organization_id: "org".into(),
