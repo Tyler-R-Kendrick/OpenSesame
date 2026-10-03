@@ -252,11 +252,6 @@ export const SHELL_RULES = [
     "setup connectors tab",
   ),
   optional(
-    "src/screens/setup/steps/ConnectorCards",
-    "connectors.external",
-    "setup connectors tab",
-  ),
-  optional(
     "src/screens/setup/steps/AiStep",
     "support.local-ai",
     "setup AI tab; MIXED — remote",
