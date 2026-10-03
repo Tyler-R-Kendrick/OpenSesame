@@ -14,7 +14,9 @@ describe("what Tab does in the raw editor", () => {
     expect(tab("general", "th")).toBe("theme");
     expect(tab("general", "theme")).toBe("theme");
     expect(tab("general", "theme: d")).toBe("dark");
-    expect(tab("keybindings", "keybindings:\n  w: item.s")).toBe("item.share");
+    expect(tab("keybindings", "keybindings:\n  s: item.s")).toBe("item.share");
+    // `w` may not take Share once, so Tab writes nothing the file refuses.
+    expect(tab("keybindings", "keybindings:\n  w: item.s")).toBeNull();
     expect(tab("keybindings", "keybindings:\n  Control+")).toBe('"Control+n"');
   });
 
