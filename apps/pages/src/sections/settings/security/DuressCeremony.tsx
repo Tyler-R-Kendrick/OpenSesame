@@ -79,7 +79,11 @@ function RemoveCard({
             onDone("Duress code removed.");
           }, null),
       }}
-      secondary={{ label: "Keep it", onClick: () => onDone("") }}
+      secondary={{
+        label: "Keep it",
+        disabled: busy,
+        onClick: () => onDone(""),
+      }}
     />
   );
 }
@@ -94,29 +98,23 @@ function OutcomePick({
   onPick: (next: DuressOutcome) => void;
 }) {
   return (
-    <div className="duress__pick">
-      <span className="duress__legend" id="duress-does">
-        Entering it shows
-      </span>
-      <div
-        className="set__view"
-        role="radiogroup"
-        aria-labelledby="duress-does"
-      >
+    <fieldset className="duress__pick" disabled={busy}>
+      <legend className="duress__legend">Entering it shows</legend>
+      <div className="duress__choices">
         {OUTCOMES.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="set__view-btn"
-            aria-pressed={outcome === item.id}
-            disabled={busy}
-            onClick={() => onPick(item.id)}
-          >
-            {item.label}
-          </button>
+          <label key={item.id} className="duress__choice">
+            <input
+              type="radio"
+              name="duress-outcome"
+              value={item.id}
+              checked={outcome === item.id}
+              onChange={() => onPick(item.id)}
+            />
+            <span>{item.label}</span>
+          </label>
         ))}
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -201,6 +199,23 @@ function CodeFields({
   );
 }
 
+function removeAlts(
+  armed: boolean,
+  busy: boolean,
+  run: Run,
+  onDone: (message: string) => void,
+): CeremonyAlt[] {
+  if (!armed) return [];
+  return [
+    {
+      id: "remove",
+      label: "Remove the duress code",
+      icon: <IconTrash size={16} />,
+      render: () => <RemoveCard busy={busy} run={run} onDone={onDone} />,
+    },
+  ];
+}
+
 /**
  * Set or change this device's duress code: pick what it does, type it twice,
  * say you understand. Arming seals the code, proves the sealed slot opens
@@ -226,13 +241,19 @@ export function DuressCeremony({
   const [outcome, setOutcome] = useState<DuressOutcome>("decoy");
   const [first, setFirst] = useState("");
   const [second, setSecond] = useState("");
-  const [understood, setUnderstood] = useState(false);
+  // Which outcome the person said they understood, never a bare yes: the
+  // sentence they ticked names one, so a yes to "a decoy" is not a yes to
+  // "a wrong password", and a pick that changes it takes the tick back.
+  const [understoodFor, setUnderstoodFor] = useState<DuressOutcome | null>(
+    null,
+  );
+  const understood = understoodFor === outcome;
   const [refusal, setRefusal] = useState<DuressRefusal | null>(null);
   const ready = isAcceptableDuressCode(first) && first === second && understood;
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!ready) return;
+    if (!ready || busy) return;
     setRefusal(null);
     void run(async () => {
       const result = await arm({
@@ -251,16 +272,7 @@ export function DuressCeremony({
     }, null);
   }
 
-  const alts: CeremonyAlt[] = armed
-    ? [
-        {
-          id: "remove",
-          label: "Remove the duress code",
-          icon: <IconTrash size={16} />,
-          render: () => <RemoveCard busy={busy} run={run} onDone={onDone} />,
-        },
-      ]
-    : [];
+  const alts = removeAlts(armed, busy, run, onDone);
 
   return (
     <>
@@ -282,7 +294,14 @@ export function DuressCeremony({
             onClick: () => {},
           }}
         >
-          <OutcomePick outcome={outcome} busy={busy} onPick={setOutcome} />
+          <OutcomePick
+            outcome={outcome}
+            busy={busy}
+            onPick={(next) => {
+              setOutcome(next);
+              setUnderstoodFor(null);
+            }}
+          />
           <CodeFields
             busy={busy}
             outcome={outcome}
@@ -295,7 +314,7 @@ export function DuressCeremony({
               setRefusal(null);
             }}
             onSecond={(next) => setSecond(next.trim())}
-            onUnderstood={setUnderstood}
+            onUnderstood={(on) => setUnderstoodFor(on ? outcome : null)}
           />
         </CeremonyShell>
       </form>

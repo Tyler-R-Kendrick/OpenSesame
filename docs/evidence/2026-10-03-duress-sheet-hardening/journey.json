@@ -1,0 +1,146 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox], [role=dialog] [aria-pressed]"
+        },
+        {
+          "measure": "[role=dialog] label"
+        },
+        {
+          "report": "[role=dialog] fieldset, [role=dialog] [role=radiogroup]"
+        },
+        {
+          "shot": "390-sheet-fresh"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault."
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox], [role=dialog] [aria-pressed]"
+        },
+        {
+          "shot": "390-sheet-filled"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox], [role=dialog] [aria-pressed]"
+        },
+        {
+          "measure": "[role=dialog] label"
+        },
+        {
+          "report": "[role=dialog] fieldset, [role=dialog] [role=radiogroup]"
+        },
+        {
+          "shot": "1280-sheet-fresh"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault."
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox], [role=dialog] [aria-pressed]"
+        },
+        {
+          "shot": "1280-sheet-filled"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-sheet-fresh",
+      "width": 390,
+      "title": "The duress sheet, as opened \u2014 390 \u00d7 844",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add, the same journey on both builds. The base draws the outcome as two toggle buttons in a radiogroup role and the acknowledgement as a bare checkbox; the branch draws native radios in a fieldset, every row at the touch floor.",
+      "before": "outcome keys 86x21 and 116x21 (toggle buttons); acknowledgement box 13x13",
+      "after": "outcome radios 44x44 and 44x44 (rows 135x44, 162x44); acknowledgement box 44x44"
+    },
+    {
+      "shot": "390-sheet-filled",
+      "width": 390,
+      "title": "Code typed twice, understanding ticked \u2014 390 \u00d7 844",
+      "caption": "The same sheet filled in. The commit key enables once the code matches and the tick is made.",
+      "before": "outcome keys 86x21 and 116x21 (toggle buttons); acknowledgement box 13x13",
+      "after": "outcome radios 44x44 and 44x44 (rows 135x44, 162x44); acknowledgement box 44x44"
+    },
+    {
+      "shot": "1280-sheet-fresh",
+      "width": 1280,
+      "title": "The duress sheet, as opened \u2014 1280 \u00d7 800",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add, the same journey on both builds. The base draws the outcome as two toggle buttons in a radiogroup role and the acknowledgement as a bare checkbox; the branch draws native radios in a fieldset, every row at the touch floor.",
+      "before": "outcome keys 86x21 and 116x21 (toggle buttons); acknowledgement box 13x13",
+      "after": "outcome radios 13x13 in 23px rows (mouse, floor not applied); acknowledgement box 13x13"
+    },
+    {
+      "shot": "1280-sheet-filled",
+      "width": 1280,
+      "title": "Code typed twice, understanding ticked \u2014 1280 \u00d7 800",
+      "caption": "The same sheet filled in. The commit key enables once the code matches and the tick is made.",
+      "before": "outcome keys 86x21 and 116x21 (toggle buttons); acknowledgement box 13x13",
+      "after": "outcome radios 13x13 in 23px rows (mouse, floor not applied); acknowledgement box 13x13"
+    }
+  ]
+}
