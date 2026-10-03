@@ -21,6 +21,7 @@ import { standingOf } from "@opensesame/app-core/lib/plugins/wire.js";
 import { type RefObject, useEffect, useRef, useSyncExternalStore } from "react";
 import { IconPause, IconPlay, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { useVault } from "../../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { InstallCommand } from "./InstallCommand.js";
 import { PairForm } from "./PairForm.js";
@@ -93,9 +94,15 @@ export function PluginPanel({
   const view = useSyncExternalStore(session.subscribe, session.view);
   const ref = useGuideTarget<HTMLDivElement>(guideId);
   const home = useRef<HTMLSpanElement>(null);
+  // Whether a pairing could be kept moves with the vault being open.
+  useVault();
   useEffect(() => {
     session.ensure();
   }, [session]);
+  // No daemon paired and no way to pair one here (no open vault to keep the
+  // key in, or an origin that may not hold local authority): the tile would be
+  // a name and a mark nobody can act on, so it is not drawn (ADR 0158).
+  if (view.daemon === null && !session.canPair()) return null;
   const { plugin } = session;
   const mark = markOf(view);
   const showInstall =
