@@ -24,7 +24,7 @@ import {
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
 import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { withoutPresetResidue } from "./preset-residue.js";
-import type { PersistedDocs } from "./store-persist.js";
+import { type PersistedDocs, readPersistedDocs } from "./store-persist.js";
 import { storeSeams } from "./store-seams.js";
 
 export type StoreState = {
@@ -116,6 +116,15 @@ export function readPolicy(
   }
   state.provenance = "personal-local";
   readLocalPolicy(state, docs, note);
+}
+
+/**
+ * Re-read the device's own policy after its owner wrote it. A managed
+ * instance's policy is the deployment's and is never re-read from the device.
+ */
+export function reloadLocalPolicy(state: StoreState, note: Note): void {
+  if (state.provenance !== "personal-local") return;
+  readLocalPolicy(state, readPersistedDocs(state.vaultId), note);
 }
 
 /**

@@ -36,6 +36,7 @@ import { StatusMark } from "../../../components/StatusMark.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 import { KeyCeremony } from "./KeyCeremony.js";
 import type { Run } from "./run.js";
+import { useAbandonEnrollment } from "./useAbandonEnrollment.js";
 
 type Setter = (foot: string | null) => void;
 type Ledger = Codes & { since: string };
@@ -322,17 +323,7 @@ export function AuthenticatorCeremony({
     }
   }, [view, busy, stage, hasKey, uri, run, store]);
 
-  // Close the sheet mid-way and nothing is kept. The seed is gone, so the
-  // guard that stops a second begin is lifted with it: under StrictMode the
-  // effects mount, clean up and mount again, and the second mount must begin
-  // the enrollment the cleanup just cancelled, not show a seed no store holds.
-  useEffect(() => {
-    return () => {
-      if (view === "remove") return;
-      store.cancelTotpEnrollment();
-      began.current = false;
-    };
-  }, [view, store]);
+  useAbandonEnrollment(view !== "remove", began);
 
   useEffect(() => {
     if (view !== "remove") return;

@@ -10,11 +10,9 @@ import {
   stepProblem,
 } from "@opensesame/app-core/lib/keymap/config.js";
 import {
-  MAX_SEQUENCE,
   keycapLabel,
   tokenFromPress,
 } from "@opensesame/app-core/lib/keymap/notation.js";
-import { stepsFromKeys } from "@opensesame/app-core/sections/settings/keymap-panel-model.js";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import {
   IconChevronDown,
@@ -26,6 +24,7 @@ import {
 import { StatusMark } from "../../../components/StatusMark.js";
 import type { KeymapState } from "./useKeymap.js";
 import { useMoveLanding } from "./useMoveLanding.js";
+import { useStepRecorder } from "./useStepRecorder.js";
 
 /** Commands a step may name: never one that asks first, never a no-op. */
 function stepCommands(
@@ -199,57 +198,6 @@ function StepRow({
       </span>
     </li>
   );
-}
-
-/**
- * Recording turns the keys pressed into steps on stop, leaving out — and
- * naming — whatever this macro's trigger may not run.
- */
-function useStepRecorder(
-  steps: readonly MacroStep[],
-  on: KeymapEvent | undefined,
-  state: KeymapState,
-  onChange: (steps: MacroStep[]) => void,
-  afterStop: () => void,
-) {
-  const [recording, setRecording] = useState(false);
-  const [tokens, setTokens] = useState<string[]>([]);
-  const [skipped, setSkipped] = useState<readonly string[]>([]);
-  const finish = (refocus = true) => {
-    const recorded = stepsFromKeys(tokens, state.config, state.commands);
-    const allowed = recorded.steps.filter(
-      (step) => stepProblem(step, on, state.commands) === null,
-    );
-    const refused = recorded.steps
-      .filter((step) => !allowed.includes(step))
-      .map((step) => step.command);
-    setSkipped([...recorded.skipped, ...refused]);
-    if (allowed.length > 0)
-      onChange([...steps, ...allowed].slice(0, MACRO_LIMITS.steps));
-    setTokens([]);
-    setRecording(false);
-    if (refocus) afterStop();
-  };
-  return {
-    recording,
-    tokens,
-    skipped,
-    toggle: () => {
-      if (recording) {
-        finish();
-        return;
-      }
-      setSkipped([]);
-      setRecording(true);
-    },
-    finish,
-    add: (token: string) =>
-      setTokens((held) =>
-        held.length >= MACRO_LIMITS.steps * MAX_SEQUENCE
-          ? held
-          : [...held, token],
-      ),
-  };
 }
 
 /** Add a step, record steps, and what a recording left out. */

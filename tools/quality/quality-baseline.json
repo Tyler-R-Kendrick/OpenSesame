@@ -18,7 +18,7 @@
   "totals": {
     "files": 438,
     "violations": 688,
-    "oversizedLines": 225848
+    "oversizedLines": 225813
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -210,7 +210,7 @@
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
       "complexity": 2,
-      "max-lines": 913,
+      "max-lines": 909,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/HealthPanel.tsx": {
