@@ -169,7 +169,7 @@ function pageIsLoopbackDefault(hostname?: string): boolean {
  * / `shippedIdentityApi`) must not become a requirement just because this tab
  * is on localhost.
  */
-function defaultIdentityApi(): string {
+export function defaultIdentityApi(): string {
   const deployed = deployedConfig.identityApi?.trim();
   if (deployed) return deployed;
   const baked = built("VITE_IDENTITY_API");

@@ -1,3 +1,4 @@
+import { signInServiceIsDeployed } from "@opensesame/app-core/lib/identity-service.js";
 import type {
   CodeChannel,
   SecondStepId,
@@ -61,15 +62,17 @@ export function CodeRows({
         action={
           hasService ? (
             <div className="actions">
-              <IconKey
-                label="Change"
-                small
-                disabled={busy}
-                onClick={open("service", "change")}
-              >
-                <IconEdit size={16} />
-              </IconKey>
               {codeInUse ? null : (
+                <IconKey
+                  label="Change"
+                  small
+                  disabled={busy}
+                  onClick={open("service", "change")}
+                >
+                  <IconEdit size={16} />
+                </IconKey>
+              )}
+              {codeInUse || signInServiceIsDeployed() ? null : (
                 <IconKey
                   label="Remove"
                   small
