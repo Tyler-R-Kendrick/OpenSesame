@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 438,
-    "violations": 688,
-    "oversizedLines": 225848
+    "files": 436,
+    "violations": 686,
+    "oversizedLines": 223154
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1921
+      "max-lines": 1902
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
