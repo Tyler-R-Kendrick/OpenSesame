@@ -204,7 +204,8 @@ describe("the keyboard after the host's swaps", () => {
 
   it("brings the copy key out from under the phone's sticky strip when Start shortens the page", async () => {
     const panel = await host();
-    const pane = document.body.firstElementChild as HTMLElement;
+    const pane = document.body.firstElementChild;
+    if (!(pane instanceof HTMLElement)) throw new Error("no pane to scroll");
     const strip = pane.appendChild(document.createElement("nav"));
     strip.className = "page-index";
     strip.style.position = "sticky";
@@ -213,7 +214,7 @@ describe("the keyboard after the host's swaps", () => {
     Object.defineProperty(pane, "clientHeight", { value: 640 });
     pane.scrollTop = 100; // the key sits at -2px on screen
     const rect = (top: number, height: number) =>
-      ({ top, bottom: top + height, height }) as DOMRect;
+      new DOMRect(0, top, 0, height);
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
       function (this: Element) {
         if (this === pane) return rect(0, 640);
