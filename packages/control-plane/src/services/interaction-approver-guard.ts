@@ -31,12 +31,11 @@
 
 import {
   type AuthorizationRequest,
-  type BoundaryValue,
   DomainError,
   type Interaction,
   type InteractionKind,
+  type JsonObject,
   canonicalize,
-  overlapCast,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 
@@ -48,7 +47,7 @@ export interface ApproverAsk {
   /** The principal the (already verified) inbox handle resolved to. */
   readonly approverId: string;
   /** The details the interaction would show the approver, as submitted. */
-  readonly authorizationDetails: readonly object[];
+  readonly authorizationDetails: readonly JsonObject[];
 }
 
 /** True when `approverId` may be asked by `callerId` about this subject. */
@@ -88,15 +87,13 @@ export async function approverMayBeAsked(
  */
 export function detailsMatchRequest(
   kind: InteractionKind,
-  interactionDetails: readonly object[] | undefined,
-  requestDetails: readonly object[],
+  interactionDetails: readonly JsonObject[] | undefined,
+  requestDetails: readonly JsonObject[],
 ): boolean {
   if (kind !== "authorization_request") return true;
-  const asValue = (details: readonly object[]) =>
-    overlapCast<readonly object[], BoundaryValue>(details);
   return (
-    canonicalize(asValue(interactionDetails ?? [])) ===
-    canonicalize(asValue(requestDetails))
+    canonicalize([...(interactionDetails ?? [])]) ===
+    canonicalize([...requestDetails])
   );
 }
 

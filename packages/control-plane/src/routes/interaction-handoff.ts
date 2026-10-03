@@ -641,6 +641,9 @@ export function createInteractionHandoffRoutes(): Hono<{
         // must not be asked at all.
         return fail(c, "interaction_not_found");
       }
+      const details: AuthorizationDetail[] = body.authorizationDetails.map(
+        (detail) => overlapCast<typeof detail, AuthorizationDetail>(detail),
+      );
       // An agent's request: its addressee, never the caller, and only the
       // request's own details (ADR 0159). Same refusal as the rest.
       if (
@@ -649,15 +652,11 @@ export function createInteractionHandoffRoutes(): Hono<{
           subjectId: body.subject.subjectId,
           callerId,
           approverId,
-          authorizationDetails: body.authorizationDetails,
+          authorizationDetails: details,
         }))
       ) {
         return fail(c, "interaction_not_found");
       }
-
-      const details: AuthorizationDetail[] = body.authorizationDetails.map(
-        (detail) => overlapCast<typeof detail, AuthorizationDetail>(detail),
-      );
       try {
         assertAuthorizationDetails(details);
       } catch (e) {
