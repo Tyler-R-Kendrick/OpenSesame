@@ -100,23 +100,102 @@ export function sharedItems(
     .slice(0, MAX_ITEMS);
 }
 
-function sharedField(field: Held): SharedField {
+/** Text cut to `max` characters, with a mark where it was cut when asked. */
+function cut(text: string, max: number, marked: boolean): string {
+  const chars = [...text];
+  if (chars.length <= max) return text;
+  return marked
+    ? `${chars.slice(0, Math.max(0, max - 1)).join("")}\u2026`
+    : chars.slice(0, max).join("");
+}
+
+function sharedField(field: Held, valueMax: number): SharedField {
   return {
     key: field.key,
     label: clip(field.label, LABEL_MAX),
     concealed: field.concealed,
-    value: field.concealed ? null : clip(field.text, VALUE_MAX),
+    // Shorter than the usual cap only to fit the frame: say so in the text, so
+    // a guest who copies it does not take a cut value for the whole one.
+    value: field.concealed
+      ? null
+      : cut(field.text, valueMax, valueMax < VALUE_MAX),
   };
 }
 
-function sharedItem(item: VaultItem): SharedItem {
+function sharedItem(item: VaultItem, valueMax: number): SharedItem {
   return {
     id: item.id,
     name: clip(item.name, LABEL_MAX),
     type: clip(itemTypeId(item), 128),
-    fields: heldFields(item).map(sharedField),
+    fields: heldFields(item).map((field) => sharedField(field, valueMax)),
   };
 }
+
+/**
+ * What the catalog frame may weigh, in bytes. A data channel carries one
+ * message at a time, and Chromium's limit is 256 KiB (`a=max-message-size`),
+ * past which `send` throws, so `peer.ts` sends at most `FRAME_BYTES` and the
+ * catalog is cut to fit under it, with room for the envelope. 200 items of 32
+ * fields with 16 KiB of text each is far past that. Unconcealed text is
+ * clipped shorter, in steps and marked where it was cut, and only if names
+ * alone still do not fit are the last items left out (a joiner is never shown
+ * an item it could not reveal from, and the owner's own checks use this same
+ * catalog).
+ */
+export const CATALOG_BUDGET = 200_000;
+const VALUE_STEPS = [VALUE_MAX, 1024, 128];
+const encoder = new TextEncoder();
+
+function weight(catalog: Catalog): number {
+  return encoder.encode(JSON.stringify({ t: "catalog", catalog })).length;
+}
+
+/** Characters in every string of a catalog, with a little for each field. */
+function characterCount(catalog: Catalog): number {
+  let total = catalog.title.length + 80;
+  for (const item of catalog.items) {
+    total += item.name.length + item.type.length + 80;
+    for (const field of item.fields)
+      total +=
+        field.key.length + field.label.length + (field.value?.length ?? 0) + 80;
+  }
+  return total;
+}
+
+/** Whether a catalog certainly fits: three bytes covers any one UTF-16 unit. */
+function certainlyFits(catalog: Catalog): boolean {
+  return characterCount(catalog) * 3 <= CATALOG_BUDGET;
+}
+
+function fitted(
+  head: Pick<Catalog, "title" | "policy" | "expiresAt">,
+  items: readonly VaultItem[],
+): Catalog {
+  const build = (valueMax: number, count: number): Catalog => ({
+    ...head,
+    items: items.slice(0, count).map((item) => sharedItem(item, valueMax)),
+  });
+  for (const valueMax of VALUE_STEPS) {
+    const whole = build(valueMax, items.length);
+    if (certainlyFits(whole) || weight(whole) <= CATALOG_BUDGET) return whole;
+  }
+  const shortest = VALUE_STEPS[VALUE_STEPS.length - 1] ?? 0;
+  let fits = 0;
+  let over = items.length;
+  while (fits < over) {
+    const middle = Math.ceil((fits + over) / 2);
+    if (weight(build(shortest, middle)) <= CATALOG_BUDGET) fits = middle;
+    else over = middle - 1;
+  }
+  return build(shortest, fits);
+}
+
+/**
+ * The fitted catalog for a vault as it stands: the owner asks for it on every
+ * attach, reveal, copy and edit, and fitting a big vault is not free, so what
+ * was fitted is kept for as long as the vault's items are the same array.
+ */
+const remembered = new WeakMap<readonly VaultItem[], Map<string, Catalog>>();
 
 export type CatalogInput = Readonly<{
   title: string;
@@ -128,12 +207,20 @@ export type CatalogInput = Readonly<{
 
 /** The catalog a joiner is sent: names, types, and unconcealed fields. */
 export function vaultCatalog(input: CatalogInput): Catalog {
-  return {
+  const held = input.items();
+  const head = {
     title: clip(input.title, LABEL_MAX),
     policy: input.policy,
     expiresAt: input.expiresAt,
-    items: sharedItems(input.items(), input.scope).map(sharedItem),
   };
+  const key = JSON.stringify([head, input.scope]);
+  const byKey = remembered.get(held) ?? new Map<string, Catalog>();
+  const known = byKey.get(key);
+  if (known) return known;
+  const catalog = fitted(head, sharedItems(held, input.scope));
+  byKey.set(key, catalog);
+  remembered.set(held, byKey);
+  return catalog;
 }
 
 /** One field's full text, if the item is still shared and the field exists. */
