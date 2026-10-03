@@ -92,6 +92,18 @@ describe("contexts in the Keybindings config.yaml", () => {
   });
 });
 
+describe("a first binding with a leading comment", () => {
+  it("takes its comment with it when it is removed", () => {
+    const saved =
+      "keybindings:\n  # one\n  w: listing.next\n  # two\n  x: nop\n";
+    const out = reconcileSource("keybindings", saved, {
+      values: {},
+      keybindings: { x: "nop" },
+    });
+    expect(out).toBe("keybindings:\n  # two\n  x: nop\n");
+  });
+});
+
 describe("macros in the Keybindings config.yaml", () => {
   const saved = [
     "# my keys",
@@ -179,6 +191,71 @@ describe("macros in the Keybindings config.yaml", () => {
     const parsed = decodeSettings("keybindings", grown);
     expect(parsed.ok && parsed.doc.macros).toEqual({
       tidy: { steps: ["listing.previous", "listing.next", "listing.first"] },
+    });
+  });
+
+  describe("a first macro with a leading comment", () => {
+    const two = [
+      "macros:",
+      "  # one",
+      "  a: [listing.next]",
+      "  # two",
+      "  b: [listing.previous]",
+      "",
+    ].join("\n");
+    const doc = (macros: Record<string, { steps: string[] }>) => ({
+      values: {},
+      keybindings: {},
+      macros,
+    });
+
+    it("takes its comment with it when it is removed", () => {
+      const out = reconcileSource(
+        "keybindings",
+        two,
+        doc({ b: { steps: ["listing.previous"] } }),
+      );
+      expect(out).not.toContain("# one");
+      expect(out).toBe("macros:\n  # two\n  b: [ listing.previous ]\n");
+      const parsed = decodeSettings("keybindings", out);
+      expect(parsed.ok && parsed.doc.macros).toEqual({
+        b: { steps: ["listing.previous"] },
+      });
+    });
+
+    it("keeps its place and comment when it is renamed", () => {
+      const out = reconcileSource(
+        "keybindings",
+        two,
+        doc({
+          c: { steps: ["listing.next"] },
+          b: { steps: ["listing.previous"] },
+        }),
+      );
+      expect(out).toBe(
+        [
+          "macros:",
+          "  # one",
+          "  c: [ listing.next ]",
+          "  # two",
+          "  b: [ listing.previous ]",
+          "",
+        ].join("\n"),
+      );
+    });
+
+    it("drops the comment with a sole macro that is removed for a new one", () => {
+      const one = "macros:\n  # one\n  a: [listing.next]\n";
+      const out = reconcileSource(
+        "keybindings",
+        one,
+        doc({ z: { steps: ["listing.last"] } }),
+      );
+      expect(out).not.toContain("# one");
+      const parsed = decodeSettings("keybindings", out);
+      expect(parsed.ok && parsed.doc.macros).toEqual({
+        z: { steps: ["listing.last"] },
+      });
     });
   });
 
