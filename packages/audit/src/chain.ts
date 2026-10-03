@@ -24,6 +24,16 @@ import { auditConflictRetryLimit } from "./conflict.js";
  * every later row is a different threat and needs a signer.
  */
 
+/**
+ * The `code` of the error a sealed store raises for a row that will not open
+ * (`EventSealError` in `@opensesame/database`, ADR 0155).
+ */
+const EVENT_UNREADABLE = "event_unreadable";
+
+function isUnreadable(error: Error): boolean {
+  return "code" in error && error.code === EVENT_UNREADABLE;
+}
+
 /** The digest a chain starts from, so the first event has something to point at. */
 export const AUDIT_CHAIN_GENESIS = "genesis";
 
@@ -126,7 +136,16 @@ export function createChainedAuditSink(
       const read = resolveOnce();
       try {
         tip = (await read) ?? AUDIT_CHAIN_GENESIS;
-      } catch {
+      } catch (error) {
+        // Unlike an unreachable store, a newest row that will not open (the
+        // sealing key changed, or the row was altered) is not a seam to write
+        // across: restarting at genesis would quietly detach every later
+        // event from the trail. Fail closed, and read the tip again on the
+        // next append rather than assume genesis.
+        if (error instanceof Error && isUnreadable(error)) {
+          pendingResolve = resolveOnce;
+          throw error;
+        }
         // A store that cannot be read leaves the tip at genesis: refusing to
         // write the event would lose the trail entirely, which is worse than a
         // chain with a visible seam in it.

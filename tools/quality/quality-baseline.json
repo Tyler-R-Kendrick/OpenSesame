@@ -18,7 +18,7 @@
   "totals": {
     "files": 438,
     "violations": 688,
-    "oversizedLines": 225989
+    "oversizedLines": 225984
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -558,7 +558,7 @@
       "max-lines": 469
     },
     "crates/storage/src/security.rs": {
-      "max-lines": 1598
+      "max-lines": 1595
     },
     "crates/storage/src/shared_sessions.rs": {
       "max-lines": 661
@@ -1120,7 +1120,7 @@
       "max-lines": 856
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1804
+      "max-lines": 1802
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,

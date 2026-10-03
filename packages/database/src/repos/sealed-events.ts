@@ -13,6 +13,15 @@
  * transaction is wrapped, and a marker keeps the two paths from sealing a
  * payload twice.
  *
+ * A queued row whose sealed value will not open (a changed key, an altered
+ * row) is quarantined by itself rather than failing the pass that claimed it:
+ * a drain that threw on one such row would fail again on every tick and hold
+ * every newer row behind it. The row is marked dead through the queue's own
+ * failure columns with a reason that names no value, and its sealed payload is
+ * left as it was. The audit trail is the one read that does not skip: a listing
+ * whose rows cannot be read throws, because a trail with gaps in it is not a
+ * smaller trail.
+ *
  * Failure text (`lastError`, the `error` of `recordFailure`) is scrubbed by
  * shape rather than sealed: the outbox reuses `lastError` as a drain-claim
  * token that SQL reads, and a delivery error is text an operator reads.
@@ -26,13 +35,37 @@ import type {
   OutboxEvent,
   WebhookDelivery,
 } from "@opensesame/os-domain";
-import type { EventSealer } from "../event-seal.js";
+import { EventSealError, type EventSealer } from "../event-seal.js";
 import type { NewOutboxEvent, Repositories, UnitOfWork } from "./interfaces.js";
 
 const AUDIT = "audit_events.metadata";
 const OUTBOX = "outbox_events.payload";
 const WEBHOOK = "webhook_deliveries.payload";
 const NOTIFICATION = "notification_deliveries.payload";
+
+/** What a quarantined row says; it names no value. */
+export const UNREADABLE_REASON = "unreadable: sealed value did not open";
+
+/**
+ * The items of a claim that open. One that does not is handed to `quarantine`
+ * and left out; any other failure is real and propagates.
+ */
+async function openReadable<T>(
+  items: readonly T[],
+  open: (item: T) => T,
+  quarantine: (item: T) => Promise<void>,
+): Promise<T[]> {
+  const readable: T[] = [];
+  for (const item of items) {
+    try {
+      readable.push(open(item));
+    } catch (error) {
+      if (!(error instanceof EventSealError)) throw error;
+      await quarantine(item);
+    }
+  }
+  return readable;
+}
 
 /** Units of work this module has wrapped, so a payload is sealed once. */
 const wrapped = new WeakSet<UnitOfWork>();
@@ -105,18 +138,26 @@ function sealedOutboxRepo(
         await base.append(sealOutbox(sealer, event), uow),
       );
     },
+    // A read: an unreadable row is left out, and claimed (and quarantined) by
+    // the drain that reaches it.
     listUnpublished: async (limit) =>
-      (await base.listUnpublished(limit)).map((e) => openOutbox(sealer, e)),
+      openReadable(
+        await base.listUnpublished(limit),
+        (e) => openOutbox(sealer, e),
+        async () => undefined,
+      ),
     claimUnpublished: async (limit, now, holdMs) =>
-      (await base.claimUnpublished(limit, now, holdMs)).map((e) =>
-        openOutbox(sealer, e),
+      openReadable(
+        await base.claimUnpublished(limit, now, holdMs),
+        (e) => openOutbox(sealer, e),
+        (e) => base.markPublished(e.id, new Date(), UNREADABLE_REASON),
       ),
     releaseClaim: (id: string, error?: string) =>
       base.releaseClaim(id, error === undefined ? undefined : scrubText(error)),
   });
 }
 
-function sealedDeliveries<D extends { payload: JsonObject }>(
+function sealedDeliveries<D extends { id: string; payload: JsonObject }>(
   { sealer }: Sealing,
   purpose: string,
   base: {
@@ -143,9 +184,26 @@ function sealedDeliveries<D extends { payload: JsonObject }>(
         ),
       ),
     claimDue: async (limit: number, now: Date) =>
-      (await base.claimDue(limit, now)).map(open),
+      openReadable(await base.claimDue(limit, now), open, (d) =>
+        base.recordFailure(d.id, UNREADABLE_REASON, now, true),
+      ),
     recordFailure: (id: string, error: string, next: Date, dead: boolean) =>
       base.recordFailure(id, scrubText(error), next, dead),
+  };
+}
+
+function sealedNotifications(
+  sealing: Sealing,
+  base: Repositories["notificationDeliveries"],
+) {
+  return {
+    ...sealedDeliveries<NotificationDelivery>(sealing, NOTIFICATION, base),
+    // A read the sealing above must not bypass: the payload comes back open.
+    listForRequest: async (authReqId: string) =>
+      (await base.listForRequest(authReqId)).map((d) => ({
+        ...d,
+        payload: sealing.sealer.open(NOTIFICATION, d.payload),
+      })),
   };
 }
 
@@ -167,11 +225,7 @@ export function withSealedEvents(
     ),
     notificationDeliveries: overriding(
       repos.notificationDeliveries,
-      sealedDeliveries<NotificationDelivery>(
-        sealing,
-        NOTIFICATION,
-        repos.notificationDeliveries,
-      ),
+      sealedNotifications(sealing, repos.notificationDeliveries),
     ),
     transaction: (fn) =>
       repos.transaction((uow) => fn(sealedUow(sealing, uow))),
