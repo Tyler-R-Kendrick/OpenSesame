@@ -1,0 +1,203 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "press": "Add key protection method"
+        },
+        {
+          "press": "^Recovery key$"
+        },
+        {
+          "scrollTo": "Vault key protection"
+        },
+        {
+          "count": [
+            "[data-protector-id]",
+            "[data-protector-id] button[aria-label^=Preferred]",
+            "[data-protector-id] button[aria-label^=Remove]"
+          ]
+        },
+        {
+          "report": "[data-protector-id] .sw__name"
+        },
+        {
+          "shot": "1280-protector-rows"
+        },
+        {
+          "press": "Lock vault"
+        },
+        {
+          "count": [".unlock__method"]
+        },
+        {
+          "report": ".unlock__method"
+        },
+        {
+          "measure": ".unlock__method"
+        },
+        {
+          "shot": "1280-unlock-tabs"
+        },
+        {
+          "pressOptional": "^Recovery key$"
+        },
+        {
+          "measure": "#unlock-protector"
+        },
+        {
+          "shot": "1280-unlock-recovery"
+        },
+        {
+          "fillOptional": {
+            "label": "Recovery key",
+            "text": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          }
+        },
+        {
+          "pressOptional": "Unlock with recovery key"
+        },
+        {
+          "report": ".note--err"
+        },
+        {
+          "shot": "1280-unlock-refused"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "press": "Add key protection method"
+        },
+        {
+          "press": "^Recovery key$"
+        },
+        {
+          "scrollTo": "Vault key protection"
+        },
+        {
+          "shot": "390-protector-rows"
+        },
+        {
+          "press": "Lock vault"
+        },
+        {
+          "count": [".unlock__method"]
+        },
+        {
+          "report": ".unlock__method"
+        },
+        {
+          "measure": ".unlock__method"
+        },
+        {
+          "shot": "390-unlock-tabs"
+        },
+        {
+          "pressOptional": "^Recovery key$"
+        },
+        {
+          "measure": "#unlock-protector"
+        },
+        {
+          "fillOptional": {
+            "label": "Recovery key",
+            "text": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          }
+        },
+        {
+          "pressOptional": "Unlock with recovery key"
+        },
+        {
+          "report": ".note--err"
+        },
+        {
+          "shot": "390-unlock-refused"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-protector-rows",
+      "width": 1280,
+      "title": "Vault key protection after a recovery key is enrolled — 1280 × 900",
+      "caption": "A verified recovery key is something the vault can be opened with, so its row now carries Preferred beside Test and Remove.",
+      "before": "Preferred keys: 1 (Password); Remove: 1",
+      "after": "Preferred keys: 2 (Password, Recovery key); Remove: 1"
+    },
+    {
+      "shot": "1280-unlock-tabs",
+      "width": 1280,
+      "title": "The locked screen — 1280 × 900",
+      "caption": "The unlock tabs are exactly the enrolled methods. The recovery key that was enrolled is one of them.",
+      "before": "1 method tab: Password",
+      "after": "2 method tabs: Password, Recovery key"
+    },
+    {
+      "shot": "1280-unlock-recovery",
+      "width": 1280,
+      "title": "The Recovery key tab — 1280 × 900",
+      "caption": "Arriving on the tab puts the caret in the key field; the key is concealed, never remembered by the browser.",
+      "before": "no Recovery key tab, no key field",
+      "after": "key field 270 × 32, caret in it on arrival"
+    },
+    {
+      "shot": "1280-unlock-refused",
+      "width": 1280,
+      "title": "A wrong key — 1280 × 900",
+      "caption": "A key that opens nothing is refused in plain words, counts toward the same lockout as a wrong password, and is cleared from the field.",
+      "before": "no field to try the key in",
+      "after": "\"That recovery key did not unlock the vault.\" — field cleared"
+    },
+    {
+      "shot": "390-protector-rows",
+      "width": 390,
+      "title": "Vault key protection on a phone — 390 × 844",
+      "caption": "The same rows at phone width.",
+      "before": "Preferred keys: 1 (Password)",
+      "after": "Preferred keys: 2 (Password, Recovery key)"
+    },
+    {
+      "shot": "390-unlock-tabs",
+      "width": 390,
+      "title": "The locked screen on a phone — 390 × 844",
+      "caption": "Both method tabs are 44px keys on touch.",
+      "before": "1 tab, 84 × 35",
+      "after": "2 tabs, 84 × 44 and 115 × 44"
+    },
+    {
+      "shot": "390-unlock-refused",
+      "width": 390,
+      "title": "A wrong key on a phone — 390 × 844",
+      "caption": "The field keeps the 16px floor that stops iOS zooming on focus.",
+      "before": "no field to try the key in",
+      "after": "key field 324 × 44; \"That recovery key did not unlock the vault.\""
+    }
+  ]
+}

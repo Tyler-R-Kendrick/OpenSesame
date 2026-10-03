@@ -539,8 +539,10 @@ Do not add new top-level directories or loose root files — find the group.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)
   and **which key** opens the vault (the passkey/PIN/password wraps in the
-  plaintext header, then the authenticator gate if enrolled). The unlock tabs
-  are exactly the enrolled methods, never a uniform three; an enrolled
+  plaintext header, plus the manifest's verified recovery key, age key, age
+  passkey and passkey capsule — never a cloud KMS record, whose credential is
+  sealed in the vault, ADR 0152 — then the authenticator gate if enrolled). The
+  unlock tabs are exactly the enrolled methods, never a uniform three; an enrolled
   authenticator code is announced as step 2 before step 1 is taken. Sign out
   is one operation in `packages/app-core/src/lib/session-exit.ts` (forget the
   assertion, revoke Identity, lock, note it for the sign-in panel); "switch

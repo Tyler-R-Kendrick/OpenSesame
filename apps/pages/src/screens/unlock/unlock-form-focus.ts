@@ -1,8 +1,13 @@
 import { type RefObject, useEffect } from "react";
 import { firstControl, landFocus } from "../../lib/focus.js";
+import {
+  type PendingFocus,
+  useRefocusAfterFailure,
+} from "./use-refocus-after-failure.js";
 
 /** Land the caret on the live unlock control for this ceremony. */
 export function useUnlockFormFocus(args: {
+  busy: boolean;
   signInStage: boolean;
   showSignIn: boolean;
   formGated: boolean;
@@ -14,11 +19,13 @@ export function useUnlockFormFocus(args: {
   totpRef: RefObject<HTMLInputElement | null>;
   pinRef: RefObject<HTMLInputElement | null>;
   passwordRef: RefObject<HTMLInputElement | null>;
+  protectorRef: RefObject<HTMLInputElement | null>;
   goRef: RefObject<HTMLButtonElement | null>;
   acceptRef: RefObject<HTMLInputElement | null>;
   formRef: RefObject<HTMLFormElement | null>;
-}): void {
+}): PendingFocus {
   const {
+    busy,
     signInStage,
     showSignIn,
     formGated,
@@ -30,6 +37,7 @@ export function useUnlockFormFocus(args: {
     totpRef,
     pinRef,
     passwordRef,
+    protectorRef,
     goRef,
     acceptRef,
     formRef,
@@ -39,10 +47,16 @@ export function useUnlockFormFocus(args: {
     if (signInStage || showSignIn || formGated) return;
     if (awaitingSecondStep) landFocus(totpRef.current);
     else if (awaitingPasskeyDuressCode) landFocus(pinRef.current);
-    else if (guestKeyless || activeMethod === "passkey") {
+    else if (
+      guestKeyless ||
+      activeMethod === "passkey" ||
+      activeMethod === "agePasskey"
+    ) {
       if (!landFocus(goRef.current) && !landFocus(acceptRef.current))
         landFocus(firstControl(formRef.current));
     } else if (activeMethod === "pin") landFocus(pinRef.current);
+    else if (activeMethod === "recovery" || activeMethod === "age")
+      landFocus(protectorRef.current);
     else landFocus(passwordRef.current);
   }, [
     activeMethod,
@@ -54,4 +68,6 @@ export function useUnlockFormFocus(args: {
     formGated,
     status,
   ]);
+  // A failed attempt asks for the caret back; granted once the form re-enables.
+  return useRefocusAfterFailure(busy, formGated);
 }

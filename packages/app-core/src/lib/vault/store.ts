@@ -72,9 +72,10 @@ import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
 import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import {
-  probePasskeyPrf,
+  probePasskeyCeremony,
   unlockVaultWithHeldPrf,
   unlockVaultWithPasskey,
+  wrapVaultKeyWithCeremony,
 } from "./passkey-unlock-session.js";
 import {
   readPrefsJson,
@@ -90,7 +91,18 @@ import {
 } from "./prefs.js";
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
-import { spendRecoveryCode } from "./recovery-codes.js";
+import {
+  type ProtectorUnlockInput,
+  probeProtectorRoot,
+  unlockVaultWithHeldRoot,
+  unlockVaultWithProtector,
+} from "./protector-unlock-session.js";
+import {
+  maskCodeAddress,
+  mintRecoveryCodes,
+  readRecoveryCodes,
+  spendRecoveryCode,
+} from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
@@ -123,24 +135,18 @@ import {
 } from "./tomb-migration.js";
 import {
   type CodeChannel,
-  RECOVERY_CODE_COUNT,
-  type RecoveryLedger,
   type TotpGateRecord,
   type VaultUnlocks,
   assertKeepsPrimaryUnlock,
   createPasskeyUnlockCeremony,
   hasSecondStep,
-  openRecoveryLedger,
   openText,
   openTotpSecret,
   primaryUnlockCount,
-  randomRecoveryCodes,
-  sealRecoveryLedger,
   sealText,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
   wrapVaultKeyWithPin,
-  wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
 import {
@@ -481,13 +487,7 @@ export class VaultStore {
       if (signal?.aborted) {
         throw new DOMException("The operation was aborted.", "AbortError");
       }
-      const record = await wrapVaultKeyWithPrf(
-        rawVaultKey,
-        ceremony.prfOutput,
-        ceremony.prfSalt,
-        ceremony.credential.rawId,
-        ceremony.userId,
-      );
+      const record = await wrapVaultKeyWithCeremony(rawVaultKey, ceremony);
       const header: VaultHeader = {
         v: 1,
         createdAt: new Date().toISOString(),
@@ -742,8 +742,10 @@ export class VaultStore {
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
-  async probePasskeyPrf(signal?: AbortSignal): Promise<ArrayBuffer> {
-    return probePasskeyPrf(this.#passkeyUnlockHost(), signal);
+  async probePasskeyCeremony(
+    options?: Parameters<typeof probePasskeyCeremony>[1],
+  ) {
+    return probePasskeyCeremony(this.#passkeyUnlockHost(), options);
   }
 
   async unlockWithHeldPrf(prfOutput: ArrayBuffer): Promise<void> {
@@ -752,6 +754,23 @@ export class VaultStore {
 
   async unlockWithPasskey(signal?: AbortSignal): Promise<void> {
     await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
+  }
+
+  /** Recovery key, age identity or age passkey enrolled in the manifest. */
+  async unlockWithProtector(input: ProtectorUnlockInput): Promise<void> {
+    await unlockVaultWithProtector(this.#passkeyUnlockHost(), input);
+  }
+
+  /** The two phases of `unlockWithProtector`, so a duress gate can sit between. */
+  async probeProtector(input: ProtectorUnlockInput): Promise<ArrayBuffer> {
+    return probeProtectorRoot(this.#passkeyUnlockHost(), input);
+  }
+
+  async unlockWithHeldProtectorRoot(
+    root: ArrayBuffer,
+    { method }: Pick<ProtectorUnlockInput, "method">,
+  ): Promise<void> {
+    await unlockVaultWithHeldRoot(this.#passkeyUnlockHost(), root, method);
   }
 
   #passkeyUnlockHost() {
@@ -883,13 +902,7 @@ export class VaultStore {
     const { header } = this.#requireUnlocked();
     const raw = this.#requireRaw();
     const ceremony = await createPasskeyUnlockCeremony();
-    const record = await wrapVaultKeyWithPrf(
-      raw,
-      ceremony.prfOutput,
-      ceremony.prfSalt,
-      ceremony.credential.rawId,
-      ceremony.userId,
-    );
+    const record = await wrapVaultKeyWithCeremony(raw, ceremony);
     const unlocks: VaultUnlocks = { ...header.unlocks, passkey: record };
     await this.#persistHeader({ ...header, unlocks });
   }
@@ -1092,12 +1105,7 @@ export class VaultStore {
     const { vaultKey, header } = this.#requireUnlocked();
     const record = header.unlocks?.[channel];
     if (!record) return null;
-    const to = await openText(vaultKey, record.toWrap);
-    if (channel === "email") {
-      const at = to.indexOf("@");
-      return `${to.slice(0, 1)}•••${to.slice(at)}`;
-    }
-    return `${to.slice(0, Math.max(2, to.length - 10))} ••• ••• ${to.slice(-4)}`;
+    return maskCodeAddress(channel, await openText(vaultKey, record.toWrap));
   }
 
   /**
@@ -1112,34 +1120,19 @@ export class VaultStore {
         "Recovery codes stand in for a second step. Add an authenticator, email or text code first.",
       );
     }
-    const codes = randomRecoveryCodes(RECOVERY_CODE_COUNT);
-    const ledger: RecoveryLedger = { codes, used: codes.map(() => false) };
-    const codesWrap = await sealRecoveryLedger(vaultKey, ledger);
+    const { codes, record } = await mintRecoveryCodes(vaultKey);
     await this.#persistHeader({
       ...header,
-      unlocks: {
-        ...header.unlocks,
-        recovery: {
-          codesWrap,
-          total: codes.length,
-          since: new Date().toISOString(),
-        },
-      },
+      unlocks: { ...header.unlocks, recovery: record },
     });
     return codes;
   }
 
   /** The recovery codes and which are spent, or null when none were made. */
-  async recoveryCodes(): Promise<{
-    codes: string[];
-    used: boolean[];
-    since: string;
-  } | null> {
+  async recoveryCodes() {
     const { vaultKey, header } = this.#requireUnlocked();
     const record = header.unlocks?.recovery;
-    if (!record) return null;
-    const ledger = await openRecoveryLedger(vaultKey, record);
-    return { codes: ledger.codes, used: ledger.used, since: record.since };
+    return record ? readRecoveryCodes(vaultKey, record) : null;
   }
 
   /** Run on every lock — used to wipe secrets that left the vault (clipboard). */

@@ -150,7 +150,7 @@ describe("VaultKeyProtectionPanel", () => {
     }
   });
 
-  it("draws Preferred for the wraps that open the vault and Remove for the rest", () => {
+  it("draws Preferred for everything that opens the vault, Remove for everything but its own wraps", () => {
     showRecords([pin, passkeyWrap, recoveryKey]);
     for (const label of ["PIN", "Passkey / security key"]) {
       expect(
@@ -160,11 +160,42 @@ describe("VaultKeyProtectionPanel", () => {
         screen.queryByRole("button", { name: `Remove ${label}` }),
       ).toBeNull();
     }
+    // A verified recovery key opens the vault at the unlock screen (ADR 0152):
+    // it can be preferred, and it is removed here.
+    expect(
+      screen.getByRole("button", { name: "Preferred unlock Recovery key" }),
+    ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Remove Recovery key" }),
     ).toBeTruthy();
+  });
+
+  it("draws no Preferred for a protector the unlock screen cannot use", () => {
+    // Untested: never opened with its identity. Cloud: its credential is
+    // sealed in the vault it protects. Neither is drawn at unlock.
+    showRecords([ageRecipient, awsKms, gcpKms, agePasskey]);
+    for (const label of ["age recipient", "AWS KMS", "Google Cloud KMS"]) {
+      expect(
+        screen.queryByRole("button", { name: `Preferred unlock ${label}` }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("button", { name: `Remove ${label}` }),
+      ).toBeTruthy();
+    }
     expect(
-      screen.queryByRole("button", { name: "Preferred unlock Recovery key" }),
+      screen.getByRole("button", { name: "Preferred unlock age passkey" }),
+    ).toBeTruthy();
+  });
+
+  it("marks a verified cloud key whose credential this vault seals as not a way back in", () => {
+    showRecords([recoveryKey, awsKms]);
+    const row = (id: string) =>
+      document.querySelector(`[data-protector-id="${id}"]`);
+    const note = "Its credential is sealed in this vault";
+    expect(row("aws_1")?.querySelector(`[aria-label^="${note}"]`)).toBeTruthy();
+    expect(row("aws_1")?.querySelector('[aria-label="Verified"]')).toBeTruthy();
+    expect(
+      row("recovery-key_a")?.querySelector(`[aria-label^="${note}"]`),
     ).toBeNull();
   });
 
