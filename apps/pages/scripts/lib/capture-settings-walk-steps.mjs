@@ -1,32 +1,18 @@
 /**
  * Capture verbs for the second Settings walk (docs/evidence/2026-10-03-settings-walk):
- * a connector tile pressed by the page it links to, and the plain presses a
- * walk of the Security sheet needs. `press` is `capture-evidence.mjs`'s
- * tap-or-click.
+ * the sheet, label and disabled-key readings a walk of Security and Settings
+ * needs.
  */
 
 import { pluginSteps } from "./capture-plugin-steps.mjs";
 
 /** The plugin pairing verbs and the Settings walk verbs, as one registration. */
-export function pluginAndWalkSteps({ press }) {
-  return { ...pluginSteps(), ...settingsWalkSteps({ press }) };
+export function pluginAndWalkSteps() {
+  return { ...pluginSteps(), ...settingsWalkSteps() };
 }
 
-function settingsWalkSteps({ press }) {
+function settingsWalkSteps() {
   return {
-    /**
-     * Press the Capabilities tile that links to `/settings/connections/<id>`
-     * when this build draws one. A build that draws no such tile (the branch,
-     * with Connections off) is a legitimate difference, not a miss.
-     */
-    async tileOptional(page, id) {
-      const tile = page
-        .locator(`a[href$="/settings/connections/${id}"]`)
-        .first();
-      if (!(await tile.count())) return;
-      await press(tile);
-      await page.waitForTimeout(1400);
-    },
     /**
      * Type into the labelled input of the open sheet — never the sheet itself,
      * whose own label can be the same word (the PIN sheet's field is "PIN").
@@ -55,6 +41,15 @@ function settingsWalkSteps({ press }) {
         .evaluate((node) => node.textContent.replaceAll(/\s+/g, " ").trim())
         .catch(() => "no sheet");
       console.log(`  sheet: ${text}`);
+    },
+    /** Print each match's accessible name (a mark's sentence lives in its aria-label). */
+    async labels(page, selector) {
+      const names = await page
+        .locator(selector)
+        .evaluateAll((nodes) =>
+          nodes.map((node) => node.getAttribute("aria-label") ?? ""),
+        );
+      console.log(`  labels ${selector}: ${names.join(" | ")}`);
     },
     /** Print how many of the page's own buttons are disabled, and their names. */
     async disabledKeys(page, scope) {

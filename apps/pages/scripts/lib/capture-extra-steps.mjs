@@ -48,7 +48,7 @@ export function extraSteps({ press }) {
       await unlockWithPassword(page);
       await page.waitForTimeout(1400);
     },
-    ...pluginAndWalkSteps({ press }),
+    ...pluginAndWalkSteps(),
     /**
      * Pick a labelled radio when this build has it — a connector's
      * connection method. A base build without the choice is a legitimate

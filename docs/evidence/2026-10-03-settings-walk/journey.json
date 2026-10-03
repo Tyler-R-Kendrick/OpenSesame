@@ -39,9 +39,7 @@
           "disabledKeys": ".section__inner"
         },
         {
-          "count": [
-            "[data-resets]"
-          ]
+          "count": ["[data-resets]"]
         },
         {
           "shot": "390-keybindings"
@@ -50,9 +48,7 @@
           "pressOptional": "New macro"
         },
         {
-          "count": [
-            "[data-new-macro]"
-          ]
+          "count": ["[data-new-macro]"]
         },
         {
           "disabledKeys": ".section__inner"
@@ -94,10 +90,7 @@
           "sheetPressOptional": "Set PIN"
         },
         {
-          "count": [
-            ".section__inner .note",
-            ".section__inner p.hint"
-          ]
+          "count": [".section__inner .note", ".section__inner p.hint"]
         },
         {
           "report": ".section__inner .note"
@@ -136,10 +129,7 @@
           "disabledKeys": "#vault-environments"
         },
         {
-          "count": [
-            "#vault-environments select",
-            "#vault-environments li"
-          ]
+          "count": ["#vault-environments select", "#vault-environments li"]
         },
         {
           "shot": "390-environments"
@@ -190,10 +180,7 @@
           "visit": "settings"
         },
         {
-          "count": [
-            ".set__nav-link",
-            ".plugin-tile"
-          ]
+          "count": [".set__nav-link", ".plugin-tile"]
         },
         {
           "report": ".set__nav"
@@ -208,9 +195,7 @@
           "scrollToOptional": "Surrogate credentials"
         },
         {
-          "count": [
-            ".plugin-tile"
-          ]
+          "count": [".plugin-tile"]
         },
         {
           "shot": "390-plugin-tiles"
@@ -235,11 +220,12 @@
         },
         {
           "count": [
-            "#feature-identity [role=switch]"
+            "#feature-identity [role=switch]",
+            "#feature-identity [role=switch][aria-checked=true]"
           ]
         },
         {
-          "report": "#feature-identity [role=img]"
+          "labels": "#feature-identity [role=img]"
         },
         {
           "shot": "390-identity"
@@ -263,9 +249,7 @@
           "pressOptional": "Homelab"
         },
         {
-          "count": [
-            ".preset__opt.is-on"
-          ]
+          "count": [".preset__opt.is-on"]
         },
         {
           "shot": "390-preset"
@@ -286,9 +270,7 @@
           "scrollToOptional": "Travel"
         },
         {
-          "count": [
-            "[aria-label='Turn on travel mode']"
-          ]
+          "count": ["[aria-label='Turn on travel mode']"]
         },
         {
           "shot": "390-travel"
@@ -359,9 +341,7 @@
           "disabledKeys": ".section__inner"
         },
         {
-          "count": [
-            "[data-resets]"
-          ]
+          "count": ["[data-resets]"]
         },
         {
           "shot": "1280-keybindings"
@@ -370,9 +350,7 @@
           "pressOptional": "New macro"
         },
         {
-          "count": [
-            "[data-new-macro]"
-          ]
+          "count": ["[data-new-macro]"]
         },
         {
           "disabledKeys": ".section__inner"
@@ -415,10 +393,7 @@
           "sheetPressOptional": "Set PIN"
         },
         {
-          "count": [
-            ".section__inner .note",
-            ".section__inner p.hint"
-          ]
+          "count": [".section__inner .note", ".section__inner p.hint"]
         },
         {
           "report": ".section__inner .note"
@@ -458,10 +433,7 @@
           "disabledKeys": "#vault-environments"
         },
         {
-          "count": [
-            "#vault-environments select",
-            "#vault-environments li"
-          ]
+          "count": ["#vault-environments select", "#vault-environments li"]
         },
         {
           "shot": "1280-environments"
@@ -514,10 +486,7 @@
           "visit": "settings"
         },
         {
-          "count": [
-            ".set__nav-link",
-            ".plugin-tile"
-          ]
+          "count": [".set__nav-link", ".plugin-tile"]
         },
         {
           "report": ".set__nav"
@@ -532,9 +501,7 @@
           "scrollToOptional": "Surrogate credentials"
         },
         {
-          "count": [
-            ".plugin-tile"
-          ]
+          "count": [".plugin-tile"]
         },
         {
           "shot": "1280-plugin-tiles"
@@ -560,11 +527,12 @@
         },
         {
           "count": [
-            "#feature-identity [role=switch]"
+            "#feature-identity [role=switch]",
+            "#feature-identity [role=switch][aria-checked=true]"
           ]
         },
         {
-          "report": "#feature-identity [role=img]"
+          "labels": "#feature-identity [role=img]"
         },
         {
           "shot": "1280-identity"
@@ -589,9 +557,7 @@
           "pressOptional": "Homelab"
         },
         {
-          "count": [
-            ".preset__opt.is-on"
-          ]
+          "count": [".preset__opt.is-on"]
         },
         {
           "shot": "1280-preset"
@@ -613,9 +579,7 @@
           "scrollToOptional": "Travel"
         },
         {
-          "count": [
-            "[aria-label='Turn on travel mode']"
-          ]
+          "count": ["[aria-label='Turn on travel mode']"]
         },
         {
           "shot": "1280-travel"
@@ -654,8 +618,8 @@
       "width": 390,
       "title": "Capabilities, a fresh device: no switch over no code \u2014 390 \u00d7 844",
       "caption": "Telemetry and Certificate authority carried a switch over a capability that has no Pages code. The sections that held only those are not drawn; both stay in the catalog for a policy to name. (The provider tiles that led to blank pages are the connectors branch's, already in both builds.)",
-      "before": "20 sections, 43 provider links, 37 switches; Telemetry and Certificate authority sections drawn",
-      "after": "14 sections, 0 provider links, 28 switches; Telemetry and Certificate authority not drawn"
+      "before": "17 sections, 37 switches; Telemetry and Certificate authority sections drawn",
+      "after": "15 sections, 35 switches; Telemetry and Certificate authority not drawn"
     },
     {
       "shot": "390-keybindings",
@@ -726,8 +690,8 @@
       "width": 390,
       "title": "Identity: a capability another runs on shows who needs it \u2014 390 \u00d7 844",
       "caption": "Browser-local IAM and Operator identity providers each drew a switch that could not take while Self-issued OpenID, Ambient single sign-on or Directory ran on them. They now say needed by.",
-      "before": "5 switches, 2 that cannot take while a dependent runs",
-      "after": "3 switches; the 2 dependents say 'needed by'"
+      "before": "5 switches, 5 on; Browser-local IAM and Operator identity providers carry switches that cannot take while Self-issued OpenID and Ambient run on them",
+      "after": "3 switches, 3 on; the two dependents say 'needed by Self-issued OpenID' and 'needed by Ambient single sign-on'"
     },
     {
       "shot": "390-preset",
@@ -758,8 +722,8 @@
       "width": 1280,
       "title": "Capabilities, a fresh device: no switch over no code \u2014 1280 \u00d7 900",
       "caption": "Telemetry and Certificate authority carried a switch over a capability that has no Pages code. The sections that held only those are not drawn; both stay in the catalog for a policy to name. (The provider tiles that led to blank pages are the connectors branch's, already in both builds.)",
-      "before": "20 sections, 43 provider links, 37 switches; Telemetry and Certificate authority sections drawn",
-      "after": "14 sections, 0 provider links, 28 switches; Telemetry and Certificate authority not drawn"
+      "before": "17 sections, 37 switches; Telemetry and Certificate authority sections drawn",
+      "after": "15 sections, 35 switches; Telemetry and Certificate authority not drawn"
     },
     {
       "shot": "1280-keybindings",
@@ -830,8 +794,8 @@
       "width": 1280,
       "title": "Identity: a capability another runs on shows who needs it \u2014 1280 \u00d7 900",
       "caption": "Browser-local IAM and Operator identity providers each drew a switch that could not take while Self-issued OpenID, Ambient single sign-on or Directory ran on them. They now say needed by.",
-      "before": "5 switches, 2 that cannot take while a dependent runs",
-      "after": "3 switches; the 2 dependents say 'needed by'"
+      "before": "5 switches, 5 on; Browser-local IAM and Operator identity providers carry switches that cannot take while Self-issued OpenID and Ambient run on them",
+      "after": "3 switches, 3 on; the two dependents say 'needed by Self-issued OpenID' and 'needed by Ambient single sign-on'"
     },
     {
       "shot": "1280-preset",

@@ -124,6 +124,10 @@ was fixed at its root:
   absent ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md),
   third amendment). This walk reproduced it (43 tiles, each opening a blank
   page) and kept that mechanism rather than a second one.
+- **A switch that looks off while it is on.** Switches carried `aria-pressed`
+  beside `aria-checked`; dropping the redundant one left `.toggle` styled only
+  for `aria-pressed`, so every switch drew off. The toggle's on state now answers
+  to either (`toggle-style.test.ts`).
 - **A switch for nothing.** External telemetry and Certificate authority have no
   Pages code (their modules say so); Push notifications had a library and no row.
   The first two draw no section (`NO_SURFACE`); Push gets *Push on this device*

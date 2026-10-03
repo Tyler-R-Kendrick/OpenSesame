@@ -18,7 +18,7 @@
   "totals": {
     "files": 435,
     "violations": 685,
-    "oversizedLines": 222835
+    "oversizedLines": 222831
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
