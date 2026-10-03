@@ -186,17 +186,32 @@ function patchSteps(
   pair.value = stepsNode(document, steps, old.flow, old);
 }
 
+/**
+ * A step list rewritten in the spelling it was written in: a missing `flow`
+ * means a block list, so only a list that was a flow list (or has no old
+ * spelling) is written as one. A step that is still there keeps the item node
+ * it had, so a comment on its line rides along; the comments above and beside
+ * the list itself stay too.
+ */
 function stepsNode(
   document: Document.Parsed,
   steps: readonly string[],
   flow: boolean | undefined,
   old?: YAMLSeq,
 ): Node {
-  const node = document.createNode([...steps], { flow: flow ?? true });
-  if (old !== undefined) {
-    node.comment = old.comment;
-    node.commentBefore = old.commentBefore;
-  }
+  const node = document.createNode([...steps], {
+    flow: old === undefined ? true : flow === true,
+  });
+  if (old === undefined || !isSeq(node)) return node;
+  node.comment = old.comment;
+  node.commentBefore = old.commentBefore;
+  const spare = old.items.filter(isScalar);
+  node.items = node.items.map((item) => {
+    const same = spare.findIndex(
+      (kept) => isScalar(item) && kept.value === item.value,
+    );
+    return same === -1 ? item : (spare.splice(same, 1)[0] ?? item);
+  });
   return node;
 }
 

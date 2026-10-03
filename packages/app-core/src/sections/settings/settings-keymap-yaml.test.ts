@@ -156,6 +156,32 @@ describe("macros in the Keybindings config.yaml", () => {
     });
   });
 
+  it("keeps a block list a block list, and the comments on the steps that stay", () => {
+    const block =
+      "macros:\n  tidy:\n    steps:\n      # first\n      - listing.next # n\n      - listing.previous\n";
+    const out = reconcileSource("keybindings", block, {
+      ...base,
+      macros: { tidy: { steps: ["listing.next"] } },
+    });
+    expect(out).toContain(
+      "    steps:\n      # first\n      - listing.next # n",
+    );
+    expect(out).not.toContain("[");
+    expect(out).not.toContain("listing.previous");
+    const grown = reconcileSource("keybindings", block, {
+      ...base,
+      macros: {
+        tidy: { steps: ["listing.previous", "listing.next", "listing.first"] },
+      },
+    });
+    expect(grown).toContain("- listing.next # n");
+    expect(grown).not.toContain("[");
+    const parsed = decodeSettings("keybindings", grown);
+    expect(parsed.ok && parsed.doc.macros).toEqual({
+      tidy: { steps: ["listing.previous", "listing.next", "listing.first"] },
+    });
+  });
+
   it("patches a macro written as a bare list of steps", () => {
     const bare = "macros:\n  tidy: [listing.next] # short\n";
     const out = reconcileSource("keybindings", bare, {
