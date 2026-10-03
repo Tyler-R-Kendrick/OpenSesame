@@ -46,7 +46,9 @@ export const PAIRING_MS = 15 * 60_000;
 
 const CHANNEL_LABEL = "osm-live-v1";
 const GATHER_MS = 8000;
-/** Anything bigger than a catalog is not a message this protocol sends. */
+/** What one frame may weigh in bytes: under Chromium's 256 KiB message limit. */
+export const FRAME_BYTES = 250_000;
+/** What a frame read from the channel may be at most, in characters. */
 const FRAME_MAX = 1024 * 1024;
 
 function rtcConfig(ice: IceSettings): RTCConfiguration {
@@ -104,10 +106,21 @@ export class PeerChannel {
     });
   }
 
-  send(message: ChannelMessage): void {
-    if (this.channel.readyState !== "open") return;
+  /**
+   * Whether the frame went out: not while closed, never one over what a
+   * message may weigh in bytes (`FRAME_BYTES`), and not if the browser refuses
+   * it, which for a data channel is a throw, not a result.
+   */
+  send(message: ChannelMessage): boolean {
+    if (this.channel.readyState !== "open") return false;
     const frame = JSON.stringify(message);
-    if (frame.length <= FRAME_MAX) this.channel.send(frame);
+    if (new TextEncoder().encode(frame).length > FRAME_BYTES) return false;
+    try {
+      this.channel.send(frame);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   onMessage(handler: (message: ChannelMessage) => void): void {

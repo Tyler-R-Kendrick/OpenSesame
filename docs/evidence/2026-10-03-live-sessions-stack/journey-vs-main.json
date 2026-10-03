@@ -1,0 +1,537 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "arrive": "#live=v1.i.BAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0A.ZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4CBgoM.eyJpY2UiOlt7InVybHMiOlsic3R1bjpzdHVuLmV4YW1wbGUuY29tOjM0NzgiXX1dLCJyZWxheSI6dHJ1ZX0"
+        },
+        {
+          "address": null
+        },
+        {
+          "count": [".capreview, [data-testid=capability-review]"]
+        },
+        {
+          "pressOptional": "^Apply configuration"
+        },
+        {
+          "report": "label:has(input[type=checkbox])"
+        },
+        {
+          "liveAsk": {
+            "code": "BCDFGHJK",
+            "name": "Guest"
+          }
+        },
+        {
+          "count": [
+            "input[type=checkbox]",
+            "[role=img][aria-label='Not a live-session link']",
+            ".live-join form button:disabled",
+            ".live-join form button:enabled"
+          ]
+        },
+        {
+          "marks": ".live-join"
+        },
+        {
+          "shot": "main-390-join-relay"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "arrive": "#live=v1.i.BAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0A.ZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4CBgoM.eyJpY2UiOlt7InVybHMiOlsic3R1bjpzdHVuLmV4YW1wbGUuY29tOjM0NzgiXX1dLCJyZWxheSI6dHJ1ZX0"
+        },
+        {
+          "address": null
+        },
+        {
+          "count": [".capreview, [data-testid=capability-review]"]
+        },
+        {
+          "pressOptional": "^Apply configuration"
+        },
+        {
+          "report": "label:has(input[type=checkbox])"
+        },
+        {
+          "liveAsk": {
+            "code": "BCDFGHJK",
+            "name": "Guest"
+          }
+        },
+        {
+          "count": [
+            "input[type=checkbox]",
+            "[role=img][aria-label='Not a live-session link']",
+            ".live-join form button:disabled",
+            ".live-join form button:enabled"
+          ]
+        },
+        {
+          "marks": ".live-join"
+        },
+        {
+          "shot": "main-1280-join-relay"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 640,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "GitHub"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "keyboard": true
+          }
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "main-390-focus-after-start"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "GitHub"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "keyboard": true
+          }
+        },
+        {
+          "focused": null
+        },
+        {
+          "shot": "main-1280-focus-after-start"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "relays": ["wss://relay.example.test"],
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "GitHub"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveRoutes": [
+            {
+              "kind": "nostr",
+              "url": "wss://relay.example.test"
+            }
+          ]
+        },
+        {
+          "liveStart": {}
+        },
+        {
+          "liveScroll": null
+        },
+        {
+          "marks": "#live-session"
+        },
+        {
+          "shot": "main-390-carrier-carrying"
+        },
+        {
+          "livePurpose": "family"
+        },
+        {
+          "count": ["[data-testid=purpose-card-family].is-on"]
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveScroll": null
+        },
+        {
+          "marks": "#live-session"
+        },
+        {
+          "shot": "main-390-carrier-after-policy"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "count": [
+            "#live-session",
+            "#instance-policy",
+            "[data-testid=purpose-card-family].is-on"
+          ]
+        },
+        {
+          "scrollToOptional": "Instance policy"
+        },
+        {
+          "shot": "main-390-carrier-after-reload"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "relays": ["wss://relay.example.test"],
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "GitHub"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveRoutes": [
+            {
+              "kind": "nostr",
+              "url": "wss://relay.example.test"
+            }
+          ]
+        },
+        {
+          "liveStart": {}
+        },
+        {
+          "liveScroll": null
+        },
+        {
+          "marks": "#live-session"
+        },
+        {
+          "shot": "main-1280-carrier-carrying"
+        },
+        {
+          "livePurpose": "family"
+        },
+        {
+          "count": ["[data-testid=purpose-card-family].is-on"]
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveScroll": null
+        },
+        {
+          "marks": "#live-session"
+        },
+        {
+          "shot": "main-1280-carrier-after-policy"
+        },
+        {
+          "reloadUnlock": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Capabilities"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "count": [
+            "#live-session",
+            "#instance-policy",
+            "[data-testid=purpose-card-family].is-on"
+          ]
+        },
+        {
+          "scrollToOptional": "Instance policy"
+        },
+        {
+          "shot": "main-1280-carrier-after-reload"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "liveWeigh": {
+            "items": 3,
+            "fields": 30,
+            "bytes": 16384
+          }
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "wholeVault": true
+          }
+        },
+        {
+          "liveLink": null
+        },
+        {
+          "liveJoin": {
+            "name": "Ada"
+          }
+        },
+        {
+          "liveCatalog": null
+        },
+        {
+          "shot": "main-390-oversize-joiner"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "liveWeigh": {
+            "items": 3,
+            "fields": 30,
+            "bytes": 16384
+          }
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "wholeVault": true
+          }
+        },
+        {
+          "liveLink": null
+        },
+        {
+          "liveJoin": {
+            "name": "Ada"
+          }
+        },
+        {
+          "liveCatalog": null
+        },
+        {
+          "shot": "main-1280-oversize-joiner"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "main-390-join-relay",
+      "width": 390,
+      "title": "A relay-only link that names no TURN server, 390 \u00d7 844",
+      "caption": "A link says relay only and names only a STUN server, so it can never connect. The joiner's screen refuses it before anything is contacted.",
+      "before": "accepted: Link in hand, 1 routes box (Through stun.example.com), code typed, Ask to join enabled",
+      "after": "refused: Not a live-session link, 0 routes boxes, no Code field, Ask to join disabled"
+    },
+    {
+      "shot": "main-1280-join-relay",
+      "width": 1280,
+      "title": "A relay-only link that names no TURN server, 1280 \u00d7 900",
+      "caption": "A link says relay only and names only a STUN server, so it can never connect. The joiner's screen refuses it before anything is contacted.",
+      "before": "accepted: Link in hand, 1 routes box (Through stun.example.com), code typed, Ask to join enabled",
+      "after": "refused: Not a live-session link, 0 routes boxes, no Code field, Ask to join disabled"
+    },
+    {
+      "shot": "main-390-focus-after-start",
+      "width": 390,
+      "title": "Keyboard focus after Start, 390 \u00d7 640",
+      "caption": "The owner starts a session with Tab, Space and Enter alone, on a phone 640 high.",
+      "before": "Copy the link covered: elementFromPoint = nav.page-index, box 44\u00d744 @319,73",
+      "after": "Copy the link clear: elementFromPoint = the key's icon, box 44\u00d744 @319,132"
+    },
+    {
+      "shot": "main-1280-focus-after-start",
+      "width": 1280,
+      "title": "Keyboard focus after Start, 1280 \u00d7 900",
+      "caption": "The same walk on a desktop: nothing changes.",
+      "before": "Copy the link, box 32\u00d732 @1197,262, unobscured",
+      "after": "Copy the link, box 32\u00d732 @1197,262, unobscured"
+    },
+    {
+      "shot": "main-390-carrier-after-policy",
+      "width": 390,
+      "title": "A carrier after the operator changes the policy, 390 \u00d7 844",
+      "caption": "A Nostr relay carries codes for a running session. The operator then chooses the Family purpose (external services denied) under Instance policy. The running page keeps the plan it loaded.",
+      "before": "Live + Carrying codes; Family card on: 0",
+      "after": "Live + Carrying codes; Family card on: 0 (same: the plan is read once per page load)"
+    },
+    {
+      "shot": "main-390-carrier-after-reload",
+      "width": 390,
+      "title": "The changed policy lands on the next load, 390 \u00d7 844",
+      "caption": "After a reload and unlock the saved policy is the plan: the Family card is on, and the session, which lived in the page, is gone along with the Live sessions panel.",
+      "before": "#live-session: 0, Family card on: 1",
+      "after": "#live-session: 0, Family card on: 1"
+    },
+    {
+      "shot": "main-1280-carrier-after-policy",
+      "width": 1280,
+      "title": "A carrier after the operator changes the policy, 1280 \u00d7 900",
+      "caption": "A Nostr relay carries codes for a running session. The operator then chooses the Family purpose (external services denied) under Instance policy. The running page keeps the plan it loaded.",
+      "before": "Live + Carrying codes; Family card on: 0",
+      "after": "Live + Carrying codes; Family card on: 0 (same: the plan is read once per page load)"
+    },
+    {
+      "shot": "main-1280-carrier-after-reload",
+      "width": 1280,
+      "title": "The changed policy lands on the next load, 1280 \u00d7 900",
+      "caption": "After a reload and unlock the saved policy is the plan: the Family card is on, and the session, which lived in the page, is gone along with the Live sessions panel.",
+      "before": "#live-session: 0, Family card on: 1",
+      "after": "#live-session: 0, Family card on: 1"
+    },
+    {
+      "shot": "main-390-oversize-joiner",
+      "width": 390,
+      "title": "A vault past the frame, as the joiner sees it, 390 \u00d7 844",
+      "caption": "Three items of 30 custom fields of 16 KiB each (1.4 MiB) are shared as the whole vault. The joiner connects over real WebRTC and is let in by hand.",
+      "before": "joiner: Connecting to the owner's browser; lists 0 items; owner: In the session",
+      "after": "joiner: Joined Team; lists 3 items, longest plain text 1024 characters"
+    },
+    {
+      "shot": "main-1280-oversize-joiner",
+      "width": 1280,
+      "title": "A vault past the frame, as the joiner sees it, 1280 \u00d7 900",
+      "caption": "Three items of 30 custom fields of 16 KiB each (1.4 MiB) are shared as the whole vault. The joiner connects over real WebRTC and is let in by hand.",
+      "before": "joiner: Connecting to the owner's browser; lists 0 items; owner: In the session",
+      "after": "joiner: Joined Team; lists 3 items, longest plain text 1024 characters"
+    }
+  ]
+}
