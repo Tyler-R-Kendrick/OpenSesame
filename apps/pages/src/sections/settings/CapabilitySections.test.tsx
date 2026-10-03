@@ -1,5 +1,7 @@
 import {
   FEATURES,
+  NO_SURFACE,
+  featureOf,
   isSwitchable,
 } from "@opensesame/app-core/lib/capabilities/features.js";
 /** @vitest-environment jsdom */
@@ -31,9 +33,11 @@ installPanelFixture();
  * Sections that draw nothing on a device with no Host, no Connect credential
  * and no unlocked vault. Encryption's panels seal a key in the vault, so a
  * locked vault draws no tile and no switch (ADR 0158). A key or a
- * configuration seals on this device, so those sections stay.
+ * configuration seals on this device, so those sections stay. External
+ * telemetry and Certificate authority have no Pages code behind them, so
+ * their sections have no switch to draw and are absent (ADR 0158).
  */
-const NOTHING_TO_DO_HERE = new Set(["encryption"]);
+const NOTHING_TO_DO_HERE = new Set(["encryption", "telemetry", "certificates"]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
   it("draws every section once, as a subheader, never as a card row", () => {
@@ -162,10 +166,21 @@ describe("sections — one list, one style, a switch only where something is opt
 
   it("a one-capability section's subheader switch answers to that capability's title", () => {
     renderPanel();
-    const telemetry = screen.getByRole("switch", { name: "Telemetry" });
-    expect(telemetry.getAttribute("data-capability-title")).toBe(
-      "External telemetry",
+    const connections = screen.getByRole("switch", { name: "Connections" });
+    expect(connections.getAttribute("data-capability-title")).toBe(
+      "External connectors",
     );
+  });
+
+  it("draws no switch for a capability with no Pages code behind it, though it stays in the catalog for a policy to name", () => {
+    renderPanel();
+    expect(screen.queryByRole("switch", { name: "Telemetry" })).toBeNull();
+    expect(
+      screen.queryByRole("switch", { name: "Certificate authority" }),
+    ).toBeNull();
+    expect(document.getElementById("feature-telemetry")).toBeNull();
+    expect(document.getElementById("feature-certificates")).toBeNull();
+    for (const id of NO_SURFACE) expect(featureOf(id), id).not.toBeNull();
   });
 
   it("draws a section's providers whether or not anything is switched on", () => {

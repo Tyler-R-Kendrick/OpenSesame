@@ -167,9 +167,32 @@ export const FEATURES: readonly Feature[] = [
   section("telemetry", "Telemetry", ["telemetry.external"], []),
 ];
 
-/** Whether a section carries a switch: it has an optional capability. */
+/**
+ * Optional capabilities with no Pages code behind them. Each exists so an
+ * operator can name it in a policy — prohibit it, or leave it out of a
+ * distribution — and its module registers nothing: External telemetry has no
+ * collector and Certificate authority no Host issuance surface
+ * (`modules/<id>/runtime.ts` say so). A switch
+ * for one changes nothing a person can see, so Settings draws none (ADR 0158).
+ */
+export const NO_SURFACE: ReadonlySet<CapabilityId> = new Set([
+  "telemetry.external",
+  "enterprise.ca-administration",
+]);
+
+/** The feature as Settings draws it: the capabilities a switch can change. */
+export function shown(feature: Feature): Feature {
+  return feature.capabilities.some((id) => NO_SURFACE.has(id))
+    ? {
+        ...feature,
+        capabilities: feature.capabilities.filter((id) => !NO_SURFACE.has(id)),
+      }
+    : feature;
+}
+
+/** Whether a section carries a switch: it has an optional capability a switch changes. */
 export function isSwitchable(feature: Feature): boolean {
-  return feature.capabilities.length > 0;
+  return shown(feature).capabilities.length > 0;
 }
 
 export function featureById(id: FeatureId): Feature {

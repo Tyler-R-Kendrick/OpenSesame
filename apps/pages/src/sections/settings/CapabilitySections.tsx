@@ -24,6 +24,7 @@ import {
   heldOutside,
   isSwitchable,
   neededBy,
+  shown,
   switchCapability,
   switchFeature,
 } from "@opensesame/app-core/lib/capabilities/features.js";
@@ -340,7 +341,7 @@ export function CapabilitySections({
   return (
     <div className="capsections" id="settings-connections" ref={ref}>
       <GuestSection />
-      {FEATURES.map((feature) => {
+      {FEATURES.map(shown).map((feature) => {
         const Section =
           feature.id === "backups" ? BackupsSection : CapabilitySection;
         return (
