@@ -221,11 +221,16 @@ pub(super) async fn queue(f: &Fixture, run_id: &str) -> Vec<(Value, Option<Strin
         .unwrap()
         .iter()
         .map(|row| {
+            // Sealed at rest once the process-wide sealer is installed (ADR 0157).
             let request: String = row.get("request_json");
-            (
-                serde_json::from_str(&request).unwrap(),
+            let request =
+                opensesame_event_seal::open("runner_steps.request_json", &request).unwrap();
+            let outcome = opensesame_event_seal::open_opt(
+                "runner_steps.outcome_json",
                 row.get("outcome_json"),
             )
+            .unwrap();
+            (serde_json::from_str(&request).unwrap(), outcome)
         })
         .collect()
 }

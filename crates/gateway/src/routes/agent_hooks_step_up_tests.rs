@@ -338,6 +338,7 @@ async fn a_preset_is_applied_by_the_ordinary_put_and_reads_back_byte_for_byte() 
             .fetch_one(st.db.pool())
             .await
             .unwrap();
+    let audit = opensesame_event_seal::open("outbox_events.payload_json", &audit).unwrap();
     let audit: Value = serde_json::from_str(&audit).unwrap();
     assert_eq!(audit["policy_sha256"], strict["policy_sha256"]);
 }

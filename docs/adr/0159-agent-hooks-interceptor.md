@@ -183,6 +183,17 @@ persists keeps `reason` and a truncated `message` and drops
 reach the audit trail. Every audit table in this ADR has no column that could
 hold a target, a tool argument, a transform value or a verdict message.
 
+These rows rest unsealed on purpose (ADR 0157 item 9 seals the rows that carry
+a payload). Every column in `agent_hook_decisions` and `agent_hook_records` is
+an enum, a digest, a version, a timestamp, a principal reference or a `reason`
+that is a fixed identifier or the operator's own policy text (1..=128 visible
+ASCII characters, validated when the policy is stored), and the decisions route
+filters on `reason` in SQL, which a randomized seal would defeat. The audit
+*events* those routes publish (policy, approver, signer and recipe changes) go
+through the outbox and are sealed there. A new column here that could hold
+anything an agent or a page produced would have to be sealed and added to
+`SEALED_COLUMNS`.
+
 ### 6. The approval seam is bound the way ADR 0086 binds approvals
 
 The spec's `context_identity` and ADR 0086's `requestDigest` are the same

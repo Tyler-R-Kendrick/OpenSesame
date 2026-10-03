@@ -230,7 +230,10 @@ pub(super) async fn queued(db: &Db, run_id: &str) -> Vec<String> {
             .unwrap();
     rows.iter()
         .map(|row| {
-            serde_json::from_str::<Value>(row).unwrap()["step"]
+            // The column rests sealed once any test in the process has
+            // installed the sealer (ADR 0157); read it the way the store does.
+            let row = opensesame_event_seal::open("runner_steps.request_json", row).unwrap();
+            serde_json::from_str::<Value>(&row).unwrap()["step"]
                 .as_str()
                 .unwrap()
                 .to_owned()

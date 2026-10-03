@@ -237,6 +237,9 @@ async fn the_audit_event_commits_with_the_row_and_never_carries_the_handle() {
             .fetch_one(st.db.pool())
             .await
             .unwrap();
+    // Sealed at rest once the process-wide sealer is installed (ADR 0157); the
+    // assertion below means something only on the opened text.
+    let payload = opensesame_event_seal::open("outbox_events.payload_json", &payload).unwrap();
     assert!(!payload.contains(HANDLE), "{payload}");
     let audit: Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(audit["updated_by"], "operator");
