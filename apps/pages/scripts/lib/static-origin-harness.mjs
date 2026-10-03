@@ -284,7 +284,7 @@ export function createHarness({ dist, origin, base, out }) {
         headless: true,
       }),
     newPage: (browser, options = {}) =>
-      newPage(browser, { ...options, dist, origin, base, record }),
+      newPage(browser, { dist, origin, base, record, ...options }),
     snap: (page, name, options = {}) =>
       snap(page, { ...options, name, out, record, setStep }),
   };
