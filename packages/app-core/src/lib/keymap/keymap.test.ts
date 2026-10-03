@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CORE_COMMANDS, NOP } from "./commands.js";
+import { CORE_COMMANDS, FIXED_ROWS, NOP, RESERVED_KEYS } from "./commands.js";
 import {
   EMPTY_KEYMAP,
   type KeymapBindings,
@@ -98,6 +98,7 @@ describe("reading a keymap", () => {
       "Control+Shift+t",
       "Control+Shift+w",
       "Control+Shift+n",
+      "Control+n",
       "Control+q",
       "Control+r",
       "F5",
@@ -109,8 +110,31 @@ describe("reading a keymap", () => {
       expect(read({ bindings: { [key]: "listing.next" } }).ok, key).toBe(false);
     }
     // The shipped Control defaults stay bindable.
-    for (const key of ["Control+n", "Control+p", "Control+d", "Control+l"])
+    for (const key of ["Control+p", "Control+d", "Control+l"])
       expect(reservedReason(key), key).toBeNull();
+  });
+
+  it("ships no default on a key the browser keeps for its windows and tabs", () => {
+    for (const command of CORE_COMMANDS)
+      for (const sequence of command.defaults)
+        expect(
+          reservedReason(sequence),
+          `${command.id} ${sequence}`,
+        ).toBeNull();
+  });
+
+  it("discloses every fixed key in the read-only Fixed rows", () => {
+    const listed = new Set(FIXED_ROWS.flatMap(([keys]) => keys.split(" / ")));
+    const fixed = [...RESERVED_KEYS]
+      .filter(([, reason]) => reason !== "The browser's")
+      .map(([token]) => token);
+    // The Menu key is one of them, beside Shift+F10 and Shift+Enter.
+    expect(fixed).toContain("ContextMenu");
+    for (const token of fixed) {
+      if (/^[1-9]$/.test(token)) continue; // the digits are one row, "1 … 9"
+      expect(listed.has(token), token).toBe(true);
+    }
+    expect(FIXED_ROWS.some(([keys]) => keys.startsWith("1 …"))).toBe(true);
   });
 
   it("never moves a key onto a command that asks before it acts", () => {

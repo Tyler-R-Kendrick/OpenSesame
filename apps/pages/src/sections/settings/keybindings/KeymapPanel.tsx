@@ -1,6 +1,7 @@
 import { FIXED_ROWS } from "@opensesame/app-core/lib/keymap/commands.js";
 import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
 import { resetTarget } from "@opensesame/app-core/lib/keymap/effective.js";
+import { keycapLabel } from "@opensesame/app-core/lib/keymap/notation.js";
 import { resetKeymap } from "@opensesame/app-core/lib/keymap/store.js";
 import {
   KEYMAP_FILTERS,
@@ -92,6 +93,13 @@ function Row({
   );
 }
 
+/** A fixed key as its keycap reads: the Menu key is a glyph name, the rest are as spelled. */
+function fixedKeycap(key: string): string {
+  return key === "ContextMenu"
+    ? keycapLabel(key)
+    : key.replace("Shift+", "Shift-");
+}
+
 function FixedKeys() {
   return (
     <section className="kb-group" aria-labelledby="kb-group-fixed">
@@ -108,9 +116,7 @@ function FixedKeys() {
             <span className="kb-keys">
               {keys.split(" / ").map((key) => (
                 <span key={key} className="keycap-btn keycap-btn--fixed">
-                  <kbd className="keycap">
-                    {key.replace("Shift+", "Shift-")}
-                  </kbd>
+                  <kbd className="keycap">{fixedKeycap(key)}</kbd>
                 </span>
               ))}
             </span>
