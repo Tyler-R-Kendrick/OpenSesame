@@ -11,9 +11,11 @@ import {
 } from "./catalog.js";
 import {
   FEATURES,
+  dependentsOf,
   featureById,
   featureOf,
   featureState,
+  heldOutside,
   isSwitchable,
   neededBy,
   switchCapability,
@@ -355,5 +357,37 @@ describe("withdrawnAlwaysOn", () => {
       "identity.site-broker",
     ]);
     expect(withdrawnAlwaysOn(null)).toEqual([]);
+  });
+});
+
+describe("dependentsOf and heldOutside", () => {
+  const plan = planWith(
+    ["identity.local-iam", "identity.siop", "enterprise.ca-administration"],
+    new Map([
+      ["identity.local-iam", { dependencyOf: ["identity.siop"] }],
+      [
+        "access.authority",
+        { approved: true, dependencyOf: ["enterprise.ca-administration"] },
+      ],
+      [
+        "identity.federation",
+        { dependencyOf: ["enterprise.directory-provisioning"] },
+      ],
+    ]),
+  );
+
+  it("names the approved capabilities that run on one, and not the ones that do not run", () => {
+    expect(dependentsOf(plan, "identity.local-iam")).toEqual(["identity.siop"]);
+    expect(dependentsOf(plan, "identity.federation")).toEqual([]);
+    expect(dependentsOf(plan, "support.local-ai")).toEqual([]);
+    expect(dependentsOf(null, "identity.local-iam")).toEqual([]);
+  });
+
+  it("names what a section would leave behind, never its own capabilities", () => {
+    expect(heldOutside(plan, featureById("access"))).toEqual([
+      "enterprise.ca-administration",
+    ]);
+    expect(heldOutside(plan, featureById("identity"))).toEqual([]);
+    expect(heldOutside(null, featureById("access"))).toEqual([]);
   });
 });

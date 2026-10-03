@@ -19,7 +19,9 @@ import {
   FEATURES,
   type Feature,
   type FeatureProposal,
+  dependentsOf,
   featureState,
+  heldOutside,
   isSwitchable,
   neededBy,
   switchCapability,
@@ -99,6 +101,17 @@ function SectionSwitch({
 }) {
   const { plan } = useComposition();
   const state = featureState(feature, plan);
+  // Running capabilities elsewhere are built on this section's: its switch
+  // could not take them off, so it says who needs it (ADR 0158 §3).
+  const held = state.on ? heldOutside(plan, feature) : [];
+  if (held.length > 0) {
+    return (
+      <StatusMark
+        tone="ok"
+        label={`needed by ${held.map(titleOf).join(", ")}`}
+      />
+    );
+  }
   if (!state.on && state.available.length === 0) {
     // Nothing here can run: say why, in the first capability's own words.
     const status = capabilityStatus(
@@ -150,10 +163,16 @@ function CapabilityTile({
   const snapshot = useComposition();
   const state = snapshot.plan?.capabilities[id];
   const on = state?.approved === true;
-  // Household sharing's transport is Shared drops: switching drops off alone
-  // would review a change that changes nothing, so its tile says who needs it.
+  // Household sharing's transport is Shared drops, and Self-issued OpenID runs
+  // on Browser-local IAM: switching either off alone would review a change
+  // that changes nothing, so its tile says who needs it.
   const needers = on
-    ? neededBy(current, id, capabilityPorts.CAPABILITY_CATALOG)
+    ? [
+        ...new Set([
+          ...neededBy(current, id, capabilityPorts.CAPABILITY_CATALOG),
+          ...dependentsOf(snapshot.plan, id),
+        ]),
+      ]
     : [];
   const switchable =
     needers.length === 0 &&

@@ -333,6 +333,43 @@ export function neededBy(
 }
 
 /**
+ * The approved capabilities that run on `id`: Self-issued OpenID is built on
+ * Browser-local IAM, so while it runs the plan pulls IAM back in as its
+ * dependency. Switching IAM off on its own would review a change that
+ * changes nothing, so its tile says who needs it instead of offering a
+ * switch that cannot take (ADR 0158 §3).
+ */
+export function dependentsOf(
+  plan: EffectivePlan | null,
+  id: CapabilityId,
+): CapabilityId[] {
+  const state = plan?.capabilities[id];
+  if (!state) return [];
+  return state.dependencyOf.filter(
+    (dependent) => plan?.capabilities[dependent]?.approved === true,
+  );
+}
+
+/**
+ * The running capabilities outside `feature` that run on one of its own: the
+ * section's switch would leave those behind, so it is not drawn while any
+ * stand (Certificate authority runs on Access and on Passkey records).
+ */
+export function heldOutside(
+  plan: EffectivePlan | null,
+  feature: Pick<Feature, "capabilities">,
+): CapabilityId[] {
+  const held = new Set<CapabilityId>();
+  for (const id of feature.capabilities) {
+    if (plan?.capabilities[id]?.approved !== true) continue;
+    for (const dependent of dependentsOf(plan, id)) {
+      if (!feature.capabilities.includes(dependent)) held.add(dependent);
+    }
+  }
+  return [...held].sort();
+}
+
+/**
  * Always-on capabilities this plan does not run: an operator withdrew them
  * (ADR 0142), or they need one that was. The page names them rather than
  * drawing their sections as though they ran.
