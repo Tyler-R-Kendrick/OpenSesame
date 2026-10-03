@@ -92,6 +92,81 @@ describe("contexts in the Keybindings config.yaml", () => {
   });
 });
 
+describe("macros in the Keybindings config.yaml", () => {
+  const saved = [
+    "# my keys",
+    "macros:",
+    "  # triage the inbox",
+    "  triage:",
+    "    on: unlock # at the start",
+    "    steps: [listing.next, listing.previous] # two moves",
+    "  tidy:",
+    "    # leave this one be",
+    "    steps:",
+    "      - listing.next",
+    "",
+  ].join("\n");
+  const base = {
+    values: { singleKeys: true },
+    keybindings: {},
+    macros: {
+      triage: { on: "unlock", steps: ["listing.next", "listing.previous"] },
+      tidy: { steps: ["listing.next"] },
+    },
+  };
+
+  it("keeps every macro's spelling and comments when one step list moves", () => {
+    const out = reconcileSource("keybindings", saved, {
+      ...base,
+      macros: {
+        ...base.macros,
+        triage: { on: "unlock", steps: ["listing.previous"] },
+      },
+    });
+    expect(out).toContain("# triage the inbox");
+    expect(out).toContain("# at the start");
+    expect(out).toContain("# two moves");
+    expect(out).toContain("# leave this one be");
+    expect(out).toContain("    steps:\n      - listing.next");
+    expect(out).toContain("steps: [ listing.previous ]");
+    const parsed = decodeSettings("keybindings", out);
+    expect(parsed.ok && parsed.doc.macros).toEqual({
+      triage: { on: "unlock", steps: ["listing.previous"] },
+      tidy: { steps: ["listing.next"] },
+    });
+  });
+
+  it("rewrites only the moved field, adds and removes macros in place", () => {
+    const out = reconcileSource("keybindings", saved, {
+      ...base,
+      macros: {
+        triage: { steps: ["listing.next", "listing.previous"] },
+        extra: { on: "unlock", steps: ["listing.next"] },
+      },
+    });
+    expect(out).toContain("# triage the inbox");
+    expect(out).toContain("# two moves");
+    expect(out).not.toContain("on: unlock # at the start");
+    expect(out).not.toContain("tidy");
+    expect(out.indexOf("triage")).toBeLessThan(out.indexOf("extra"));
+    const parsed = decodeSettings("keybindings", out);
+    expect(parsed.ok && parsed.doc.macros).toEqual({
+      triage: { steps: ["listing.next", "listing.previous"] },
+      extra: { on: "unlock", steps: ["listing.next"] },
+    });
+  });
+
+  it("patches a macro written as a bare list of steps", () => {
+    const bare = "macros:\n  tidy: [listing.next] # short\n";
+    const out = reconcileSource("keybindings", bare, {
+      ...base,
+      macros: { tidy: { steps: ["listing.previous"] } },
+    });
+    expect(out).toContain("tidy: [ listing.previous ]");
+    expect(out).toContain("# short");
+  });
+});
+
 describe("the raw editor's keymap round trip", () => {
   afterEach(() => {
     resetKeymap();

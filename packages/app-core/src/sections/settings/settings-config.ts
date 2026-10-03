@@ -10,7 +10,9 @@
  */
 import {
   type Document,
+  type Node,
   type Pair,
+  type YAMLSeq,
   isMap,
   isNode,
   isScalar,
@@ -27,6 +29,7 @@ import {
   sameDoc,
   settingsFields,
 } from "./settings-files.js";
+import { stableMacro, stableMacros } from "./settings-keymap-yaml.js";
 
 /**
  * The text to show for `category`'s `config.yaml`: the saved spelling when it
@@ -105,23 +108,96 @@ function patchField(
   document.set(field.key, node);
 }
 
-/** Macros are rewritten whole when they moved, and left alone when not. */
+/**
+ * Macros patched one entry at a time: a macro that did not move keeps its
+ * spelling, its comments and its place; one that moved has only the moved
+ * field (`on:` or `steps:`) rewritten.
+ */
 function patchMacros(
   document: Document.Parsed,
   before: Readonly<Record<string, MacroDoc>>,
   after: Readonly<Record<string, MacroDoc>>,
 ): void {
-  if (JSON.stringify(before) === JSON.stringify(after)) return;
+  if (stableMacros(before) === stableMacros(after)) return;
   if (Object.keys(after).length === 0) {
     document.deleteIn(["macros"]);
     return;
   }
-  const node = document.createNode(after);
-  for (const pair of isMap(node) ? node.items : []) {
-    const steps = isMap(pair.value) ? pair.value.get("steps", true) : null;
-    if (isSeq(steps)) steps.flow = true;
+  const written = document.get("macros", true);
+  if (!isMap(written)) {
+    const node = document.createNode(after);
+    for (const pair of isMap(node) ? node.items : []) {
+      const steps = isMap(pair.value) ? pair.value.get("steps", true) : null;
+      if (isSeq(steps)) steps.flow = true;
+    }
+    document.set("macros", node);
+    return;
   }
-  document.set("macros", node);
+  for (const pair of [...written.items]) {
+    if (!Object.hasOwn(after, nameOf(pair)))
+      written.items.splice(written.items.indexOf(pair), 1);
+  }
+  for (const [name, macro] of Object.entries(after)) {
+    const pair = written.items.find((item) => nameOf(item) === name);
+    if (pair === undefined) written.set(name, macroNode(document, macro));
+    else if (stableMacro(before[name]) !== stableMacro(macro))
+      patchMacro(document, pair, macro);
+  }
+}
+
+function macroNode(document: Document.Parsed, macro: MacroDoc): Node {
+  const node = document.createNode(macro);
+  const steps = isMap(node) ? node.get("steps", true) : null;
+  if (isSeq(steps)) steps.flow = true;
+  return node;
+}
+
+function patchMacro(
+  document: Document.Parsed,
+  pair: Pair,
+  macro: MacroDoc,
+): void {
+  if (!isMap(pair.value)) {
+    // The bare `name: [steps]` spelling has no `on:`; a macro that now has
+    // one is written out as a mapping.
+    if (isSeq(pair.value) && macro.on === undefined) {
+      patchSteps(document, pair, macro.steps);
+    } else pair.value = macroNode(document, macro);
+    return;
+  }
+  const body = pair.value;
+  if (macro.on === undefined) body.delete("on");
+  else if (body.get("on") !== macro.on) body.set("on", macro.on);
+  const steps = body.get("steps", true);
+  if (!isSeq(steps)) body.set("steps", stepsNode(document, macro.steps, true));
+  else if (JSON.stringify(steps.toJSON()) !== JSON.stringify(macro.steps)) {
+    body.set("steps", stepsNode(document, macro.steps, steps.flow, steps));
+  }
+}
+
+function patchSteps(
+  document: Document.Parsed,
+  pair: Pair,
+  steps: readonly string[],
+): void {
+  const old = pair.value;
+  if (!isSeq(old)) return;
+  if (JSON.stringify(old.toJSON()) === JSON.stringify(steps)) return;
+  pair.value = stepsNode(document, steps, old.flow, old);
+}
+
+function stepsNode(
+  document: Document.Parsed,
+  steps: readonly string[],
+  flow: boolean | undefined,
+  old?: YAMLSeq,
+): Node {
+  const node = document.createNode([...steps], { flow: flow ?? true });
+  if (old !== undefined) {
+    node.comment = old.comment;
+    node.commentBefore = old.commentBefore;
+  }
+  return node;
 }
 
 /**
