@@ -125,13 +125,14 @@ describe("the configuration choice (ADR 0154)", () => {
   it("stays on the choice when the commit is refused", async () => {
     const commit = double.commit.bind(double);
     let settled = false;
-    double.commit = (async () => {
+    const refuse: typeof double.commit = async () => {
       settled = true;
       return {
-        status: "conflict" as const,
-        reason: "policy-revision" as const,
+        status: "conflict",
+        reason: "policy-revision",
       };
-    }) as typeof double.commit;
+    };
+    double.commit = refuse;
     try {
       const onDone = vi.fn();
       render(<SetupScreen onDone={onDone} />);
