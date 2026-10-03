@@ -78,6 +78,8 @@ function rebuilt(
     return keys === "" ? [] : [[keys, source.action]];
   }
   const rows: KeymapHelpRow[] = [];
+  // A rebuilt row lists every key the command holds, so it can name more than
+  // the authored text did (`Ctrl-p` beside `k` on Previous row).
   for (const id of source.commands) {
     const keys = keysOf(id);
     if (keys.length === 0) continue;
