@@ -55,7 +55,6 @@ export function CapabilitySwitch({
       className="toggle capsection__switch"
       role="switch"
       aria-checked={on}
-      aria-pressed={on}
       aria-label={label}
       title={label}
       data-capability-title={capabilityTitle}

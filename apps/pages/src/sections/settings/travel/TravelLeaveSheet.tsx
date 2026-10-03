@@ -57,17 +57,21 @@ function PlanCard({ flow }: { flow: Flow }) {
               key={vault.id}
               name={vault.label}
               meta={open ? "open · travels" : on ? "travels" : "stays home"}
+              // The open vault always travels: its row says so, and draws
+              // no switch that could not be turned (ADR 0158).
               side={
-                <button
-                  type="button"
-                  className="toggle"
-                  role="switch"
-                  aria-checked={on}
-                  aria-label={label}
-                  title={label}
-                  disabled={busy || open}
-                  onClick={() => flow.toggleSafe(vault.id)}
-                />
+                open ? null : (
+                  <button
+                    type="button"
+                    className="toggle"
+                    role="switch"
+                    aria-checked={on}
+                    aria-label={label}
+                    title={label}
+                    disabled={busy}
+                    onClick={() => flow.toggleSafe(vault.id)}
+                  />
+                )
               }
             />
           );

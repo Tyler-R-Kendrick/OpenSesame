@@ -8,6 +8,7 @@ import {
 import { journalSeams } from "@opensesame/app-core/lib/duress/store/journal.js";
 import { clearEnrollmentStateForUnlock } from "@opensesame/app-core/lib/duress/store/unlock-enrollment.js";
 import { kvFlush } from "@opensesame/app-core/lib/kv.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { onCompleteUnlockCodeSubmission } from "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js";
 import {
@@ -163,13 +164,15 @@ describe("DuressPanel", () => {
     };
     try {
       await userEvent.click(screen.getByRole("button", { name: "Clear" }));
-      expect(
-        await screen.findByText(
-          "It could not be cleared. Try again.",
-          {},
-          SEALING,
-        ),
-      ).toBeTruthy();
+      await waitFor(
+        () =>
+          expect(
+            listNotices().find((notice) => notice.id === "duress-code")?.body,
+          ).toBe("It could not be cleared. Try again."),
+        SEALING,
+      );
+      // A failure is a tray notice, not a box in the page.
+      expect(document.querySelector(".note")).toBeNull();
       expect(duressStatus().incidents).toBe(1);
       expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy();
     } finally {

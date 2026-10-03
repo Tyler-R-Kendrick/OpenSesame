@@ -1,5 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { createItem } from "@opensesame/vault-core";
+import { WrongPasswordError, createItem } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { generateAgeKeyPair } from "../../age-keys.js";
 import { kvDelete, kvGet } from "../../kv.js";
@@ -209,6 +209,26 @@ describe("VaultProtectionBrowserService", () => {
     expect(store.getSnapshot().header?.protection?.rootEpoch).toBeGreaterThan(
       0,
     );
+    store.lock();
+    const again = new VaultStore();
+    await again.unlock(PASSWORD);
+    expect(again.getSnapshot().status).toBe("unlocked");
+  });
+
+  it("refuses a root rotation under a password that is not the current master password, and changes nothing", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.protection.ensureProtectionProjected();
+    const before = store.getSnapshot().header;
+
+    await expect(
+      store.protection.rotateCompromisedRoot({
+        password: "another long passphrase entirely",
+      }),
+    ).rejects.toBeInstanceOf(WrongPasswordError);
+    const after = store.getSnapshot().header;
+    expect(after?.wrap?.ctB64).toBe(before?.wrap?.ctB64);
+    expect(after?.protection?.rootEpoch).toBe(before?.protection?.rootEpoch);
     store.lock();
     const again = new VaultStore();
     await again.unlock(PASSWORD);

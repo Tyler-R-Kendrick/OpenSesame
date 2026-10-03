@@ -36,6 +36,7 @@ import { StatusMark } from "../../../components/StatusMark.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 import { KeyCeremony } from "./KeyCeremony.js";
 import type { Run } from "./run.js";
+import { useAbandonEnrollment } from "./useAbandonEnrollment.js";
 
 type Setter = (foot: string | null) => void;
 type Ledger = Codes & { since: string };
@@ -322,12 +323,7 @@ export function AuthenticatorCeremony({
     }
   }, [view, busy, stage, hasKey, uri, run, store]);
 
-  // Close the sheet mid-way and nothing is kept.
-  useEffect(() => {
-    return () => {
-      if (view !== "remove") store.cancelTotpEnrollment();
-    };
-  }, [view, store]);
+  useAbandonEnrollment(view !== "remove", began);
 
   useEffect(() => {
     if (view !== "remove") return;

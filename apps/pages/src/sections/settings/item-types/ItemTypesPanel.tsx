@@ -151,12 +151,7 @@ export function ItemTypesPanel() {
           className="itype-tabpanel"
         >
           {tab === "installed" ? (
-            <InstalledTypes
-              files={files}
-              busy={busy}
-              onRemove={remove}
-              onBrowse={() => setTab("marketplace")}
-            />
+            <InstalledTypes files={files} busy={busy} onRemove={remove} />
           ) : null}
           {tab === "marketplace" ? (
             <>

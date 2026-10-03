@@ -1,0 +1,825 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            ".section__inner a[href*='/settings/connections/']",
+            ".section__inner [role=switch]",
+            "#feature-telemetry",
+            "#feature-certificates"
+          ]
+        },
+        {
+          "shot": "390-capabilities"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/keybindings"
+        },
+        {
+          "disabledKeys": ".section__inner"
+        },
+        {
+          "count": ["[data-resets]"]
+        },
+        {
+          "shot": "390-keybindings"
+        },
+        {
+          "pressOptional": "New macro"
+        },
+        {
+          "count": ["[data-new-macro]"]
+        },
+        {
+          "disabledKeys": ".section__inner"
+        },
+        {
+          "shot": "390-new-macro"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "rowActionOptional": {
+            "row": "PIN",
+            "action": "Add"
+          }
+        },
+        {
+          "sheetFill": {
+            "label": "PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "sheetFill": {
+            "label": "Confirm PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "sheetPressOptional": "Set PIN"
+        },
+        {
+          "count": [".section__inner .note", ".section__inner p.hint"]
+        },
+        {
+          "report": ".section__inner .note"
+        },
+        {
+          "shot": "390-security-after-pin"
+        },
+        {
+          "pressOptional": "Rotate compromised vault key"
+        },
+        {
+          "sheetText": null
+        },
+        {
+          "shot": "390-rotate"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Environments"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "scrollToOptional": "Environments"
+        },
+        {
+          "disabledKeys": "#vault-environments"
+        },
+        {
+          "count": ["#vault-environments select", "#vault-environments li"]
+        },
+        {
+          "shot": "390-environments"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Sharing"
+        },
+        {
+          "visit": "settings/live"
+        },
+        {
+          "scrollToOptional": "Routes"
+        },
+        {
+          "disabledKeys": ".section__inner"
+        },
+        {
+          "shot": "390-live-routes"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Notification routing"
+        },
+        {
+          "featureOptional": "Surrogate credentials"
+        },
+        {
+          "featureOptional": "Browser autofill"
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "count": [".set__nav-link", ".plugin-tile"]
+        },
+        {
+          "report": ".set__nav"
+        },
+        {
+          "shot": "390-settings-nav"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "Surrogate credentials"
+        },
+        {
+          "count": [".plugin-tile"]
+        },
+        {
+          "shot": "390-plugin-tiles"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Identity"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "Identity"
+        },
+        {
+          "count": [
+            "#feature-identity [role=switch]",
+            "#feature-identity [role=switch][aria-checked=true]"
+          ]
+        },
+        {
+          "labels": "#feature-identity [role=img]"
+        },
+        {
+          "shot": "390-identity"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "Instance policy"
+        },
+        {
+          "pressOptional": "Homelab"
+        },
+        {
+          "count": [".preset__opt.is-on"]
+        },
+        {
+          "shot": "390-preset"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "count": ["[aria-label='Turn on travel mode']"]
+        },
+        {
+          "shot": "390-travel"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "scrollToOptional": "Locking"
+        },
+        {
+          "count": [
+            "[aria-label^='Also sign out']",
+            ".section__inner [role=switch]"
+          ]
+        },
+        {
+          "shot": "390-general"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            ".section__inner a[href*='/settings/connections/']",
+            ".section__inner [role=switch]",
+            "#feature-telemetry",
+            "#feature-certificates"
+          ]
+        },
+        {
+          "shot": "1280-capabilities"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/keybindings"
+        },
+        {
+          "disabledKeys": ".section__inner"
+        },
+        {
+          "count": ["[data-resets]"]
+        },
+        {
+          "shot": "1280-keybindings"
+        },
+        {
+          "pressOptional": "New macro"
+        },
+        {
+          "count": ["[data-new-macro]"]
+        },
+        {
+          "disabledKeys": ".section__inner"
+        },
+        {
+          "shot": "1280-new-macro"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "rowActionOptional": {
+            "row": "PIN",
+            "action": "Add"
+          }
+        },
+        {
+          "sheetFill": {
+            "label": "PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "sheetFill": {
+            "label": "Confirm PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "sheetPressOptional": "Set PIN"
+        },
+        {
+          "count": [".section__inner .note", ".section__inner p.hint"]
+        },
+        {
+          "report": ".section__inner .note"
+        },
+        {
+          "shot": "1280-security-after-pin"
+        },
+        {
+          "pressOptional": "Rotate compromised vault key"
+        },
+        {
+          "sheetText": null
+        },
+        {
+          "shot": "1280-rotate"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Environments"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "scrollToOptional": "Environments"
+        },
+        {
+          "disabledKeys": "#vault-environments"
+        },
+        {
+          "count": ["#vault-environments select", "#vault-environments li"]
+        },
+        {
+          "shot": "1280-environments"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "featureOptional": "Sharing"
+        },
+        {
+          "visit": "settings/live"
+        },
+        {
+          "scrollToOptional": "Routes"
+        },
+        {
+          "disabledKeys": ".section__inner"
+        },
+        {
+          "shot": "1280-live-routes"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Notification routing"
+        },
+        {
+          "featureOptional": "Surrogate credentials"
+        },
+        {
+          "featureOptional": "Browser autofill"
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "count": [".set__nav-link", ".plugin-tile"]
+        },
+        {
+          "report": ".set__nav"
+        },
+        {
+          "shot": "1280-settings-nav"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "Surrogate credentials"
+        },
+        {
+          "count": [".plugin-tile"]
+        },
+        {
+          "shot": "1280-plugin-tiles"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Identity"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "Identity"
+        },
+        {
+          "count": [
+            "#feature-identity [role=switch]",
+            "#feature-identity [role=switch][aria-checked=true]"
+          ]
+        },
+        {
+          "labels": "#feature-identity [role=img]"
+        },
+        {
+          "shot": "1280-identity"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "scrollToOptional": "Instance policy"
+        },
+        {
+          "pressOptional": "Homelab"
+        },
+        {
+          "count": [".preset__opt.is-on"]
+        },
+        {
+          "shot": "1280-preset"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollToOptional": "Travel"
+        },
+        {
+          "count": ["[aria-label='Turn on travel mode']"]
+        },
+        {
+          "shot": "1280-travel"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "scrollToOptional": "Locking"
+        },
+        {
+          "count": [
+            "[aria-label^='Also sign out']",
+            ".section__inner [role=switch]"
+          ]
+        },
+        {
+          "shot": "1280-general"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-capabilities",
+      "width": 390,
+      "title": "Capabilities, a fresh device: no switch over no code \u2014 390 \u00d7 844",
+      "caption": "Telemetry and Certificate authority carried a switch over a capability that has no Pages code. The sections that held only those are not drawn; both stay in the catalog for a policy to name. (The provider tiles that led to blank pages are the connectors branch's, already in both builds.)",
+      "before": "17 sections, 37 switches; Telemetry and Certificate authority sections drawn",
+      "after": "15 sections, 35 switches; Telemetry and Certificate authority not drawn"
+    },
+    {
+      "shot": "390-keybindings",
+      "width": 390,
+      "title": "Keybindings: no reset with nothing to reset \u2014 390 \u00d7 844",
+      "caption": "Reset every key and macro was drawn disabled while nothing was changed. It is absent until a key or macro is.",
+      "before": "1 disabled key (Reset every key and macro)",
+      "after": "0 disabled keys"
+    },
+    {
+      "shot": "390-new-macro",
+      "width": 390,
+      "title": "A macro editor open: no second New macro, focus inside \u2014 390 \u00d7 844",
+      "caption": "New macro stayed drawn, disabled, beside the editor it opened. It is absent while an editor is open, and focus starts in the editor's Name field.",
+      "before": "3 disabled keys (Reset every key and macro, New macro, Save macro)",
+      "after": "1 disabled key (Save macro, until the name has text); New macro and Reset absent"
+    },
+    {
+      "shot": "390-security-after-pin",
+      "width": 390,
+      "title": "Security after a PIN: the row's mark is the state \u2014 390 \u00d7 844",
+      "caption": "A green box restating the enrolled PIN sat on the page, and the panel heads carried explainer captions. The row's own mark says it; failures go to the tray. Only the sentence that identity recovery does not unwrap the vault stays: it is the boundary, not an explanation.",
+      "before": "1 .note box ('PIN unlock enrolled\u2026') and 3 caption paragraphs",
+      "after": "0 .note boxes and 1 hint (the sentence that identity recovery does not unwrap the vault); the PIN row's mark states the enrolment"
+    },
+    {
+      "shot": "390-rotate",
+      "width": 390,
+      "title": "Rotate the vault key: the sheet says what goes \u2014 390 \u00d7 844",
+      "caption": "Rotation keeps only the password's wrap. The sheet said 're-enroll passkey/PIN' while the recovery key, authenticator and recovery codes also went. It now names exactly the enrolled ones, and the store proves the typed password against the vault's own before anything changes.",
+      "before": "sheet effect: 'New root generation; re-enroll passkey/PIN'; names nothing removed; password field unproved",
+      "after": "sheet effect: 'A new vault key; the master password is wrapped anew'; Removed: PIN, Master password; the store proves the password first"
+    },
+    {
+      "shot": "390-environments",
+      "width": 390,
+      "title": "Environments with none named: nothing disabled \u2014 390 \u00d7 844",
+      "caption": "A box and an input that could not take text, and a select with nothing to choose, were drawn for a vault with no environment. Only the name field and its key act.",
+      "before": "1 select with 0 options to choose, 0 items",
+      "after": "0 selects, 0 items; only the name field and its key"
+    },
+    {
+      "shot": "390-live-routes",
+      "width": 390,
+      "title": "Live sessions routes: Relay only waits for a TURN server \u2014 390 \u00d7 844",
+      "caption": "Relay only, through TURN was drawn disabled with no TURN server. It appears once one is added.",
+      "before": "5 disabled controls (incl. the Relay-only checkbox)",
+      "after": "4 disabled controls, all form submits waiting on their own field; Relay-only absent"
+    },
+    {
+      "shot": "390-settings-nav",
+      "width": 390,
+      "title": "Settings strip: Notifications only with a service named \u2014 390 \u00d7 844",
+      "caption": "With Notification routing on and no Identity API the Notifications tab was one inbox row nobody could change. It is not drawn until a service is named.",
+      "before": "7 tabs incl. Notifications (one inbox row, nothing configurable)",
+      "after": "6 tabs; Notifications absent until a service is named"
+    },
+    {
+      "shot": "390-plugin-tiles",
+      "width": 390,
+      "title": "Plugin tiles that cannot be paired \u2014 390 \u00d7 844",
+      "caption": "On an origin that may not hold local authority the Surrogate proxy and Autofill extension tiles drew a name, a lock and 'No daemon paired' with no field and no key. They are not drawn.",
+      "before": "2 plugin tiles (name, lock, 'No daemon paired'; no field, no key)",
+      "after": "0 plugin tiles"
+    },
+    {
+      "shot": "390-identity",
+      "width": 390,
+      "title": "Identity: a capability another runs on shows who needs it \u2014 390 \u00d7 844",
+      "caption": "Browser-local IAM and Operator identity providers each drew a switch that could not take while Self-issued OpenID, Ambient single sign-on or Directory ran on them. They now say needed by.",
+      "before": "5 switches, 5 on; Browser-local IAM and Operator identity providers carry switches that cannot take while Self-issued OpenID and Ambient run on them",
+      "after": "3 switches, 3 on; the two dependents say 'needed by Self-issued OpenID' and 'needed by Ambient single sign-on'"
+    },
+    {
+      "shot": "390-preset",
+      "width": 390,
+      "title": "Choosing a purpose: the card marks itself \u2014 390 \u00d7 844",
+      "caption": "The preset was written but read only at the next load, so the card never marked itself. It governs and marks at once.",
+      "before": "0 cards marked after choosing Homelab",
+      "after": "1 card marked (.preset__opt.is-on) at once"
+    },
+    {
+      "shot": "390-travel",
+      "width": 390,
+      "title": "Travel with one vault: no way to leave \u2014 390 \u00d7 844",
+      "caption": "Leave for a trip opened a sheet whose one action refused with 'Every vault is marked safe; nothing would leave'. It is drawn once another vault could stay behind.",
+      "before": "1 'Turn on travel mode' key with one vault; its sheet refuses",
+      "after": "0; key absent until another vault could stay behind"
+    },
+    {
+      "shot": "390-general",
+      "width": 390,
+      "title": "General: no sign-out switch with no Identity \u2014 390 \u00d7 844",
+      "caption": "'Sign out of Identity too' and its caption were drawn for a guest who has no Identity to sign out of.",
+      "before": "2 switches incl. 'Also sign out of Identity' for a guest",
+      "after": "1 switch; the sign-out switch absent without Identity"
+    },
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Capabilities, a fresh device: no switch over no code \u2014 1280 \u00d7 900",
+      "caption": "Telemetry and Certificate authority carried a switch over a capability that has no Pages code. The sections that held only those are not drawn; both stay in the catalog for a policy to name. (The provider tiles that led to blank pages are the connectors branch's, already in both builds.)",
+      "before": "17 sections, 37 switches; Telemetry and Certificate authority sections drawn",
+      "after": "15 sections, 35 switches; Telemetry and Certificate authority not drawn"
+    },
+    {
+      "shot": "1280-keybindings",
+      "width": 1280,
+      "title": "Keybindings: no reset with nothing to reset \u2014 1280 \u00d7 900",
+      "caption": "Reset every key and macro was drawn disabled while nothing was changed. It is absent until a key or macro is.",
+      "before": "1 disabled key (Reset every key and macro)",
+      "after": "0 disabled keys"
+    },
+    {
+      "shot": "1280-new-macro",
+      "width": 1280,
+      "title": "A macro editor open: no second New macro, focus inside \u2014 1280 \u00d7 900",
+      "caption": "New macro stayed drawn, disabled, beside the editor it opened. It is absent while an editor is open, and focus starts in the editor's Name field.",
+      "before": "3 disabled keys (Reset every key and macro, New macro, Save macro)",
+      "after": "1 disabled key (Save macro, until the name has text); New macro and Reset absent"
+    },
+    {
+      "shot": "1280-security-after-pin",
+      "width": 1280,
+      "title": "Security after a PIN: the row's mark is the state \u2014 1280 \u00d7 900",
+      "caption": "A green box restating the enrolled PIN sat on the page, and the panel heads carried explainer captions. The row's own mark says it; failures go to the tray. Only the sentence that identity recovery does not unwrap the vault stays: it is the boundary, not an explanation.",
+      "before": "1 .note box ('PIN unlock enrolled\u2026') and 3 caption paragraphs",
+      "after": "0 .note boxes and 1 hint (the sentence that identity recovery does not unwrap the vault); the PIN row's mark states the enrolment"
+    },
+    {
+      "shot": "1280-rotate",
+      "width": 1280,
+      "title": "Rotate the vault key: the sheet says what goes \u2014 1280 \u00d7 900",
+      "caption": "Rotation keeps only the password's wrap. The sheet said 're-enroll passkey/PIN' while the recovery key, authenticator and recovery codes also went. It now names exactly the enrolled ones, and the store proves the typed password against the vault's own before anything changes.",
+      "before": "sheet effect: 'New root generation; re-enroll passkey/PIN'; names nothing removed; password field unproved",
+      "after": "sheet effect: 'A new vault key; the master password is wrapped anew'; Removed: PIN, Master password; the store proves the password first"
+    },
+    {
+      "shot": "1280-environments",
+      "width": 1280,
+      "title": "Environments with none named: nothing disabled \u2014 1280 \u00d7 900",
+      "caption": "A box and an input that could not take text, and a select with nothing to choose, were drawn for a vault with no environment. Only the name field and its key act.",
+      "before": "1 select with 0 options to choose, 0 items",
+      "after": "0 selects, 0 items; only the name field and its key"
+    },
+    {
+      "shot": "1280-live-routes",
+      "width": 1280,
+      "title": "Live sessions routes: Relay only waits for a TURN server \u2014 1280 \u00d7 900",
+      "caption": "Relay only, through TURN was drawn disabled with no TURN server. It appears once one is added.",
+      "before": "5 disabled controls (incl. the Relay-only checkbox)",
+      "after": "4 disabled controls, all form submits waiting on their own field; Relay-only absent"
+    },
+    {
+      "shot": "1280-settings-nav",
+      "width": 1280,
+      "title": "Settings strip: Notifications only with a service named \u2014 1280 \u00d7 900",
+      "caption": "With Notification routing on and no Identity API the Notifications tab was one inbox row nobody could change. It is not drawn until a service is named.",
+      "before": "7 tabs incl. Notifications (one inbox row, nothing configurable)",
+      "after": "6 tabs; Notifications absent until a service is named"
+    },
+    {
+      "shot": "1280-plugin-tiles",
+      "width": 1280,
+      "title": "Plugin tiles that cannot be paired \u2014 1280 \u00d7 900",
+      "caption": "On an origin that may not hold local authority the Surrogate proxy and Autofill extension tiles drew a name, a lock and 'No daemon paired' with no field and no key. They are not drawn.",
+      "before": "2 plugin tiles (name, lock, 'No daemon paired'; no field, no key)",
+      "after": "0 plugin tiles"
+    },
+    {
+      "shot": "1280-identity",
+      "width": 1280,
+      "title": "Identity: a capability another runs on shows who needs it \u2014 1280 \u00d7 900",
+      "caption": "Browser-local IAM and Operator identity providers each drew a switch that could not take while Self-issued OpenID, Ambient single sign-on or Directory ran on them. They now say needed by.",
+      "before": "5 switches, 5 on; Browser-local IAM and Operator identity providers carry switches that cannot take while Self-issued OpenID and Ambient run on them",
+      "after": "3 switches, 3 on; the two dependents say 'needed by Self-issued OpenID' and 'needed by Ambient single sign-on'"
+    },
+    {
+      "shot": "1280-preset",
+      "width": 1280,
+      "title": "Choosing a purpose: the card marks itself \u2014 1280 \u00d7 900",
+      "caption": "The preset was written but read only at the next load, so the card never marked itself. It governs and marks at once.",
+      "before": "0 cards marked after choosing Homelab",
+      "after": "1 card marked (.preset__opt.is-on) at once"
+    },
+    {
+      "shot": "1280-travel",
+      "width": 1280,
+      "title": "Travel with one vault: no way to leave \u2014 1280 \u00d7 900",
+      "caption": "Leave for a trip opened a sheet whose one action refused with 'Every vault is marked safe; nothing would leave'. It is drawn once another vault could stay behind.",
+      "before": "1 'Turn on travel mode' key with one vault; its sheet refuses",
+      "after": "0; key absent until another vault could stay behind"
+    },
+    {
+      "shot": "1280-general",
+      "width": 1280,
+      "title": "General: no sign-out switch with no Identity \u2014 1280 \u00d7 900",
+      "caption": "'Sign out of Identity too' and its caption were drawn for a guest who has no Identity to sign out of.",
+      "before": "2 switches incl. 'Also sign out of Identity' for a guest",
+      "after": "1 switch; the sign-out switch absent without Identity"
+    }
+  ]
+}

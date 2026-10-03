@@ -1,5 +1,6 @@
 import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
 import { useMemo } from "react";
+import { useComposition } from "../../bindings/capabilities.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
@@ -23,8 +24,9 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
   const roads = useConnectorRoads();
+  const { plan } = useComposition();
   const emptyFeatures = FEATURES.filter(
-    (feature) => !featureDraws(feature, roads.tile),
+    (feature) => !featureDraws(feature, roads.tile, plan),
   ).map((feature) => feature.id);
   const contributed = useMemo(
     () =>
