@@ -34,6 +34,7 @@ import {
 import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
+import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
@@ -51,8 +52,7 @@ export function ItemDetail() {
   const { itemId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  // The active filter travels in the query string, so going back keeps it.
-  const listPath = `/vault${location.search}`;
+  const { listPath, backLabel } = useVaultList(location.search);
   const { items, folders } = useVault();
   const store = useVaultStore();
   const { copied, failed, copy } = useCopyFeedback();
@@ -91,8 +91,6 @@ export function ItemDetail() {
 
   const folder = folders.find((candidate) => candidate.id === item.folderId);
   const inTrash = item.deletedAt !== null;
-  const backLabel =
-    listPath === "/vault" ? "Back to all items" : "Back to list";
 
   return (
     <div className="detail">

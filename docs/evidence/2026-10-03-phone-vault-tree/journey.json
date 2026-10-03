@@ -1,0 +1,99 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "shot": "390-landing"
+        },
+        {
+          "railOptional": "all"
+        },
+        {
+          "shot": "390-list"
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "shot": "390-item"
+        },
+        {
+          "open": "Back to all items"
+        },
+        {
+          "shot": "390-list-with-item"
+        },
+        {
+          "open": "Back to sections"
+        },
+        {
+          "shot": "390-back-at-tree"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "shot": "1280-vault"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-landing",
+      "width": 390,
+      "title": "Landing \u2014 390 \u00d7 844",
+      "caption": "The vault opens on the section tree, the rail's own tree drawn where a finger can reach it.",
+      "before": "flat item list (\"Nothing here\"); sections behind the menu, filters behind the funnel key",
+      "after": "section tree: vault/ open with all, favorites, secrets, files; 5 rows at 44px; 1 tree on the page"
+    },
+    {
+      "shot": "390-list",
+      "width": 390,
+      "title": "Tapping \"all\" \u2014 390 \u00d7 844",
+      "caption": "A tree entry opens the list it names, with a key back to the tree.",
+      "before": "no tree to tap; the list is the landing, 5 keys in the path strip",
+      "after": "list with a leading back key, 44px wide; 6 keys in the path strip"
+    },
+    {
+      "shot": "390-list-with-item",
+      "width": 390,
+      "title": "Back from an item \u2014 390 \u00d7 844",
+      "caption": "The item's back key returns to the list it came from, not to the tree.",
+      "before": "list of 1, 5 keys",
+      "after": "list of 1, 6 keys (back key leads)"
+    },
+    {
+      "shot": "390-back-at-tree",
+      "width": 390,
+      "title": "Back from the list \u2014 390 \u00d7 844",
+      "caption": "The list's back key climbs to the section tree; counts follow the vault.",
+      "before": "no way up: still the list",
+      "after": "section tree, all = 1, secrets = 1"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop \u2014 1280 \u00d7 800",
+      "caption": "Unchanged: the rail carries the tree; the vault pane draws no tree of its own.",
+      "before": "rail + list + buffer",
+      "after": "identical; 1 tree on the page, 0 in the vault pane"
+    }
+  ]
+}

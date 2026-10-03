@@ -1,9 +1,11 @@
 import { expect } from "@playwright/test";
+import { toTheList } from "./phone-vault.mjs";
 
 export async function checkEditorPaths(page, check) {
   const original = page.viewportSize();
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 800 });
+    await toTheList(page);
     await page.getByRole("link", { name: "New item", exact: true }).click();
     const name = page.getByLabel("Name", { exact: true });
     const folder = page.getByLabel("Folder", { exact: true });

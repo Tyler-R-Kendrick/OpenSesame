@@ -25,6 +25,7 @@ export function VaultRail({
   selectedTo,
   kinds,
   showHidden = false,
+  allTo = "/vault",
 }: {
   items: VaultItem[];
   folders: Folder[];
@@ -34,6 +35,11 @@ export function VaultRail({
   kinds: readonly ItemKindRow[];
   /** List the hidden `trash/` (the rail's "show hidden items"). */
   showHidden?: boolean;
+  /**
+   * The "all items" entry's address. A desktop's is the vault itself; a
+   * phone's bare `/vault` is the tree, so its entry asks for the list.
+   */
+  allTo?: string;
 }) {
   const nested = new Set(
     kinds.flatMap(({ id }) =>
@@ -43,7 +49,7 @@ export function VaultRail({
   return (
     <div className="railtree__kids">
       <PageTreeLeafRow
-        node={vaultLeaf("all", "/vault", counts.all)}
+        node={vaultLeaf("all", allTo, counts.all)}
         level={2}
         current={selectedTo}
       />

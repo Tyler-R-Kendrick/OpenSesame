@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { gestureLimits, longPress, swipeBack } from "./gestures.js";
+import { gestureLimits, longPress, swipe, swipeBack } from "./gestures.js";
 
 /** What a synthetic pointer needs to carry for the gestures to read it. */
 type PointerInit = {
@@ -159,5 +159,50 @@ describe("longPress", () => {
     el.dispatchEvent(pointer("pointerdown", { x: 40, y: 40 }));
     vi.advanceTimersByTime(gestureLimits.longPressMs + 50);
     expect(hold).not.toHaveBeenCalled();
+  });
+});
+
+describe("swipe", () => {
+  it("fires on a leftward drag, naming the element it started on", () => {
+    const el = mount();
+    const child = document.createElement("span");
+    el.append(child);
+    const on = vi.fn();
+    swipe(el, "left", on);
+    child.dispatchEvent(pointer("pointerdown", { x: 300, y: 100 }));
+    el.dispatchEvent(
+      pointer("pointerup", { x: 300 - gestureLimits.swipeMinX - 5, y: 104 }),
+    );
+    expect(on).toHaveBeenCalledTimes(1);
+    expect(on.mock.calls[0]?.[1]).toBe(child);
+  });
+
+  it("a left swipe ignores a rightward drag, and back ignores a leftward one", () => {
+    const el = mount();
+    const left = vi.fn();
+    const back = vi.fn();
+    swipe(el, "left", left);
+    swipeBack(el, back);
+    el.dispatchEvent(pointer("pointerdown", { x: 10, y: 100 }));
+    el.dispatchEvent(pointer("pointerup", { x: 120, y: 100 }));
+    expect(left).not.toHaveBeenCalled();
+    expect(back).toHaveBeenCalledTimes(1);
+    el.dispatchEvent(pointer("pointerdown", { x: 300, y: 100 }));
+    el.dispatchEvent(pointer("pointerup", { x: 190, y: 100 }));
+    expect(left).toHaveBeenCalledTimes(1);
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("a mouse never swipes", () => {
+    const el = mount();
+    const on = vi.fn();
+    swipe(el, "left", on);
+    el.dispatchEvent(
+      pointer("pointerdown", { x: 300, y: 100, pointerType: "mouse" }),
+    );
+    el.dispatchEvent(
+      pointer("pointerup", { x: 100, y: 100, pointerType: "mouse" }),
+    );
+    expect(on).not.toHaveBeenCalled();
   });
 });

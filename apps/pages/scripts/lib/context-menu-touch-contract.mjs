@@ -1,3 +1,4 @@
+import { openVaultList } from "./phone-vault.mjs";
 /**
  * The context menu under a finger (DESIGN.md § Touch).
  *
@@ -27,6 +28,32 @@ async function hold(page, locator) {
   await page.waitForTimeout(400);
 }
 
+/** A real horizontal drag, with the intermediate moves a finger makes. */
+async function swipeLeft(page, locator) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("context-menu touch: nothing to swipe");
+  const y = Math.round(box.y + box.height / 2);
+  const from = Math.round(box.x + box.width * 0.8);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: from, y }],
+  });
+  for (let step = 1; step <= 6; step++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: from - step * 40, y }],
+    });
+    await page.waitForTimeout(20);
+  }
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await cdp.detach();
+  await page.waitForTimeout(500);
+}
+
 async function entryHeights(menu) {
   return menu
     .locator('[role^="menuitem"]')
@@ -43,6 +70,7 @@ export async function contextMenuTouchContract(
   const label = stop("context-menu");
   const { check } = harness;
   await openTab(page, "Vault");
+  await openVaultList(page);
   const row = page.locator(".vtree__row").first();
   check((await row.count()) === 1, `${label}: a vault row to hold`);
   if ((await row.count()) === 0) return;
@@ -57,9 +85,13 @@ export async function contextMenuTouchContract(
     `${label}: every menu entry is at least 44px (${heights.join(",")})`,
   );
   await audit(page, `${label}-row-menu`);
+  await sheetContract(page, menu, label, audit, check);
   await menu.getByRole("menuitem", { name: "Open", exact: true }).tap();
-  await page.waitForTimeout(700);
-  check((await menu.count()) === 0, `${label}: an entry closes the menu`);
+  await menu
+    .first()
+    .waitFor({ state: "detached", timeout: 3000 })
+    .catch(() => undefined);
+  await settleAfterEntry(page, menu, label, check);
   check(
     /\/vault\/[^/?]+/.test(new URL(page.url()).pathname),
     `${label}: Open opened the held row`,
@@ -87,4 +119,74 @@ export async function contextMenuTouchContract(
     `${label}: the file opens from the held tab (${page.url()})`,
   );
   console.log(`PASS ${label}: context menu by touch`);
+}
+
+/**
+ * A submenu replaces the sheet's list rather than hang below it, with a back
+ * row to climb out; and a row swiped left asks for the same actions as a hold.
+ */
+async function sheetContract(page, menu, label, audit, check) {
+  const share = menu.getByRole("menuitem", { name: /^Share/ });
+  if ((await share.count()) > 0) {
+    await share.tap();
+    await page.waitForTimeout(300);
+    const back = menu.getByRole("button", { name: /^Back from Share/ });
+    check((await back.count()) === 1, `${label}: a submenu names its way back`);
+    const shown = await menu
+      .locator(".ctxmenu__item")
+      .evaluateAll(
+        (nodes) => nodes.filter((node) => node.offsetParent !== null).length,
+      );
+    const nested = await menu.locator(".ctxmenu__sub .ctxmenu__item").count();
+    check(
+      shown === nested,
+      `${label}: only the submenu is drawn (${shown} of ${nested})`,
+    );
+    await audit(page, `${label}-submenu`);
+    await back.tap();
+    await page.waitForTimeout(300);
+    check(
+      (await menu
+        .getByRole("menuitem", { name: "Open", exact: true })
+        .count()) === 1,
+      `${label}: back returns to the list`,
+    );
+  }
+  await page.getByRole("button", { name: "Close menu" }).tap({
+    position: { x: 200, y: 60 },
+  });
+  await page.waitForTimeout(400);
+  const row = page.locator(".vtree__row").first();
+  const before = page.url();
+  await swipeLeft(page, row);
+  check(
+    (await page.getByRole("menu").count()) === 1,
+    `${label}: swiping a row left opens its actions`,
+  );
+  check(
+    page.url() === before,
+    `${label}: the swipe does not also open the row`,
+  );
+}
+
+/**
+ * An entry closes the menu. If one is still open, say which (a stray sheet
+ * would otherwise surface as a 30s timeout on the next tap, naming only the
+ * scrim in the way), record the failure, and close it so the walk goes on.
+ */
+async function settleAfterEntry(page, menu, label, check) {
+  const left = await menu.count();
+  const names = await menu.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-label")),
+  );
+  check(
+    left === 0,
+    `${label}: an entry closes the menu (${left} still open: ${names.join(", ")})`,
+  );
+  if (left === 0) return;
+  await page
+    .getByRole("button", { name: "Close menu" })
+    .first()
+    .tap({ position: { x: 200, y: 60 } });
+  await page.waitForTimeout(400);
 }

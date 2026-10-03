@@ -20,15 +20,18 @@ import {
 } from "@opensesame/vault-core";
 import { useContributions } from "../bindings/contributions.js";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
-import { IconPlus } from "../components/Icons.js";
-import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { IconChevronLeft, IconPlus } from "../components/Icons.js";
+import { NavTree } from "../components/NavTree.js";
 import { swipeBack } from "../lib/gestures.js";
+import { useNarrow } from "../lib/use-narrow.js";
+import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { ExportKey } from "./vault/ExportKey.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
+import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
   chipTypeIds,
@@ -74,7 +77,9 @@ export function VaultSection() {
     );
   }, [items, filter, folderId, inTrash]);
 
-  const detailOpen = location.pathname !== "/vault";
+  const narrow = useNarrow();
+  // A phone draws one pane at a time, the first being the section tree.
+  const showing = vaultPane(location.pathname, params);
   // The crumb's own label (a type's plural from its definition), so the
   // status line under a filter says what the crumb above it says — it used
   // to say "All items" under "Certificates".
@@ -169,49 +174,41 @@ export function VaultSection() {
 
   const detailRef = useRef<HTMLDivElement>(null);
   const listPaneRef = useRef<HTMLDivElement>(null);
+  const treePaneRef = useRef<HTMLDivElement>(null);
   const newItemRef = useRef<HTMLAnchorElement>(null);
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
-  const listPath = `/vault${location.search}`;
+  const listPath = vaultListPath(location.search, narrow);
 
-  // Every navigation into or within the vault — an unlock, `g v`, Back from an
-  // item, from settings, from an editor — lands the keyboard where the cursor
-  // is: the tree, or the "New item" link of an empty vault. It yields to a
-  // caret something else already placed (an editor's first field), and on a
-  // phone, where only one pane is on screen, it follows the visible pane: a
-  // hidden tree cannot hold focus, and a Back that hides the detail must hand
-  // the keyboard back to the list rather than leave it on `<body>`.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the navigation itself — the effect re-runs per arrival, and reads the panes at that moment
+  useVaultFocus({
+    tree: treePaneRef,
+    list: listPaneRef,
+    detail: detailRef,
+    newItem: newItemRef,
+  });
   useEffect(() => {
-    const list = listPaneRef.current;
-    const detail = detailRef.current;
-    if (!list || !detail) return;
-    const hidden = (pane: HTMLElement) =>
-      getComputedStyle(pane).display === "none";
-    const active = document.activeElement;
-    const idle = keyboardIsIdle();
-    if (!hidden(list)) {
-      const strandedInDetail =
-        hidden(detail) && active !== null && detail.contains(active);
-      if (idle || strandedInDetail) {
-        if (!landFocus(list.querySelector('[role="tree"]:not([hidden])'))) {
-          if (!landFocus(newItemRef.current)) landFocus(firstControl(list));
-        }
-      }
-      return;
-    }
-    if (idle || (active !== null && list.contains(active))) landFocus(detail);
-  }, [location.key]);
-  useEffect(() => {
-    const pane = detailRef.current;
-    // Only when the buffer is the pane on screen: on a desktop both panes
-    // are visible and there is nothing to go back from.
-    if (!pane || !detailOpen) return;
-    return swipeBack(pane, () => navigate(listPath));
-  }, [detailOpen, listPath, navigate]);
+    // Only when one pane is on screen at a time: on a desktop all of them are
+    // visible and there is nothing to go back from. From a list the way back
+    // is the section tree; from an item it is the list.
+    const target =
+      showing === "detail"
+        ? { pane: detailRef.current, to: listPath }
+        : showing === "list"
+          ? { pane: listPaneRef.current, to: "/vault" }
+          : null;
+    if (!target?.pane) return;
+    const back = target.to;
+    return swipeBack(target.pane, () => navigate(back));
+  }, [showing, listPath, navigate]);
 
   return (
-    <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
+    <div className="vault" data-pane={showing}>
+      {/* The section tree: the rail's own tree, drawn where a phone looks.
+          It is mounted only below the breakpoint, so the rail and this pane
+          never hold two trees at once. */}
+      <div className="vault__tree" ref={treePaneRef}>
+        {narrow ? <NavTree /> : null}
+      </div>
       <div
         className="vault__list"
         ref={(element) => {
@@ -229,6 +226,14 @@ export function VaultSection() {
           emptyMessage={filter === "trash" ? "Trash is empty" : "Nothing here"}
           verbs={
             <>
+              <Link
+                className="icon-btn icon-btn--sm vault__back"
+                aria-label="Back to sections"
+                title="Back to sections"
+                to="/vault"
+              >
+                <IconChevronLeft size={15} />
+              </Link>
               <VaultFilterMenu
                 items={items}
                 folders={folders}
