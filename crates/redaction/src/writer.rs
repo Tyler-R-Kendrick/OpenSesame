@@ -7,7 +7,9 @@
 //! nothing is emitted until its line is complete.
 
 use std::io::{self, Write};
+use std::sync::LazyLock;
 
+use regex::Regex;
 use serde_json::Value;
 
 use crate::{redact_json, redact_text};
@@ -27,11 +29,23 @@ fn scrub_json(line: &str) -> Option<String> {
     serde_json::to_string(&redact_json(&doc)).ok()
 }
 
+/// A terminal colour or cursor sequence. `tracing_subscriber` colours field
+/// names by default, and the codes sit between `password` and `=`, which hides
+/// the label from the value rules.
+static ANSI: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("\x1b\\[[0-9;?]*[ -/]*[@-~]").expect("ansi pattern compiles"));
+
+const PEM_BEGIN: &str = "-----BEGIN ";
+const PEM_END: &str = "-----END ";
+
 /// Buffers until a newline, then writes the scrubbed line.
 pub struct ScrubWriter<W: Write> {
     inner: W,
     format: Format,
     pending: Vec<u8>,
+    /// Inside a PEM block whose lines arrive one at a time: a block split by
+    /// newlines is invisible to a rule that only ever sees one line.
+    in_pem: bool,
 }
 
 impl<W: Write> ScrubWriter<W> {
@@ -40,19 +54,37 @@ impl<W: Write> ScrubWriter<W> {
             inner,
             format,
             pending: Vec::new(),
+            in_pem: false,
         }
     }
 
-    fn scrub_line(&self, line: &[u8]) -> String {
+    /// The scrubbed line, or `None` for a line that is the body of a PEM block.
+    fn scrub_line(&mut self, line: &[u8]) -> Option<String> {
         let text = String::from_utf8_lossy(line);
         let json = (self.format == Format::Json)
             .then(|| scrub_json(text.trim_end()))
             .flatten();
-        json.unwrap_or_else(|| redact_text(text.trim_end_matches(['\n', '\r'])))
+        if json.is_some() {
+            return json;
+        }
+        let plain = ANSI.replace_all(text.trim_end_matches(['\n', '\r']), "");
+        if self.in_pem {
+            let end = plain.find(PEM_END)?;
+            self.in_pem = false;
+            let tail = plain[end + PEM_END.len()..].split_once("-----")?.1;
+            return Some(redact_text(tail));
+        }
+        let out = redact_text(&plain);
+        if let Some(begin) = plain.rfind(PEM_BEGIN) {
+            self.in_pem = !plain[begin..].contains(PEM_END);
+        }
+        Some(out)
     }
 
     fn emit(&mut self, line: &[u8]) -> io::Result<()> {
-        let mut out = self.scrub_line(line);
+        let Some(mut out) = self.scrub_line(line) else {
+            return Ok(());
+        };
         out.push('\n');
         self.inner.write_all(out.as_bytes())
     }
@@ -174,6 +206,37 @@ mod tests {
     fn crlf_lines_and_blank_lines_survive() {
         let out = run(Format::Text, &[b"a\r\n\nb\n"]);
         assert_eq!(out, "a\n\nb\n");
+    }
+
+    #[test]
+    fn colour_codes_between_the_label_and_the_value_do_not_hide_it() {
+        let out = run(
+            Format::Text,
+            &[b"\x1b[3mpassword\x1b[0m\x1b[2m=\x1b[0m\"hunter2\" \x1b[3mtoken\x1b[0m=abc123xyz\n"],
+        );
+        assert!(
+            !out.contains("hunter2") && !out.contains("abc123xyz"),
+            "{out}"
+        );
+        assert!(!out.contains('\x1b'), "{out:?}");
+    }
+
+    #[test]
+    fn a_pem_block_split_across_lines_is_dropped_whole() {
+        let out = run(
+            Format::Text,
+            &[b"key: -----BEGIN PRIVATE KEY-----\nMIIEvQSECRETBODY\nabcdef\n-----END PRIVATE KEY----- done\nnext\n"],
+        );
+        assert_eq!(out, "key: [REDACTED]\n done\nnext\n");
+    }
+
+    #[test]
+    fn a_pem_block_that_never_ends_swallows_what_follows() {
+        let out = run(
+            Format::Text,
+            &[b"-----BEGIN PRIVATE KEY-----\nSECRETBODY\nmore\n"],
+        );
+        assert_eq!(out, "[REDACTED]\n");
     }
 
     #[test]

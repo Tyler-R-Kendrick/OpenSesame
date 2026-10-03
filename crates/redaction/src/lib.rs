@@ -66,9 +66,11 @@ static ENGINE: LazyLock<Engine> = LazyLock::new(|| {
         .map(|rule| {
             let flags = text(rule, "flags");
             let prefix = if flags.contains('i') { "(?i)" } else { "" };
+            // JS `\b` is ASCII; Rust's is Unicode, so a token right after CJK
+            // or accented text would not be found. Pin the ASCII meaning.
+            let pattern = text(rule, "pattern").replace("\\b", "(?-u:\\b)");
             Rule {
-                re: Regex::new(&format!("{prefix}{}", text(rule, "pattern")))
-                    .expect("log-scrub rule compiles"),
+                re: Regex::new(&format!("{prefix}{pattern}")).expect("log-scrub rule compiles"),
                 replace: text(rule, "replace").to_owned(),
             }
         })

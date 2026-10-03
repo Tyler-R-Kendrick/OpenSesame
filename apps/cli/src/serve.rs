@@ -48,6 +48,7 @@ pub fn init_tracing(command: &Commands) {
         Commands::Daemon(args) if args.is_run() => init_text(),
         _ => tracing_subscriber::fmt()
             .with_env_filter("warn")
+            .with_ansi(false)
             .with_writer(ScrubMakeWriter::new(std::io::stderr, Format::Text))
             .init(),
     }
@@ -77,6 +78,7 @@ fn init_text() {
             .with_writer(ScrubMakeWriter::new(move || sink.writer(), Format::Text))
             .init(),
         None => tracing_subscriber::fmt()
+            .with_ansi(false)
             .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
             .init(),
     }

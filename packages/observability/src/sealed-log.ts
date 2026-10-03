@@ -128,13 +128,39 @@ export interface LogDestination {
   write(message: string): void;
 }
 
-/** The file lines are sealed into: owner-only, rotating whole files. */
+function sizeOf(path: string): number {
+  try {
+    return statSync(path).size;
+  } catch (error) {
+    if (isMissing(error)) return 0;
+    throw error;
+  }
+}
+
+function isMissing(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+/** Rename `from` to `to`; a `from` another process already moved is not an error. */
+function shift(from: string, to: string): void {
+  try {
+    renameSync(from, to);
+  } catch (error) {
+    if (!isMissing(error)) throw error;
+  }
+}
+
+/**
+ * The file lines are sealed into: owner-only, rotating whole files. Several
+ * processes may share one path, so nothing about the file is remembered: each
+ * line reads the file's real size, and the file is opened by path each time, so
+ * a line never lands in a generation another process renamed.
+ */
 export class SealedLogFile {
   readonly #path: string;
   readonly #key: LogKey;
   readonly #maxBytes: number;
   readonly #keep: number;
-  #length: number;
 
   constructor(path: string, key: LogKey, options: SealedLogOptions = {}) {
     this.#path = path;
@@ -146,35 +172,48 @@ export class SealedLogFile {
     // `mode` applies only when the file is created; one an older build left
     // wider is narrowed here.
     chmodSync(path, 0o600);
-    this.#length = statSync(path).size;
   }
 
-  #rotate(): void {
+  #rotate(needed: number): void {
+    // Another process may have rotated while this line was being sealed.
+    if (sizeOf(this.#path) + needed <= this.#maxBytes) return;
     if (this.#keep === 0) {
       rmSync(this.#path, { force: true });
-    } else {
-      for (let generation = this.#keep - 1; generation >= 1; generation -= 1) {
-        const from = rotatedPath(this.#path, generation);
-        if (existsSync(from)) {
-          renameSync(from, rotatedPath(this.#path, generation + 1));
-        }
-      }
-      renameSync(this.#path, rotatedPath(this.#path, 1));
+      return;
     }
-    appendFileSync(this.#path, "", { mode: 0o600 });
-    chmodSync(this.#path, 0o600);
-    this.#length = 0;
+    for (let generation = this.#keep - 1; generation >= 1; generation -= 1) {
+      shift(
+        rotatedPath(this.#path, generation),
+        rotatedPath(this.#path, generation + 1),
+      );
+    }
+    shift(this.#path, rotatedPath(this.#path, 1));
   }
 
-  /** Seal `line` (a trailing newline is dropped) and append it. */
+  #write(sealed: string): void {
+    const size = Buffer.byteLength(sealed);
+    const length = sizeOf(this.#path);
+    if (length > 0 && length + size > this.#maxBytes) this.#rotate(size);
+    // `mode` so a file recreated after a rotation is never umask-mode.
+    appendFileSync(this.#path, sealed, { mode: 0o600 });
+  }
+
+  /**
+   * Seal `line` (a trailing newline is dropped) and append it. A lost race with
+   * another process's rotation is retried once against the fresh path; a line
+   * that still cannot be written is dropped rather than thrown into the logger.
+   */
   append(line: string): void {
     const sealed = `${sealLogLine(this.#key, line.replace(/[\r\n]+$/, ""))}\n`;
-    const size = Buffer.byteLength(sealed);
-    if (this.#length > 0 && this.#length + size > this.#maxBytes) {
-      this.#rotate();
+    try {
+      this.#write(sealed);
+    } catch {
+      try {
+        this.#write(sealed);
+      } catch {
+        // Logging must not take the service down.
+      }
     }
-    appendFileSync(this.#path, sealed);
-    this.#length += size;
   }
 }
 
@@ -207,11 +246,10 @@ export function readSealedTail(
     .map((line) => present(key, line));
 }
 
-/**
- * Seal every line an older build wrote in the clear, in place and atomically
- * (a sibling is written owner-only, then renamed over). Returns how many.
- */
-export function sealExistingLog(path: string, key: LogKey): number {
+/** How many rotated generations beside the live file are looked for. */
+const MAX_ROTATED_SCAN = 64;
+
+function sealOneLog(path: string, key: LogKey): number {
   const lines = linesOf(path);
   const legacy = lines.filter((line) => !line.startsWith(SEALED_LINE_PREFIX));
   if (legacy.length === 0) return 0;
@@ -230,6 +268,19 @@ export function sealExistingLog(path: string, key: LogKey): number {
   }
   renameSync(staging, path);
   return legacy.length;
+}
+
+/**
+ * Seal every line an older build wrote in the clear, in place and atomically
+ * (a sibling is written owner-only, then renamed over), in the live file and in
+ * every rotated generation beside it (`path.1`, `path.2`, ...). Returns how many.
+ */
+export function sealExistingLog(path: string, key: LogKey): number {
+  let sealed = sealOneLog(path, key);
+  for (let generation = 1; generation <= MAX_ROTATED_SCAN; generation += 1) {
+    sealed += sealOneLog(rotatedPath(path, generation), key);
+  }
+  return sealed;
 }
 
 /** Where the key for `logPath` lives: the override, else `<logPath>.key`. */

@@ -27,7 +27,15 @@
       "authorizationcode",
       "bearer",
       "credential",
-      "credentials"
+      "credentials",
+      "connectionkey",
+      "eventkey",
+      "encryptionkey",
+      "masterkey",
+      "signingkey",
+      "mnemonic",
+      "recoverycode",
+      "recoverycodes"
     ],
     "keep": ["boolean", "null"]
   },
@@ -41,15 +49,15 @@
     },
     {
       "id": "url-userinfo",
-      "description": "`scheme://user:pass@host`: DSNs in connection errors are the usual carrier.",
-      "pattern": "([a-z][a-z0-9+.-]{0,31}://)[^/\\s@]*@",
+      "description": "`scheme://user:pass@host`: DSNs in connection errors are the usual carrier. The userinfo runs to the last `@` before the path, so a password that itself holds `@` is not left half showing.",
+      "pattern": "([a-z][a-z0-9+.-]{0,31}://)[^/\\s]*@",
       "flags": "i",
       "replace": "$1[REDACTED]@"
     },
     {
       "id": "url-secret-param",
       "description": "A query or fragment parameter whose name says it holds a secret (`#token=osc_clm_…&key=…`, `?code=…`, `?sig=…`).",
-      "pattern": "([?&#;])([a-z0-9_.-]{0,64}(?:token|secret|password|passwd|passphrase|api[_-]?key|apikey|signature|code|state|key|assertion|jwt|credential|sig)[a-z0-9_.-]{0,64})=([^&#\\s\"'<>]*)",
+      "pattern": "([?&#;])([a-z0-9_.-]{0,64}(?:token|secret|password|passwd|passphrase|api[_-]?key|apikey|signature|code|state|key|assertion|jwt|credential|sig|session[_-]?id)[a-z0-9_.-]{0,64})=([^&#\\s\"'<>]*)",
       "flags": "i",
       "replace": "$1$2=[REDACTED]"
     },
@@ -62,8 +70,8 @@
     },
     {
       "id": "labelled-value",
-      "description": "`label: value` or `label=value` (JSON, headers, query text) where the label ends in a secret word. The value may be quoted and may carry an auth scheme (`Authorization: Basic …`). The match starts at the secret word, so `x-api-key` and `myAccessToken` keep their prefix untouched and no scan runs backwards.",
-      "pattern": "((?:authorization|cookie|password|passwd|passphrase|secret|secret[_-]?key|access[_-]?key|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?token|bearer[_-]?token|csrf[_-]?token|xsrf[_-]?token|device[_-]?code|user[_-]?code|claim[_-]?token|code[_-]?verifier|private[_-]?key|authorization[_-]?code|assertion|token|client[_-]?secret|dpop|jwt|credentials?))([\"']?\\s*[=:]\\s*)(?:(?:bearer|basic|digest|dpop|negotiate|token)\\s+)?(?:\\[REDACTED\\]|\"[^\"]*\"|'[^']*'|[^&\\s,;)\\]}\"']+)",
+      "description": "`label: value` or `label=value` (JSON, headers, query text) where the label ends in a secret word. The value may be quoted and may carry an auth scheme (`Authorization: Basic …`). The match starts at the secret word, so `x-api-key` and `myAccessToken` keep their prefix untouched and no scan runs backwards. The separator and a quoted value tolerate backslash-escaped quotes (a JSON document inside a string); an unquoted value runs to whitespace, so `a,b` is one secret; a quote that never closes redacts to the end of the line.",
+      "pattern": "((?:authorization|cookie|password|passwd|passphrase|secret|secret[_-]?key|access[_-]?key|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?token|bearer[_-]?token|csrf[_-]?token|xsrf[_-]?token|device[_-]?code|user[_-]?code|claim[_-]?token|code[_-]?verifier|private[_-]?key|authorization[_-]?code|assertion|token|client[_-]?secret|dpop|jwt|credentials?|connection[_-]?key|event[_-]?key|encryption[_-]?key|master[_-]?key|signing[_-]?key|mnemonic|recovery[_-]?codes?))(\\\\*[\"']?\\s*[=:]\\s*)(?:(?:bearer|basic|digest|dpop|negotiate|token)\\s+)?(?:\\[REDACTED\\]|\\\\+\"[^\"\\\\]*\\\\+\"|\"(?:[^\"\\\\]|\\\\.)*\"|'[^']*'|[\"'][^\\r\\n]*|[^\\s&\"']+)",
       "flags": "i",
       "replace": "$1$2[REDACTED]"
     },
@@ -216,6 +224,46 @@
       "rule": "provider-token",
       "input": "slack xoxb-1234567890-abcdefghij ok",
       "expect": "slack [REDACTED] ok"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "{\\\"password\\\":\\\"abc\\\",\\\"api_key\\\":\\\"k\\\"}",
+      "expect": "{\\\"password\\\":[REDACTED],\\\"api_key\\\":[REDACTED]}"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "password=a,b next",
+      "expect": "password=[REDACTED] next"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "password: \"abc unterminated",
+      "expect": "password: [REDACTED]"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "password=\"a\\\"b\" ok",
+      "expect": "password=[REDACTED] ok"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "OPENSESAME_CONNECTION_KEY=00112233445566778899 ok",
+      "expect": "OPENSESAME_CONNECTION_KEY=[REDACTED] ok"
+    },
+    {
+      "rule": "url-userinfo",
+      "input": "postgres://u:p@ss@host/db failed",
+      "expect": "postgres://[REDACTED]@host/db failed"
+    },
+    {
+      "rule": "url-secret-param",
+      "input": "https://h.example/x?sessionid=abc123&page=2",
+      "expect": "https://h.example/x?sessionid=[REDACTED]&page=2"
+    },
+    {
+      "rule": "provider-token",
+      "input": "令牌ghp_abcdefghijklmnopqrstuvwxyz0123456789 ok",
+      "expect": "令牌[REDACTED] ok"
     }
   ],
   "unchanged": [
@@ -313,6 +361,30 @@
     {
       "key": "credentialRef",
       "sensitive": false
+    },
+    {
+      "key": "OPENSESAME_CONNECTION_KEY",
+      "sensitive": true
+    },
+    {
+      "key": "encryptionKey",
+      "sensitive": true
+    },
+    {
+      "key": "masterKey",
+      "sensitive": true
+    },
+    {
+      "key": "signingKey",
+      "sensitive": true
+    },
+    {
+      "key": "mnemonic",
+      "sensitive": true
+    },
+    {
+      "key": "recoveryCodes",
+      "sensitive": true
     }
   ]
 }
