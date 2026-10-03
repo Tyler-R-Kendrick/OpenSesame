@@ -104,3 +104,23 @@ describe("A macro's trigger", () => {
     expect(row("@triage").textContent).not.toMatch(/\bon unlock\b/);
   });
 });
+
+describe("A step whose command is no longer offered", () => {
+  it("keeps showing the command it will save, not the first choice", () => {
+    // A jump to a section whose capability is absent today: valid to keep,
+    // but not among the commands a step may be changed to.
+    expect(
+      saveKeymapData({
+        bindings: {},
+        macros: { away: { steps: ["section.gone-today"] } },
+      }).ok,
+    ).toBe(true);
+    renderPanels();
+    fireEvent.click(screen.getByRole("button", { name: "Edit @away" }));
+    const select = screen.getByRole<HTMLSelectElement>("combobox", {
+      name: "Command for step 1",
+    });
+    expect(select.value).toBe("section.gone-today");
+    expect(select.selectedOptions[0]?.textContent).toBe("section.gone-today");
+  });
+});
