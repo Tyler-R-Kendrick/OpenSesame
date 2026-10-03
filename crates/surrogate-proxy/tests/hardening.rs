@@ -11,7 +11,7 @@ use std::time::Duration;
 use opensesame_invoke_through::RefusalCode;
 use opensesame_surrogate_proxy::RunSpec;
 use support::client::{bearer, request, through_proxy};
-use support::{grant, harness, harness_with, HOST, STATIC};
+use support::{grant, harness, harness_with, Harness, HOST, STATIC};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_hostile_child_cannot_run_the_credential_tool_more_than_its_slots_at_once() {
@@ -110,20 +110,8 @@ async fn ending_a_run_that_is_still_starting_leaves_none_of_its_surrogates_live(
             spec.grants.push(g);
         }
         let spec = Arc::new(spec);
-        let starter = {
-            let (h, id, spec) = (Arc::clone(&h), id.clone(), Arc::clone(&spec));
-            tokio::task::spawn_blocking(move || {
-                let _guard = tokio::runtime::Handle::current();
-                h.runs.create_run(&id, &spec).is_ok()
-            })
-        };
-        let ender = {
-            let (h, id) = (Arc::clone(&h), id.clone());
-            tokio::task::spawn_blocking(move || {
-                std::thread::sleep(Duration::from_micros(200 * (round % 7)));
-                h.runs.end_run(&id)
-            })
-        };
+        let starter = start_run(&h, &id, &spec);
+        let ender = end_run_after(&h, &id, Duration::from_micros(200 * (round % 7)));
         let created = starter.await.unwrap();
         let _ = ender.await.unwrap();
         if !h.runs.is_active(&id) {
@@ -137,4 +125,20 @@ async fn ending_a_run_that_is_still_starting_leaves_none_of_its_surrogates_live(
         }
         h.runs.end_run(&id);
     }
+}
+
+fn start_run(h: &Arc<Harness>, id: &str, spec: &Arc<RunSpec>) -> tokio::task::JoinHandle<bool> {
+    let (h, id, spec) = (Arc::clone(h), id.to_owned(), Arc::clone(spec));
+    tokio::task::spawn_blocking(move || {
+        let _guard = tokio::runtime::Handle::current();
+        h.runs.create_run(&id, &spec).is_ok()
+    })
+}
+
+fn end_run_after(h: &Arc<Harness>, id: &str, delay: Duration) -> tokio::task::JoinHandle<usize> {
+    let (h, id) = (Arc::clone(h), id.to_owned());
+    tokio::task::spawn_blocking(move || {
+        std::thread::sleep(delay);
+        h.runs.end_run(&id)
+    })
 }

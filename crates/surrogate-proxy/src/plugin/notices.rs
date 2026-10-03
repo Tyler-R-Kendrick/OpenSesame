@@ -203,6 +203,15 @@ impl std::fmt::Debug for NoticeLog {
     }
 }
 
+/// Evidence goes to the capped tripwires file, everything else to the notices.
+fn write_line(notices: &Path, tripwires: &Path, line: &Line) -> std::io::Result<()> {
+    if line.evidence {
+        append_capped(tripwires, &line.text, MAX_TRIPWIRE_BYTES)
+    } else {
+        append(notices, &line.text, MAX_NOTICES_BYTES)
+    }
+}
+
 impl NoticeLog {
     /// Start the writer for `path` (and the tripwires file beside it),
     /// creating the directory `0700`.
@@ -221,11 +230,7 @@ impl NoticeLog {
             for line in receiver {
                 // A write that fails drops that notice; the proxy keeps
                 // refusing, and the next notice tries again.
-                let _ = if line.evidence {
-                    append_capped(&tripwires, &line.text, MAX_TRIPWIRE_BYTES)
-                } else {
-                    append(&path, &line.text, MAX_NOTICES_BYTES)
-                };
+                let _ = write_line(&path, &tripwires, &line);
             }
         });
         Ok(Self {

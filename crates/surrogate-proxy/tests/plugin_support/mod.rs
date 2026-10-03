@@ -260,8 +260,11 @@ async fn read_head(stream: &mut TcpStream) -> String {
 /// Wait up to ten seconds for `path` to contain `needle`; its text either way.
 pub fn wait_for(path: &Path, needle: &str) -> String {
     let deadline = Instant::now() + Duration::from_secs(10);
+    let tripwires = path.with_file_name(opensesame_plugin_settings::TRIPWIRES_FILE);
     loop {
-        let text = std::fs::read_to_string(path).unwrap_or_default();
+        // Noise lands beside the path, evidence in the tripwires file.
+        let mut text = std::fs::read_to_string(path).unwrap_or_default();
+        text.push_str(&std::fs::read_to_string(&tripwires).unwrap_or_default());
         if text.contains(needle) || Instant::now() > deadline {
             return text;
         }
@@ -269,11 +272,14 @@ pub fn wait_for(path: &Path, needle: &str) -> String {
     }
 }
 
-/// Wait up to five seconds for `path` to have at least one line.
+/// Wait up to five seconds for `path` (or the tripwires file beside it) to
+/// have at least one line.
 pub fn wait_for_lines(path: &Path) -> String {
     let deadline = Instant::now() + Duration::from_secs(5);
+    let tripwires = path.with_file_name(opensesame_plugin_settings::TRIPWIRES_FILE);
     loop {
-        let text = std::fs::read_to_string(path).unwrap_or_default();
+        let mut text = std::fs::read_to_string(path).unwrap_or_default();
+        text.push_str(&std::fs::read_to_string(&tripwires).unwrap_or_default());
         if !text.is_empty() || Instant::now() > deadline {
             return text;
         }

@@ -105,9 +105,7 @@ fn concurrent_installs_of_different_plugins_both_land() {
             let path = path.clone();
             std::thread::spawn(move || {
                 PluginSettings::update(&path, |settings| {
-                    if settings.plugins.len() < 2 || i % 2 == 0 {
-                        settings.record_install(ids[i % 2], "1", &"d".repeat(64), "/q")?;
-                    }
+                    install_unless_full(settings, ids[i % 2], i);
                     Ok(())
                 })
                 .unwrap();
@@ -158,4 +156,12 @@ fn a_file_others_can_write_is_not_trusted() {
     ));
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o620)).unwrap();
     assert!(PluginSettings::load(&path).is_err());
+}
+
+fn install_unless_full(settings: &mut PluginSettings, id: &str, i: usize) {
+    if settings.plugins.len() < 2 || i % 2 == 0 {
+        settings
+            .record_install(id, "1", &"d".repeat(64), "/q")
+            .unwrap();
+    }
 }

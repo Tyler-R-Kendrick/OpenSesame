@@ -32,22 +32,28 @@ impl FileLock {
             {
                 Ok(_) => return Ok(Self { path }),
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                    if is_stale(&path) {
-                        let _ = std::fs::remove_file(&path);
-                        continue;
-                    }
-                    if started.elapsed().unwrap_or_default() > GIVE_UP_AFTER {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::TimedOut,
-                            "the plugin settings file is locked",
-                        ));
-                    }
-                    std::thread::sleep(RETRY);
+                    wait_for_holder(&path, started)?;
                 }
                 Err(error) => return Err(error),
             }
         }
     }
+}
+
+/// One step of waiting on a live holder: take over a stale lock, give up
+/// after [`GIVE_UP_AFTER`], otherwise sleep and let the caller retry.
+fn wait_for_holder(path: &Path, started: SystemTime) -> std::io::Result<()> {
+    if is_stale(path) {
+        let _ = std::fs::remove_file(path);
+    } else if started.elapsed().unwrap_or_default() > GIVE_UP_AFTER {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "the plugin settings file is locked",
+        ));
+    } else {
+        std::thread::sleep(RETRY);
+    }
+    Ok(())
 }
 
 fn is_stale(path: &Path) -> bool {

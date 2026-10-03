@@ -351,8 +351,7 @@ async function capture(browser, into) {
     });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
     await stubJourneyDaemon(page, screen, journey, origin);
-    // A fixed start time: both builds' timestamps read the same, and
-    // `elapse` can move the clock between steps.
+    // A fixed start time, so both builds' timestamps read the same.
     if (journey.clock)
       await page.clock.install({ time: new Date(journey.clock) });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });

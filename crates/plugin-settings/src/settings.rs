@@ -332,11 +332,11 @@ pub fn sha256_file(path: &Path) -> Result<String, SettingsError> {
 /// Write `bytes` to `path` by way of a sibling temp file, 0600 on Unix, so a
 /// reader sees the old file or the new one and never half of either.
 pub(crate) fn write_atomic(path: &Path, tmp_ext: &str, bytes: &[u8]) -> std::io::Result<()> {
+    // A name of our own, so two writers never share a temp file.
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    // A name of our own, so two writers never share a temp file.
-    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let unique = format!(
         "{}.{}",
         std::process::id(),
