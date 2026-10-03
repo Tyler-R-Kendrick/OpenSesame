@@ -6,6 +6,7 @@ import {
   tokenFromPress,
 } from "@opensesame/app-core/lib/keymap/notation.js";
 import {
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
@@ -171,7 +172,11 @@ export function KeyCapture({
     });
 
   const shown = tokens.length > 0 ? tokens.map(keycapLabel).join(" ") : text;
-  const drain = { animationDuration: `${keymapSeams.goTimeoutMs}ms` };
+  // A custom property, not `animation-duration`: the global reduced-motion rule
+  // forces that one to 0.01ms, and only the stylesheet can answer it.
+  const drain = {
+    "--kb-drain-ms": `${keymapSeams.goTimeoutMs}ms`,
+  } as CSSProperties;
 
   return (
     <span
