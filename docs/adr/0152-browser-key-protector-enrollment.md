@@ -98,9 +98,18 @@ the record reaches the manifest only through `commitEnrollment`.
   (a vault-sealed one is refused above) — independent, and an `untested` one
   counts for nothing; AWS KMS, Google Cloud KMS and Azure Key Vault Keys read
   their provider credential from Connections, sealed in this vault — **not**
-  independent, however often they are tested. So with a password and a verified
-  AWS KMS key, removing the password is refused; add a verified recovery key (or
-  an age recipient proved with an identity held elsewhere) and it is allowed.
+  independent, however often they are tested. This guard is a
+  manifest-level backstop, and it binds where nothing else does: the header's own
+  wraps (password, PIN, passkey) are removed under Unlock methods, which keeps
+  one primary unlock through `assertKeepsPrimaryUnlock` and never reaches the
+  manifest, and `removeProtector` already refuses a row the header wraps. The
+  legacy wrap records are always `verified` and independent, so while the header
+  has any wrap the manifest holds an independent record and a cloud key can never
+  be what keeps it from firing. What the guard does decide is a manifest whose
+  only remaining independent records are being removed: with a verified cloud key
+  and nothing else independent, removing the last independent record is refused;
+  add a verified recovery key (or an age recipient proved with an identity held
+  elsewhere) and it is allowed.
   The answer is a function of the kind and adds no field to a record, so a
   manifest an earlier build wrote keeps its bytes and its authentication tag and
   gets the stricter answer on its next removal. A future enroller that holds a
