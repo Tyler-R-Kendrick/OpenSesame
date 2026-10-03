@@ -556,7 +556,7 @@ paste box: give the configuration a file, and the viewer shows it
 ### Keybindings are keycaps
 Settings › Keybindings is a table a person reads the way they read a vimrc:
 each command's name over its id, its keys as keycaps, and at the row's end
-what can be done about it ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)).
+what can be done about it ([ADR 0156](docs/adr/0156-keybindings-and-macros.md)).
 A keycap is a hairline cap with a heavier lower edge that sinks a pixel
 under the pointer. A sequence is its caps side by side, closer together than
 two separate bindings sit. A key the person added carries the accent on that
