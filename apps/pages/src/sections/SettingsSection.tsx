@@ -2,6 +2,7 @@ import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
+import { useFinePointer } from "../lib/use-narrow.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 
 import {
@@ -49,6 +50,14 @@ export type { SettingsPanels } from "./SettingsSectionNav.js";
  */
 function useSettingsLocation(category: string, hash: string, pathname: string) {
   const navigate = useNavigate();
+  // Nothing on a touch-only device can press a key, so a link to the key
+  // editor lands on General rather than on a page the tabs do not list.
+  const keys = useFinePointer();
+  useEffect(() => {
+    if (keys || category !== "keybindings") return;
+    navigate(settingsPath("general"), { replace: true });
+  }, [category, keys, navigate]);
+
   useEffect(() => {
     const fromHash = categoryFromHash(hash);
     if (fromHash && !pathname.match(/\/settings\/[^/]+/)) {
@@ -58,9 +67,10 @@ function useSettingsLocation(category: string, hash: string, pathname: string) {
 
   // Keybindings were a panel of General before they had a tab (ADR 0156).
   useEffect(() => {
-    if (category !== "general" || hash !== "#settings-keybindings") return;
+    if (!keys || category !== "general") return;
+    if (hash !== "#settings-keybindings") return;
     navigate(settingsPath("keybindings"), { replace: true });
-  }, [category, hash, navigate]);
+  }, [category, hash, keys, navigate]);
 
   useEffect(() => {
     if (category !== "security") return;
@@ -86,6 +96,7 @@ export function SettingsSection({
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { hash, pathname, search } = useLocation();
   const tabs = useSettingsTabs();
+  const keys = useFinePointer();
   const category = settingsCategoryFromLocation(pathname, hash);
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
   const contributedPanels = useCategoryPanels(category);
@@ -137,7 +148,7 @@ export function SettingsSection({
             <GeneralPrefsPanel />
           </>
         ) : null}
-        {form && category === "keybindings" ? (
+        {form && category === "keybindings" && keys ? (
           <Suspense fallback={null}>
             <KeybindingsPanels />
           </Suspense>
