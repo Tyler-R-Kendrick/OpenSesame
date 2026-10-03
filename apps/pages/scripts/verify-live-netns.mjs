@@ -17,6 +17,11 @@
  * 4. **relayed** — the veth is taken down, so there is no route between the
  *    two: only a TURN server, relay only, connects them, relay to relay.
  *
+ * The relay and TURN server sit on a private address, local operator
+ * authority the shared github.io origin may not reach, so walks 3 and 4 run
+ * on `dist-live-dedicated` (`pnpm build:live-dedicated`); 1 and 2 keep the
+ * shared origin.
+ *
  * Needs Linux with unprivileged user namespaces (no root, no sudo), `unshare`,
  * `nsenter` and python3. Where it cannot build the network it fails, loudly:
  * a skipped network test proves nothing. Every process dies with the run.
