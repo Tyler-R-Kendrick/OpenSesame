@@ -15,7 +15,7 @@ import {
   tokenFromPress,
 } from "@opensesame/app-core/lib/keymap/notation.js";
 import { stepsFromKeys } from "@opensesame/app-core/sections/settings/keymap-panel-model.js";
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -162,28 +162,31 @@ function StepRow({
       </select>
       {problem ? <StatusMark tone="err" label={problem} /> : null}
       <span className="actions">
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label={`Move step ${n} up`}
-          title="Move up"
-          data-move="up"
-          disabled={index === 0}
-          onClick={() => onMove(index - 1)}
-        >
-          <IconChevronUp size={14} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label={`Move step ${n} down`}
-          title="Move down"
-          data-move="down"
-          disabled={last}
-          onClick={() => onMove(index + 1)}
-        >
-          <IconChevronDown size={14} />
-        </button>
+        {/* The first step cannot go up, nor the last down: no key (ADR 0158). */}
+        {index === 0 ? null : (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label={`Move step ${n} up`}
+            title="Move up"
+            data-move="up"
+            onClick={() => onMove(index - 1)}
+          >
+            <IconChevronUp size={14} />
+          </button>
+        )}
+        {last ? null : (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label={`Move step ${n} down`}
+            title="Move down"
+            data-move="down"
+            onClick={() => onMove(index + 1)}
+          >
+            <IconChevronDown size={14} />
+          </button>
+        )}
         <button
           type="button"
           className="icon-btn icon-btn--sm"
@@ -267,40 +270,46 @@ function StepsFoot({
   const { recording } = recorder;
   return (
     <div className="kb-steps__foot">
-      <button
-        ref={addRef}
-        type="button"
-        className="icon-btn icon-btn--sm"
-        aria-label="Add a step"
-        title="Add a step"
-        disabled={full || recording}
-        onClick={() =>
-          onChange([
-            ...steps,
-            {
-              command: choices[0]?.commands[0]?.id ?? "listing.next",
-              count: 1,
-            },
-          ])
-        }
-      >
-        <IconPlus size={14} />
-      </button>
-      <button
-        type="button"
-        className={`icon-btn icon-btn--sm${recording ? " is-armed" : ""}`}
-        aria-pressed={recording}
-        aria-label={
-          recording ? "Stop recording" : "Record steps by pressing keys"
-        }
-        title={
-          recording ? "Stop recording (Enter)" : "Record steps by pressing keys"
-        }
-        disabled={full && !recording}
-        onClick={recorder.toggle}
-      >
-        <IconRecord size={14} />
-      </button>
+      {/* At the step limit, or while keys are being recorded, adding a step
+          is not on offer: the key is not drawn (ADR 0158). */}
+      {full || recording ? null : (
+        <button
+          ref={addRef}
+          type="button"
+          className="icon-btn icon-btn--sm"
+          aria-label="Add a step"
+          title="Add a step"
+          onClick={() =>
+            onChange([
+              ...steps,
+              {
+                command: choices[0]?.commands[0]?.id ?? "listing.next",
+                count: 1,
+              },
+            ])
+          }
+        >
+          <IconPlus size={14} />
+        </button>
+      )}
+      {full && !recording ? null : (
+        <button
+          type="button"
+          className={`icon-btn icon-btn--sm${recording ? " is-armed" : ""}`}
+          aria-pressed={recording}
+          aria-label={
+            recording ? "Stop recording" : "Record steps by pressing keys"
+          }
+          title={
+            recording
+              ? "Stop recording (Enter)"
+              : "Record steps by pressing keys"
+          }
+          onClick={recorder.toggle}
+        >
+          <IconRecord size={14} />
+        </button>
+      )}
       {recording ? (
         <Recorder
           tokens={recorder.tokens}
@@ -332,9 +341,30 @@ export function MacroSteps({
   const addRef = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLOListElement>(null);
   const land = useMoveLanding(list);
-  const recorder = useStepRecorder(steps, on, state, onChange, () =>
-    addRef.current?.focus(),
-  );
+  // The Add key comes and goes with the limit and with recording, so focus is
+  // sent to it after the render that draws it — or, with the steps full, to
+  // the last step, rather than left on a key that is gone.
+  const [refocus, setRefocus] = useState(0);
+  const wanted = useRef(false);
+  const focusAdd = () => {
+    wanted.current = true;
+    setRefocus((n) => n + 1);
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refocus and the step count are what retrigger it
+  useEffect(() => {
+    const active = document.activeElement;
+    const idle = active === null || active === document.body;
+    if (wanted.current && addRef.current) {
+      wanted.current = false;
+      if (idle || list.current?.contains(active)) addRef.current.focus();
+      return;
+    }
+    if (idle && !addRef.current && steps.length >= MACRO_LIMITS.steps) {
+      wanted.current = false;
+      list.current?.querySelector<HTMLElement>("li:last-child select")?.focus();
+    }
+  }, [refocus, steps.length]);
+  const recorder = useStepRecorder(steps, on, state, onChange, focusAdd);
   const choices = stepCommands(state.commands, on);
 
   return (
@@ -358,7 +388,7 @@ export function MacroSteps({
             }}
             onRemove={() => {
               onChange(steps.filter((_, at) => at !== index));
-              addRef.current?.focus();
+              focusAdd();
             }}
           />
         ))}

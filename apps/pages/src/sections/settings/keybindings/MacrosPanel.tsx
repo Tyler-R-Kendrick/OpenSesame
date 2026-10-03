@@ -83,18 +83,19 @@ function MacroRow({
             {macro.on}
           </span>
         ) : null}
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          data-edit-macro={name}
-          aria-label={`Edit @${name}`}
-          title={`Edit @${name}`}
-          aria-expanded={editing}
-          disabled={editing}
-          onClick={onEdit}
-        >
-          <IconEdit size={14} />
-        </button>
+        {/* Its editor is open below: no key to open it again (ADR 0158). */}
+        {editing ? null : (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            data-edit-macro={name}
+            aria-label={`Edit @${name}`}
+            title={`Edit @${name}`}
+            onClick={onEdit}
+          >
+            <IconEdit size={14} />
+          </button>
+        )}
       </span>
       {editing ? (
         <MacroEditor name={name} macro={macro} state={state} onDone={onDone} />
@@ -147,17 +148,19 @@ export function MacrosPanel({ state }: { state: KeymapState }) {
         <div>
           <h2>Macros</h2>
         </div>
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          data-new-macro=""
-          aria-label="New macro"
-          title="New macro"
-          disabled={editing !== null}
-          onClick={() => setEditing("")}
-        >
-          <IconPlus size={14} />
-        </button>
+        {/* One editor opens at a time: with one open there is no second key. */}
+        {editing !== null ? null : (
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            data-new-macro=""
+            aria-label="New macro"
+            title="New macro"
+            onClick={() => setEditing("")}
+          >
+            <IconPlus size={14} />
+          </button>
+        )}
       </div>
       <div className="panel__body">
         {editing === "" ? (

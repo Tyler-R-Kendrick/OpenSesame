@@ -93,7 +93,7 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
       screen.getByRole("button", { name: "Turn on travel mode" }),
     );
     const sheet = screen.getByRole("dialog", { name: "Turn on travel mode" });
-    expect(sheet.querySelectorAll('[role="switch"]')).toHaveLength(2);
+    expect(sheet.querySelectorAll('[role="switch"]')).toHaveLength(1);
   });
 
   it("carries the open vault and sends the rest home, only once both halves are elsewhere", async () => {
@@ -101,11 +101,11 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Turn on travel mode" }),
     );
-    const personal = screen.getByRole("switch", {
-      name: "Safe for travel: personal",
-    });
-    expect(personal.getAttribute("aria-checked")).toBe("true");
-    expect(personal.hasAttribute("disabled")).toBe(true);
+    // The open vault always travels: its row says so and draws no switch.
+    expect(
+      screen.queryByRole("switch", { name: "Safe for travel: personal" }),
+    ).toBeNull();
+    expect(screen.getByText("open · travels")).toBeTruthy();
     expect(
       screen
         .getByRole("switch", { name: "Safe for travel: Work" })

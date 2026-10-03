@@ -149,38 +149,40 @@ function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
   return (
     <>
       {refused ? <Refused message={refused.message} n={refused.n} /> : null}
-      <button
-        type="button"
-        className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
-        aria-label={label}
-        title={label}
-        aria-pressed={armed}
-        disabled={pristine}
-        data-resets=""
-        onBlur={() => setArmed(false)}
-        onClick={() => {
-          if (!armed) {
+      {/* With nothing changed there is nothing to forget: no key (ADR 0158). */}
+      {pristine ? null : (
+        <button
+          type="button"
+          className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
+          aria-label={label}
+          title={label}
+          aria-pressed={armed}
+          data-resets=""
+          onBlur={() => setArmed(false)}
+          onClick={() => {
+            if (!armed) {
+              setMet(null);
+              setArmed(true);
+              return;
+            }
+            const reset = resetKeymap();
+            setArmed(false);
+            if (!reset.ok) {
+              refusals.current += 1;
+              setMet({
+                message: reset.message,
+                n: refusals.current,
+                config: state.config,
+              });
+              return;
+            }
             setMet(null);
-            setArmed(true);
-            return;
-          }
-          const reset = resetKeymap();
-          setArmed(false);
-          if (!reset.ok) {
-            refusals.current += 1;
-            setMet({
-              message: reset.message,
-              n: refusals.current,
-              config: state.config,
-            });
-            return;
-          }
-          setMet(null);
-          onLand([FILTER_LANDING]);
-        }}
-      >
-        <IconRefresh size={14} />
-      </button>
+            onLand([FILTER_LANDING]);
+          }}
+        >
+          <IconRefresh size={14} />
+        </button>
+      )}
     </>
   );
 }

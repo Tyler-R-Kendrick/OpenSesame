@@ -104,6 +104,34 @@ describe("VaultKeyProtectionPanel", () => {
     ).toBeNull();
   });
 
+  it("marks the preferred unlock and draws no key on it: pressing it again would do nothing", () => {
+    const base = headerWithRecords([recoveryKey, pin]);
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({
+        header: base.protection
+          ? {
+              ...base,
+              protection: {
+                ...base.protection,
+                preferredProtectorId: recoveryKey.protectorId,
+              },
+            }
+          : base,
+        guest: false,
+        status: "unlocked",
+        tomb: "personal",
+      }),
+    });
+    render(<VaultKeyProtectionPanel />);
+    expect(screen.getByRole("img", { name: "Preferred unlock" })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Preferred unlock Recovery key" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Preferred unlock PIN" }),
+    ).toBeTruthy();
+  });
+
   it("offers Test on a recovery key, which the service proves from its secret", () => {
     showRecords([recoveryKey]);
     expect(
