@@ -10,6 +10,8 @@ export const CAPABILITY_TUTORIALS = {
   "vaults.switch": "vaults.switch",
   "vaults.travel": "vaults.travel",
   "vaults.duress_code": "vaults.duress-code",
+  "vault.protectors.manage": "settings.security.review",
+  "vault.protectors.rotate": "settings.security.review",
   "device.browser_reset": "vaults.switch",
   "host.health.pages": "host.health.check",
   "host.whoami": "identity.account.add",

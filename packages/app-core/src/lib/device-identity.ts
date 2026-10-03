@@ -20,7 +20,7 @@ const DEVICE_FALLBACK_BASE = "https://device.identity.local";
 
 export const deviceIdentitySeams = {
   remoteIdentityApi(): string {
-    return (loadSettings().identityApi ?? "").replace(/\/$/, "");
+    return (loadSettings().identityApi ?? "").replace(/\/+$/, "");
   },
 };
 
