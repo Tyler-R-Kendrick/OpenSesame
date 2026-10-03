@@ -68,7 +68,7 @@ impl Argon2Params {
 }
 
 /// Options for [`export_kdbx`].
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct ExportOptions {
     /// Outer cipher.
     pub cipher: ExportCipher,

@@ -13,7 +13,7 @@ use crate::Db;
 
 /// One two-step provider an account has set up. `data` is what the server
 /// checks a code against (an authenticator's base32 key).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BitwardenTwoFactor {
     pub provider: i64,
     pub enabled: bool,

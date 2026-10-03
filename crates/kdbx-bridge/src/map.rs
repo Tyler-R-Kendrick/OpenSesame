@@ -83,7 +83,7 @@ pub const MAX_GROUP_DEPTH: usize = 64;
 /// `fields` is a `BTreeMap` on purpose: `keepass` stores entry fields in a
 /// `HashMap`, so iteration order there is not stable. Sorting by the raw KDBX
 /// field name makes the mapped trailer deterministic.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct KdbxEntryView {
     /// Group names from the root group's children down to the entry's parent.
     /// The KDBX root group itself is not part of the path.
@@ -123,7 +123,7 @@ pub struct MappedItem {
 }
 
 /// A KDBX string field ready to be written.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct KdbxField {
     /// KDBX field name.
     pub key: String,
@@ -641,7 +641,7 @@ fn push_field(
 }
 
 /// The canonical JSON view of one mapped item, used by the conformance fixture.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize)]
 pub struct ItemJson {
     /// Line one of the entry.
     pub secret: String,

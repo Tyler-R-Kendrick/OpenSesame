@@ -23,7 +23,7 @@ pub enum OtpKind {
     Hotp,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct OtpUri {
     /// Full otpauth:// URI as stored.
     pub uri: String,
@@ -35,6 +35,24 @@ pub struct OtpUri {
     pub algorithm: OtpAlgorithm,
     pub label: Option<String>,
     pub issuer: Option<String>,
+}
+
+impl std::fmt::Debug for OtpUri {
+    /// The URI embeds the shared secret as its `secret=` parameter, so neither
+    /// prints; the parameters that shape a code are not secret.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OtpUri")
+            .field("uri", &"[REDACTED]")
+            .field("secret", &"[REDACTED]")
+            .field("kind", &self.kind)
+            .field("digits", &self.digits)
+            .field("period", &self.period)
+            .field("counter", &self.counter)
+            .field("algorithm", &self.algorithm)
+            .field("label", &self.label)
+            .field("issuer", &self.issuer)
+            .finish()
+    }
 }
 
 #[derive(Debug, Error)]

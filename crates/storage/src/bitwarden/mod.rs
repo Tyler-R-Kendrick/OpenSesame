@@ -7,6 +7,7 @@ mod attachments;
 mod auth_requests;
 mod ciphers;
 mod collections;
+mod debug_redaction;
 mod devices;
 mod emergency;
 mod folders;

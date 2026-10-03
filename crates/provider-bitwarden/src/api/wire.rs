@@ -97,7 +97,7 @@ pub struct CipherResponse {
     pub fields: Option<Vec<FieldResponse>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResponse {
     #[serde(default, alias = "Username")]
@@ -122,7 +122,7 @@ pub struct UriResponse {
     pub uri_match: Option<u8>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldResponse {
     #[serde(default, alias = "Name")]
@@ -131,6 +131,30 @@ pub struct FieldResponse {
     pub value: Option<String>,
     #[serde(default, rename = "type", alias = "Type")]
     pub field_type: Option<u8>,
+}
+
+impl std::fmt::Debug for LoginResponse {
+    /// The password and the TOTP seed are credentials; the username and the
+    /// URIs are what identify the login.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginResponse")
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| "[REDACTED]"))
+            .field("totp", &self.totp.as_ref().map(|_| "[REDACTED]"))
+            .field("uris", &self.uris)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for FieldResponse {
+    /// A custom field may be hidden (a secret); its value never prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FieldResponse")
+            .field("name", &self.name)
+            .field("value", &self.value.as_ref().map(|_| "[REDACTED]"))
+            .field("field_type", &self.field_type)
+            .finish()
+    }
 }
 
 /// `GET /api/config` — server version and feature flags. Read to record what
@@ -159,5 +183,29 @@ mod debug_redaction {
             assert!(!shown.contains(leaked), "{leaked} in {shown}");
         }
         assert!(shown.contains("3600"));
+    }
+
+    #[test]
+    fn a_login_and_its_fields_print_no_credential() {
+        let login: LoginResponse = serde_json::from_str(
+            r#"{"username":"alice","password":"pw-12345","totp":"otpseed-12345"}"#,
+        )
+        .unwrap();
+        let shown = format!("{login:?}");
+        assert!(
+            shown.contains("[REDACTED]") && shown.contains("alice"),
+            "{shown}"
+        );
+        for leaked in ["pw-12345", "otpseed-12345"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
+        let field: FieldResponse =
+            serde_json::from_str(r#"{"name":"pin","value":"fieldval-12345","type":1}"#).unwrap();
+        let shown = format!("{field:?}");
+        assert!(
+            shown.contains("pin") && shown.contains("[REDACTED]"),
+            "{shown}"
+        );
+        assert!(!shown.contains("fieldval-12345"), "{shown}");
     }
 }

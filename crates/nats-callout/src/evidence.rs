@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::model::AuthorizationRequestClaims;
 
 /// Evidence extracted from a verified request.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExtractedEvidence {
     /// A compact JWS the client sent; verified by the Host, never here.
@@ -26,6 +26,20 @@ pub struct ExtractedEvidence {
     /// PEM entries of the first server-verified chain, leaf first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tls_verified_chain: Option<Vec<String>>,
+}
+
+impl std::fmt::Debug for ExtractedEvidence {
+    /// The upstream token is a bearer the client sent; only that it is present
+    /// prints. The verified chain is public certificates.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExtractedEvidence")
+            .field(
+                "upstream_token",
+                &self.upstream_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("tls_verified_chain", &self.tls_verified_chain)
+            .finish()
+    }
 }
 
 impl ExtractedEvidence {
@@ -95,6 +109,17 @@ mod tests {
     use crate::model::ClientTls;
 
     const PEM: &str = "-----BEGIN CERTIFICATE-----\nAAEC\n-----END CERTIFICATE-----";
+
+    #[test]
+    fn evidence_prints_no_upstream_token() {
+        let evidence = ExtractedEvidence {
+            upstream_token: Some("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln".into()),
+            tls_verified_chain: Some(vec![PEM.into()]),
+        };
+        let shown = format!("{evidence:?}");
+        assert!(shown.contains("[REDACTED]"), "{shown}");
+        assert!(!shown.contains("eyJhbGciOiJSUzI1NiJ9"), "{shown}");
+    }
 
     #[test]
     fn token_comes_from_auth_token_then_pass_and_must_look_like_a_jws() {

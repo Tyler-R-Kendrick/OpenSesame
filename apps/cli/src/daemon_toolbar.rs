@@ -31,7 +31,7 @@ fn assert_daemon_url_allowed(url: &str) -> Result<(), String> {
 }
 
 /// Daemon verbs that read what is pending or approve it (ADR 0017).
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub enum ToolbarCmd {
     /// Show the daemon's session and pending-approval status.
     Info,
@@ -54,6 +54,34 @@ pub enum ToolbarCmd {
         #[arg(long, env = "OPENSESAME_ACCESS_TOKEN", hide_env_values = true)]
         access_token: Option<String>,
     },
+}
+
+impl std::fmt::Debug for ToolbarCmd {
+    /// The claim bearer and the access token are credentials; ids and the
+    /// principal are what name the request.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Info => f.write_str("Info"),
+            Self::ApproveDevice {
+                user_code,
+                principal,
+            } => f
+                .debug_struct("ApproveDevice")
+                .field("user_code", user_code)
+                .field("principal", principal)
+                .finish(),
+            Self::ApproveClaim {
+                claim_id,
+                access_token,
+                ..
+            } => f
+                .debug_struct("ApproveClaim")
+                .field("claim_id", claim_id)
+                .field("claim_token", &"[REDACTED]")
+                .field("access_token", &access_token.as_ref().map(|_| "[REDACTED]"))
+                .finish(),
+        }
+    }
 }
 
 /// Run one toolbar verb against the daemon at `base`. The operator token is
@@ -223,6 +251,23 @@ async fn approve_claim(
 #[cfg(test)]
 mod pact {
     use super::*;
+
+    #[test]
+    fn a_claim_verb_prints_neither_bearer() {
+        let cmd = ToolbarCmd::ApproveClaim {
+            claim_id: "clm_public".into(),
+            claim_token: "osc_clm_bearer-12345".into(),
+            access_token: Some("access-12345".into()),
+        };
+        let shown = format!("{cmd:?}");
+        assert!(
+            shown.contains("[REDACTED]") && shown.contains("clm_public"),
+            "{shown}"
+        );
+        for leaked in ["osc_clm_bearer-12345", "access-12345"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
+    }
 
     #[test]
     fn property_loopback_daemon_is_allowed() {

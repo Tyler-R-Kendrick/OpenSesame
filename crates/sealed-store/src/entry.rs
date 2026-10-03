@@ -6,11 +6,23 @@
 /// and `render(Entry::parse(t)) == t` for every `t`. Keep that property — the
 /// store is git-backed, so a render that is not a fixed point both churns diffs
 /// and, when the secret is empty, silently promotes a trailer line to the secret.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Entry {
     pub secret: String,
     pub trailer: String,
     pub otp: Option<crate::otp::OtpUri>,
+}
+
+impl std::fmt::Debug for Entry {
+    /// Line one is the secret and the trailer is freeform notes that hold
+    /// credentials as often as not; only whether an OTP is present prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Entry")
+            .field("secret", &"[REDACTED]")
+            .field("trailer", &"[REDACTED]")
+            .field("otp", &self.otp)
+            .finish()
+    }
 }
 
 impl Entry {
@@ -60,6 +72,16 @@ impl Entry {
 mod tests {
     use super::*;
     use crate::otp::parse_otpauth;
+
+    #[test]
+    fn an_entry_prints_neither_its_secret_nor_its_trailer() {
+        let entry = Entry::parse("hunter2-line-one\nnotes: api-key-in-trailer\n");
+        let shown = format!("{entry:?}");
+        assert!(shown.contains("[REDACTED]"), "{shown}");
+        for leaked in ["hunter2-line-one", "api-key-in-trailer"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
+    }
 
     /// `parse` after `render` must return the entry unchanged, and rendering the
     /// result again must be byte-identical — one pass and every later pass.
