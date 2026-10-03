@@ -76,6 +76,7 @@ export function GcpKmsConnectPanel({
         <GcpKmsConnectFields
           form={panel.form}
           configured={panel.configured}
+          identityLocked={panel.enrolled}
           onChange={panel.setField}
         />
         <FormCommit
@@ -84,11 +85,11 @@ export function GcpKmsConnectPanel({
           }
           disabled={panel.busy}
         >
-          {panel.enrolled ? null : (
+          {panel.enrolled || !panel.configured ? null : (
             <button
               type="button"
               className="icon-btn icon-btn--sm"
-              disabled={panel.busy || !panel.configured}
+              disabled={panel.busy}
               aria-label="Remove Google Cloud KMS configuration"
               title="Remove Google Cloud KMS configuration"
               onClick={() => void panel.forget()}

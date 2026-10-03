@@ -27,9 +27,11 @@ export function emptyAwsKmsForm(): AwsKmsFormState {
 
 function KeyAndRegionFields({
   form,
+  locked,
   onChange,
 }: {
   form: AwsKmsFormState;
+  locked: boolean;
   onChange: (key: keyof AwsKmsFormState, value: string) => void;
 }) {
   const keyArnId = useId();
@@ -63,6 +65,7 @@ function KeyAndRegionFields({
           title={keyArnHelp.help}
           aria-describedby={`${keyArnId}-help`}
           value={form.keyArn}
+          readOnly={locked}
           onChange={(event) => onChange("keyArn", event.target.value)}
         />
         <p className="hint" id={`${keyArnId}-help`}>
@@ -83,6 +86,7 @@ function KeyAndRegionFields({
           placeholder={regionHelp.placeholder}
           title={regionHelp.help}
           value={form.region}
+          readOnly={locked}
           onChange={(event) => onChange("region", event.target.value)}
         />
       </div>
@@ -209,15 +213,22 @@ function OptionalFields({
 export function AwsKmsConnectFields({
   form,
   configured,
+  identityLocked = false,
   onChange,
 }: {
   form: AwsKmsFormState;
   configured: boolean;
+  /** The key a protector wraps with: drawn read-only while one is enrolled. */
+  identityLocked?: boolean;
   onChange: (key: keyof AwsKmsFormState, value: string) => void;
 }) {
   return (
     <>
-      <KeyAndRegionFields form={form} onChange={onChange} />
+      <KeyAndRegionFields
+        form={form}
+        locked={identityLocked}
+        onChange={onChange}
+      />
       <CredentialFields
         form={form}
         configured={configured}
