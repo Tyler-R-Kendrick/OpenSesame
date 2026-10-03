@@ -73,8 +73,16 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, "../../..");
 const ORIGIN = "https://tyler-r-kendrick.github.io";
+/**
+ * A deployment of one's own. The shared GitHub Pages origin may not reach a
+ * loopback or LAN address at all (`mayPairLocalAuthority`), whichever way it
+ * asks, so the walks whose carrier server runs on this machine run on a build
+ * stamped `dedicated_origin` for this origin (`pnpm build:live-dedicated`).
+ */
+const DEDICATED_ORIGIN = "https://opensesame.example.test";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const DIST = path.resolve(here, "../dist");
+const DEDICATED_DIST = path.resolve(here, "../dist-live-dedicated");
 const OUT = path.resolve(ROOT, "artifacts/live-join");
 const SECRET = "correct-horse-battery-staple-2026";
 const KINDS = (
@@ -137,14 +145,19 @@ function launch(features = [], args = []) {
   });
 }
 
-async function device(browser, { init = [], ...options } = {}) {
+async function device(
+  browser,
+  { init = [], origin = ORIGIN, dist = DIST, ...options } = {},
+) {
   const made = await harness.newPage(browser, {
     ...options,
+    origin,
+    dist,
     passthrough: PASSTHROUGH,
   });
   const sockets = [];
   await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
+    origin,
   });
   // A carrier on loopback (or a tailnet, or a LAN) is a local-network
   // address to a public page: Chrome asks the person first. They allow it.
@@ -152,7 +165,7 @@ async function device(browser, { init = [], ...options } = {}) {
   await cdp.send("Browser.setPermission", {
     permission: { name: "local-network-access" },
     setting: "granted",
-    origin: ORIGIN,
+    origin,
   });
   await made.context.addInitScript(WATCH_RTC);
   for (const [script, arg] of init)
@@ -164,7 +177,7 @@ async function device(browser, { init = [], ...options } = {}) {
     else if (process.env.LIVE_CONSOLE)
       harness.record("console", message.text().slice(0, 400));
   });
-  return { ...made, sockets };
+  return { ...made, sockets, origin, dist };
 }
 
 async function shot(page, name) {
@@ -232,9 +245,26 @@ try {
   await openLive(owner.page);
   await shot(owner.page, "0-owner-live-settings");
   if (SCENARIOS.has("direct")) await direct(browser, owner);
-  if (SCENARIOS.has("carriers"))
-    for (const kind of KINDS) await carried(browser, owner, kind);
-  if (SCENARIOS.has("declined")) await declined(browser, owner);
+  if (SCENARIOS.has("carriers") || SCENARIOS.has("declined")) {
+    if (!fs.existsSync(DEDICATED_DIST))
+      throw new Error(
+        "no dedicated build: run `pnpm --filter @opensesame/pages build:live-dedicated`",
+      );
+    const own = await device(browser, {
+      origin: DEDICATED_ORIGIN,
+      dist: DEDICATED_DIST,
+    });
+    setStep("owner-enters-dedicated");
+    await ownerEnters(own.page, {
+      origin: DEDICATED_ORIGIN,
+      base: BASE,
+      secret: SECRET,
+    });
+    await openLive(own.page);
+    if (SCENARIOS.has("carriers"))
+      for (const kind of KINDS) await carried(browser, own, kind);
+    if (SCENARIOS.has("declined")) await declined(browser, own);
+  }
   if (SCENARIOS.has("relayed")) await relayed(browser, owner);
   if (SCENARIOS.has("relayed-tcp"))
     await relayedOver(browser, owner, "tcp", turnFixture);

@@ -97,8 +97,11 @@ export async function ownerEnters(page, { origin, base, secret }) {
   await create.first().waitFor({ timeout: 20_000 });
   await create.first().click();
   await page.getByLabel("Name", { exact: true }).fill("GitHub");
-  await page.getByLabel("Username", { exact: true }).fill("octo");
-  await page.getByLabel("Password", { exact: true }).fill(secret);
+  await page.getByLabel("Secret value", { exact: true }).fill(secret);
+  // Unconcealed text the catalog carries: the probes check no carrier saw it.
+  await page.getByRole("button", { name: "custom field" }).click();
+  await page.getByLabel("Field name", { exact: true }).fill("Team");
+  await page.getByLabel("Field value", { exact: true }).fill("octo");
   await page
     .getByRole("button", { name: "Save item", exact: true })
     .first()
