@@ -11,7 +11,7 @@ import {
   ClaimSessionResponseSchema,
   RegisterAgentResponseSchema,
 } from "@opensesame/contracts";
-import { scrubText } from "@opensesame/log-scrub";
+import { scrubStrings, scrubText } from "@opensesame/log-scrub";
 import { overlapCast } from "@opensesame/os-domain";
 import { createControlPlaneClient, redactSecrets } from "@opensesame/sdk-cli";
 
@@ -102,7 +102,7 @@ function redactWith(
   registered: ReturnType<typeof RegisterAgentResponseSchema.parse>,
 ): ReturnType<typeof redactSecrets> {
   if (options?.redact) return options.redact(registered);
-  return redactSecrets(registered);
+  return scrubStrings(redactSecrets(registered));
 }
 
 export async function runAnonymousAgentDemo(
