@@ -187,7 +187,9 @@ server a host name of its own for the web vault, as for Sends.
 A new device can sign in by asking one already signed in, with no master
 password typed: approve the request on the signed-in device after checking
 that both show the same fingerprint phrase. Requests expire after fifteen
-minutes; an account can have five waiting at once.
+minutes, and the waiting device is let go then, or as soon as the request is
+answered or denied. An address can ask five times in a window, whether or not
+it has an account; an account can have five waiting at once.
 
 ## What is not served
 
