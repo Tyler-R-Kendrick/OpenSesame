@@ -125,7 +125,13 @@ export async function openRootWithProtector(
       throw new DOMException("The operation was aborted.", "AbortError");
     }
     try {
-      return await open(record, contextFor(manifest, record));
+      const root = await open(record, contextFor(manifest, record));
+      if (input.signal?.aborted) {
+        // The person left this tab while the prompt was up: spend nothing.
+        root.fill(0);
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+      return root;
     } catch (error) {
       if (isUncountedProtectorFailure(error)) throw error;
       // This capsule is not the one the material opens; try the next.

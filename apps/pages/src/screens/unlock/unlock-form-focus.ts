@@ -14,6 +14,7 @@ export function useUnlockFormFocus(args: {
   totpRef: RefObject<HTMLInputElement | null>;
   pinRef: RefObject<HTMLInputElement | null>;
   passwordRef: RefObject<HTMLInputElement | null>;
+  protectorRef: RefObject<HTMLInputElement | null>;
   goRef: RefObject<HTMLButtonElement | null>;
   acceptRef: RefObject<HTMLInputElement | null>;
   formRef: RefObject<HTMLFormElement | null>;
@@ -30,6 +31,7 @@ export function useUnlockFormFocus(args: {
     totpRef,
     pinRef,
     passwordRef,
+    protectorRef,
     goRef,
     acceptRef,
     formRef,
@@ -39,10 +41,16 @@ export function useUnlockFormFocus(args: {
     if (signInStage || showSignIn || formGated) return;
     if (awaitingSecondStep) landFocus(totpRef.current);
     else if (awaitingPasskeyDuressCode) landFocus(pinRef.current);
-    else if (guestKeyless || activeMethod === "passkey") {
+    else if (
+      guestKeyless ||
+      activeMethod === "passkey" ||
+      activeMethod === "agePasskey"
+    ) {
       if (!landFocus(goRef.current) && !landFocus(acceptRef.current))
         landFocus(firstControl(formRef.current));
     } else if (activeMethod === "pin") landFocus(pinRef.current);
+    else if (activeMethod === "recovery" || activeMethod === "age")
+      landFocus(protectorRef.current);
     else landFocus(passwordRef.current);
   }, [
     activeMethod,

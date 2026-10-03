@@ -1,4 +1,4 @@
-import type { UnlockMethodId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import { describeWebauthnError } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { WrongPasswordError } from "@opensesame/vault-core";
 import type { MutableRefObject } from "react";
@@ -6,14 +6,16 @@ import type { MutableRefObject } from "react";
 export function applyUnlockSubmitFailure(input: {
   caught: unknown;
   awaitingSecondStep: boolean;
-  activeMethod: UnlockMethodId;
+  activeMethod: UnlockTabId;
   setError: (message: string | null) => void;
   setPassword: (value: string) => void;
+  setProtectorSecret: (value: string) => void;
   setPin: (value: string) => void;
   setTotp: (value: string) => void;
   totpRef: MutableRefObject<HTMLInputElement | null>;
   pinRef: MutableRefObject<HTMLInputElement | null>;
   passwordRef: MutableRefObject<HTMLInputElement | null>;
+  protectorRef: MutableRefObject<HTMLInputElement | null>;
 }): void {
   if (
     input.caught instanceof DOMException &&
@@ -26,6 +28,7 @@ export function applyUnlockSubmitFailure(input: {
       ? input.caught.message
       : !input.awaitingSecondStep &&
           (input.activeMethod === "passkey" ||
+            input.activeMethod === "agePasskey" ||
             (input.caught instanceof Error &&
               /invalid domain|SecurityError/i.test(input.caught.message)))
         ? describeWebauthnError(input.caught)
@@ -34,9 +37,12 @@ export function applyUnlockSubmitFailure(input: {
           : "Unlock failed.",
   );
   input.setPassword("");
+  input.setProtectorSecret("");
   input.setPin("");
   input.setTotp("");
   if (input.awaitingSecondStep) input.totpRef.current?.focus();
   else if (input.activeMethod === "pin") input.pinRef.current?.focus();
+  else if (input.activeMethod === "recovery" || input.activeMethod === "age")
+    input.protectorRef.current?.focus();
   else input.passwordRef.current?.focus();
 }
