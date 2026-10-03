@@ -10,6 +10,7 @@ import {
   submitSecondStepUnlock,
 } from "./unlock-form-paths.js";
 import { applyUnlockSubmitFailure } from "./unlock-submit-errors.js";
+import type { PendingFocus } from "./use-refocus-after-failure.js";
 
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
@@ -69,6 +70,7 @@ export async function submitUnlockForm(input: {
   passwordRef: MutableRefObject<HTMLInputElement | null>;
   protectorRef: MutableRefObject<HTMLInputElement | null>;
   totpRef: MutableRefObject<HTMLInputElement | null>;
+  pendingFocus: PendingFocus;
 }): Promise<void> {
   input.event.preventDefault();
   if (input.busy) return;
@@ -111,6 +113,7 @@ export async function submitUnlockForm(input: {
       pinRef: input.pinRef,
       passwordRef: input.passwordRef,
       protectorRef: input.protectorRef,
+      pendingFocus: input.pendingFocus,
     });
   } finally {
     input.setBusy(false);
