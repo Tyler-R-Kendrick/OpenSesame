@@ -484,13 +484,15 @@ device.
 `GET /api/v1/operator/transport/status` (configurator-gated) returns one
 `TransportStatusView` per target. Read the dimensions separately:
 
-In the Pages app, Settings › Security › Transport draws these five dimensions
-as rows, with a Refresh key and a verification key, only once a remote endpoint
-is set (or a status has already been read). With no endpoint it draws the
-configuration form alone — there is nothing to ask, so no idle "Not checked"
-rows and no keys
-([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md), amended
-2026-09-28; [ADR 0158](../adr/0158-settings-rows-act-or-are-absent.md)).
+The Pages app draws no Transport panel: Settings › Security carries no
+transport form, row or key, and the page never probes a transport endpoint
+([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md); the panel
+was removed on 2026-10-02, and
+[ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md) and
+[ADR 0158](../adr/0158-settings-rows-act-or-are-absent.md) record what it drew
+before). Read the five dimensions from the Host's operator route above;
+`verify:transport` asserts that the panel, its form and any probe of a
+configured endpoint are absent from Pages.
 
 | Field | Values | Reading |
 |---|---|---|

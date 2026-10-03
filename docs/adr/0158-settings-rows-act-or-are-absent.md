@@ -7,6 +7,15 @@
   [ADR 0090](0090-static-frontend-complete-without-backend.md) (nothing may be
   placed in front of the static core), [ADR 0130](0130-operator-controlled-capability-composition.md)
 
+- Amended 2026-10-03: three Consequences below have since moved. Cloud KMS and
+  age-recipient enrollment are offered ([ADR 0152](0152-browser-key-protector-enrollment.md)
+  — YubiKey PIV, Azure Key Vault Keys and device-local are not, for reasons
+  that ADR gives); the connector-tile defect is closed
+  ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md)); and the
+  Transport panel, with the Formats, Age keys and sealed-store panels, was
+  removed from Pages (#618) — [ADR 0132](0132-optional-mtls-and-workload-identity.md)
+  records that, and `verify:transport` asserts the panel's absence.
+
 ## Context
 
 Settings › Security, opened as a guest on a fresh device, showed eight panels
