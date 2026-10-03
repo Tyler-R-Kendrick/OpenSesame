@@ -162,7 +162,6 @@ function LockingPrefs(props: VisualPrefsProps) {
             className="toggle"
             role="switch"
             aria-checked={prefs.lockOnHide}
-            aria-pressed={prefs.lockOnHide}
             aria-label="Lock when this tab goes to the background"
             onClick={() => props.onToggle("lockOnHide", !prefs.lockOnHide)}
           />
@@ -181,7 +180,6 @@ function LockingPrefs(props: VisualPrefsProps) {
             className="toggle"
             role="switch"
             aria-checked={prefs.signOutOnLock}
-            aria-pressed={prefs.signOutOnLock}
             aria-label="Also sign out of Identity when the vault locks"
             onClick={() =>
               props.onToggle("signOutOnLock", !prefs.signOutOnLock)

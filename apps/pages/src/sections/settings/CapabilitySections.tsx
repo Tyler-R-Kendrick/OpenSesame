@@ -30,7 +30,7 @@ import {
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useComposition } from "../../bindings/capabilities.js";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
+import { useConnectorTiles } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
@@ -249,7 +249,7 @@ function CapabilitySection({
   sectionRef,
 }: SectionProps) {
   const { plan } = useComposition();
-  const roads = useConnectorRoads();
+  const tileActs = useConnectorTiles();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
   // The model picks configure AI and probe the browser and the harnesses on
@@ -265,7 +265,7 @@ function CapabilitySection({
   const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch and no connector whose
   // page has something to do on this device (ADR 0158).
-  if (!featureDraws(feature, roads.tiles)) return null;
+  if (!featureDraws(feature, tileActs)) return null;
   return (
     <section
       className="conn-group capsection"

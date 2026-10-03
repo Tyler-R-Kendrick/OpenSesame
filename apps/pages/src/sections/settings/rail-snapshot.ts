@@ -1,6 +1,6 @@
 import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
 import { useMemo } from "react";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
+import { useConnectorTiles } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
@@ -22,9 +22,9 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const account = useAccountFactorsOffered();
   const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
-  const roads = useConnectorRoads();
+  const tileActs = useConnectorTiles();
   const emptyFeatures = FEATURES.filter(
-    (feature) => !featureDraws(feature, roads.tiles),
+    (feature) => !featureDraws(feature, tileActs),
   ).map((feature) => feature.id);
   const contributed = useMemo(
     () =>

@@ -198,7 +198,6 @@ function CharacterKeys({ state }: { state: KeymapState }) {
         className="toggle"
         role="switch"
         aria-checked={on}
-        aria-pressed={on}
         aria-label={label}
         title={
           on ? label : "Off: only Control, arrows and named keys run commands"

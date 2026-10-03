@@ -18,13 +18,6 @@ import { useComposition } from "./capabilities.js";
 export type ConnectorRoads = {
   /** The page has something a person can do here (ADR 0158). */
   acts: (provider: Pick<Provider, "id">) => boolean;
-  /**
-   * A Capabilities tile for this connector: its page has something to do
-   * (`acts`) and the page exists. The connector pages are the Connections
-   * capability's routes (ADR 0153), absent until it is running, so a tile
-   * before that is a link to a blank page.
-   */
-  tiles: (provider: Pick<Provider, "id">) => boolean;
   /** The road a key, configuration or authorize form saves through. */
   form: (provider: Pick<Provider, "id" | "authKind">) => FormRoad | null;
 };
@@ -48,13 +41,23 @@ export function useConnectorRoads(): ConnectorRoads {
     browserGrantEpoch,
   );
   const { status, guest, tomb } = useVault();
-  const pages = useComposition().lifecycle["connectors.external"] === "active";
   const sealedVault = status === "unlocked" && !guest && Boolean(tomb);
-  const acts = (provider: Pick<Provider, "id">) =>
-    connectorActs(provider, sealedVault);
   return {
-    acts,
-    tiles: (provider) => pages && acts(provider),
+    acts: (provider) => connectorActs(provider, sealedVault),
     form: (provider) => formRoad(provider.id, provider.authKind),
   };
+}
+
+/**
+ * Which connectors Settings › Capabilities draws a tile for: the page has
+ * something to do here (`acts`) and the page exists. The connector pages are
+ * the Connections capability's routes (ADR 0153), absent until it is running,
+ * so a tile before that is a link to a blank page.
+ */
+export function useConnectorTiles(): (
+  provider: Pick<Provider, "id">,
+) => boolean {
+  const { acts } = useConnectorRoads();
+  const pages = useComposition().lifecycle["connectors.external"] === "active";
+  return (provider) => pages && acts(provider);
 }

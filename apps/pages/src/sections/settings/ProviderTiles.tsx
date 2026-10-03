@@ -8,7 +8,7 @@
  */
 
 import type { ProviderCategory } from "@opensesame/app-core/lib/connections.js";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
+import { useConnectorTiles } from "../../bindings/connector-roads.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import "../connections.css";
 import {
@@ -27,10 +27,10 @@ export function ProviderTiles({
   label: string;
 }) {
   const target = useHostBackupTarget(category === "backup_recovery");
-  const roads = useConnectorRoads();
+  const tileActs = useConnectorTiles();
   useSettingsEpoch();
   const hostProviderId = hostTargetProviderId(target);
-  const items = providerTileItems(category, roads.tiles);
+  const items = providerTileItems(category, tileActs);
   if (items.length === 0) return null;
   return (
     <ul className="conn-grid" id={category} aria-label={label}>
