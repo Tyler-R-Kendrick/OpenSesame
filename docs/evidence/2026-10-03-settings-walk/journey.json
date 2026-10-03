@@ -641,17 +641,17 @@
       "shot": "390-security-after-pin",
       "width": 390,
       "title": "Security after a PIN: the row's mark is the state \u2014 390 \u00d7 844",
-      "caption": "A green box restating the enrolled PIN sat on the page, and the panel heads carried captions. The row's own mark says it; failures go to the tray.",
+      "caption": "A green box restating the enrolled PIN sat on the page, and the panel heads carried explainer captions. The row's own mark says it; failures go to the tray. Only the sentence that identity recovery does not unwrap the vault stays: it is the boundary, not an explanation.",
       "before": "1 .note box ('PIN unlock enrolled\u2026') and 3 caption paragraphs",
-      "after": "0 .note boxes, 0 caption paragraphs; the PIN row's mark states it"
+      "after": "0 .note boxes and 1 hint (the sentence that identity recovery does not unwrap the vault); the PIN row's mark states the enrolment"
     },
     {
       "shot": "390-rotate",
       "width": 390,
       "title": "Rotate the vault key: the sheet says what goes \u2014 390 \u00d7 844",
-      "caption": "Rotation keeps only the password's wrap. The sheet said 're-enroll passkey/PIN' while the recovery key, authenticator and recovery codes also went. It now names exactly the enrolled ones.",
-      "before": "sheet effect: 'New root generation; re-enroll passkey/PIN'; names nothing removed",
-      "after": "sheet effect: 'A new vault key; the password is wrapped anew'; Removed: PIN, Master password"
+      "caption": "Rotation keeps only the password's wrap. The sheet said 're-enroll passkey/PIN' while the recovery key, authenticator and recovery codes also went. It now names exactly the enrolled ones, and the store proves the typed password against the vault's own before anything changes.",
+      "before": "sheet effect: 'New root generation; re-enroll passkey/PIN'; names nothing removed; password field unproved",
+      "after": "sheet effect: 'A new vault key; the master password is wrapped anew'; Removed: PIN, Master password; the store proves the password first"
     },
     {
       "shot": "390-environments",
@@ -745,17 +745,17 @@
       "shot": "1280-security-after-pin",
       "width": 1280,
       "title": "Security after a PIN: the row's mark is the state \u2014 1280 \u00d7 900",
-      "caption": "A green box restating the enrolled PIN sat on the page, and the panel heads carried captions. The row's own mark says it; failures go to the tray.",
+      "caption": "A green box restating the enrolled PIN sat on the page, and the panel heads carried explainer captions. The row's own mark says it; failures go to the tray. Only the sentence that identity recovery does not unwrap the vault stays: it is the boundary, not an explanation.",
       "before": "1 .note box ('PIN unlock enrolled\u2026') and 3 caption paragraphs",
-      "after": "0 .note boxes, 0 caption paragraphs; the PIN row's mark states it"
+      "after": "0 .note boxes and 1 hint (the sentence that identity recovery does not unwrap the vault); the PIN row's mark states the enrolment"
     },
     {
       "shot": "1280-rotate",
       "width": 1280,
       "title": "Rotate the vault key: the sheet says what goes \u2014 1280 \u00d7 900",
-      "caption": "Rotation keeps only the password's wrap. The sheet said 're-enroll passkey/PIN' while the recovery key, authenticator and recovery codes also went. It now names exactly the enrolled ones.",
-      "before": "sheet effect: 'New root generation; re-enroll passkey/PIN'; names nothing removed",
-      "after": "sheet effect: 'A new vault key; the password is wrapped anew'; Removed: PIN, Master password"
+      "caption": "Rotation keeps only the password's wrap. The sheet said 're-enroll passkey/PIN' while the recovery key, authenticator and recovery codes also went. It now names exactly the enrolled ones, and the store proves the typed password against the vault's own before anything changes.",
+      "before": "sheet effect: 'New root generation; re-enroll passkey/PIN'; names nothing removed; password field unproved",
+      "after": "sheet effect: 'A new vault key; the master password is wrapped anew'; Removed: PIN, Master password; the store proves the password first"
     },
     {
       "shot": "1280-environments",

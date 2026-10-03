@@ -1,8 +1,7 @@
 # Settings walk: every row acts, or is not drawn (ADR 0158, second pass)
 
 Before/after from two real builds of `apps/pages`: the base (`origin/main`
-`1be7b576` merged with `origin/fix-3-connectors` `e115f7b7`, the branch this one
-stacks on, so the connector tile fix is in both builds) and this branch, walked the same way by
+`c5a6a66c`, which now carries the connectors fix, so that change is in both builds) and this branch, walked the same way by
 `apps/pages/scripts/capture-evidence.mjs` with [`journey.json`](journey.json)
 and the verbs in `apps/pages/scripts/lib/capture-settings-walk-steps.mjs`.
 Every number in a sheet's header is printed by the browser (`count`,
@@ -18,8 +17,8 @@ after a PIN, rotate sheet, Environments, Live sessions, preset, Travel).
 | Capabilities, a fresh device | [390](390-capabilities.png) | [1280](1280-capabilities.png) | 17 sections / 37 switches become 15 / 35: Telemetry and Certificate authority had switches over no code |
 | Keybindings | [390](390-keybindings.png) | [1280](1280-keybindings.png) | the disabled Reset key is absent until something is changed |
 | A macro editor open | [390](390-new-macro.png) | [1280](1280-new-macro.png) | 3 disabled keys become 1 (Save, until named); focus starts in Name |
-| Security after a PIN | [390](390-security-after-pin.png) | [1280](1280-security-after-pin.png) | the `.note` box and three captions are gone; the row's mark is the state |
-| Rotate the vault key | [390](390-rotate.png) | [1280](1280-rotate.png) | the sheet names what rotation removes (PIN, and the rest of what is enrolled) |
+| Security after a PIN | [390](390-security-after-pin.png) | [1280](1280-security-after-pin.png) | the `.note` box and the explainer captions are gone (3 hints become 1: the sentence that identity recovery does not unwrap the vault stays, J-RECOVERY); the row's mark is the state |
+| Rotate the vault key | [390](390-rotate.png) | [1280](1280-rotate.png) | the sheet names what rotation removes (PIN, and the rest of what is enrolled), and the store proves the typed master password first |
 | Environments, none named | [390](390-environments.png) | [1280](1280-environments.png) | no empty select; only the name field and its key |
 | Live sessions routes | [390](390-live-routes.png) | [1280](1280-live-routes.png) | Relay only is absent until a TURN server exists |
 | Settings strip | [390](390-settings-nav.png) | [1280](1280-settings-nav.png) | 7 tabs become 6: Notifications waits for a service |
@@ -40,6 +39,11 @@ gallery shows none of that change.
 - **Push on this device** (new General row): it needs a configured Identity API
   and a browser with push; neither exists in the static build. It is covered by
   `PushPanel.test.tsx` and `runtime.test.tsx`.
+- **Push's off key while still subscribed, and Certificate authority's kept
+  switch**: both need state a static build cannot reach (a push subscription, a
+  policy that approves a no-surface capability); they are covered by
+  `PushPanel.test.tsx`, `features.surface.test.ts` and
+  `CapabilitySections.needed.test.tsx`.
 - **The StrictMode authenticator-enrolment fix**: invisible in a production
   build; `verify:auth` drives the whole flow, and `SecondStepCeremonies` has a
   StrictMode regression test.
