@@ -9,7 +9,8 @@
  * files (`settings/notifications/routing.json`, `channels.json`,
  * `bindings.json`, ADR 0134), both drawn from one routing session this
  * activation creates and `dispose` drops — and its walkthrough
- * (`tutorial/registry/notifications-catalog.ts`).
+ * (`tutorial/registry/notifications-catalog.ts`), which navigates to that page
+ * and so is declared and revoked with it.
  *
  * Egress this module wraps, all to the configured Identity API through
  * `identityFetch` (`app-core/lib/notification-routing/transport.ts`), and
@@ -68,6 +69,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     // would be one inbox row nobody can change (ADR 0158 §4). The category
     // is there while a service is named, and goes with it.
     let category: RegistrationHandle | null = null;
+    let guide: readonly RegistrationHandle[] = [];
     const follow = () => {
       if (activation.disposed()) return;
       const wanted = isRemoteIdentityConfigured();
@@ -81,14 +83,17 @@ export const capabilityRuntime: CapabilityRuntime = {
           order: 300,
           files: session.files,
         });
+        // The walkthrough navigates to the page: it lives only with the page.
+        guide = registerTutorial(activation, TUTORIAL);
       } else if (!wanted && category !== null) {
         category.revoke();
         category = null;
+        for (const handle of guide) handle.revoke();
+        guide = [];
       }
     };
     follow();
     activation.onDispose(subscribeSettings(follow));
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

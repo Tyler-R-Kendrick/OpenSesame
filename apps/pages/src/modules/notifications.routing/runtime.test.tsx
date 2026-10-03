@@ -30,16 +30,14 @@ describe("notifications.routing runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("notifications.routing");
   });
 
-  it("registers its walkthrough but no category while no Identity API is named: the page would be one inbox row nobody can change", async () => {
+  it("registers neither a category nor its walkthrough while no Identity API is named: the page would be one inbox row nobody can change, and the walkthrough navigates to it", async () => {
     deviceIdentitySeams.remoteIdentityApi = () => "";
-    await expectLifecycle(runtimeOf(runtime), {
-      capability: "notifications.routing",
-      kinds: ["tutorial-target", "tutorial-goal", "tutorial-route"],
-      count: 3,
-    });
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(t.entries("settings-category")).toEqual([]);
+    expect(t.entries("tutorial-target")).toEqual([]);
+    expect(t.entries("tutorial-goal")).toEqual([]);
+    expect(t.entries("tutorial-route")).toEqual([]);
     await handle.dispose();
   });
 
@@ -66,9 +64,14 @@ describe("notifications.routing runtime", () => {
     remote = "https://id.example";
     saveSettings(loadSettings());
     expect(t.entries("settings-category")).toHaveLength(1);
+    expect(t.entries("tutorial-goal")).toHaveLength(1);
+    expect(t.entries("tutorial-route")).toHaveLength(1);
     remote = "";
     saveSettings(loadSettings());
     expect(t.entries("settings-category")).toHaveLength(0);
+    expect(t.entries("tutorial-target")).toHaveLength(0);
+    expect(t.entries("tutorial-goal")).toHaveLength(0);
+    expect(t.entries("tutorial-route")).toHaveLength(0);
     await handle.dispose();
   });
 
