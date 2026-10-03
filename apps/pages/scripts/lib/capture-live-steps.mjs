@@ -31,10 +31,8 @@ function describeFocus() {
   const selectorOf = (node) => {
     if (!node) return "none";
     const id = node.id ? `#${node.id}` : "";
-    const classes =
-      typeof node.className === "string" && node.className.trim()
-        ? `.${node.className.trim().split(/\s+/).join(".")}`
-        : "";
+    const named = node.getAttribute("class")?.trim();
+    const classes = named ? `.${named.split(/\s+/).join(".")}` : "";
     return `${node.tagName.toLowerCase()}${id}${classes}`;
   };
   const el = document.activeElement;
