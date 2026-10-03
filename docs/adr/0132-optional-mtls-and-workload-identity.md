@@ -6,12 +6,29 @@ Supplements: ADR 0005 (authority handles), ADR 0017 (host/client topology),
 ADR 0042 (NATS TaskBus and auth callout), ADR 0048 §5 (daemon dependency
 budget), ADR 0075 (host certificate key custody), ADR 0090 / ADR 0128 (Pages
 is complete without a backend)
-Amended: 2026-09-28 (Transport panel, ADR 0158)
+Amended: 2026-09-28 (Transport panel, ADR 0158); 2026-10-02 (the panel was removed)
 Operator reference: [docs/operators/mtls.md](../operators/mtls.md)
 Threat model: [docs/security/mtls-threat-model.md](../security/mtls-threat-model.md)
 Evidence: [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
 
+## Amended 2026-10-02: Pages draws no Transport panel at all
+
+The panel that the amendment below describes was removed from Pages by the
+settings clean-up (#618): `TransportPanel` and the `transport-*` models in
+`packages/app-core` no longer exist, Settings › Security carries no transport
+form, row or key, and `verify:transport` now asserts their **absence** (the
+panel, its form, and any probe of an endpoint set through the settings file) at
+every width. The decision stands as ADR 0090 and the browser boundary state it:
+a browser carries no transport surface, and status, probe and identity
+reference are Host-plane operator work (`transport.status.view` in
+`packages/capability-registry/src/transport-security.ts`). Paths in the
+acceptance matrix below that name `apps/pages/src/lib/transport-*`,
+`packages/app-core/src/lib/transport-model.ts` or `apps/control-plane/…` are the
+tree at the time of the runs they record, and are kept as that record.
+
 ## Amended 2026-09-28: the Transport panel draws no idle rows without an endpoint
+
+(Superseded for Pages by the amendment above; kept as the record of the rule.)
 
 Acceptance scenario `AT-STATIC-EMPTY` originally required that, with no
 endpoint configured, Settings › Security › Transport render the five status
