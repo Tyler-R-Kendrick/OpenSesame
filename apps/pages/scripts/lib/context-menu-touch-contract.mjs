@@ -87,8 +87,11 @@ export async function contextMenuTouchContract(
   await audit(page, `${label}-row-menu`);
   await sheetContract(page, menu, label, audit, check);
   await menu.getByRole("menuitem", { name: "Open", exact: true }).tap();
-  await page.waitForTimeout(700);
-  check((await menu.count()) === 0, `${label}: an entry closes the menu`);
+  await menu
+    .first()
+    .waitFor({ state: "detached", timeout: 3000 })
+    .catch(() => undefined);
+  await settleAfterEntry(page, menu, label, check);
   check(
     /\/vault\/[^/?]+/.test(new URL(page.url()).pathname),
     `${label}: Open opened the held row`,
@@ -164,4 +167,26 @@ async function sheetContract(page, menu, label, audit, check) {
     page.url() === before,
     `${label}: the swipe does not also open the row`,
   );
+}
+
+/**
+ * An entry closes the menu. If one is still open, say which (a stray sheet
+ * would otherwise surface as a 30s timeout on the next tap, naming only the
+ * scrim in the way), record the failure, and close it so the walk goes on.
+ */
+async function settleAfterEntry(page, menu, label, check) {
+  const left = await menu.count();
+  const names = await menu.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-label")),
+  );
+  check(
+    left === 0,
+    `${label}: an entry closes the menu (${left} still open: ${names.join(", ")})`,
+  );
+  if (left === 0) return;
+  await page
+    .getByRole("button", { name: "Close menu" })
+    .first()
+    .tap({ position: { x: 200, y: 60 } });
+  await page.waitForTimeout(400);
 }
