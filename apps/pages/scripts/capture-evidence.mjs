@@ -33,8 +33,10 @@ import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
+import { liveSteps } from "./lib/capture-live-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
+import { serveRuntimeConfig, tabStep } from "./lib/capture-tab-step.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -124,18 +126,7 @@ const STEPS = {
     await press(doorGuest(page));
     await page.waitForTimeout(1400);
   },
-  async tab(page, name) {
-    // A phone keeps its sections behind one key; a desktop has the rail.
-    const key = page.getByRole("button", { name: "Sections" }).first();
-    if (await key.count()) {
-      await press(key);
-      await page.waitForTimeout(450);
-      await press(page.locator(".drawer__row", { hasText: name }).first());
-    } else {
-      await press(page.locator(".railtree__row", { hasText: name }).first());
-    }
-    await page.waitForTimeout(900);
-  },
+  ...tabStep({ press, visit: (page, route) => STEPS.visit(page, route) }),
   async press(page, name) {
     const target = page
       .getByRole("button", { name: new RegExp(name, "i") })
@@ -204,6 +195,7 @@ const STEPS = {
   },
   ...extraSteps({ press }),
   ...readSteps(),
+  ...liveSteps({ harness }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -348,6 +340,12 @@ async function capture(browser, into) {
         : phoneContext({ width: screen.width, height: screen.height }),
       remote,
     });
+    if (screen.runtimeConfig)
+      await serveRuntimeConfig(context, {
+        origin,
+        base,
+        config: screen.runtimeConfig,
+      });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
     // A fixed start time: both builds' timestamps read the same, and
     // `elapse` can move the clock between steps.
