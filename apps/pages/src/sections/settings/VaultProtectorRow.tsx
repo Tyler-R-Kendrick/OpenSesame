@@ -38,6 +38,12 @@ export function ProtectorRow({
         <div className="sw__name">
           {row.mechanismLabel}
           {proofMark(row)}
+          {row.dependsOnVault && row.proofStatus === "verified" ? (
+            <StatusMark
+              tone="idle"
+              label="Its credential is sealed in this vault, so it is not a way back in"
+            />
+          ) : null}
           {preferred ? <StatusMark tone="ok" label="Preferred unlock" /> : null}
         </div>
         <p className="sw__sub">{row.identityLabel}</p>

@@ -84,6 +84,27 @@ the record reaches the manifest only through `commitEnrollment`.
   elsewhere, which is what ADR 0129 §5 already disclosed. The record is
   `verified` because the round trip was proved, not because it is independent of
   the vault's own tomb.
+- **Proof and independence are two facts.** `proofStatus` answers "did the
+  capsule open to the session root"; `dependsOnVault(record)` in
+  `lifecycle.ts` answers "does opening it need something sealed in this vault".
+  The last-verified-path guard (`assertCanRemoveProtector`, KP-11) counts a
+  record only when it is `verified` **and** does not depend on the vault.
+  Per kind: password, PIN, passkey wraps, passkey capsules, the recovery key,
+  PIV and device-local open from what the person presents — independent; an age
+  recipient reaches `verified` only through an identity held outside the vault
+  (a vault-sealed one is refused above) — independent, and an `untested` one
+  counts for nothing; AWS KMS, Google Cloud KMS and Azure Key Vault Keys read
+  their provider credential from Connections, sealed in this vault — **not**
+  independent, however often they are tested. So with a password and a verified
+  AWS KMS key, removing the password is refused; add a verified recovery key (or
+  an age recipient proved with an identity held elsewhere) and it is allowed.
+  The answer is a function of the kind and adds no field to a record, so a
+  manifest an earlier build wrote keeps its bytes and its authentication tag and
+  gets the stricter answer on its next removal. A future enroller that holds a
+  cloud credential outside the vault (an ambient role on a native client) must
+  record that in an authenticated record field before `dependsOnVault` may say
+  otherwise. Settings › Security draws a second, idle mark on a verified row
+  that depends on the vault, so "Verified" is not read as "a way back in".
 
 ### Not enrolled: YubiKey PIV through age
 
@@ -188,6 +209,10 @@ nothing consumes.
   SigV4 and Google transports with a faked network, in
   `vault-protector-enrollment-model.test.ts`; the token minting in
   `gcp-oauth.test.ts`.
+- Guard: `lifecycle-guard.test.ts` (password plus verified AWS or Google KMS
+  refused, recovery key or externally proved age recipient allowed, an
+  old-shape manifest read byte-for-byte and held to the same guard);
+  `VaultKeyProtectionPanel.test.tsx` for the row mark.
 - Panel and sheets: `VaultKeyProtectionExternalCeremonies.test.tsx`,
   `VaultKeyProtectionPanel.test.tsx`, `useVaultKeyProtectionActions.test.tsx`.
 - Live, in an attached Vite session: an age key pair made, its identity file
