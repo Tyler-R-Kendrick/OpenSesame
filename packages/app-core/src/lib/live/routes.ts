@@ -92,6 +92,18 @@ export function isIceUrl(value: string): boolean {
   return query === undefined || scheme.startsWith("turn");
 }
 
+/** `turn:` or `turns:`, the only URLs a relay can go through. */
+export function isTurnUrl(value: string): boolean {
+  return value.startsWith("turn");
+}
+
+/** Whether any server in the list is a TURN server: what relay only needs. */
+export function hasTurn(
+  servers: readonly Readonly<{ urls: readonly string[] }>[],
+): boolean {
+  return servers.some((server) => server.urls.some(isTurnUrl));
+}
+
 function loopback(host: string): boolean {
   return (
     host === "localhost" ||
@@ -209,7 +221,7 @@ function checkCredentials(
   const { username, credential, secret } = server;
   if (secret && credential)
     errors.push(`${at} takes a credential or a secret, not both.`);
-  const turn = server.urls.some((url) => url.startsWith("turn"));
+  const turn = server.urls.some(isTurnUrl);
   if (turn && !secret && (!username || !credential))
     errors.push(`${at} is TURN: give username and credential, or a secret.`);
 }
@@ -282,6 +294,9 @@ export function readRoutes(value: BoundaryValue): LiveRoutes | null {
     .filter((entry) => entry !== null);
   const relay = value.relay ?? false;
   if (errors.length > 0 || (relay !== true && relay !== false)) return null;
+  // Relay only with no TURN server is a peer with nowhere to relay through,
+  // as the owner's profile already refuses; a link must not get past it.
+  if (relay && !hasTurn(ice)) return null;
   return { ice, relay, carriers };
 }
 
