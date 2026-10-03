@@ -22,12 +22,24 @@ export const NO_SURFACE: ReadonlySet<CapabilityId> = new Set([
   "enterprise.ca-administration",
 ]);
 
-/** The feature as Settings draws it: the capabilities a switch can change. */
-export function shown(feature: Feature): Feature {
-  return feature.capabilities.some((id) => NO_SURFACE.has(id))
+/**
+ * The feature as Settings draws it: the capabilities a switch can change. A
+ * capability with no surface is left out unless the plan already approves it —
+ * a persisted selection or a policy can carry one, and others run on it
+ * (Certificate authority on Access and Certificate records), so its owner keeps
+ * the one switch that turns it off (ADR 0158: a row acts, and a setting is not
+ * removable while something depends on it, nor stranded).
+ */
+export function shown(
+  feature: Feature,
+  plan: EffectivePlan | null = null,
+): Feature {
+  const hidden = (id: CapabilityId) =>
+    NO_SURFACE.has(id) && plan?.capabilities[id]?.approved !== true;
+  return feature.capabilities.some(hidden)
     ? {
         ...feature,
-        capabilities: feature.capabilities.filter((id) => !NO_SURFACE.has(id)),
+        capabilities: feature.capabilities.filter((id) => !hidden(id)),
       }
     : feature;
 }

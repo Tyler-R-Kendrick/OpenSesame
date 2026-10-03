@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { planWith } from "./__tests__/plan-with.js";
 import { optionalCapabilityIds } from "./catalog.js";
 import {
   NO_SURFACE,
@@ -26,5 +27,17 @@ describe("capabilities with no Pages code behind them", () => {
     expect(shown(featureById("identity")).capabilities).toEqual(
       featureById("identity").capabilities,
     );
+  });
+
+  it("keep their one switch while a plan approves them, so what runs on them is never stranded", () => {
+    const plan = planWith(["enterprise.ca-administration"]);
+    const certificates = featureById("certificates");
+    expect(shown(certificates, plan).capabilities).toEqual([
+      "enterprise.ca-administration",
+    ]);
+    expect(isSwitchable(certificates, plan)).toBe(true);
+    // Switched off, it is absent again.
+    expect(isSwitchable(certificates, planWith([]))).toBe(false);
+    expect(isSwitchable(certificates, null)).toBe(false);
   });
 });

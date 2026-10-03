@@ -44,6 +44,21 @@ describe("a switch that could not take is not drawn (ADR 0158)", () => {
     ).toBeTruthy();
   });
 
+  it("keeps the switch of a capability with no surface while a persisted selection runs it, so it can always be turned off", () => {
+    selecting(["telemetry.external"]);
+    renderPanel();
+    const telemetry = screen.getByRole("switch", { name: "Telemetry" });
+    expect(telemetry.getAttribute("aria-checked")).toBe("true");
+    expect(document.getElementById("feature-telemetry")).not.toBeNull();
+  });
+
+  it("draws no switch for it once nothing selects it", () => {
+    selecting(["agents.webmcp"]);
+    renderPanel();
+    expect(screen.queryByRole("switch", { name: "Telemetry" })).toBeNull();
+    expect(document.getElementById("feature-telemetry")).toBeNull();
+  });
+
   it("offers Connections' switch again once nothing runs on it", () => {
     selecting(["connectors.external"]);
     renderPanel();

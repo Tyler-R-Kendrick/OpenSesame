@@ -123,7 +123,8 @@ Networking, Notifications, and — for the operator — Instance policy. A secti
 is drawn only where it has a switch or a tile that acts (ADR 0158): External
 telemetry and Certificate authority are optional so an operator can prohibit
 them, but have no Pages code behind them, so they have no section and no switch
-(`NO_SURFACE` in `features.ts`). Connector tiles (Backups, Password managers,
+(`NO_SURFACE` in `features.ts`), except while the plan already approves one: its
+switch then stays, so it can be turned off. Connector tiles (Backups, Password managers,
 Cloud secret storage, Local storage, and the providers under Identity,
 Payments, AI and Networking) are the Connections capability's pages
 (`/settings/connections/<id>`, ADR 0153), so they are drawn while Connections

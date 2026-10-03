@@ -266,7 +266,7 @@ function CapabilitySection({
   const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch and no connector whose
   // page has something to do on this device (ADR 0158).
-  if (!featureDraws(feature, roads.tile)) return null;
+  if (!featureDraws(feature, roads.tile, plan)) return null;
   return (
     <section
       className="conn-group capsection"
@@ -276,7 +276,7 @@ function CapabilitySection({
     >
       <SectionHead id={`${id}-title`} title={feature.title}>
         <WithdrawnMark feature={feature} />
-        {isSwitchable(feature) ? (
+        {isSwitchable(feature, plan) ? (
           <SectionSwitch
             feature={feature}
             current={current}
@@ -338,10 +338,11 @@ export function CapabilitySections({
   onPropose: Propose;
 }) {
   const ref = useGuideTarget<HTMLDivElement>("settings.connectivity");
+  const { plan } = useComposition();
   return (
     <div className="capsections" id="settings-connections" ref={ref}>
       <GuestSection />
-      {FEATURES.map(shown).map((feature) => {
+      {FEATURES.map((feature) => shown(feature, plan)).map((feature) => {
         const Section =
           feature.id === "backups" ? BackupsSection : CapabilitySection;
         return (

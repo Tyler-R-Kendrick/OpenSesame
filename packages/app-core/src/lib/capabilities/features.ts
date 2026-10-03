@@ -176,8 +176,11 @@ export const FEATURES: readonly Feature[] = [
 ];
 
 /** Whether a section carries a switch: it has an optional capability a switch changes. */
-export function isSwitchable(feature: Feature): boolean {
-  return shown(feature).capabilities.length > 0;
+export function isSwitchable(
+  feature: Feature,
+  plan: EffectivePlan | null = null,
+): boolean {
+  return shown(feature, plan).capabilities.length > 0;
 }
 
 export function featureById(id: FeatureId): Feature {

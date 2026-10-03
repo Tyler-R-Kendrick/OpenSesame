@@ -130,7 +130,11 @@ was fixed at its root:
   to either (`components/toggle-style.test.ts`).
 - **A switch for nothing.** External telemetry and Certificate authority have no
   Pages code (their modules say so); Push notifications had a library and no row.
-  The first two draw no section (`NO_SURFACE`); Push gets *Push on this device*
+  The first two draw no section (`NO_SURFACE`) — unless a plan already approves
+  one (a persisted selection or a policy can carry it, and Access and Certificate
+  records run on Certificate authority), when its one switch stays so it can be
+  turned off and nothing is left "needed by" a capability with no control
+  (`shown(feature, plan)`); Push gets *Push on this device*
   under General, drawn where the browser, an Identity API and a session allow it.
 - **A key drawn disabled.** Reset every key and macro with nothing changed, a
   macro step's move up on the first and down on the last, Add and Record at the
