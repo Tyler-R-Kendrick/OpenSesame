@@ -169,6 +169,8 @@ pub async fn upload_file(
     form: Multipart,
 ) -> ApiResult<StatusCode> {
     let send = owned(&server, &user.id, &id).await?;
+    // A file announced before the policy came on is not completed after it.
+    super::policy_rules::may_send(&server, &user.id, send.hide_email).await?;
     let (data, _, _) = super::attachments::read_upload(form).await?;
     let length = i64::try_from(data.len()).unwrap_or(i64::MAX);
     if (length - send.file_size.unwrap_or(0)).abs() > super::attachments::SIZE_LEEWAY || length == 0
@@ -231,10 +233,12 @@ pub async fn remove_password(
     Authed { user, .. }: Authed,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Value>> {
+    let current = owned(&server, &user.id, &id).await?;
+    super::policy_rules::may_send(&server, &user.id, current.hide_email).await?;
     let send = BitwardenSend {
         password_hash: None,
         revision_at: Utc::now(),
-        ..owned(&server, &user.id, &id).await?
+        ..current
     };
     server.db.bitwarden_put_send(&send).await?;
     super::touch(&server, &user.id).await?;

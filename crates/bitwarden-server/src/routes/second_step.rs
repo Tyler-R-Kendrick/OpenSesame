@@ -128,7 +128,9 @@ pub(crate) async fn recover(
         .db
         .bitwarden_delete_two_factors(&user.id, None)
         .await?;
-    super::policy_rules::after_two_factor_off(server, &user.id).await?;
+    // Any organization that required two-step login has already revoked the
+    // account, in the transaction that removed it; its clients sync that.
+    super::touch(server, &user.id).await?;
     Ok(())
 }
 

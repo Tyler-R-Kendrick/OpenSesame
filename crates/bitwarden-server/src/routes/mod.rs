@@ -276,6 +276,19 @@ pub(crate) fn sign_in_request_window_start() -> DateTime<Utc> {
     auth_requests::window_start()
 }
 
+/// Sign-in requests one address may make in a window.
+pub(crate) const SIGN_IN_REQUESTS_PER_WINDOW: i64 = auth_requests::MAX_PENDING;
+
+/// How long a sign-in request stays open, and so the span of the count.
+pub(crate) fn sign_in_request_window() -> std::time::Duration {
+    std::time::Duration::from_secs(60 * u64::try_from(auth_requests::WINDOW_MINUTES).unwrap_or(15))
+}
+
+/// How much longer a sign-in request made at `created_at` stays open.
+pub(crate) fn sign_in_request_time_left(created_at: DateTime<Utc>) -> std::time::Duration {
+    auth_requests::time_left(created_at)
+}
+
 /// The account's security stamp changed: its clients sign out.
 pub(crate) fn signed_out(server: &BitwardenServer, user_id: &str) {
     server.hub.signed_out(user_id);

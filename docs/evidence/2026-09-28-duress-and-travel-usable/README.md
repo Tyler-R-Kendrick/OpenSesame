@@ -1,7 +1,7 @@
 # Duress and travel, usable from Settings — visual evidence
 
 Change: Settings › Security gains a **Duress** row and sheet
-([ADR 0150](../../adr/0150-the-device-duress-code.md)). Until now the only duress
+([ADR 0155](../../adr/0155-the-device-duress-code.md)). Until now the only duress
 panel sat behind a mode switch that is off on every deployment.
 
 Two real builds, walked the same way by `apps/pages/scripts/capture-evidence.mjs`
