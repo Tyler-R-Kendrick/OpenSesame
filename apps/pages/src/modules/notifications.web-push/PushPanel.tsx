@@ -44,6 +44,38 @@ async function subscribed(): Promise<boolean> {
   return (await worker.pushManager.getSubscription()) !== null;
 }
 
+type Credentials = { baseUrl: string; accessToken: string } | null;
+
+/**
+ * Turn push off (always possible: the subscription is the browser's) or on
+ * (needs an Identity API and a session). Resolves to whether it is on after.
+ */
+async function turnPush(
+  on: boolean,
+  credentials: Credentials,
+): Promise<boolean> {
+  if (on) {
+    const withdrawn = await disablePush({
+      ...credentials,
+      subscriptionId: kvGet(PUSH_SUBSCRIPTION_KEY) ?? undefined,
+    });
+    kvDelete(PUSH_SUBSCRIPTION_KEY);
+    if (!withdrawn.server) {
+      setStatusNotice({
+        id: NOTICE_ID,
+        tone: "warn",
+        title: "Push on this device",
+        body: "Push is off on this device. The sign-in service was not told, so it may still list it.",
+      });
+    }
+    return false;
+  }
+  if (credentials === null) return false;
+  const record = await enablePush(credentials);
+  if (record.id) kvSet(PUSH_SUBSCRIPTION_KEY, record.id);
+  return true;
+}
+
 export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
   const configured = useIdentityConfigured();
   const session = useIdentitySession();
@@ -76,31 +108,11 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
     dismissNotice(NOTICE_ID);
     setBusy(true);
     try {
-      if (on) {
-        const told = live && session !== null;
-        const withdrawn = await disablePush({
-          baseUrl: told ? baseUrl() : undefined,
-          accessToken: told ? session.accessToken : undefined,
-          subscriptionId: kvGet(PUSH_SUBSCRIPTION_KEY) ?? undefined,
-        });
-        kvDelete(PUSH_SUBSCRIPTION_KEY);
-        setOn(false);
-        if (!withdrawn.server) {
-          setStatusNotice({
-            id: NOTICE_ID,
-            tone: "warn",
-            title: "Push on this device",
-            body: "Push is off on this device. The sign-in service was not told, so it may still list it.",
-          });
-        }
-      } else if (session !== null) {
-        const record = await enablePush({
-          baseUrl: baseUrl(),
-          accessToken: session.accessToken,
-        });
-        if (record.id) kvSet(PUSH_SUBSCRIPTION_KEY, record.id);
-        setOn(true);
-      }
+      const credentials =
+        live && session !== null
+          ? { baseUrl: baseUrl(), accessToken: session.accessToken }
+          : null;
+      setOn(await turnPush(on, credentials));
     } catch (caught) {
       setStatusNotice({
         id: NOTICE_ID,

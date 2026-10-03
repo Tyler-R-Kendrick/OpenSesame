@@ -318,7 +318,7 @@ describe("invalidation", () => {
     await compositionStore.boot({
       runtimeConfig: {
         ...invalidRuntimeConfig(),
-        capabilityComposition: undefined,
+        capabilityComposition: null,
       },
       vaultId: null,
       facts: { ...FIXTURE_FACTS, now: NOW },
