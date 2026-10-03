@@ -18,8 +18,11 @@
 //!   holds under a live control lease is not stranded — that lease has its own
 //!   clock — and one parked for a person is closed without a new notice (the
 //!   run announced its own parking);
-//! - a **web-login job** still running past the horizon is parked in
-//!   `reconciliation_required`. The detail says what is known: the run
+//! - a **web-login job** whose claim has lapsed is parked in
+//!   `reconciliation_required`. A claim is a persisted lease that names the
+//!   run holding the job (`web_login_job_claims`), so "stranded" is the
+//!   lease's own expiry, not a guess from when the row was last touched; the
+//!   run it names is closed with it. The detail says what is known: the run
 //!   stopped before it settled, and whether the site received the change is
 //!   not known. It never says "not submitted" — the process that held it may
 //!   have got as far as the submit.
@@ -117,7 +120,7 @@ pub(crate) async fn sweep(
         organizations.insert(id.to_string(), id);
     }
     for organization_id in organizations.values() {
-        report.jobs_parked += park_jobs(state, organization_id, cutoff).await;
+        report.jobs_parked += park_jobs(state, organization_id, now, cutoff).await;
     }
     Ok(report)
 }
@@ -160,10 +163,11 @@ async fn close_run(state: &AppState, run: &StrandedRun, stamp: &str) -> bool {
 async fn park_jobs(
     state: &AppState,
     organization_id: &OrganizationId,
+    now: DateTime<Utc>,
     cutoff: DateTime<Utc>,
 ) -> usize {
     let broker = state.connection_broker.as_ref();
-    let stranded = match stranded_web_login_jobs(broker, organization_id, cutoff).await {
+    let stranded = match stranded_web_login_jobs(broker, organization_id, now, cutoff).await {
         Ok(jobs) => jobs,
         Err(error) => {
             tracing::warn!(
@@ -175,12 +179,47 @@ async fn park_jobs(
         }
     };
     let mut parked = 0;
-    for job in &stranded {
-        if park_job(state, job).await {
+    let stamp = now.to_rfc3339();
+    for stranded in &stranded {
+        if park_job(state, &stranded.job).await {
             parked += 1;
+            // The claim names the run that held the job. Close that exact run
+            // too, so a job is never parked while its run can still be
+            // claimed from — the age-based pass above only sees runs older
+            // than the horizon, and a run opens a little after its claim.
+            if let Some(run_id) = &stranded.run_id {
+                close_claimed_run(state, organization_id, run_id, &stamp).await;
+            }
         }
     }
     parked
+}
+
+/// Close the observation run a lapsed claim named, if it is still open.
+async fn close_claimed_run(
+    state: &AppState,
+    organization_id: &OrganizationId,
+    run_id: &str,
+    stamp: &str,
+) {
+    let org = organization_id.to_string();
+    let Ok(Some(run)) = state.db.get_observation_run(&org, run_id).await else {
+        return;
+    };
+    if run.closed_at.is_some() {
+        return;
+    }
+    let stranded = StrandedRun {
+        organization_id: run.organization_id,
+        run_id: run.id,
+        job_id: run.job_id,
+        owner_principal_id: run.owner_principal_id,
+        target_origin: run.target_origin,
+        tier: run.tier,
+        control_state: run.control_state,
+        created_at: run.created_at,
+    };
+    close_run(state, &stranded, stamp).await;
 }
 
 /// Park one stranded job. `false` when it moved in the meantime (a run that

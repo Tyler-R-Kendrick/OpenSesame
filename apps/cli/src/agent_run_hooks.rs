@@ -222,13 +222,9 @@ mod tests {
     /// What the stub Host was asked: request paths with their queries.
     type Seen = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
 
-    async fn answer(
-        request: hyper::Request<hyper::body::Incoming>,
-        seen: Seen,
-    ) -> Result<hyper::Response<http_body_util::Full<hyper::body::Bytes>>, std::convert::Infallible>
-    {
-        let target = request.uri().to_string();
-        seen.lock().unwrap().push(target.clone());
+    /// The stub Host's answer to `target`, noting that it was asked.
+    fn answer(target: &str, seen: &Seen) -> http_body_util::Full<hyper::body::Bytes> {
+        seen.lock().unwrap().push(target.to_owned());
         let record = |n: i64| {
             json!({
                 "sequence": n, "interception_point": "pre_tool_call",
@@ -250,12 +246,16 @@ mod tests {
             json!({"records": [record(0), record(1)], "next_after": 1, "has_more": true,
                    "summary": summary, "observation": "hook_records_only"})
         };
-        Ok(hyper::Response::builder()
-            .status(200)
-            .body(http_body_util::Full::new(hyper::body::Bytes::from(
-                body.to_string(),
-            )))
-            .unwrap())
+        http_body_util::Full::new(hyper::body::Bytes::from(body.to_string()))
+    }
+
+    fn serve(stream: tokio::net::TcpStream, seen: Seen) {
+        let service = hyper::service::service_fn(move |request: hyper::Request<_>| {
+            let body = answer(&request.uri().to_string(), &seen);
+            async move { Ok::<_, std::convert::Infallible>(hyper::Response::new(body)) }
+        });
+        let io = hyper_util::rt::TokioIo::new(stream);
+        tokio::spawn(hyper::server::conn::http1::Builder::new().serve_connection(io, service));
     }
 
     async fn stub_host() -> (String, Seen) {
@@ -265,13 +265,7 @@ mod tests {
         let shared = seen.clone();
         tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
-                let seen = shared.clone();
-                let service =
-                    hyper::service::service_fn(move |request| answer(request, seen.clone()));
-                let io = hyper_util::rt::TokioIo::new(stream);
-                tokio::spawn(
-                    hyper::server::conn::http1::Builder::new().serve_connection(io, service),
-                );
+                serve(stream, shared.clone());
             }
         });
         (server, seen)

@@ -14,7 +14,7 @@ use opensesame_agent_hooks::secrets;
 use opensesame_connection_broker::{RotationPolicy, RotationTarget, UpsertRotationPolicy};
 use opensesame_lifecycle::{ExpiryStage, ExpirySubject, LifecycleEvent, SubjectKind};
 use opensesame_storage::agent_hook_policy::{AgentHookPolicyAudit, AgentHookPolicyWrite};
-use opensesame_storage::web_login_runs::{StoredAgentHookRecord, StoredWebLoginRecipe};
+use opensesame_storage::web_login_runs::StoredAgentHookRecord;
 use serde_json::json;
 use sqlx::Row;
 
@@ -41,28 +41,7 @@ const BROWSER_STEPS: [&str; 8] = [
 /// Seed what a run needs: a policy owned by Alice, a verified recipe, and
 /// the organization's hook policy.
 pub(super) async fn prerequisites(f: &Fixture, hook_policy: Option<&str>) -> RotationPolicy {
-    let now = Utc::now();
-    f.state
-        .db
-        .put_web_login_recipe(&StoredWebLoginRecipe {
-            organization_id: f.org.clone(),
-            origin: SITE.into(),
-            recipe_id: "rcp_login_example".into(),
-            trust: "canary_verified".into(),
-            recipe_json: json!({
-                "change_url": format!("{SITE}/.well-known/change-password"),
-                "current_password_selector": "#current",
-                "new_password_selector": "#new",
-                "confirm_password_selector": "#confirm",
-                "submit_selector": "#save",
-            })
-            .to_string(),
-            expires_at: (now + chrono::Duration::days(30)).to_rfc3339(),
-            created_at: now.to_rfc3339(),
-            updated_at: now.to_rfc3339(),
-        })
-        .await
-        .unwrap();
+    crate::web_login::recipe_fixture::seed(&f.state.db, &f.org, SITE, true).await;
     if let Some(policy) = hook_policy {
         f.state
             .db

@@ -12,10 +12,10 @@ use std::sync::Arc;
 use chrono::Utc;
 use opensesame_agent_hooks::{redact_for_approver, sdk::Interceptor};
 use opensesame_connection_broker::rotation::web_login::{
-    begin_web_login_rotation, defer_web_login_rotation, settle_web_login_rotation,
-    WebLoginSettlement,
+    park_claimed_web_login_rotation, request_claimed_web_login_rotation, settle_web_login_rotation,
+    WebLoginClaim, WebLoginSettlement,
 };
-use opensesame_connection_broker::{request_rotation, RotationPolicy, RotationTarget};
+use opensesame_connection_broker::RotationPolicy;
 use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::LifecycleEvent;
 use opensesame_rotation_web::hooks::{HookSession, HookedTransport, RunKind, SessionConfig};
@@ -25,10 +25,12 @@ use opensesame_rotation_web::{
 use opensesame_session_observe::ControlLease;
 use opensesame_storage::StoredObservationRun;
 
+use super::canary;
 use super::channel::{BrowserChannel, RunChannel};
 use super::control::Stop;
 use super::custody::{DriverCandidateVault, CURRENT_PASSWORD_REF};
-use super::prepare::{prepare, Plan};
+use super::prepare::{prepare_for, Plan};
+use super::recipe_trust::Attendance;
 use super::records::{RecordBuffer, RecordScope};
 use super::settle::{handed_over, overdue, settlement_of};
 use super::WebLoginLauncher;
@@ -101,7 +103,7 @@ impl Harness {
             records,
         ));
         let interceptors: Vec<Box<dyn Interceptor>> = vec![Box::new(plan.hooks.interceptor())];
-        let resolver = launcher.approval_resolver.as_ref().map(|factory| factory());
+        let resolver = launcher.resolver_for(&plan.organization_id).await;
         let session = HookSession::new(SessionConfig::new(run_id), interceptors, resolver)
             .map_err(|error| anyhow::anyhow!("hook session refused its configuration: {error:?}"))?
             .with_record_sink(sink)
@@ -144,7 +146,13 @@ impl WebLoginLauncher {
         }
         let owner = policy.as_ref().and_then(|p| p.owner_subject.clone());
         let (outcome, refs) = self
-            .request_and_run(organization_id, origin, owner.as_deref(), policy.as_ref())
+            .request_and_run(
+                organization_id,
+                origin,
+                owner.as_deref(),
+                policy.as_ref(),
+                Attendance::Unattended,
+            )
             .await;
         publish_agent_phase(&self.state, event, owner, &refs, &outcome).await;
         if let Some(policy) = policy {
@@ -153,24 +161,38 @@ impl WebLoginLauncher {
         outcome
     }
 
-    async fn request_and_run(
+    /// Request the job and run it. `attendance` is who is watching: the
+    /// scanner's runs are unattended and need a canary-proven recipe; a run a
+    /// person asked for is attended ([`Self::rotate_attended`]).
+    pub(super) async fn request_and_run(
         &self,
         organization_id: &OrganizationId,
         origin: &str,
         owner: Option<&str>,
         policy: Option<&RotationPolicy>,
+        attendance: Attendance,
     ) -> (Outcome, RunRefs) {
         let broker = self.state.connection_broker.as_ref();
-        let target = RotationTarget::WebLogin {
-            origin: origin.to_owned(),
+        // The job is created already claimed by the run that will drive it, so
+        // the generic rotation consumer is never offered it (it would park a
+        // web-login job as "no runner") and nobody else can claim it: the
+        // claim is a persisted lease naming this run, which is what recovery
+        // reads if this process dies.
+        let run_id = format!("run_{}", uuid::Uuid::now_v7());
+        let claim = WebLoginClaim {
+            run_id: &run_id,
+            lease: chrono::Duration::seconds(self.timing.lease_seconds()),
         };
-        let requested = {
-            let bus = self.state.task_bus.read().await;
-            let org = organization_id.to_string();
-            let policy_id = policy.map(|p| p.id.clone());
-            request_rotation(broker, bus.as_ref(), target, None, &org, policy_id).await
-        };
-        let job = match requested {
+        let policy_id = policy.map(|p| p.id.clone());
+        let job = match request_claimed_web_login_rotation(
+            broker,
+            organization_id,
+            origin,
+            policy_id,
+            &claim,
+        )
+        .await
+        {
             Ok(job) => job,
             Err(error) => {
                 let detail = format!("rotation request failed: {}", error.hint());
@@ -181,19 +203,21 @@ impl WebLoginLauncher {
             job_id: Some(job.id.clone()),
             run_id: None,
         };
-        let outcome = match prepare(&self.state.db, organization_id, origin, owner).await {
+        let prepared = prepare_for(&self.state.db, organization_id, origin, owner, attendance);
+        let outcome = match prepared.await {
             Ok(plan) => {
-                let (outcome, run_id) = self.run(&plan, &job.id).await;
-                refs.run_id = run_id;
+                let (outcome, opened) = self.run(&plan, &job.id, &run_id).await;
+                refs.run_id = opened;
                 outcome
             }
             Err(detail) => {
                 let bus = self.state.task_bus.read().await;
-                let parked = defer_web_login_rotation(
+                let parked = park_claimed_web_login_rotation(
                     broker,
                     bus.as_ref(),
                     organization_id,
                     &job.id,
+                    &run_id,
                     detail,
                 )
                 .await;
@@ -206,22 +230,20 @@ impl WebLoginLauncher {
         (outcome, refs)
     }
 
-    /// Run a prepared job to its settlement. Also the observation run's id,
-    /// when one was opened.
-    pub(crate) async fn run(&self, plan: &Plan, job_id: &str) -> (Outcome, Option<String>) {
+    /// Run a prepared job, which `run_id` already holds, to its settlement.
+    /// Also the observation run's id, when one was opened.
+    pub(crate) async fn run(
+        &self,
+        plan: &Plan,
+        job_id: &str,
+        run_id: &str,
+    ) -> (Outcome, Option<String>) {
         let broker = self.state.connection_broker.as_ref();
-        if let Err(error) = begin_web_login_rotation(broker, &plan.organization_id, job_id).await {
-            return (
-                Outcome::failed(format!("rotation {job_id}: {}", error.hint())),
-                None,
-            );
-        }
-        let run_id = format!("run_{}", uuid::Uuid::now_v7());
-        let (settlement, channel, opened) = match Harness::open(self, plan, &run_id, job_id).await {
+        let (settlement, channel, opened) = match Harness::open(self, plan, run_id, job_id).await {
             Ok(harness) => (
-                self.drive(plan, &harness).await,
+                self.drive(plan, &harness, run_id).await,
                 Some(Arc::clone(&harness.channel)),
-                Some(run_id.clone()),
+                Some(run_id.to_owned()),
             ),
             Err(error) => {
                 tracing::error!(%error, %job_id, "web-login run could not be opened");
@@ -236,9 +258,15 @@ impl WebLoginLauncher {
             .as_ref()
             .and_then(|channel| channel.stopped())
             .is_some_and(|stop| matches!(stop, Stop::HandedOff | Stop::PersonHasIt));
-        if !theirs {
-            self.close(plan, &run_id, &settlement).await;
-        }
+        // The rotation is settled only once the run is durably closed: until
+        // then a still-claimed step could settle after the sweep below and
+        // leave its answer stored. A run that cannot be closed parks the job
+        // for reconciliation instead (`close`).
+        let settlement = if theirs {
+            settlement
+        } else {
+            self.close(plan, run_id, settlement).await
+        };
         if let Some(channel) = channel {
             channel.narrow_settled().await;
         }
@@ -267,7 +295,7 @@ impl WebLoginLauncher {
     }
 
     /// Drive the hosted change-password run and read how it ended.
-    async fn drive(&self, plan: &Plan, harness: &Harness) -> WebLoginSettlement {
+    async fn drive(&self, plan: &Plan, harness: &Harness, run_id: &str) -> WebLoginSettlement {
         let request = RunRequest {
             run: RunKind::ChangePassword,
             recipe: plan.recipe_id.clone(),
@@ -289,20 +317,21 @@ impl WebLoginLauncher {
             ),
         )
         .await;
-        let settlement = match run {
-            Ok(report) => {
-                let settled =
-                    settlement_of(report, &harness.hooked, harness.vault.promoted()).await;
-                match harness.channel.stopped() {
-                    Some(stop) => handed_over(settled, stop),
-                    None => settled,
-                }
+        let mut drift = false;
+        let settlement = if let Ok(report) = run {
+            drift = canary::drifted(&report);
+            let settled = settlement_of(report, &harness.hooked, harness.vault.promoted()).await;
+            match harness.channel.stopped() {
+                Some(stop) => handed_over(settled, stop),
+                None => settled,
             }
-            Err(_) => {
-                tracing::warn!("a web-login run ran past its deadline and was stopped");
-                overdue(harness.channel.submit_sent())
-            }
+        } else {
+            tracing::warn!("a web-login run ran past its deadline and was stopped");
+            overdue(harness.channel.submit_sent())
         };
+        // What the run proved about the recipe it replayed is the Host's to
+        // record, whether or not the rest of the run's bookkeeping lands.
+        canary::record(&self.state.db, plan, &settlement, drift, run_id).await;
         // The records the last step, the output and the shutdown left behind.
         match harness.channel.flush_records().await {
             Ok(()) => settlement,
@@ -310,38 +339,6 @@ impl WebLoginLauncher {
                 tracing::error!(%error, "a web-login run's hook records are incomplete");
                 super::settle::unaudited(settlement)
             }
-        }
-    }
-
-    /// Close the run: its steps can no longer be claimed, and a person reading
-    /// it sees why it stopped.
-    async fn close(&self, plan: &Plan, run_id: &str, settlement: &WebLoginSettlement) {
-        let db = &self.state.db;
-        let org = plan.organization_id.to_string();
-        let now = Utc::now().to_rfc3339();
-        let reason = match settlement {
-            WebLoginSettlement::Completed => None,
-            WebLoginSettlement::NotSubmitted(detail) | WebLoginSettlement::Reconcile(detail) => {
-                Some(detail.clone())
-            }
-        };
-        if let Ok(Some(run)) = db.get_observation_run(&org, run_id).await {
-            let update = opensesame_storage::ObservationControlUpdate {
-                run_id: run.id.clone(),
-                organization_id: org.clone(),
-                expected_version: run.version,
-                control_state: run.control_state.clone(),
-                // The span is over with the run, whatever it ended on.
-                quiescence: "quiescent".into(),
-                handoff_queued: false,
-                lease_holder: run.lease_holder.clone(),
-                lease_expires_at: run.lease_expires_at.clone(),
-                blocked_reason: reason,
-            };
-            let _ = db.update_observation_control(&update, &now).await;
-        }
-        if let Err(error) = db.close_observation_run(&org, run_id, &now).await {
-            tracing::warn!(%error, %run_id, "web-login run could not be closed");
         }
     }
 }

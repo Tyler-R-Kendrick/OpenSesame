@@ -6,11 +6,17 @@
 //! whose interceptors live out of process runs `opensesame hooks intercept`
 //! once per emission: the context on standard input, the verdict on standard
 //! output, one JSON document each. The command needs no Host, no daemon and
-//! no network — the judgement is the local policy file and the secret guard.
+//! no network — the judgement is the local policy file and the secret guard —
+//! unless an approver is configured, below.
 //!
 //! `opensesame hooks policy get|put` reads and replaces the organization's
 //! policy on the Host instead, for hosts that ask the Host's remote
-//! interceptor rather than running this command.
+//! interceptor rather than running this command, and `opensesame hooks
+//! approver get|put` says who the Host asks when that policy escalates.
+//!
+//! With `--approver-url`, `--approver-ref` and the requester's bearer in
+//! `OPENSESAME_HOOK_APPROVER_BEARER`, `intercept` puts an escalation to that
+//! person itself and answers with the outcome ([`approval`]).
 //!
 //! A failure to decide is never an `allow`. A context this command cannot read
 //! is answered with a deny verdict; a policy it cannot load exits non-zero
@@ -35,6 +41,9 @@ pub enum HooksCmd {
         /// credential-shaped content is redacted.
         #[arg(long, env = "OPENSESAME_HOOK_POLICY")]
         policy: Option<PathBuf>,
+        /// Put an escalation to a person instead of returning it.
+        #[command(flatten)]
+        approver: approval::ApproverArgs,
     },
     /// Check a hook policy and print it with every default filled in.
     Check {
@@ -51,6 +60,12 @@ pub enum HooksCmd {
     /// The audit of every verdict the Host's remote interceptor answered,
     /// newest first, value-blind (no tool names, targets or messages).
     Decisions(decisions::DecisionsArgs),
+    /// Who the Host puts the organization's escalated agent actions to
+    /// (`GET|PUT /api/v1/agent-hooks/approver`).
+    Approver {
+        #[command(subcommand)]
+        cmd: approver::ApproverCmd,
+    },
 }
 
 #[path = "hooks_policy.rs"]
@@ -58,6 +73,12 @@ mod policy;
 
 #[path = "hooks_decisions.rs"]
 mod decisions;
+
+#[path = "hooks_approver.rs"]
+mod approver;
+
+#[path = "hooks_approval.rs"]
+mod approval;
 
 fn load_policy(path: Option<&Path>) -> Result<HookPolicy> {
     let Some(path) = path else {
@@ -68,8 +89,10 @@ fn load_policy(path: Option<&Path>) -> Result<HookPolicy> {
     HookPolicy::parse(&text).with_context(|| format!("hook policy {}", path.display()))
 }
 
-fn intercept(policy: Option<&Path>) -> Result<()> {
+async fn intercept(policy: Option<&Path>, approver: &approval::ApproverArgs) -> Result<()> {
     let interceptor = OpenSesameInterceptor::new(load_policy(policy)?);
+    // A partial approver is refused here, before standard input is read.
+    let approver = approval::Approver::from_args(approver)?;
     // One byte past the bound is enough to know it was exceeded; the
     // interceptor denies an oversized context rather than reading all of it.
     let mut bytes = Vec::new();
@@ -78,19 +101,43 @@ fn intercept(policy: Option<&Path>) -> Result<()> {
         .take(u64::try_from(MAX_CONTEXT_BYTES + 1)?)
         .read_to_end(&mut bytes)
         .context("reading the AgentContext from standard input")?;
+    // The text is only kept when an approver might need it for an escalation.
+    let kept = approver.as_ref().map(|_| bytes.clone());
+    let mut verdict = verdict_for(&interceptor, bytes);
+    if let (Some(approver), Some(bytes)) = (approver.as_ref(), kept) {
+        if let Ok(text) = String::from_utf8(bytes) {
+            verdict = approver.settle(verdict, &text).await;
+        }
+    }
+    let mut out = std::io::stdout().lock();
+    serde_json::to_writer(&mut out, &verdict)?;
+    writeln!(out)?;
+    Ok(())
+}
+
+/// The verdict for the bytes read from standard input. The size bound is
+/// checked on the raw bytes, before any decoding: the read stops one byte past
+/// the limit, so a context that is over it by trailing whitespace alone (or
+/// that the cut splits mid-character) is the same oversized refusal, never a
+/// parse of a truncated document.
+fn verdict_for(interceptor: &OpenSesameInterceptor, bytes: Vec<u8>) -> Verdict {
+    if bytes.len() > MAX_CONTEXT_BYTES {
+        return Verdict::deny(
+            Some(REASON_CONTEXT_UNREADABLE.into()),
+            Some(format!(
+                "context exceeds {MAX_CONTEXT_BYTES} bytes (agent-hooks/0.1 §12.3)"
+            )),
+        );
+    }
     // Not UTF-8 is not JSON (RFC 8259 §8.1). Never repair it: a lossy
     // decode would put replacement characters into a transformed target.
-    let verdict = match String::from_utf8(bytes) {
+    match String::from_utf8(bytes) {
         Ok(text) => interceptor.decide_json(&text),
         Err(_) => Verdict::deny(
             Some(REASON_CONTEXT_UNREADABLE.into()),
             Some("context is not UTF-8 JSON".into()),
         ),
-    };
-    let mut out = std::io::stdout().lock();
-    serde_json::to_writer(&mut out, &verdict)?;
-    writeln!(out)?;
-    Ok(())
+    }
 }
 
 fn check(policy: Option<&Path>) -> Result<()> {
@@ -104,9 +151,10 @@ fn check(policy: Option<&Path>) -> Result<()> {
 /// `server`.
 pub async fn run(server: &str, cmd: HooksCmd) -> Result<()> {
     match cmd {
-        HooksCmd::Intercept { policy } => intercept(policy.as_deref()),
+        HooksCmd::Intercept { policy, approver } => intercept(policy.as_deref(), &approver).await,
         HooksCmd::Check { policy } => check(policy.as_deref()),
         HooksCmd::Policy { cmd } => policy::run(server, cmd).await,
         HooksCmd::Decisions(args) => decisions::run(server, args).await,
+        HooksCmd::Approver { cmd } => approver::run(server, cmd).await,
     }
 }

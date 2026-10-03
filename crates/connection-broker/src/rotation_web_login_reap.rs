@@ -25,6 +25,7 @@ use super::super::{
     bus_event, job_event_data, record_rotation_changelog, state_name, truncate_detail, RotationJob,
     EVENT_ROTATION_FAILED,
 };
+use super::claim::ensure_claims;
 use crate::error::Result;
 use crate::store::RotationJobRow;
 use crate::ConnectionBroker;
@@ -51,9 +52,22 @@ const RUNNING: [RotationState; 10] = [
     RotationState::RollbackStarted,
 ];
 
-/// Web-login jobs of `organization_id` in a running state that nothing has
-/// touched since `untouched_since` — a runner that was alive would have moved
-/// them.
+/// A web-login job nobody is running, and the run that last held it.
+#[derive(Clone, Debug)]
+pub struct StrandedWebLoginJob {
+    pub job: RotationJob,
+    /// The observation run whose claim lapsed. `None` for a job claimed
+    /// before claims were recorded.
+    pub run_id: Option<String>,
+}
+
+/// Web-login jobs of `organization_id` in a running state that nobody is
+/// running at `now`.
+///
+/// A claimed job is stranded when its **lease** has run out: the claim names
+/// how long its run may take, so a live run is never listed. A job with no
+/// claim on record (one begun before claims were persisted) falls back to
+/// "nothing has touched it since `untouched_since`".
 ///
 /// # Errors
 ///
@@ -61,30 +75,34 @@ const RUNNING: [RotationState; 10] = [
 pub async fn stranded_web_login_jobs(
     broker: &ConnectionBroker,
     organization_id: &OrganizationId,
+    now: DateTime<Utc>,
     untouched_since: DateTime<Utc>,
-) -> Result<Vec<RotationJob>> {
+) -> Result<Vec<StrandedWebLoginJob>> {
+    ensure_claims(&broker.pool).await?;
     let mut query = QueryBuilder::<Sqlite>::new(
-        "SELECT id, policy_id, organization_id, target_kind, target_id, state, detail, \
-         created_at, updated_at FROM rotation_jobs WHERE target_kind = 'web_login' \
-         AND organization_id = ",
+        "SELECT j.id, j.policy_id, j.organization_id, j.target_kind, j.target_id, j.state, \
+         j.detail, j.created_at, j.updated_at, c.run_id AS claim_run_id \
+         FROM rotation_jobs j LEFT JOIN web_login_job_claims c ON c.job_id = j.id \
+         WHERE j.target_kind = 'web_login' AND j.organization_id = ",
     );
     query.push_bind(organization_id.to_string());
-    query
-        .push(" AND updated_at < ")
-        .push_bind(untouched_since.to_rfc3339());
-    query.push(" AND state IN (");
+    query.push(" AND ((c.lease_expires_at IS NOT NULL AND c.lease_expires_at < ");
+    query.push_bind(now.to_rfc3339());
+    query.push(") OR (c.lease_expires_at IS NULL AND j.updated_at < ");
+    query.push_bind(untouched_since.to_rfc3339());
+    query.push(")) AND j.state IN (");
     let mut names = query.separated(", ");
     for state in RUNNING {
         names.push_bind(state_name(state));
     }
     query
-        .push(") ORDER BY updated_at ASC, id ASC LIMIT ")
+        .push(") ORDER BY j.updated_at ASC, j.id ASC LIMIT ")
         .push_bind(STRANDED_JOB_BATCH);
     let rows = query.build().fetch_all(&broker.pool).await?;
     Ok(rows
         .iter()
         .filter_map(|row| {
-            RotationJob::from_row(RotationJobRow {
+            let job = RotationJob::from_row(RotationJobRow {
                 id: row.get("id"),
                 policy_id: row.get("policy_id"),
                 organization_id: row.get("organization_id"),
@@ -94,6 +112,10 @@ pub async fn stranded_web_login_jobs(
                 detail: row.get("detail"),
                 created_at: parse(&row.get::<String, _>("created_at")),
                 updated_at: parse(&row.get::<String, _>("updated_at")),
+            })?;
+            Some(StrandedWebLoginJob {
+                job,
+                run_id: row.get("claim_run_id"),
             })
         })
         .collect())
@@ -134,6 +156,7 @@ pub async fn reconcile_stranded_web_login_rotation(
     if written.rows_affected() != 1 {
         return Ok(None);
     }
+    super::claim::release_claim(broker, &stranded.id).await;
     let Some(job) = broker
         .get_rotation_job(&stranded.organization_id, &stranded.id)
         .await?
@@ -153,7 +176,9 @@ mod tests {
     use opensesame_task_bus::InMemoryTaskBus;
 
     use super::super::super::{request_rotation, RotationStatus, RotationTarget};
-    use super::super::{begin_web_login_rotation, settle_web_login_rotation, WebLoginSettlement};
+    use super::super::{
+        begin_web_login_rotation, settle_web_login_rotation, WebLoginClaim, WebLoginSettlement,
+    };
     use super::*;
     use crate::config::BrokerConfig;
 
@@ -179,6 +204,13 @@ mod tests {
             .id
     }
 
+    fn claim(run_id: &str) -> WebLoginClaim<'_> {
+        WebLoginClaim {
+            run_id,
+            lease: chrono::Duration::minutes(17),
+        }
+    }
+
     fn later() -> DateTime<Utc> {
         Utc::now() + chrono::Duration::hours(1)
     }
@@ -189,10 +221,10 @@ mod tests {
         let scheduled = job(&broker, &bus, &org, "https://a.example").await;
         let running = job(&broker, &bus, &org, "https://b.example").await;
         let settled = job(&broker, &bus, &org, "https://c.example").await;
-        begin_web_login_rotation(&broker, &org, &running)
+        begin_web_login_rotation(&broker, &org, &running, &claim("run_running"))
             .await
             .unwrap();
-        begin_web_login_rotation(&broker, &org, &settled)
+        begin_web_login_rotation(&broker, &org, &settled, &claim("run_settled"))
             .await
             .unwrap();
         settle_web_login_rotation(&broker, &bus, &org, &settled, WebLoginSettlement::Completed)
@@ -201,19 +233,22 @@ mod tests {
 
         // A cutoff before the job's last transition: a live runner is not stranded.
         let past = Utc::now() - chrono::Duration::hours(1);
-        assert!(stranded_web_login_jobs(&broker, &org, past)
+        assert!(stranded_web_login_jobs(&broker, &org, past, past)
             .await
             .unwrap()
             .is_empty());
 
-        let found = stranded_web_login_jobs(&broker, &org, later())
+        let found = stranded_web_login_jobs(&broker, &org, later(), later())
             .await
             .unwrap();
-        let ids: Vec<_> = found.iter().map(|job| job.id.as_str()).collect();
+        let ids: Vec<_> = found
+            .iter()
+            .map(|stranded| stranded.job.id.as_str())
+            .collect();
         assert_eq!(ids, [running.as_str()], "not {scheduled} or {settled}");
         // Another organization's stranded job is not ours to reap.
         let other = OrganizationId::new();
-        assert!(stranded_web_login_jobs(&broker, &other, later())
+        assert!(stranded_web_login_jobs(&broker, &other, later(), later())
             .await
             .unwrap()
             .is_empty());
@@ -223,13 +258,15 @@ mod tests {
     async fn a_stranded_job_parks_for_reconciliation_with_a_truthful_detail() {
         let (broker, bus, org) = fixture().await;
         let id = job(&broker, &bus, &org, "https://a.example").await;
-        begin_web_login_rotation(&broker, &org, &id).await.unwrap();
-        let stranded = stranded_web_login_jobs(&broker, &org, later())
+        begin_web_login_rotation(&broker, &org, &id, &claim("run_id"))
+            .await
+            .unwrap();
+        let stranded = stranded_web_login_jobs(&broker, &org, later(), later())
             .await
             .unwrap();
 
         let parked =
-            reconcile_stranded_web_login_rotation(&broker, &bus, &stranded[0], STRANDED_DETAIL)
+            reconcile_stranded_web_login_rotation(&broker, &bus, &stranded[0].job, STRANDED_DETAIL)
                 .await
                 .unwrap()
                 .expect("nothing moved it");
@@ -240,12 +277,12 @@ mod tests {
 
         // Parked once: a second reaper finds nothing, and the stale listing
         // it holds writes nothing.
-        assert!(stranded_web_login_jobs(&broker, &org, later())
+        assert!(stranded_web_login_jobs(&broker, &org, later(), later())
             .await
             .unwrap()
             .is_empty());
         assert!(
-            reconcile_stranded_web_login_rotation(&broker, &bus, &stranded[0], "again")
+            reconcile_stranded_web_login_rotation(&broker, &bus, &stranded[0].job, "again")
                 .await
                 .unwrap()
                 .is_none()
@@ -256,8 +293,10 @@ mod tests {
     async fn a_run_that_settled_first_is_never_overwritten() {
         let (broker, bus, org) = fixture().await;
         let id = job(&broker, &bus, &org, "https://a.example").await;
-        begin_web_login_rotation(&broker, &org, &id).await.unwrap();
-        let stranded = stranded_web_login_jobs(&broker, &org, later())
+        begin_web_login_rotation(&broker, &org, &id, &claim("run_id"))
+            .await
+            .unwrap();
+        let stranded = stranded_web_login_jobs(&broker, &org, later(), later())
             .await
             .unwrap();
 
@@ -268,7 +307,7 @@ mod tests {
         assert!(reconcile_stranded_web_login_rotation(
             &broker,
             &bus,
-            &stranded[0],
+            &stranded[0].job,
             STRANDED_DETAIL
         )
         .await

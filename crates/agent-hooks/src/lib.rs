@@ -35,7 +35,7 @@
 //! and the Host API authorizes every use. The interceptor is defence in depth
 //! in front of that boundary, at the places an agent loop moves content.
 //!
-//! [agent-hooks/0.1]: https://github.com/responsibleai/agent-hooks/blob/main/spec/AGENT-HOOKS-0.1.md
+//! [agent-hooks/0.1]: https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md
 
 pub mod approval;
 pub mod interaction;

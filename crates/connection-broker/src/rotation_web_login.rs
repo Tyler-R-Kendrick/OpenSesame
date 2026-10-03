@@ -7,7 +7,12 @@
 //! verify-before-revoke machine every other target walks, with ADR 0076 §9's
 //! web-login semantics:
 //!
-//! - `begin` claims the job: `Scheduled → Discovering`, before any step.
+//! - `begin` claims the job: `Scheduled → Discovering`, before any step, in
+//!   one conditional write scoped to the organization — and a runner that
+//!   requests the job itself creates it already claimed ([`claim`]), so the
+//!   generic consumer is never offered it. The claim is a persisted lease
+//!   naming the run that holds it, which is what recovery reads when a
+//!   process dies mid-run.
 //! - A run that **completed** — submitted, confirmed by a fresh login, and
 //!   promoted — walks the whole machine. `PreviousRevoked` is an observation
 //!   (the site killed the old password when it took the change) and
@@ -25,15 +30,24 @@ use opensesame_rotation::RotationState;
 use opensesame_task_bus::TaskBus;
 
 use super::{
-    advance, defer_rotation, finish, load_scheduled_job, state_name, truncate_detail, RotationJob,
-    RotationTarget, EVENT_ROTATION_FAILED, EVENT_ROTATION_SUCCEEDED,
+    advance, defer_rotation, finish, state_name, truncate_detail, RotationJob, RotationTarget,
+    EVENT_ROTATION_FAILED, EVENT_ROTATION_SUCCEEDED,
 };
 use crate::error::{BrokerError, Result};
 use crate::ConnectionBroker;
 
+#[path = "rotation_web_login_claim.rs"]
+mod claim;
 #[path = "rotation_web_login_reap.rs"]
 mod reap;
-pub use reap::{reconcile_stranded_web_login_rotation, stranded_web_login_jobs, STRANDED_DETAIL};
+pub use claim::{
+    begin_web_login_rotation, claim_holder, defer_web_login_rotation,
+    park_claimed_web_login_rotation, request_claimed_web_login_rotation, WebLoginClaim,
+};
+pub use reap::{
+    reconcile_stranded_web_login_rotation, stranded_web_login_jobs, StrandedWebLoginJob,
+    STRANDED_DETAIL,
+};
 
 /// How a hosted web-login run ended, as the job records it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,62 +59,6 @@ pub enum WebLoginSettlement {
     NotSubmitted(String),
     /// Submitted (or possibly submitted) and unconfirmed; a person reconciles.
     Reconcile(String),
-}
-
-/// The job, if it is a scheduled web-login job — the only one a runner may
-/// take.
-async fn scheduled_web_login(
-    broker: &ConnectionBroker,
-    organization_id: &OrganizationId,
-    job_id: &str,
-) -> Result<RotationJob> {
-    let job = load_scheduled_job(broker, organization_id, job_id).await?;
-    if !matches!(job.target, RotationTarget::WebLogin { .. }) {
-        return Err(BrokerError::Invalid(format!(
-            "rotation job `{job_id}` is not a web-login rotation"
-        )));
-    }
-    Ok(job)
-}
-
-/// Park a scheduled web-login job the runner cannot run, with the honest
-/// reason why (ADR 0076 T5: notify and park, never improvise).
-///
-/// # Errors
-///
-/// The job is unknown, not scheduled, not a web login, or cannot be written.
-pub async fn defer_web_login_rotation(
-    broker: &ConnectionBroker,
-    bus: &dyn TaskBus,
-    organization_id: &OrganizationId,
-    job_id: &str,
-    detail: &str,
-) -> Result<RotationJob> {
-    let job = scheduled_web_login(broker, organization_id, job_id).await?;
-    defer_rotation(broker, bus, organization_id, job, &truncate_detail(detail)).await
-}
-
-/// Claim a scheduled web-login job for a run: `Scheduled → Discovering`.
-///
-/// # Errors
-///
-/// The job is unknown, already taken, not a web login, or cannot be written.
-pub async fn begin_web_login_rotation(
-    broker: &ConnectionBroker,
-    organization_id: &OrganizationId,
-    job_id: &str,
-) -> Result<RotationJob> {
-    scheduled_web_login(broker, organization_id, job_id).await?;
-    let mut state = RotationState::Scheduled;
-    advance(
-        broker,
-        job_id,
-        &mut state,
-        RotationState::Discovering,
-        Some("web-login run started"),
-    )
-    .await?;
-    job_in(broker, organization_id, job_id).await
 }
 
 async fn job_in(
@@ -134,9 +92,13 @@ pub async fn settle_web_login_rotation(
             "rotation job `{job_id}` is not a running web-login rotation"
         )));
     }
+    // The reaper writes only against the `updated_at` it listed; fencing
+    // moves it, so a stale listing cannot overwrite this settlement — and a
+    // job the reaper already parked is refused here, not overwritten.
+    claim::fence_settlement(broker, organization_id, job_id).await?;
     let org = organization_id.to_string();
     let mut state = RotationState::Discovering;
-    match settlement {
+    let settled = match settlement {
         WebLoginSettlement::NotSubmitted(detail) => {
             let detail = format!("not submitted; the previous password stands: {detail}");
             defer_rotation(broker, bus, organization_id, job, &truncate_detail(&detail)).await
@@ -184,7 +146,14 @@ pub async fn settle_web_login_rotation(
             )
             .await
         }
+    };
+    // Settled (or failed past recovery): the claim has nothing left to say.
+    // A settlement that errored midway keeps it, so the reaper still finds
+    // the job by its lease.
+    if settled.is_ok() {
+        claim::release_claim(broker, job_id).await;
     }
+    settled
 }
 
 #[cfg(test)]
@@ -195,6 +164,13 @@ mod tests {
     use super::super::{execute_rotation, request_rotation, RotationStatus};
     use super::*;
     use crate::config::BrokerConfig;
+
+    fn claim() -> WebLoginClaim<'static> {
+        WebLoginClaim {
+            run_id: "run_1",
+            lease: chrono::Duration::minutes(17),
+        }
+    }
 
     async fn web_job() -> (ConnectionBroker, InMemoryTaskBus, OrganizationId, String) {
         let db = Db::connect_memory().await.expect("db");
@@ -214,11 +190,15 @@ mod tests {
     #[tokio::test]
     async fn a_completed_run_walks_the_whole_machine() {
         let (broker, bus, org, job) = web_job().await;
-        let begun = begin_web_login_rotation(&broker, &org, &job).await.unwrap();
+        let begun = begin_web_login_rotation(&broker, &org, &job, &claim())
+            .await
+            .unwrap();
         assert_eq!(begun.state, "discovering");
         // A begun job is taken: neither the broker's own path nor a second
         // runner may start it again.
-        assert!(begin_web_login_rotation(&broker, &org, &job).await.is_err());
+        assert!(begin_web_login_rotation(&broker, &org, &job, &claim())
+            .await
+            .is_err());
         assert!(execute_rotation(&broker, &bus, &org, &job).await.is_err());
 
         let done =
@@ -242,7 +222,9 @@ mod tests {
     #[tokio::test]
     async fn an_unsubmitted_run_parks_without_claiming_an_install() {
         let (broker, bus, org, job) = web_job().await;
-        begin_web_login_rotation(&broker, &org, &job).await.unwrap();
+        begin_web_login_rotation(&broker, &org, &job, &claim())
+            .await
+            .unwrap();
         let parked = settle_web_login_rotation(
             &broker,
             &bus,
@@ -260,7 +242,9 @@ mod tests {
     #[tokio::test]
     async fn an_unknown_outcome_reconciles_after_install() {
         let (broker, bus, org, job) = web_job().await;
-        begin_web_login_rotation(&broker, &org, &job).await.unwrap();
+        begin_web_login_rotation(&broker, &org, &job, &claim())
+            .await
+            .unwrap();
         let parked = settle_web_login_rotation(
             &broker,
             &bus,

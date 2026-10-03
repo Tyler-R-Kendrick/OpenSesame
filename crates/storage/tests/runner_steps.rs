@@ -158,6 +158,80 @@ async fn a_lapsed_claim_is_reclaimable() {
 }
 
 #[tokio::test]
+async fn an_expired_claim_cannot_settle_even_before_anyone_reclaims_it() {
+    // The lease is the clock. A claim past `claim_expires_at` is not a claim
+    // whether or not a second driver has taken the step yet, so a late settle
+    // cannot store an outcome nobody is waiting for under a lease that ended.
+    let db = seeded().await;
+    db.enqueue_runner_step(ORG, "run:1", 0, REQUEST, NOW)
+        .await
+        .unwrap();
+    db.claim_runner_step(ORG, "run:1", "device:alice", NOW, LATER)
+        .await
+        .unwrap()
+        .expect("claimable");
+
+    for late in [LATER, MUCH_LATER] {
+        assert!(
+            !db.settle_runner_step(ORG, "run:1", 0, "device:alice", OUTCOME, late)
+                .await
+                .unwrap(),
+            "settling at {late}, when the claim ran out at {LATER}"
+        );
+    }
+    let step = db.get_runner_step(ORG, "run:1", 0).await.unwrap().unwrap();
+    assert_eq!(step.state, "claimed", "nothing was stored");
+    assert_eq!(step.outcome_json, None);
+
+    // Taking the step again renews the lease, and then the same driver settles.
+    db.claim_runner_step(
+        ORG,
+        "run:1",
+        "device:alice",
+        MUCH_LATER,
+        "2026-08-31T09:02:00+00:00",
+    )
+    .await
+    .unwrap()
+    .expect("a lapsed claim is claimable, by the same driver too");
+    assert!(db
+        .settle_runner_step(ORG, "run:1", 0, "device:alice", OUTCOME, MUCH_LATER)
+        .await
+        .unwrap());
+}
+
+#[tokio::test]
+async fn a_stored_outcome_is_a_tagged_object() {
+    // The route validates an outcome against the step it answers; the store
+    // still refuses what could not be an outcome at all, so no caller can
+    // park prose, an array or a bare string in the queue.
+    let db = seeded().await;
+    db.enqueue_runner_step(ORG, "run:1", 0, REQUEST, NOW)
+        .await
+        .unwrap();
+    db.claim_runner_step(ORG, "run:1", "device:alice", NOW, LATER)
+        .await
+        .unwrap();
+    for bad in [
+        "",
+        "not json",
+        "[]",
+        "\"done\"",
+        r#"{"password":"x"}"#,
+        r#"{"outcome":3}"#,
+    ] {
+        assert!(
+            db.settle_runner_step(ORG, "run:1", 0, "device:alice", bad, NOW)
+                .await
+                .is_err(),
+            "{bad:?}"
+        );
+    }
+    let step = db.get_runner_step(ORG, "run:1", 0).await.unwrap().unwrap();
+    assert_eq!(step.state, "claimed");
+}
+
+#[tokio::test]
 async fn an_unclaimed_step_cannot_be_settled() {
     let db = seeded().await;
     db.enqueue_runner_step(ORG, "run:1", 0, REQUEST, NOW)

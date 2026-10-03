@@ -12,8 +12,7 @@ use opensesame_session_observe::{AttachRefusal, Attachment};
 use serde::Deserialize;
 use serde_json::json;
 
-use super::scrub;
-use super::{load, refusal, subject_of};
+use super::{load, outcome, refusal, scrub, subject_of};
 use crate::app_state::AppState;
 
 /// `POST /api/v1/agent/runs/{id}/steps/claim` — take the run's outstanding step.
@@ -79,8 +78,8 @@ pub async fn claim_step(
 
 #[derive(Debug, Deserialize)]
 pub struct OutcomeBody {
-    /// The `StepOutcome`. Validated as JSON here and interpreted by the
-    /// executor, which is the side that knows what it asked for.
+    /// The `StepOutcome` (or a custody outcome), checked against the step it
+    /// answers and stored in its canonical encoding (`outcome`).
     pub outcome: serde_json::Value,
 }
 
@@ -90,7 +89,12 @@ pub struct OutcomeBody {
 /// went away and came back finds its step taken and is told so, rather than
 /// settling a step somebody else is now executing.
 ///
-/// The outcome is stored **scrubbed and bounded**, whether or not anyone is
+/// The outcome is checked against the step it answers before it is looked at
+/// further (`outcome`): it must be one that step may produce, and carry exactly
+/// that outcome's fields — a driver-added field is refused (422), never stored.
+/// What is stored is the canonical encoding of what was decoded.
+///
+/// It is then stored **scrubbed and bounded**, whether or not anyone is
 /// still waiting for it: a driver that settles after its step timed out (the
 /// run still open, the executor gone) leaves a row no executor will read, and
 /// that row holds markers, not the credential-shaped text it was sent.
@@ -108,7 +112,26 @@ pub async fn settle_step(
     let Some(claimant) = subject_of(&who) else {
         return refusal(AttachRefusal::StepUpRequired);
     };
-    let scrubbed = match scrub::scrub(&st, &organization_id, &body.outcome).await {
+    // The step as it stands: it must be this caller's live claim before
+    // anything the caller sent is looked at, and its request says which
+    // outcomes may answer it.
+    let step = match st.db.get_runner_step(&organization_id, &run.id, seq).await {
+        Ok(Some(step))
+            if step.state == "claimed" && step.claimed_by.as_deref() == Some(claimant.as_str()) =>
+        {
+            step
+        }
+        Ok(_) => return not_the_claimant(),
+        Err(error) => {
+            tracing::error!(%error, run_id = %run.id, "runner step could not be read");
+            return internal();
+        }
+    };
+    let typed = match outcome::canonical(&step.request_json, &body.outcome) {
+        Ok(typed) => typed,
+        Err(refused) => return refused.response(),
+    };
+    let scrubbed = match scrub::scrub(&st, &organization_id, &typed).await {
         Ok(scrubbed) => scrubbed,
         Err(refused) => return refused.response(),
     };
@@ -133,23 +156,31 @@ pub async fn settle_step(
             })),
         )
             .into_response(),
-        Ok(false) => (
-            StatusCode::CONFLICT,
-            Json(json!({
-                "error": "not_the_claimant",
-                "hint": "this step is not yours to settle, or its run has closed"
-            })),
-        )
-            .into_response(),
+        Ok(false) => not_the_claimant(),
         Err(error) => {
             tracing::error!(%error, run_id = %run.id, "runner step could not be settled");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "internal"})),
-            )
-                .into_response()
+            internal()
         }
     }
+}
+
+fn not_the_claimant() -> Response {
+    (
+        StatusCode::CONFLICT,
+        Json(json!({
+            "error": "not_the_claimant",
+            "hint": "this step is not yours to settle, its claim has lapsed, or its run has closed"
+        })),
+    )
+        .into_response()
+}
+
+fn internal() -> Response {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(json!({"error": "internal"})),
+    )
+        .into_response()
 }
 
 #[cfg(test)]

@@ -13,7 +13,6 @@ use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::{ExpiryStage, ExpirySubject, LifecycleEvent, SubjectKind};
 use opensesame_session_observe::HandoffOutcome;
 use opensesame_storage::agent_hook_policy::{AgentHookPolicyAudit, AgentHookPolicyWrite};
-use opensesame_storage::web_login_runs::StoredWebLoginRecipe;
 use opensesame_storage::{Db, ObservationControlUpdate};
 use opensesame_task_bus::{BusEvent, InMemoryTaskBus, TaskBus};
 use serde_json::{json, Value};
@@ -69,7 +68,6 @@ pub(super) async fn world(sites: &[&str], hook_policy: &str) -> World {
     state.task_bus = Arc::new(RwLock::new(dynamic));
     let org = state.connection_organization;
     let org_text = org.to_string();
-    let now = Utc::now();
     state
         .db
         .put_agent_hook_policy(
@@ -88,27 +86,7 @@ pub(super) async fn world(sites: &[&str], hook_policy: &str) -> World {
         .unwrap();
     let mut policies = Vec::new();
     for site in sites {
-        state
-            .db
-            .put_web_login_recipe(&StoredWebLoginRecipe {
-                organization_id: org_text.clone(),
-                origin: (*site).into(),
-                recipe_id: "rcp_login_example".into(),
-                trust: "canary_verified".into(),
-                recipe_json: json!({
-                    "change_url": format!("{site}/.well-known/change-password"),
-                    "current_password_selector": "#current",
-                    "new_password_selector": "#new",
-                    "confirm_password_selector": "#confirm",
-                    "submit_selector": "#save",
-                })
-                .to_string(),
-                expires_at: (now + chrono::Duration::days(30)).to_rfc3339(),
-                created_at: now.to_rfc3339(),
-                updated_at: now.to_rfc3339(),
-            })
-            .await
-            .unwrap();
+        super::recipe_fixture::seed(&state.db, &org_text, site, true).await;
         policies.push(
             state
                 .connection_broker

@@ -37,26 +37,51 @@
 //!
 //! # Approvals
 //!
-//! A tool rule that escalates is lifted only by the §9 approval seam. Until
-//! the Interaction-backed approver lands, the launcher is built with
-//! `approval_resolver: None`, so every escalation stays a denial — the
-//! conformant reading of an unresolved approval (§9). The one place a
-//! resolver plugs in is [`WebLoginLauncher::from_state`], which both the
-//! lifecycle responder and the scanner's tracked runs build their launcher
-//! through.
+//! A tool rule that escalates is lifted only by the §9 approval seam. Each
+//! run builds its own: a `BoundApprovalResolver` over an `InteractionApprover`
+//! that asks the person the organization named (`agent_hook_approvers`), or
+//! else the operator's default, through the Identity API the deployment
+//! configured ([`crate::agent_hook_approver`]). A deployment that configured
+//! none, an organization that names nobody, or anything unreadable on the way
+//! leaves the run with no resolver, and every escalation stays a denial — the
+//! conformant reading of an unresolved approval (§9). The run's hook session
+//! registers `redact_for_approver` as its approval redactor, so what a person
+//! is shown, and what their proof binds to, held no credential shape.
+//!
+//! The one place a resolver is chosen is [`WebLoginLauncher::resolver_for`],
+//! which both the lifecycle responder and the scanner's tracked runs reach
+//! through [`WebLoginLauncher::from_state`].
 
+#[cfg(test)]
+mod approver_tests;
+mod attended;
+mod canary;
 pub(crate) mod channel;
+#[cfg(test)]
+mod claim_tests;
+mod close;
+#[cfg(test)]
+mod close_tests;
 pub(crate) mod control;
 pub(crate) mod custody;
+#[cfg(test)]
+mod custody_hooks_tests;
 #[cfg(test)]
 mod deadline_tests;
 #[cfg(test)]
 mod handoff_tests;
+#[cfg(test)]
+mod identity_mock;
 mod launch;
 pub(crate) mod prepare;
 pub(crate) mod reaper;
 #[cfg(test)]
 mod reaper_tests;
+#[cfg(test)]
+pub(crate) mod recipe_fixture;
+#[cfg(test)]
+mod recipe_gate_tests;
+pub(crate) mod recipe_trust;
 pub(crate) mod records;
 pub(crate) mod registry;
 mod settle;
@@ -75,7 +100,7 @@ use crate::app_state::AppState;
 
 #[cfg(test)]
 pub(crate) use launch::Harness;
-pub(crate) use start::start;
+pub(crate) use start::{start, start_attended};
 
 /// Builds the §9 approval seam for one run. A resolver is consumed by the
 /// session it is registered on, so the launcher holds a factory.
@@ -125,27 +150,44 @@ pub(crate) struct WebLoginLauncher {
     state: AppState,
     approval_resolver: Option<ApprovalResolverFactory>,
     timing: RunTiming,
+    close_retry: close::CloseRetry,
 }
 
 impl WebLoginLauncher {
     /// A launcher over `state`.
     ///
-    /// `approval_resolver` is the §9 approval seam every run's hook session
-    /// registers. `None` leaves every escalation a denial.
+    /// `approval_resolver`, when given, is the §9 approval seam every run's
+    /// hook session registers, whatever the deployment configured (tests
+    /// script one). `None` builds each run's seam from the deployment's
+    /// approver configuration and the organization's approver, if there are
+    /// both; with neither, every escalation stays a denial.
     pub(crate) fn new(state: AppState, approval_resolver: Option<ApprovalResolverFactory>) -> Self {
         Self {
             state,
             approval_resolver,
             timing: RunTiming::default(),
+            close_retry: close::CloseRetry::default(),
         }
     }
 
-    /// The launcher every production path builds: over `state`, with the
-    /// approval seam it is configured with. The one place a resolver is
-    /// plugged in, so the lifecycle responder and the scanner's tracked runs
-    /// cannot disagree about it.
+    /// The launcher every production path builds: over `state`, with each
+    /// run's approval seam built from the deployment's configuration, so the
+    /// lifecycle responder and the scanner's tracked runs cannot disagree
+    /// about it.
     pub(crate) fn from_state(state: &AppState) -> Self {
         Self::new(state.clone(), None)
+    }
+
+    /// The §9 approval seam for one run of `organization_id`'s, if anybody is
+    /// to be asked.
+    pub(crate) async fn resolver_for(
+        &self,
+        organization_id: &opensesame_domain::OrganizationId,
+    ) -> Option<Box<dyn ApprovalResolver>> {
+        match &self.approval_resolver {
+            Some(factory) => Some(factory()),
+            None => crate::agent_hook_approver::resolver_for(&self.state, organization_id).await,
+        }
     }
 
     /// Replace the run's clock (tests drive a fake extension quickly).
@@ -153,6 +195,14 @@ impl WebLoginLauncher {
     #[must_use]
     pub(crate) const fn with_timing(mut self, timing: RunTiming) -> Self {
         self.timing = timing;
+        self
+    }
+
+    /// Replace how hard a run is closed (tests make the retries instant).
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) const fn with_close_retry(mut self, retry: close::CloseRetry) -> Self {
+        self.close_retry = retry;
         self
     }
 }

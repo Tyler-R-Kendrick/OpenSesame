@@ -7,7 +7,7 @@ use super::*;
 async fn the_policy_is_replaced_by_compare_and_set_and_governs_verdicts() {
     let st = test_demo_state().await;
     let org = st.connection_organization;
-    let admin = test_session_headers(&st, P27, org, OrganizationRole::Admin);
+    let admin = stepped_up(&st, P27, org, OrganizationRole::Admin);
     let member = test_session_headers(&st, P26, org, OrganizationRole::Member);
     let app = crate::routes::router(st.clone());
 
@@ -89,7 +89,7 @@ async fn the_policy_is_replaced_by_compare_and_set_and_governs_verdicts() {
 #[tokio::test]
 async fn an_invalid_policy_is_refused_with_the_parsers_positional_error() {
     let st = test_demo_state().await;
-    let admin = test_session_headers(
+    let admin = stepped_up(
         &st,
         P27,
         st.connection_organization,
@@ -125,8 +125,8 @@ async fn organizations_never_read_or_write_each_others_policy() {
     let st = test_demo_state().await;
     let org_a = st.connection_organization;
     let org_b = OrganizationId::new();
-    let admin_a = test_session_headers(&st, P27, org_a, OrganizationRole::Admin);
-    let admin_b = test_session_headers(&st, P28, org_b, OrganizationRole::Admin);
+    let admin_a = stepped_up(&st, P27, org_a, OrganizationRole::Admin);
+    let admin_b = stepped_up(&st, P28, org_b, OrganizationRole::Admin);
     let member_b = test_session_headers(&st, P26, org_b, OrganizationRole::Member);
     let app = crate::routes::router(st.clone());
 

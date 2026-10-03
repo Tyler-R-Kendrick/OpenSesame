@@ -7,7 +7,9 @@
 //! - **Retention.** A run's row carries an `expires_at`; when it passes, the
 //!   run goes, and everything that hangs off it goes in the same transaction:
 //!   its sealed log, its step queue and its hook records. `agent_hook_records`
-//!   and `runner_steps` had no caller that ever removed them.
+//!   and `runner_steps` had no caller that ever removed them. Migration 0053
+//!   gave the hook records the foreign key onto the run that `runner_steps`
+//!   always had, so a run removed any other way takes them with it too.
 //! - **Orphans.** A gateway that stops mid-run leaves an observation run open
 //!   for good: nothing else writes its `closed_at`. The reaper lists runs that
 //!   have been open longer than any run may last and closes them with a
@@ -51,8 +53,9 @@ impl Db {
     /// Remove runs past `expires_at <= now`, with their sealed logs, step
     /// queues and hook records, in one transaction.
     ///
-    /// Children are deleted explicitly: `SQLite` cascades only with foreign
-    /// keys on, and `agent_hook_records` has no foreign key to cascade from.
+    /// Children are deleted explicitly, though both foreign keys cascade: the
+    /// cascade is invisible to a count, and the retention report says how many
+    /// of each went (it also holds on a connection with foreign keys off).
     ///
     /// # Errors
     ///

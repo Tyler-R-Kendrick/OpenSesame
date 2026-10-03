@@ -41,6 +41,12 @@ secrecy = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }
 url.workspace = true
 tokio = { workspace = true, features = ["sync"] }
+# The recipe document (ADR 0076 §4): its timestamps, its Ed25519 signature and
+# the digest a run records. None of them is login-surrogate-only.
+chrono = { workspace = true }
+ed25519-dalek = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 # The crate tests itself with the plugin feature on, so the Rust CI job's

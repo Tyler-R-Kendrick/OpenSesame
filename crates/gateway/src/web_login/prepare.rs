@@ -7,9 +7,11 @@
 //!
 //! - **an owner** — only the policy's owner may watch or drive the run
 //!   (ADR 0081 §8), so a run with none has nobody to claim its steps;
-//! - **a replayable recipe** — `canary_verified` or `corpus`, unexpired, whose
-//!   change URL is on the target origin (rotation-recipe-schema.md). A
-//!   candidate recipe is a hypothesis and is never replayed unattended;
+//! - **a replayable recipe** — signed by an organization-pinned key that is
+//!   still pinned, unexpired, whose change URL is on the target origin, and —
+//!   when nobody is watching — proven by a fresh canary
+//!   ([`super::recipe_trust`]). A candidate recipe is a hypothesis and is
+//!   never replayed;
 //! - **a hook policy the Host can read** — a stored document this build no
 //!   longer parses is refused, never replaced by the default (ADR 0150).
 
@@ -18,11 +20,14 @@ use opensesame_domain::OrganizationId;
 use opensesame_rotation_web::ChangePasswordRecipe;
 use opensesame_storage::Db;
 
+use super::recipe_trust::{verified_recipe, Attendance, Unrunnable};
 use crate::agent_hooks::{load_policy, LoadedHookPolicy};
 
 pub(crate) const DEFER_NO_OWNER: &str = "web_login rotation needs a policy owner to drive its run";
 pub(crate) const DEFER_NO_RECIPE: &str =
     "web_login rotation has no verified recipe for this origin";
+pub(crate) const DEFER_NO_CANARY: &str = "the recipe for this origin has no passing canary yet; \
+     prove it with an attended run before it rotates unattended";
 pub(crate) const DEFER_RECIPES_UNREADABLE: &str = "web_login recipes could not be read";
 pub(crate) const DEFER_RECIPE_INVALID: &str =
     "the recipe for this origin is not a valid change-password recipe";
@@ -40,38 +45,65 @@ pub(crate) struct Plan {
     /// The principal whose browser drives the run.
     pub owner: String,
     pub recipe_id: String,
+    /// `sha256:` of the signed document the run replays: what it records a
+    /// canary against, so a recipe replaced mid-run is not credited.
+    pub recipe_digest: String,
     pub recipe: ChangePasswordRecipe,
     pub hooks: LoadedHookPolicy,
 }
 
-/// Check every prerequisite, or name the first one missing.
+/// Check every prerequisite for an unattended run (the lifecycle scanner's),
+/// or name the first one missing. The launcher itself always says which
+/// ([`prepare_for`]); this is the scanner's view, for the tests that ask what
+/// the scanner would be told.
 ///
 /// # Errors
 ///
 /// The value-blind deferral detail the job parks with.
+#[cfg(test)]
 pub(crate) async fn prepare(
     db: &Db,
     organization_id: &OrganizationId,
     origin: &str,
     owner: Option<&str>,
 ) -> Result<Plan, &'static str> {
+    prepare_for(db, organization_id, origin, owner, Attendance::Unattended).await
+}
+
+/// [`prepare`] for a run a person is, or is not, driving.
+///
+/// # Errors
+///
+/// The value-blind deferral detail the job parks with.
+pub(crate) async fn prepare_for(
+    db: &Db,
+    organization_id: &OrganizationId,
+    origin: &str,
+    owner: Option<&str>,
+    attendance: Attendance,
+) -> Result<Plan, &'static str> {
     let owner = owner
         .map(str::trim)
         .filter(|owner| !owner.is_empty())
         .ok_or(DEFER_NO_OWNER)?;
-    let stored = db
-        .replayable_web_login_recipe(
-            &organization_id.to_string(),
-            origin,
-            &Utc::now().to_rfc3339(),
-        )
-        .await
-        .map_err(|_| DEFER_RECIPES_UNREADABLE)?
-        .ok_or(DEFER_NO_RECIPE)?;
-    let recipe = serde_json::from_str::<ChangePasswordRecipe>(&stored.recipe_json)
-        .ok()
-        .filter(|recipe| recipe_is_sound(recipe, origin))
-        .ok_or(DEFER_RECIPE_INVALID)?;
+    let verified = verified_recipe(
+        db,
+        &organization_id.to_string(),
+        origin,
+        attendance,
+        Utc::now(),
+    )
+    .await
+    .map_err(|why| match why {
+        Unrunnable::Unreadable => DEFER_RECIPES_UNREADABLE,
+        Unrunnable::NoRecipe => DEFER_NO_RECIPE,
+        Unrunnable::NoCanary => DEFER_NO_CANARY,
+        Unrunnable::Invalid => DEFER_RECIPE_INVALID,
+    })?;
+    let recipe = verified.document.steps().clone();
+    if !recipe_is_sound(&recipe, origin) {
+        return Err(DEFER_RECIPE_INVALID);
+    }
     let hooks = load_policy(db, organization_id)
         .await
         .map_err(|_| DEFER_HOOK_POLICY)?;
@@ -79,7 +111,8 @@ pub(crate) async fn prepare(
         organization_id: *organization_id,
         origin: origin.to_owned(),
         owner: owner.to_owned(),
-        recipe_id: stored.recipe_id,
+        recipe_id: verified.document.recipe_id.clone(),
+        recipe_digest: verified.record.digest.unwrap_or_default(),
         recipe,
         hooks,
     })

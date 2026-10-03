@@ -133,6 +133,10 @@ pub struct AppState {
     /// The web-login runs this process has started, tracked and bounded
     /// (ADR 0150). The lifecycle scanner starts a run here and moves on.
     pub web_login_runs: Arc<crate::web_login::registry::RunRegistry>,
+    /// The operator's approver for escalated agent actions (ADR 0150): the
+    /// Identity API and the requester's bearer on it. `None` when the
+    /// deployment configured none, which leaves every escalation a denial.
+    pub agent_hook_approver: Option<Arc<crate::agent_hook_approver::ApproverSettings>>,
 }
 
 impl AppState {
@@ -192,6 +196,10 @@ async fn build_with_security(
 
     let transport_config =
         crate::transport::config::TransportConfig::from_env().map_err(anyhow::Error::new)?;
+    // A partially configured approver refuses to start (ADR 0150): it would
+    // otherwise fail at the first escalation, hours into a rotation.
+    let approver =
+        crate::agent_hook_approver::ApproverSettings::from_env().map_err(anyhow::Error::new)?;
     let mut state = AppState {
         deployment: security.deployment,
         identity_mapping: security.identity_mapping,
@@ -228,6 +236,7 @@ async fn build_with_security(
         transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
         transport: None,
         web_login_runs: Arc::new(crate::web_login::registry::RunRegistry::from_env()),
+        agent_hook_approver: approver.map(Arc::new),
     };
     // Built after the state exists: a `managed` identity source resolves
     // through the Host's own custody bridge, which needs the state.

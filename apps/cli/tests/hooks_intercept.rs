@@ -22,12 +22,12 @@ fn intercept(policy: Option<&str>, stdin: &[u8]) -> Output {
         command.arg("--policy").arg(path);
     }
     let mut child = command.spawn().expect("spawn opensesame");
-    child
-        .stdin
-        .take()
-        .expect("stdin")
-        .write_all(stdin)
-        .expect("write context");
+    // An oversized context is refused after the bound is read, so the host
+    // may find the pipe closed while it is still writing the excess.
+    let written = child.stdin.take().expect("stdin").write_all(stdin);
+    if let Err(err) = written {
+        assert_eq!(err.kind(), std::io::ErrorKind::BrokenPipe, "{err}");
+    }
     child.wait_with_output().expect("wait")
 }
 
@@ -141,4 +141,50 @@ fn an_unusable_policy_fails_with_nothing_on_stdout() {
     );
     assert!(!out.status.success());
     assert!(out.stdout.is_empty(), "no verdict a host could mistake");
+}
+
+/// The bound is on the bytes read, not on what parses: a valid context padded
+/// with trailing whitespace is accepted at exactly the limit and refused one
+/// byte past it, before anything is decoded (spec §12.3).
+#[test]
+fn a_context_over_the_limit_by_trailing_whitespace_alone_is_denied() {
+    const LIMIT: usize = 5 * 1024 * 1024;
+    let base = tool_call("github.issues.list", &json!({}));
+    let padded = |total: usize| {
+        let mut bytes = base.clone();
+        bytes.resize(total, b' ');
+        bytes
+    };
+
+    let at_limit = verdict(&intercept(Some(POLICY), &padded(LIMIT)));
+    assert_eq!(
+        at_limit,
+        json!({"decision": "allow"}),
+        "the limit is inclusive"
+    );
+
+    // The cut one byte past the limit lands inside a character: still the
+    // oversized refusal, not a complaint about the encoding of a truncation.
+    let mut split = padded(LIMIT);
+    split.extend("éé".as_bytes());
+    let over = verdict(&intercept(Some(POLICY), &split));
+    assert_eq!(over["decision"], "deny");
+    assert!(
+        over["message"]
+            .as_str()
+            .is_some_and(|m| m.contains("exceeds")),
+        "{over}"
+    );
+
+    for total in [LIMIT + 1, LIMIT + 64] {
+        let over = verdict(&intercept(Some(POLICY), &padded(total)));
+        assert_eq!(over["decision"], "deny", "{total} bytes");
+        assert_eq!(over["reason"], "opensesame:context_unreadable");
+        assert!(
+            over["message"]
+                .as_str()
+                .is_some_and(|m| m.contains("exceeds")),
+            "refused as oversized, not as unparsable: {over}"
+        );
+    }
 }

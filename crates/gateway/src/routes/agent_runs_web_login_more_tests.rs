@@ -290,9 +290,16 @@ async fn a_driver_answering_after_the_run_stopped_stores_nothing() {
     // The executor stopped waiting and closed the run; the late answer, with
     // a credential in it, is refused rather than left in the queue.
     let settle = format!("/api/v1/agent/runs/{run_id}/steps/{seq}/outcome");
-    let body = json!({"outcome": {"outcome": "done", "note": secret()}});
+    // A well-formed answer is refused because the run is closed; one with a
+    // field the outcome does not have is refused as malformed. Either way the
+    // credential is not stored and not echoed.
+    let body = json!({"outcome": {"outcome": "done"}});
     let (status, _) = f.browser.send(&f.app, "POST", &settle, Some(body)).await;
     assert_eq!(status, StatusCode::CONFLICT);
+    let body = json!({"outcome": {"outcome": "done", "note": secret()}});
+    let (status, refused) = f.browser.send(&f.app, "POST", &settle, Some(body)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(!refused.to_string().contains(&secret()), "{refused}");
     let rows = queue(&f, &run_id).await;
     assert!(
         rows.iter().all(|(_, outcome)| outcome.is_none()),

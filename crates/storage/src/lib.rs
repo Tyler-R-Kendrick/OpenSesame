@@ -1597,12 +1597,11 @@ mod sync;
 pub use sync::SyncPageEntry;
 mod tenancy;
 mod vault_backup;
-pub use runner_steps::{StoredRunnerStep, STEP_CLAIM_SECONDS};
-
 pub use observation::{
     ObservationAppend, ObservationControlUpdate, StoredObservationEvent, StoredObservationRun,
     MAX_BLOCKED_REASON_CHARS, NO_VIEWER_KEY_PREFIX, OBSERVATION_READ_LIMIT,
 };
+pub use runner_steps::{StoredRunnerStep, STEP_CLAIM_SECONDS};
 
 fn stored_certificate_policy(row: &SqliteRow) -> StoredCertificatePolicy {
     StoredCertificatePolicy {

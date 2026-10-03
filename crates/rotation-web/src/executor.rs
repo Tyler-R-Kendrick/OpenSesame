@@ -69,6 +69,7 @@ pub enum ExecutorError {
 /// is named here, so a step cannot name a node the recipe did not declare
 /// (ADR 0076: "Recipe pins the target").
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ChangePasswordRecipe {
     pub change_url: String,
     pub current_password_selector: Option<String>,

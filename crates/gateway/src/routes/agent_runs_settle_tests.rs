@@ -74,7 +74,6 @@ async fn a_late_settle_carrying_a_token_stores_only_markers() {
         "outcome": "dom",
         "text": format!("<p>your token is {secret}</p>"),
         "epoch": 1,
-        "note": secret,
     }});
     let (status, settled) = f.browser.send(&f.app, "POST", &path, Some(body)).await;
     assert_eq!(status, StatusCode::OK, "{settled}");
@@ -86,7 +85,6 @@ async fn a_late_settle_carrying_a_token_stores_only_markers() {
     let outcome: Value = serde_json::from_str(&row).unwrap();
     assert_eq!(outcome["outcome"], json!("dom"), "the shape is kept");
     assert_eq!(outcome["epoch"], json!(1));
-    assert_eq!(outcome["note"], json!("[redacted:github_token]"));
     assert!(outcome["text"]
         .as_str()
         .unwrap()

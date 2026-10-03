@@ -297,11 +297,12 @@ fn pact_migrations_are_append_only_and_end_with_0040() {
             "0048_bitwarden_org_policies",
             "0049_agent_hook_policies",
             "0050_web_login_runs",
-            "0051_agent_hook_decisions",
+            "0051_bitwarden_auth_request_expiry",
+            "0052_agent_hook_decisions",
+            "0053_agent_hook_records_run_fk",
+            "0054_web_login_recipe_signing",
+            "0055_agent_hook_approvers",
         ]
     );
-    assert_eq!(
-        versions.last().copied(),
-        Some("0051_agent_hook_decisions")
-    );
+    assert_eq!(versions.last().copied(), Some("0055_agent_hook_approvers"));
 }

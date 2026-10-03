@@ -199,7 +199,19 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../migrations/0050_web_login_runs.sql"),
     ),
     (
-        "0051_agent_hook_decisions",
-        include_str!("../migrations/0051_agent_hook_decisions.sql"),
+        "0052_agent_hook_decisions",
+        include_str!("../migrations/0052_agent_hook_decisions.sql"),
+    ),
+    (
+        "0053_agent_hook_records_run_fk",
+        include_str!("../migrations/0053_agent_hook_records_run_fk.sql"),
+    ),
+    (
+        "0054_web_login_recipe_signing",
+        include_str!("../migrations/0054_web_login_recipe_signing.sql"),
+    ),
+    (
+        "0055_agent_hook_approvers",
+        include_str!("../migrations/0055_agent_hook_approvers.sql"),
     ),
 ];

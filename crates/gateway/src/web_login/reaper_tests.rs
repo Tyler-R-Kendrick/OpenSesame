@@ -142,6 +142,13 @@ async fn startup_reconciliation_closes_what_the_last_process_left_before_the_sca
         .execute(world.state.db.pool())
         .await
         .unwrap();
+    // The claim is a lease; the process that held it has been gone an hour.
+    sqlx::query("UPDATE web_login_job_claims SET claimed_at = ?, lease_expires_at = ?")
+        .bind(&hour_ago)
+        .bind(&hour_ago)
+        .execute(world.state.db.pool())
+        .await
+        .unwrap();
 
     reconcile_at_startup(&world.another_process()).await;
     assert!(run_row(&world, &run.id).await.closed_at.is_some());
@@ -244,6 +251,10 @@ async fn a_job_stranded_before_its_run_opened_is_parked_too() {
         world.state.connection_broker.as_ref(),
         &world.org,
         &job.id,
+        &opensesame_connection_broker::rotation::web_login::WebLoginClaim {
+            run_id: "run_never_opened",
+            lease: horizon(),
+        },
     )
     .await
     .unwrap();
@@ -273,6 +284,13 @@ async fn the_periodic_actor_closes_what_it_finds_on_its_own_clock() {
         .await
         .unwrap();
     sqlx::query("UPDATE rotation_jobs SET updated_at = ?")
+        .bind(&hour_ago)
+        .execute(world.state.db.pool())
+        .await
+        .unwrap();
+    // The claim is a lease; the process that held it has been gone an hour.
+    sqlx::query("UPDATE web_login_job_claims SET claimed_at = ?, lease_expires_at = ?")
+        .bind(&hour_ago)
         .bind(&hour_ago)
         .execute(world.state.db.pool())
         .await

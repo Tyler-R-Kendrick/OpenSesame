@@ -10,6 +10,10 @@
 
 use super::{append_outbox_tx, Db, Row, Utc};
 
+/// Who an organization's escalated actions are put to, beside the policy
+/// (migration 0055).
+pub mod approver;
+
 /// The audit of every verdict answered under a policy (migration 0046).
 pub mod decisions;
 

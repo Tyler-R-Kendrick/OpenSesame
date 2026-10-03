@@ -23,6 +23,7 @@ mod pass_protect;
 mod plugins;
 mod plugins_install;
 mod providers_native;
+mod rotate_recipes;
 mod security;
 mod serve;
 mod session;
@@ -46,6 +47,7 @@ use opensesame_connector_host::providers::{
     HumanProviderOperation, HumanProviderPlan,
 };
 use opensesame_host_core::endpoints::{self, HOST};
+pub(crate) use rotate_recipes::RotateCmd;
 use serde::Deserialize;
 use serde_json::json;
 use std::{env, path::PathBuf, time::Duration};
@@ -182,40 +184,6 @@ pub(crate) enum CeremonyCmd {
     Show {
         /// A provider id, from `opensesame ceremony list`.
         provider: String,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-pub(crate) enum RotateCmd {
-    /// Sandboxed runs and where each one is (metadata only).
-    Runs,
-    /// Read a run's observation log. Sealed: sizes and lanes, never content.
-    Watch {
-        /// The run id, from `opensesame rotate runs`.
-        run: String,
-        /// Start after this sequence number. Defaults to the whole log.
-        #[arg(long, default_value = "-1")]
-        after: i64,
-        /// Keep polling for new entries.
-        #[arg(long)]
-        follow: bool,
-    },
-    /// Ask the agent to park so a person can take the page.
-    Attach {
-        /// The run id, from `opensesame rotate runs`.
-        run: String,
-    },
-    /// Read a Host-run agent's hook records: what each interceptor decided,
-    /// value-blind (no messages, targets or transform values).
-    Hooks {
-        /// The run id, from `opensesame rotate runs`.
-        run: String,
-        /// Start after this record sequence number. Defaults to the start.
-        #[arg(long, default_value = "-1")]
-        after: i64,
-        /// Keep polling for new records.
-        #[arg(long)]
-        follow: bool,
     },
 }
 

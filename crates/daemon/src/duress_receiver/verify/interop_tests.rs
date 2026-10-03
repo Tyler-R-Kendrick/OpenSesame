@@ -1,6 +1,6 @@
 //! Cross-implementation vectors against Pages `duress/peer/envelope.ts`:
 //! the signing input must be the exact `JSON.stringify` byte string the
-//! TypeScript signer produces, and a WebCrypto signature over it must
+//! `TypeScript` signer produces, and a `WebCrypto` signature over it must
 //! verify here.
 
 use super::*;

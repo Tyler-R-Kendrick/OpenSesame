@@ -145,6 +145,22 @@ pub(crate) fn unaudited(settlement: WebLoginSettlement) -> WebLoginSettlement {
     }
 }
 
+/// A settlement for a run that could not be closed. Whatever the run reached,
+/// the job is parked for reconciliation rather than settled as final: the run
+/// is still open, so a driver's late answer to a step it still holds may yet
+/// be stored, and a person has to look. What is known about the site is kept.
+pub(crate) fn unclosed(settlement: WebLoginSettlement) -> WebLoginSettlement {
+    const NOTE: &str = "the run could not be closed, so its steps may still take an answer \
+         until it is reaped";
+    WebLoginSettlement::Reconcile(match settlement {
+        WebLoginSettlement::Completed => format!("the change completed, but {NOTE}"),
+        WebLoginSettlement::NotSubmitted(detail) => {
+            format!("not submitted ({detail}), but {NOTE}")
+        }
+        WebLoginSettlement::Reconcile(detail) => format!("{detail}; {NOTE}"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,6 +221,25 @@ mod tests {
             unaudited(WebLoginSettlement::Completed),
             WebLoginSettlement::Reconcile(_)
         ));
+    }
+
+    #[test]
+    fn a_run_that_could_not_be_closed_parks_whatever_it_reached() {
+        for reached in [
+            WebLoginSettlement::Completed,
+            WebLoginSettlement::NotSubmitted("a hook refused".into()),
+            WebLoginSettlement::Reconcile("the site may have it".into()),
+        ] {
+            let known = match &reached {
+                WebLoginSettlement::Completed => "the change completed".to_owned(),
+                WebLoginSettlement::NotSubmitted(d) | WebLoginSettlement::Reconcile(d) => d.clone(),
+            };
+            let WebLoginSettlement::Reconcile(detail) = unclosed(reached) else {
+                panic!("an unclosed run is a reconciliation");
+            };
+            assert!(detail.contains(&known), "what was known is kept: {detail}");
+            assert!(detail.contains("could not be closed"), "{detail}");
+        }
     }
 
     #[test]

@@ -19,6 +19,14 @@
 //! - `PUT /api/v1/agent-hooks/policy` — replace it: the body is the policy
 //!   document, `If-Match` names the version it was made against. Validated by
 //!   the same parser the interceptor uses; its positional errors pass through.
+//!   It also takes a **step-up** ([`step_up`]): the operator, or a human
+//!   session's fresh passkey evidence. Owner/admin alone is not enough, since
+//!   the loop the policy governs may run under that very role.
+//! - `GET /api/v1/agent-hooks/presets` — the named policies a replacement may
+//!   start from ([`presets`]).
+//! - `GET|PUT /api/v1/agent-hooks/approver` — who an escalated action is put
+//!   to, beside the policy and not inside it, with its own version and the
+//!   same step-up ([`approver`]).
 //!
 //! The policy is integration configuration: owner/admin or the operator, the
 //! same gate as security hooks and breach findings.
@@ -55,8 +63,19 @@ use crate::session_claims::CredentialKind;
 /// bound on what one request may make the parser walk.
 pub(crate) const MAX_POLICY_BYTES: usize = 256 * 1024;
 
+/// Who an escalated action is put to (`GET|PUT …/approver`).
+mod approver;
+
 /// The audit of every verdict answered here (`GET …/decisions`).
 mod decisions;
+
+/// Named policy presets (`GET …/presets`), one file each under
+/// `spec/agent-hooks/presets/`.
+pub(crate) mod presets;
+
+/// The step-up a change to the policy takes, exported for any other setting
+/// that decides what an agent may do without a person.
+pub(crate) mod step_up;
 
 /// The response header naming the policy version a verdict was decided under.
 pub(crate) const POLICY_VERSION_HEADER: &str = "opensesame-hook-policy-version";
@@ -68,6 +87,11 @@ pub(super) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/agent-hooks/policy",
             get(get_policy).put(put_policy),
+        )
+        .route("/api/v1/agent-hooks/presets", get(presets::list))
+        .route(
+            "/api/v1/agent-hooks/approver",
+            get(approver::get_approver).put(approver::put_approver),
         )
 }
 
@@ -314,6 +338,13 @@ pub async fn put_policy(State(st): State<AppState>, headers: HeaderMap, body: Bo
         Ok(who) => who,
         Err(response) => return response,
     };
+    // The loop this policy governs may be running under this very role: the
+    // operator, or a step-up the role alone does not give (`step_up`).
+    if let Err(response) =
+        step_up::require_step_up(&st, &headers, &who, "replace the agent-hooks policy")
+    {
+        return response;
+    }
     let organization_id = match resolve_caller_organization(&st, &who, &headers) {
         Ok(id) => id,
         Err(response) => return response,

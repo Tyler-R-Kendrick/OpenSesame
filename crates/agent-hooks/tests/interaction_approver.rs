@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use interaction_mock::{
-    approver, config, serve, Step, APPROVER_REF, BEARER, OTHER_DIGEST, SERVER_PROSE,
+    approver, config, serve, serve_under, Step, APPROVER_REF, BEARER, OTHER_DIGEST, SERVER_PROSE,
 };
 use opensesame_agent_hooks::approval::REASON_APPROVAL_NOT_BOUND;
 use opensesame_agent_hooks::sdk::{
@@ -343,4 +343,23 @@ async fn a_dropped_ask_still_withdraws_its_interaction() {
         "the ask had raised an interaction"
     );
     assert_eq!(seen.revokes, 1, "a cancelled ask leaves nothing answerable");
+}
+
+#[tokio::test]
+async fn an_identity_api_behind_a_path_prefix_is_reached_under_it() {
+    // A base with a path (`/idp`), with and without its trailing slash, keeps
+    // that path on every route the approver speaks.
+    for suffix in ["", "/"] {
+        let server = serve_under("/idp", vec![Step::Spend], 201).await;
+        let base = format!("{}{suffix}", server.base);
+        let outcome = emitter(approver(&base))
+            .emit(&mut deploy_context())
+            .await
+            .map(|o| o.record);
+        let record = outcome.unwrap_or_else(|_| panic!("approved under {base}"));
+        assert_eq!(record.verdict.decision, Decision::Allow);
+        let seen = server.seen.lock().unwrap();
+        assert_eq!(seen.auth_requests.len(), 1, "{base}");
+        assert_eq!(seen.interactions.len(), 1, "{base}");
+    }
 }

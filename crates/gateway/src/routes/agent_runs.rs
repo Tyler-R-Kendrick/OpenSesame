@@ -42,6 +42,7 @@ use crate::middleware::auth::{
 mod driver;
 mod hook_records;
 mod lease;
+mod outcome;
 mod scrub;
 mod stream;
 #[path = "agent_run_stream_authority.rs"]

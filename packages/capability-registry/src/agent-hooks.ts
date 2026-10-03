@@ -1,4 +1,6 @@
+import { extensionRunnerCapabilities } from "./extension-runner.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
+import { webLoginRecipeCapabilities } from "./web-login-recipes.js";
 
 export const ADR_AGENT_HOOKS = "0150-agent-hooks-interceptor.md";
 
@@ -83,6 +85,51 @@ const DECISIONS_EXCLUSIONS = {
   webmcp: AUDIT_OF_THE_AGENTS_VERDICTS,
 } as const;
 
+/**
+ * A preset is a posture an operator chooses for the agent. An agent that
+ * could list them would learn which postures it may be put under, and one
+ * that could apply one would govern itself; applying one is an ordinary
+ * replacement of the policy and takes its step-up.
+ */
+const PRESETS_ARE_THE_OPERATORS_CHOICE: CapabilityExclusion = {
+  reason:
+    "a preset is a posture an operator chooses for the agent; an agent that could list or apply one would learn what governs it, or govern itself",
+  adr: ADR_AGENT_HOOKS,
+};
+
+const PRESETS_ARE_THE_OPERATORS_CHOICE_EXCLUSIONS = {
+  ...POLICY_EXCLUSIONS,
+  mcp_host: PRESETS_ARE_THE_OPERATORS_CHOICE,
+  mcp_client: PRESETS_ARE_THE_OPERATORS_CHOICE,
+  webmcp: PRESETS_ARE_THE_OPERATORS_CHOICE,
+} as const;
+
+/**
+ * Who an escalated action is put to. An agent that could read it would know
+ * whom to lobby or impersonate; one that could write it would choose its own
+ * approver.
+ */
+const APPROVER_GOVERNS_THE_AGENT: CapabilityExclusion = {
+  reason:
+    "who the Host asks to lift an escalation is configuration that governs the agent; an agent that could read it would learn whom to target, and one that could write it would choose its own approver",
+  adr: ADR_AGENT_HOOKS,
+};
+
+const HOST_APPROVER_FROM_THE_CLI: CapabilityExclusion = {
+  reason:
+    "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
+  adr: ADR_AGENT_HOOKS,
+};
+
+const APPROVER_EXCLUSIONS = {
+  pwa: HOST_APPROVER_FROM_THE_CLI,
+  mcp_host: APPROVER_GOVERNS_THE_AGENT,
+  mcp_client: APPROVER_GOVERNS_THE_AGENT,
+  webmcp: APPROVER_GOVERNS_THE_AGENT,
+  extension: HOST_APPROVER_FROM_THE_CLI,
+  android: HOST_APPROVER_FROM_THE_CLI,
+} as const;
+
 const CLI_ONLY = {
   pwa: null,
   mcp_host: null,
@@ -132,7 +179,7 @@ export const agentHooksCapabilities: readonly Capability[] = [
   {
     id: "agent_hooks.intercept",
     title:
-      "Answer an agent-hooks interception with a verdict: tool rules and the secret guard",
+      "Answer an agent-hooks interception with a verdict: tool rules and the secret guard, and — with an approver configured — an escalation put to a person",
     plane: "host",
     kind: "act",
     surfaces: { cli: "opensesame hooks intercept", ...CLI_ONLY },
@@ -173,11 +220,54 @@ export const agentHooksCapabilities: readonly Capability[] = [
   {
     id: "agent_hooks.policy.write",
     title:
-      "Replace the organization's agent-hooks policy on the Host (compare-and-set)",
+      "Replace the organization's agent-hooks policy on the Host (compare-and-set; from a file or a named preset; needs the operator token or a fresh passkey step-up)",
     plane: "host",
     kind: "admin",
     surfaces: { cli: "opensesame hooks policy put", ...CLI_ONLY },
     excluded: POLICY_EXCLUSIONS,
+  },
+  {
+    id: "agent_hooks.approver.read",
+    title:
+      "Read who the Host puts the organization's escalated agent actions to (an inbox handle, its version, and whether the Host has an Identity API to ask through)",
+    plane: "host",
+    kind: "read",
+    surfaces: { cli: "opensesame hooks approver get", ...CLI_ONLY },
+    excluded: APPROVER_EXCLUSIONS,
+  },
+  {
+    id: "agent_hooks.approver.write",
+    title:
+      "Set or clear who the Host puts the organization's escalated agent actions to (compare-and-set; needs the operator token or a fresh passkey step-up)",
+    plane: "host",
+    kind: "admin",
+    surfaces: { cli: "opensesame hooks approver put", ...CLI_ONLY },
+    excluded: APPROVER_EXCLUSIONS,
+  },
+  {
+    id: "agent_hooks.policy.presets.read",
+    title:
+      "List and show the named agent-hooks policy presets (rotation-web-login, strict, observe), compiled in so no Host is needed",
+    plane: "host",
+    kind: "read",
+    surfaces: { cli: "opensesame hooks policy preset ls", ...CLI_ONLY },
+    excluded: PRESETS_ARE_THE_OPERATORS_CHOICE_EXCLUSIONS,
+  },
+  {
+    id: "agent_hooks.policy.presets.remote",
+    title:
+      "List the named agent-hooks policy presets over the Host API (GET /api/v1/agent-hooks/presets), with the digest a stored policy's audit carries",
+    plane: "host",
+    kind: "read",
+    surfaces: { cli: null, ...CLI_ONLY },
+    excluded: {
+      ...PRESETS_ARE_THE_OPERATORS_CHOICE_EXCLUSIONS,
+      cli: {
+        reason:
+          "the CLI lists and shows the same presets from the table compiled into the binary (`opensesame hooks policy preset ls|show`), which needs no Host",
+        adr: ADR_AGENT_HOOKS,
+      },
+    },
   },
   {
     id: "agent_hooks.decisions.read",
@@ -197,4 +287,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
     surfaces: { cli: "opensesame rotate hooks", ...CLI_ONLY },
     excluded: RUN_RECORDS_EXCLUSIONS,
   },
+  // The recipes those hosted runs replay, and their signers (ADR 0076 §4).
+  ...webLoginRecipeCapabilities,
+  // The browser extension as the local runner of those runs (ADR 0079 §4).
+  ...extensionRunnerCapabilities,
 ];

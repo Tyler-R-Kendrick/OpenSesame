@@ -53,6 +53,9 @@ fn run(id: &str, viewer_key_id: &str) -> StoredObservationRun {
 #[tokio::test]
 async fn records_page_forward_by_sequence_and_stay_in_their_tenant() {
     let db = Db::connect_memory().await.unwrap();
+    db.create_observation_run(&run("run:1", "xkey:viewer-1"))
+        .await
+        .unwrap();
     let rows: Vec<_> = (0..5).map(|n| record("run:1", n, "allow", false)).collect();
     db.append_agent_hook_records(&rows).await.unwrap();
 
@@ -103,6 +106,11 @@ async fn the_summary_counts_verdicts_and_nothing_else() {
         db.agent_hook_record_summary(ORG, "run:none").await.unwrap(),
         AgentHookRecordSummary::default()
     );
+    for id in ["run:1", "run:2"] {
+        db.create_observation_run(&run(id, "xkey:viewer-1"))
+            .await
+            .unwrap();
+    }
     db.append_agent_hook_records(&[
         record("run:1", 0, "allow", false),
         record("run:1", 1, "deny", true),
@@ -175,4 +183,47 @@ async fn a_run_with_no_viewer_key_takes_no_sealed_event() {
             .unwrap(),
         0
     );
+}
+
+#[tokio::test]
+async fn a_record_needs_a_run_in_its_organization_and_goes_with_it() {
+    let db = Db::connect_memory().await.unwrap();
+    // No such run: nothing for the record to belong to (migration 0053).
+    assert!(db
+        .append_agent_hook_records(&[record("run:never", 0, "allow", false)])
+        .await
+        .is_err());
+    // The run exists, but in another organization than the record claims.
+    db.create_observation_run(&run("run:1", "xkey:viewer-1"))
+        .await
+        .unwrap();
+    let mut foreign = record("run:1", 0, "allow", false);
+    foreign.organization_id = "org:two".into();
+    assert!(db.append_agent_hook_records(&[foreign]).await.is_err());
+
+    // A refused batch leaves none of itself behind.
+    let batch = [
+        record("run:1", 0, "allow", false),
+        record("run:never", 1, "allow", false),
+    ];
+    assert!(db.append_agent_hook_records(&batch).await.is_err());
+    assert!(db
+        .agent_hook_records(ORG, "run:1")
+        .await
+        .unwrap()
+        .is_empty());
+
+    db.append_agent_hook_records(&[record("run:1", 0, "allow", false)])
+        .await
+        .unwrap();
+    // However the run is removed, its records go with it.
+    sqlx::query("DELETE FROM observation_runs WHERE id = 'run:1'")
+        .execute(db.pool())
+        .await
+        .unwrap();
+    assert!(db
+        .agent_hook_records(ORG, "run:1")
+        .await
+        .unwrap()
+        .is_empty());
 }

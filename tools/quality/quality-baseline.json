@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 440,
-    "violations": 690,
-    "oversizedLines": 226979
+    "files": 438,
+    "violations": 688,
+    "oversizedLines": 224285
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1952
+      "max-lines": 1933
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -407,9 +407,6 @@
     "crates/gateway/src/managed_certs.rs": {
       "max-lines": 637
     },
-    "crates/gateway/src/routes/agent_runs.rs": {
-      "max-lines": 966
-    },
     "crates/gateway/src/routes/agents.rs": {
       "max-lines": 440
     },
@@ -448,9 +445,6 @@
     },
     "crates/gateway/src/routes/lifecycle.rs": {
       "max-lines": 1592
-    },
-    "crates/gateway/src/routes/mod.rs": {
-      "max-lines": 404
     },
     "crates/gateway/src/routes/relay.rs": {
       "max-lines": 955
@@ -613,7 +607,7 @@
       "max-lines-per-function": 1
     },
     "packages/api-client/src/index.ts": {
-      "max-lines": 876,
+      "max-lines": 771,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/capabilities.ts": {

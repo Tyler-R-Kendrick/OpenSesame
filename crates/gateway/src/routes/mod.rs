@@ -54,6 +54,7 @@ mod sync_page;
 mod sync_targets;
 mod taskbus_config;
 mod tasks;
+mod web_login_recipes;
 mod wire_connections;
 use crate::app_state::AppState;
 use crate::config;
@@ -362,6 +363,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
         // ADR 0150: agent-hooks verdicts and the organization's hook policy.
         .merge(agent_hooks::routes())
+        // ADR 0076 §4, ADR 0150: the recipes a web-login run replays, and their signers.
+        .merge(web_login_recipes::routes())
         .merge(aauth::routes());
     // Vault KV v2 read facade (ops plane, default off). Merged rather than
     // chained so that with the flag unset the routes are absent entirely: an

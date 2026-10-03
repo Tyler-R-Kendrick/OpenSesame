@@ -2,7 +2,7 @@ use super::*;
 use crate::app_state::{test_demo_state, test_session_headers};
 use crate::test_principals::{P26, P27, P28};
 use axum::http::Request;
-use opensesame_domain::OrganizationRole;
+use opensesame_domain::{OrganizationId, OrganizationRole};
 use tower::ServiceExt;
 
 const INTERCEPT: &str = "/api/v1/agent-hooks/intercept";
@@ -79,6 +79,58 @@ fn operator(st: &AppState) -> HeaderMap {
         HeaderValue::from_str(&format!("Bearer operator:{}", st.operator_token)).unwrap(),
     );
     headers
+}
+
+/// A native session for `subject` whose claims `shape` has adjusted, as the
+/// headers that present it.
+fn session_shaped(
+    st: &AppState,
+    subject: &str,
+    organization: OrganizationId,
+    role: OrganizationRole,
+    shape: impl FnOnce(&mut crate::session_claims::HostSessionClaims),
+) -> HeaderMap {
+    let token = uuid::Uuid::new_v4().to_string();
+    let mut claims = crate::session_claims::fixture(
+        crate::session_claims::parse_principal(subject).unwrap(),
+        organization,
+        role,
+        &st.resource,
+    );
+    shape(&mut claims);
+    st.sessions
+        .lock()
+        .unwrap()
+        .insert(opensesame_claims::hash_secret(&token), claims);
+    with(
+        HeaderMap::new(),
+        "authorization",
+        &format!("Bearer opaque-session:{token}"),
+    )
+}
+
+/// Claims that carry a passkey step-up taken `age_secs` ago (ADR 0084's
+/// evidence: phishing-resistant, `webauthn`, `last_step_up_at`).
+fn step_up_taken(claims: &mut crate::session_claims::HostSessionClaims, age_secs: i64) {
+    let at = chrono::Utc::now() - chrono::Duration::seconds(age_secs);
+    claims.assurance = crate::session_claims::Assurance::PhishingResistant;
+    claims.amr = vec!["webauthn".into()];
+    claims.issued_at = at;
+    claims.auth_time = at;
+    claims.last_step_up_at = Some(at);
+    claims.expires_at = chrono::Utc::now() + chrono::Duration::minutes(5);
+}
+
+/// A session that has just stepped up: what may replace the policy.
+fn stepped_up(
+    st: &AppState,
+    subject: &str,
+    organization: OrganizationId,
+    role: OrganizationRole,
+) -> HeaderMap {
+    session_shaped(st, subject, organization, role, |claims| {
+        step_up_taken(claims, 0);
+    })
 }
 
 /// The audit rows, oldest first, as the JSON the audit has always had.
@@ -314,3 +366,9 @@ mod policy;
 
 #[path = "agent_hooks_decisions_tests.rs"]
 mod decisions;
+
+#[path = "agent_hooks_step_up_tests.rs"]
+mod step_up_gate;
+
+#[path = "agent_hooks_approver_tests.rs"]
+mod approver_gate;

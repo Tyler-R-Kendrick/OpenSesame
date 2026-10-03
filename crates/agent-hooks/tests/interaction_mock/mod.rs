@@ -118,6 +118,28 @@ pub async fn serve_with(script: Vec<Step>, create_status: u16, fault: Fault) -> 
     Server { base, seen }
 }
 
+/// [`serve`], with every route mounted under `prefix` (an Identity API behind
+/// a path-prefixing proxy). `base` is the URL to configure, `prefix` included.
+pub async fn serve_under(prefix: &str, script: Vec<Step>, create_status: u16) -> Server {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let base = format!("{origin}{prefix}");
+    let seen = Arc::new(Mutex::new(Seen::default()));
+    let mock = handlers::Mock {
+        seen: seen.clone(),
+        script: Arc::new(Mutex::new(script.into())),
+        create_status,
+        base: base.clone(),
+        fault: Fault::None,
+        replayed: Arc::new(Mutex::new(HashMap::new())),
+        digest: Arc::new(Mutex::new(DIGEST.to_owned())),
+        lost: Arc::new(AtomicBool::new(false)),
+    };
+    let app = axum::Router::new().nest(prefix.trim_end_matches('/'), handlers::router(mock));
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    Server { base, seen }
+}
+
 /// Wait (bounded) until `ready` holds of what the mock has seen.
 pub async fn until(server: &Server, ready: impl Fn(&Seen) -> bool) {
     for _ in 0..300 {

@@ -73,3 +73,40 @@ pub(crate) async fn start(state: &AppState, event: &LifecycleEvent) -> Outcome {
         ),
     }
 }
+
+/// Start the attended run a person asked for — one run of `origin`'s recipe
+/// for `owner`, who drives it — and return without waiting for it.
+///
+/// It takes the registry slot a scheduled run of the same target would, so
+/// the two can never both be in flight, and it publishes its own outcome on
+/// the `agent.*` feed when it ends.
+///
+/// # Errors
+///
+/// [`Refused::InFlight`] when a run for the target is already queued or
+/// executing; [`Refused::Full`] when the runner has too many queued.
+pub(crate) fn start_attended(
+    state: &AppState,
+    organization_id: &OrganizationId,
+    origin: &str,
+    owner: &str,
+) -> Result<(), Refused> {
+    let task_state = state.clone();
+    let task_org = *organization_id;
+    let task_origin = origin.to_owned();
+    let task_owner = owner.to_owned();
+    state.web_login_runs.spawn(
+        &organization_id.to_string(),
+        key_of(organization_id, origin),
+        async move {
+            let launcher = WebLoginLauncher::from_state(&task_state);
+            let outcome = launcher
+                .rotate_attended(&task_org, &task_origin, &task_owner)
+                .await;
+            tracing::info!(
+                succeeded = outcome.succeeded,
+                "an attended web-login run ended"
+            );
+        },
+    )
+}

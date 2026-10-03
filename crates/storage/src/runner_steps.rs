@@ -56,6 +56,19 @@ fn step_from_row(row: &SqliteRow) -> StoredRunnerStep {
 const STEP_COLUMNS: &str = "run_id, organization_id, seq, request_json, state, claimed_by, \
      claim_expires_at, outcome_json, created_at, updated_at";
 
+/// Whether `text` is a JSON object with a string `outcome` tag: the least any
+/// stored outcome is, and the shape both decoders (`StepOutcome`, the custody
+/// outcomes) start from.
+fn is_tagged_outcome(text: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .is_some_and(|value| {
+            value
+                .get("outcome")
+                .is_some_and(serde_json::Value::is_string)
+        })
+}
+
 impl Db {
     /// Enqueue one step for a run.
     ///
@@ -217,13 +230,21 @@ impl Db {
         Ok(row.as_ref().map(step_from_row))
     }
 
-    /// Record a step's outcome. Only the claimant may, and only while the run
-    /// is open.
+    /// Record a step's outcome. Only the claimant may, only while its claim is
+    /// live (`claim_expires_at > now`), and only while the run is open.
     ///
     /// Returns whether the settle applied. `false` means the caller does not
-    /// hold the claim — because it lapsed and somebody else took it, or because
-    /// it was never theirs — or the run is closed: an executor that stopped
-    /// waiting reads nothing more, so nothing more is stored for it.
+    /// hold the claim — because it lapsed (whether or not somebody else has
+    /// reclaimed it yet: the lease is the clock, not the next claimant) or
+    /// because it was never theirs — or the run is closed: an executor that
+    /// stopped waiting reads nothing more, so nothing more is stored for it.
+    /// The expiry is part of the one atomic `UPDATE`, so a driver that checks
+    /// its lease and settles cannot be raced by the clock between the two.
+    ///
+    /// The outcome must be a JSON object carrying a string `outcome` tag. What
+    /// else it may hold depends on the step it answers, which only the caller
+    /// (the Host's settle route, which has the typed `StepOutcome`) can judge;
+    /// this refuses only what could never be an outcome at all.
     ///
     /// # Errors
     ///
@@ -237,11 +258,14 @@ impl Db {
         outcome_json: &str,
         now: &str,
     ) -> anyhow::Result<bool> {
-        anyhow::ensure!(!outcome_json.is_empty(), "outcome is empty");
+        anyhow::ensure!(
+            is_tagged_outcome(outcome_json),
+            "outcome is not a tagged object"
+        );
         let outcome = sqlx::query(
             "UPDATE runner_steps SET state = 'settled', outcome_json = ?, updated_at = ? \
              WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'claimed' \
-             AND claimed_by = ? AND EXISTS (SELECT 1 FROM observation_runs \
+             AND claimed_by = ? AND claim_expires_at > ? AND EXISTS (SELECT 1 FROM observation_runs \
                WHERE observation_runs.id = runner_steps.run_id \
                AND observation_runs.organization_id = runner_steps.organization_id \
                AND closed_at IS NULL)",
@@ -252,6 +276,7 @@ impl Db {
         .bind(run_id)
         .bind(seq)
         .bind(claimant)
+        .bind(now)
         .execute(self.pool())
         .await
         .context("settle runner step")?;
@@ -276,7 +301,10 @@ impl Db {
         seq: i64,
         outcome_json: &str,
     ) -> anyhow::Result<bool> {
-        anyhow::ensure!(!outcome_json.is_empty(), "outcome is empty");
+        anyhow::ensure!(
+            is_tagged_outcome(outcome_json),
+            "outcome is not a tagged object"
+        );
         let outcome = sqlx::query(
             "UPDATE runner_steps SET outcome_json = ? \
              WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'settled'",
