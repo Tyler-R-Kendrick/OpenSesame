@@ -97,6 +97,13 @@ export function isTurnUrl(value: string): boolean {
   return value.startsWith("turn");
 }
 
+/** Whether any server in the list is a TURN server: what relay only needs. */
+export function hasTurn(
+  servers: readonly Readonly<{ urls: readonly string[] }>[],
+): boolean {
+  return servers.some((server) => server.urls.some(isTurnUrl));
+}
+
 function loopback(host: string): boolean {
   return (
     host === "localhost" ||
@@ -289,7 +296,7 @@ export function readRoutes(value: BoundaryValue): LiveRoutes | null {
   if (errors.length > 0 || (relay !== true && relay !== false)) return null;
   // Relay only with no TURN server is a peer with nowhere to relay through,
   // as the owner's profile already refuses; a link must not get past it.
-  if (relay && !ice.some((server) => server.urls.some(isTurnUrl))) return null;
+  if (relay && !hasTurn(ice)) return null;
   return { ice, relay, carriers };
 }
 

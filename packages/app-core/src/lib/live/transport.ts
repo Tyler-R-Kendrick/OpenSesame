@@ -42,7 +42,7 @@ import {
   LiveRoutesRefused,
   MAX_CARRIERS,
   MAX_SERVERS,
-  isTurnUrl,
+  hasTurn,
   list,
   readCarrier,
   readIceServer,
@@ -200,8 +200,7 @@ export function readTransport(value: BoundaryValue): TransportRead {
   const relay = value.relay ?? false;
   if (relay !== true && relay !== false)
     errors.push("relay must be true or false.");
-  const hasTurn = ice.some((server) => server.urls.some(isTurnUrl));
-  if (relay === true && !hasTurn)
+  if (relay === true && !hasTurn(ice))
     errors.push("relay needs at least one TURN server.");
   if (errors.length > 0) return { ok: false, errors };
   const transport = { addresses, ice, relay: relay === true, carriers };

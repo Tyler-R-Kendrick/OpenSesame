@@ -137,13 +137,16 @@ reached the joiner); an owner may name a carrier that passes them instead
    key and answers its own request; the browsers then connect.
 
 The catalog the owner then sends — names, types and unconcealed fields — is one
-data-channel frame, and a frame over 1 MiB never arrives. A vault at the
-limits (200 items of 32 fields with 16 KiB of text) is well past that, so the
-catalog is cut to 900 KiB before it is sent: unconcealed text is clipped
-shorter, in steps, and only if names alone still do not fit are the last items
-left out. Every check the owner makes on a request uses this same catalog, so
-an item the joiner was not shown cannot be revealed from. A frame that still
-cannot go out ends the seat; the guest is not counted as joined.
+data-channel message, and Chromium refuses one over 256 KiB (`send` throws).
+A vault at the limits (200 items of 32 fields with 16 KiB of text) is well
+past that, so the catalog is cut to 200 000 bytes before it is sent (bytes,
+not characters): unconcealed text is clipped shorter, in steps, and marked
+with an ellipsis where it was cut so a copy of it is not taken for the whole
+value, and only if names alone still do not fit are the last items left out.
+Every check the owner makes on a request uses this same catalog, so an item
+the joiner was not shown cannot be revealed from, and a vault is fitted once
+for as long as its items are the same. A frame that still cannot go out, or
+that the browser refuses, ends the seat; the guest is not counted as joined.
 
 Codes forgive what chat apps wrap around them (whitespace, quotes) and are
 refused whole otherwise. Another joiner holding the same link and code can
