@@ -100,10 +100,23 @@ function scrubError(
 function atomic(value: BoundaryValue): BoundaryValue | undefined {
   if (isString(value)) return scrubText(value);
   if (value === null || !isTypeofObject(value)) return value;
-  if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
     return REDACTED;
   }
   return value instanceof Date ? value : undefined;
+}
+
+/**
+ * What a class instance would put on the wire. A `URL` carries its token in
+ * `href`, and pino writes it through `toJSON`, so it is walked as that string;
+ * any other instance is read by its own enumerable fields. Either way nothing
+ * passes through unexamined.
+ */
+function serialised(value: BoundaryObject): BoundaryValue | undefined {
+  const proto = Object.getPrototypeOf(value);
+  if (proto === Object.prototype || proto === null) return undefined;
+  const holder: { toJSON?: () => BoundaryValue } = overlapCast(value);
+  return typeof holder.toJSON === "function" ? holder.toJSON() : undefined;
 }
 
 function walkObject(
@@ -112,9 +125,8 @@ function walkObject(
   seen: WeakSet<Container>,
   keys: boolean,
 ): BoundaryValue {
-  // Class instances other than errors pass through: log a plain object.
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
+  const json = serialised(value);
+  if (json !== undefined) return walk(json, depth + 1, seen, keys);
   const out: MutableBoundaryObject = {};
   for (const [key, item] of Object.entries(overlapCast(value))) {
     const inner: BoundaryValue = overlapCast(item);
@@ -150,8 +162,8 @@ function walk(
 /**
  * A copy of `value` with every secret gone: sensitive keys censored at any
  * depth, every string scrubbed, errors flattened to scrubbed plain objects,
- * binary replaced, cycles and runaway depth cut. Class instances other than
- * errors pass through untouched — log a plain object, not a client.
+ * binary replaced, cycles and runaway depth cut. A class instance is read as
+ * what it serialises to (`toJSON`) or by its own enumerable fields.
  */
 export function scrubValue<T>(value: T): T {
   const input: BoundaryValue = overlapCast(value);

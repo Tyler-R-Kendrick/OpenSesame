@@ -138,4 +138,16 @@ describe("scrubStrings", () => {
       list: [`token=${REDACTED}`],
     });
   });
+  it("reads a class instance by what it serialises to, not as a pass-through", () => {
+    const url = new URL("https://x.example/cb?token=abc123&page=2");
+    expect(JSON.stringify(scrubValue({ url }))).not.toContain("abc123");
+    class Client {
+      password = "hunter2";
+      host = "db.internal";
+    }
+    const out = JSON.stringify(scrubValue({ client: new Client() }));
+    expect(out).not.toContain("hunter2");
+    expect(out).toContain("db.internal");
+    expect(scrubValue({ at: new Int32Array([1, 2]) }).at).toBe(REDACTED);
+  });
 });
