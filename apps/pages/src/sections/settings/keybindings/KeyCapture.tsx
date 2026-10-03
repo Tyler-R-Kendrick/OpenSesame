@@ -200,6 +200,12 @@ export function KeyCapture({
         ) : null}
       </span>
       {problem ? <StatusMark tone="err" label={problem.message} /> : null}
+      {problem ? (
+        // Keyed by the refusal, so the same message twice is announced twice.
+        <span key={problem.n} role="alert" className="visually-hidden">
+          {problem.message}
+        </span>
+      ) : null}
       {children}
     </span>
   );

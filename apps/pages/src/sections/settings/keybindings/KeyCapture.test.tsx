@@ -111,6 +111,26 @@ describe("KeyCapture after a refusal", () => {
   });
 });
 
+describe("KeyCapture announcing a refusal", () => {
+  it("speaks every refusal, the same one again too, beside the mark", () => {
+    vi.useFakeTimers();
+    renderPanels();
+    openAdd();
+    const seen: HTMLElement[] = [];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      press("3");
+      lapse();
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toMatch(/3 is fixed/);
+      expect(alert.className).toContain("visually-hidden");
+      // A new node each time: a live region only speaks what is inserted.
+      expect(seen).not.toContain(alert);
+      seen.push(alert);
+      expect(screen.getByRole("img", { name: /3 is fixed/ })).toBeTruthy();
+    }
+  });
+});
+
 describe("KeyCapture and Tab", () => {
   it("drops a half-typed sequence when Tab moves on", () => {
     vi.useFakeTimers();
