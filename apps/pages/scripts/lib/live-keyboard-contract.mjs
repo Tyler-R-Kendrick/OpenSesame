@@ -52,7 +52,7 @@ async function copied(page) {
 }
 
 /** A guest device with one login in it, and Live sessions chosen. */
-async function ownerEnters(page, { origin, base, tabTo }) {
+async function ownerEnters(page, { origin, base, tabTo, width }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await expect(
     page.getByRole("button", { name: "Set up your own" }),
@@ -63,6 +63,11 @@ async function ownerEnters(page, { origin, base, tabTo }) {
   ).toBeFocused();
   await page.keyboard.press("Enter");
   const create = page.getByRole("link", { name: "New item", exact: true });
+  // A phone opens the vault on its section tree; Enter on it opens the list.
+  if (width !== 1280) {
+    await expect(page.locator(".railtree")).toBeFocused();
+    await page.keyboard.press("Enter");
+  }
   await expect(create).toBeFocused();
   await page.keyboard.press("Enter");
   await tabTo(page, page.getByLabel("Name", { exact: true }));
@@ -257,7 +262,7 @@ export async function liveKeyboardContract({
       return made;
     };
     const owner = await device();
-    await ownerEnters(owner.page, { origin, base, tabTo });
+    await ownerEnters(owner.page, { origin, base, tabTo, width });
     await openLive(owner.page, tabTo);
     const { link, code } = await ownerStarts(owner.page, tabTo);
     const joiner = await device();

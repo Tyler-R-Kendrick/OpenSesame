@@ -1,3 +1,4 @@
+import { openVaultList } from "./phone-vault.mjs";
 /**
  * The context menu under a finger (DESIGN.md § Touch).
  *
@@ -43,6 +44,7 @@ export async function contextMenuTouchContract(
   const label = stop("context-menu");
   const { check } = harness;
   await openTab(page, "Vault");
+  await openVaultList(page);
   const row = page.locator(".vtree__row").first();
   check((await row.count()) === 1, `${label}: a vault row to hold`);
   if ((await row.count()) === 0) return;

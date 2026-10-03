@@ -16,6 +16,7 @@ import {
   focusVaultListing,
   registerKeymapHelp,
 } from "../lib/keymap.js";
+import { useNarrow } from "../lib/use-narrow.js";
 import { useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccountSwitcher } from "./AccountSwitcher.js";
@@ -132,6 +133,7 @@ const SHELL_CHORD = createChordState();
 
 function Shell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
+  const narrow = useNarrow();
   useDeniedRouteFallback(useSections());
   const [keymapOpen, setKeymapOpen] = useState(false);
   const showKeymap = useCallback(() => setKeymapOpen(true), []);
@@ -170,9 +172,10 @@ function Shell({ children }: { children?: ReactNode }) {
 
         <SessionPrompt />
 
-        <div className="rail__scroll">
-          <NavTree />
-        </div>
+        {/* One tree at a time: below the breakpoint the rail is not drawn and
+            the vault's first pane carries the tree (`VaultSection`), so a
+            second `role="tree"` never shares the page with it. */}
+        <div className="rail__scroll">{narrow ? null : <NavTree />}</div>
       </aside>
 
       <div className="main">

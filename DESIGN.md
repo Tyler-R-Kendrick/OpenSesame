@@ -196,10 +196,16 @@ the other sections read as a single 60rem flowing document of chapters.
 
 Below 900px the rail gives way to a slim top bar (the account and the lock),
 the statusline keeps the command, a section drawer key closes the
-frame, and the vault collapses to one pane at a time with a back key and a
-back swipe. Because the rail carries the vault's
-filters, the list header grows a scrolling chip row at that breakpoint —
-nothing in the rail may become unreachable.
+frame, and the vault collapses to one pane at a time, each with a back key and
+a back swipe: the **section tree** (the rail's own `NavTree`, drawn in the
+buffer where a finger can reach it, and the screen the vault opens on), the
+**list** a tree entry opens (`/vault?f=…`, with `/vault?f=all` as the tree's
+"all" entry — the bare `/vault` is the tree), and the **item**. The tree is
+mounted in exactly one place at a time — the rail above the breakpoint, the
+vault's first pane below it — so two `role="tree"` never share a page. Because
+the tree carries the vault's filters, nothing in the rail may become
+unreachable, and the list keeps its funnel key for switching without going
+back.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 

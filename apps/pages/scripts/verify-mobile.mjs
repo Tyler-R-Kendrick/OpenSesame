@@ -30,6 +30,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { openVaultList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -200,10 +201,14 @@ async function sections(page, stop) {
  * into, so the walk saves an item and comes back through it.
  */
 async function vaultItem(page, stop) {
+  await openVaultList(page);
   const create = page
     .getByRole("link", { name: "New item", exact: true })
     .first();
-  if ((await create.count()) === 0) return;
+  if ((await create.count()) === 0) {
+    harness.check(false, `${stop("list")}: the list has no New item key`);
+    return;
+  }
   await create.tap();
   await page.waitForTimeout(800);
   await audit(page, stop("editor"));
@@ -215,8 +220,30 @@ async function vaultItem(page, stop) {
   await save.tap();
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
-  await openTab(page, "Vault");
+  await backOut(page, stop);
+}
+
+/**
+ * Three panes, one key back each: the item to the list, the list to the
+ * section tree. Each is a real tap on a real key, and the pane that answers is
+ * read off the shell, so a back that lands one pane too far fails here.
+ */
+async function backOut(page, stop) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  await page.getByRole("link", { name: "Back to all items" }).first().tap();
+  await page.waitForTimeout(500);
+  harness.check(
+    (await pane()) === "list",
+    `${stop("back")}: back from an item lands on the list`,
+  );
   await audit(page, stop("list"));
+  await page.getByRole("link", { name: "Back to sections" }).first().tap();
+  await page.waitForTimeout(500);
+  harness.check(
+    (await pane()) === "tree",
+    `${stop("back")}: back from the list lands on the section tree`,
+  );
+  await audit(page, stop("tree"));
 }
 
 async function walk(browser, phone) {

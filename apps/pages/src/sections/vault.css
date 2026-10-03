@@ -13,6 +13,14 @@
 
 /* —— List pane ————————————————————————————————————————————— */
 
+/* The section tree is a phone's first pane: the rail's own tree, drawn in the
+   buffer where a finger can reach it. A desktop has the rail, so it has no
+   such pane, and the key that climbs back to it. */
+.vault__tree,
+.vault__back {
+  display: none;
+}
+
 .vault__list {
   display: flex;
   flex-direction: column;
@@ -1037,12 +1045,30 @@ select.editor__ext:hover {
     border-right: none;
   }
 
-  .vault[data-pane="detail"] .vault__list {
+  /* One pane at a time: tree, then the list it opens, then the item. */
+  .vault[data-pane="tree"] .vault__list,
+  .vault[data-pane="tree"] .vault__detail,
+  .vault[data-pane="detail"] .vault__list,
+  .vault[data-pane="detail"] .vault__tree,
+  .vault[data-pane="list"] .vault__tree,
+  .vault[data-pane="list"] .vault__detail {
     display: none;
   }
 
-  .vault[data-pane="list"] .vault__detail {
-    display: none;
+  .vault[data-pane="tree"] .vault__tree {
+    display: block;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.25rem calc(0.6rem + env(safe-area-inset-right)) 0.75rem
+      calc(0.6rem + env(safe-area-inset-left));
+    background: var(--rail);
+    color: var(--rail-fg);
+  }
+
+  .vault__back {
+    display: inline-grid;
   }
 
   .detail {

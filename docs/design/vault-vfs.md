@@ -83,8 +83,8 @@ The rail renders the same filesystem one level up, mono:
   `drops`, `notes`, `certs`), `trash`, the real folders (`Work/`),
   and `health`, each with live counts, indent-guided. Under `settings/`:
   the five categories.
-- Active row takes the cursor treatment (accent wash + ring). The mobile
-  tab bar keeps its labeled icons.
+- Active row takes the cursor treatment (accent wash + ring). On a phone the
+  same tree is the vault's first pane (tree → list → item, a back key each).
 
 ## Test plan (implemented)
 
