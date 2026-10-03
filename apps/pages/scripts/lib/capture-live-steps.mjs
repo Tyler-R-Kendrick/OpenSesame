@@ -22,10 +22,21 @@ const WRONG_CODES = [
 ];
 
 /** What each page's owner panel held, so later verbs need not look again. */
-const owners = new WeakMap();
+export const owners = new WeakMap();
 
 /** Where the keyboard is, in words a journey can print. */
 function describeFocus() {
+  // A short selector for the element a point lands on. Declared inside: this
+  // function is serialised into the page, so nothing outside it exists there.
+  const selectorOf = (node) => {
+    if (!node) return "none";
+    const id = node.id ? `#${node.id}` : "";
+    const classes =
+      typeof node.className === "string" && node.className.trim()
+        ? `.${node.className.trim().split(/\s+/).join(".")}`
+        : "";
+    return `${node.tagName.toLowerCase()}${id}${classes}`;
+  };
   const el = document.activeElement;
   if (!el || el === document.body) return "BODY (nothing focused)";
   const box = el.getBoundingClientRect();
@@ -47,6 +58,7 @@ function describeFocus() {
     `${el.tagName} "${name}"`,
     `focus-visible=${el.matches(":focus-visible")}`,
     `on screen and unobscured=${shown}`,
+    `elementFromPoint at its centre: ${selectorOf(at)}`,
     `box ${Math.round(box.width)}x${Math.round(box.height)} @${Math.round(box.left)},${Math.round(box.top)}`,
     `outline ${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`,
   ].join(" | ");
@@ -64,7 +76,7 @@ async function tabTo(page, locator, limit = 160) {
   throw new Error("capture-evidence: Tab never reached the control");
 }
 
-async function grantClipboard(page, address = page.url()) {
+export async function grantClipboard(page, address = page.url()) {
   const { origin } = new URL(address);
   await page
     .context()
@@ -81,7 +93,7 @@ async function joiner(page, harness) {
 }
 
 /** The joiner opens the link, enters `code` and a name, and asks. */
-async function ask(page, { link, code, name }) {
+export async function ask(page, { link, code, name }) {
   await grantClipboard(page, link);
   await page.goto(link, { waitUntil: "networkidle" });
   await page.waitForTimeout(5200);
@@ -117,7 +129,23 @@ function readingSteps() {
       console.log(`  live panel: ${has ? "present" : "absent in this build"}`);
     },
 
-    /** Print where the keyboard is: `document.activeElement`, read in the page. */
+    /**
+     * A joiner who has the link types the out-of-band code and a name, then
+     * the page says whether the Ask to join key is enabled. A screen that
+     * refused the link has no form: that is the answer, printed as such.
+     */
+    async liveAsk(page, { code, name }) {
+      const form = page.locator(".live-join form");
+      const field = form.getByLabel("Code");
+      if (!(await field.count()))
+        return console.log("  liveAsk: no form (the link was refused)");
+      await field.fill(code.toLowerCase());
+      await form.getByLabel("Your name").fill(name);
+      const ask = form.getByRole("button", { name: "Ask to join" });
+      console.log(`  liveAsk: Ask to join enabled=${await ask.isEnabled()}`);
+    },
+
+    /** Print where the keyboard is:`document.activeElement`, read in the page. */
     async focused(page) {
       console.log(`  focused: ${await page.evaluate(describeFocus)}`);
     },
@@ -162,7 +190,11 @@ function ownerSteps() {
      * ends wherever the page leaves it.
      */
     async liveStart(page, options) {
-      const { admission = "invite", keyboard = false } = options ?? {};
+      const {
+        admission = "invite",
+        keyboard = false,
+        wholeVault = false,
+      } = options ?? {};
       const own = panelOf(page);
       if (!own) return console.log("  liveStart: skipped (no panel)");
       const name = own.getByLabel("Session name");
@@ -179,7 +211,8 @@ function ownerSteps() {
         await page.keyboard.press("Enter");
       } else {
         await name.fill("Team");
-        await item.check();
+        if (wholeVault) await own.getByLabel("Share").selectOption("vault");
+        else await item.check();
         await start.click();
       }
       await own.getByRole("img", { name: "Live" }).waitFor();

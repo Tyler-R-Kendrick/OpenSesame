@@ -40,3 +40,18 @@ export async function serveRuntimeConfig(context, { origin, base, config }) {
     }),
   );
 }
+
+/** What a screen needs served before its page loads. */
+export async function prepareScreen(context, { origin, base, screen }) {
+  if (screen.runtimeConfig)
+    await serveRuntimeConfig(context, {
+      origin,
+      base,
+      config: screen.runtimeConfig,
+    });
+  for (const url of screen.relays ?? []) {
+    await context.routeWebSocket(url, (socket) => {
+      socket.onMessage(() => {});
+    });
+  }
+}
