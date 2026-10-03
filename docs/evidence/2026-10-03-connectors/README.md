@@ -1,6 +1,6 @@
 # Connector pages: no Host road, and no tile that links to a page nothing routes (ADR 0151)
 
-Before/after from two real builds of `apps/pages`: the base (`f54a95f3`, the
+Before/after from two real builds of `apps/pages`: the base (`8ce34cf7`, the
 tip of `origin/main`) and this branch, walked the same way by
 `apps/pages/scripts/capture-evidence.mjs` with [`journey.json`](journey.json),
 both built `VITE_BASE=/OpenSesame/` and served under the production origin.
@@ -55,6 +55,7 @@ nothing can open.
 | Walk | Width | Before | After |
 |---|---|---|---|
 | Capabilities, Connections off (guest) | both | 57 tiles, 43 links, 21 switches; 13 grids; 20 sections | 21 tiles, 0 links, 21 switches; 6 grids; 17 sections |
+| "No repository yet — nothing is backed up" marks on the GitHub history tile (guest, off) | both | 1 | 1 (kept: the tile never claims a backup that is not there) |
 | Open the GitLab tile (guest, off) | both | `.conn-settings` 0, h1 0, h2 0: a blank page | not a link; Settings stays (h1 1, h2 1) |
 | Capabilities, Connections on (control) | both | 60 tiles, 46 links, 21 switches; 14 grids; 23 sections | identical |
 | Better Auth page, Connections on (control) | both | `.conn-settings` 1, form 1, form key 1 | identical |

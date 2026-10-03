@@ -18,7 +18,8 @@
             ".conn-tile",
             ".conn-tile a.conn-tile__link",
             ".conn-tile [role=switch]",
-            ".capsection__title"
+            ".capsection__title",
+            "[aria-label='No repository yet — nothing is backed up']"
           ]
         },
         {
@@ -51,7 +52,8 @@
             ".conn-tile",
             ".conn-tile a.conn-tile__link",
             ".conn-tile [role=switch]",
-            ".capsection__title"
+            ".capsection__title",
+            "[aria-label='No repository yet — nothing is backed up']"
           ]
         },
         {
