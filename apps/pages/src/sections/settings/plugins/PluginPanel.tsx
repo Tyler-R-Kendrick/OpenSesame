@@ -8,7 +8,9 @@
  * It imports no optional code: the session it draws from is handed in.
  *
  * Installing is not offered here. A plugin is installed at a terminal on the
- * daemon's machine, so an uninstalled one shows its mark and the command.
+ * daemon's machine, so an uninstalled one shows its mark and the command, and
+ * a forced-off one its mark alone: neither draws a switch, because the page
+ * has nothing to switch.
  * Pairing is: with no daemon paired, the tile takes the code
  * `opensesame plugins pair --origin …` printed there, and once paired it
  * carries one key that forgets the pairing.
@@ -31,9 +33,11 @@ function Switch({ session }: { session: PluginSession }) {
   const { state } = view;
   if (state === null) return null;
   const on = standingOf(state) === "on";
-  // Off and forced off: the daemon's environment wins, so this page cannot
-  // turn it on. Not installed: there is nothing to switch.
-  const locked = !state.installed || state.forcedOff;
+  // A row acts, or it is not drawn (ADR 0150, settings rows act or are
+  // absent). Forced off: the daemon's environment wins, so this page cannot
+  // turn it on. Not installed: there is nothing to switch. Either way the
+  // tile's mark says why, and the key is absent rather than disabled.
+  if (!state.installed || state.forcedOff) return null;
   const label = `${session.plugin.title} on the paired daemon`;
   return (
     <button
@@ -42,7 +46,7 @@ function Switch({ session }: { session: PluginSession }) {
       aria-pressed={on}
       aria-label={label}
       title={label}
-      disabled={locked || view.busy}
+      disabled={view.busy}
       onClick={() => void session.toggle()}
     >
       {on ? <IconPause size={16} /> : <IconPlay size={16} />}
