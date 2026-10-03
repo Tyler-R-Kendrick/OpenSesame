@@ -111,6 +111,25 @@ export function extraSteps({ press }) {
       for (const key of keys) await page.keyboard.press(key);
       await page.waitForTimeout(wait);
     },
+    /**
+     * Press keys on the page as a person at the keyboard does, then wait
+     * `wait` ms. Nothing is pressed while a field holds focus: a stray key
+     * there would be typed, not read by the shell.
+     */
+    async keysOptional(page, { keys, wait = 0 }) {
+      const typing = await page.evaluate(() => {
+        const node = document.activeElement;
+        return (
+          node instanceof HTMLInputElement ||
+          node instanceof HTMLTextAreaElement ||
+          node instanceof HTMLSelectElement
+        );
+      });
+      if (typing) await page.evaluate(() => document.activeElement?.blur());
+      await page.locator("body").click({ position: { x: 1, y: 1 } });
+      for (const key of keys) await page.keyboard.press(key);
+      await page.waitForTimeout(wait);
+    },
     /** Type a slash into the status-line command field. */
     async slash(page) {
       const field = page.locator("#command-bar-input");
