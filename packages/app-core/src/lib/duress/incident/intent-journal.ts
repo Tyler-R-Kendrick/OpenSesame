@@ -15,6 +15,7 @@ import { duressSessionFence } from "../session/fence.js";
 import {
   type JournalWriteResult,
   clearJournal,
+  clearJournalDurable,
   readJournalPayload,
   writeJournal,
 } from "../store/journal.js";
@@ -175,4 +176,14 @@ export function recoverIncidentFenceAfterRestart(): IncidentFenceRecovery {
 export function clearIncidentJournals(): void {
   clearJournal(INCIDENT_INTENT_KEY);
   clearJournal(INCIDENT_RECORD_KEY);
+}
+
+/** Remove both incident journals and wait for storage to forget them. */
+export async function clearIncidentJournalsDurable(): Promise<void> {
+  const results = await Promise.allSettled([
+    clearJournalDurable(INCIDENT_INTENT_KEY),
+    clearJournalDurable(INCIDENT_RECORD_KEY),
+  ]);
+  const refused = results.find((result) => result.status === "rejected");
+  if (refused?.status === "rejected") throw refused.reason;
 }
