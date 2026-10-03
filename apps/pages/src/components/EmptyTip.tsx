@@ -54,4 +54,6 @@ const TOUCH = new Map<string, string>([
   [emptyTips.vaultMove, "Tap an item to open it."],
   [emptyTips.vaultEmpty, "The + above adds the first item."],
   [emptyTips.rail, "The menu key at the top opens every section."],
+  [emptyTips.keymap, "Help in the ⋯ menu lists every gesture."],
+  [emptyTips.escBack, "Swipe right to go back."],
 ]);

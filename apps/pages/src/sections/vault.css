@@ -1228,6 +1228,23 @@ select.editor__ext:hover {
   color: var(--ink-3);
 }
 
+/* Keys stay off a finger (DESIGN.md § Touch); a line with a touch twin swaps
+   to it there, one without goes. */
+.buffer__keys-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .buffer__keys--keys,
+  .buffer__keys-keys {
+    display: none;
+  }
+
+  .buffer__keys-touch {
+    display: inline;
+  }
+}
+
 /* The export sheet's refusal, a mark under its facts. */
 .vexport__marks {
   display: flex;

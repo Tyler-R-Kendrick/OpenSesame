@@ -31,6 +31,7 @@ import { ExportKey } from "./vault/ExportKey.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
+import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -284,17 +285,6 @@ export function VaultSection() {
   );
 }
 
-function welcomeKeys(inTrash: boolean, empty: boolean): string {
-  if (inTrash) {
-    return empty
-      ? "r restore · X delete · ? keys"
-      : "enter open · r restore · X delete · / search · ? keys";
-  }
-  return empty
-    ? "n new · import · ? keys"
-    : "enter open · n new · / search · ? keys";
-}
-
 /**
  * The buffer before the cursor lands on a file. No dashboard: moving the
  * cursor previews items, so this pane only states what the list beside it
@@ -329,7 +319,7 @@ export function VaultWelcome() {
               ? `no ${what} yet`
               : "nothing sealed yet"}
         </p>
-        <p className="buffer__keys">{welcomeKeys(inTrash, true)}</p>
+        <WelcomeKeys inTrash={inTrash} empty />
       </div>
     );
   }
@@ -341,7 +331,7 @@ export function VaultWelcome() {
         {what ? ` · ${what}` : ""}
       </p>
       <EmptyTip>{emptyTips.vaultMove}</EmptyTip>
-      <p className="buffer__keys">{welcomeKeys(inTrash, false)}</p>
+      <WelcomeKeys inTrash={inTrash} empty={false} />
     </div>
   );
 }

@@ -8,9 +8,9 @@ describe("EmptyTip", () => {
   afterEach(cleanup);
 
   it("renders IconInfo guidance with role=note", () => {
-    render(<EmptyTip>{emptyTips.keymap}</EmptyTip>);
+    render(<EmptyTip>Press x to explode.</EmptyTip>);
     const tip = screen.getByRole("note");
-    expect(tip.textContent).toContain(emptyTips.keymap);
+    expect(tip.textContent).toContain("Press x to explode.");
     expect(tip.className).toContain("empty__tip--keys");
     expect(tip.querySelector("svg")).not.toBeNull();
   });
@@ -25,6 +25,31 @@ describe("EmptyTip", () => {
     );
     expect(tip.querySelector(".empty__tip-touch")?.textContent).toBe(
       "The menu key at the top opens every section.",
+    );
+  });
+
+  it("gives every keyboard tip the finger's own voice", () => {
+    // A tip that names a key and has no twin is hidden outright on a phone.
+    for (const tip of Object.values(emptyTips)) {
+      render(<EmptyTip>{tip}</EmptyTip>);
+      const note = screen.getByRole("note");
+      expect(note.querySelector(".empty__tip-keys")?.textContent).toBe(tip);
+      const touch = note.querySelector(".empty__tip-touch")?.textContent ?? "";
+      expect(touch).not.toBe("");
+      expect(touch).not.toMatch(/\b(esc|enter|press|keyboard|j\/k)\b/i);
+      cleanup();
+    }
+  });
+
+  it("swaps the help and back tips for the gesture that does the same", () => {
+    render(<EmptyTip>{emptyTips.escBack}</EmptyTip>);
+    expect(document.querySelector(".empty__tip-touch")?.textContent).toBe(
+      "Swipe right to go back.",
+    );
+    cleanup();
+    render(<EmptyTip>{emptyTips.keymap}</EmptyTip>);
+    expect(document.querySelector(".empty__tip-touch")?.textContent).toBe(
+      "Help in the ⋯ menu lists every gesture.",
     );
   });
 
