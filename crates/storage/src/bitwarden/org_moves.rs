@@ -14,11 +14,22 @@ use super::collections::{insert_collection, write_access};
 use super::emergency::{emergency_status, BitwardenEmergencyAccess};
 use super::org_ciphers::put_mark;
 use super::orgs::{insert_member, insert_org};
+use super::policy_rules::{begin_write, revoke_violators};
 use super::{
     member_status, ArrivalOutcome, BitwardenCipher, BitwardenCollection, BitwardenCollectionAccess,
     BitwardenMark, BitwardenOrgMember, BitwardenOrganization, BitwardenPolicy,
 };
 use crate::Db;
+
+/// What became of an arriving organization.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BitwardenOrgArrived {
+    pub outcome: ArrivalOutcome,
+    /// Members its policies excluded, who arrived revoked.
+    pub revoked: usize,
+    /// No owner is left standing: every one arrived revoked.
+    pub ownerless: bool,
+}
 
 /// One organization as it arrives, whole.
 #[derive(Clone, Debug)]
@@ -85,7 +96,7 @@ async fn arriving_member(
 async fn insert_contents(
     tx: &mut sqlx::SqliteConnection,
     arrival: &BitwardenOrgArrival,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<usize> {
     insert_org(tx, &arrival.org).await?;
     for member in &arrival.members {
         let member = arriving_member(tx, member).await?;
@@ -131,7 +142,10 @@ async fn insert_contents(
             put_mark(tx, cipher, user, mark).await?;
         }
     }
-    Ok(())
+    // The policies came in enabled, and so did the members: any the policies
+    // exclude — an account whose two-step provider did not come across, one
+    // already in another organization — arrives revoked, never confirmed.
+    revoke_violators(tx, &arrival.org.id).await
 }
 
 impl Db {
@@ -147,15 +161,20 @@ impl Db {
         &self,
         arrival: &BitwardenOrgArrival,
         replace: bool,
-    ) -> anyhow::Result<ArrivalOutcome> {
-        let mut tx = self.pool.begin().await?;
+    ) -> anyhow::Result<BitwardenOrgArrived> {
+        let mut tx = begin_write(&self.pool).await?;
         let exists = sqlx::query("SELECT 1 FROM bitwarden_organizations WHERE id = ?")
             .bind(&arrival.org.id)
             .fetch_optional(&mut *tx)
             .await?
             .is_some();
+        let refused = |outcome| BitwardenOrgArrived {
+            outcome,
+            revoked: 0,
+            ownerless: false,
+        };
         if exists && !replace {
-            return Ok(ArrivalOutcome::IdTaken);
+            return Ok(refused(ArrivalOutcome::IdTaken));
         }
         if exists {
             sqlx::query("DELETE FROM bitwarden_organizations WHERE id = ?")
@@ -169,15 +188,30 @@ impl Db {
                 .fetch_optional(&mut *tx)
                 .await?;
             if taken.is_some() {
-                return Ok(ArrivalOutcome::IdTaken);
+                return Ok(refused(ArrivalOutcome::IdTaken));
             }
         }
-        insert_contents(&mut tx, arrival).await?;
+        let revoked = insert_contents(&mut tx, arrival).await?;
+        let ownerless = sqlx::query(
+            "SELECT 1 FROM bitwarden_org_members WHERE org_id = ? AND member_type = ? \
+             AND status IN (?, ?)",
+        )
+        .bind(&arrival.org.id)
+        .bind(super::member_type::OWNER)
+        .bind(super::member_status::ACCEPTED)
+        .bind(super::member_status::CONFIRMED)
+        .fetch_optional(&mut *tx)
+        .await?
+        .is_none();
         tx.commit().await?;
-        Ok(if exists {
-            ArrivalOutcome::Replaced
-        } else {
-            ArrivalOutcome::Created
+        Ok(BitwardenOrgArrived {
+            outcome: if exists {
+                ArrivalOutcome::Replaced
+            } else {
+                ArrivalOutcome::Created
+            },
+            revoked,
+            ownerless,
         })
     }
 

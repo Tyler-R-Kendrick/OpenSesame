@@ -192,7 +192,6 @@ pub async fn disable(
         .db
         .bitwarden_delete_two_factors(&user.id, Some(provider))
         .await?;
-    super::policy_rules::after_two_factor_off(&server, &user.id).await?;
     super::touch(&server, &user.id).await?;
     Ok(Json(provider_json(provider, false)))
 }
