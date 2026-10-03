@@ -67,3 +67,8 @@
 .plugin-tile__event {
   color: var(--ink);
 }
+
+.plugin-tile .icon-btn[aria-busy="true"] {
+  opacity: 0.4;
+  cursor: progress;
+}

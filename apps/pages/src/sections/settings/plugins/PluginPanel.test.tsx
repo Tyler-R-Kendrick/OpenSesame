@@ -37,6 +37,7 @@ function mount(
   state: BoundaryObject | null,
   notices: BoundaryValue[] = [],
   paired = true,
+  answer: BoundaryObject = { enabled: true, active: true },
 ) {
   const sent: string[] = [];
   const daemon: PluginDaemon = {
@@ -47,7 +48,7 @@ function mount(
       if (path === "/v1/plugins")
         return json({ plugins: state === null ? [] : [state] });
       if (path.endsWith("/notices")) return json({ notices });
-      return json(wireState({ enabled: true, active: true }));
+      return json(wireState(answer));
     },
   };
   const session = createPluginSession(pluginById("surrogate-proxy"), daemon);
@@ -108,14 +109,32 @@ describe("PluginPanel", () => {
     expect(sent.some((line) => line.startsWith("PUT"))).toBe(false);
   });
 
-  it("keeps the switch, disabled, only while a switch is in flight", async () => {
+  it("keeps the switch, and focus on it, while a switch is in flight", async () => {
     mount(wireState());
     expect(await screen.findByLabelText("Installed, off")).toBeTruthy();
-    expect(toggle()).toHaveProperty("disabled", false);
+    toggle().focus();
     fireEvent.click(toggle());
-    expect(toggle()).toHaveProperty("disabled", true);
+    expect(toggle().getAttribute("aria-busy")).toBe("true");
+    expect(toggle().hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(toggle());
     await waitFor(() => expect(screen.getByLabelText("On")).toBeTruthy());
-    expect(toggle()).toHaveProperty("disabled", false);
+    expect(toggle().hasAttribute("aria-busy")).toBe(false);
+    expect(document.activeElement).toBe(toggle());
+  });
+
+  it("hands focus to the tile when the daemon's answer takes the switch away", async () => {
+    mount(wireState(), [], true, { forced_off: true, enabled: true });
+    expect(await screen.findByLabelText("Installed, off")).toBeTruthy();
+    toggle().focus();
+    expect(document.activeElement).toBe(toggle());
+    fireEvent.click(toggle());
+    expect(
+      await screen.findByLabelText("Forced off on the daemon"),
+    ).toBeTruthy();
+    expect(noSwitch()).toBeNull();
+    const tile = document.getElementById("plugin-surrogate-proxy");
+    expect(document.activeElement).not.toBe(document.body);
+    expect(tile?.contains(document.activeElement)).toBe(true);
   });
 
   it("switches an installed plugin on the paired daemon with one icon key", async () => {
