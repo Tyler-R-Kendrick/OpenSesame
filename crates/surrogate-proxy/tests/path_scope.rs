@@ -54,6 +54,12 @@ async fn a_request_outside_the_prefix_is_out_of_scope_and_the_credential_never_l
         "/repos/acme/../other/x",
         "/repos/acme/%2e%2e/other/x",
         "/user/../admin",
+        "/repos/acme/..\\admin",
+        "/repos/acme/..%5c..%5cadmin",
+        "/repos/acme/%2e%2e%5cadmin",
+        "/repos/acme/;/x",
+        "/repos/acme/%3b/x",
+        "/repos/acme/x%00",
     ];
     for path in paths {
         let seen = through_proxy(
