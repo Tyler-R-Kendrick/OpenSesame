@@ -13,16 +13,23 @@ through it before they reach a log, a receipt or an HTTP response.
   [`opensesame-audit`](../audit), [`opensesame-authn`](../authn),
   [`opensesame-broker`](../broker), and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`redaction`).
-- **Builds on:** no workspace crates (`regex`, `serde_json`).
+- **Builds on:** no workspace crates (`regex`, `serde_json`; `tracing-subscriber` only behind the `tracing` feature).
 
 ## Surface
 
-| Function | What it removes |
-|---|---|
-| `redact_text(&str) -> String` | Userinfo in any `scheme://user:pass@host`; `Bearer` and `Basic` credentials; the value of any `key=value` or `key: value` pair whose label looks secret (`password`, `client_secret`, `api_key`, `access_token`, `refresh_token`, `id_token`, `device_code`, `user_code`, `claim_token`, `code_verifier`, `private_key`, `token`, `authorization`, `cookie`, …) |
-| `redact_json(&Value) -> Value` | The value of any object key that matches a sensitive name exactly (case-insensitive), at any depth; `token` is sensitive, `token_type` is not |
+The rules are [`spec/log-scrub/log-scrub.json`](../../spec/log-scrub/log-scrub.json)
+([ADR 0157](../../docs/adr/0157-logs-and-events-carry-no-secrets.md)), embedded
+at build time and read by `@opensesame/log-scrub` too: one rule set, one vector
+table, run by both planes.
 
-Both replace with the literal `[REDACTED]`.
+| Item | What it does |
+|---|---|
+| `redact_text(&str) -> String` | Rewrites every secret the text carries: PEM blocks, `scheme://user:pass@host` userinfo, secret URL parameters (`#token=…`, `?code=…`), Cookie lines, `label: value` pairs (compound labels such as `session_token` and `x-api-key` included, quoted values and `Authorization: Basic …`), bearer and DPoP credentials, JWTs, `osc_*` and `whsec_` tokens, vendor key shapes. Idempotent. |
+| `redact_json(&Value) -> Value` | The value of every sensitive key censored at any depth (`accessToken`, `db_password`; not `tokenType`; booleans and null kept), and every string scrubbed. |
+| `is_sensitive_key(&str)` | Whether a key is named like a secret. |
+| `ScrubWriter<W>` / `Format` | An `io::Write` that scrubs whole lines on their way to a sink; a JSON line is decoded and scrubbed field by field. |
+| `ScrubMakeWriter` (feature `tracing`) | The scrubbing sink for a `tracing_subscriber` fmt layer. The Host, worker, daemon, CLI and NATS auth bridge install it. |
+| `MARKER` | `[REDACTED]`. |
 
 ## Develop
 

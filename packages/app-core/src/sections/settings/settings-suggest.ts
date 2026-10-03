@@ -1,5 +1,5 @@
 /**
- * Where a caret is in a `config.yaml`, for completion (ADR 0134, ADR 0150):
+ * Where a caret is in a `config.yaml`, for completion (ADR 0134, ADR 0156):
  * the line it is on, whether that line sits inside the `keybindings:` mapping
  * or a `contexts.<listing>` mapping, and what has been typed of the key or
  * the value. Pure text in, text out; no DOM.
@@ -9,8 +9,10 @@ import {
   NOP,
   keymapCommands,
 } from "../../lib/keymap/commands.js";
+import { authorityLocked } from "../../lib/keymap/config.js";
 import { isKeymapContext } from "../../lib/keymap/context.js";
 import { defaultBindings } from "../../lib/keymap/effective.js";
+import { canonicalSequence } from "../../lib/keymap/notation.js";
 import { yamlKey, yamlWord } from "./settings-keymap-yaml.js";
 
 export type LineAt = Readonly<{ text: string; start: number; end: number }>;
@@ -155,14 +157,25 @@ export function bindingSuggestions(source: string, caret: number): string[] {
       .filter((sequence) => sequence.startsWith(typed))
       .map(yamlKey);
   }
+  const commands = keymapCommands();
+  const defaults = defaultBindings(commands);
+  const written = keyName(lineAt(source, caret).text) ?? "";
+  // The file judges a key by its canonical spelling, so the list must too.
+  const key = canonicalSequence(written) ?? written;
   const ids = [
-    ...keymapCommands().map((command) => command.id),
+    ...commands.map((command) => command.id),
     ...macroIds(source),
     NOP,
   ];
   // A finished action is not offered back. A finished key still is, so Tab
-  // can write the colon after it.
+  // can write the colon after it. Nor is one the file would refuse for this
+  // key: a command that asks first keeps only its own locked keys.
   return [...new Set(ids)]
-    .filter((id) => id !== typed && id.startsWith(typed))
+    .filter(
+      (id) =>
+        id !== typed &&
+        id.startsWith(typed) &&
+        !authorityLocked(key, id, commands, defaults),
+    )
     .map(yamlWord);
 }

@@ -103,6 +103,11 @@ impl Registry {
         ))
     }
 
+    /// End every connection under `key`, each after it drains its queue.
+    fn close(&self, key: &str) {
+        self.lock().remove(key);
+    }
+
     fn send(&self, key: &str, frame: &[u8], close: bool) {
         let mut connections = self.lock();
         if let Some(list) = connections.get(key) {
@@ -154,8 +159,21 @@ impl Hub {
     pub fn sign_in_answered(&self, user_id: &str, request_id: &str) {
         let frame = frames::request_update(Update::AuthRequestResponse, user_id, request_id);
         self.accounts.send(user_id, &frame, false);
+        self.deliver_answer(user_id, request_id);
+    }
+
+    /// Tell the devices waiting on a request that it was answered, and end
+    /// their connections. A device that joined after the answer landed is
+    /// told here too, so nothing waits on an answer that already came.
+    pub(crate) fn deliver_answer(&self, user_id: &str, request_id: &str) {
         let answer = frames::anonymous_response(user_id, request_id);
         self.waiting.send(request_id, &answer, true);
+    }
+
+    /// End the connections waiting on a request that was denied, or that ran
+    /// out of time: there is no answer to wait for.
+    pub(crate) fn sign_in_ended(&self, request_id: &str) {
+        self.waiting.close(request_id);
     }
 
     /// How many connections the account holds.
@@ -208,12 +226,24 @@ pub async fn hub(
         .hub
         .join(&user.id)
         .ok_or_else(ApiError::too_many_requests)?;
-    Ok(upgrade.on_upgrade(move |socket| serve(socket, rx, seat)))
+    Ok(upgrade.on_upgrade(move |socket| serve(socket, rx, seat, None)))
 }
 
-pub(crate) async fn serve(mut socket: WebSocket, mut rx: mpsc::Receiver<Vec<u8>>, _seat: Seat) {
+/// A connection with nothing to wait for lives as long as its client does.
+const FOREVER: Duration = Duration::from_secs(60 * 60 * 24 * 365);
+
+/// Serve one connection until the client leaves, its queue closes, or
+/// `lifetime` — when it has one — runs out.
+pub(crate) async fn serve(
+    mut socket: WebSocket,
+    mut rx: mpsc::Receiver<Vec<u8>>,
+    _seat: Seat,
+    lifetime: Option<Duration>,
+) {
     let mut ping = tokio::time::interval(PING_EVERY);
     ping.tick().await;
+    let expiry = tokio::time::sleep(lifetime.unwrap_or(FOREVER));
+    tokio::pin!(expiry);
     loop {
         let outgoing = tokio::select! {
             incoming = socket.recv() => match incoming {
@@ -229,10 +259,34 @@ pub(crate) async fn serve(mut socket: WebSocket, mut rx: mpsc::Receiver<Vec<u8>>
                 None => break,
             },
             _ = ping.tick() => Message::Binary(frames::ping().into()),
+            () = &mut expiry => break,
         };
         if socket.send(outgoing).await.is_err() {
             break;
         }
     }
     let _ = socket.send(Message::Close(None)).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn an_answer_reaches_a_device_that_joined_after_it_and_then_ends_the_wait() {
+        let hub = Hub::default();
+        let (_seat, mut rx) = hub.waiting.join("request", 4, 1024).unwrap();
+        hub.deliver_answer("user", "request");
+        assert!(rx.recv().await.is_some(), "the answer is queued");
+        assert!(rx.recv().await.is_none(), "and the wait ends");
+        assert!(hub.waiting.lock().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_denied_or_expired_request_ends_the_wait_with_no_answer() {
+        let hub = Hub::default();
+        let (_seat, mut rx) = hub.waiting.join("request", 4, 1024).unwrap();
+        hub.sign_in_ended("request");
+        assert!(rx.recv().await.is_none());
+    }
 }

@@ -5,7 +5,7 @@
 //! any number of modules in the same crate, so this is a pure move: no
 //! signature, visibility or call site changes.
 
-use super::{append_outbox_tx, Db, OutboxEvent, Row, Utc};
+use super::{sealed, Db, OutboxEvent, Row, Utc};
 
 impl Db {
     /// Broadcast a change event in its own transaction. Mutations that already
@@ -49,16 +49,23 @@ impl Db {
         .bind(limit)
         .fetch_all(&mut *transaction)
         .await?;
-        let events: Vec<OutboxEvent> = rows
-            .into_iter()
-            .map(|row| OutboxEvent {
-                id: row.get("id"),
-                event_type: row.get("event_type"),
-                payload_json: row.get("payload_json"),
-                created_at: row.get("created_at"),
-                attempts: row.get("attempts"),
-            })
-            .collect();
+        let mut events = Vec::with_capacity(rows.len());
+        let mut unreadable = Vec::new();
+        for row in rows {
+            let stored: String = row.get("payload_json");
+            let id: String = row.get("id");
+            match sealed::open_or_quarantine("outbox_events.payload_json", &stored)? {
+                Some(payload_json) => events.push(OutboxEvent {
+                    id,
+                    event_type: row.get("event_type"),
+                    payload_json,
+                    created_at: row.get("created_at"),
+                    attempts: row.get("attempts"),
+                }),
+                None => unreadable.push(id),
+            }
+        }
+        sealed::quarantine::quarantine_outbox(&mut transaction, &unreadable, now).await?;
         if !events.is_empty() {
             let lease = (now + chrono::Duration::seconds(lease_seconds)).to_rfc3339();
             for event in &events {
@@ -114,7 +121,7 @@ impl Db {
                  WHERE id = ? AND published_at IS NULL",
             )
             .bind(&available)
-            .bind(error)
+            .bind(sealed::scrub(error))
             .bind(id)
             .execute(&mut *transaction)
             .await?;
@@ -137,7 +144,7 @@ impl Db {
                 "UPDATE outbox_events SET published_at = ?, last_error = ? WHERE id = ? AND published_at IS NULL",
             )
             .bind(&now)
-            .bind(error)
+            .bind(sealed::scrub(error))
             .bind(id)
             .execute(&mut *transaction)
             .await?;
@@ -161,4 +168,29 @@ impl Db {
     }
 
     // —— certificate authority and issuance —————————————————————
+}
+
+/// Append a change event inside an open transaction — the transactional-outbox
+/// write that makes "every secret mutation broadcasts an event" crash-safe.
+/// Shared with `connection-broker`, which writes the same pool.
+///
+/// # Errors
+///
+/// Returns an error when the outbox row cannot be inserted.
+pub async fn append_outbox_tx(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    event_type: &str,
+    payload_json: &str,
+) -> anyhow::Result<String> {
+    let id = uuid::Uuid::now_v7().to_string();
+    sqlx::query(
+        "INSERT INTO outbox_events (id, event_type, payload_json, created_at) VALUES (?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(event_type)
+    .bind(sealed::seal("outbox_events.payload_json", payload_json))
+    .bind(Utc::now().to_rfc3339())
+    .execute(&mut **transaction)
+    .await?;
+    Ok(id)
 }

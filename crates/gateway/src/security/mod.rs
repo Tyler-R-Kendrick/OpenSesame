@@ -25,6 +25,7 @@ pub mod alert;
 pub mod delivery;
 pub mod dispatch;
 pub mod endpoint_fence;
+mod failure_text;
 pub mod hooks;
 pub mod notify;
 pub mod sinks;

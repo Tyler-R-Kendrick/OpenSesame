@@ -81,6 +81,13 @@ encoder, and scrubs the credential from every response and DOM read. It is an
   substitute, and `run_login` takes its answer, so a runner cannot reach
   substitution without the switch. A declaration the switch did not arm logs
   in by CDP fill, as before ADR 0150.
+- **Its transport is the surrogate-proxy plugin.** The plugin arms each login
+  a run declares with `LoginRoad::choose` over its own `PluginState`, and
+  puts every request the child's browser sends through the proxy that
+  carries a login surrogate to `ArmedSubstitution::egress`; login-origin
+  responses go through `ResponseScrub` (`crates/surrogate-proxy/src/login*.rs`,
+  ADR 0150 §6.3). The password comes from the person's sealed store, read by
+  `opensesame dev run --agent` and sent to the plugin over its stdin.
 - **Tested with the feature on.** The crate's dev-dependency on itself turns
   the feature on for every test build, so the Rust CI job's
   `cargo test --workspace --all-targets` and the workspace Clippy gate

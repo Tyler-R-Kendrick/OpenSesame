@@ -1,5 +1,5 @@
 /**
- * The Keybindings `config.yaml`'s own keys (ADR 0150): `keybindings:`,
+ * The Keybindings `config.yaml`'s own keys (ADR 0156): `keybindings:`,
  * `contexts:` and `macros:`, spelled and read here so `settings-files.ts`
  * stays the directory-agnostic codec.
  */
@@ -194,5 +194,21 @@ export function readKeymapParts(
     },
     commands,
     defaultBindings(commands),
+  );
+}
+
+/** One macro compared by what it does: its trigger and its steps. */
+export function stableMacro(macro: MacroDoc | undefined): string {
+  return JSON.stringify([macro?.on ?? null, macro?.steps ?? null]);
+}
+
+/** Macros compared by what they do: order and field order aside. */
+export function stableMacros(
+  macros: Readonly<Record<string, MacroDoc>> = {},
+): string {
+  return JSON.stringify(
+    Object.keys(macros)
+      .sort()
+      .map((name) => [name, stableMacro(macros[name])]),
   );
 }

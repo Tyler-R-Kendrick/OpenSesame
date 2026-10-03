@@ -39,6 +39,14 @@ pub enum RateKey {
     /// A browser extension, keyed by its exact extension origin
     /// (`chrome-extension://…`), on the fill routes (ADR 0150 §6.4).
     Extension(String),
+    /// Every plugin-pairing exchange shares one bucket, whatever origin it
+    /// claims (ADR 0150 §7): a caller outside a browser can claim any.
+    PluginPairing,
+    /// Every fill-pairing request from a caller that has not proved a token
+    /// shares this bucket (ADR 0150 §6.4). Its `Origin` is a claim any local
+    /// process can make, so it must not spend the budget of the paired
+    /// extension that origin names.
+    UnpairedFill,
 }
 
 /// 429 with a `Retry-After` the caller can actually wait on.
@@ -84,6 +92,19 @@ impl TokenBucket {
         let now = Instant::now();
         if buckets.len() >= MAX_BUCKETS {
             buckets.retain(|_, b| now.duration_since(b.last) < Duration::from_secs(3600));
+        }
+        // Idle buckets are gone; if a flood of distinct keys inside the hour
+        // still fills the map, the least recently used one goes, so the bound
+        // holds whatever the callers send.
+        while buckets.len() >= MAX_BUCKETS && !buckets.contains_key(&key) {
+            let Some(oldest) = buckets
+                .iter()
+                .min_by_key(|(_, bucket)| bucket.last)
+                .map(|(key, _)| key.clone())
+            else {
+                break;
+            };
+            buckets.remove(&oldest);
         }
         let bucket = buckets.entry(key).or_insert(Bucket {
             tokens: self.capacity,
@@ -133,6 +154,16 @@ mod tests {
         // And the TCP-constant bucket is separate again.
         assert!(bucket.check(RateKey::TcpOperator).is_ok());
         assert!(bucket.check(RateKey::TcpOperator).is_err());
+    }
+
+    #[test]
+    fn a_flood_of_distinct_keys_cannot_grow_the_map_past_its_bound() {
+        let bucket = TokenBucket::default();
+        for n in 0..(MAX_BUCKETS * 3) {
+            let _ = bucket.check(RateKey::Extension(format!("chrome-extension://{n}")));
+        }
+        let held = bucket.buckets.lock().unwrap().len();
+        assert!(held <= MAX_BUCKETS, "{held} buckets tracked");
     }
 
     #[test]

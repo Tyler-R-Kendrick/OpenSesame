@@ -19,7 +19,11 @@ import {
   startRegister,
 } from "./keymap-chord.js";
 import { runTarget } from "./keymap-commands.js";
-import { contributedKeymapExtras, keymapHelpRows } from "./keymap-help.js";
+import {
+  type KeymapView,
+  contributedKeymapExtras,
+  keymapHelpRows,
+} from "./keymap-help.js";
 import { sectionJumpKeys } from "./keymap-jumps.js";
 import { recordRun } from "./keymap-registers.js";
 import { type Fire, resolveToken } from "./keymap-resolve.js";
@@ -60,14 +64,18 @@ export { sectionJumpKeys, sectionJumpPath } from "./keymap-jumps.js";
 export {
   KEYMAP_HELP_CORE,
   type KeymapHelpRow,
+  type KeymapView,
   keymapHelpRows,
   registerKeymapHelp,
   showKeymapHelp,
 } from "./keymap-help.js";
 
-/** The sheet for the jumps and controls registered right now. */
-export function keymapHelp() {
-  return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras());
+/**
+ * The sheet for the jumps and controls registered right now; with the keymap
+ * in force, drawn from the keys a person actually has.
+ */
+export function keymapHelp(view?: KeymapView) {
+  return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras(), view);
 }
 
 type BindingsFor = (
@@ -101,7 +109,7 @@ let cached: {
 
 /**
  * The keymap in force — everywhere, or with a listing's own keys laid over
- * it (ADR 0150 §6) — rebuilt only when the keymap or the jumps change.
+ * it (ADR 0156 §6) — rebuilt only when the keymap or the jumps change.
  */
 export function currentBindings(
   context?: KeymapContext | null,
@@ -154,7 +162,7 @@ function otherListing(event: KeyboardEvent): void {
 }
 
 /**
- * The shell's key handler (ADR 0150). Every binding comes from the keymap in
+ * The shell's key handler (ADR 0156). Every binding comes from the keymap in
  * force — the defaults with a person's changes — through a sequence trie:
  * counts first (`5j`), then the half-typed sequence (`g` of `g v`), which
  * waits `goTimeoutMs` like vim's `timeoutlen`. The keys that keep the
@@ -298,7 +306,7 @@ function countKey(event: KeyboardEvent, chord: ChordState): boolean {
   return true;
 }
 
-/** The keys no keymap may take: Escape, F6 and Enter (ADR 0150). */
+/** The keys no keymap may take: Escape, F6 and Enter (ADR 0156). */
 function fixedKey(event: KeyboardEvent): boolean {
   if (event.key === "Escape") {
     leavePane(event);

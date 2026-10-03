@@ -13,7 +13,7 @@ use crate::Db;
 
 /// One two-step provider an account has set up. `data` is what the server
 /// checks a code against (an authenticator's base32 key).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BitwardenTwoFactor {
     pub provider: i64,
     pub enabled: bool,
@@ -92,7 +92,9 @@ impl Db {
     }
 
     /// Remove one provider (`Some`) or all of them (`None`). Returns how many
-    /// went. Removing every provider also forgets every remembered device.
+    /// went. Removing every provider also forgets every remembered device,
+    /// and takes the account, as revoked, out of every organization that
+    /// requires two-step login — all in the one transaction.
     ///
     /// # Errors
     ///
@@ -102,7 +104,7 @@ impl Db {
         user_id: &str,
         provider: Option<i64>,
     ) -> anyhow::Result<u64> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = super::policy_rules::begin_write(&self.pool).await?;
         let done = sqlx::query(
             "DELETE FROM bitwarden_two_factor WHERE user_id = ? AND (? IS NULL OR provider = ?)",
         )
@@ -118,6 +120,7 @@ impl Db {
         .fetch_one(&mut *tx)
         .await?;
         if left == 0 {
+            super::policy_rules::revoke_without_two_step(&mut tx, user_id).await?;
             sqlx::query(
                 "UPDATE bitwarden_devices SET remember_hash = NULL, remember_stamp = NULL, \
                  remember_expires_at = NULL WHERE user_id = ?",

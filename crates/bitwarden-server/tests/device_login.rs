@@ -218,8 +218,9 @@ async fn a_denied_or_unknown_request_opens_nothing() {
         .get("access_token")
         .is_none());
 
-    // At most five unanswered requests at once.
-    for _ in 0..5 {
+    // The denied request above was the first of the five an address may make
+    // in a window; four more, then no more.
+    for _ in 0..4 {
         assert_eq!(
             ask(&harness, "me@example.com", &asker.public_b64).await.0,
             200
@@ -229,4 +230,62 @@ async fn a_denied_or_unknown_request_opens_nothing() {
         ask(&harness, "me@example.com", &asker.public_b64).await.0,
         429
     );
+}
+
+#[tokio::test]
+async fn every_address_is_limited_alike_whether_or_not_it_has_an_account() {
+    let harness = Harness::start().await;
+    account(&harness, "me@example.com").await;
+    let asker = asker();
+    // The cap is charged to the address as typed, case and padding aside, so
+    // neither a made-up address nor a new spelling gets a fresh allowance —
+    // and the refusal is the same for an address that has an account.
+    for email in ["me@example.com", "ghost@example.com"] {
+        for _ in 0..5 {
+            assert_eq!(ask(&harness, email, &asker.public_b64).await.0, 200);
+        }
+        let spelled = format!("  {}  ", email.to_uppercase());
+        let (status, body) = ask(&harness, &spelled, &asker.public_b64).await;
+        assert_eq!(status, 429, "{email}: {body}");
+    }
+    // A different address is untouched.
+    assert_eq!(
+        ask(&harness, "other@example.com", &asker.public_b64)
+            .await
+            .0,
+        200
+    );
+}
+
+/// Whether the socket ends, by a close or by hanging up, within a while.
+async fn ends(socket: &mut Socket) -> bool {
+    let deadline = std::time::Duration::from_secs(10);
+    loop {
+        match tokio::time::timeout(deadline, socket.next()).await {
+            Ok(Some(Ok(Message::Close(_)) | Err(_)) | None) => return true,
+            Ok(Some(Ok(_))) => {}
+            Err(_) => return false,
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_device_waiting_on_a_denied_request_is_let_go() {
+    let harness = Harness::start().await;
+    let (_, api) = account(&harness, "me@example.com").await;
+    let asker = asker();
+    let (_, request) = ask(&harness, "me@example.com", &asker.public_b64).await;
+    let id = request["id"].as_str().unwrap().to_owned();
+    let mut waiting = socket(
+        &harness,
+        &format!("/notifications/anonymous-hub?Token={id}"),
+    )
+    .await;
+    api.ok(
+        "PUT",
+        &format!("/auth-requests/{id}"),
+        Some(json!({"requestApproved": false, "deviceIdentifier": "old-phone"})),
+    )
+    .await;
+    assert!(ends(&mut waiting).await, "denial ends the wait");
 }

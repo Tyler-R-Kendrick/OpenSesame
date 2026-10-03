@@ -21,6 +21,7 @@
     "generate:openapi": "tsx src/generate-openapi.ts && pnpm --workspace-root exec biome format --write packages/control-plane/openapi.json"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@hono/node-server": "2.1.0",
     "@node-saml/node-saml": "5.1.0",
     "@opensesame/agent-protocols": "workspace:*",

@@ -1,5 +1,5 @@
 /**
- * Every command a key or a macro may name (ADR 0150). The shell's keymap binds
+ * Every command a key or a macro may name (ADR 0156). The shell's keymap binds
  * these ids to what they do; Settings › Keybindings draws one row per command;
  * the `config.yaml` names them. A command id is stable — a person's file names
  * it — so one is never renamed. A retired id is refused by a panel or a file,
@@ -74,7 +74,7 @@ const COMMANDS: readonly KeymapCommand[] = [
     label: "Next row",
     group: "move",
     kind: "navigate",
-    defaults: ["j", "ArrowDown", "Control+n"],
+    defaults: ["j", "ArrowDown"],
     counts: true,
   },
   {
@@ -373,6 +373,7 @@ const reserved = new Map([
   ["Control+t", "The browser's"],
   ["Control+T", "The browser's"],
   ["Control+W", "The browser's"],
+  ["Control+n", "The browser's"],
   ["Control+N", "The browser's"],
   ["Control+q", "The browser's"],
   ["Control+r", "The browser's"],
@@ -392,6 +393,6 @@ export const FIXED_ROWS: readonly (readonly [keys: string, label: string])[] = [
   ["Enter", "Open or activate"],
   ["Escape", "Leave the field, then the pane"],
   ["F6", "Other listing"],
-  ["Shift+F10 / Shift+Enter", "Actions for the row"],
+  ["Shift+F10 / Shift+Enter / ContextMenu", "Actions for the row"],
   ["1 … 9", "Count before a key"],
 ];

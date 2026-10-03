@@ -246,10 +246,15 @@ async fn pair(Extension(fill): Extension<Arc<FillState>>, headers: HeaderMap) ->
         Ok(caller) => caller,
         Err(response) => return response,
     };
-    if let Err(retry) = fill
-        .lookup_limiter
-        .check(RateKey::Extension(caller.origin.clone()))
-    {
+    // A caller that has not proved its token is only claiming an origin, and
+    // any local process can claim any. It spends the shared unpaired bucket,
+    // never the budget of the paired extension that origin names.
+    let key = if fill.pairings.verify(&caller.origin, &caller.token) {
+        RateKey::Extension(caller.origin.clone())
+    } else {
+        RateKey::UnpairedFill
+    };
+    if let Err(retry) = fill.lookup_limiter.check(key) {
         return rate_limited(retry);
     }
     match fill

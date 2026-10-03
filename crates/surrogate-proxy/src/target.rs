@@ -79,6 +79,15 @@ impl Target {
         }
     }
 
+    /// The host as a URL writes it, bracketing an IPv6 literal.
+    pub(crate) fn authority_host(&self) -> String {
+        if self.host.contains(':') {
+            format!("[{}]", self.host)
+        } else {
+            self.host.clone()
+        }
+    }
+
     /// The TLS server name must name the CONNECT host. An IP literal is never
     /// a server name (RFC 6066 §3), so for one the name must be absent.
     pub(crate) fn sni_agrees(&self, sni: Option<&str>) -> bool {

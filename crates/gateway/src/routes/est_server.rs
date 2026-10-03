@@ -132,7 +132,7 @@ pub(crate) async fn authorized_profile(
 // —— operator surface: the profile's EST configuration ————————————————
 
 /// The operator's EST configuration document. Unknown fields are refused.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EstConfigBody {
     /// Bootstrap passphrase (sealed at rest under `est_passphrase`).

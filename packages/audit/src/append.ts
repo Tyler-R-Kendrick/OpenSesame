@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { scrubText } from "@opensesame/log-scrub";
 import type {
   AuditActorType,
   AuditEvent,
@@ -50,21 +51,24 @@ export async function appendAuditEvent(
     metadata: redactAuditMetadata(input.metadata),
   };
   if (input.causationId !== undefined) event.causationId = input.causationId;
-  if (input.principalId !== undefined) event.principalId = input.principalId;
+  if (input.principalId !== undefined)
+    event.principalId = scrubText(input.principalId);
   if (input.actorType !== undefined) event.actorType = input.actorType;
-  if (input.actorId !== undefined) event.actorId = input.actorId;
+  if (input.actorId !== undefined) event.actorId = scrubText(input.actorId);
   if (input.agentInstanceId !== undefined) {
-    event.agentInstanceId = input.agentInstanceId;
+    event.agentInstanceId = scrubText(input.agentInstanceId);
   }
-  if (input.clientId !== undefined) event.clientId = input.clientId;
+  if (input.clientId !== undefined) event.clientId = scrubText(input.clientId);
   if (input.organizationId !== undefined) {
     event.organizationId = input.organizationId;
   }
   if (input.projectId !== undefined) event.projectId = input.projectId;
-  if (input.claimId !== undefined) event.claimId = input.claimId;
-  if (input.sessionId !== undefined) event.sessionId = input.sessionId;
-  if (input.targetType !== undefined) event.targetType = input.targetType;
-  if (input.targetId !== undefined) event.targetId = input.targetId;
+  if (input.claimId !== undefined) event.claimId = scrubText(input.claimId);
+  if (input.sessionId !== undefined)
+    event.sessionId = scrubText(input.sessionId);
+  if (input.targetType !== undefined)
+    event.targetType = scrubText(input.targetType);
+  if (input.targetId !== undefined) event.targetId = scrubText(input.targetId);
 
   return sink.append(event);
 }

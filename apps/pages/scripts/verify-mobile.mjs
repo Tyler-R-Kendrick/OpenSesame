@@ -30,7 +30,8 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
-import { openVaultList } from "./lib/phone-vault.mjs";
+import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { backOutStops, openVaultList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -220,30 +221,7 @@ async function vaultItem(page, stop) {
   await save.tap();
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
-  await backOut(page, stop);
-}
-
-/**
- * Three panes, one key back each: the item to the list, the list to the
- * section tree. Each is a real tap on a real key, and the pane that answers is
- * read off the shell, so a back that lands one pane too far fails here.
- */
-async function backOut(page, stop) {
-  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
-  await page.getByRole("link", { name: "Back to all items" }).first().tap();
-  await page.waitForTimeout(500);
-  harness.check(
-    (await pane()) === "list",
-    `${stop("back")}: back from an item lands on the list`,
-  );
-  await audit(page, stop("list"));
-  await page.getByRole("link", { name: "Back to sections" }).first().tap();
-  await page.waitForTimeout(500);
-  harness.check(
-    (await pane()) === "tree",
-    `${stop("back")}: back from the list lands on the section tree`,
-  );
-  await audit(page, stop("tree"));
+  await backOutStops(page, stop, { harness, audit });
 }
 
 async function walk(browser, phone) {
@@ -290,6 +268,22 @@ async function walk(browser, phone) {
     await audit(page, stop("unlock"));
   }
 
+  await context.close();
+}
+
+/** The unlock screen of a vault with an enrolled recovery key (ADR 0152). */
+async function protectorUnlock(browser, phone) {
+  const { page, context } = await harness.newPage(browser, {
+    device: phoneContext(phone),
+  });
+  await protectorUnlockStops(page, {
+    harness,
+    audit,
+    openTab,
+    stop: (name) => `${phone.name}-${name}`,
+    origin,
+    base,
+  });
   await context.close();
 }
 
@@ -361,7 +355,10 @@ async function tablet(browser, size) {
 checkSafeAreas();
 const browser = await harness.launch();
 try {
-  for (const phone of PHONES) await walk(browser, phone);
+  for (const phone of PHONES) {
+    await walk(browser, phone);
+    await protectorUnlock(browser, phone);
+  }
   for (const size of TABLETS) await tablet(browser, size);
 } finally {
   await browser.close();

@@ -62,7 +62,8 @@ function Recorder({
 }: {
   tokens: readonly string[];
   onToken: (token: string) => void;
-  onStop: () => void;
+  /** `refocus` is false when Tab is already carrying focus onward. */
+  onStop: (refocus: boolean) => void;
 }) {
   return (
     <input
@@ -76,10 +77,15 @@ function Recorder({
       value={tokens.map(keycapLabel).join(" ")}
       onKeyDown={(event) => {
         const key = event.nativeEvent;
-        if (key.key === "Tab") return;
+        // Tab and Shift-Tab leave, and keep what was pressed: finish the
+        // recording, but leave the press alone so focus moves natively.
+        if (key.key === "Tab") {
+          onStop(false);
+          return;
+        }
         event.preventDefault();
         if (key.key === "Enter" || key.key === "Escape") {
-          onStop();
+          onStop(true);
           return;
         }
         const token = tokenFromPress(key);
@@ -116,6 +122,11 @@ function StepRow({
   onRemove: () => void;
 }) {
   const n = index + 1;
+  // A step may be kept though it is not offered (a section whose capability
+  // is absent today): the select still has to show what will be saved.
+  const offered = choices.some((entry) =>
+    entry.commands.some((command) => command.id === step.command),
+  );
   return (
     <li className="kb-step" data-step={index}>
       <input
@@ -138,7 +149,7 @@ function StepRow({
         value={step.command}
         onChange={(event) => onStep({ ...step, command: event.target.value })}
       >
-        {problem ? <option value={step.command}>{step.command}</option> : null}
+        {offered ? null : <option value={step.command}>{step.command}</option>}
         {choices.map((entry) => (
           <optgroup key={entry.group} label={GROUP_LABEL[entry.group]}>
             {entry.commands.map((command) => (
@@ -201,7 +212,7 @@ function useStepRecorder(
   const [recording, setRecording] = useState(false);
   const [tokens, setTokens] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<readonly string[]>([]);
-  const finish = () => {
+  const finish = (refocus = true) => {
     const recorded = stepsFromKeys(tokens, state.config, state.commands);
     const allowed = recorded.steps.filter(
       (step) => stepProblem(step, on, state.commands) === null,
@@ -214,7 +225,7 @@ function useStepRecorder(
       onChange([...steps, ...allowed].slice(0, MACRO_LIMITS.steps));
     setTokens([]);
     setRecording(false);
-    afterStop();
+    if (refocus) afterStop();
   };
   return {
     recording,

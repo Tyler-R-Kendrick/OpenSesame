@@ -10,6 +10,7 @@
 //! becomes a vetted notice line in the file the daemon's Settings route reads
 //! ([`notices`]).
 
+mod events;
 pub mod gate;
 pub mod notices;
 pub mod serve;

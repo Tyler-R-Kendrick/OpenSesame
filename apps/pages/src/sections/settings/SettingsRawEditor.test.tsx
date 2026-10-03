@@ -171,14 +171,22 @@ describe("a settings directory's config.yaml", () => {
 
     it("completes an action id inside keybindings", () => {
       render(<SettingsRawEditor category="keybindings" />);
-      type(keymapFile(), "keybindings:\n  w: item.s");
+      type(keymapFile(), "keybindings:\n  s: item.s");
       expect(tab(keymapFile())).toBe(false);
-      expect(keymapFile().value).toBe("keybindings:\n  w: item.share");
+      expect(keymapFile().value).toBe("keybindings:\n  s: item.share");
+    });
+
+    it("does not complete an action the file would refuse for that key", () => {
+      render(<SettingsRawEditor category="keybindings" />);
+      type(keymapFile(), "keybindings:\n  w: item.s");
+      expect(screen.queryByRole("button", { name: "item.share" })).toBeNull();
+      expect(tab(keymapFile())).toBe(true);
+      expect(keymapFile().value).toBe("keybindings:\n  w: item.s");
     });
 
     it("lists what matches what is typed, quoting a key YAML would misread", () => {
       render(<SettingsRawEditor category="keybindings" />);
-      type(keymapFile(), "keybindings:\n  w: item.s");
+      type(keymapFile(), "keybindings:\n  s: item.s");
       expect(screen.getByRole("button", { name: "item.share" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: "item.new" })).toBeNull();
       type(keymapFile(), "keybindings:\n  Control+l");

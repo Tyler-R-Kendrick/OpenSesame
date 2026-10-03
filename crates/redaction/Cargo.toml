@@ -4,6 +4,15 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# `ScrubMakeWriter`: the scrubbing sink for a `tracing_subscriber` fmt layer.
+tracing = ["dep:tracing-subscriber"]
+
 [dependencies]
 regex = "1.11.1"
 serde_json = { workspace = true }
+tracing-subscriber = { workspace = true, optional = true }
+
+[dev-dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

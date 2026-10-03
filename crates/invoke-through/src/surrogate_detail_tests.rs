@@ -88,3 +88,34 @@ fn a_misplaced_body_names_the_site_not_the_value() {
     assert_eq!(r.code, RefusalCode::Misplaced);
     assert_eq!(r.detail.as_deref(), Some("body"));
 }
+
+#[test]
+fn a_surrogate_smuggled_in_the_method_alone_is_seen_and_refused() {
+    // No header carries it: only the request line's method does. It must not
+    // read as "no surrogate at all" and pass to a passthrough host.
+    let (ledger, s) = ledger_with(0x57);
+    let h = headers(&[("Accept", "*/*")]);
+    for host in ["evil.example", "api.github.com"] {
+        let mut req = view(host, "/", &h, b"");
+        req.method = &s;
+        let r = refused(&ledger, &req, CALLER);
+        assert!(
+            matches!(
+                r.code,
+                RefusalCode::Misdirected | RefusalCode::Misplaced | RefusalCode::OutOfScope
+            ),
+            "{host}: {r:?}"
+        );
+        assert!(!leaks(&r, &s), "{r:?}");
+    }
+}
+
+#[test]
+fn a_forged_surrogate_in_the_method_is_unknown_not_silence() {
+    let (ledger, _) = ledger_with(0x58);
+    let h = headers(&[]);
+    let mut req = view("evil.example", "/", &h, b"");
+    let forged = format!("{SURROGATE_MARKER}{}", "ab".repeat(16));
+    req.method = &forged;
+    assert_eq!(refused(&ledger, &req, CALLER).code, RefusalCode::Unknown);
+}

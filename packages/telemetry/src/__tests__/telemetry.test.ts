@@ -175,3 +175,26 @@ describe("createTelemetry — forbidden content is dropped, not redacted", () =>
     expect(events[0]?.props).toEqual({ tool: "task_start" });
   });
 });
+
+describe("telemetry drops a value shaped like a credential (ADR 0157)", () => {
+  it("never forwards a JWT, a bearer-bearing URL or a vendor key under an allowed prop", () => {
+    const events: Array<{ event: string; props: JsonObject }> = [];
+    const telemetry = createTelemetry({
+      capture: (event, props) => events.push({ event, props }),
+    });
+    for (const outcome of [
+      "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl",
+      "opened https://app.example/claim#token=abc123",
+      "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+    ]) {
+      telemetry.track("mcp_tool_call", { tool: "read", outcome });
+    }
+    telemetry.track("mcp_tool_call", { tool: "read", outcome: "success" });
+    expect(events.map((e) => e.props.outcome)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      "success",
+    ]);
+  });
+});

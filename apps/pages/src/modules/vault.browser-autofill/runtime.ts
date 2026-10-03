@@ -16,9 +16,13 @@
  * walkthrough (`tutorial/registry/plugins-catalog.ts`).
  *
  * Egress this module makes, all through `ctx.egress` to the daemon a person
- * paired over the tailnet (`networking.tailnet`, a dependency), and only once
- * the tile is drawn with a pairing in the open vault: `GET /v1/plugins`, and
- * on the switch `PUT /v1/plugins/browser-autofill`. With no daemon paired it
+ * paired this page with (`opensesame plugins pair`, reached on this machine or
+ * over the tailnet — `networking.tailnet`, a dependency), and only once the
+ * tile is drawn with a pairing in the open vault: `GET /v1/plugins`, and
+ * on the switch `PUT /v1/plugins/browser-autofill`. Pairing, when a
+ * person pastes the code `opensesame plugins pair` printed: one
+ * `POST /v1/plugins/pairing` to the daemon the code names; forgetting it:
+ * one `DELETE /v1/plugins/pairing`. With no daemon paired it
  * sends nothing. Side effects: none at import, none on activation.
  */
 

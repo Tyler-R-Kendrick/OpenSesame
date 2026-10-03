@@ -1,10 +1,13 @@
 /**
- * The keyboard's half-typed state (ADR 0150): a count, a sequence prefix,
+ * The keyboard's half-typed state (ADR 0156): a count, a sequence prefix,
  * and vim's registers — `q` or `@` waiting for a letter, a recording on.
  * The handler in `keymap.ts` reads and writes it; `showPending` tells the
  * statusline after every press (vim's `showcmd`).
  */
-import { REGISTER_PREFIX } from "@opensesame/app-core/lib/keymap/commands.js";
+import {
+  REGISTER_PREFIX,
+  RESERVED_KEYS,
+} from "@opensesame/app-core/lib/keymap/commands.js";
 import type { KeymapContext } from "@opensesame/app-core/lib/keymap/context.js";
 import { tokenFromPress } from "@opensesame/app-core/lib/keymap/notation.js";
 import type { CommandRun } from "./keymap-commands.js";
@@ -67,9 +70,9 @@ export function repeatIgnored(
   chord: ChordState,
   map: ReadonlyMap<string, string>,
 ): boolean {
-  if (!event.repeat || PASS_THROUGH.has(event.key)) return false;
+  if (!event.repeat) return false;
   const token = tokenFromPress(event);
-  if (token === null) return false;
+  if (token === null || keepsItsMeaning(event, token)) return false;
   const half = chord.registers.awaiting !== null || chord.pending.length > 0;
   const target = map.get(token);
   return (
@@ -117,6 +120,17 @@ export function startRegister(
 const PASS_THROUGH = new Set(["Escape", "F6", "Enter"]);
 
 /**
+ * A fixed key (Tab, Shift+Tab, Enter, Shift+Enter, Escape, F6, Shift+F10, the
+ * Menu key) or a key the browser keeps is never a register name and is never
+ * swallowed by the wait: it cancels the wait and does its own work. The count
+ * digits are reserved too, but a digit there is just an invalid name.
+ */
+function keepsItsMeaning(event: KeyboardEvent, token: string): boolean {
+  if (PASS_THROUGH.has(event.key)) return true;
+  return RESERVED_KEYS.has(token) && !/^\d$/.test(token);
+}
+
+/**
  * The key after `q` or `@` names the register; true when this press was it.
  * A bare Shift on the way to `@` keeps waiting.
  */
@@ -128,7 +142,7 @@ export function registerKey(
   if (chord.registers.awaiting === null) return false;
   const token = tokenFromPress(event);
   if (token === null) return true;
-  if (PASS_THROUGH.has(event.key)) {
+  if (keepsItsMeaning(event, token)) {
     clearPending(chord);
     return false;
   }

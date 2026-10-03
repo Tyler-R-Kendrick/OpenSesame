@@ -29,7 +29,7 @@ use chrono::Utc;
 use futures::stream::Stream;
 use opensesame_session_observe::{
     authorize_attach, AttachRefusal, Attachment, ControlLease, ControlState, HandoffOutcome,
-    Quiescence, StepUp, ViewerRelation,
+    StepUp, ViewerRelation,
 };
 use opensesame_storage::{ObservationControlUpdate, StoredObservationRun};
 use serde::Deserialize;
@@ -39,6 +39,7 @@ use crate::app_state::AppState;
 use crate::middleware::auth::{
     resolve_caller, resolve_caller_organization, same_principal_subject, Caller,
 };
+use crate::run_lease::{lease_from, quiescence_name, state_name};
 
 /// How often the observe stream looks for new entries.
 ///
@@ -428,48 +429,6 @@ fn base64_std(bytes: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(bytes)
 }
 
-/// Rebuild the lease machine from the persisted run.
-///
-/// The database holds a projection; `ControlLease` holds the rules. Reading the
-/// projection back into the machine before every transition is what stops the
-/// two from drifting — a state the machine forbids cannot be reached by writing
-/// a column, because the write only happens if the machine allowed it first.
-fn lease_from(run: &StoredObservationRun) -> Option<ControlLease> {
-    let state = match run.control_state.as_str() {
-        "agent_driving" => ControlState::AgentDriving,
-        "handoff_requested" => ControlState::HandoffRequested,
-        "awaiting_human" => ControlState::AwaitingHuman,
-        "human_driving" => ControlState::HumanDriving,
-        "resume_requested" => ControlState::ResumeRequested,
-        "suspended" => ControlState::Suspended,
-        _ => return None,
-    };
-    let quiescence = match run.quiescence.as_str() {
-        "quiescent" => Quiescence::Quiescent,
-        "critical" => Quiescence::Critical,
-        _ => return None,
-    };
-    ControlLease::restore(state, quiescence, run.handoff_queued)
-}
-
-const fn state_name(state: ControlState) -> &'static str {
-    match state {
-        ControlState::AgentDriving => "agent_driving",
-        ControlState::HandoffRequested => "handoff_requested",
-        ControlState::AwaitingHuman => "awaiting_human",
-        ControlState::HumanDriving => "human_driving",
-        ControlState::ResumeRequested => "resume_requested",
-        ControlState::Suspended => "suspended",
-    }
-}
-
-const fn quiescence_name(quiescence: Quiescence) -> &'static str {
-    match quiescence {
-        Quiescence::Quiescent => "quiescent",
-        Quiescence::Critical => "critical",
-    }
-}
-
 /// Persist a lease transition under the version it was decided on.
 ///
 /// A stale version means somebody else moved first, and the caller is told to
@@ -648,7 +607,7 @@ pub async fn take_control(
     let Some(holder) = subject_of(&who) else {
         return refusal(AttachRefusal::StepUpRequired);
     };
-    commit(
+    let taken = commit(
         &st,
         &organization_id,
         &run,
@@ -656,7 +615,13 @@ pub async fn take_control(
         Some(holder),
         (&headers, request.map(|Json(value)| value), "take"),
     )
-    .await
+    .await;
+    // The page is a person's now: the agent's autonomy, and what it was
+    // issued, is over (ADR 0150 §6.2).
+    if taken.status() == StatusCode::OK {
+        crate::run_lease::end_run(&st, &run.id);
+    }
+    taken
 }
 
 /// `POST /api/v1/agent/runs/{id}/release` — hand the page back.
@@ -710,6 +675,10 @@ fn subject_of(who: &Caller) -> Option<String> {
 #[cfg(test)]
 #[path = "agent_runs_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "agent_run_credentials_tests.rs"]
+mod credentials_tests;
 
 // —— the driver's half of the step channel (ADR 0079 §4) ————————————
 

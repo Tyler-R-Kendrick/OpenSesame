@@ -11,6 +11,7 @@ use opensesame_domain::{
 };
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
+use opensesame_session_observe::{NoRunCredentials, RunCredentials};
 use opensesame_storage::Db;
 use opensesame_task_access::{
     distributed_task_authority_ok, is_postgres_database_url, PostgresTaskStore,
@@ -130,6 +131,11 @@ pub struct AppState {
     /// the live service-binding set, and the operator status facts. `None`
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,
+    /// What a sandboxed run's lease revokes when the agent stops driving
+    /// (ADR 0150 §6.2). The Host issues no surrogates itself, so this is
+    /// [`NoRunCredentials`] until an embedder that does supplies its own; the
+    /// lease hooks in `run_lease` call it either way.
+    pub run_credentials: Arc<dyn RunCredentials + Send + Sync>,
 }
 
 impl AppState {
@@ -159,6 +165,10 @@ async fn build_with_security(
     } else {
         Db::connect_sqlite(&args.database_url).await?
     };
+    // Before anything writes an event: they rest sealed (ADR 0157).
+    let broker_config = BrokerConfig::from_env()?;
+    let production = security.deployment.production_safeguards();
+    crate::event_sealing::install(&db, &broker_config, production).await?;
 
     let mut boot =
         bootstrap::maybe_demo_bootstrap(&db, security.deployment, security.receipt_signer).await?;
@@ -172,10 +182,7 @@ async fn build_with_security(
         .demo
         .as_ref()
         .map_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()), |b| b.org);
-    let connection_broker = Arc::new(ConnectionBroker::new(
-        db.pool().clone(),
-        BrokerConfig::from_env()?,
-    )?);
+    let connection_broker = Arc::new(ConnectionBroker::new(db.pool().clone(), broker_config)?);
     // Community Wasm connectors (ADR 0065 §5): loaded only when the operator
     // configured a directory + pinned digests; any failure refuses boot.
     crate::connector_egress::load_wasm_connectors(
@@ -224,6 +231,7 @@ async fn build_with_security(
         task_bus: Arc::new(RwLock::new(task_bus)),
         transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
         transport: None,
+        run_credentials: Arc::new(NoRunCredentials),
     };
     // Built after the state exists: a `managed` identity source resolves
     // through the Host's own custody bridge, which needs the state.

@@ -22,7 +22,11 @@
     "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["PLAYWRIGHT_BASE_URL", "OPENSESAME_OPERATOR_TOKEN"]
+      "env": [
+        "PLAYWRIGHT_BASE_URL",
+        "PLAYWRIGHT_CHROMIUM",
+        "OPENSESAME_OPERATOR_TOKEN"
+      ]
     }
   }
 }

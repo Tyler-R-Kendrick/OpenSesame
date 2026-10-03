@@ -113,29 +113,50 @@ impl PassthroughClient {
         headers: &HeaderMap,
         body: Bytes,
     ) -> Response<ProxyBody> {
+        match self
+            .send(method, authority, path_and_query, end_to_end(headers), body)
+            .await
+        {
+            Ok(response) => {
+                let (mut parts, body) = response.into_parts();
+                parts.headers = end_to_end(&parts.headers);
+                Response::from_parts(parts, body.boxed())
+            }
+            Err(status) if status == http::StatusCode::BAD_REQUEST => respond::refused(status),
+            Err(status) => respond::upstream_failed(status),
+        }
+    }
+
+    /// Send one request as given and hand back the upstream's response, or
+    /// the status that stands for its failure: `400` for a request that could
+    /// not be built, `502` for a transport failure, `504` past the deadline.
+    pub(crate) async fn send(
+        &self,
+        method: &hyper::Method,
+        authority: &str,
+        path_and_query: &str,
+        headers: HeaderMap,
+        body: Bytes,
+    ) -> Result<Response<hyper::body::Incoming>, http::StatusCode> {
         let Ok(mut request) = Request::builder()
             .method(method.clone())
             .uri(format!("https://{authority}{path_and_query}"))
             .body(Full::new(body))
         else {
-            return respond::refused(http::StatusCode::BAD_REQUEST);
+            return Err(http::StatusCode::BAD_REQUEST);
         };
-        *request.headers_mut() = end_to_end(headers);
-        let response =
-            match tokio::time::timeout(PASSTHROUGH_TIMEOUT, self.client.request(request)).await {
-                Ok(Ok(response)) => response,
-                Ok(Err(_)) => return respond::upstream_failed(http::StatusCode::BAD_GATEWAY),
-                Err(_) => return respond::upstream_failed(http::StatusCode::GATEWAY_TIMEOUT),
-            };
-        let (mut parts, body) = response.into_parts();
-        parts.headers = end_to_end(&parts.headers);
-        Response::from_parts(parts, body.boxed())
+        *request.headers_mut() = headers;
+        match tokio::time::timeout(PASSTHROUGH_TIMEOUT, self.client.request(request)).await {
+            Ok(Ok(response)) => Ok(response),
+            Ok(Err(_)) => Err(http::StatusCode::BAD_GATEWAY),
+            Err(_) => Err(http::StatusCode::GATEWAY_TIMEOUT),
+        }
     }
 }
 
 /// `headers` without the hop-by-hop set and without any header the message's
 /// own `Connection` names (RFC 9110 §7.6.1).
-fn end_to_end(headers: &HeaderMap) -> HeaderMap {
+pub(crate) fn end_to_end(headers: &HeaderMap) -> HeaderMap {
     let named: Vec<String> = headers
         .get_all(hyper::header::CONNECTION)
         .iter()

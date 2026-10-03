@@ -11,8 +11,11 @@ runner supplies capture and sealing.
 ## Where it fits
 
 - **Used by:** [`crates/gateway`](../../crates/gateway)
-  (`src/routes/agent_runs.rs`), [`opensesame-a2h`](../a2h) and
-  [`opensesame-rotation-web`](../rotation-web).
+  (`src/routes/agent_runs.rs`), [`opensesame-a2h`](../a2h),
+  [`opensesame-rotation-web`](../rotation-web), and — for the run lease's
+  credentials — [`opensesame-surrogate-proxy`](../surrogate-proxy) (its
+  `RunRevoker` and the plugin's run end) and `apps/cli`
+  (`dev_supervise.rs`, `dev_surrogate.rs`).
 - **Builds on:** no workspace crates (`serde`, `thiserror`).
 - Exactly one actor drives. The agent is provably parked before a human touches
   the page, and the span between a candidate's presence assertion and its
@@ -32,6 +35,17 @@ runner supplies capture and sealing.
 | Control lease | `ControlLease`, `ControlState`, `ControlError`, `CriticalExit`, `HandoffOutcome`, `Quiescence`, `Reassertion` |
 | Frame stream | `admit_frame`, `FrameDrop`, `Lane`, `LayoutEpoch`, `MaskManifest`, `ObservationEvent`, `SealedPayload`, `Seq`, `UntrustedText`, `MAX_THOUGHT_CHARS` |
 | Viewers | `authorize_attach`, `Attachment`, `AttachRefusal`, `StepUp`, `ViewerRelation` |
+| Run credentials (ADR 0150 §6.2) | `RunCredentials`, `NoRunCredentials`, `park_and_revoke`, `suspend_and_revoke`, `end_and_revoke`, `tripwire_verdict`, `apply_tripwire`, `RunNotice`, `TripwireVerdict`, `MISDIRECTED_EVENT` |
+
+The lease owns what a run was issued. Parking, suspending or ending a run
+revokes it through the embedder's `RunCredentials`, and a
+`surrogate.misdirected` naming a watched run the agent still drives parks it
+(suspends it inside the critical section). The surrogate proxy applies the
+rule to every refusal it reports; `opensesame dev run --agent` ends the
+plugin's run through the same trait when the tripwire fires; and the Host's
+`run_lease` (`crates/gateway`) settles every `agent.*` and `surrogate.*`
+notice on the security feed against the observation run it names, and a
+person taking the page ends the run's credentials too.
 
 ## Develop
 

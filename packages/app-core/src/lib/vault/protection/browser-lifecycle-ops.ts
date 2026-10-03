@@ -11,7 +11,10 @@ import {
   mintVaultKey,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
-import { protectorUnlocksVault } from "../unlock-preference.js";
+import {
+  protectorIsHeaderWrap,
+  protectorUnlocksVault,
+} from "../unlock-preference.js";
 import { assertNewPassword } from "../unlock-secret-guard.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId, newProtectorId } from "./ids.js";
@@ -92,7 +95,7 @@ export async function setPreferredProtector(
   if (!protectorUnlocksVault(target)) {
     throw new ProtectionError(
       "unavailable",
-      "Only a password, PIN or passkey opens this vault at the unlock screen, so only one of them can be preferred.",
+      "Only a protector that opens this vault at the unlock screen can be preferred: a password, PIN or passkey, or a verified recovery key, age key or age passkey. Test an untested one first; a cloud key cannot open a vault whose own tomb holds its credential.",
     );
   }
   const { authB64: _drop, ...rest } = base;
@@ -121,7 +124,7 @@ export async function removeProtector(
   }
   const base = requireManifest(header);
   const target = base.records.find((r) => r.protectorId === protectorId);
-  if (target && protectorUnlocksVault(target)) {
+  if (target && protectorIsHeaderWrap(target)) {
     throw new ProtectionError(
       "unavailable",
       "A password, PIN or passkey is removed under Unlock methods — removing its row here would leave the wrap that still opens the vault.",

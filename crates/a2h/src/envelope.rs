@@ -86,12 +86,21 @@ pub struct AssuranceConfig {
 /// `secret` is a `whsec_` value — the same shape the lifecycle feed's Standard
 /// Webhooks path already mints — so one secret convention covers both
 /// directions.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallbackConfig {
     pub url: String,
     pub secret: String,
 }
 
+impl std::fmt::Debug for CallbackConfig {
+    /// The signing secret never prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CallbackConfig")
+            .field("url", &self.url)
+            .field("secret", &"[REDACTED]")
+            .finish()
+    }
+}
 /// One A2H message on the wire.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct A2hMessage {
@@ -229,5 +238,23 @@ impl GatewayCapabilities {
     pub fn clamp_ttl(&self, requested: i64) -> i64 {
         let ceiling = self.max_ttl_sec.unwrap_or(MAX_TTL_SEC).min(MAX_TTL_SEC);
         requested.clamp(MIN_TTL_SEC, ceiling.max(MIN_TTL_SEC))
+    }
+}
+
+#[cfg(test)]
+mod debug_redaction {
+    use super::*;
+
+    #[test]
+    fn the_callback_secret_never_prints() {
+        let config = CallbackConfig {
+            url: "https://gw.example/a2h/callback".into(),
+            secret: "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw".into(),
+        };
+        let shown = format!("{config:?}");
+        assert!(
+            !shown.contains("whsec_") && shown.contains("gw.example"),
+            "{shown}"
+        );
     }
 }

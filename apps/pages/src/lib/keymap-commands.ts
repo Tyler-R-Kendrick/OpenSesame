@@ -1,5 +1,5 @@
 /**
- * What each keymap command does (ADR 0150). The catalogue in app-core names
+ * What each keymap command does (ADR 0156). The catalogue in app-core names
  * the commands and their default keys; this is the shell's half — the one
  * place a command id turns into a motion, a pane, a verb or a jump. The key
  * handler, a macro and an event trigger all run commands through here, so a
@@ -186,7 +186,9 @@ export function runMacro(macro: Macro, run: CommandRun): number {
   if (!Array.isArray(macro?.steps)) return 0;
   const commands = keymapCommands();
   let budget = MACRO_LIMITS.runs;
-  const rounds = Math.min(run.steps, MACRO_LIMITS.count);
+  // The shell's counts reach 999; the run budget is the cap, and it also
+  // stops a macro of several steps part-way through a round.
+  const rounds = Math.min(run.steps, MACRO_LIMITS.runs);
   for (let round = 0; round < rounds && budget > 0; round++) {
     for (const step of macro.steps) {
       budget -= runStep(step, run, budget, commands);

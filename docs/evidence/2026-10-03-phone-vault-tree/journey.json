@@ -12,7 +12,7 @@
           "shot": "390-landing"
         },
         {
-          "openRowOptional": "all"
+          "railOptional": "all"
         },
         {
           "shot": "390-list"

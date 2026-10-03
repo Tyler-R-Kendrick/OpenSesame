@@ -7,6 +7,8 @@
 //     pnpm --filter @opensesame/pages verify:auth
 //
 // Guest enrollment walks through a PIN first; password enrollment starts at MFA.
+// Journey 3 (lib/auth-flow-protector.mjs) opens a vault from an enrolled
+// recovery key (ADR 0152): exact tabs, wrong key refused, code still asked.
 // The vault is its own authenticator (ADR 0113): the guest road opens with the
 // code supplied in memory — never shown — while the password road trashes the
 // registered entry first and walks the manual code road it leaves behind.
@@ -25,9 +27,10 @@ import {
   readSeed,
   withdrawSelfAuthenticator,
 } from "./lib/auth-flow-enroll.mjs";
+import { lock, openSecurity } from "./lib/auth-flow-nav.mjs";
+import { protectorJourney } from "./lib/auth-flow-protector.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
-import { openSessionSection } from "./lib/session-section.mjs";
 import { totp } from "./lib/totp.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -125,34 +128,12 @@ async function snap(page, name) {
 
 const text = (page) => page.evaluate(() => document.body.innerText);
 
-/** The seed is read in place: "Can't scan?" expands the setup key in this sheet. */
-async function openSecurity(page) {
-  try {
-    await openSessionSection(page, "Settings");
-  } catch (error) {
+/** Settings › Security; the walk keeps its own record if Settings is unreachable. */
+const goSecurity = (page) =>
+  openSecurity(page, async () => {
     await snap(page, "settings-navigation-failed");
     fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));
-    throw error;
-  }
-  await page.waitForTimeout(600);
-  await page
-    .getByRole("navigation", { name: "Settings sections", exact: true })
-    .getByRole("link", { name: /^security/i })
-    .first()
-    .click();
-  await page.waitForTimeout(600);
-}
-
-async function lock(page) {
-  // Two profile lock buttons exist (phone header, desktop rail); only one is
-  // visible at any width.
-  await page
-    .getByRole("button", { name: "Lock vault" })
-    .locator("visible=true")
-    .first()
-    .click();
-  await page.waitForTimeout(800);
-}
+  });
 
 process.on("unhandledRejection", () => undefined);
 const launch = { headless: true };
@@ -169,7 +150,7 @@ const browser = await chromium.launch(launch);
   await doorGuest(page).click();
   await page.waitForTimeout(2000);
   check(/guest-\d+/.test(await text(page)), "guest landed inside the app");
-  await openSecurity(page);
+  await goSecurity(page);
   const security = await snap(page, "1-guest-security");
   check(
     /Authenticator app/.test(security),
@@ -315,7 +296,7 @@ const browser = await chromium.launch(launch);
   await page.getByRole("button", { name: "Seal this device" }).click();
   await page.waitForTimeout(5000);
   check(/@/.test(await text(page)), "sealed device landed inside the app");
-  await openSecurity(page);
+  await goSecurity(page);
   await page
     .locator(".sw--method", { hasText: "Authenticator app" })
     .getByRole("button", { name: "Add" })
@@ -366,6 +347,23 @@ const browser = await chromium.launch(launch);
   });
   await context.close();
 }
+
+// ---- 3: a vault opened from an enrolled protector (ADR 0152)
+await protectorJourney({
+  browser,
+  newPage,
+  check,
+  snap,
+  setStep: (name) => {
+    step = name;
+  },
+  openSecurity: goSecurity,
+  lock,
+  PASSWORD,
+  ORIGIN,
+  BASE,
+  totp,
+});
 
 await browser.close();
 fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));

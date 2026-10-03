@@ -204,7 +204,7 @@ async fn settle(state: &AppState, delivery: &StoredSecurityDelivery, now: DateTi
             true
         }
         Err(failure) => {
-            let detail: String = failure.detail().chars().take(MAX_ERROR_CHARS).collect();
+            let detail = super::failure_text::persistable(failure.detail(), MAX_ERROR_CHARS);
             record_attempt(state, &hook, now, Some(&detail)).await;
             let exhausted = delivery.attempts + 1 >= MAX_ATTEMPTS;
             if matches!(failure, Failure::Permanent(_)) || exhausted {
@@ -258,7 +258,7 @@ async fn send(
         .body(rendered.body)
         .send()
         .await
-        .map_err(|error| Failure::Retryable(format!("request failed: {error}")))?;
+        .map_err(|error| Failure::Retryable(super::failure_text::transport(error)))?;
 
     classify(response.status())
 }
@@ -396,7 +396,7 @@ async fn send_a2h(
         .body(body)
         .send()
         .await
-        .map_err(|error| Failure::Retryable(format!("a2h request failed: {error}")))?;
+        .map_err(|error| Failure::Retryable(super::failure_text::transport(error)))?;
 
     let status = response.status();
     if status.is_success() {

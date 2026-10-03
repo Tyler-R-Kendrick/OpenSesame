@@ -1,4 +1,5 @@
-import type { JsonValue } from "@opensesame/os-domain";
+import { scrubText } from "@opensesame/log-scrub";
+import type { BoundaryValue, JsonValue } from "@opensesame/os-domain";
 import { redactSecrets } from "@opensesame/sdk-cli";
 
 /** Print a result: the redacted data with `--json`, else the human line. */
@@ -18,4 +19,9 @@ export function emit(
       ? JSON.stringify(redacted, null, 2)
       : human;
   process.stdout.write(`${safeHuman}\n`);
+}
+
+/** What went wrong, as one scrubbed line for stderr (ADR 0157). */
+export function errorLine(err: BoundaryValue): string {
+  return `${scrubText(err instanceof Error ? err.message : String(err))}\n`;
 }

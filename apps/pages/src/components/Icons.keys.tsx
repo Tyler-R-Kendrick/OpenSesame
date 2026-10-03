@@ -1,5 +1,5 @@
 /**
- * Glyphs for Settings › Keybindings (ADR 0150): the keyboard that records a
+ * Glyphs for Settings › Keybindings (ADR 0156): the keyboard that records a
  * key, the dot that records a macro, and the two arrows that swap a key.
  * `Icons.tsx` re-exports every name here.
  */

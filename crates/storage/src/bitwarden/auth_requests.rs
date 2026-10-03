@@ -10,7 +10,7 @@ use sqlx::Row as _;
 use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
 use crate::Db;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BitwardenAuthRequest {
     pub id: String,
     pub user_id: String,

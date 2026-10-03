@@ -307,7 +307,7 @@ pub struct RevokeOutcome {
 /// installation/scope-attenuated, revocable at the provider. `subject` and
 /// `actor` record the RFC 8693 mapping (ADR 0044): the connection's owning
 /// principal acted upon, and the caller that asked.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct DerivedMaterialization {
     pub connection_id: String,
     pub provider_id: String,

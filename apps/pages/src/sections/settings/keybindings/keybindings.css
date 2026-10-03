@@ -1,4 +1,4 @@
-/* Settings › Keybindings (ADR 0150). A keymap is a table a person reads the
+/* Settings › Keybindings (ADR 0156). A keymap is a table a person reads the
    way they read a vimrc: the command, its keys as keycaps, and at the row's
    end what they can do about it. Changed rows carry an editor's gutter mark
    in the accent — teal is state — and nothing else is coloured. */
@@ -150,7 +150,7 @@
   border-bottom-color: var(--accent);
 }
 
-/* Held in one listing only (ADR 0150 §6): the accent's wash fills the cap,
+/* Held in one listing only (ADR 0156 §6): the accent's wash fills the cap,
    so a scoped key reads apart from one that holds everywhere. */
 .keycap-btn--scoped .keycap {
   background: var(--accent-wash);
@@ -232,7 +232,7 @@
   height: 2px;
   background: var(--accent);
   transform-origin: left center;
-  animation: kb-drain 1000ms linear forwards;
+  animation: kb-drain var(--kb-drain-ms, 1000ms) linear forwards;
 }
 
 @keyframes kb-drain {
@@ -244,9 +244,14 @@
   }
 }
 
+/* Reduced motion keeps the countdown, in steps rather than a glide: the
+   hairline is the only sign the keys are about to be kept. The global
+   reduced-motion rule forces every duration to 0.01ms with !important, so the
+   real one is restated here — a class beats `*` at equal importance. */
 @media (prefers-reduced-motion: reduce) {
   .kb-capture__drain {
-    animation: none;
+    animation-duration: var(--kb-drain-ms, 1000ms) !important;
+    animation-timing-function: steps(4, end);
   }
   .keycap {
     transition: none;

@@ -11,7 +11,7 @@ export const SURROGATE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.surrogate-credentials",
     description:
-      "The surrogate proxy under Surrogate credentials: whether the paired daemon has it installed, its switch there, and its recent tripwires by event, time and subject. It is installed at a terminal, never from this page.",
+      "The surrogate proxy under Surrogate credentials: with no daemon paired, a field for the code opensesame plugins pair prints; once paired, whether the daemon has it installed, its switch there, its recent tripwires by event, time and subject, and a key that forgets the pairing. It is installed at a terminal, never from this page.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "plugins.surrogate_proxy.switch",
@@ -30,7 +30,7 @@ export const SURROGATE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
-      'focus "settings.surrogate-credentials" "Its mark says whether it is installed and running. The key beside it switches it on the paired daemon; the list under it is what it refused." side=bottom',
+      'focus "settings.surrogate-credentials" "With no daemon paired, paste the code opensesame plugins pair printed on its machine. Then its mark says whether it is installed and running, the key beside it switches it there, and the list under it is what it refused." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -40,7 +40,7 @@ export const AUTOFILL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.browser-autofill",
     description:
-      "The autofill extension under Browser autofill: whether the paired daemon has it recorded as installed, and its switch there. The extension is installed separately, never from this page.",
+      "The autofill extension under Browser autofill: with no daemon paired, a field for the code opensesame plugins pair prints; once paired, whether the daemon has it recorded as installed, and its switch there. The extension is installed separately, never from this page.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "plugins.browser_autofill.switch",

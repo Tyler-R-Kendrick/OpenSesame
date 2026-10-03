@@ -47,6 +47,29 @@ pub(crate) enum PluginsCmd {
     Status { id: String },
     /// A plugin's recent tripwire notices, newest first — never a surrogate.
     Notices { id: String },
+    /// Let one browser origin reach these plugin settings: prints a one-time
+    /// pairing code, good for five minutes, that the page at that origin
+    /// trades once for a key opening the plugin routes and nothing else.
+    Pair {
+        /// The page's exact origin: `https://host[:port]`, or
+        /// `http://localhost:port` for a page served on this machine.
+        #[arg(long)]
+        origin: String,
+        /// Where that page reaches this daemon: this machine, or its tailnet
+        /// address (its Tailscale Serve URL).
+        #[arg(long, default_value = plugins_pair::DEFAULT_DAEMON_URL)]
+        url: String,
+        /// What the page calls this daemon.
+        #[arg(long, default_value = "OpenSesame daemon")]
+        label: String,
+    },
+    /// Revoke what pages hold: every pairing for one origin, or all of them.
+    Unpair {
+        #[arg(long, required_unless_present = "all", conflicts_with = "all")]
+        origin: Option<String>,
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 fn env(key: &str) -> Option<String> {
@@ -70,7 +93,7 @@ pub(crate) async fn run(output: &str, cmd: PluginsCmd) -> anyhow::Result<()> {
     let value = match cmd {
         PluginsCmd::List => {
             let settings = PluginSettings::load(&path)?;
-            json!({ "plugins": settings.states(env) })
+            json!({ "plugins": settings.states(env), "pairings": plugins_pair::listing(&path)? })
         }
         PluginsCmd::Install {
             id,
@@ -94,6 +117,16 @@ pub(crate) async fn run(output: &str, cmd: PluginsCmd) -> anyhow::Result<()> {
             plugins_install::remove(&path, &plugins_install::install_root()?, &id)?
         }
         PluginsCmd::Status { id } => status(&path, &id)?,
+        PluginsCmd::Pair { origin, url, label } => {
+            let value = plugins_pair::pair(&path, &origin, &url, &label)?;
+            eprintln!(
+                "The code works once, from {origin} only, for five minutes; it is not shown again."
+            );
+            value
+        }
+        PluginsCmd::Unpair { origin, all } => {
+            plugins_pair::unpair(&path, origin.as_deref().filter(|_| !all))?
+        }
         PluginsCmd::Notices { id } => {
             let file =
                 opensesame_plugin_settings::notices_path(&path, &id).map_err(|_| unknown(&id))?;
@@ -110,27 +143,28 @@ pub(crate) fn set_enabled(
     id: &str,
     enabled: bool,
 ) -> anyhow::Result<Value> {
-    let mut settings = PluginSettings::load(path)?;
-    match settings.set_enabled(id, enabled) {
-        Ok(()) => {}
-        Err(SettingsError::UnknownPlugin(_)) => return Err(unknown(id)),
-        Err(SettingsError::NotInstalled(_)) => anyhow::bail!(
+    let checking = std::cell::Cell::new(false);
+    let changed = PluginSettings::update(path, |settings| {
+        settings.set_enabled(id, enabled)?;
+        if enabled && is_native(id) {
+            checking.set(true);
+            settings.verified_binary(id, |_: &str| None)?;
+        }
+        settings.state(id, env)
+    });
+    match changed {
+        Ok(state) => Ok(serde_json::to_value(state)?),
+        Err(SettingsError::UnknownPlugin(_)) => Err(unknown(id)),
+        Err(SettingsError::NotInstalled(_)) if !checking.get() => anyhow::bail!(
             "plugin {id} is not installed; install it first with \
              'opensesame plugins install {id} --from <path-or-https-url> --sha256 <hex>'"
         ),
-        Err(other) => return Err(other.into()),
+        Err(error) if checking.get() => anyhow::bail!(
+            "plugin {id} was left off: {error}; reinstall it with \
+             'opensesame plugins install {id} …'"
+        ),
+        Err(other) => Err(other.into()),
     }
-    if enabled && is_native(id) {
-        let never_forced = |_: &str| None;
-        if let Err(error) = settings.verified_binary(id, never_forced) {
-            anyhow::bail!(
-                "plugin {id} was left off: {error}; reinstall it with \
-                 'opensesame plugins install {id} …'"
-            );
-        }
-    }
-    settings.save(path)?;
-    Ok(serde_json::to_value(settings.state(id, env)?)?)
 }
 
 fn is_native(id: &str) -> bool {
@@ -161,6 +195,9 @@ pub(crate) fn status(path: &std::path::Path, id: &str) -> anyhow::Result<Value> 
     }
     Ok(value)
 }
+
+#[path = "plugins_pair.rs"]
+mod plugins_pair;
 
 #[cfg(test)]
 #[path = "plugins_tests.rs"]

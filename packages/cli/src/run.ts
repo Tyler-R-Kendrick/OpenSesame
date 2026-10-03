@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { configuredEndpoint } from "@opensesame/os-domain";
+import { configuredEndpoint, overlapCast } from "@opensesame/os-domain";
 import {
   DeviceFlowClient,
   createControlPlaneClient,
@@ -13,7 +13,7 @@ import {
   saveSession,
   sessionFor,
 } from "./identity-session.js";
-import { emit } from "./output.js";
+import { emit, errorLine } from "./output.js";
 import {
   type ParsedCommand,
   SessionFileSchema,
@@ -56,9 +56,7 @@ export async function runCli(
   try {
     command = parseArgs(argv);
   } catch (err) {
-    process.stderr.write(
-      `${err instanceof Error ? err.message : String(err)}\n`,
-    );
+    process.stderr.write(errorLine(overlapCast(err)));
     return 1;
   }
 
@@ -77,9 +75,7 @@ export async function runCli(
     return await dispatch(command, { issuer, api, clientId, fetchImpl, deps });
   } catch (err) {
     // A refused endpoint or a failed exchange is a message, not a stack trace.
-    process.stderr.write(
-      `${err instanceof Error ? err.message : String(err)}\n`,
-    );
+    process.stderr.write(errorLine(overlapCast(err)));
     return 1;
   }
 }

@@ -1112,8 +1112,62 @@
     }
   },
   {
+    "id": "plugins.pair",
+    "title": "Pair one browser origin with the daemon's plugin settings (one-time code for a key scoped to /v1/plugins)",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins pair",
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "plugins.unpair",
+    "title": "Revoke a page's plugin-settings key: every pairing for an origin at the terminal, or this page's own from Settings",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame plugins unpair",
+      "pwa": "lib/tailnet-sync/plugin-daemon.ts:tailnetPluginDaemon",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "pairing hands one browser origin a key to switch plugins on this machine; a person prints the code at the daemon's terminal and pastes it into that page, never a model",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "agents.surrogate.dev_run",
-    "title": "Run a child with surrogates in place of placeholders through the surrogate-proxy plugin",
+    "title": "Run a child with surrogates in place of placeholders and web-login passwords through the surrogate-proxy plugin",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -5698,15 +5752,77 @@
     "excluded": {
       "mcp_host": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-        "adr": "0150-the-device-duress-code.md"
+        "adr": "0155-the-device-duress-code.md"
       },
       "mcp_client": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-        "adr": "0150-the-device-duress-code.md"
+        "adr": "0155-the-device-duress-code.md"
       },
       "webmcp": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-        "adr": "0150-the-device-duress-code.md"
+        "adr": "0155-the-device-duress-code.md"
+      }
+    }
+  },
+  {
+    "id": "vault.protectors.manage",
+    "title": "Vault key protection: enroll a recovery key, passkey, age recipient, AWS KMS or Google Cloud KMS protector, test it, prefer an unlock, or remove it",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/protection/enroll-external.ts:provenExternalRecord",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the protectors of the vault in the browser are enrolled, proved and removed in the page that holds its tomb; a CLI has no handle on that manifest (the sealed store's own protectors are `opensesame pass protect`)",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_host": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_client": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "webmcp": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      }
+    }
+  },
+  {
+    "id": "vault.protectors.rotate",
+    "title": "Vault key protection: rotate the vault's root key so a compromised protector stops opening it",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/protection/browser-lifecycle-ops.ts:rotateCompromisedRoot",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "the protectors of the vault in the browser are enrolled, proved and removed in the page that holds its tomb; a CLI has no handle on that manifest (the sealed store's own protectors are `opensesame pass protect`)",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_host": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "mcp_client": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
+      },
+      "webmcp": {
+        "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
+        "adr": "0152-browser-key-protector-enrollment.md"
       }
     }
   },

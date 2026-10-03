@@ -33,7 +33,7 @@ import {
   within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
@@ -95,6 +95,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   fixup.disconnect();
   clearJoinDraft();
   leaveLive();
@@ -199,6 +200,31 @@ describe("the keyboard after the host's swaps", () => {
     press(panel.getByRole("button", { name: "End the session for everyone" }));
     const name = await panel.findByLabelText("Session name");
     await landsOn(name);
+  });
+
+  it("brings the copy key out from under the phone's sticky strip when Start shortens the page", async () => {
+    const panel = await host();
+    const pane = document.body.firstElementChild;
+    if (!(pane instanceof HTMLElement)) throw new Error("no pane to scroll");
+    const strip = pane.appendChild(document.createElement("nav"));
+    strip.className = "page-index";
+    strip.style.position = "sticky";
+    pane.style.overflowY = "auto";
+    Object.defineProperty(pane, "scrollHeight", { value: 2000 });
+    Object.defineProperty(pane, "clientHeight", { value: 640 });
+    pane.scrollTop = 100; // the key sits at -2px on screen
+    const rect = (top: number, height: number) =>
+      new DOMRect(0, top, 0, height);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if (this === pane) return rect(0, 640);
+        if (this === strip) return rect(0, 52);
+        return rect(98 - pane.scrollTop, 44);
+      },
+    );
+    press(panel.getByRole("button", { name: "Start the live session" }));
+    await landsOn(await panel.findByRole("button", { name: "Copy the link" }));
+    expect(pane.scrollTop).toBe(38);
   });
 
   it("leaves a mouse user where they are when the session starts", async () => {

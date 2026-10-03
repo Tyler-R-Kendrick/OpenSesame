@@ -47,8 +47,14 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
+| [`2026-10-03-plugin-switch-absent/`](2026-10-03-plugin-switch-absent/README.md) | Plugin tiles draw no switch they cannot act on (ADR 0150, settings rows act or are absent) |
 | [`2026-10-03-phone-vault-tree/`](2026-10-03-phone-vault-tree/README.md) | Phone vault opens on the section tree |
 | [`2026-10-03-phone-menus/`](2026-10-03-phone-menus/README.md) | Phone menus, and gestures where the keyboard was |
+| [`2026-10-03-live-sessions-stack/`](2026-10-03-live-sessions-stack/README.md) | Live sessions: the feature and the stack that followed it (ADR 0150) |
+| [`2026-10-03-keybindings-statusline/`](2026-10-03-keybindings-statusline/README.md) | Keybindings: the half-typed keys on the statusline |
+| [`2026-10-03-keybindings-review-fixes/`](2026-10-03-keybindings-review-fixes/README.md) | Keybindings review fixes: the `?` sheet and the Fixed keys |
+| [`2026-10-03-duress-sheet-hardening/`](2026-10-03-duress-sheet-hardening/README.md) | Duress sheet hardening — visual evidence |
 | [`2026-10-02-vault-share/`](2026-10-02-vault-share/README.md) | Vault share, support, and a new item |
 | [`2026-10-01-vault-export/`](2026-10-01-vault-export/README.md) | Vault export for a PIN seal |
 | [`2026-10-01-vault-environments/`](2026-10-01-vault-environments/README.md) | Vault environments |
@@ -69,6 +75,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
 | [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
 | [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
+| [`2026-09-28-surrogate-plugins-pairing/`](2026-09-28-surrogate-plugins-pairing/README.md) | Plugin settings pairing — Settings reaches the daemon's plugin routes (ADR 0150 §7) |
 | [`2026-09-28-surrogate-plugins/`](2026-09-28-surrogate-plugins/README.md) | Surrogate credentials and Browser autofill in Settings › Capabilities |
 | [`2026-09-28-settings-security-rows/`](2026-09-28-settings-security-rows/README.md) | Settings › Security: every row acts, or is not drawn |
 | [`2026-09-28-settings-no-approvals-view/`](2026-09-28-settings-no-approvals-view/README.md) | Settings › General: no approvals view |

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-/** Settings › Keybindings › Keymap by scope, and its Unavailable group (ADR 0150 §6). */
+/** Settings › Keybindings › Keymap by scope, and its Unavailable group (ADR 0156 §6). */
 import {
   loadKeymap,
   resetKeymap,
@@ -202,6 +202,54 @@ describe("Keymap scope", () => {
     ).toBeNull();
     chooseScope("vault");
     expect(row("Edit").hasAttribute("data-changed")).toBe(true);
+  });
+});
+
+describe("Macro keys by scope", () => {
+  const withScopedMacroKey = () =>
+    saveKeymapData({
+      bindings: {},
+      macros: { triage: { steps: ["listing.next"] } },
+      contexts: { vault: { w: "macro.triage" } },
+    });
+
+  it("shows a key a listing binds to a macro in that listing, not everywhere", () => {
+    withScopedMacroKey();
+    renderPanels();
+    expect(
+      within(row("@triage")).queryByRole("button", { name: /Change w for/ }),
+    ).toBeNull();
+    chooseScope("vault");
+    const cap = within(row("@triage")).getByRole("button", {
+      name: "Change w for @triage in the vault list",
+    });
+    expect(cap.className).toContain("keycap-btn--scoped");
+    chooseScope("rail");
+    expect(
+      within(row("@triage")).queryByRole("button", { name: /Change w for/ }),
+    ).toBeNull();
+  });
+
+  it("edits the scoped key of a macro and records new ones into the scope", () => {
+    vi.useFakeTimers();
+    withScopedMacroKey();
+    renderPanels();
+    chooseScope("vault");
+    record("@triage", "Z", " in the vault list");
+    expect(loadKeymap().contexts?.vault).toEqual({
+      w: "macro.triage",
+      Z: "macro.triage",
+    });
+    expect(loadKeymap().bindings).toEqual({});
+    fireEvent.click(
+      within(row("@triage")).getByRole("button", {
+        name: "Change w for @triage in the vault list",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Remove w from @triage/ }),
+    );
+    expect(loadKeymap().contexts?.vault).toEqual({ Z: "macro.triage" });
   });
 });
 

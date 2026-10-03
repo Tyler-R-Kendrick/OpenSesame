@@ -33,11 +33,17 @@ import { fileURLToPath } from "node:url";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
+import { fieldSteps } from "./lib/capture-field-steps.mjs";
+import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
+import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
+import { liveSteps } from "./lib/capture-live-steps.mjs";
+import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
+import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { rowSteps, sealWithPassword } from "./lib/pages-journey.mjs";
+import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
@@ -124,18 +130,7 @@ const STEPS = {
     await press(doorGuest(page));
     await page.waitForTimeout(1400);
   },
-  async tab(page, name) {
-    // A phone keeps its sections behind one key; a desktop has the rail.
-    const key = page.getByRole("button", { name: "Sections" }).first();
-    if (await key.count()) {
-      await press(key);
-      await page.waitForTimeout(450);
-      await press(page.locator(".drawer__row", { hasText: name }).first());
-    } else {
-      await press(page.locator(".railtree__row", { hasText: name }).first());
-    }
-    await page.waitForTimeout(900);
-  },
+  ...tabStep({ press, visit: (page, route) => STEPS.visit(page, route) }),
   async press(page, name) {
     const target = page
       .getByRole("button", { name: new RegExp(name, "i") })
@@ -176,7 +171,6 @@ const STEPS = {
       await page.waitForTimeout(1000);
     }
   },
-  ...rowSteps(press),
   async open(page, name) {
     const link = page.getByRole("link", { name, exact: true }).first();
     if (await link.count()) {
@@ -204,7 +198,11 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...fieldSteps({ press }),
   ...readSteps(),
+  ...liveSteps({ harness }),
+  ...livePolicySteps({ press, openSettings }),
+  ...liveJoinSteps({ harness }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -340,18 +338,18 @@ const STEPS = {
 async function capture(browser, into) {
   fs.mkdirSync(into, { recursive: true });
   for (const screen of journey.screens) {
-    // A desktop pair has to be captured with a mouse: `phoneContext` forces
-    // `hasTouch`, and a width-and-pointer rule would then show the phone
-    // arrangement at 1280 — evidence of a screen nobody sees.
+    // A desktop pair needs a mouse: `phoneContext` forces `hasTouch`, and a
+    // width-and-pointer rule would then show the phone arrangement at 1280.
     const { page, context } = await harness.newPage(browser, {
       device: screen.desktop
         ? { viewport: { width: screen.width, height: screen.height } }
         : phoneContext({ width: screen.width, height: screen.height }),
       remote,
     });
+    await prepareScreen(context, { origin, base, screen });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
-    // A fixed start time: both builds' timestamps read the same, and
-    // `elapse` can move the clock between steps.
+    await stubJourneyDaemon(page, screen, journey, origin);
+    // A fixed start time, so both builds' timestamps read the same.
     if (journey.clock)
       await page.clock.install({ time: new Date(journey.clock) });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
@@ -361,7 +359,9 @@ async function capture(browser, into) {
     for (const step of screen.steps) {
       if (step.shot) {
         await page.waitForTimeout(400);
-        await page.screenshot({ path: path.join(into, `${step.shot}.png`) });
+        await viewOf(page).screenshot({
+          path: path.join(into, `${step.shot}.png`),
+        });
         console.log(`  ${path.basename(into)}/${step.shot}`);
         continue;
       }

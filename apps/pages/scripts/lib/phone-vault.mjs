@@ -30,3 +30,24 @@ export async function toTheList(page) {
   const all = page.getByRole("treeitem", { name: /^all\b/i }).first();
   if (!(await create.isVisible()) && (await all.isVisible())) await all.click();
 }
+
+/**
+ * Three panes, one key back each: the item to the list, the list to the
+ * section tree. Each is a real tap on a real key, and the pane that answers is
+ * read off the shell, so a back that lands one pane too far fails here.
+ */
+export async function backOutStops(page, stop, { harness, audit }) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  const back = async (name, expected, what) => {
+    await page.getByRole("link", { name }).first().tap();
+    await page.waitForTimeout(500);
+    harness.check(
+      (await pane()) === expected,
+      `${stop("back")}: back from ${what}`,
+    );
+  };
+  await back("Back to all items", "list", "an item lands on the list");
+  await audit(page, stop("list"));
+  await back("Back to sections", "tree", "the list lands on the section tree");
+  await audit(page, stop("tree"));
+}

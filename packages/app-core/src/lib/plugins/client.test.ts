@@ -15,7 +15,8 @@ type Sent = { path: string; init: PluginDaemonRequest };
 function daemon(answer: (sent: Sent) => Response, paired = true) {
   const sent: Sent[] = [];
   const port: PluginDaemon = {
-    target: () => (paired ? { label: "desk", host: "desk.tail.ts.net" } : null),
+    target: () =>
+      paired ? { label: "desk", host: "desk.tail.ts.net", revision: 1 } : null,
     request: async (path, init) => {
       const call = { path, init };
       sent.push(call);
@@ -117,6 +118,7 @@ describe("switching a plugin from the page", () => {
     const cases: [Response, string][] = [
       [json({ error: "not_installed" }, 404), "not-installed"],
       [json({ error: "unknown_plugin" }, 400), "unknown-plugin"],
+      [json({ error: "pin_mismatch" }, 409), "pin-mismatch"],
       [json({ error: "operator_unauthorized" }, 401), "unauthorized"],
       [json({}, 403), "unauthorized"],
       [json({ error: "operator_token_unconfigured" }, 503), "refused"],
@@ -139,7 +141,7 @@ describe("reading plugins", () => {
 
   it("says unreachable, not the transport's words, when the request fails", async () => {
     const port: PluginDaemon = {
-      target: () => ({ label: "", host: "desk" }),
+      target: () => ({ label: "", host: "desk", revision: 1 }),
       request: async () => {
         throw new TypeError("Failed to fetch http://desk/?key=secret");
       },

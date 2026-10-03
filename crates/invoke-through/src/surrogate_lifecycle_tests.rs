@@ -192,6 +192,7 @@ fn a_surrogate_is_bounded_by_its_method_and_path_scope() {
     };
     assert_eq!(at("GET", "/repos/acme/app"), Ok(true));
     assert_eq!(at("get", "/repos/acme/app/issues?state=open"), Ok(true));
+    assert_eq!(at("GET", "/repos/acme/app/x?next=a;b\\c%5c"), Ok(true));
     for (method, path) in [
         ("DELETE", "/repos/acme/app"),
         ("GET", "/repos/acme/app-private"),
@@ -201,6 +202,20 @@ fn a_surrogate_is_bounded_by_its_method_and_path_scope() {
         ("GET", "/repos/acme/app/%2e%2e/other"),
         ("GET", "/repos/acme/app/./x"),
         ("GET", "repos/acme/app"),
+        ("GET", "/repos/acme/app/..\\admin"),
+        ("GET", "/repos/acme/app/..%5cadmin"),
+        ("GET", "/repos/acme/app/..%5Cadmin"),
+        ("GET", "/repos/acme/app/%2e%2e%5cadmin"),
+        ("GET", "/repos/acme/app\\x"),
+        ("GET", "/repos/acme/app/;/x"),
+        ("GET", "/repos/acme/app/x;jsessionid=1"),
+        ("GET", "/repos/acme/app/%3b/x"),
+        ("GET", "/repos/acme/app/%3B/x"),
+        ("GET", "/repos/acme/app/x%00"),
+        ("GET", "/repos/acme/app/x%0a"),
+        ("GET", "/repos/acme/app/x%09y"),
+        ("GET", "/repos/acme/app/x\ty"),
+        ("GET", "/repos/acme/app/x\u{7f}"),
     ] {
         let r = at(method, path).expect_err(path);
         assert_eq!(r.code, RefusalCode::OutOfScope, "{method} {path}");

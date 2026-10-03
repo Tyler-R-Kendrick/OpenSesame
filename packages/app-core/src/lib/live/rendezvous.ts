@@ -170,7 +170,8 @@ export class Rendezvous {
   readonly #carriers: (Carrier | null)[];
   readonly #states: CarrierState[];
   readonly #listeners = new Set<(states: readonly CarrierState[]) => void>();
-  readonly #stops: (() => void)[] = [];
+  readonly #stops: ((() => void) | undefined)[] = [];
+  readonly #revoked = new Set<number>();
   readonly #reassembler = new Reassembler();
   readonly #waiting: (() => void)[] = [];
   #closed = false;
@@ -216,6 +217,9 @@ export class Rendezvous {
   #mark(at: number, status: CarrierState["status"]): void {
     const state = this.#states[at];
     if (!state || this.#closed) return;
+    // Refused by the policy while still opening: how it then ends (a failed
+    // connection, a late arrival) does not change why it is not carrying.
+    if (this.#revoked.has(at) && status !== "blocked") return;
     this.#states[at] = { ...state, status };
     for (const listener of this.#listeners) listener(this.states);
     // Nothing left to wait for once every carrier has failed or been refused.
@@ -228,19 +232,38 @@ export class Rendezvous {
   }
 
   #ready(at: number, carrier: Carrier, onCode: (code: string) => void): void {
-    if (this.#closed) {
+    // Late, and refused in the meantime: the policy changed while it opened.
+    if (this.#closed || this.#revoked.has(at)) {
       carrier.close();
       return;
     }
     this.#carriers[at] = carrier;
-    this.#stops.push(
-      carrier.listen((frame) => {
-        const code = this.#reassembler.push(frame);
-        if (code !== null) onCode(code);
-      }),
-    );
+    this.#stops[at] = carrier.listen((frame) => {
+      const code = this.#reassembler.push(frame);
+      if (code !== null) onCode(code);
+    });
     this.#mark(at, "ready");
     for (const waiter of this.#waiting.splice(0)) waiter();
+  }
+
+  /**
+   * Hold every carrier to `allowed` again, as the policy stands now: one it
+   * no longer allows is closed and shown as blocked, whether it was up or
+   * still opening, and its late arrival is closed on the spot. A policy that
+   * allows it again does not reopen it; the session names its carriers once.
+   */
+  enforce(allowed: (spec: CarrierSpec) => boolean): void {
+    if (this.#closed) return;
+    this.#states.forEach((state, at) => {
+      if (state.status === "blocked" || state.status === "failed") return;
+      if (allowed(state.spec)) return;
+      this.#revoked.add(at);
+      this.#stops[at]?.();
+      this.#stops[at] = undefined;
+      this.#carriers[at]?.close();
+      this.#carriers[at] = null;
+      this.#mark(at, "blocked");
+    });
   }
 
   /** Resolves once any carrier is ready, or after `ms`. */
@@ -270,7 +293,7 @@ export class Rendezvous {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
-    for (const stop of this.#stops.splice(0)) stop();
+    for (const stop of this.#stops.splice(0)) stop?.();
     for (const carrier of this.#carriers) carrier?.close();
     for (const waiter of this.#waiting.splice(0)) waiter();
     this.#listeners.clear();

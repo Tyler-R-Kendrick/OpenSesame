@@ -25,6 +25,7 @@ import {
   rawKeymapRefusal,
   readKeymapParts,
   stableContexts,
+  stableMacros,
   yamlKey,
 } from "./settings-keymap-yaml.js";
 import {
@@ -71,9 +72,9 @@ export type SettingsValue = string | number | boolean | string[];
 export type SettingsDoc = {
   values: Record<string, SettingsValue>;
   keybindings: Record<string, string>;
-  /** Settings › Keybindings only (ADR 0150). */
+  /** Settings › Keybindings only (ADR 0156). */
   macros?: Record<string, MacroDoc>;
-  /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0150 §6). */
+  /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0156 §6). */
   contexts?: ContextsDoc;
 };
 
@@ -92,7 +93,7 @@ const GENERAL = [
 ] as const satisfies readonly SettingsField[];
 
 /**
- * Settings › Keybindings (ADR 0150): only what the person changed — the
+ * Settings › Keybindings (ADR 0156): only what the person changed — the
  * character-key switch, the bindings laid over the defaults, the keys that
  * hold in one listing, their macros.
  */
@@ -266,7 +267,7 @@ export function sameDoc(left: SettingsDoc, right: SettingsDoc): boolean {
   return (
     stable(left.values) === stable(right.values) &&
     stable(left.keybindings) === stable(right.keybindings) &&
-    JSON.stringify(left.macros ?? {}) === JSON.stringify(right.macros ?? {}) &&
+    stableMacros(left.macros) === stableMacros(right.macros) &&
     stableContexts(left.contexts) === stableContexts(right.contexts)
   );
 }

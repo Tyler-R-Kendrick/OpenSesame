@@ -12,12 +12,23 @@ use serde::Deserialize;
 use crate::git::auto_commit;
 use crate::{Entry, StoreError, StoreRoot};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct ManifestEntry {
     pub path: String,
     pub secret: String,
     #[serde(default)]
     pub trailer: String,
+}
+
+impl std::fmt::Debug for ManifestEntry {
+    /// The path is metadata; line one and the trailer are the plaintext.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ManifestEntry")
+            .field("path", &self.path)
+            .field("secret", &"[REDACTED]")
+            .field("trailer", &"[REDACTED]")
+            .finish()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -95,6 +106,22 @@ pub fn seal_manifest(
 mod tests {
     use super::*;
     use crate::init_store;
+
+    #[test]
+    fn a_manifest_entry_prints_its_path_and_not_its_plaintext() {
+        let entries = parse_manifest(
+            r#"[{"path": "Dev/new", "secret": "n3w-secret", "trailer": "tr41ler"}]"#,
+        )
+        .unwrap();
+        let shown = format!("{:?}", entries[0]);
+        assert!(
+            shown.contains("Dev/new") && shown.contains("[REDACTED]"),
+            "{shown}"
+        );
+        for leaked in ["n3w-secret", "tr41ler"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
+    }
 
     #[test]
     fn seals_entries_skips_existing_and_rejects_traversal() {

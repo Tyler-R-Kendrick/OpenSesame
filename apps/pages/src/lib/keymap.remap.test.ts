@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150: the shell's handler reads the keymap in force — a person's
+ * ADR 0156: the shell's handler reads the keymap in force — a person's
  * remaps, unbinds, sequences, macros and the character-key switch — and the
  * fixed keys stay fixed whatever the keymap says.
  */
@@ -171,6 +171,40 @@ describe("macros", () => {
     press(handler, " ");
     press(handler, "f");
     expect(items.favorite).toHaveBeenCalledTimes(MACRO_LIMITS.runs);
+    release();
+  });
+
+  it("repeats a one-step macro as often as the shell counts, up to the run budget", () => {
+    keymap({
+      macros: { hop: { steps: [{ command: "item.favorite", count: 1 }] } },
+      bindings: { "Space f": "macro.hop" },
+    });
+    const { items, release, handler } = setup();
+    for (const digit of "999") press(handler, digit);
+    press(handler, " ");
+    press(handler, "f");
+    expect(items.favorite).toHaveBeenCalledTimes(999);
+    release();
+  });
+
+  it("stops a multi-step macro part-way through a round when the budget runs out", () => {
+    keymap({
+      macros: {
+        pair: {
+          steps: [
+            { command: "item.favorite", count: 1 },
+            { command: "listing.next", count: 1 },
+          ],
+        },
+      },
+      bindings: { "Space f": "macro.pair" },
+    });
+    const { items, release, handler } = setup();
+    for (const digit of "999") press(handler, digit);
+    press(handler, " ");
+    press(handler, "f");
+    expect(items.favorite).toHaveBeenCalledTimes(500);
+    expect(items.next).toHaveBeenCalledTimes(500);
     release();
   });
 

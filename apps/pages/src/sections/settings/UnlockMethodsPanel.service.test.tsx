@@ -125,14 +125,14 @@ describe("UnlockMethodsPanel — sign-in service", () => {
     }
   });
 
-  it("does not offer to forget the service while an email code depends on it", () => {
+  it("offers neither Change nor Remove on the service while an email code depends on it", () => {
     vault.current = {
       header: { wrap: {}, kdf: {}, unlocks: { email: {} } },
     };
     render(<UnlockMethodsPanel />);
     expect(
-      row("Sign-in service").getByRole("button", { name: "Change" }),
-    ).toBeTruthy();
+      row("Sign-in service").queryByRole("button", { name: "Change" }),
+    ).toBeNull();
     expect(
       row("Sign-in service").queryByRole("button", { name: "Remove" }),
     ).toBeNull();

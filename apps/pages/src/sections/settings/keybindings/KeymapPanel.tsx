@@ -1,5 +1,7 @@
 import { FIXED_ROWS } from "@opensesame/app-core/lib/keymap/commands.js";
+import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
 import { resetTarget } from "@opensesame/app-core/lib/keymap/effective.js";
+import { keycapLabel } from "@opensesame/app-core/lib/keymap/notation.js";
 import { resetKeymap } from "@opensesame/app-core/lib/keymap/store.js";
 import {
   KEYMAP_FILTERS,
@@ -14,13 +16,13 @@ import {
 import { useRef, useState } from "react";
 import { IconLock, IconRefresh } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { GuideTarget } from "../../../tutorial/registry/react.jsx";
 import { BoundKeys } from "./BoundKeys.js";
 import { CommandCount } from "./CommandCount.js";
 import { KeymapFind } from "./KeymapFind.js";
+import { Refused } from "./Refused.js";
 import { UnavailableKeys } from "./UnavailableKeys.js";
 import { useFocusLanding } from "./useFocusLanding.js";
-import { type KeymapState, useScopedKeymap } from "./useKeymap.js";
+import type { KeymapState } from "./useKeymap.js";
 
 /** The filter choice in the head: where focus goes when a row is gone. */
 const FILTER_LANDING = '[data-land="filter"]';
@@ -91,6 +93,13 @@ function Row({
   );
 }
 
+/** A fixed key as its keycap reads: the Menu key is a glyph name, the rest are as spelled. */
+function fixedKeycap(key: string): string {
+  return key === "ContextMenu"
+    ? keycapLabel(key)
+    : key.replace("Shift+", "Shift-");
+}
+
 function FixedKeys() {
   return (
     <section className="kb-group" aria-labelledby="kb-group-fixed">
@@ -107,9 +116,7 @@ function FixedKeys() {
             <span className="kb-keys">
               {keys.split(" / ").map((key) => (
                 <span key={key} className="keycap-btn keycap-btn--fixed">
-                  <kbd className="keycap">
-                    {key.replace("Shift+", "Shift-")}
-                  </kbd>
+                  <kbd className="keycap">{fixedKeycap(key)}</kbd>
                 </span>
               ))}
             </span>
@@ -123,6 +130,15 @@ function FixedKeys() {
 
 function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
   const [armed, setArmed] = useState(false);
+  // A refusal is about the keymap it met: once the keymap changes (a later
+  // edit, another tab) it no longer describes anything on screen.
+  const [met, setMet] = useState<{
+    message: string;
+    n: number;
+    config: KeymapConfig;
+  } | null>(null);
+  const refusals = useRef(0);
+  const refused = met !== null && met.config === state.config ? met : null;
   const changed =
     changedCount(state.config, state.commands) +
     Object.keys(state.config.macros).length;
@@ -131,27 +147,41 @@ function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
     ? "Press again to forget every change and macro"
     : "Reset every key and macro";
   return (
-    <button
-      type="button"
-      className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
-      aria-label={label}
-      title={label}
-      aria-pressed={armed}
-      disabled={pristine}
-      data-resets=""
-      onBlur={() => setArmed(false)}
-      onClick={() => {
-        if (!armed) {
-          setArmed(true);
-          return;
-        }
-        resetKeymap();
-        setArmed(false);
-        onLand([FILTER_LANDING]);
-      }}
-    >
-      <IconRefresh size={14} />
-    </button>
+    <>
+      {refused ? <Refused message={refused.message} n={refused.n} /> : null}
+      <button
+        type="button"
+        className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
+        aria-label={label}
+        title={label}
+        aria-pressed={armed}
+        disabled={pristine}
+        data-resets=""
+        onBlur={() => setArmed(false)}
+        onClick={() => {
+          if (!armed) {
+            setMet(null);
+            setArmed(true);
+            return;
+          }
+          const reset = resetKeymap();
+          setArmed(false);
+          if (!reset.ok) {
+            refusals.current += 1;
+            setMet({
+              message: reset.message,
+              n: refusals.current,
+              config: state.config,
+            });
+            return;
+          }
+          setMet(null);
+          onLand([FILTER_LANDING]);
+        }}
+      >
+        <IconRefresh size={14} />
+      </button>
+    </>
   );
 }
 
@@ -214,16 +244,23 @@ function HeadChoice<T extends string>({
 }
 
 /**
- * Settings › Keybindings › Keymap (ADR 0150): every command, its keys as
+ * Settings › Keybindings › Keymap (ADR 0156): every command, its keys as
  * keycaps, found by words or by pressing the keys themselves — everywhere,
  * or as they hold in one listing (§6).
  */
-export function KeymapPanel({ state: global }: { state: KeymapState }) {
+export function KeymapPanel({
+  state,
+  scope,
+  onScope,
+}: {
+  /** The keymap as it holds in `scope`. */
+  state: KeymapState;
+  scope: KeymapScope;
+  onScope: (scope: KeymapScope) => void;
+}) {
   const [query, setQuery] = useState("");
   const [recorded, setRecorded] = useState<string | null>(null);
   const [filter, setFilter] = useState<KeymapFilter>("all");
-  const [scope, setScope] = useState<KeymapScope>("everywhere");
-  const state = useScopedKeymap(global, scope);
   const panel = useRef<HTMLElement>(null);
   const land = useFocusLanding(panel);
   const groups = keymapGroups(state.config, state.commands, {
@@ -235,71 +272,69 @@ export function KeymapPanel({ state: global }: { state: KeymapState }) {
   const whole = query === "" && recorded === null;
   const shown = groups.reduce((sum, group) => sum + group.rows.length, 0);
   return (
-    <GuideTarget id="settings.keybindings">
-      <section className="panel kb" id="settings-keymap" ref={panel}>
-        <div className="panel__head">
-          <div>
-            <h2>Keymap</h2>
-          </div>
-          <div className="actions">
-            <HeadChoice
-              label="Keys that hold"
-              value={scope}
-              options={KEYMAP_SCOPES}
-              onChange={setScope}
-            />
-            <HeadChoice
-              label="Show"
-              land="filter"
-              value={filter}
-              options={KEYMAP_FILTERS}
-              onChange={setFilter}
-            />
-            <ResetAll state={state} onLand={land} />
-          </div>
+    <section className="panel kb" id="settings-keymap" ref={panel}>
+      <div className="panel__head">
+        <div>
+          <h2>Keymap</h2>
         </div>
-        <div className="panel__body">
-          <KeymapFind
-            query={query}
-            onQuery={setQuery}
-            recorded={recorded}
-            onRecorded={setRecorded}
+        <div className="actions">
+          <HeadChoice
+            label="Keys that hold"
+            value={scope}
+            options={KEYMAP_SCOPES}
+            onChange={onScope}
           />
-          <CharacterKeys state={state} />
-          <CommandCount
-            shown={shown}
-            signal={[query, recorded, filter, scope].join("\u0000")}
+          <HeadChoice
+            label="Show"
+            land="filter"
+            value={filter}
+            options={KEYMAP_FILTERS}
+            onChange={setFilter}
           />
-          {groups.map((group) => (
-            <section
-              key={group.id}
-              className="kb-group"
-              aria-labelledby={`kb-group-${group.id}`}
-            >
-              <h3 className="kb-group__label" id={`kb-group-${group.id}`}>
-                {group.label}
-              </h3>
-              <ul className="kb-rows">
-                {group.rows.map((row) => (
-                  <Row
-                    key={row.command.id}
-                    row={row}
-                    state={state}
-                    onLand={land}
-                  />
-                ))}
-              </ul>
-            </section>
-          ))}
-          {whole && (filter === "all" || filter === "changed") ? (
-            <UnavailableKeys
-              bindings={unavailableBindings(state.config, state.commands)}
-              state={state}
-            />
-          ) : null}
-          {whole && filter === "all" ? <FixedKeys /> : null}
+          <ResetAll state={state} onLand={land} />
         </div>
-      </section>
-    </GuideTarget>
+      </div>
+      <div className="panel__body">
+        <KeymapFind
+          query={query}
+          onQuery={setQuery}
+          recorded={recorded}
+          onRecorded={setRecorded}
+        />
+        <CharacterKeys state={state} />
+        <CommandCount
+          shown={shown}
+          signal={[query, recorded, filter, scope].join("\u0000")}
+        />
+        {groups.map((group) => (
+          <section
+            key={group.id}
+            className="kb-group"
+            aria-labelledby={`kb-group-${group.id}`}
+          >
+            <h3 className="kb-group__label" id={`kb-group-${group.id}`}>
+              {group.label}
+            </h3>
+            <ul className="kb-rows">
+              {group.rows.map((row) => (
+                <Row
+                  key={row.command.id}
+                  row={row}
+                  state={state}
+                  onLand={land}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+        {whole && (filter === "all" || filter === "changed") ? (
+          <UnavailableKeys
+            bindings={unavailableBindings(state.config, state.commands)}
+            state={state}
+          />
+        ) : null}
+        {whole && filter === "all" ? <FixedKeys /> : null}
+      </div>
+    </section>
   );
 }

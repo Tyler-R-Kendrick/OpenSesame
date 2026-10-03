@@ -1,5 +1,5 @@
 /**
- * A person's keymap (ADR 0150): the bindings they changed and the macros they
+ * A person's keymap (ADR 0156): the bindings they changed and the macros they
  * wrote. It is sparse on purpose — defaults are never copied into it — so the
  * file says exactly what is theirs, and a later default reaches them unless
  * they chose otherwise.
@@ -61,7 +61,7 @@ export type KeymapConfig = Readonly<{
   singleKeys: boolean;
   /**
    * Keys laid over `bindings` only while the keyboard is in one listing
-   * (ADR 0150 §6). Absent reads as none.
+   * (ADR 0156 §6). Absent reads as none.
    */
   contexts?: KeymapContexts;
 }>;
@@ -89,6 +89,22 @@ export function reservedReason(sequence: string): string | null {
   return null;
 }
 
+/**
+ * Whether `target` asks before it acts and `sequence` is not its own locked
+ * default: such a command may only keep the keys it ships with.
+ */
+export function authorityLocked(
+  sequence: string,
+  target: string,
+  commands: readonly KeymapCommand[],
+  defaults: ReadonlyMap<string, string>,
+): boolean {
+  return (
+    commandById(target, commands)?.kind === "authority" &&
+    defaults.get(sequence) !== target
+  );
+}
+
 /** Why `target` may not be bound to `sequence`, or null. */
 export function bindingProblem(
   sequence: string,
@@ -112,7 +128,7 @@ export function bindingProblem(
   // it comes back.
   if (command === undefined && !target.startsWith(SECTION_PREFIX))
     return `Unknown action "${target}".`;
-  if (command?.kind === "authority" && defaults.get(sequence) !== target)
+  if (authorityLocked(sequence, target, commands, defaults))
     return `Action "${target}" requires confirmation and cannot be rebound to skip it.`;
   return null;
 }

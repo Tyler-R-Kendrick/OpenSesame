@@ -10,10 +10,11 @@
 //! The body is re-serialized compactly with the credential as a JSON string,
 //! so a secret holding `"` or `\` is escaped by the serializer rather than
 //! breaking out of its string. Members keep their order and duplicates; what
-//! re-serialization does not keep is insignificant whitespace, and the
-//! original spelling of a number (`1e2` is written `100.0`). A login body is
-//! a flat object of strings and booleans, and a server that distinguished
-//! those spellings would be distinguishing text a JSON parser discards.
+//! re-serialization does not keep is insignificant whitespace. It also does
+//! not keep the spelling of a number, and a different spelling can be a
+//! different value (an integer past `u64` becomes a float), so a body holding
+//! any number that would not come back as written is refused as unsupported
+//! ([`super::json_numbers`]) and the login falls back to CDP fill.
 
 use std::fmt;
 
@@ -80,6 +81,9 @@ pub(super) fn substitute(
     };
     if total != 1 || !matches!(value, Node::String(text) if text == surrogate) {
         return Err(Refusal::new(RefusalCode::Misplaced, "json-field"));
+    }
+    if !super::json_numbers::round_trip(body) {
+        return Err(Refusal::new(RefusalCode::Unsupported, "json-number"));
     }
     let placed = Placed {
         members,
@@ -267,14 +271,35 @@ mod tests {
 
     #[test]
     fn the_output_buffer_is_allocated_once_at_its_exact_size() {
-        // Numbers that re-serialize longer than they were written would
-        // outgrow a buffer sized from the input.
-        let body = format!(r#"{{"a":1e2,"b":2E3,"c":3e4,"password":"{S}"}}"#);
+        // A credential that escapes longer than it was written would outgrow
+        // a buffer sized from the input.
+        let body = format!(r#"{{"a":1.5,"b":2,"c":-3.25,"password":"{S}"}}"#);
         let out = substitute(body.as_bytes(), "password", S, "\u{1}\"\\").unwrap();
         assert_eq!(out.capacity(), out.len());
         assert_eq!(
             std::str::from_utf8(&out).unwrap(),
-            r#"{"a":100.0,"b":2000.0,"c":30000.0,"password":"\u0001\"\\"}"#
+            r#"{"a":1.5,"b":2,"c":-3.25,"password":"\u0001\"\\"}"#
+        );
+    }
+
+    #[test]
+    fn a_number_that_would_change_value_is_refused_not_rewritten() {
+        for number in ["123456789012345678901234567890", "-0", "1e2", "1.50"] {
+            let body = format!(r#"{{"n":{number},"password":"{S}"}}"#);
+            let refusal = substitute(body.as_bytes(), "password", S, "x").unwrap_err();
+            assert_eq!(refusal.code, RefusalCode::Unsupported, "{number}");
+            assert_eq!(refusal.detail.as_deref(), Some("json-number"), "{number}");
+        }
+    }
+
+    #[test]
+    fn big_and_signed_numbers_that_do_round_trip_are_kept_verbatim() {
+        let body =
+            format!(r#"{{"id":18446744073709551615,"n":-9223372036854775808,"password":"{S}"}}"#);
+        let out = substitute(body.as_bytes(), "password", S, "x").unwrap();
+        assert_eq!(
+            std::str::from_utf8(&out).unwrap(),
+            r#"{"id":18446744073709551615,"n":-9223372036854775808,"password":"x"}"#
         );
     }
 

@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { type AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   AUDIT_METADATA_ALLOWLIST,
@@ -260,5 +260,38 @@ describe("redaction boundaries (mutation coverage)", () => {
     expect(redactAuditMetadata({ keyNames: [over, "SHORT"] })).toEqual({
       keyNames: [`${"k".repeat(AUDIT_VALUE_MAX_LENGTH)}…`, "SHORT"],
     });
+  });
+});
+
+describe("audit values are scrubbed by shape, not only by key (ADR 0157)", () => {
+  it("scrubs an allowlisted free-text value before it is cut", () => {
+    const out = redactAuditMetadata({
+      reason: "retry https://h.example/cb?code=abc123&page=2 failed",
+      note: `${"x".repeat(240)} token=leakedvalue`,
+      path: "postgres://app:pw0rd@db/x",
+    });
+    const text = JSON.stringify(out);
+    expect(text).not.toMatch(/abc123|leakedvalue|pw0rd/);
+    expect(out.reason).toContain("page=2");
+  });
+
+  it("scrubs the id fields a caller supplies", async () => {
+    const { appendAuditEvent } = await import("../append.js");
+    const rows: AuditEvent[] = [];
+    await appendAuditEvent(
+      {
+        append: async (event) => {
+          rows.push(event);
+          return event;
+        },
+      },
+      {
+        eventType: "claim.failed",
+        outcome: "failed",
+        actorId: "https://x.example/cb?code=abc123",
+        targetId: "osc_clm_AbC.s3cr3tpart",
+      },
+    );
+    expect(JSON.stringify(rows)).not.toMatch(/abc123|s3cr3tpart/);
   });
 });

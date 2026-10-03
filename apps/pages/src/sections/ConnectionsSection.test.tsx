@@ -17,7 +17,6 @@ const online = vi.hoisted(() => ({ value: true }));
 const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
 }));
-const hostEligible = vi.hoisted(() => ({ value: true }));
 const connect = vi.hoisted(() => vi.fn());
 const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
   () => ({ connecting: false, error: null }),
@@ -25,13 +24,15 @@ const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
+import { hostGrantSeams } from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 Object.assign(identitySeams, {
   ensureHostSession,
   hostBase: () => "http://127.0.0.1:8787",
-  hostLocalSessionEligible: () => hostEligible.value,
+  hostLocalSessionEligible: () => true,
 });
+hostGrantSeams.capabilities = () => ["host.connections.write"];
 Object.assign(identityHookSeams, {
   useConnect: () => ({
     connect,
@@ -147,7 +148,6 @@ describe("ConnectionsSection gallery", () => {
   beforeEach(() => {
     online.value = true;
     session.current = { principalId: "prn_op" };
-    hostEligible.value = true;
     connectState.connecting = false;
     connectState.error = null;
     shouldAutoConnect.mockReturnValue(true);
@@ -282,7 +282,6 @@ describe("ConnectionsSection connector page", () => {
   beforeEach(() => {
     online.value = true;
     session.current = { principalId: "prn_op" };
-    hostEligible.value = true;
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
@@ -393,7 +392,6 @@ describe("ConnectionsSection deeper branches", () => {
   beforeEach(() => {
     online.value = true;
     session.current = { principalId: "prn_op" };
-    hostEligible.value = true;
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
@@ -498,7 +496,6 @@ describe("ConnectionsSection remaining branches", () => {
   beforeEach(() => {
     online.value = true;
     session.current = { principalId: "prn_op" };
-    hostEligible.value = true;
     connectState.connecting = false;
     connectState.error = null;
     shouldAutoConnect.mockReturnValue(true);

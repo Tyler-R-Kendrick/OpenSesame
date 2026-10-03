@@ -99,7 +99,12 @@ export class HostPeer {
     this.#channel = channel;
     channel.onClose(() => this.#closedByPeer());
     channel.onMessage((message) => void this.#handle(message));
-    channel.send({ t: "catalog", catalog: this.options.catalog() });
+    // A guest that never receives the catalog is not in the session: say so
+    // by ending it, not by counting them joined.
+    if (!channel.send({ t: "catalog", catalog: this.options.catalog() })) {
+      this.#closedByPeer();
+      return;
+    }
     this.options.onJoined();
   }
 

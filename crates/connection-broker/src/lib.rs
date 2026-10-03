@@ -1,11 +1,10 @@
 //! Connection broker: acquires third-party authorizations and holds them in the
 //! authority plane (ADR 0032).
 //!
-//! The vault is sealed against the server by design; a connection credential is
-//! deliberately the opposite, because refresh happens while the human is absent.
-//! What that buys is bounded by two rules enforced here: the credential is sealed
-//! under a deployment key bound to its tenant, and nothing on the API boundary
-//! carries token material — callers get a [`ConnectionRef`] and status.
+//! The vault is sealed against the server by design; a connection credential is deliberately the
+//! opposite, because refresh happens while the human is absent. What that buys is bounded by two
+//! rules enforced here: the credential is sealed under a deployment key bound to its tenant, and
+//! nothing on the API boundary carries token material — callers get a [`ConnectionRef`] and status.
 
 pub mod catalog;
 pub mod changelog_hook;
@@ -29,6 +28,7 @@ pub mod rotation;
 pub mod rotation_egress;
 pub mod rotation_verify;
 mod scope_ceiling;
+mod secret_debug;
 use scope_ceiling::require_scope_subset;
 pub mod secret_config;
 pub mod store;

@@ -9,7 +9,7 @@
           "guest": null
         },
         {
-          "openRowOptional": "all"
+          "railOptional": "all"
         },
         {
           "open": "New item"
@@ -24,13 +24,13 @@
           "open": "Back to all items"
         },
         {
-          "holdFirstRow": null
+          "hold": ".vtree__row"
         },
         {
           "shot": "390-actions"
         },
         {
-          "tapMenuitemOptional": "Share"
+          "menuOptional": "Share"
         },
         {
           "shot": "390-submenu"

@@ -36,3 +36,14 @@ describe("normalizeSignInService", () => {
     }
   });
 });
+
+describe("normalizeSignInService trailing slashes", () => {
+  it("strips the whole trailing run so requests are not misrouted", () => {
+    expect(normalizeSignInService("https://login.example.com///")).toBe(
+      "https://login.example.com",
+    );
+    expect(normalizeSignInService("https://example.com/identity//")).toBe(
+      "https://example.com/identity",
+    );
+  });
+});

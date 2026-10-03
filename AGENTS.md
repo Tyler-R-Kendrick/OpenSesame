@@ -74,6 +74,8 @@ pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disabl
 pnpm quality             # structural + component-coupling gates (both ratchets)
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
+pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
+                          #   tools/quality/log-hygiene-baseline.json (ADR 0157)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
@@ -226,7 +228,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
-# WebRTC. Direct: codes passed by hand, no WebSocket, no request off the
+# WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
+# build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
+# https://opensesame.example.test). The carrier and declined walks run on it,
+# because a carrier on loopback or a LAN is local operator authority the shared
+# github.io origin may not reach (`mayPairLocalAuthority`); verify:live-join
+# fails without that build. Direct: codes passed by hand, no WebSocket, no request off the
 # origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
 # never meets without Routes' address, meets at it with one. Carriers: an
 # in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
@@ -249,7 +256,9 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # each, a veth with multicast off between them and a harness namespace that
 # forwards nothing. mDNS hiding on, nothing filtered in the page. No address
 # named: never connects. Address named: connects over a pair at it, no ICE
-# server; again through a wss Nostr relay; and, veth down, relay-only TURN.
+# server (both on the github.io build). Then, on `build:live-dedicated` (run
+# it first; the relay and TURN server sit on a private address): again through
+# a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
 ```
@@ -324,6 +333,9 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
+| `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0157): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
+| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0157): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
+| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0157): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
@@ -441,7 +453,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0153).
+  0001–0158).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -491,6 +503,30 @@ Do not add new top-level directories or loose root files — find the group.
   relying party's origin — values seal through `@opensesame/browser-at-rest`.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
+- **Logs and events carry no secrets, by key or by shape**
+  ([ADR 0157](docs/adr/0157-logs-and-events-carry-no-secrets.md)). Redaction
+  by key name alone misses a bearer in an error message, a `#token=` in a URL,
+  a JWT in a stack trace and a DSN with a password in it, so every log line,
+  event, audit row, activity entry and persisted failure passes the shared
+  scrubber (`spec/log-scrub/log-scrub.json`, run by `@opensesame/log-scrub` and
+  `crates/redaction` against the same vectors). Add a shape by adding a rule
+  and a vector to the spec, never to one target. Log through `createLogger`
+  (TypeScript) or a subscriber whose writer is `ScrubMakeWriter` (Rust); never
+  `console.*`, a hand-built `pino(...)` or a bare `tracing_subscriber::fmt()`.
+  `pnpm quality:log-hygiene` counts those and the ledger only falls. A struct
+  holding a secret never derives `Debug`: write `impl fmt::Debug` and print
+  `[REDACTED]` for it; `scripts/lib/secret-debug.test.mjs` (in `pnpm quality`) fails on a
+  derived `Debug` over a field named like a credential. Log an id, never the secret.
+- **Logs and events rest sealed** (ADR 0157 items 7–9). A log file a process
+  writes goes through `crates/sealed-log` / `packages/observability`'s sealed
+  destination (`OPENSESAME_LOG_FILE`); a new event or audit column the Host
+  writes is sealed through `opensesame-event-seal` and read back through it (add
+  it to `SEALED_COLUMNS` in `crates/storage/src/sealed.rs` so the legacy sweep
+  reaches it); a new Identity event payload goes through `withSealedEvents`.
+  Never write an event or a log line to disk in the clear, and never add a
+  plaintext fallback: a configured sealed sink that cannot open refuses to
+  start. The event keys derive from secrets the deployment already holds
+  (`docs/operators/log-and-event-sealing.md`).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -532,8 +568,10 @@ Do not add new top-level directories or loose root files — find the group.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)
   and **which key** opens the vault (the passkey/PIN/password wraps in the
-  plaintext header, then the authenticator gate if enrolled). The unlock tabs
-  are exactly the enrolled methods, never a uniform three; an enrolled
+  plaintext header, plus the manifest's verified recovery key, age key, age
+  passkey and passkey capsule — never a cloud KMS record, whose credential is
+  sealed in the vault, ADR 0152 — then the authenticator gate if enrolled). The
+  unlock tabs are exactly the enrolled methods, never a uniform three; an enrolled
   authenticator code is announced as step 2 before step 1 is taken. Sign out
   is one operation in `packages/app-core/src/lib/session-exit.ts` (forget the
   assertion, revoke Identity, lock, note it for the sign-in panel); "switch
@@ -616,7 +654,7 @@ Do not add new top-level directories or loose root files — find the group.
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
 - **Every key is a person's, and a few keep the road open**
-  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  ([ADR 0156](docs/adr/0156-keybindings-and-macros.md)). The shell's handler
   resolves every press through the effective keymap (the catalogue in
   `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
   sparse bindings), so a new key is a catalogue row, never a second
@@ -627,7 +665,7 @@ Do not add new top-level directories or loose root files — find the group.
   scoped to a closed set of contexts (`vault`, `rail`, read from
   `listingOf(event)`), never an expression, and every guardrail holds in each.
 - **A Settings row acts, or it is not drawn**
-  ([ADR 0150](docs/adr/0150-settings-rows-act-or-are-absent.md)). No disabled
+  ([ADR 0158](docs/adr/0158-settings-rows-act-or-are-absent.md)). No disabled
   key, no lock glyph standing for "not yet", no link to a page that does not
   configure the thing, no static status a person cannot change. A control
   whose precondition is unmet is absent; the row that needs a setting opens the

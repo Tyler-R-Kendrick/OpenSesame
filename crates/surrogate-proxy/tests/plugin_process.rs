@@ -158,3 +158,45 @@ async fn a_surrogate_sent_to_another_host_is_refused_and_noticed_without_the_sur
     drop(plugin.stdin.take());
     assert_eq!(plugin.exit_within(Duration::from_secs(10)), Some(0));
 }
+
+#[test]
+fn a_served_entry_with_the_root_or_no_path_scope_refuses_the_run_and_opens_nothing() {
+    for prefixes in [serde_json::json!(["/"]), serde_json::json!([])] {
+        let install = Install::pinned(true);
+        let mut plugin = install.spawn(&[]);
+        let mut spec = install.spec("dev-run-f6", 60);
+        spec["entries"][0]["path_prefixes"] = prefixes.clone();
+        plugin.send(&spec);
+        let reply = plugin.reply();
+        assert_eq!(reply["error"], "spec_path_scope:GITHUB_TOKEN", "{prefixes}");
+        assert!(reply.get("proxy_url").is_none(), "{reply}");
+        assert!(reply.get("env").is_none(), "{reply}");
+        assert_eq!(plugin.exit_within(Duration::from_secs(5)), Some(2));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_surrogate_used_outside_its_path_scope_is_refused_and_noticed_without_the_surrogate() {
+    let install = Install::pinned(true);
+    let mut plugin = install.spawn(&[]);
+    plugin.send(&install.spec("dev-run-g7", 60));
+    let reply = plugin.reply();
+    let surrogate = reply["env"]["GITHUB_TOKEN"].as_str().unwrap().to_owned();
+    let request = format!(
+        "GET /admin/users HTTP/1.1\r\nHost: api.github.com\r\n\
+         Authorization: Bearer {surrogate}\r\nConnection: close\r\n\r\n"
+    );
+    let (status, body) = through_proxy(&reply, "api.github.com", &request)
+        .await
+        .expect("the proxy terminates the host and refuses the path");
+    assert_eq!(status, 403);
+    assert!(!body.contains(&surrogate));
+    let notices = wait_for_lines(&install.notices());
+    let line: serde_json::Value =
+        serde_json::from_str(notices.lines().next().expect("one notice")).unwrap();
+    assert_eq!(line["event_type"], "surrogate.out_of_scope");
+    assert_eq!(line["subject_id"], "dev-run-g7");
+    assert!(!notices.contains(&surrogate), "{notices}");
+    drop(plugin.stdin.take());
+    assert_eq!(plugin.exit_within(Duration::from_secs(10)), Some(0));
+}

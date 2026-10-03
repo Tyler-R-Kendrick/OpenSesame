@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { dedicatedSite } from "./live-dedicated.mjs";
 import { WATCH_RTC, ownerEnters, peerStates } from "./live-join-walk.mjs";
 import {
   carried,
@@ -54,17 +55,20 @@ function launch(executablePath) {
   return chromium.launch({ executablePath, headless: true, args: ARGS });
 }
 
-async function device(browser, options = {}) {
-  const made = await harness.newPage(browser, options);
+async function device(
+  browser,
+  { origin = ORIGIN, dist = DIST, ...options } = {},
+) {
+  const made = await harness.newPage(browser, { ...options, origin, dist });
   const sockets = [];
   await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
+    origin,
   });
   const cdp = await made.context.newCDPSession(made.page);
   await cdp.send("Browser.setPermission", {
     permission: { name: "local-network-access" },
     setting: "granted",
-    origin: ORIGIN,
+    origin,
   });
   await made.context.addInitScript(WATCH_RTC);
   made.page.on("websocket", (socket) => sockets.push(socket.url()));
@@ -74,7 +78,7 @@ async function device(browser, options = {}) {
     else if (process.env.LIVE_CONSOLE)
       harness.record("console", message.text().slice(0, 400));
   });
-  return { ...made, sockets };
+  return { ...made, sockets, origin, dist };
 }
 
 const shot = (page, name) =>
@@ -143,8 +147,19 @@ async function walks(topology) {
       secret: SECRET,
     });
     try {
-      for (const walk of [noAddress, withAddress, carried, relayed])
-        await walk(ctx);
+      for (const walk of [noAddress, withAddress]) await walk(ctx);
+      // The carrier is on a private address (10.99.0.1): local operator
+      // authority the shared origin may not reach, so the walks that name one
+      // are a deployment of one's own, for the owner and the joiner alike.
+      const site = dedicatedSite();
+      setStep("owner-enters-dedicated");
+      ctx.owner = await device(browsers.a, site);
+      await ownerEnters(ctx.owner.page, {
+        origin: site.origin,
+        base: BASE,
+        secret: SECRET,
+      });
+      for (const walk of [carried, relayed]) await walk(ctx);
     } catch (error) {
       await wreckage(browsers);
       throw error;

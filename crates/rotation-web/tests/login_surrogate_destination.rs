@@ -9,7 +9,9 @@
 mod login_support;
 
 use login_support::{assert_refused, declared, form, json, post, secret, SURROGATE, URL};
-use opensesame_rotation_web::{Egress, LoginRequest, RefusalCode, Substituted};
+use opensesame_rotation_web::{
+    AfterSubstitution, Egress, LoginRequest, ParkReason, RefusalCode, Substituted,
+};
 
 fn form_body() -> String {
     format!("password={SURROGATE}")
@@ -139,15 +141,64 @@ fn a_query_on_the_declared_action_is_allowed() {
 }
 
 #[test]
-fn put_is_unsupported() {
+fn a_non_post_carrying_the_surrogate_is_misplaced_not_a_fallback() {
+    // A page script that read the surrogate beacons it to the declared
+    // endpoint with another verb. That is exfiltration, not an unsupported
+    // shape: it parks the run and must never fall back to filling the real
+    // credential into the page that just copied the surrogate.
     let headers = form();
     let body = form_body();
-    for method in ["PUT", "PATCH", "GET", "post"] {
+    for method in ["PUT", "PATCH", "GET", "DELETE", "post"] {
         let request = LoginRequest {
             method,
             url: URL,
             headers: &headers,
             body: body.as_bytes(),
+        };
+        let refusal = assert_refused(
+            declared().substitute(&request, &secret()),
+            RefusalCode::Misplaced,
+        );
+        assert_eq!(refusal.detail.as_deref(), Some("body"), "{method}");
+        assert_eq!(
+            refusal.next(),
+            AfterSubstitution::Park(ParkReason::Tripwire(RefusalCode::Misplaced)),
+            "{method}"
+        );
+    }
+}
+
+#[test]
+fn a_get_that_beacons_the_surrogate_in_the_query_parks_the_run() {
+    let url = format!("{URL}?leak={SURROGATE}");
+    for method in ["GET", "PUT", "DELETE"] {
+        let request = LoginRequest {
+            method,
+            url: &url,
+            headers: &[],
+            body: b"",
+        };
+        let refusal = assert_refused(
+            declared().substitute(&request, &secret()),
+            RefusalCode::Misplaced,
+        );
+        assert_eq!(refusal.detail.as_deref(), Some("query"), "{method}");
+        assert_eq!(
+            refusal.next(),
+            AfterSubstitution::Park(ParkReason::Tripwire(RefusalCode::Misplaced))
+        );
+    }
+}
+
+#[test]
+fn a_non_post_with_no_surrogate_is_merely_unsupported() {
+    let headers = form();
+    for method in ["PUT", "PATCH", "GET", "post"] {
+        let request = LoginRequest {
+            method,
+            url: URL,
+            headers: &headers,
+            body: b"username=alice",
         };
         let refusal = assert_refused(
             declared().substitute(&request, &secret()),

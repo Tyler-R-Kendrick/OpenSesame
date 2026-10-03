@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 440,
-    "violations": 690,
-    "oversizedLines": 226977
+    "files": 438,
+    "violations": 688,
+    "oversizedLines": 225815
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1952
+      "max-lines": 1921
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -111,7 +111,7 @@
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 1033,
+      "max-lines": 907,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -137,7 +137,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 538
+      "max-lines": 535
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
@@ -263,9 +263,6 @@
     "crates/agent-events/src/lib.rs": {
       "max-lines": 493
     },
-    "crates/audit/src/lib.rs": {
-      "max-lines": 512
-    },
     "crates/authenticator-core/src/lib.rs": {
       "max-lines": 487
     },
@@ -309,7 +306,7 @@
       "max-lines": 824
     },
     "crates/connection-broker/src/store.rs": {
-      "max-lines": 2751
+      "max-lines": 2746
     },
     "crates/connection-broker/src/sync_target.rs": {
       "max-lines": 807
@@ -408,7 +405,7 @@
       "max-lines": 637
     },
     "crates/gateway/src/routes/agent_runs.rs": {
-      "max-lines": 966
+      "max-lines": 935
     },
     "crates/gateway/src/routes/agents.rs": {
       "max-lines": 440
@@ -551,20 +548,17 @@
     "crates/sealed-store/src/store.rs": {
       "max-lines": 627
     },
-    "crates/security-events/src/notice.rs": {
-      "max-lines": 406
-    },
     "crates/session-observe/src/lease.rs": {
       "max-lines": 625
     },
     "crates/storage/src/lib.rs": {
-      "max-lines": 2091
+      "max-lines": 2069
     },
     "crates/storage/src/observation.rs": {
       "max-lines": 469
     },
     "crates/storage/src/security.rs": {
-      "max-lines": 1612
+      "max-lines": 1595
     },
     "crates/storage/src/shared_sessions.rs": {
       "max-lines": 661
@@ -740,7 +734,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1672
+      "max-lines": 1665
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 577
@@ -1126,7 +1120,7 @@
       "max-lines": 856
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1804
+      "max-lines": 1802
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,

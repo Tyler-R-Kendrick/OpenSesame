@@ -1,5 +1,5 @@
 /**
- * View-model for Settings › Keybindings (ADR 0150, ADR 0133 §8): the rows the
+ * View-model for Settings › Keybindings (ADR 0156, ADR 0133 §8): the rows the
  * Keymap panel draws, the filters over them, and the macro recorder that turns
  * key presses back into steps. No React, no DOM.
  */
@@ -40,7 +40,7 @@ export const KEYMAP_FILTERS: readonly { id: KeymapFilter; label: string }[] = [
   { id: "waits", label: "shared prefix" },
 ];
 
-/** Where the table's keys apply: everywhere, or one listing (ADR 0150 §6). */
+/** Where the table's keys apply: everywhere, or one listing (ADR 0156 §6). */
 export type KeymapScope = "everywhere" | KeymapContext;
 
 export const KEYMAP_SCOPES: readonly { id: KeymapScope; label: string }[] = [
@@ -64,7 +64,7 @@ export type KeymapRow = Readonly<{
   command: KeymapCommand;
   keys: readonly KeyCell[];
   changed: boolean;
-  /** Asks before it acts: no key may be moved onto it (ADR 0150). */
+  /** Asks before it acts: no key may be moved onto it (ADR 0156). */
   locked: boolean;
 }>;
 
@@ -254,27 +254,60 @@ export function stepsFromKeys(
   const continues = (sequence: string) =>
     [...bindings.keys()].some((key) => key.startsWith(`${sequence} `));
 
-  for (const token of tokens) {
-    if (pending.length === 0 && /^[1-9]$/.test(token)) {
-      count = Math.min(count * 10 + Number(token), 99);
-      continue;
+  /** The `move` group is the shell's motions (pinned by a drift test). */
+  const isMotionTarget = (target: string) =>
+    commandById(target, commands)?.group === "move";
+
+  // The shell's `resolveToken`: a key that continues nothing after a prefix
+  // swallows the prefix. A character key goes with it, unless it is a motion,
+  // which keeps its meaning (`g j` is `j`); a named key is read afresh.
+  const resolve = (token: string): void => {
+    const prefix = pending;
+    let sequence = [...prefix, token].join(" ");
+    // The shell's `sequenceOf`: `g V` reads as `g v` after a prefix.
+    if (
+      prefix.length > 0 &&
+      !bindings.has(sequence) &&
+      !continues(sequence) &&
+      /^[A-Z]$/.test(token)
+    ) {
+      sequence = [...prefix, token.toLowerCase()].join(" ");
     }
-    if (pending.length === 0 && token === "0" && count > 0) {
-      count = Math.min(count * 10, 99);
-      continue;
-    }
-    const sequence = [...pending, token].join(" ");
     if (continues(sequence)) {
       pending = sequence.split(" ");
-      continue;
+      return;
     }
     pending = [];
     const target = bindings.get(sequence);
-    if (target !== undefined) emit(target, sequence);
-    else {
+    if (target !== undefined) {
+      emit(target, sequence);
+      return;
+    }
+    const fresh = bindings.get(token);
+    const swallowed =
+      prefix.length === 0 ||
+      (token.length === 1 && !(fresh !== undefined && isMotionTarget(fresh)));
+    if (swallowed) {
       skipped.push(sequence);
       count = 0;
+      return;
     }
+    skipped.push(prefix.join(" "));
+    resolve(token);
+  };
+
+  for (const token of tokens) {
+    // The shell's `countKey` runs before any prefix is read, so a digit is
+    // a count even while a prefix is pending (`g 3 j` is `3 listing.next`).
+    if (/^[1-9]$/.test(token)) {
+      count = Math.min(count * 10 + Number(token), 99);
+      continue;
+    }
+    if (token === "0" && count > 0) {
+      count = Math.min(count * 10, 99);
+      continue;
+    }
+    resolve(token);
   }
   if (pending.length > 0) {
     const sequence = pending.join(" ");
