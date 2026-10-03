@@ -25,6 +25,7 @@ import {
   rawKeymapRefusal,
   readKeymapParts,
   stableContexts,
+  stableMacros,
   yamlKey,
 } from "./settings-keymap-yaml.js";
 import {
@@ -266,7 +267,7 @@ export function sameDoc(left: SettingsDoc, right: SettingsDoc): boolean {
   return (
     stable(left.values) === stable(right.values) &&
     stable(left.keybindings) === stable(right.keybindings) &&
-    JSON.stringify(left.macros ?? {}) === JSON.stringify(right.macros ?? {}) &&
+    stableMacros(left.macros) === stableMacros(right.macros) &&
     stableContexts(left.contexts) === stableContexts(right.contexts)
   );
 }
