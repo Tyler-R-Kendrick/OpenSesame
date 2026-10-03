@@ -16,15 +16,22 @@ import {
   subscribeKeymap,
 } from "./store.js";
 
+type Refusals = {
+  get: boolean;
+  set: boolean;
+  remove: boolean;
+  /** Refuse the removal of this one key only. */
+  removeKey: string | null;
+};
+
 /** A store that can be told to refuse a read, a write or a removal. */
 function flaky() {
   const inner = createMemoryStorage();
-  const refuse = {
+  const refuse: Refusals = {
     get: false,
     set: false,
     remove: false,
-    /** Refuse the removal of this one key only. */
-    removeKey: null as string | null,
+    removeKey: null,
   };
   const storage: WebStorage = {
     get length() {

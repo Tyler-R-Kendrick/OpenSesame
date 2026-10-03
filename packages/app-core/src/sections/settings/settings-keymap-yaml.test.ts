@@ -203,17 +203,17 @@ describe("macros in the Keybindings config.yaml", () => {
       "  b: [listing.previous]",
       "",
     ].join("\n");
-    const doc = (macros: Record<string, { steps: string[] }>) => ({
+    const doc = (...macros: Array<[string, { steps: string[] }]>) => ({
       values: {},
       keybindings: {},
-      macros,
+      macros: Object.fromEntries(macros),
     });
 
     it("takes its comment with it when it is removed", () => {
       const out = reconcileSource(
         "keybindings",
         two,
-        doc({ b: { steps: ["listing.previous"] } }),
+        doc(["b", { steps: ["listing.previous"] }]),
       );
       expect(out).not.toContain("# one");
       expect(out).toBe("macros:\n  # two\n  b: [ listing.previous ]\n");
@@ -227,10 +227,10 @@ describe("macros in the Keybindings config.yaml", () => {
       const out = reconcileSource(
         "keybindings",
         two,
-        doc({
-          c: { steps: ["listing.next"] },
-          b: { steps: ["listing.previous"] },
-        }),
+        doc(
+          ["c", { steps: ["listing.next"] }],
+          ["b", { steps: ["listing.previous"] }],
+        ),
       );
       expect(out).toBe(
         [
@@ -249,7 +249,7 @@ describe("macros in the Keybindings config.yaml", () => {
       const out = reconcileSource(
         "keybindings",
         one,
-        doc({ z: { steps: ["listing.last"] } }),
+        doc(["z", { steps: ["listing.last"] }]),
       );
       expect(out).not.toContain("# one");
       const parsed = decodeSettings("keybindings", out);
