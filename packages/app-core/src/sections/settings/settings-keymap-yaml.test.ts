@@ -303,6 +303,24 @@ describe("macros in the Keybindings config.yaml", () => {
     }
   });
 
+  it("writes an added trigger first, as a fresh macro does", () => {
+    const out = reconcileSource("keybindings", saved, {
+      ...base,
+      macros: {
+        ...base.macros,
+        tidy: { on: "unlock", steps: ["listing.next"] },
+      },
+    });
+    expect(out).toContain(
+      "    # leave this one be\n    on: unlock\n    steps:\n      - listing.next",
+    );
+    const parsed = decodeSettings("keybindings", out);
+    expect(parsed.ok && parsed.doc.macros?.tidy).toEqual({
+      on: "unlock",
+      steps: ["listing.next"],
+    });
+  });
+
   it("patches a macro written as a bare list of steps", () => {
     const bare = "macros:\n  tidy: [listing.next] # short\n";
     const out = reconcileSource("keybindings", bare, {

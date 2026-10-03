@@ -213,6 +213,8 @@ function patchMacro(
   }
   const body = pair.value;
   if (macro.on === undefined) body.delete("on");
+  else if (!body.has("on"))
+    body.items.unshift(document.createPair("on", macro.on));
   else if (body.get("on") !== macro.on) body.set("on", macro.on);
   const steps = body.get("steps", true);
   if (!isSeq(steps)) body.set("steps", stepsNode(document, macro.steps, true));
