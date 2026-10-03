@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { matchMediaFor } from "../host/fake-media-query.js";
+import { matchMediaFor } from "../lib/use-narrow.test-fake.js";
 import { SupportProvider } from "../tutorial/session.js";
 import { touchTips } from "./EmptyTip.js";
 import { MoreMenu } from "./MoreMenu.js";

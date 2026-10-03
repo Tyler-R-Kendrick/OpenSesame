@@ -1,23 +1,5 @@
 import { vi } from "vitest";
-
-/**
- * A `MediaQueryList` that answers one question and listens to nothing: the
- * surface `useMediaQuery` reads (`matches`, and the change subscription).
- */
-class FakeMediaQueryList extends EventTarget implements MediaQueryList {
-  onchange: MediaQueryList["onchange"] = null;
-
-  constructor(
-    readonly media: string,
-    readonly matches: boolean,
-  ) {
-    super();
-  }
-
-  addListener(): void {}
-
-  removeListener(): void {}
-}
+import { FakeMediaQueryList } from "./use-narrow.test-fake.js";
 
 /** `window.matchMedia` for a device where a query holds when `holds` says so. */
 export function stubMatchMedia(holds: (query: string) => boolean): void {

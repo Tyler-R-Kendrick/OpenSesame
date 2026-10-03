@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
-import { matchMediaFor } from "../host/fake-media-query.js";
+import { matchMediaFor } from "../lib/use-narrow.test-fake.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { CommandBar, commandPlaceholder } from "./CommandBar.js";
 

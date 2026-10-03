@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FakeMediaQueryList } from "../host/fake-media-query.js";
 import { COARSE_POINTER_QUERY, isTouchPointer } from "../lib/gestures.js";
+import { FakeMediaQueryList } from "../lib/use-narrow.test-fake.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 
 afterEach(() => {

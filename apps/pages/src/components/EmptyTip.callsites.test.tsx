@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { matchMediaFor } from "../host/fake-media-query.js";
+import { matchMediaFor } from "../lib/use-narrow.test-fake.js";
 import { EmptyTip, type EmptyTipKey, isEmptyTipKey } from "./EmptyTip.js";
 
 const SRC = join(import.meta.dirname, "..");
