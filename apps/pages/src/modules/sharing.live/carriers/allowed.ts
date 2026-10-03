@@ -13,12 +13,12 @@
  */
 
 import type { EgressPort } from "@opensesame/app-core/lib/capabilities/egress.js";
-import type { CarrierSpec } from "@opensesame/app-core/lib/live/transport.js";
-import { targetAddressSpaceFor } from "@opensesame/app-core/lib/local-network-fetch.js";
 import {
-  type EffectivePlan,
-  capabilityState,
-} from "@opensesame/capability-composition";
+  type Refusal,
+  planRefusal,
+} from "@opensesame/app-core/lib/live/carrier-policy.js";
+import type { CarrierSpec } from "@opensesame/app-core/lib/live/transport.js";
+import type { EffectivePlan } from "@opensesame/capability-composition";
 
 export const CAPABILITY = "sharing.live";
 
@@ -36,28 +36,13 @@ export const CARRIER_META = {
   purpose: CARRIER_PURPOSE,
 } as const;
 
-/** The plan's answer: `null` when allowed, else the reason, as egress names it. */
-export type Refusal = string | null;
+export type { Refusal };
 
 export type CarrierGate = Readonly<{
   egress: EgressPort;
   /** The current plan, read on every ask so a withdrawal refuses at once. */
   plan: () => EffectivePlan | null;
 }>;
-
-function socketRefusal(url: URL, plan: EffectivePlan | null): Refusal {
-  if (plan === null || capabilityState(plan, CAPABILITY)?.approved !== true)
-    return "capability-not-approved";
-  const loopback = targetAddressSpaceFor(url.href) === "loopback";
-  if (url.protocol !== "wss:" && !(url.protocol === "ws:" && loopback))
-    return "unsupported-scheme";
-  if (plan.network.externalServices !== "allow")
-    return "external-services-denied";
-  const list = plan.network.allowedServiceOrigins;
-  if (list.length > 0 && !list.includes(url.origin))
-    return "origin-not-allowed";
-  return null;
-}
 
 /**
  * Why `spec` may not be opened, or null when it may. BroadcastChannel never
@@ -76,7 +61,7 @@ export function carrierRefusal(spec: CarrierSpec, gate: CarrierGate): Refusal {
     const decision = gate.egress.decide(url, CARRIER_META);
     return decision.ok ? null : decision.code;
   }
-  return socketRefusal(url, gate.plan());
+  return planRefusal(spec, gate.plan());
 }
 
 /** Whether `spec` may be opened under the current plan. */

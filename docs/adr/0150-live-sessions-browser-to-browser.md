@@ -136,6 +136,18 @@ reached the joiner); an owner may name a carrier that passes them instead
 5. The joiner's page accepts only a reply that opens under its own request's
    key and answers its own request; the browsers then connect.
 
+The catalog the owner then sends — names, types and unconcealed fields — is one
+data-channel message, and Chromium refuses one over 256 KiB (`send` throws).
+A vault at the limits (200 items of 32 fields with 16 KiB of text) is well
+past that, so the catalog is cut to 200 000 bytes before it is sent (bytes,
+not characters): unconcealed text is clipped shorter, in steps, and marked
+with an ellipsis where it was cut so a copy of it is not taken for the whole
+value, and only if names alone still do not fit are the last items left out.
+Every check the owner makes on a request uses this same catalog, so an item
+the joiner was not shown cannot be revealed from, and a vault is fitted once
+for as long as its items are the same. A frame that still cannot go out, or
+that the browser refuses, ends the seat; the guest is not counted as joined.
+
 Codes forgive what chat apps wrap around them (whitespace, quotes) and are
 refused whole otherwise. Another joiner holding the same link and code can
 read neither someone else's request nor the reply to it.
@@ -224,7 +236,9 @@ WireGuard, Pangolin's clients) through an address hint, or anything at all
 through TURN.
 
 The link carries what the joiner needs — the ICE servers, relay only, and the
-carriers — and the joiner's page lists every host it names before anything
+carriers — and a link that asks for relay only without naming a TURN server is
+refused whole, as the owner's profile refuses it, since a relay-only peer with
+nowhere to relay would only hang. The joiner's page lists every host it names before anything
 is contacted. The person keeps them or pairs directly by hand; declining
 leaves no trace on any of them. A browser may also ask the person before a
 public page reaches a carrier on a tailnet or LAN address (Chrome's Local
@@ -259,7 +273,26 @@ TURN are WebRTC and remain outside `connect-src`. Sessions are not tied to the
 module's activation, but they are tied to its approval: when a resolved plan
 stops approving `sharing.live` — an operator's withdrawal, or the person's
 switch — `session.ts` ends the hosted session and leaves the joined one, and
-closes their carriers; a re-plan that still approves it changes nothing.
+closes their carriers; a re-plan that still approves it ends nothing.
+
+A re-plan that still approves it can still change the network policy, and a
+WebSocket stays open until something shuts it. So on every re-plan the
+session asks the plan again about each carrier it holds (`carrier-policy.ts`,
+the one rule the shell also asks before opening): a Nostr, MQTT or NATS
+carrier that external services being denied, or its `wss://` origin leaving
+the operator's list, no longer allows is closed and shown as blocked, and one
+still opening is closed when it arrives. The session itself goes on, over the
+carriers that remain and by hand. A carrier the policy allows again is not
+reopened: the session names its carriers once. ntfy is held to the same plan
+by the rule egress applies to it (its stream is one long request that egress
+is not asked about again, though it also stops the loop at the first refusal),
+and BroadcastChannel never leaves the browser.
+
+A socket carrier at an address on this device or a LAN is also refused where
+the deployment may not pair local authority (the shared GitHub Pages origin
+may not): egress already says so for http, and a socket asks the same
+question (`planRefusal`), so a public page cannot reach a local relay through
+a WebSocket that it could not reach through a fetch.
 
 ## Consequences
 
