@@ -140,9 +140,18 @@ pub async fn begin_web_login_rotation(
 /// consumer is never offered it (no `…requested` event is published; the
 /// request is still in the changelog).
 ///
+/// The insert is refused when this organization already has a web-login job
+/// for `origin` that a runner holds — a running state under a claim whose
+/// lease has not run out ([`super::live`]) — whichever process or replica
+/// holds it. That is the whole guarantee: it covers claimed runs started
+/// through this function, not a job still `scheduled` for the generic
+/// consumer, and a run whose lease lapsed no longer counts (the reaper parks
+/// it).
+///
 /// # Errors
 ///
-/// The job cannot be written.
+/// [`BrokerError::RunInFlight`] when such a run exists; otherwise the job
+/// cannot be written.
 pub async fn request_claimed_web_login_rotation(
     broker: &ConnectionBroker,
     organization_id: &OrganizationId,
@@ -169,21 +178,9 @@ pub async fn request_claimed_web_login_rotation(
         updated_at: now,
     };
     let mut tx = broker.pool.begin().await?;
-    sqlx::query(
-        "INSERT INTO rotation_jobs (id, policy_id, organization_id, target_kind, target_id, \
-         state, detail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    )
-    .bind(&row.id)
-    .bind(&row.policy_id)
-    .bind(&row.organization_id)
-    .bind(&row.target_kind)
-    .bind(&row.target_id)
-    .bind(&row.state)
-    .bind(&row.detail)
-    .bind(now.to_rfc3339())
-    .bind(now.to_rfc3339())
-    .execute(&mut *tx)
-    .await?;
+    // One statement, so the check and the insert cannot be pulled apart by a
+    // second runner (this process or another replica) between them.
+    super::live::insert_unless_live(&mut tx, &row, now).await?;
     insert_claim(&mut tx, &org, &row.id, claim, now).await?;
     tx.commit().await?;
     let job = job_in(broker, &org, &row.id).await?;

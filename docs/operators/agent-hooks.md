@@ -297,7 +297,7 @@ A run the Host opened has no viewer key to seal a log to, so its observation is
 the payload-free record of every interception: point, decision, machine reason,
 whether it escalated, and the `sha256:` identities of the context before and
 after. `GET /api/v1/agent/runs/{id}/hook-records` reads them, and
-`opensesame rotate hooks <run> [--follow]` prints them (`rotate watch` falls back
+`opensesame access connectors rotate hooks <run> [--follow]` prints them (`rotate watch` falls back
 to them for these runs). They are readable by the run's owner and nobody else.
 Records outlive neither their run nor its retention.
 

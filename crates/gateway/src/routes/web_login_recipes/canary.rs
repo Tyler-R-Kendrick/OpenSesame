@@ -28,7 +28,7 @@ use crate::middleware::auth::{require_operator, require_session, session_subject
 use crate::routes::agent_hooks::step_up::{fresh_step_up, StepUpRefusal};
 use crate::session_claims::CredentialKind;
 use crate::web_login::recipe_trust::{verified_recipe, Attendance, Unrunnable};
-use crate::web_login::{registry::Refused, start_attended};
+use crate::web_login::{registry::Refused, run_held, start_attended};
 
 /// The person asking, and the organization they act in.
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
@@ -110,13 +110,20 @@ pub(super) async fn start(
             ),
         };
     }
+    if run_held(&st, &organization_id, &origin).await {
+        return error(
+            StatusCode::CONFLICT,
+            "run_in_flight",
+            "a run for that origin is already queued or executing",
+        );
+    }
     match start_attended(&st, &organization_id, &origin, &owner) {
         Ok(()) => (
             StatusCode::ACCEPTED,
             Json(json!({
                 "status": "started",
                 "origin": origin,
-                "hint": "drive it from your browser; follow it with `opensesame rotate runs`",
+                "hint": "drive it from your browser; follow it with `opensesame access connectors rotate runs`",
             })),
         )
             .into_response(),

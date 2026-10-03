@@ -62,6 +62,25 @@ impl Identity {
     }
 }
 
+impl Identity {
+    /// The declared provider's name and the identity it computes over
+    /// `context`, for a record the host writes without running an emitter.
+    /// `None` identity when the provider is `null` or could not compute.
+    pub(super) fn describe(&self, context: &AgentContext) -> (Option<String>, Option<String>) {
+        match self {
+            Self::JcsSha256 => (
+                Some(agent_hooks::JCS_SHA256.to_owned()),
+                agent_hooks::context_identity(context).ok(),
+            ),
+            Self::Null => (None, None),
+            Self::Custom { name, f } => (
+                Some(name.clone()),
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(context))).ok(),
+            ),
+        }
+    }
+}
+
 /// The approval seam, shared: the SDK takes it by `Box`, one per emitter.
 struct SharedResolver(Arc<dyn ApprovalResolver>);
 

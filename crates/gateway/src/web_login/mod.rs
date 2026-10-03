@@ -100,7 +100,7 @@ use crate::app_state::AppState;
 
 #[cfg(test)]
 pub(crate) use launch::Harness;
-pub(crate) use start::{start, start_attended};
+pub(crate) use start::{run_held, start, start_attended};
 
 /// Builds the §9 approval seam for one run. A resolver is consumed by the
 /// session it is registered on, so the launcher holds a factory.

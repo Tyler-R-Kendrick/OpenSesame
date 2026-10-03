@@ -101,7 +101,13 @@ pub struct HookSession {
     /// Only ever locked for a few field updates, never across an `await`.
     state: Mutex<State>,
     calls: AtomicU64,
+    /// Whether the run stood down for a person rather than finishing or
+    /// failing; asked once, when the run's report decides `agent_shutdown`'s
+    /// reason.
+    stand_down: Option<StandDown>,
 }
+
+type StandDown = Box<dyn Fn() -> bool + Send + Sync>;
 
 impl HookSession {
     /// A session over `interceptors`, in registration order, with `resolver`
@@ -141,6 +147,7 @@ impl HookSession {
                 last_refusal: None,
             }),
             calls: AtomicU64::new(0),
+            stand_down: None,
         })
     }
 
@@ -154,6 +161,25 @@ impl HookSession {
     pub fn with_record_sink(mut self, sink: RecordSink) -> Self {
         self.state_mut().log.set_sink(sink);
         self
+    }
+
+    /// Say whether the run stood down for a person — a handoff, or a page a
+    /// person already holds — which `agent_shutdown` records as `cancelled`
+    /// rather than `error` (§4.2). The host's channel knows; the executor's
+    /// outcome alone cannot tell a parked run from a failed transport.
+    #[must_use]
+    pub fn with_stand_down(
+        mut self,
+        stood_down: impl Fn() -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.stand_down = Some(Box::new(stood_down));
+        self
+    }
+
+    /// Whether the run stood down for a person (see [`Self::with_stand_down`]).
+    #[must_use]
+    pub fn stood_down(&self) -> bool {
+        self.stand_down.as_ref().is_some_and(|probe| probe())
     }
 
     /// Keep records for [`Self::records`] even with a sink installed.

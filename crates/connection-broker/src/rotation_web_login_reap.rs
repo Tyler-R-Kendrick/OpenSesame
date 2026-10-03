@@ -39,7 +39,7 @@ const STRANDED_JOB_BATCH: i64 = 200;
 
 /// States a web-login job passes through while a runner holds it — every one
 /// that is neither waiting for a runner nor finished.
-const RUNNING: [RotationState; 10] = [
+pub(super) const RUNNING: [RotationState; 10] = [
     RotationState::Discovering,
     RotationState::CandidateGenerated,
     RotationState::CandidateInstalled,

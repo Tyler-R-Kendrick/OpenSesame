@@ -30,6 +30,11 @@ use crate::approval::{ApprovalBinding, ApproverError, HumanDecision};
 
 /// What an `ask` has raised on the Identity API so far: exactly what has to
 /// be withdrawn if it ends without an approval.
+///
+/// `subject_id` is set only for a request this `ask` created (`201`). The
+/// create route de-duplicates an identical live request and answers `200`
+/// with the first ask's row; that row is somebody else's, and cancelling it
+/// would revoke the interaction that other ask is still waiting on.
 #[derive(Default)]
 struct Raised {
     subject_id: Option<String>,
@@ -150,8 +155,10 @@ impl Session {
         raised: &mut Raised,
     ) -> Result<HumanDecision, ApproverError> {
         let id = ask_id();
-        let subject_id = self.raise_subject(&format!("{id}-subject")).await?;
-        let subject_id = raised.subject_id.insert(subject_id).clone();
+        let (subject_id, created_here) = self.raise_subject(&format!("{id}-subject")).await?;
+        if created_here {
+            raised.subject_id = Some(subject_id.clone());
+        }
         checkpoint(cancel, give_up)?;
         let created = self
             .raise_interaction(&format!("{id}-interaction"), &subject_id)
@@ -163,7 +170,9 @@ impl Session {
             .await
     }
 
-    async fn raise_subject(&self, key: &str) -> Result<String, ApproverError> {
+    /// The subject's id, and whether this ask created it (`201`) rather than
+    /// being handed an identical live request another ask raised (`200`).
+    async fn raise_subject(&self, key: &str) -> Result<(String, bool), ApproverError> {
         let body = wire::CreateAuthorizationRequest {
             approver_ref: &self.approver_ref,
             authorization_details: &self.details,
@@ -182,8 +191,9 @@ impl Session {
         if !matches!(reply.status, StatusCode::OK | StatusCode::CREATED) {
             return Err(ApproverError::Unavailable);
         }
+        let created_here = reply.status == StatusCode::CREATED;
         wire::auth_req_id(reply.body.as_ref())
-            .map(str::to_owned)
+            .map(|id| (id.to_owned(), created_here))
             .ok_or(ApproverError::Unavailable)
     }
 
@@ -226,7 +236,8 @@ impl Session {
     /// the answer already decided (never an approval). The interaction goes
     /// first; cancelling the authorization request it fronted then clears the
     /// approver's inbox — and, when the interaction's reference never reached
-    /// us, closes the interaction by way of its subject.
+    /// us, closes the interaction by way of its subject. A subject this ask
+    /// did not create is never cancelled (see [`Raised`]).
     async fn withdraw(&self, raised: &Raised) {
         if let Some(created) = &raised.created {
             let _ = self

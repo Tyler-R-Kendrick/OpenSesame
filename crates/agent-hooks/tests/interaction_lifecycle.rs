@@ -283,3 +283,46 @@ async fn a_server_that_reports_a_digest_over_other_content_is_never_believed() {
     assert_eq!(seen.revokes, 1, "an approval we refused is withdrawn");
     assert_eq!(seen.cancels, [SUBJECT_ID]);
 }
+
+#[tokio::test]
+async fn an_ask_handed_another_asks_request_never_cancels_it() {
+    // Two concurrent asks about the same context raise an identical request;
+    // the server answers the second with the first's live row (200). The
+    // second cannot front it (409) and ends unresolved — but it must not
+    // cancel a request it did not create, or the first ask's interaction is
+    // revoked out from under the person answering it.
+    let mut script = vec![Step::Pending; 40];
+    script.push(Step::Spend);
+    let server = serve_with(script, 201, Fault::DedupSubject).await;
+    let first = {
+        let approver = approver(&server.base);
+        tokio::spawn(async move {
+            let context = deploy_context();
+            approver.ask(prompt(&context)).await
+        })
+    };
+    until(&server, |seen| seen.interactions.len() == 1).await;
+    let context = deploy_context();
+    let second = approver(&server.base).ask(prompt(&context)).await;
+    assert!(
+        second.is_err(),
+        "the second ask cannot front the shared request"
+    );
+    {
+        let seen = server.seen.lock().unwrap();
+        assert_eq!(seen.auth_requests.len(), 1, "one shared request");
+        assert!(
+            seen.cancels.is_empty(),
+            "a shared request is not ours to cancel"
+        );
+        assert_eq!(seen.revokes, 0, "the second ask raised nothing to revoke");
+    }
+    let decision = first
+        .await
+        .unwrap()
+        .expect("the first ask is still answered, and approved");
+    assert!(decision.approved);
+    let seen = server.seen.lock().unwrap();
+    assert!(seen.cancels.is_empty());
+    assert_eq!(seen.revokes, 0);
+}

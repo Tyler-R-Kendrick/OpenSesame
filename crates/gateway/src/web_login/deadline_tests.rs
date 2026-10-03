@@ -73,6 +73,35 @@ async fn a_run_waiting_on_an_approval_nobody_gives_is_stopped_at_its_deadline() 
         .remove(0);
     assert!(run.closed_at.is_some(), "an overdue run is closed");
     assert!(queued(&world.state.db, &run.id).await.is_empty());
+
+    // The audit trail does not stop where the deadline cut the run off: the
+    // verb parked on the approval is recorded as abandoned, and the session
+    // is shut down.
+    let records = world
+        .state
+        .db
+        .agent_hook_records(&org, &run.id)
+        .await
+        .unwrap();
+    let points: Vec<&str> = records
+        .iter()
+        .map(|record| record.interception_point.as_str())
+        .collect();
+    assert_eq!(
+        points,
+        ["agent_startup", "input", "pre_tool_call", "agent_shutdown"]
+    );
+    let parked = &records[2];
+    assert_eq!(parked.decision, "deny");
+    assert_eq!(
+        parked.reason.as_deref(),
+        Some("host_error:interceptor_timeout")
+    );
+    let sequences: Vec<i64> = records.iter().map(|record| record.sequence).collect();
+    assert!(
+        sequences.windows(2).all(|pair| pair[0] < pair[1]),
+        "{sequences:?}"
+    );
 }
 
 #[test]

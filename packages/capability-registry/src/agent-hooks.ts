@@ -284,7 +284,7 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "Read a Host-run agent's payload-free hook records and their verdict summary (ADR 0081 §9: the observation of a run that has no viewer key)",
     plane: "host",
     kind: "read",
-    surfaces: { cli: "opensesame rotate hooks", ...CLI_ONLY },
+    surfaces: { cli: "opensesame access connectors rotate hooks", ...CLI_ONLY },
     excluded: RUN_RECORDS_EXCLUSIONS,
   },
   // The recipes those hosted runs replay, and their signers (ADR 0076 §4).

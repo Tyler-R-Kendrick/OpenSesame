@@ -15,10 +15,12 @@ use opensesame_connection_broker::rotation::web_login::{
     park_claimed_web_login_rotation, request_claimed_web_login_rotation, settle_web_login_rotation,
     WebLoginClaim, WebLoginSettlement,
 };
-use opensesame_connection_broker::RotationPolicy;
+use opensesame_connection_broker::{BrokerError, RotationPolicy};
 use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::LifecycleEvent;
-use opensesame_rotation_web::hooks::{HookSession, HookedTransport, RunKind, SessionConfig};
+use opensesame_rotation_web::hooks::{
+    HookSession, HookedTransport, RunKind, SessionConfig, ShutdownReason,
+};
 use opensesame_rotation_web::{
     run_change_password_hooked, CredentialRef, ExtensionTransport, RunRequest,
 };
@@ -44,6 +46,11 @@ pub(crate) const NO_VIEWER_KEY: &str = "none:hook-records-only";
 
 /// How long a run's row (and its hook records' anchor) is kept.
 const OBSERVATION_RETENTION_DAYS: i64 = 7;
+
+/// The target is already held by a runner this process does not know about —
+/// another replica sharing the database — so no job was created.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct HeldElsewhere;
 
 /// One run, assembled.
 pub(crate) struct Harness {
@@ -107,6 +114,14 @@ impl Harness {
         let session = HookSession::new(SessionConfig::new(run_id), interceptors, resolver)
             .map_err(|error| anyhow::anyhow!("hook session refused its configuration: {error:?}"))?
             .with_record_sink(sink)
+            .with_stand_down({
+                let channel = Arc::clone(&channel);
+                move || {
+                    channel
+                        .stopped()
+                        .is_some_and(|stop| matches!(stop, Stop::HandedOff | Stop::PersonHasIt))
+                }
+            })
             .with_approval_redactor(redact_for_approver);
         let transport = ExtensionTransport::new(BrowserChannel(Arc::clone(&channel)), Vec::new());
         Ok(Self {
@@ -145,7 +160,7 @@ impl WebLoginLauncher {
             }
         }
         let owner = policy.as_ref().and_then(|p| p.owner_subject.clone());
-        let (outcome, refs) = self
+        let ran = self
             .request_and_run(
                 organization_id,
                 origin,
@@ -154,6 +169,14 @@ impl WebLoginLauncher {
                 Attendance::Unattended,
             )
             .await;
+        let Ok((outcome, refs)) = ran else {
+            // Another replica's run holds the target and will report for it.
+            // The policy's lease is left to lapse, as for any run skipped
+            // because someone else has the rotation.
+            return Outcome::ok(format!(
+                "rotation for {origin} skipped: a run for it is already in flight"
+            ));
+        };
         publish_agent_phase(&self.state, event, owner, &refs, &outcome).await;
         if let Some(policy) = policy {
             release_policy(broker, &policy, &outcome).await;
@@ -164,6 +187,11 @@ impl WebLoginLauncher {
     /// Request the job and run it. `attendance` is who is watching: the
     /// scanner's runs are unattended and need a canary-proven recipe; a run a
     /// person asked for is attended ([`Self::rotate_attended`]).
+    ///
+    /// # Errors
+    ///
+    /// [`HeldElsewhere`] when a runner on another replica already holds a job
+    /// for the target (the broker refuses the insert, ADR 0156).
     pub(super) async fn request_and_run(
         &self,
         organization_id: &OrganizationId,
@@ -171,7 +199,7 @@ impl WebLoginLauncher {
         owner: Option<&str>,
         policy: Option<&RotationPolicy>,
         attendance: Attendance,
-    ) -> (Outcome, RunRefs) {
+    ) -> Result<(Outcome, RunRefs), HeldElsewhere> {
         let broker = self.state.connection_broker.as_ref();
         // The job is created already claimed by the run that will drive it, so
         // the generic rotation consumer is never offered it (it would park a
@@ -194,9 +222,10 @@ impl WebLoginLauncher {
         .await
         {
             Ok(job) => job,
+            Err(BrokerError::RunInFlight) => return Err(HeldElsewhere),
             Err(error) => {
                 let detail = format!("rotation request failed: {}", error.hint());
-                return (Outcome::failed(detail), RunRefs::default());
+                return Ok((Outcome::failed(detail), RunRefs::default()));
             }
         };
         let mut refs = RunRefs {
@@ -227,7 +256,7 @@ impl WebLoginLauncher {
                 }
             }
         };
-        (outcome, refs)
+        Ok((outcome, refs))
     }
 
     /// Run a prepared job, which `run_id` already holds, to its settlement.
@@ -327,6 +356,17 @@ impl WebLoginLauncher {
             }
         } else {
             tracing::warn!("a web-login run ran past its deadline and was stopped");
+            // The timeout dropped the hosted run where it stood, so it never
+            // reached its own shutdown. Close the session here: an emission
+            // that was in flight leaves its abandoned record, and the audit
+            // trail ends in `agent_shutdown` (reason `error`) like any run
+            // that did not come to its outcome. A session that never started
+            // emits nothing, and one already closed refuses.
+            harness
+                .hooked
+                .session()
+                .shutdown(ShutdownReason::Error)
+                .await;
             overdue(harness.channel.submit_sent())
         };
         // What the run proved about the recipe it replayed is the Host's to

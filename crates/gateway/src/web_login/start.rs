@@ -19,6 +19,7 @@
 //! before any task is made.
 
 use chrono::Utc;
+use opensesame_connection_broker::rotation::web_login::web_login_run_in_flight;
 use opensesame_connection_broker::RotationTarget;
 use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::LifecycleEvent;
@@ -74,12 +75,32 @@ pub(crate) async fn start(state: &AppState, event: &LifecycleEvent) -> Outcome {
     }
 }
 
+/// Whether a runner on any replica already holds a job for `origin` — the
+/// conflict an attended request answers with `409` rather than queueing a run
+/// that would be refused. A read that fails answers `false`: the broker's
+/// insert is what decides, and it decides atomically.
+pub(crate) async fn run_held(
+    state: &AppState,
+    organization_id: &OrganizationId,
+    origin: &str,
+) -> bool {
+    web_login_run_in_flight(state.connection_broker.as_ref(), organization_id, origin)
+        .await
+        .unwrap_or(false)
+}
+
 /// Start the attended run a person asked for — one run of `origin`'s recipe
 /// for `owner`, who drives it — and return without waiting for it.
 ///
 /// It takes the registry slot a scheduled run of the same target would, so
-/// the two can never both be in flight, and it publishes its own outcome on
-/// the `agent.*` feed when it ends.
+/// within this process the two are never both in flight. Across replicas
+/// sharing the database the registry is not shared: there the guarantee is the
+/// broker's, which refuses to create a claimed job for a target a runner
+/// already holds (`BrokerError::RunInFlight`; see [`run_held`] for asking
+/// first) — it covers runs started through the claimed-job path, which both
+/// attended and scheduled runs use, and not a job left `scheduled` for the
+/// generic consumer. It publishes its own outcome on the `agent.*` feed when
+/// it ends.
 ///
 /// # Errors
 ///

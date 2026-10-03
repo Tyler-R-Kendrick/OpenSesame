@@ -46,7 +46,7 @@ impl WebLoginLauncher {
         origin: &str,
         owner: &str,
     ) -> Outcome {
-        let (outcome, refs) = self
+        let ran = self
             .request_and_run(
                 organization_id,
                 origin,
@@ -55,6 +55,11 @@ impl WebLoginLauncher {
                 Attendance::Attended,
             )
             .await;
+        let Ok((outcome, refs)) = ran else {
+            return Outcome::ok(format!(
+                "attended run for {origin} skipped: a run for it is already in flight"
+            ));
+        };
         let event = subject_event(organization_id, origin);
         publish_agent_phase(&self.state, &event, Some(owner.to_owned()), &refs, &outcome).await;
         outcome

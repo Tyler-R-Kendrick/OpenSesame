@@ -165,9 +165,43 @@ pub(super) type Canary = (
     &'static str,
 );
 
+/// Whether `failed_at` is no earlier than `attested_at`, as instants when both
+/// parse (the writers use RFC 3339 with differing offsets) and as text, the
+/// way every other canary comparison here is made, when they do not.
+fn not_before(failed_at: &str, attested_at: &str) -> bool {
+    match (
+        chrono::DateTime::parse_from_rfc3339(failed_at),
+        chrono::DateTime::parse_from_rfc3339(attested_at),
+    ) {
+        (Ok(failed), Ok(attested)) => failed >= attested,
+        _ => failed_at >= attested_at,
+    }
+}
+
+/// The failed run of these very steps that `existing` records, when it is no
+/// older than `attested_at`: the demotion is newer than the attestation, so
+/// the signed document saying the recipe passed is stale evidence. Without
+/// this, writing the byte-identical signed document back would re-promote a
+/// recipe a run has just shown no longer works.
+fn demoted_since<'a>(
+    attested_at: &str,
+    write: &RecipeWrite<'_>,
+    existing: Option<&'a StoredRecipeRecord>,
+) -> Option<&'a StoredRecipeRecord> {
+    existing.filter(|old| {
+        old.canary_result.as_deref() == Some("failed")
+            && old.recipe_json == write.recipe_json
+            && old
+                .canary_at
+                .as_deref()
+                .is_some_and(|failed_at| not_before(failed_at, attested_at))
+    })
+}
+
 /// Derive trust and the canary columns from what was verified and what the
-/// row already proved. A signed attestation wins; failing that, a run's own
-/// proof carries over only for the very same steps.
+/// row already proved. A signed attestation wins — unless a run of the same
+/// steps has failed since it was made; failing that, a run's own proof carries
+/// over only for the very same steps.
 pub(super) fn derive_canary(
     write: &RecipeWrite<'_>,
     existing: Option<&StoredRecipeRecord>,
@@ -176,6 +210,17 @@ pub(super) fn derive_canary(
         return (None, None, None, None, "candidate");
     };
     if let Some(at) = verification.canary_attested_at {
+        // The failure is kept on the row, not erased by the rewrite, so the
+        // same document written back again is refused again.
+        if let Some(old) = demoted_since(at, write, existing) {
+            return (
+                old.canary_result.clone(),
+                old.canary_at.clone(),
+                old.canary_run_id.clone(),
+                old.canary_source.clone(),
+                "candidate",
+            );
+        }
         let passed = Some("passed".to_owned());
         return (
             passed,

@@ -8,9 +8,10 @@
 //! emission stays parked (an approval has no deadline of its own), so the
 //! buffer grows with the emissions that complete meanwhile, not only with
 //! those in flight, and a sink sees none of them until the parked one settles.
-//! Each sequence is completed exactly once, with its record or — when its
-//! emission was dropped before it finished — with nothing, so a dropped
-//! emission never stalls the ones behind it.
+//! Each sequence is completed exactly once, with its record or — for an
+//! emission with nothing to record — with nothing, so no sequence ever stalls
+//! the ones behind it. (A dropped emission is completed with a record that
+//! says it was abandoned: see `emission::abandoned`.)
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;

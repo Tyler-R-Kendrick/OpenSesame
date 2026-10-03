@@ -148,6 +148,14 @@ fn fold(pages: &[Value]) -> Value {
     json!({"decisions": decisions, "next_cursor": null, "retention_days": retention})
 }
 
+/// What `--all` hands back when it stops at [`MAX_PAGES`]: the pages read so
+/// far, with the cursor to resume from. An error would throw them away.
+fn truncated(pages: &[Value], cursor: Option<String>) -> Value {
+    let mut folded = fold(pages);
+    folded["next_cursor"] = cursor.map_or(Value::Null, Value::String);
+    folded
+}
+
 /// The document `opensesame hooks decisions` prints: one page, or with `--all`
 /// every page folded together.
 async fn collect(server: &str, args: &DecisionsArgs) -> Result<Value> {
@@ -171,7 +179,7 @@ async fn collect(server: &str, args: &DecisionsArgs) -> Result<Value> {
             return Ok(fold(&pages));
         }
         if pages.len() >= MAX_PAGES {
-            bail!("stopped after {MAX_PAGES} pages; narrow the filter or resume with --cursor");
+            return Ok(truncated(&pages, cursor));
         }
     }
 }
@@ -188,6 +196,18 @@ pub async fn run(server: &str, args: DecisionsArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stopping_at_the_page_cap_keeps_the_pages_and_the_cursor() {
+        let pages = [
+            json!({"decisions": [{"id": 1}], "retention_days": 30, "next_cursor": "1"}),
+            json!({"decisions": [{"id": 2}], "retention_days": 30, "next_cursor": "2"}),
+        ];
+        let out = truncated(&pages, Some("2".into()));
+        assert_eq!(out["decisions"].as_array().map(Vec::len), Some(2));
+        assert_eq!(out["next_cursor"], "2");
+        assert_eq!(out["retention_days"], 30);
+    }
 
     #[test]
     fn only_what_was_asked_for_reaches_the_query() {

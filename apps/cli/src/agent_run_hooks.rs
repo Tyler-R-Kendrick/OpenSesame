@@ -1,4 +1,4 @@
-//! `opensesame rotate hooks <run>` — a Host-run agent's hook records (ADR 0156).
+//! `opensesame access connectors rotate hooks <run>` — a Host-run agent's hook records (ADR 0156).
 //!
 //! A run the Host opened has no viewer key to seal a log to: ADR 0081 §9 puts
 //! that key in the owner's client, and the Host never invents one, so the
@@ -69,7 +69,9 @@ fn summary_line(summary: &Value) -> String {
 /// A run id is a path segment. Refuse anything that would change the route.
 fn checked(run_id: &str) -> Result<&str> {
     if run_id.is_empty() || run_id.contains(['/', '?', '#', '%', ' ']) {
-        bail!("`{run_id}` is not a run id; take one from `opensesame rotate runs`");
+        bail!(
+            "`{run_id}` is not a run id; take one from `opensesame access connectors rotate runs`"
+        );
     }
     Ok(run_id)
 }
@@ -79,6 +81,28 @@ async fn page(server: &str, run_id: &str, after: i64) -> Result<Value> {
     connect::api(server, reqwest::Method::GET, &path, None)
         .await
         .context("reading the run's hook records")
+}
+
+/// What the table has already said: the notice (once, however many polls it
+/// takes for a first record) and the header (with the first record).
+#[derive(Default)]
+struct Said {
+    notice: bool,
+    header: bool,
+}
+
+/// Say what has not been said yet before a page's rows.
+fn preface(said: &mut Said, notice: Option<&str>, has_records: bool, out: &mut dyn FnMut(String)) {
+    if !said.notice {
+        if let Some(notice) = notice {
+            out(notice.to_owned());
+        }
+        said.notice = true;
+    }
+    if !said.header && has_records {
+        out(HEADER.to_owned());
+        said.header = true;
+    }
 }
 
 /// Read a run's hook records from `after`, handing each line to `out`: one
@@ -97,7 +121,7 @@ pub async fn observe_into(
     let run_id = checked(run_id)?;
     let mut cursor = after;
     let mut idle = 0u32;
-    let mut header = false;
+    let mut said = Said::default();
     loop {
         let body = page(server, run_id, cursor).await?;
         if output == "json" {
@@ -109,15 +133,7 @@ pub async fn observe_into(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        if !header {
-            if let Some(notice) = notice {
-                out(notice.to_owned());
-            }
-            if !records.is_empty() {
-                out(HEADER.to_owned());
-                header = true;
-            }
-        }
+        preface(&mut said, notice, !records.is_empty(), out);
         for record in &records {
             out(row(record));
         }
@@ -130,7 +146,7 @@ pub async fn observe_into(
         }
         idle = if records.is_empty() { idle + 1 } else { 0 };
         if !follow || idle >= FOLLOW_IDLE_LIMIT {
-            if !header {
+            if !said.header {
                 out("No hook records for this run yet.".to_owned());
             }
             if let Some(summary) = body.get("summary") {
@@ -156,7 +172,7 @@ pub async fn observe(
     .await
 }
 
-/// `opensesame rotate hooks <run>`.
+/// `opensesame access connectors rotate hooks <run>`.
 pub async fn cmd_hooks(
     server: &str,
     output: &str,
@@ -298,6 +314,18 @@ mod tests {
         assert_eq!(seen.len(), 2, "{seen:?}");
         assert!(seen[0].contains("/api/v1/agent/runs/run:1/hook-records?after=-1"));
         assert!(seen[1].contains("after=1"), "the cursor moved: {seen:?}");
+    }
+
+    #[test]
+    fn the_notice_is_said_once_however_long_the_first_record_takes() {
+        let mut said = Said::default();
+        let mut lines = Vec::new();
+        for has_records in [false, false, true, true] {
+            preface(&mut said, Some("notice"), has_records, &mut |l| {
+                lines.push(l);
+            });
+        }
+        assert_eq!(lines, ["notice", HEADER]);
     }
 
     #[tokio::test]

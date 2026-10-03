@@ -69,6 +69,11 @@ pub enum Fault {
     SlowInteraction(Duration),
     /// The server reports (and later attests) a digest over other content.
     WrongDigest,
+    /// The authorization-request create de-duplicates an identical live
+    /// request (`200`, the first ask's row), an interaction is refused while
+    /// one is live for the subject (`409 interaction_already_live`), and
+    /// cancelling the request revokes the interaction fronting it.
+    DedupSubject,
 }
 
 /// What the mock saw.

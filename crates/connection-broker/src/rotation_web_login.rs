@@ -38,12 +38,15 @@ use crate::ConnectionBroker;
 
 #[path = "rotation_web_login_claim.rs"]
 mod claim;
+#[path = "rotation_web_login_live.rs"]
+mod live;
 #[path = "rotation_web_login_reap.rs"]
 mod reap;
 pub use claim::{
     begin_web_login_rotation, claim_holder, defer_web_login_rotation,
     park_claimed_web_login_rotation, request_claimed_web_login_rotation, WebLoginClaim,
 };
+pub use live::web_login_run_in_flight;
 pub use reap::{
     reconcile_stranded_web_login_rotation, stranded_web_login_jobs, StrandedWebLoginJob,
     STRANDED_DETAIL,

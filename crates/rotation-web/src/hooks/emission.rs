@@ -5,8 +5,8 @@
 //! only place the three steps meet.
 
 use agent_hooks::{
-    AgentContext, AgentContextBuilder, HostError, InterceptionEmitter, InterceptionPoint,
-    InterceptionRecord, Verdict,
+    finalize, AgentContext, AgentContextBuilder, FinalizeMeta, HostError, InterceptionEmitter,
+    InterceptionPoint, InterceptionRecord, Verdict,
 };
 use serde_json::Value;
 
@@ -31,11 +31,12 @@ pub(super) struct Concluded<R> {
 ///
 /// Every sequence handed out is completed exactly once: by
 /// [`HookSession::settle`] with its record, or — if the emission is dropped
-/// first, say because its caller gave up on a verb parked on an approval —
-/// here, with nothing, so the records behind it are not held back forever.
-/// The sequence stays spent: §12.2.3 asks for unique and totally ordered, not
-/// gap-free. A `post_model_call` dropped this way hands back the open
-/// `pre_model_call` it had claimed, since it never happened.
+/// first, say because its caller gave up on a verb parked on an approval, or
+/// the run's deadline cut it off — here, with a record that says so
+/// ([`abandoned`]), so the records behind it are not held back forever and
+/// the attempt does not vanish from the audit trail. A `post_model_call`
+/// dropped this way hands back the open `pre_model_call` it had claimed,
+/// since it never happened.
 struct Flight<'a> {
     session: &'a HookSession,
     sequence: u64,
@@ -55,9 +56,37 @@ impl Drop for Flight<'_> {
             if self.claimed {
                 state.open_model_calls += 1;
             }
-            state.log.complete(self.sequence, None);
+            let record = abandoned(self.session, &self.context);
+            state.log.complete(self.sequence, Some(record));
         }
     }
+}
+
+/// The record of an emission dropped before its verdict was known: a deny the
+/// guarded action never got past, with the reserved reason
+/// `host_error:interceptor_timeout` (§11) — dispatch, an interceptor or the
+/// approval seam it was waiting on, did not conclude. Built by the SDK's own
+/// `finalize` from the context alone, so it carries the same payload-free
+/// projection and identities as any other record, and nothing about what
+/// answer might have come.
+fn abandoned(session: &HookSession, context: &AgentContext) -> InterceptionRecord {
+    let recipe = &session.recipe;
+    let (identity_provider, identity) = recipe.identity.describe(context);
+    let meta = FinalizeMeta {
+        input_identity: identity.clone(),
+        identity_provider,
+        enforced_identity: identity,
+        unchanged_since_input: true,
+        composition: recipe.composition,
+        interceptors_registered: u32::try_from(recipe.interceptors.len()).unwrap_or(u32::MAX),
+        ..FinalizeMeta::default()
+    };
+    finalize(
+        context,
+        Verdict::host_error(HostError::InterceptorTimeout, None),
+        recipe.mode,
+        meta,
+    )
 }
 
 /// What an emission meant to the host, for a verb that consumes its target.

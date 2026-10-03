@@ -167,7 +167,7 @@ mod tests {
         let said = failure(
             &reply,
             "the recipe",
-            "opensesame rotate recipe get ORIGIN",
+            "opensesame access connectors rotate recipe get ORIGIN",
             Some(3),
         );
         assert!(
@@ -175,7 +175,7 @@ mod tests {
             "{said}"
         );
         assert!(
-            said.contains("opensesame rotate recipe get ORIGIN"),
+            said.contains("opensesame access connectors rotate recipe get ORIGIN"),
             "{said}"
         );
     }

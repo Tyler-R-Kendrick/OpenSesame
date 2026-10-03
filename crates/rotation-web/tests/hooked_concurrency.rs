@@ -19,8 +19,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use agent_hooks::{
-    AgentContext, ApprovalOutcome, ApprovalRequest, ApprovalResolution, ApprovalResolver,
-    InterceptionRecord, Interceptor, Verdict,
+    AgentContext, ApprovalOutcome, ApprovalRequest, ApprovalResolution, ApprovalResolver, Decision,
+    InterceptionPoint, InterceptionRecord, Interceptor, Verdict,
 };
 use async_trait::async_trait;
 use hooks_support::{at, points_of, run_input, FakeBrowser, Scripted};
@@ -293,18 +293,27 @@ async fn an_abandoned_emission_does_not_stall_the_records_behind_it() {
     rig.hooked.wait_for("#new").await.unwrap();
     assert_eq!(sequences(&rig.hooked.session().records().await), [0, 1]);
 
-    // The caller gives up on the parked verb. Its sequence stays spent (§12.2.3
-    // asks for unique and ordered, not gap-free) and nothing waits for it.
+    // The caller gives up on the parked verb. Nothing waits for it, and the
+    // attempt does not vanish: its sequence carries a record that it was cut
+    // off before any verdict.
     parked.abort();
     assert!(parked.await.unwrap_err().is_cancelled());
 
     let records = rig.hooked.session().records().await;
-    assert_eq!(sequences(&records), [0, 1, 3, 4]);
-    assert_eq!(*rig.delivered.lock().unwrap(), [0, 1, 3, 4]);
+    assert_eq!(sequences(&records), [0, 1, 2, 3, 4]);
+    assert_eq!(*rig.delivered.lock().unwrap(), [0, 1, 2, 3, 4]);
+    let abandoned = &records[2];
+    assert_eq!(abandoned.interception_point, InterceptionPoint::PreToolCall);
+    assert_eq!(abandoned.verdict.decision, Decision::Deny);
+    assert_eq!(
+        abandoned.verdict.reason.as_deref(),
+        Some("host_error:interceptor_timeout")
+    );
+    assert!(!abandoned.proceeds());
 
     // And the session keeps going, with the next sequence after every one
     // already handed out.
     rig.hooked.submit("#save").await.unwrap();
     let records = rig.hooked.session().records().await;
-    assert_eq!(sequences(&records), [0, 1, 3, 4, 5, 6]);
+    assert_eq!(sequences(&records), [0, 1, 2, 3, 4, 5, 6]);
 }

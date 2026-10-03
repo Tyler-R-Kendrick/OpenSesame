@@ -99,7 +99,21 @@ async fn auth_request(
         return cached;
     }
     let details = body["authorizationDetails"].clone();
-    mock.seen.lock().unwrap().auth_requests.push(body);
+    // The real route answers an identical live request with the first ask's
+    // row and `200`, not a second row and `201`.
+    let existing = {
+        let mut seen = mock.seen.lock().unwrap();
+        let live = matches!(mock.fault, Fault::DedupSubject)
+            && seen.cancels.is_empty()
+            && seen
+                .auth_requests
+                .iter()
+                .any(|first| first["authorizationDetails"] == details);
+        if !live {
+            seen.auth_requests.push(body);
+        }
+        live
+    };
     let reply = json!({
         "authReqId": SUBJECT_ID,
         "status": "pending",
@@ -111,6 +125,9 @@ async fn auth_request(
         "intervalSeconds": 5
     });
     remember(&mock, "subject", key.as_ref(), &reply);
+    if existing {
+        return (StatusCode::OK, Json(reply)).into_response();
+    }
     let lose = matches!(mock.fault, Fault::LoseFirstSubjectReply)
         && !mock.lost.swap(true, Ordering::SeqCst);
     let slow = match mock.fault {
@@ -152,7 +169,18 @@ async fn interaction(
     if let Some(cached) = replay(&mock, "interaction", key.as_ref()) {
         return cached;
     }
+    let already_live = matches!(mock.fault, Fault::DedupSubject) && {
+        let seen = mock.seen.lock().unwrap();
+        !seen.interactions.is_empty() && seen.cancels.is_empty() && seen.revokes == 0
+    };
     mock.seen.lock().unwrap().interactions.push(body.clone());
+    if already_live {
+        // One live interaction per subject: the second ask's create is refused.
+        let mut seen = mock.seen.lock().unwrap();
+        seen.interactions.pop();
+        drop(seen);
+        return error(409, "interaction_already_live");
+    }
     if mock.create_status != 201 {
         let status = StatusCode::from_u16(mock.create_status).unwrap();
         return (status, Json(json!({"error": "interaction_already_live"}))).into_response();
@@ -215,6 +243,10 @@ async fn consume(
         "the approver consumes the reference it was handed"
     );
     mock.seen.lock().unwrap().consumes += 1;
+    // Cancelling the request revokes the interaction that fronts it.
+    if matches!(mock.fault, Fault::DedupSubject) && !mock.seen.lock().unwrap().cancels.is_empty() {
+        return error(409, "interaction_revoked");
+    }
     let step = {
         let mut script = mock.script.lock().unwrap();
         if script.len() > 1 {

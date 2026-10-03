@@ -1,4 +1,4 @@
-//! `opensesame rotate …` and the recipes a web-login run replays (ADR 0076
+//! `opensesame access connectors rotate …` and the recipes a web-login run replays (ADR 0076
 //! §4, ADR 0156).
 //!
 //! The recipe verbs read and write the organization's recipes on the Host;
@@ -43,7 +43,7 @@ pub(crate) enum RotateCmd {
     Runs,
     /// Read a run's observation log. Sealed: sizes and lanes, never content.
     Watch {
-        /// The run id, from `opensesame rotate runs`.
+        /// The run id, from `opensesame access connectors rotate runs`.
         run: String,
         /// Start after this sequence number. Defaults to the whole log.
         #[arg(long, default_value = "-1")]
@@ -54,13 +54,13 @@ pub(crate) enum RotateCmd {
     },
     /// Ask the agent to park so a person can take the page.
     Attach {
-        /// The run id, from `opensesame rotate runs`.
+        /// The run id, from `opensesame access connectors rotate runs`.
         run: String,
     },
     /// Read a Host-run agent's hook records: what each interceptor decided,
     /// value-blind (no messages, targets or transform values).
     Hooks {
-        /// The run id, from `opensesame rotate runs`.
+        /// The run id, from `opensesame access connectors rotate runs`.
         run: String,
         /// Start after this record sequence number. Defaults to the start.
         #[arg(long, default_value = "-1")]
@@ -249,13 +249,18 @@ fn checked(reply: Reply, what: &str, reread: &str, if_version: Option<u64>) -> R
     Ok(reply.body)
 }
 
-/// `opensesame rotate recipe …`.
+/// `opensesame access connectors rotate recipe …`.
 pub(crate) async fn run_recipe(server: &str, output: &str, cmd: RecipeCmd) -> Result<()> {
-    const READ: &str = "opensesame rotate recipe get ORIGIN";
+    const READ: &str = "opensesame access connectors rotate recipe get ORIGIN";
     match cmd {
         RecipeCmd::Ls => {
             let reply = call(server, Method::GET, RECIPES, None, None).await?;
-            let body = checked(reply, "the recipes", "opensesame rotate recipe ls", None)?;
+            let body = checked(
+                reply,
+                "the recipes",
+                "opensesame access connectors rotate recipe ls",
+                None,
+            )?;
             table(
                 output,
                 &body,
@@ -309,12 +314,17 @@ pub(crate) async fn run_recipe(server: &str, output: &str, cmd: RecipeCmd) -> Re
     }
 }
 
-/// `opensesame rotate signer …`.
+/// `opensesame access connectors rotate signer …`.
 pub(crate) async fn run_signer(server: &str, output: &str, cmd: SignerCmd) -> Result<()> {
     match cmd {
         SignerCmd::Ls => {
             let reply = call(server, Method::GET, SIGNERS, None, None).await?;
-            let body = checked(reply, "the signers", "opensesame rotate signer ls", None)?;
+            let body = checked(
+                reply,
+                "the signers",
+                "opensesame access connectors rotate signer ls",
+                None,
+            )?;
             table(
                 output,
                 &body,
@@ -338,7 +348,7 @@ pub(crate) async fn run_signer(server: &str, output: &str, cmd: SignerCmd) -> Re
             print(&checked(
                 reply,
                 "pinning a recipe signer",
-                "opensesame rotate signer ls",
+                "opensesame access connectors rotate signer ls",
                 None,
             )?)
         }
@@ -348,7 +358,7 @@ pub(crate) async fn run_signer(server: &str, output: &str, cmd: SignerCmd) -> Re
             print(&checked(
                 reply,
                 "revoking a recipe signer",
-                "opensesame rotate signer ls",
+                "opensesame access connectors rotate signer ls",
                 None,
             )?)
         }

@@ -374,8 +374,12 @@ Decisions taken in the Identity plane and the approver to make this safe:
   Every verb is one `pre_tool_call`/`post_tool_call` pair under one
   `tool_call.id`; a caller holding a `HookedTransport` has no un-hooked verb to
   reach for. `host_run` adds `agent_startup`, `input` (kind, recipe id, origin —
-  never a credential), `output` and `agent_shutdown` (`completed`, `error` or
-  `cancelled`) in §3.1's order; a startup deny processes nothing and still emits
+  never a credential), `output` and `agent_shutdown` in §3.1's order, its
+  reason following the outcome (`completed` for a finished run, `cancelled` when a
+  person has the page, `error` for a hook refusal, drift, a transport failure or a
+  run left for reconciliation); a run that hits its deadline still emits the
+  shutdown (`error`), and an emission dropped mid-flight is recorded as a deny
+  with `host_error:interceptor_timeout` rather than leaving a gap; a startup deny processes nothing and still emits
   the shutdown. A block at `pre_tool_call` means the verb is not called and no
   `post_tool_call` is emitted; at `post_tool_call` the result is discarded. Both
   answer `StepError::Refused`, so the executors' fail-closed handling of a failed
@@ -571,7 +575,10 @@ A recipe is what a run replays; the policy decides whether each step may be take
 - **Attended and unattended** are the caller's statement: the lifecycle scanner is
   unattended; a run a person asked for is attended, needs the signature but not the
   canary (which is how the first canary happens), and shares the registry slot key
-  with the scanner's, so both can never be in flight for one target.
+  with the scanner's within a process, and across replicas a claimed run is
+  created only when no running job (an unexpired claim, or no claim row) already
+  holds the same organization and target (`web_login_run_in_flight`, 409). The
+  guard covers claimed runs; beginning an already-scheduled generic job has none.
 - **Canaries are the Host's record**, taken against the digest the run replayed: a
   completed run is `canary_verified`; `RecipeDrift` or a submitted-but-unconfirmed
   run demotes to `candidate` with `canary_result = failed`; any other stop before

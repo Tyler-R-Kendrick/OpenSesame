@@ -12,7 +12,7 @@ use super::super::super::{
 };
 use super::super::{
     reconcile_stranded_web_login_rotation, settle_web_login_rotation, stranded_web_login_jobs,
-    WebLoginSettlement, STRANDED_DETAIL,
+    web_login_run_in_flight, WebLoginSettlement, STRANDED_DETAIL,
 };
 use super::*;
 use crate::config::BrokerConfig;
@@ -265,4 +265,130 @@ async fn a_settlement_is_refused_once_the_reaper_has_parked_the_job() {
         state_of(&broker, &org, &job.id).await,
         "reconciliation_required"
     );
+}
+
+fn expired(run_id: &str) -> WebLoginClaim<'_> {
+    WebLoginClaim {
+        run_id,
+        lease: Duration::seconds(-60),
+    }
+}
+
+async fn job_count(broker: &ConnectionBroker, org: &OrganizationId) -> usize {
+    broker
+        .list_rotation_jobs(&org.to_string(), 50)
+        .await
+        .unwrap()
+        .len()
+}
+
+#[tokio::test]
+async fn a_second_run_for_a_target_a_runner_already_holds_is_refused() {
+    let (broker, _bus, org) = broker().await;
+    let first = request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claim("run_1"))
+        .await
+        .unwrap();
+    assert!(web_login_run_in_flight(&broker, &org, ORIGIN)
+        .await
+        .unwrap());
+
+    // As another replica, with a registry of its own, would ask.
+    let second =
+        request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claim("run_2")).await;
+    assert!(
+        matches!(second, Err(BrokerError::RunInFlight)),
+        "{second:?}"
+    );
+    assert_eq!(BrokerError::RunInFlight.http_status(), 409);
+    assert_eq!(job_count(&broker, &org).await, 1, "no second job");
+    assert_eq!(
+        claim_holder(&broker, &first.id).await.unwrap().as_deref(),
+        Some("run_1")
+    );
+}
+
+#[tokio::test]
+async fn of_many_replicas_requesting_at_once_exactly_one_run_starts() {
+    let (broker, _bus, org) = broker().await;
+    let claims = [
+        claim("run_0"),
+        claim("run_1"),
+        claim("run_2"),
+        claim("run_3"),
+    ];
+    let results = tokio::join!(
+        request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claims[0]),
+        request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claims[1]),
+        request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claims[2]),
+        request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claims[3]),
+    );
+    let results = [results.0, results.1, results.2, results.3];
+    assert_eq!(
+        results.iter().filter(|r| r.is_ok()).count(),
+        1,
+        "{results:?}"
+    );
+    assert!(results
+        .iter()
+        .filter_map(|r| r.as_ref().err())
+        .all(|e| matches!(e, BrokerError::RunInFlight | BrokerError::Storage(_))));
+    assert_eq!(job_count(&broker, &org).await, 1);
+}
+
+#[tokio::test]
+async fn the_exclusion_is_per_organization_and_per_target() {
+    let (broker, _bus, org) = broker().await;
+    request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claim("run_1"))
+        .await
+        .unwrap();
+    request_claimed_web_login_rotation(
+        &broker,
+        &org,
+        "https://other.example",
+        None,
+        &claim("run_2"),
+    )
+    .await
+    .expect("another target of the same organization");
+    request_claimed_web_login_rotation(
+        &broker,
+        &OrganizationId::new(),
+        ORIGIN,
+        None,
+        &claim("run_3"),
+    )
+    .await
+    .expect("the same origin in another organization");
+}
+
+#[tokio::test]
+async fn a_settled_parked_or_lapsed_run_no_longer_holds_the_target() {
+    let (broker, bus, org) = broker().await;
+    let done = request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claim("run_1"))
+        .await
+        .unwrap();
+    settle_web_login_rotation(&broker, &bus, &org, &done.id, WebLoginSettlement::Completed)
+        .await
+        .unwrap();
+    assert!(!web_login_run_in_flight(&broker, &org, ORIGIN)
+        .await
+        .unwrap());
+
+    let parked = request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claim("run_2"))
+        .await
+        .unwrap();
+    park_claimed_web_login_rotation(&broker, &bus, &org, &parked.id, "run_2", "no recipe")
+        .await
+        .unwrap();
+
+    // A process that died: its lease ran out, and the reaper has not come yet.
+    request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &expired("run_3"))
+        .await
+        .unwrap();
+    assert!(!web_login_run_in_flight(&broker, &org, ORIGIN)
+        .await
+        .unwrap());
+    request_claimed_web_login_rotation(&broker, &org, ORIGIN, None, &claim("run_4"))
+        .await
+        .expect("a lapsed lease does not hold the target");
 }

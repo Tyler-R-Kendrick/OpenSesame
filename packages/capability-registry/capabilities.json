@@ -3842,7 +3842,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame rotate hooks",
+      "cli": "opensesame access connectors rotate hooks",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,

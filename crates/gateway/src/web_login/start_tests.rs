@@ -323,3 +323,63 @@ async fn a_subject_that_is_not_a_web_login_is_refused_without_a_task() {
     assert!(!refused.succeeded);
     assert_eq!(world.state.web_login_runs.pending(), 0);
 }
+
+#[tokio::test]
+async fn a_target_another_replica_holds_is_skipped_and_never_run_twice() {
+    use opensesame_connection_broker::rotation::web_login::{
+        request_claimed_web_login_rotation, WebLoginClaim,
+    };
+
+    let world = world(&[SITE], ALLOW_ALL).await;
+    let org = world.org_text();
+    // A runner on another replica holds SITE: its job and live claim are in
+    // the shared database, and its registry is not this process's.
+    let elsewhere = WebLoginClaim {
+        run_id: "run_elsewhere",
+        lease: chrono::Duration::minutes(17),
+    };
+    request_claimed_web_login_rotation(
+        world.state.connection_broker.as_ref(),
+        &world.org,
+        SITE,
+        None,
+        &elsewhere,
+    )
+    .await
+    .unwrap();
+    assert!(super::run_held(&world.state, &world.org, SITE).await);
+    assert!(!super::run_held(&world.state, &world.org, OTHER_SITE).await);
+
+    let launcher = super::WebLoginLauncher::from_state(&world.state);
+    let scheduled = launcher
+        .rotate(
+            &event(&world, SITE),
+            SITE,
+            &world.org,
+            Some(world.policies[0].clone()),
+        )
+        .await;
+    assert!(scheduled.succeeded, "{}", scheduled.detail);
+    assert!(
+        scheduled.detail.contains("already in flight"),
+        "{}",
+        scheduled.detail
+    );
+    let attended = launcher.rotate_attended(&world.org, SITE, "owner").await;
+    assert!(
+        attended.detail.contains("already in flight"),
+        "{}",
+        attended.detail
+    );
+
+    let held = jobs(&world.state, &org).await;
+    assert_eq!(held.len(), 1, "no second job: {held:?}");
+    assert_eq!(held[0].state, "discovering");
+    let runs = world
+        .state
+        .db
+        .list_observation_runs(&org, 10)
+        .await
+        .unwrap();
+    assert!(runs.is_empty(), "no run was opened: {runs:?}");
+}

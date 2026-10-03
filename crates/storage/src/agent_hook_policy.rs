@@ -14,7 +14,7 @@ use super::{append_outbox_tx, Db, Row, Utc};
 /// (migration 0055).
 pub mod approver;
 
-/// The audit of every verdict answered under a policy (migration 0046).
+/// The audit of every verdict answered under a policy (migration 0052).
 pub mod decisions;
 
 /// The stored policy of one organization.
