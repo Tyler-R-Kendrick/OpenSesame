@@ -1243,31 +1243,6 @@ pub struct EncryptedItemRevision {
     pub ad_digest: String,
 }
 
-/// Append a change event inside an open transaction — the transactional-outbox
-/// write that makes "every secret mutation broadcasts an event" crash-safe.
-/// Shared with `connection-broker`, which writes the same pool.
-///
-/// # Errors
-///
-/// Returns an error when the outbox row cannot be inserted.
-pub async fn append_outbox_tx(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    event_type: &str,
-    payload_json: &str,
-) -> anyhow::Result<String> {
-    let id = uuid::Uuid::now_v7().to_string();
-    sqlx::query(
-        "INSERT INTO outbox_events (id, event_type, payload_json, created_at) VALUES (?, ?, ?, ?)",
-    )
-    .bind(&id)
-    .bind(event_type)
-    .bind(payload_json)
-    .bind(Utc::now().to_rfc3339())
-    .execute(&mut **transaction)
-    .await?;
-    Ok(id)
-}
-
 async fn append_sync_blob_outbox(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     owner_id: &str,
@@ -1588,8 +1563,11 @@ mod grants;
 mod host_kv;
 mod invocations;
 mod outbox;
+pub use outbox::append_outbox_tx;
 mod renewal;
 mod revocation;
+mod sealed;
+mod security_rows;
 mod signing;
 mod signing_access;
 mod sync;

@@ -1,16 +1,14 @@
+import { REDACTED, scrubValue } from "@opensesame/log-scrub";
+import { overlapCast } from "@opensesame/os-domain";
 import {
-  type BoundaryObject,
-  type BoundaryValue,
-  type MutableBoundaryObject,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
-import {
+  type Bindings,
+  type ChildLoggerOptions,
   type DestinationStream,
   type Logger,
   type LoggerOptions,
   pino,
 } from "pino";
+import { createSealedLogDestination } from "./sealed-log.js";
 
 /** Paths redacted from structured logs (tokens, codes, secrets). */
 export const LOG_REDACT_PATHS = [
@@ -52,56 +50,46 @@ export const LOG_REDACT_PATHS = [
 ] as const;
 
 /**
- * Sensitive key names, matched at any depth.
- *
- * `verification_uri_complete` carries a bearer or a code in the URL itself
- * (a claim's `#token=osc_clm_…`, a device flow's `user_code`), so it is
- * censored like the token it carries.
+ * A copy of `value` with every secret gone: sensitive keys censored at any
+ * depth, every string scrubbed, errors flattened to scrubbed plain objects
+ * (ADR 0157). The rules are `spec/log-scrub/log-scrub.json`, the same file the
+ * Host's log pipeline reads.
  *
  * Pino's `redact.paths` wildcard only matches one level, so `*.token` misses
- * `ctx.session.access_token`. This pattern backs a deep walk instead.
+ * `ctx.session.access_token`; this deep walk is what actually holds.
  */
-export const SENSITIVE_KEY_PATTERN =
-  /^(?:authorization|cookie|set-cookie|access[_-]?token|refresh[_-]?token|id[_-]?token|claim[_-]?token|attempt[_-]?token|session[_-]?token|operator[_-]?token|bearer|token|user[_-]?code|verification[_-]?uri[_-]?complete|device[_-]?code|client[_-]?secret|api[_-]?key|api[_-]?secret|secret|password|passphrase|pin|private[_-]?key|authorization[_-]?code|code[_-]?verifier|assertion|dpop|ciphertext)$/i;
-
-const CENSOR = "[Redacted]";
-/** Depth ceiling so a hostile/cyclic object cannot stall the logger. */
-const MAX_REDACT_DEPTH = 12;
-
-type RedactableContainer = BoundaryObject | BoundaryValue[];
-
-/** Recursively censor sensitive keys at any depth; cycle- and array-safe. */
 export function redactDeep<T>(value: T): T {
-  // SAFETY: walk preserves T's structure; it only replaces sensitive string
-  // values and cycles, never the container type.
-  const input: BoundaryValue = overlapCast(value);
-  return overlapCast(walk(input, 0, new WeakSet<RedactableContainer>()));
+  return scrubValue(value);
 }
 
-function walk(
-  value: BoundaryValue,
-  depth: number,
-  seen: WeakSet<RedactableContainer>,
-): BoundaryValue {
-  if (value === null || !isTypeofObject(value)) return value;
-  if (depth >= MAX_REDACT_DEPTH) return CENSOR;
-  if (seen.has(value)) return "[Circular]";
-  seen.add(value);
-
-  if (Array.isArray(value)) {
-    return value.map((item) => walk(item, depth + 1, seen));
-  }
-  // Non-plain objects (Error, Date, Buffer, …) are left to pino's serializers.
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
-
-  const out: MutableBoundaryObject = {};
-  for (const [key, item] of Object.entries(overlapCast(value))) {
-    out[key] = SENSITIVE_KEY_PATTERN.test(key)
-      ? CENSOR
-      : walk(item, depth + 1, seen);
-  }
-  return out;
+/**
+ * `child({ ... })` bindings are serialised once, when the child is made, and
+ * pino resets the `formatters.bindings` hook on every child, so neither that
+ * hook, `hooks.logMethod` nor `formatters.log` ever sees them: a `url` with a
+ * `?token=` or a bound `client_secret` would be written raw. Descendants
+ * inherit `child` and `setBindings` through the prototype chain, so replacing
+ * both on the root covers every logger made from it.
+ */
+function scrubChildBindings(logger: Logger): Logger {
+  const makeChild: Logger["child"] = logger.child;
+  const setBindings: Logger["setBindings"] = logger.setBindings;
+  Object.defineProperties(logger, {
+    child: {
+      configurable: true,
+      writable: true,
+      value(this: Logger, bindings: Bindings, options?: ChildLoggerOptions) {
+        return Reflect.apply(makeChild, this, [scrubValue(bindings), options]);
+      },
+    },
+    setBindings: {
+      configurable: true,
+      writable: true,
+      value(this: Logger, bindings: Bindings) {
+        Reflect.apply(setBindings, this, [scrubValue(bindings)]);
+      },
+    },
+  });
+  return logger;
 }
 
 export interface CreateLoggerOptions {
@@ -125,18 +113,41 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
     level,
     redact: {
       paths: [...LOG_REDACT_PATHS, ...(options.redactPaths ?? [])],
-      censor: CENSOR,
+      censor: REDACTED,
+    },
+    hooks: {
+      // Every argument a call site passes: the merge object, the message
+      // string and the interpolation values. A bearer in `log.error(msg)` or
+      // in `err.message` has no key to censor, so it is scrubbed by shape.
+      logMethod(args, method) {
+        method.apply(this, overlapCast(args.map((arg) => scrubValue(arg))));
+      },
     },
     formatters: {
-      // Deep pass catches sensitive keys below the one level `redact.paths` sees.
-      log: (obj) => overlapCast(redactDeep(obj)),
+      // Belt and braces: the merged object of each call once more. Child
+      // bindings never reach this formatter; see `scrubChildBindings`.
+      log: (obj) => overlapCast(scrubValue(obj)),
     },
   };
 
   if (options.destination) {
-    return pino(opts, options.destination);
+    return scrubChildBindings(pino(opts, options.destination));
   }
-  return pino(opts);
+  // With OPENSESAME_LOG_FILE set, lines are sealed into that file and never
+  // written to stdout (ADR 0157); a file that cannot be opened throws.
+  const sealedFile = process.env.OPENSESAME_LOG_FILE;
+  if (sealedFile) {
+    return scrubChildBindings(
+      pino(
+        opts,
+        createSealedLogDestination(
+          sealedFile,
+          process.env.OPENSESAME_LOG_KEY_FILE,
+        ),
+      ),
+    );
+  }
+  return scrubChildBindings(pino(opts));
 }
 
 export type { Logger };

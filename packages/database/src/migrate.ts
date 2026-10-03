@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { describeError } from "@opensesame/log-scrub";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
@@ -32,7 +33,7 @@ const isCli =
 
 if (isCli) {
   main().catch((err) => {
-    console.error(err);
+    console.error(describeError(err));
     process.exit(1);
   });
 }

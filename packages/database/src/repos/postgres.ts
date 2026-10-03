@@ -1605,10 +1605,10 @@ export class PostgresRepositories implements Repositories {
         );
     },
 
-    markPublished: async (id, publishedAt = new Date()) => {
+    markPublished: async (id, publishedAt = new Date(), error = "") => {
       const [row] = await this.db
         .update(schema.outboxEvents)
-        .set({ publishedAt, lastError: null })
+        .set({ publishedAt, lastError: error || null })
         .where(
           and(
             eq(schema.outboxEvents.id, id),

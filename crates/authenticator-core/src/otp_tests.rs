@@ -97,3 +97,12 @@ fn find_and_sync_trailer() {
     assert!(synced.contains("url: https://example.com"));
     assert!(synced.contains("note: hi"));
 }
+
+#[test]
+fn an_otp_uri_prints_no_seed() {
+    let otp = parse_otpauth(&rfc_uri(8)).unwrap();
+    let shown = format!("{otp:?}");
+    assert!(shown.contains("[REDACTED]"), "{shown}");
+    assert!(!shown.contains(RFC_SEED), "{shown}");
+    assert!(shown.contains("Example"), "{shown}");
+}

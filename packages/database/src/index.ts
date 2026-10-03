@@ -124,6 +124,15 @@ export {
   type ConsentStore,
 } from "./consent-store.js";
 export { withOutbox, appendOutboxInTransaction } from "./tx.js";
+export {
+  EventSealError,
+  SEALED_FIELD,
+  createEventSealer,
+  eventSealSecret,
+  type EventSealer,
+} from "./event-seal.js";
+export { withSealedEvents } from "./repos/sealed-events.js";
+export { sealLegacyEvents } from "./repos/sealed-events-sweep.js";
 export { runMigrations } from "./migrate.js";
 export { resetDatabase } from "./reset.js";
 export {

@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/claims": "workspace:*",
     "@opensesame/database": "workspace:*",
     "@opensesame/webhooks": "workspace:*",

@@ -135,6 +135,28 @@ describe("opensesame-id vault item commands", () => {
     },
   );
 
+  it(
+    "lists --json item names as they were written, even secret-shaped ones",
+    { timeout: 60_000 },
+    async () => {
+      stateDir = await mkdtemp(join(tmpdir(), "os-vault-cli-"));
+      const name = "GitHub token: work";
+      expect(
+        (
+          await run(["vault", "new", "secret", "--name", name], stateDir, {
+            readPassword: prompts([PASSWORD, PASSWORD, CANARY]),
+          })
+        ).code,
+      ).toBe(0);
+      const listed = await run(["vault", "list", "--json"], stateDir, {
+        readPassword: prompts([PASSWORD]),
+      });
+      expect(listed.code).toBe(0);
+      expect(JSON.parse(listed.out).items[0].name).toBe(name);
+      expect(listed.out).not.toContain(CANARY);
+    },
+  );
+
   // Two vault creates, an export, and an import. Each one derives a key.
   it(
     "exports ciphertext and imports it into another vault",

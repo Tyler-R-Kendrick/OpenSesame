@@ -218,13 +218,22 @@ impl MemoryAuthority {
 
 /// Live `OpenBao` HTTP client (dev or production). Never returns raw secrets to agent callers
 /// through [`CredentialOperation::BearerHttpPlaceholder`].
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct OpenBaoHttpAuthority {
     pub base: String,
     pub token: String,
     http: reqwest::Client,
 }
 
+impl std::fmt::Debug for OpenBaoHttpAuthority {
+    /// The token is the authority's own credential; it never prints.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenBaoHttpAuthority")
+            .field("base", &self.base)
+            .field("token", &"[REDACTED]")
+            .finish_non_exhaustive()
+    }
+}
 impl OpenBaoHttpAuthority {
     ///
     /// # Errors
@@ -384,3 +393,6 @@ impl CredentialAuthority for OpenBaoHttpAuthority {
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod debug_redaction;

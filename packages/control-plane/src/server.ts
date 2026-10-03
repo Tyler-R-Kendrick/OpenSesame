@@ -3,6 +3,7 @@ import type { OutgoingHttpHeader, OutgoingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import { pathToFileURL } from "node:url";
 import { getRequestListener } from "@hono/node-server";
+import { describeError } from "@opensesame/log-scrub";
 import {
   evaluateTokenCors,
   parseOriginClientId,
@@ -373,7 +374,7 @@ const isDirectRun =
 
 if (isDirectRun) {
   startServer().catch((err) => {
-    console.error(err);
+    console.error(describeError(err));
     process.exit(1);
   });
 }

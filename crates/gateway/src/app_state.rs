@@ -165,6 +165,10 @@ async fn build_with_security(
     } else {
         Db::connect_sqlite(&args.database_url).await?
     };
+    // Before anything writes an event: they rest sealed (ADR 0157).
+    let broker_config = BrokerConfig::from_env()?;
+    let production = security.deployment.production_safeguards();
+    crate::event_sealing::install(&db, &broker_config, production).await?;
 
     let mut boot =
         bootstrap::maybe_demo_bootstrap(&db, security.deployment, security.receipt_signer).await?;
@@ -178,10 +182,7 @@ async fn build_with_security(
         .demo
         .as_ref()
         .map_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()), |b| b.org);
-    let connection_broker = Arc::new(ConnectionBroker::new(
-        db.pool().clone(),
-        BrokerConfig::from_env()?,
-    )?);
+    let connection_broker = Arc::new(ConnectionBroker::new(db.pool().clone(), broker_config)?);
     // Community Wasm connectors (ADR 0065 §5): loaded only when the operator
     // configured a directory + pinned digests; any failure refuses boot.
     crate::connector_egress::load_wasm_connectors(

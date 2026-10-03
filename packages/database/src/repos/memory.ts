@@ -914,25 +914,23 @@ export class MemoryRepositories implements Repositories {
     releaseClaim: async (id, error) => {
       const row = this.#store.outbox.get(id);
       if (!row || row.publishedAt !== undefined) return;
-      this.#store.outbox.set(id, {
-        ...row,
-        payload: { ...row.payload },
-        ...(error ? { lastError: error } : undefined),
-      });
-      if (!error) {
-        const next = { ...row, payload: { ...row.payload } };
-        Reflect.deleteProperty(next, "lastError");
-        this.#store.outbox.set(id, next);
-      }
+      const next = { ...row, payload: { ...row.payload } };
+      if (error) next.lastError = error;
+      else Reflect.deleteProperty(next, "lastError");
+      this.#store.outbox.set(id, next);
     },
 
-    markPublished: async (id, publishedAt = new Date()) => {
+    markPublished: async (id, publishedAt = new Date(), error = "") => {
       const row = this.#store.outbox.get(id);
       if (!row) {
         throw new NotFoundError(`outbox event not found: ${id}`);
       }
       if (row.publishedAt !== undefined) return;
-      this.#store.outbox.set(id, { ...row, publishedAt });
+      const next = { ...row, publishedAt };
+      this.#store.outbox.set(
+        id,
+        error === "" ? next : { ...next, lastError: error },
+      );
     },
   };
 

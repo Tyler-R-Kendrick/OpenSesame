@@ -23,7 +23,7 @@ pub struct RotatedCipher {
 }
 
 /// Everything one rotation writes.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BitwardenKeyRotation {
     pub credentials: BitwardenCredentials,
     pub private_key: String,
@@ -39,6 +39,16 @@ pub struct BitwardenKeyRotation {
     pub at: DateTime<Utc>,
 }
 
+impl std::fmt::Debug for BitwardenKeyRotation {
+    /// A rotation is key material end to end; only its size and time print.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BitwardenKeyRotation")
+            .field("private_key", &"[REDACTED]")
+            .field("ciphers", &self.ciphers.len())
+            .field("at", &self.at)
+            .finish_non_exhaustive()
+    }
+}
 /// What an account sets for itself.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BitwardenAccountSettings {
@@ -193,5 +203,39 @@ impl Db {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod debug_redaction {
+    use super::*;
+    use crate::bitwarden::accounts::BitwardenKdf;
+
+    #[test]
+    fn a_rotation_prints_no_key_material() {
+        let rotation = BitwardenKeyRotation {
+            credentials: BitwardenCredentials {
+                master_password_hash: "$argon2id$v=19$leaky".into(),
+                kdf: BitwardenKdf {
+                    kdf_type: 1,
+                    iterations: 3,
+                    memory: Some(64),
+                    parallelism: Some(4),
+                },
+                user_key: "2.userkey".into(),
+                security_stamp: "stamp".into(),
+            },
+            private_key: "2.privatekey".into(),
+            ciphers: vec![],
+            folders: vec![],
+            sends: vec![("s".into(), "sendkey".into(), "d".into())],
+            emergency_keys: vec![],
+            recovery_keys: vec![],
+            at: chrono::Utc::now(),
+        };
+        let shown = format!("{rotation:?}");
+        for leaked in ["leaky", "userkey", "privatekey", "sendkey"] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
     }
 }

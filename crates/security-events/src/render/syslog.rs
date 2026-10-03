@@ -135,7 +135,7 @@ fn structured_data(notice: &SecurityNotice, origin: &Origin) -> String {
     element.push_str(&param("state", notice.state.as_str()));
     element.push_str(&param("organization", &notice.organization_id));
     element.push_str(&param("subjectKind", &notice.subject_kind));
-    element.push_str(&param("subjectId", &notice.subject_id));
+    element.push_str(&param("subjectId", &notice.subject_id_text()));
     element.push_str(&param("alertKey", &notice.alert_key()));
     if let Some(label) = notice.label_text() {
         element.push_str(&param("subjectLabel", &label));

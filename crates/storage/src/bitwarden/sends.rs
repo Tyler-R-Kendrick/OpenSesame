@@ -11,7 +11,7 @@ use crate::Db;
 
 /// A Send: text or a file shared by link. `data` is the client's encrypted
 /// payload as JSON (name, notes, and the text or file name).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BitwardenSend {
     pub id: String,
     pub user_id: String,

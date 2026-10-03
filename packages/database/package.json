@@ -23,6 +23,7 @@
     "db:reset": "tsx src/reset.ts"
   },
   "dependencies": {
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "drizzle-orm": "0.45.2",
     "postgres": "3.4.7"
