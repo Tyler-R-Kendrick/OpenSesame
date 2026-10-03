@@ -294,7 +294,8 @@ mod tests {
 
     #[test]
     fn big_and_signed_numbers_that_do_round_trip_are_kept_verbatim() {
-        let body = format!(r#"{{"id":18446744073709551615,"n":-9223372036854775808,"password":"{S}"}}"#);
+        let body =
+            format!(r#"{{"id":18446744073709551615,"n":-9223372036854775808,"password":"{S}"}}"#);
         let out = substitute(body.as_bytes(), "password", S, "x").unwrap();
         assert_eq!(
             std::str::from_utf8(&out).unwrap(),

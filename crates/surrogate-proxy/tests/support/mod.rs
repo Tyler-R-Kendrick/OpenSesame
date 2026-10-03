@@ -185,11 +185,11 @@ pub async fn harness_with(delay: Duration, slots: Option<(usize, Duration)>) -> 
     }
     let config = config
         .with_receipts(receipts.clone())
-    .with_clock(clock.clone())
-    .with_passthrough_client(PassthroughClient::with_tls(
-        passthrough.client_config(),
-        Some((STATIC, &[passthrough.addr])),
-    ));
+        .with_clock(clock.clone())
+        .with_passthrough_client(PassthroughClient::with_tls(
+            passthrough.client_config(),
+            Some((STATIC, &[passthrough.addr])),
+        ));
     Harness {
         upstream,
         passthrough,

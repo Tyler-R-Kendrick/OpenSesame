@@ -43,7 +43,13 @@ async fn a_hostile_child_cannot_run_the_credential_tool_more_than_its_slots_at_o
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_request_that_cannot_get_a_slot_in_time_is_told_to_slow_down() {
-    let h = Arc::new(harness_with(Duration::from_millis(600), Some((1, Duration::from_millis(50)))).await);
+    let h = Arc::new(
+        harness_with(
+            Duration::from_millis(600),
+            Some((1, Duration::from_millis(50))),
+        )
+        .await,
+    );
     let run = Arc::new(h.start("run-wait"));
     let mut tasks = Vec::new();
     for _ in 0..4 {

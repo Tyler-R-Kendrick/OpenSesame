@@ -51,8 +51,8 @@ pub use paths::{
     STATE_DIR_NAME, TRIPWIRES_FILE,
 };
 pub use settings::{
-    default_settings_path, settings_path_from, sha256_file, InstalledPlugin, PluginSettings, PluginState,
-    SettingsError, SETTINGS_PATH_ENV,
+    default_settings_path, settings_path_from, sha256_file, InstalledPlugin, PluginSettings,
+    PluginState, SettingsError, SETTINGS_PATH_ENV,
 };
 
 #[cfg(test)]

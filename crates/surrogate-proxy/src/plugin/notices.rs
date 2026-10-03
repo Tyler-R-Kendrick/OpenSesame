@@ -112,11 +112,18 @@ fn line_of(
     }
     let evidence = serde_json::from_str::<serde_json::Value>(&text)
         .ok()
-        .and_then(|v| v.get("severity").and_then(|s| s.as_str().map(str::to_owned)))
+        .and_then(|v| {
+            v.get("severity")
+                .and_then(|s| s.as_str().map(str::to_owned))
+        })
         .is_some_and(|severity| matches!(severity.as_str(), "error" | "critical"));
     // The key is built from the vetted notice's own fields, never from the
     // raw inputs, so a surrogate in a detail cannot make a distinct key.
-    let key = format!("{code}|{}|{}", run_id.unwrap_or(""), provider_id.unwrap_or(""));
+    let key = format!(
+        "{code}|{}|{}",
+        run_id.unwrap_or(""),
+        provider_id.unwrap_or("")
+    );
     let key = format!("{key}|{}", detail_shape(detail));
     Some(Vetted {
         text,

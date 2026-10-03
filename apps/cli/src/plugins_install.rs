@@ -242,8 +242,7 @@ pub(crate) fn remove(settings_path: &Path, root: &Path, id: &str) -> anyhow::Res
             .plugins
             .get(id)
             .filter(|p| {
-                plugin.kind == PluginKind::NativeBinary
-                    && !Path::new(&p.location).starts_with(&own)
+                plugin.kind == PluginKind::NativeBinary && !Path::new(&p.location).starts_with(&own)
             })
             .map(|p| p.location.clone());
         let files = own.exists();

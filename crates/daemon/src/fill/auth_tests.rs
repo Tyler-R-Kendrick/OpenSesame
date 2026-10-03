@@ -251,7 +251,10 @@ async fn forged_pair_requests_are_throttled_together_whatever_origin_they_claim(
     let app = paired_app(source());
     let mut limited = 0;
     for n in 0..30 {
-        let origin = format!("chrome-extension://{}", char::from(b'a' + (n % 16)).to_string().repeat(32));
+        let origin = format!(
+            "chrome-extension://{}",
+            char::from(b'a' + (n % 16)).to_string().repeat(32)
+        );
         let mut headers = with("origin", Some(&origin));
         headers.retain(|(name, _)| *name != "authorization");
         headers.push(("authorization", format!("Bearer {}", "C".repeat(43))));
@@ -260,5 +263,8 @@ async fn forged_pair_requests_are_throttled_together_whatever_origin_they_claim(
             limited += 1;
         }
     }
-    assert!(limited > 0, "thirty distinct forged origins were never throttled");
+    assert!(
+        limited > 0,
+        "thirty distinct forged origins were never throttled"
+    );
 }
