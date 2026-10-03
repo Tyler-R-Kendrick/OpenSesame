@@ -90,9 +90,30 @@ async fn pre_tool_record(hooked: &HookedTransport<FakeBrowser>) -> Value {
 
 #[tokio::test]
 async fn ctk_021_the_deprecated_policy_target_alias_rewrites_the_argument() {
+    // The script rewrites the URL to `https://safe.example`. The rewrite is
+    // applied when it stays on the origin the executor proposed...
     let hooked = under("AH-CTK-021").await;
-    hooked.navigate("https://example.com/risky").await.unwrap();
+    hooked.navigate("https://safe.example/risky").await.unwrap();
     assert_eq!(hooked.inner().calls(), ["navigate(https://safe.example)"]);
+}
+
+#[tokio::test]
+async fn ctk_021_the_same_rewrite_to_another_origin_is_transform_invalid() {
+    // ...and is `transform_invalid` when it would move the navigation to
+    // another origin: which site a run reaches is not an interceptor's call
+    // (`hooks::authority`, ADR 0159).
+    let hooked = under("AH-CTK-021").await;
+    assert_eq!(
+        hooked.navigate("https://example.com/risky").await,
+        Err(StepError::Refused)
+    );
+    assert!(hooked.inner().calls().is_empty());
+    let records = hooked.session().records().await;
+    let last = records.last().unwrap();
+    assert_eq!(
+        last.verdict.reason.as_deref(),
+        Some("host_error:transform_invalid")
+    );
 }
 
 #[tokio::test]
@@ -154,7 +175,7 @@ async fn ctk_070_071_092_a_failing_or_malformed_interceptor_fails_closed() {
 #[tokio::test]
 async fn ctk_093_the_record_keeps_the_path_and_drops_the_value() {
     let hooked = under("AH-CTK-093").await;
-    hooked.navigate("https://example.com").await.unwrap();
+    hooked.navigate("https://safe/page").await.unwrap();
     assert_eq!(hooked.inner().calls(), ["navigate(https://safe)"]);
     let record = pre_tool_record(&hooked).await;
     assert_eq!(record["verdict"]["transform"]["path"], "$target.url");

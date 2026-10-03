@@ -52,6 +52,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-03-live-sessions-stack/`](2026-10-03-live-sessions-stack/README.md) | Live sessions: the feature and the stack that followed it (ADR 0150) |
 | [`2026-10-03-keybindings-statusline/`](2026-10-03-keybindings-statusline/README.md) | Keybindings: the half-typed keys on the statusline |
 | [`2026-10-03-keybindings-review-fixes/`](2026-10-03-keybindings-review-fixes/README.md) | Keybindings review fixes: the `?` sheet and the Fixed keys |
+| [`2026-10-03-extension-runner-options/`](2026-10-03-extension-runner-options/README.md) | Extension local runner: the options page |
 | [`2026-10-03-duress-sheet-hardening/`](2026-10-03-duress-sheet-hardening/README.md) | Duress sheet hardening — visual evidence |
 | [`2026-10-03-connectors/`](2026-10-03-connectors/README.md) | Connector pages: no Host road, and no tile that links to a page nothing routes (ADR 0151) |
 | [`2026-10-02-vault-share/`](2026-10-02-vault-share/README.md) | Vault share, support, and a new item |

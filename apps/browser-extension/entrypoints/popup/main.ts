@@ -15,10 +15,12 @@ const DEFAULT_HOST = ENDPOINTS.host.default;
 const STORE = "chrome.storage.local";
 
 async function loadHostInput() {
-  const input = overlapCast(document.getElementById("host"));
+  const input: HTMLInputElement | null = overlapCast(
+    document.getElementById("host"),
+  );
   if (!input) return;
   try {
-    const stored = await chrome.storage.local.get("hostApiBase");
+    const stored = await browser.storage.local.get("hostApiBase");
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
     const value = isString(stored.hostApiBase)
       ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
@@ -30,7 +32,9 @@ async function loadHostInput() {
 }
 
 async function saveHost() {
-  const input = overlapCast(document.getElementById("host"));
+  const input: HTMLInputElement | null = overlapCast(
+    document.getElementById("host"),
+  );
   const hint = document.getElementById("hint");
   if (!input) return;
   const raw = input.value.trim() || DEFAULT_HOST;
@@ -52,7 +56,7 @@ async function saveHost() {
     }
     return;
   }
-  await chrome.storage.local.set({ hostApiBase: sealed });
+  await browser.storage.local.set({ hostApiBase: sealed });
   if (hint) {
     hint.hidden = false;
     hint.textContent = "Host API saved.";
@@ -80,8 +84,8 @@ async function loadStatus() {
     hint.textContent = "";
   }
   try {
-    const res = overlapCast(
-      await chrome.runtime.sendMessage({
+    const res: HealthResponse = overlapCast(
+      await browser.runtime.sendMessage({
         type: "opensesame.health",
       }),
     );

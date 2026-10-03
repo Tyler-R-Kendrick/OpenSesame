@@ -29,6 +29,9 @@ opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
 opensesame-credential-helpers = { path = "../../crates/credential-helpers" }
 opensesame-daemon = { path = "../../crates/daemon" }
 opensesame-gateway = { path = "../../crates/gateway" }
+# The recipe document and its Ed25519 signing (ADR 0076 §4): `rotate recipe sign`
+# and `rotate signer keygen` are local acts that never name a Host.
+opensesame-rotation-web = { path = "../../crates/rotation-web" }
 opensesame-host-core = { path = "../../crates/host-core" }
 opensesame-worker = { path = "../../crates/worker" }
 # Settings for optional plugins only (ADR 0150 §7). The plugins themselves are
@@ -52,6 +55,8 @@ crossterm = { workspace = true }
 ratatui = { workspace = true }
 uuid = { workspace = true }
 zeroize = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
 directories = "6.0.0"
 qr2term = "0.3.3"
 regex = "1.11.1"

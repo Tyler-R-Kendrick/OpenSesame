@@ -25,7 +25,7 @@ fn print_json(body: &Value) -> Result<()> {
     Ok(())
 }
 
-/// `opensesame rotate runs` — sandboxed runs and where each one is.
+/// `opensesame access connectors rotate runs` — sandboxed runs and where each one is.
 pub async fn cmd_runs(server: &str, output: &str) -> Result<()> {
     let body = connect::api(server, reqwest::Method::GET, "/api/v1/agent/runs", None).await?;
     if output == "json" {
@@ -64,14 +64,16 @@ pub async fn cmd_runs(server: &str, output: &str) -> Result<()> {
     Ok(())
 }
 
-/// `opensesame rotate watch <run>` — read the observation log.
+/// `opensesame access connectors rotate watch <run>` — read the observation log.
 ///
 /// Reads the paged JSON view rather than the SSE stream: a stream that stays
 /// open until it times out is a hang rather than a result, and a shell wants a
 /// result. `--follow` polls that same page.
 ///
 /// Prints position, lane, timestamp and ciphertext size — not content. See the
-/// module docs for why a host CLI does not hold the viewer key.
+/// module docs for why a host CLI does not hold the viewer key. A run the Host
+/// opened has no viewer key and no sealed log; for those it shows the run's
+/// hook records instead (`rotate hooks`).
 pub async fn cmd_watch(
     server: &str,
     output: &str,
@@ -87,6 +89,18 @@ pub async fn cmd_watch(
         let body = connect::api(server, reqwest::Method::GET, &path, None)
             .await
             .context("reading the observation log")?;
+        // A run the Host opened has no viewer key, so nothing was ever sealed
+        // to one: its hook record is the observation (ADR 0081 §9, ADR 0159).
+        if body.get("observation").and_then(Value::as_str) == Some("hook_records_only") {
+            return crate::agent_run_hooks::observe(
+                server,
+                output,
+                run_id,
+                (after, follow),
+                Some(crate::agent_run_hooks::NO_SEALED_LOG),
+            )
+            .await;
+        }
         if output == "json" {
             print_json(&body)?;
             return Ok(());
@@ -155,7 +169,7 @@ const FOLLOW_INTERVAL: std::time::Duration = std::time::Duration::from_millis(75
 /// Consecutive empty pages before `--follow` gives the terminal back.
 const FOLLOW_IDLE_LIMIT: u32 = 240;
 
-/// `opensesame rotate attach <run>` — ask the agent for the page.
+/// `opensesame access connectors rotate attach <run>` — ask the agent for the page.
 ///
 /// Asking is all this does. Driving the page needs the viewer key and a client
 /// that holds it, so the CLI's job ends at getting the run parked and telling
