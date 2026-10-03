@@ -24,6 +24,7 @@ import type { VaultItem } from "@opensesame/vault-core";
 import { compositionStore } from "../capabilities/store.js";
 import { persistedRestoreRefuses } from "../document-lifecycle.js";
 import { vaultStore } from "../vault/store.js";
+import { planRefusal } from "./carrier-policy.js";
 import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
@@ -31,12 +32,12 @@ import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
-import { type CarrierFactory, Rendezvous } from "./rendezvous.js";
+import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
+import { openCarriers, poster, rtcServers } from "./session-carriers.js";
 import {
   type CarrierSpec,
   DIRECT_TRANSPORT,
-  type IceServerSpec,
   type LiveTransport,
   routesFor,
 } from "./transport.js";
@@ -71,15 +72,28 @@ let stopPlanWatch: (() => void) | null = null;
  * Live sessions. A plan not yet resolved says nothing either way.
  */
 function watchPlan(): void {
-  stopPlanWatch ??= liveSeams.onPlan(endIfWithdrawn);
-  endIfWithdrawn();
+  stopPlanWatch ??= liveSeams.onPlan(holdToPlan);
+  holdToPlan();
 }
 
-function endIfWithdrawn(): void {
+/**
+ * Hold a standing session to the plan as it is now: ended when Live sessions
+ * is no longer approved, and — still approved — each carrier the new network
+ * policy no longer allows closed (a socket stays open until someone shuts it,
+ * so a changed policy would otherwise never reach it).
+ */
+function holdToPlan(): void {
   const plan = liveSeams.plan();
-  if (plan === null || planApprovesLive(plan)) return;
-  endHosting();
-  leaveLive();
+  if (plan === null) return;
+  if (!planApprovesLive(plan)) {
+    endHosting();
+    leaveLive();
+    return;
+  }
+  const allowed = (spec: CarrierSpec): boolean =>
+    planRefusal(spec, plan) === null;
+  hostCarriers?.enforce(allowed);
+  guestCarriers?.enforce(allowed);
 }
 
 function unwatchPlanIfIdle(): void {
@@ -88,36 +102,6 @@ function unwatchPlanIfIdle(): void {
   stopPlanWatch = null;
 }
 
-/** How long a first post waits for a carrier to connect. */
-const CARRIER_WAIT_MS = 8000;
-
-function rtcServers(servers: readonly IceServerSpec[]): RTCIceServer[] {
-  return servers.map((server) => {
-    const out: RTCIceServer = { urls: [...server.urls] };
-    if (server.username) out.username = server.username;
-    if (server.credential) out.credential = server.credential;
-    return out;
-  });
-}
-
-/** Open the carriers, if any are named and the shell supplied them. */
-function openCarriers(
-  specs: readonly CarrierSpec[],
-  secret: string,
-  factory: CarrierFactory | undefined,
-  onCode: (code: string) => void,
-): Rendezvous | null {
-  if (!factory || specs.length === 0) return null;
-  return Rendezvous.open(specs, secret, factory, onCode);
-}
-
-/** Post once a carrier is up (or has had its chance). */
-function poster(rendezvous: Rendezvous): (code: string) => Promise<void> {
-  return async (code) => {
-    await rendezvous.whenReady(CARRIER_WAIT_MS);
-    await rendezvous.post(code);
-  };
-}
 const listeners = new Set<() => void>();
 
 function changed(): void {

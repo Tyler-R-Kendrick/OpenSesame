@@ -270,7 +270,25 @@ TURN are WebRTC and remain outside `connect-src`. Sessions are not tied to the
 module's activation, but they are tied to its approval: when a resolved plan
 stops approving `sharing.live` — an operator's withdrawal, or the person's
 switch — `session.ts` ends the hosted session and leaves the joined one, and
-closes their carriers; a re-plan that still approves it changes nothing.
+closes their carriers; a re-plan that still approves it ends nothing.
+
+A re-plan that still approves it can still change the network policy, and a
+WebSocket stays open until something shuts it. So on every re-plan the
+session asks the plan again about each carrier it holds (`carrier-policy.ts`,
+the one rule the shell also asks before opening): a Nostr, MQTT or NATS
+carrier that external services being denied, or its `wss://` origin leaving
+the operator's list, no longer allows is closed and shown as blocked, and one
+still opening is closed when it arrives. The session itself goes on, over the
+carriers that remain and by hand. A carrier the policy allows again is not
+reopened: the session names its carriers once. ntfy and BroadcastChannel are
+not judged here: ntfy's every request already goes through the egress port,
+which stops it for good at the first refusal.
+
+A socket carrier at an address on this device or a LAN is also refused where
+the deployment may not pair local authority (the shared GitHub Pages origin
+may not): egress already says so for http, and a socket asks the same
+question (`planRefusal`), so a public page cannot reach a local relay through
+a WebSocket that it could not reach through a fetch.
 
 ## Consequences
 
