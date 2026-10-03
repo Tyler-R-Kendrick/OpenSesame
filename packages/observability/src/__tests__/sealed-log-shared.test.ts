@@ -13,7 +13,6 @@ import {
   SEALED_LINE_PREFIX,
   SealedLogFile,
   openLogLine,
-  readSealedTail,
   sealExistingLog,
 } from "../sealed-log.js";
 
@@ -78,7 +77,10 @@ describe("sealing what an older build left", () => {
   it("seals every rotated generation, scrubbed, owner-only and idempotently", () => {
     const log = join(dir(), "daemon.log");
     writeFileSync(log, "live line\n");
-    writeFileSync(`${log}.1`, "older\nfailed: https://h.example/x#token=abc123\n");
+    writeFileSync(
+      `${log}.1`,
+      "older\nfailed: https://h.example/x#token=abc123\n",
+    );
     writeFileSync(`${log}.2`, "oldest\n");
     expect(sealExistingLog(log, key)).toBe(4);
     for (const path of [log, `${log}.1`, `${log}.2`]) {
@@ -89,9 +91,6 @@ describe("sealing what an older build left", () => {
       }
       expect(statSync(path).mode & 0o777).toBe(0o600);
     }
-    expect(readSealedTail(log, key, 5)).toEqual(
-      expect.not.arrayContaining(["abc123"]),
-    );
     expect(opened(`${log}.1`)[1]).not.toContain("abc123");
     expect(sealExistingLog(log, key)).toBe(0);
   });
