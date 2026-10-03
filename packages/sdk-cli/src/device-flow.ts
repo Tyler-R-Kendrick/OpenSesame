@@ -1,4 +1,4 @@
-import { scrubStrings } from "@opensesame/log-scrub";
+import { scrubText } from "@opensesame/log-scrub";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -353,15 +353,20 @@ export class DeviceFlowClient {
 /**
  * Redact secrets from objects before JSON logging. A complete verification
  * link counts: a claim's carries its bearer in the fragment.
+ *
+ * Keys are this CLI's own policy: a `user_code` is printed on purpose, for a
+ * person to type, and a share link is printed because it is what was asked
+ * for. The value-shape scrubber (ADR 0155) therefore runs only over fields
+ * that are diagnostic text, never over data a command exists to print.
  */
 export function redactSecrets(
   value: JsonValue | undefined,
 ): JsonValue | undefined {
-  // Keys are this CLI's own policy (below): a `user_code` is printed on
-  // purpose, for a person to type. The shared scrubber then rewrites any
-  // string that carries a bearer with no key to name it (ADR 0155).
-  return scrubStrings(redactKeys(value));
+  return redactKeys(value);
 }
+
+/** Fields that carry error or diagnostic prose, which can echo a bearer. */
+const DIAGNOSTIC_KEY = /^(?:error|errors|message|error_?description|detail)$/iu;
 
 function redactKeys(value: JsonValue | undefined): JsonValue | undefined {
   if (value === null || !isTypeofObject(value)) return value;
@@ -376,6 +381,8 @@ function redactKeys(value: JsonValue | undefined): JsonValue | undefined {
       )
     ) {
       out[k] = "[redacted]";
+    } else if (isString(v) && DIAGNOSTIC_KEY.test(k)) {
+      out[k] = scrubText(v);
     } else {
       out[k] = redactKeys(v);
     }
