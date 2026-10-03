@@ -83,9 +83,10 @@ enum Destination {
 /// own, so it is an origin, not a relative reference.
 const SENTINEL_HOSTS: [&str; 2] = ["relative-a.invalid", "relative-b.invalid"];
 
-/// A URL's userinfo password is a credential, and a destination the parser
-/// could not reduce is the executor's raw string, which may carry one: neither
-/// reaches a log through `{:?}` (ADR 0157).
+/// A URL's userinfo is a credential (a token is as often the username as the
+/// password), and a destination the parser could not reduce is the executor's
+/// raw string, which may carry one: none of them reaches a log through `{:?}`
+/// (ADR 0157).
 impl fmt::Debug for Destination {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -100,7 +101,7 @@ impl fmt::Debug for Destination {
                 .field("scheme", scheme)
                 .field("host", host)
                 .field("port", port)
-                .field("username", username)
+                .field("username", &(!username.is_empty()).then_some("[REDACTED]"))
                 .field("password", &password.as_ref().map(|_| "[REDACTED]"))
                 .finish(),
             Self::Relative => f.write_str("Relative"),
@@ -222,6 +223,25 @@ mod tests {
 
     fn same(a: &str, b: &str) -> bool {
         Destination::of(a) == Destination::of(b)
+    }
+
+    #[test]
+    fn userinfo_and_unparsed_text_never_reach_a_debug_print() {
+        for raw in [
+            "https://ghp_TOKEN123@example.com/x",
+            "https://user:hunter2@example.com/x",
+            "http://[ghp_TOKEN123@bad host/",
+        ] {
+            let printed = format!("{:?}", Destination::of(raw));
+            for secret in ["ghp_TOKEN123", "hunter2"] {
+                assert!(!printed.contains(secret), "{raw} -> {printed}");
+            }
+        }
+        let printed = format!("{:?}", Destination::of("https://u:p@example.com:8443/"));
+        assert!(
+            printed.contains("example.com") && printed.contains("8443"),
+            "{printed}"
+        );
     }
 
     #[test]
