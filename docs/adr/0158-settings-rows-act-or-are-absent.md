@@ -147,7 +147,13 @@ was fixed at its root:
   star. Each is absent until it can act, and focus follows.
 - **A row with nothing to change.** Notifications on a device with no Identity
   API (one inbox row), the plugin tiles with nothing paired and no way to pair,
-  and the *Sign out of Identity too* switch for a guest.
+  and the *Sign out of Identity too* switch on a device with no Identity to sign
+  out of: it is drawn while an Identity API is named or an Identity session is
+  held (a guest on a device with a service named still sees it), and absent
+  otherwise. A stored `signOutOnLock: true` is not lost with the row: it is the
+  vault's own preference, still read and written as `signOutOnLock` in the
+  General settings file, and the switch returns, on, with the Identity API or
+  session. With nothing to sign out of, it does nothing at lock.
 - **A preset that did nothing.** Choosing a purpose card wrote the policy but the
   composition store read it only at boot, so the card never marked itself.
 - **A message that outlived its subject.** Security's page-level success box

@@ -1,4 +1,5 @@
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
+import { settingsFields } from "@opensesame/app-core/sections/settings/settings-files.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen } from "@testing-library/react";
@@ -91,6 +92,50 @@ describe("GeneralPrefsPanel", () => {
         name: "Lock when this tab goes to the background",
       }),
     ).toBeTruthy();
+  });
+
+  it("keeps a stored sign-out-on-lock where it can be seen again: absent with no Identity, on when Identity returns, and always in the General settings file", () => {
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({
+        prefs: {
+          theme: "system",
+          autoLockMinutes: 0,
+          lockOnHide: false,
+          signOutOnLock: true,
+          clipboardClearSeconds: 30,
+          prefsRevision: 2,
+        },
+      }),
+    });
+    const name = "Also sign out of Identity when the vault locks";
+    const bare = render(
+      <MemoryRouter>
+        <GeneralPrefsPanel />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("switch", { name })).toBeNull();
+    bare.unmount();
+
+    const original = identityHookSeams.useIdentitySession;
+    identityHookSeams.useIdentitySession = () =>
+      overlapCast({ accessToken: "t", issuerOrigin: "x" });
+    try {
+      render(
+        <MemoryRouter>
+          <GeneralPrefsPanel />
+        </MemoryRouter>,
+      );
+      expect(
+        screen.getByRole("switch", { name }).getAttribute("aria-checked"),
+      ).toBe("true");
+    } finally {
+      identityHookSeams.useIdentitySession = original;
+    }
+    // The value is the vault's own preference, readable and writable as the
+    // prefs file whatever Identity is: nothing about it is lost by the row.
+    expect(settingsFields("general").map((field) => field.key)).toContain(
+      "signOutOnLock",
+    );
   });
 
   it("draws it, with no caption, once an Identity session is held", async () => {
