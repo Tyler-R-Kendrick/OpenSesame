@@ -8,6 +8,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import {
+  SHARED_ITEM,
+  joinerSeesCatalog,
+  revealButton,
+} from "./lib/live-item-labels.mjs";
+import {
   WATCH_RTC,
   joinerAsks,
   joinerConnects,
@@ -90,7 +95,7 @@ function startServer() {
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
+      const port = address?.port ?? 0;
       resolve({ server, origin: `http://localhost:${port}` });
     });
   });
@@ -178,7 +183,8 @@ async function connectPair(origin, owner, joiner) {
   const request = await joinerAsks(joiner, { link, code, name: joinerName });
   const reply = await ownerAdmitsByHand(owner, panel, request, joinerName);
   await joinerConnects(joiner, reply);
-  await joiner.getByRole("button", { name: "Reveal GitHub Password" }).click();
+  await joinerSeesCatalog(joiner);
+  await revealButton(joiner, SHARED_ITEM).click();
   await expect(joiner.getByText(secret)).toBeVisible({ timeout: 45_000 });
   console.log("peer read the shared field before the lifecycle event");
   return panel;
