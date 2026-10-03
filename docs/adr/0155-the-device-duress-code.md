@@ -1,4 +1,4 @@
-# ADR 0150 — The device's duress code, in Settings
+# ADR 0155 — The device's duress code, in Settings
 
 - Status: Accepted
 - Date: 2026-09-28
