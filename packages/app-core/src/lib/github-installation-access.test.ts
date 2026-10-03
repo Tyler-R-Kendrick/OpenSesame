@@ -3,7 +3,6 @@ import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { backupSeams } from "./backup.js";
 import { type Connection, connectionSeams } from "./connections.js";
-import { githubHistorySeams } from "./github-history.js";
 import {
   ensureGithubAccessGrant,
   loadGithubInstallationSnapshot,
@@ -20,13 +19,11 @@ import { lockAllTombs } from "./vfs.js";
 
 const originalConnectionSeams = { ...connectionSeams };
 const originalBackupSeams = { ...backupSeams };
-const originalGithubHistorySeams = { ...githubHistorySeams };
 const originalIdentitySeams = { ...identitySeams };
 
 const listIntegrations = vi.fn();
 const listConnections = vi.fn();
 const listGithubInstallations = vi.fn();
-const listGithubRepos = vi.fn();
 /** Every Host request a Pages library could make goes through this seam. */
 const hostFetch = vi.fn(async () => new Response(null, { status: 599 }));
 
@@ -67,7 +64,6 @@ beforeEach(() => {
   Object.assign(identitySeams, { hostFetch });
   Object.assign(connectionSeams, { listIntegrations, listConnections });
   Object.assign(backupSeams, { listGithubInstallations });
-  Object.assign(githubHistorySeams, { listGithubRepos });
   listIntegrations.mockResolvedValue([
     {
       id: "int_gh",
@@ -90,38 +86,24 @@ beforeEach(() => {
       targetType: "User",
     },
   ]);
-  listGithubRepos.mockResolvedValue([
-    {
-      fullName: "octocat/secrets",
-      name: "secrets",
-      private: true,
-      cloneUrl: "https://github.com/octocat/secrets.git",
-      htmlUrl: "https://github.com/octocat/secrets",
-      defaultBranch: "main",
-    },
-  ]);
 });
 
 afterEach(() => {
   Object.assign(connectionSeams, originalConnectionSeams);
   Object.assign(backupSeams, originalBackupSeams);
-  Object.assign(githubHistorySeams, originalGithubHistorySeams);
   Object.assign(identitySeams, originalIdentitySeams);
   lockAllTombs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-it("loads install identity and repos for an active connection", async () => {
+it("loads install identity for an active connection", async () => {
   const fixture = await localRequestFixture();
   const snapshot = await loadGithubInstallationSnapshot(
     fixture.tomb,
     baseConnection,
   );
   expect(snapshot.installations[0]?.accountLogin).toBe("octocat");
-  expect(snapshot.repos.map((row) => row.fullName)).toEqual([
-    "octocat/secrets",
-  ]);
   expect(snapshot.shares).toEqual([]);
 });
 

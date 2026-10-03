@@ -1,0 +1,521 @@
+{
+  "about": "Interaction request digest vectors (ADR 0086, ADR 0139, ADR 0159). Every digest and canonicalDetails is generated from packages/os-domain crypto/request-digest.ts (UPDATE_REQUEST_DIGEST_VECTORS=1); crates/agent-hooks recomputes them independently. Never edit by hand, and never regenerate to make a reader pass.",
+  "encoding": {
+    "purpose": "opensesame:interaction-request:v1",
+    "fields": [
+      "purpose",
+      "kind",
+      "subject",
+      "approverRef",
+      "requesterRef",
+      "canonicalDetails",
+      "bindingMessage",
+      "resourceRef (the empty string when absent)",
+      "expiresAt"
+    ],
+    "framing": "each field is written as its UTF-8 byte length in decimal, one NUL byte, then its UTF-8 bytes; the frames are concatenated in the order above",
+    "canonicalDetails": "the authorizationDetails array as JSON with every object's keys sorted by UTF-16 code unit, recursively, except that keys which are canonical array indices (decimal, no leading zero, at most 4294967294) come first in ascending numeric order, as JSON.stringify walks the sorted object; array order kept; strings written as JSON.stringify writes them; every number read as a double and written as ECMAScript Number::toString (-0 is 0)",
+    "digest": "sha256:<lowercase hex of the SHA-256 of the concatenated frames>"
+  },
+  "cases": [
+    {
+      "name": "minimal_detail",
+      "note": "one detail carrying only its type",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "connection_delegation"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"connection_delegation\"}]",
+      "digest": "sha256:9f46089ca34da1712bfdf60c675bad4cd8f30e8a47238b2eb679a45f1db527aa"
+    },
+    {
+      "name": "approver_detail",
+      "note": "the detail the Interaction approver sends, context_identity inside",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "agent_hooks_approval",
+            "actions": ["pre_tool_call"],
+            "locations": ["deploy"],
+            "spec": "agent-hooks/0.1",
+            "context_identity": "sha256:0f3a5f0e8c1d4b6a9e2f7c1b3d5a8e0f2c4b6d8a0e1f3c5b7d9a1e3f5c7b9d1a",
+            "interception_point": "pre_tool_call",
+            "reason": "acme:change_window",
+            "agent": "agent-7"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"actions\":[\"pre_tool_call\"],\"agent\":\"agent-7\",\"context_identity\":\"sha256:0f3a5f0e8c1d4b6a9e2f7c1b3d5a8e0f2c4b6d8a0e1f3c5b7d9a1e3f5c7b9d1a\",\"interception_point\":\"pre_tool_call\",\"locations\":[\"deploy\"],\"reason\":\"acme:change_window\",\"spec\":\"agent-hooks/0.1\",\"type\":\"agent_hooks_approval\"}]",
+      "digest": "sha256:524ede4a9bd80f94a8ad46a5afdf9d4e60c98fcd3bc822c996dea702698eed4d"
+    },
+    {
+      "name": "keys_sorted",
+      "note": "keys already in order, nested objects included",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "a": 1,
+            "b": {
+              "c": 2,
+              "d": [
+                3,
+                {
+                  "e": 4,
+                  "f": 5
+                }
+              ]
+            },
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"a\":1,\"b\":{\"c\":2,\"d\":[3,{\"e\":4,\"f\":5}]},\"type\":\"t\"}]",
+      "digest": "sha256:c79b4ae6d56cf9ac5987224ffa1d4d5a1942dc7b3f2e86160ba0da973ae1a761"
+    },
+    {
+      "name": "keys_reversed",
+      "note": "the same detail with every object's keys in reverse order: sorting is recursive",
+      "equivalentTo": "keys_sorted",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "b": {
+              "d": [
+                3,
+                {
+                  "f": 5,
+                  "e": 4
+                }
+              ],
+              "c": 2
+            },
+            "a": 1
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"a\":1,\"b\":{\"c\":2,\"d\":[3,{\"e\":4,\"f\":5}]},\"type\":\"t\"}]",
+      "digest": "sha256:c79b4ae6d56cf9ac5987224ffa1d4d5a1942dc7b3f2e86160ba0da973ae1a761"
+    },
+    {
+      "name": "array_order_forward",
+      "note": "array order is meaning: locations in one order",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "locations": ["repo:a", "repo:b"]
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"locations\":[\"repo:a\",\"repo:b\"],\"type\":\"t\"}]",
+      "digest": "sha256:c27d40cc411ef9cdfd46aabc839d7767037d4d4f0e361039fd4f6dbe92afb302"
+    },
+    {
+      "name": "array_order_backward",
+      "note": "the same locations reversed must not collide with the forward order",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "locations": ["repo:b", "repo:a"]
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"locations\":[\"repo:b\",\"repo:a\"],\"type\":\"t\"}]",
+      "digest": "sha256:b04703ab67062a7c3a34fc2e5936523c047fc18a15411b71a7423a7cc9da2229"
+    },
+    {
+      "name": "details_order",
+      "note": "the details list is ordered too",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "second"
+          },
+          {
+            "type": "first"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"second\"},{\"type\":\"first\"}]",
+      "digest": "sha256:ebff611b257f804cd191aef923b8da0fa309f77c6ad6065367e2772437e66d07"
+    },
+    {
+      "name": "utf16_key_order",
+      "note": "U+FF5E sorts after an astral key in UTF-16 code units but before it in UTF-8 bytes; canonical order is UTF-16",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "～": 1,
+            "😀": 2,
+            "z": 3,
+            "": 4
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\",\"z\":3,\"😀\":2,\"\":4,\"～\":1}]",
+      "digest": "sha256:cf915b3868a070ccc9f00b8a8177429e3e5814971667dbe07181acb46bc8ce47"
+    },
+    {
+      "name": "integer_like_keys",
+      "note": "an object's canonical-array-index keys (0..4294967294, no leading zero) come first in ascending numeric order, then every other key in UTF-16 order: that is how JSON.stringify walks the sorted object",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetailsJson": "[{\"type\":\"t\",\"10\":1,\"9\":2,\"b\":3,\"01\":4,\"4294967294\":5,\"4294967295\":6,\"-1\":7,\"1.5\":8,\"0\":9,\"a\":0,\"9007199254740993\":1,\"4294967296\":2}]"
+      },
+      "canonicalDetails": "[{\"0\":9,\"9\":2,\"10\":1,\"4294967294\":5,\"-1\":7,\"01\":4,\"1.5\":8,\"4294967295\":6,\"4294967296\":2,\"9007199254740993\":1,\"a\":0,\"b\":3,\"type\":\"t\"}]",
+      "digest": "sha256:baad33f3a046173201afbcaa46da9e9a8cd1dbde1f7c6958b48700cef7af4cc9"
+    },
+    {
+      "name": "proto_key",
+      "note": "a __proto__ member is an ordinary key and is hashed",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetailsJson": "[{\"type\":\"t\",\"__proto__\":{\"x\":1},\"a\":2}]"
+      },
+      "canonicalDetails": "[{\"__proto__\":{\"x\":1},\"a\":2,\"type\":\"t\"}]",
+      "digest": "sha256:e3e4707f8eb45fd2feaa22e6fd48c98d1dce1f7a457728ed96d45c225c7d33b7"
+    },
+    {
+      "name": "unicode_values",
+      "note": "non-ASCII text is written as itself, never \\u-escaped",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "label": "café — 東京 😀",
+            "note": "  "
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"label\":\"café — 東京 😀\",\"note\":\"  \",\"type\":\"t\"}]",
+      "digest": "sha256:d3bc320e880f2f8882258bd67ecae4be03e092c6f86864ac5f175727d78503b3"
+    },
+    {
+      "name": "escapes",
+      "note": "quote, backslash, control characters and DEL",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "text": "say \"hi\"\\ \n\t\r\b\f \u0001\u001f  /"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"text\":\"say \\\"hi\\\"\\\\ \\n\\t\\r\\b\\f \\u0001\\u001f  /\",\"type\":\"t\"}]",
+      "digest": "sha256:cb9e0a59a540844d88d70e6bd1532589fd09c0c0481d67e378cc90aa8cf0f0cb"
+    },
+    {
+      "name": "numbers_integers",
+      "note": "integers, zero, negatives and the safe-integer edge",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "n": [0, 1, -1, 42, 9007199254740991, -9007199254740991]
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"n\":[0,1,-1,42,9007199254740991,-9007199254740991],\"type\":\"t\"}]",
+      "digest": "sha256:102a1e04414a61a9f31e145f47f02ef072a88ab961fb77d492e80422a2327ab4"
+    },
+    {
+      "name": "numbers_beyond_safe",
+      "note": "an integer past 2^53 is read as the nearest double, as JSON.parse does, before it is written",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetailsJson": "[{\"type\":\"t\",\"n\":[9007199254740993,18446744073709551615,123456789012345678901234567890]}]"
+      },
+      "canonicalDetails": "[{\"n\":[9007199254740992,18446744073709552000,1.2345678901234568e+29],\"type\":\"t\"}]",
+      "digest": "sha256:123db1fe143f345e23cd445fcb3f5c4f049f304a136aa8382bc5e4017a326e76"
+    },
+    {
+      "name": "numbers_fractions_and_exponents",
+      "note": "ECMAScript Number::toString: shortest digits, exponent only at 1e21 and 1e-7",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "n": [
+              0.5, -0.25, 1.5, 4.35, 0.1, 100.25, 0.000001, 1e-7, 1.5e-7,
+              123456789.125, 100000000000000000000, 1e21, 123456789012345680000,
+              1.7976931348623157e308, 5e-324, -1e-7
+            ]
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"n\":[0.5,-0.25,1.5,4.35,0.1,100.25,0.000001,1e-7,1.5e-7,123456789.125,100000000000000000000,1e+21,123456789012345680000,1.7976931348623157e+308,5e-324,-1e-7],\"type\":\"t\"}]",
+      "digest": "sha256:1e333eed5f7a0d0c7ffbb1a5fa0bb2f3f74330c04921b634bcb19c121dffc692"
+    },
+    {
+      "name": "negative_zero",
+      "note": "-0 is written 0",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "n": 0
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"n\":0,\"type\":\"t\"}]",
+      "digest": "sha256:f00475f29246ea7152b6479bf6999402a0c86b59f6b449dad449e5aa25d957b4"
+    },
+    {
+      "name": "literals_and_empties",
+      "note": "true, false, null, empty object and empty array",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t",
+            "yes": true,
+            "no": false,
+            "nothing": null,
+            "obj": {},
+            "arr": []
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"arr\":[],\"no\":false,\"nothing\":null,\"obj\":{},\"type\":\"t\",\"yes\":true}]",
+      "digest": "sha256:bfd1d92d5586143dde44d96ccbdc5a06589f9a233a5fd8887df92e0ed0561fa0"
+    },
+    {
+      "name": "resource_ref",
+      "note": "a resourceRef is a field of its own",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "resourceRef": "repo:acme/catalog",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:57b819ac45a65e44d0ece9518065294162a6585dba28e34fec5b9d98cbf2ea30"
+    },
+    {
+      "name": "length_prefix_left",
+      "note": "text moved across a field boundary must change the digest: one split",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_1",
+        "approverRef": "inbox_x",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:572307fbaf3a7b2ed30a3d8759fe05ab93dda2f7e6a44ff9593f6911980a0e41"
+    },
+    {
+      "name": "length_prefix_right",
+      "note": "the same bytes split differently between subject and approverRef",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_",
+        "approverRef": "1inbox_x",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:2e92835f56b166319eb7585d46810a6804787b81cb99ff6bea9e1f989c767b49"
+    },
+    {
+      "name": "multibyte_binding_message",
+      "note": "the length prefix counts UTF-8 bytes, not characters",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Autoriser l’action « déployer » 東京 😀",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:24fc4ac0c51d994f3d2a0a7782f606911b2658e925c296405d514ecc087f2e02"
+    },
+    {
+      "name": "kind_transaction",
+      "note": "the kind is hashed: a payment approval must not settle a request",
+      "request": {
+        "kind": "transaction_authorization",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:413e0cfdece8f305bd3c9ef82b04d1e578338404d9233b855befb001d8313095"
+    },
+    {
+      "name": "other_requester",
+      "note": "the requester handle is hashed",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_zzzzzzzzzzzzzzzzzzzzzzzz",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:00.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:f7564496d1faf911604030f3614be782b7301a2ab173ae1187bdc7836813000c"
+    },
+    {
+      "name": "other_expiry",
+      "note": "the approval window is hashed",
+      "request": {
+        "kind": "authorization_request",
+        "subject": "authorization_request:areq_7sQ2mVn1",
+        "approverRef": "inbox_YXBwcm92ZXI.tagtagtagtagtagtagtagtagtagtagta",
+        "requesterRef": "req_abcdefghijklmnopqrstuvwx",
+        "bindingMessage": "Approve an agent action: pre_tool_call",
+        "expiresAt": "2026-09-28T12:05:01.000Z",
+        "authorizationDetails": [
+          {
+            "type": "t"
+          }
+        ]
+      },
+      "canonicalDetails": "[{\"type\":\"t\"}]",
+      "digest": "sha256:d40081989459491688f1c2c32bcc6da157c2dbd0c8bdf403dfd857a07ca12ef8"
+    }
+  ]
+}

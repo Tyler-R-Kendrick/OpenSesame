@@ -3,7 +3,8 @@
 The typed TypeScript client for the Host API (`crates/gateway`, `:8787`). One
 factory, `createApiClient`, returns methods for connections, integrations,
 sync targets, secret configs, invoke, sync, tasks, receipts, delegations,
-relay, certificates, rotations, the project changelog and the backup target.
+relay, certificates, rotations, the project changelog, the backup target and
+the driver half of a sandboxed run (claim and settle a step, read the hook records).
 Responses are parsed with the `@opensesame/contracts` schemas.
 
 ## Where it fits
@@ -26,7 +27,8 @@ Responses are parsed with the `@opensesame/contracts` schemas.
 |---|---|
 | `createApiClient({ baseUrl, accessToken?, dpop?, fetchImpl? })` | The client; `ApiClient` is its type |
 | Core methods | `health`, `discover`, `whoami`, `listProviders`, connection CRUD plus `authorizeConnection` / `refreshConnection` / `revokeConnection` / `bindConnection`, integrations, sync targets, secret configs and versions, `invoke`, `syncPush`, `syncPull`, `probeDaemon` |
-| Mixed-in groups | `tasks.ts`, `receipts.ts`, `delegations.ts`, `relay.ts`, `certs.ts`, `rotations.ts`, `changelog.ts`, `backup.ts` |
+| Mixed-in groups | `tasks.ts`, `receipts.ts`, `delegations.ts`, `relay.ts`, `certs.ts`, `rotations.ts`, `changelog.ts`, `backup.ts`, `agent-runs.ts` |
+| Runs | `listAgentRuns`, `getAgentRun`, `claimRunnerStep` (`null` on 204), `settleRunnerStep`, `readRunHookRecords`; `decodeRunnerStepRequest` (strict: an unknown tag, a missing, mistyped or extra field is `null`), `RunnerStepRequest` / `RunnerStepOutcome` mirroring `crates/rotation-web` `StepRequest` / `StepOutcome`, and `RunnerApiError` carrying status and code |
 | Helpers | `createDpopKeyPair`, `accessTokenHash`, `normalizeHttpBaseUrl`, `normalizeLoopbackBaseUrl`, `pullSyncPages`, `readSyncPage` |
 
 ## Develop

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 438,
-    "violations": 688,
-    "oversizedLines": 225815
+    "files": 435,
+    "violations": 685,
+    "oversizedLines": 222833
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1921
+      "max-lines": 1902
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -137,7 +137,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 535
+      "max-lines": 482
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
@@ -183,9 +183,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/NeedsAttention.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/OauthClientPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/SettingsPage.tsx": {
@@ -393,7 +390,7 @@
       "max-lines": 493
     },
     "crates/gateway/src/lifecycle/responders.rs": {
-      "max-lines": 510
+      "max-lines": 411
     },
     "crates/gateway/src/lifecycle/scanner.rs": {
       "max-lines": 638
@@ -403,9 +400,6 @@
     },
     "crates/gateway/src/managed_certs.rs": {
       "max-lines": 637
-    },
-    "crates/gateway/src/routes/agent_runs.rs": {
-      "max-lines": 935
     },
     "crates/gateway/src/routes/agents.rs": {
       "max-lines": 440
@@ -445,9 +439,6 @@
     },
     "crates/gateway/src/routes/lifecycle.rs": {
       "max-lines": 1592
-    },
-    "crates/gateway/src/routes/mod.rs": {
-      "max-lines": 404
     },
     "crates/gateway/src/routes/relay.rs": {
       "max-lines": 955
@@ -555,7 +546,7 @@
       "max-lines": 2069
     },
     "crates/storage/src/observation.rs": {
-      "max-lines": 469
+      "max-lines": 467
     },
     "crates/storage/src/security.rs": {
       "max-lines": 1595
@@ -607,7 +598,7 @@
       "max-lines-per-function": 1
     },
     "packages/api-client/src/index.ts": {
-      "max-lines": 876,
+      "max-lines": 771,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/capabilities.ts": {
@@ -617,7 +608,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/connections.ts": {
-      "max-lines": 737
+      "max-lines": 472
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
@@ -945,7 +936,7 @@
       "max-statements": 1
     },
     "packages/control-plane/src/openapi.ts": {
-      "max-lines": 2778,
+      "max-lines": 1755,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/agents.ts": {
@@ -983,7 +974,7 @@
     },
     "packages/control-plane/src/routes/interaction-handoff.ts": {
       "complexity": 2,
-      "max-lines": 1198,
+      "max-lines": 1121,
       "max-lines-per-function": 4
     },
     "packages/control-plane/src/routes/interactions-byo.ts": {

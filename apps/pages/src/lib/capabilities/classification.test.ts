@@ -76,7 +76,6 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/webmcp/wallet-tools.ts": "wallet.spending",
       "src/screens/BrokerAuthorize.tsx": "identity.site-broker",
       "src/lib/local-guest.ts": "core",
-      "src/lib/local-directory.ts": "identity.local-iam",
       "src/lib/local-access-requests.ts": "access.authority",
       "src/lib/capabilities.ts": "settings.core",
       "src/lib/capabilities/catalog.ts": "core",
@@ -90,11 +89,38 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     }
   });
 
+  it("classifies what two optional capabilities both reach as shared, not as either's", () => {
+    // Access draws the local directory's panels and the connector catalogue,
+    // setup's federation steps draw connector cards: code reached from more
+    // than one optional capability is owned by none of them (BUILD-04/05).
+    for (const path of [
+      "src/lib/local-directory.ts",
+      "src/lib/local-sessions.ts",
+      "src/lib/connections.ts",
+      "src/lib/vercel-connect.ts",
+      "src/sections/identity/LocalApplicationSettings.tsx",
+      "src/sections/identity/identity-views.ts",
+      "src/screens/setup/steps/ConnectorCards.tsx",
+      "node_modules/@vercel/connect",
+      "node_modules/@opensesame/auth-upstream",
+    ]) {
+      const rule = classify(path);
+      expect(rule?.classification, path).toBe("shared");
+      expect(rule?.capability, path).toBeNull();
+    }
+    // The sections themselves stay with their capability.
+    expect(classify("src/sections/IdentitySection.tsx")?.capability).toBe(
+      "identity.local-iam",
+    );
+    expect(classify("src/sections/ConnectionsSection.tsx")?.capability).toBe(
+      "connectors.external",
+    );
+  });
+
   it("classifies every exclusive package", () => {
     const expectations: Record<string, string> = {
       "node_modules/@azure/msal-browser/redirect-bridge":
         "identity.ambient-sso",
-      "node_modules/@vercel/connect": "connectors.external",
       "node_modules/@ag-ui/client": "support.remote-ai",
       "node_modules/ai": "support.local-ai",
       "node_modules/@ai-sdk/provider": "support.local-ai",

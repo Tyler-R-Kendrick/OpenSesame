@@ -1,18 +1,19 @@
 /**
- * Which roads a connector's own page has on this device (ADR 0158, ADR 0128).
+ * Which roads a connector's own page has on this device (ADR 0158, ADR 0151).
  *
- * A connector page is a place to act. What it can act through is one of:
+ * A connector page is a place to act. What it can act through is one of two
+ * roads, and the browser opens both by itself:
  *
  * - **local** — the browser does it alone: a git remote sealed on the device,
  *   the GitHub App registered from the browser, a key or configuration sealed
- *   in an unlocked vault, the vault-history switch;
+ *   on this device (under the at-rest key, ADR 0149), the vault-history
+ *   switch;
  * - **connect** — Vercel Connect, once its credential is held: the page's own
- *   Connect panels seal it, then create and authorize a connector;
- * - **host** — a configured Host with a live, approved browser grant that
- *   carries `host.connections.write` (a join or sync grant does not). Pages
- *   opens no pairing ceremony (ADR 0128), so on the static deployment this is
- *   closed, and every form that can only run through it must not be drawn:
- *   pressing its key could only fail.
+ *   Connect panels seal it, then create and authorize a connector.
+ *
+ * There is no third road. Pages does not speak Host (ADR 0128), so no
+ * connector form saves through one, and a form only a Host could take is not
+ * drawn: pressing its key could only fail (ADR 0151, amended 2026-10-03).
  *
  * One definition, so the tiles under Settings › Capabilities, the connector
  * page and the forms on it agree about what is offered. Pure reads of the
@@ -23,21 +24,23 @@ import type { AuthKind, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import { HISTORY_BACKUP_GROUPS } from "./history-backups.js";
-import { HOST_CONNECTIONS_WRITE, hostGrantAllows } from "./host-grant.js";
-import { hostBase, hostLocalSessionEligible } from "./identity.js";
 
 /**
- * Connect's own answers (ADR 0153). Off until `connectors.external` installs
- * them, so a minimal build never loads the Connect catalog.
+ * Connect's own answers, and whether the connector pages exist (ADR 0153).
+ * Off until `connectors.external` installs them, so a minimal build never
+ * loads the Connect catalog and has no connector page to link to.
  */
 export const connectRoadSeams = {
   usesConnect: (_providerId?: string): boolean => false,
   hasConnectRoute: (_providerId: string): boolean => false,
+  /** The connector pages (`/settings/connections/<provider>`) are routed. */
+  pagesOpen: (): boolean => false,
 };
 
 export function resetConnectRoadSeams(): void {
   connectRoadSeams.usesConnect = () => false;
   connectRoadSeams.hasConnectRoute = () => false;
+  connectRoadSeams.pagesOpen = () => false;
 }
 
 let epoch = 0;
@@ -67,44 +70,36 @@ export function notifyConnectRoads(): void {
  */
 export const VAULT_SEALED_PANELS: readonly string[] = ["aws-kms", "gcp-kms"];
 
-export type FormRoad = "connect" | "host" | "local";
+export type FormRoad = "connect" | "local";
 
 function deviceConfigurable(authKind: AuthKind): boolean {
   return authKind === "api_key" || authKind === "configuration";
 }
 
 /**
- * A Host is configured and this browser holds a live approved grant to it that
- * carries `host.connections.write`. A grant that only joins or syncs is live
- * and approved, and still cannot create a connection or write a credential,
- * so it opens none of the connector forms (ADR 0151).
- */
-export function hostRoadOpen(): boolean {
-  return (
-    hostBase() !== "" &&
-    hostLocalSessionEligible() &&
-    hostGrantAllows(HOST_CONNECTIONS_WRITE)
-  );
-}
-
-/**
  * The road a provider's key, configuration or authorize form saves through,
- * or null when none is open. A key or a configuration seals on this device
- * when no Host is open, and through the Host when that road is open.
- * Authorizing can also run on Connect.
+ * or null when none is open. A key or a configuration seals on this device;
+ * authorizing runs on Connect, once Connect holds the provider.
  */
 export function formRoad(
   providerId: string,
   authKind: AuthKind,
 ): FormRoad | null {
-  if (
-    authKind === "oauth2_authorization_code" &&
-    connectRoadSeams.usesConnect(providerId)
-  ) {
-    return "connect";
+  switch (authKind) {
+    case "oauth2_authorization_code":
+      return connectRoadSeams.usesConnect(providerId) ? "connect" : null;
+    case "api_key":
+    case "configuration":
+      return "local";
+    default:
+      return unhandledAuthKind(authKind);
   }
-  if (deviceConfigurable(authKind)) return hostRoadOpen() ? "host" : "local";
-  return hostRoadOpen() ? "host" : null;
+}
+
+/** A new `AuthKind` opens no road until this file says which one it takes. */
+function unhandledAuthKind(kind: never): null {
+  void kind;
+  return null;
 }
 
 /**
@@ -131,6 +126,44 @@ function actsLocally(providerId: string): boolean {
 }
 
 /**
+ * Are the connector pages routed? They are only while Connections is on
+ * (ADR 0153), so a link into one — a tile, a row, an add key — is offered
+ * only then.
+ */
+export function connectorPagesOpen(): boolean {
+  return connectRoadSeams.pagesOpen();
+}
+
+/** A history road has an enable switch of its own (`BackupEnableSwitch`). */
+export function hasHistorySwitch(providerId: string): boolean {
+  return (HISTORY_BACKUP_GROUPS[0]?.providerIds ?? []).includes(providerId);
+}
+
+/**
+ * What a connector's tile offers on this device, or null when it offers
+ * nothing and is not drawn (ADR 0158):
+ *
+ * - **page** — a link to the connector's own page. The pages are routed only
+ *   while Connections is on (ADR 0153), so this is offered only then, and
+ *   only where the page has something to do (`connectorActs`);
+ * - **switch** — no page, but the tile's own enable switch acts: a history
+ *   road can be turned on or off without the Connections section.
+ *
+ * A tile that would link to a page nothing routes is never drawn.
+ */
+export type TileRoad = "page" | "switch";
+
+export function connectorTile(
+  provider: Pick<Provider, "id">,
+  sealedVault: boolean,
+): TileRoad | null {
+  if (connectorPagesOpen()) {
+    return connectorActs(provider, sealedVault) ? "page" : null;
+  }
+  return hasHistorySwitch(provider.id) ? "switch" : null;
+}
+
+/**
  * Does this connector's page have anything a person can do on this device?
  * A tile whose page has nothing to act on is not drawn (ADR 0158): no row
  * that leads to a page that does not configure the thing.
@@ -146,7 +179,6 @@ export function connectorActs(
   return (
     actsLocally(provider.id) ||
     connectRoadSeams.hasConnectRoute(provider.id) ||
-    hostRoadOpen() ||
     (kind !== undefined && deviceConfigurable(kind))
   );
 }

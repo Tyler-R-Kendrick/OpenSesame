@@ -20,6 +20,18 @@ describe("canonicalize", () => {
     expect(canonicalize([2, 1])).not.toBe(canonicalize([1, 2]));
   });
 
+  it("hashes a __proto__ member instead of dropping it", () => {
+    // `JSON.parse` makes it an own property, and assigning it while sorting
+    // would have invoked the prototype setter and lost it.
+    const parsed: BoundaryValue = JSON.parse(
+      '{"b":1,"__proto__":{"x":1},"a":2}',
+    );
+    expect(canonicalize(parsed)).toBe('{"__proto__":{"x":1},"a":2,"b":1}');
+    expect(canonicalize(parsed)).not.toBe(
+      canonicalize(JSON.parse('{"b":1,"a":2}')),
+    );
+  });
+
   it("serializes Date values as ISO strings", () => {
     const when = new Date("2026-08-07T06:00:00.000Z");
     expect(canonicalize({ when })).toBe('{"when":"2026-08-07T06:00:00.000Z"}');

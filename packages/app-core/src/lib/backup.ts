@@ -247,12 +247,6 @@ export function branchForEnvironment(environment: string): string {
   return `env/${slug}`;
 }
 
-export function filterPrivateGithubRepos<T extends { private: boolean }>(
-  rows: T[],
-): T[] {
-  return rows.filter((row) => row.private);
-}
-
 export function filterGithubBackupConnections<
   T extends { providerId: string; status: string },
 >(rows: T[]): T[] {

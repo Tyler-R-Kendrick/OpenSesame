@@ -22,7 +22,7 @@
 //! `post_tool_call` emission is where the organization's secret guard decides
 //! what the executor may read.
 
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -33,6 +33,7 @@ use opensesame_rotation_web::{StepChannel, StepError, StepOutcome, StepRequest};
 use opensesame_storage::Db;
 use serde_json::Value;
 
+use super::control::{ControlGate, Stop};
 use super::records::RecordBuffer;
 use super::RunTiming;
 
@@ -45,6 +46,11 @@ pub(crate) struct RunChannel {
     timing: RunTiming,
     run_deadline: Instant,
     records: Arc<RecordBuffer>,
+    /// The persisted control state, consulted around every dispatch.
+    gate: ControlGate,
+    /// Whether a submit was ever handed to the driver. What a run that stops
+    /// for any reason can truthfully say about the site.
+    submit_sent: AtomicBool,
 }
 
 impl RunChannel {
@@ -56,10 +62,12 @@ impl RunChannel {
         records: Arc<RecordBuffer>,
     ) -> Self {
         Self {
+            gate: ControlGate::new(db.clone(), organization_id.clone(), run_id.clone()),
             db,
             organization_id,
             run_id,
             next_seq: AtomicI64::new(0),
+            submit_sent: AtomicBool::new(false),
             timing,
             run_deadline: Instant::now() + timing.run_deadline,
             records,
@@ -75,7 +83,22 @@ impl RunChannel {
         self.records.flush(&self.db).await
     }
 
+    /// Why the run stopped for a reason that is a person's, not its own — it
+    /// parked at a handoff, or found the page already held.
+    pub(crate) fn stopped(&self) -> Option<Stop> {
+        self.gate.stopped()
+    }
+
+    /// Whether a submit was ever handed to the driver.
+    pub(crate) fn submit_sent(&self) -> bool {
+        self.submit_sent.load(Ordering::SeqCst)
+    }
+
     /// Hand one request to the driver and wait for what it settled.
+    ///
+    /// The persisted control state is consulted first: a run whose page a
+    /// person asked for parks here, at a safe point, and a run whose page a
+    /// person holds sends nothing — in both cases the step is never enqueued.
     pub(crate) async fn dispatch_value(&self, request: &Value) -> Result<Value, StepError> {
         if let Err(error) = self.flush_records().await {
             tracing::error!(%error, run_id = %self.run_id, "hook records could not be written; the run stops");
@@ -84,6 +107,17 @@ impl RunChannel {
         if Instant::now() >= self.run_deadline {
             return Err(StepError::Transport);
         }
+        self.gate.before(request).await?;
+        if request["step"] == super::control::SUBMIT_STEP {
+            self.submit_sent.store(true, Ordering::SeqCst);
+        }
+        let settled = self.exchange(request).await;
+        self.gate.after(request, &settled).await;
+        settled
+    }
+
+    /// Enqueue `request` at the run's next position and wait for its outcome.
+    async fn exchange(&self, request: &Value) -> Result<Value, StepError> {
         let seq = self.next_seq.fetch_add(1, Ordering::SeqCst);
         let enqueued = self
             .db

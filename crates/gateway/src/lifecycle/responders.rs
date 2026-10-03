@@ -14,7 +14,6 @@
 //! connector author never gets to choose which of those they are.
 
 use chrono::Utc;
-use opensesame_agent_events::{AgentEvent, AgentPhase, AgentRun};
 use opensesame_connection_broker::{
     execute_rotation, request_rotation, RotationPolicy, RotationTarget,
 };
@@ -23,33 +22,12 @@ use opensesame_lifecycle::{LifecycleEvent, SubjectKind};
 
 use crate::app_state::AppState;
 
+pub use super::outcome::Outcome;
+
 /// Responder id recorded on an internal hook row and in outcome details.
 pub const ROTATION_RESPONDER: &str = "rotation";
 /// Responder that reissues certificates the host holds the key for.
 pub const CERTIFICATE_RESPONDER: &str = "certificate";
-
-/// What a responder did, so the caller can publish the matching outcome event.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Outcome {
-    pub succeeded: bool,
-    pub detail: String,
-}
-
-impl Outcome {
-    pub(crate) fn ok(detail: impl Into<String>) -> Self {
-        Self {
-            succeeded: true,
-            detail: detail.into(),
-        }
-    }
-
-    pub(crate) fn failed(detail: impl Into<String>) -> Self {
-        Self {
-            succeeded: false,
-            detail: detail.into(),
-        }
-    }
-}
 
 /// The responder that handles a subject kind, if the platform has one.
 ///
@@ -141,10 +119,10 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
 
     let broker = state.connection_broker.as_ref();
     let policy = enabled_policy_for(state, event, &target).await;
-    // A web login is a run its owner's browser drives, hooked end to end; the
-    // runner claims, runs, announces and releases on its own clock (ADR 0150).
+    // A web login run is awaited here, inline. The scanner does not come this
+    // way: `dispatch` starts it as a tracked task (`web_login::start`).
     if let RotationTarget::WebLogin { origin } = &target {
-        let launcher = crate::web_login::WebLoginLauncher::new(state.clone(), None);
+        let launcher = crate::web_login::WebLoginLauncher::from_state(state);
         return launcher
             .rotate(event, origin, &organization_id, policy)
             .await;
@@ -202,83 +180,6 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     outcome
 }
 
-/// How long a person has to pick up a blocked web-login run before it is only
-/// a parked row.
-///
-/// It bounds the notification, not the database: acting inside the window
-/// resumes *this* run, and acting after it starts a fresh one. An escalation
-/// with no clock is one nobody can act on in time, so `crates/agent-events`
-/// makes the deadline a construction requirement rather than a field somebody
-/// remembers to fill in.
-const WEB_LOGIN_RESPONSE_WINDOW_SECONDS: i64 = 3_600;
-
-/// Announce a web-login run's outcome on the `agent.*` feed. A web login is
-/// observed, so its runs are announced there as well as on the lifecycle one:
-/// `lifecycle.*` reports that a deadline was acted on, `agent.*` that a run
-/// needs a person — and it is the second that a phone should ring for.
-///
-/// A failed web-login rotation is not merely a failure: ADR 0076's whole T5
-/// design is that a run which cannot continue parks and asks a person to show
-/// it the way through. So failure maps to `agent.run.blocked` — an escalation
-/// with a deadline — rather than to a notice nobody is expected to answer.
-pub(crate) async fn publish_agent_phase(
-    state: &AppState,
-    event: &LifecycleEvent,
-    owner_subject: Option<String>,
-    job_id: Option<String>,
-    outcome: &Outcome,
-) {
-    // Without an owner there is nobody entitled to observe the run and nobody
-    // to notify (ADR 0081 §8). `upsert_rotation_policy` refuses a web-login
-    // policy with no owner, so reaching here means a policy predating that rule
-    // or an operator-triggered run — either way, saying nothing to nobody beats
-    // addressing a notification at the whole organization.
-    let Some(owner_principal_id) = owner_subject else {
-        tracing::warn!(
-            subject_id = %event.subject.subject_id,
-            "web-login run has no owner; no agent event published",
-        );
-        return;
-    };
-    let now = Utc::now();
-    let run = AgentRun {
-        run_id: job_id.clone().unwrap_or_else(|| "unassigned".into()),
-        job_id: job_id.unwrap_or_default(),
-        organization_id: event.subject.organization_id.clone(),
-        owner_principal_id,
-        origin: event.subject.subject_id.clone(),
-        // Without a runner the ladder never reaches the agentic rung; a run
-        // that did reach it is published by the runner itself.
-        tier: "t3".into(),
-        control_state: if outcome.succeeded {
-            "agent_driving"
-        } else {
-            "suspended"
-        }
-        .into(),
-    };
-    let built = if outcome.succeeded {
-        AgentEvent::reporting(run, AgentPhase::Completed, now, Some(&outcome.detail))
-    } else {
-        AgentEvent::waiting(
-            run,
-            AgentPhase::Blocked,
-            now,
-            now + chrono::Duration::seconds(WEB_LOGIN_RESPONSE_WINDOW_SECONDS),
-            Some(&outcome.detail),
-        )
-    };
-    match built {
-        // ADR 0080's one feed, entered the only way a family may enter it:
-        // as a `SecurityNotice`. Everything a subscriber, the notifier, the
-        // alerter and every sink do with this is already written.
-        Ok(agent_event) => {
-            crate::security::dispatch::publish(state, &agent_event.notice(), now).await;
-        }
-        Err(error) => tracing::warn!(%error, "agent event could not be built"),
-    }
-}
-
 /// Releases the lease taken above.
 ///
 /// Success advances `last_rotated_at` and schedules the next attempt one
@@ -328,7 +229,7 @@ async fn renew_certificate(state: &AppState, event: &LifecycleEvent) -> Outcome 
     crate::transport_lifecycle::renewal::respond(state, event).await
 }
 
-fn rotation_target(event: &LifecycleEvent) -> Option<RotationTarget> {
+pub(crate) fn rotation_target(event: &LifecycleEvent) -> Option<RotationTarget> {
     match event.subject.kind {
         SubjectKind::ConnectionCredential => Some(RotationTarget::Connection {
             connection_id: event.subject.subject_id.clone(),
@@ -347,7 +248,7 @@ fn rotation_target(event: &LifecycleEvent) -> Option<RotationTarget> {
 ///
 /// A rotation can be driven without a policy — an operator-triggered run has
 /// none — so this is a lookup, not a requirement.
-async fn enabled_policy_for(
+pub(crate) async fn enabled_policy_for(
     state: &AppState,
     event: &LifecycleEvent,
     target: &RotationTarget,

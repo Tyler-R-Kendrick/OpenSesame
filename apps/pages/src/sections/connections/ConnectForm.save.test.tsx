@@ -5,10 +5,6 @@ import {
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import {
-  HOST_CONNECTIONS_WRITE,
-  hostGrantSeams,
-} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -19,7 +15,6 @@ import { makeConnection } from "./section-fixtures.test-support.js";
 
 const originalSeams = { ...connectionSeams };
 const originalIdentity = { ...identitySeams };
-const originalGrant = { ...hostGrantSeams };
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -41,14 +36,17 @@ function provider(id: string): Provider {
   return found;
 }
 
-/** A Host is named and this browser holds an approved grant to it. */
-function openHostRoad() {
+/** A Host is named and this browser holds a live grant to it: it opens nothing. */
+function nameAHostWithALiveGrant() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
-  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
-const refusal = new ConnectionsError(403, "refused", "Host said no.");
+const refusal = new ConnectionsError(
+  0,
+  "unavailable",
+  "Nothing could be sealed.",
+);
 
 beforeEach(() => {
   vi.stubGlobal("localStorage", memoryStorage());
@@ -60,7 +58,6 @@ afterEach(() => {
   clearNotices();
   Object.assign(connectionSeams, originalSeams);
   Object.assign(identitySeams, originalIdentity);
-  Object.assign(hostGrantSeams, originalGrant);
   vi.unstubAllGlobals();
 });
 
@@ -89,7 +86,7 @@ async function fillBetterAuth() {
   );
 }
 
-describe("a configuration form with no road open", () => {
+describe("a configuration form", () => {
   it("is drawn on this device", () => {
     const { onFlash } = drawBetterAuth();
     expect(
@@ -99,8 +96,8 @@ describe("a configuration form with no road open", () => {
     expect(onFlash).not.toHaveBeenCalled();
   });
 
-  it("is drawn once a Host is open", () => {
-    openHostRoad();
+  it("is drawn the same with a Host named: it still saves on this device", () => {
+    nameAHostWithALiveGrant();
     drawBetterAuth();
     expect(
       screen.getByRole("button", { name: /Save configuration/ }),
@@ -109,8 +106,6 @@ describe("a configuration form with no road open", () => {
 });
 
 describe("a configuration save that fails", () => {
-  beforeEach(openHostRoad);
-
   it("keeps everything the person typed", async () => {
     const create = vi.fn().mockRejectedValue(refusal);
     connectionSeams.createConnection = create;
@@ -138,7 +133,9 @@ describe("a configuration save that fails", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Save configuration/ }),
     );
-    const mark = await screen.findByRole("img", { name: "Host said no." });
+    const mark = await screen.findByRole("img", {
+      name: "Nothing could be sealed.",
+    });
     expect(mark.closest(".go-row")).not.toBeNull();
   });
 
@@ -155,7 +152,7 @@ describe("a configuration save that fails", () => {
           id: "connector:better-auth",
           tone: "err",
           title: "Better Auth",
-          body: "Host said no.",
+          body: "Nothing could be sealed.",
         },
       ]),
     );
@@ -173,7 +170,7 @@ describe("a configuration save that fails", () => {
     await fillBetterAuth();
     const save = screen.getByRole("button", { name: /Save configuration/ });
     await userEvent.click(save);
-    await screen.findByRole("img", { name: "Host said no." });
+    await screen.findByRole("img", { name: "Nothing could be sealed." });
     // The page is not asked to reload: it would swap this form for the
     // half-made connection's card and take the typed values with it.
     expect(onConnected).not.toHaveBeenCalled();
@@ -181,7 +178,9 @@ describe("a configuration save that fails", () => {
     await waitFor(() => expect(onConnected).toHaveBeenCalledTimes(1));
     expect(create).toHaveBeenCalledTimes(1);
     expect(connectionSeams.setConnectionConfiguration).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole("img", { name: "Host said no." })).toBeNull();
+    expect(
+      screen.queryByRole("img", { name: "Nothing could be sealed." }),
+    ).toBeNull();
     expect(listNotices()).toEqual([]);
     expect(onFlash).toHaveBeenCalledWith({
       tone: "ok",
@@ -196,8 +195,6 @@ describe("a configuration save that fails", () => {
 });
 
 describe("an API key save that fails", () => {
-  beforeEach(openHostRoad);
-
   it("keeps the key the person pasted and says why beside the key", async () => {
     const created = makeConnection({ providerId: "lithic" });
     connectionSeams.createConnection = vi.fn().mockResolvedValue(created);
@@ -217,7 +214,7 @@ describe("an API key save that fails", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Connect Lithic/ }),
     );
-    await screen.findByRole("img", { name: "Host said no." });
+    await screen.findByRole("img", { name: "Nothing could be sealed." });
     expect(screen.getByLabelText("API key")).toHaveProperty(
       "value",
       "lk_secret",
@@ -227,7 +224,6 @@ describe("an API key save that fails", () => {
 
   it("is drawn on this device with no road open", () => {
     Object.assign(identitySeams, originalIdentity);
-    Object.assign(hostGrantSeams, originalGrant);
     render(
       <ConnectForm
         provider={provider("lithic")}

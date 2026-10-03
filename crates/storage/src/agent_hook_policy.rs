@@ -1,4 +1,4 @@
-//! One agent-hooks policy per organization (ADR 0150).
+//! One agent-hooks policy per organization (ADR 0159).
 //!
 //! The row holds the policy document `opensesame-agent-hooks` parses, already
 //! in canonical form; this module never interprets it. What it owns is the
@@ -9,6 +9,13 @@
 //! row, so a policy change is never in force without its record.
 
 use super::{append_outbox_tx, Db, Row, Utc};
+
+/// Who an organization's escalated actions are put to, beside the policy
+/// (migration 0055).
+pub mod approver;
+
+/// The audit of every verdict answered under a policy (migration 0052).
+pub mod decisions;
 
 /// The stored policy of one organization.
 #[derive(Clone, Debug, PartialEq, Eq)]

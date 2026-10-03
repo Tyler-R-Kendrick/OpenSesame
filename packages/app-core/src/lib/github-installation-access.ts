@@ -14,7 +14,6 @@ import {
   type Integration,
   listIntegrations,
 } from "./connections.js";
-import { type GithubRepoSummary, listGithubRepos } from "./github-history.js";
 import { isGuestSession } from "./guest-isolation.js";
 import {
   type LocalAccessAuditEvent,
@@ -35,7 +34,6 @@ export const GITHUB_ACCESS_POLICY = "invoke";
 export type GithubInstallationSnapshot = {
   integrations: Integration[];
   installations: GithubInstallation[];
-  repos: GithubRepoSummary[];
   shares: LocalShare[];
   /** The vault owner the standing grant is for; null when there is none. */
   ownerId: string | null;
@@ -88,13 +86,12 @@ async function ownerPersonId(tomb: string): Promise<{
 export const EMPTY_GITHUB_SNAPSHOT: GithubInstallationSnapshot = {
   integrations: [],
   installations: [],
-  repos: [],
   shares: [],
   ownerId: null,
   auditEvents: [],
 };
 
-/** Load install identity, repos (when a connection is active), Access grants and their audit trail. */
+/** Load install identity, Access grants and their audit trail. */
 export async function loadGithubInstallationSnapshot(
   tomb: string,
   connection: Connection | null,
@@ -109,17 +106,12 @@ export async function loadGithubInstallationSnapshot(
     const rows = await listGithubInstallations(integration.id).catch(() => []);
     installations.push(...rows);
   }
-  const repos =
-    connection?.status === "active"
-      ? await listGithubRepos(connection.connectionId).catch(() => [])
-      : [];
   const shares = githubShares(await listLocalShares(tomb));
   const owner = await ownerPersonId(tomb);
   const auditEvents = await listAccessAuditEvents(tomb).catch(() => []);
   return {
     integrations,
     installations,
-    repos,
     shares,
     ownerId: owner?.id ?? null,
     auditEvents,

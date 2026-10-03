@@ -26,7 +26,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const roads = useConnectorRoads();
   const keybindings = useFinePointer();
   const emptyFeatures = FEATURES.filter(
-    (feature) => !featureDraws(feature, roads.acts),
+    (feature) => !featureDraws(feature, roads.tile),
   ).map((feature) => feature.id);
   const contributed = useMemo(
     () =>

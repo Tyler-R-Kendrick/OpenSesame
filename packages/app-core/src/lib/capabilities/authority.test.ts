@@ -29,7 +29,7 @@ const OPTIONAL_OP = "pages.items.passkey.create";
 
 beforeEach(freshRealm);
 
-function deferred(): { promise: Promise<void>; resolve: () => void } {
+function deferred() {
   let resolve!: () => void;
   const promise = new Promise<void>((r) => {
     resolve = r;

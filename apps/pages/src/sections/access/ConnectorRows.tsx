@@ -15,6 +15,7 @@ import {
   policyLabel,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import { Link } from "react-router";
+import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import {
   IconCheck,
   IconConnection,
@@ -166,6 +167,7 @@ function RowActions({
   onOpenBind: () => void;
   onOpenSettings: () => void;
 }) {
+  const { pages } = useConnectorRoads();
   // A grant on a connector this device does not list can only be revoked:
   // there is nothing here to bind it to or configure.
   if (row.source === "unlisted") return null;
@@ -192,7 +194,7 @@ function RowActions({
       >
         <IconSettings size={16} />
       </button>
-      {row.href ? (
+      {row.href && pages ? (
         <Link
           className="icon-btn icon-btn--sm"
           to={row.href}

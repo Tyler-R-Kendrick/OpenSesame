@@ -15,9 +15,9 @@
  *    open, authorize, revoke).
  *  - `@vercel/connect` SDK (`startAuthorization`, `getConnectorMetadata`,
  *    `revokeToken`) — user-initiated; exclusive to this chunk.
- *  - Host API `/api/v1/connections*`, `/api/v1/providers*` via `hostFetch`
- *    (`lib/connections.ts`) — automatic on page open when a Host is
- *    configured.
+ *  - No Host: Pages speaks none (ADR 0128), so a connection is made by
+ *    Connect or sealed on this device, and a call no road can take is
+ *    refused, never sent (`lib/connections.ts`, ADR 0151).
  *  - Nango-compatible directory: the two listing routes only
  *    (`lib/nango-directory.ts`) — user-initiated Sync.
  *  - A consent popup (`window.open`) to the provider's authorization URL —
@@ -200,6 +200,8 @@ export const capabilityRuntime: CapabilityRuntime = {
     // unlock effect seals it — nothing here writes, fetches or ceremonies.
     connectRoadSeams.usesConnect = usesConnect;
     connectRoadSeams.hasConnectRoute = hasConnectRoute;
+    // The connector pages are routed above; tiles link to them only now.
+    connectRoadSeams.pagesOpen = () => true;
     connectorMarkLookup.find = connectorMark;
     notifyConnectRoads();
     activation.onDispose(() => {

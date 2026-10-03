@@ -14,12 +14,7 @@ import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
-import {
-  IconChevronRight,
-  IconInfo,
-  IconPlus,
-  IconX,
-} from "../../components/Icons.js";
+import { IconChevronRight, IconInfo, IconX } from "../../components/Icons.js";
 import {
   SlashSearchField,
   SlashSearchKey,
@@ -55,7 +50,6 @@ export function CatalogPanel({
   const searchKeyRef = useGuideTarget<HTMLButtonElement>(
     "connections.provider-picker",
   );
-  const customRef = useGuideTarget<HTMLAnchorElement>("connections.custom");
   const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
   const catalogProviders = (providers ?? []).filter(
     isConnectionCatalogProvider,
@@ -78,15 +72,6 @@ export function CatalogPanel({
               label="Search connectors"
             />
           </div>
-          <Link
-            ref={customRef}
-            className="icon-btn"
-            to="/connections/new"
-            aria-label="Custom connector"
-            title="Custom connector"
-          >
-            <IconPlus size={16} />
-          </Link>
         </div>
       </div>
 
