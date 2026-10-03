@@ -72,7 +72,7 @@ import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
 import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import {
-  probePasskeyPrf,
+  probePasskeyCeremony,
   unlockVaultWithHeldPrf,
   unlockVaultWithPasskey,
   wrapVaultKeyWithCeremony,
@@ -742,8 +742,10 @@ export class VaultStore {
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
-  async probePasskeyPrf(signal?: AbortSignal): Promise<ArrayBuffer> {
-    return probePasskeyPrf(this.#passkeyUnlockHost(), signal);
+  async probePasskeyCeremony(
+    options?: Parameters<typeof probePasskeyCeremony>[1],
+  ) {
+    return probePasskeyCeremony(this.#passkeyUnlockHost(), options);
   }
 
   async unlockWithHeldPrf(prfOutput: ArrayBuffer): Promise<void> {
@@ -766,13 +768,9 @@ export class VaultStore {
 
   async unlockWithHeldProtectorRoot(
     root: ArrayBuffer,
-    input: Pick<ProtectorUnlockInput, "method">,
+    { method }: Pick<ProtectorUnlockInput, "method">,
   ): Promise<void> {
-    await unlockVaultWithHeldRoot(
-      this.#passkeyUnlockHost(),
-      root,
-      input.method,
-    );
+    await unlockVaultWithHeldRoot(this.#passkeyUnlockHost(), root, method);
   }
 
   #passkeyUnlockHost() {

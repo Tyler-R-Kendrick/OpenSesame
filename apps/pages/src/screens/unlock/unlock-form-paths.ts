@@ -1,4 +1,8 @@
 import { resumeGuestSession } from "@opensesame/app-core/lib/guest-auth.js";
+import type {
+  PasskeyProbe,
+  PasskeyProbeOptions,
+} from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
 import {
   type UnlockTabId,
   isProtectorUnlockMethod,
@@ -25,7 +29,9 @@ type UnlockStore = Readonly<{
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
   unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-  probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
+  probePasskeyCeremony: (
+    options?: PasskeyProbeOptions,
+  ) => Promise<PasskeyProbe>;
   unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;

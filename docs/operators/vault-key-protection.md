@@ -43,6 +43,21 @@ chooses which tab the screen opens on, among everything that opens the vault. A
 recovery key, age key or age passkey can open the vault but never stands in for
 the last password, PIN or passkey wrap, which Unlock methods keeps.
 
+What authenticates a record before the vault is open differs by kind. A recovery
+key and a passkey capsule are AES-GCM under a key only your material derives, so
+nobody without it can make one. An age recipient and an age passkey are public-key
+encryption with a public context, so anyone who can write the header can seal a
+capsule around a root of their choosing; what refuses it is the root itself,
+which must verify the manifest's MAC and then open the vault's own body. What
+protects the header from someone with write access to the device's storage is the
+at-rest seal (ADR 0149). The worst such a person can do to the unlock screen is
+deny a way in, never open the vault.
+
+With a two-input duress trigger that includes a passkey's PRF output (`prf_and_code`)
+armed, the roads that cannot carry that output are not offered: the Age passkey
+tab is absent, and the Passkey tab offers only the credential the trigger is bound
+to. Password, PIN and a typed recovery or age key are unaffected.
+
 YubiKey PIV, Azure Key Vault Keys and a device-local key are **not** enrolled in
 the browser (ADR 0152); the native client keeps them.
 

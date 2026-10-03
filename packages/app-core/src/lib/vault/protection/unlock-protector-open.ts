@@ -28,6 +28,7 @@ import {
   openAgeWebauthn,
 } from "./adapters/age-webauthn.js";
 import { ProtectionError } from "./errors.js";
+import { verifyManifestAuth } from "./manifest-auth.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import {
   type ProtectorUnlockMethodId,
@@ -83,6 +84,58 @@ export function isUncountedProtectorFailure<Thrown>(error: Thrown): boolean {
   );
 }
 
+/**
+ * Whether the opened root is the one the manifest was authenticated under. The
+ * MAC is root-derived, so only the real root verifies it: this is the root
+ * commitment that an age capsule, which anyone can seal, does not carry itself.
+ */
+async function rootVerifiesManifest(
+  root: Uint8Array,
+  manifest: RootProtectionManifest,
+): Promise<boolean> {
+  try {
+    await verifyManifestAuth(root, manifest);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function abortError(): DOMException {
+  return new DOMException("The operation was aborted.", "AbortError");
+}
+
+/**
+ * Settle with the work, or as soon as the signal aborts, whichever is first.
+ * The age library's WebAuthn calls take no signal, so the prompt itself stays
+ * up until the next ceremony replaces it; waiting on it would hold the screen.
+ * A root that arrives after the abort is zeroed and spent nowhere.
+ */
+function untilAborted(
+  work: Promise<Uint8Array>,
+  signal: AbortSignal | undefined,
+): Promise<Uint8Array> {
+  if (!signal) return work;
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (root) => {
+        signal.removeEventListener("abort", onAbort);
+        if (signal.aborted) {
+          root.fill(0);
+          reject(abortError());
+        } else resolve(root);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+    if (signal.aborted) onAbort();
+  });
+}
+
 type Opener = (
   record: ProtectionRecord,
   context: ProtectionContext,
@@ -121,21 +174,30 @@ export async function openRootWithProtector(
   const open = openerFor(input);
   for (const record of records) {
     if (!manifest) break;
-    if (input.signal?.aborted) {
-      throw new DOMException("The operation was aborted.", "AbortError");
-    }
+    if (input.signal?.aborted) throw abortError();
     try {
-      const root = await open(record, contextFor(manifest, record));
-      if (input.signal?.aborted) {
-        // The person left this tab while the prompt was up: spend nothing.
+      const root = await untilAborted(
+        open(record, contextFor(manifest, record)),
+        input.signal,
+      );
+      if (await rootVerifiesManifest(root, manifest)) {
+        if (!input.signal?.aborted) return root;
         root.fill(0);
-        throw new DOMException("The operation was aborted.", "AbortError");
+        throw abortError();
       }
-      return root;
+      // An age capsule is public-key encryption with a public context: anyone
+      // who can write the header can seal one to a root of their choosing. A
+      // root the manifest's MAC does not verify under is not this vault's.
+      root.fill(0);
     } catch (error) {
+      // Whatever ended after the person left this tab is theirs, not a guess:
+      // the age library cannot cancel its WebAuthn prompt, so a failure that
+      // lands late must not be counted against the lockout.
+      if (input.signal?.aborted) throw abortError();
       if (isUncountedProtectorFailure(error)) throw error;
       // This capsule is not the one the material opens; try the next.
     }
   }
+  if (input.signal?.aborted) throw abortError();
   throw new WrongPasswordError(protectorUnlockMiss(input.method));
 }

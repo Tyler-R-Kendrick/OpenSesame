@@ -19,6 +19,7 @@ import {
 } from "./protection/adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./protection/adapters/webauthn-prf-ops.js";
 import { ProtectionError } from "./protection/errors.js";
+import { sealAuthenticatedManifest } from "./protection/manifest-auth.js";
 import {
   HEADER_KEY,
   PASSWORD,
@@ -93,6 +94,10 @@ async function fixture(): Promise<Fixture> {
         purpose: m.purpose,
       };
       m.records.push(await make(context, root));
+      // Enrolled as the service would: the manifest is re-authenticated under
+      // the root, which is what the unlock path checks the opened root against.
+      const { authB64: _stale, ...body } = m;
+      header.protection = await sealAuthenticatedManifest(root, body);
       kvSet(HEADER_KEY, JSON.stringify(header));
     },
   };
@@ -160,6 +165,74 @@ describe("unlock with an enrolled age passkey", () => {
     expect(locked.getSnapshot().status).toBe("locked");
     await locked.unlockWithHeldProtectorRoot(root, { method: "agePasskey" });
     expect(locked.getSnapshot().status).toBe("unlocked");
+  });
+
+  describe("when the person leaves the tab while the prompt is up", () => {
+    /** The age library takes no signal: the prompt can only answer, late. */
+    function lateAnswer(
+      outcome: "fails" | "succeeds" | "never",
+      controller: AbortController,
+    ): AgeWebauthnCrypto {
+      const real = fakeAgePasskey();
+      return {
+        ...real,
+        decrypt: (ciphertext, identity) =>
+          outcome === "never"
+            ? new Promise<Uint8Array>(() => undefined)
+            : new Promise<Uint8Array>((resolve, reject) => {
+                controller.signal.addEventListener("abort", () => {
+                  setTimeout(() => {
+                    if (outcome === "fails") reject(new Error("late failure"));
+                    else resolve(real.decrypt(ciphertext, identity));
+                  }, 0);
+                });
+              }),
+      };
+    }
+
+    it("does not count a failure that lands after the abort", async () => {
+      const f = await withAgePasskey();
+      const locked = f.locked();
+      const controller = new AbortController();
+      const pending = locked.unlockWithProtector({
+        method: "agePasskey",
+        signal: controller.signal,
+        ageWebauthnCrypto: lateAnswer("fails", controller),
+      });
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(locked.getSnapshot().failedAttempts).toBe(0);
+      expect(locked.getSnapshot().status).toBe("locked");
+    });
+
+    it("spends no root the prompt answers after the abort", async () => {
+      const f = await withAgePasskey();
+      const locked = f.locked();
+      const controller = new AbortController();
+      const pending = locked.probeProtector({
+        method: "agePasskey",
+        signal: controller.signal,
+        ageWebauthnCrypto: lateAnswer("succeeds", controller),
+      });
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(locked.getSnapshot().failedAttempts).toBe(0);
+      expect(locked.getSnapshot().status).toBe("locked");
+    });
+
+    it("stops waiting for a prompt that never answers", async () => {
+      const f = await withAgePasskey();
+      const locked = f.locked();
+      const controller = new AbortController();
+      const pending = locked.unlockWithProtector({
+        method: "agePasskey",
+        signal: controller.signal,
+        ageWebauthnCrypto: lateAnswer("never", controller),
+      });
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(locked.getSnapshot().failedAttempts).toBe(0);
+    });
   });
 
   it("counts a held root of the wrong size and opens nothing", async () => {

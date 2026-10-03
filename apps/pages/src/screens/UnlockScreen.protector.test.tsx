@@ -244,6 +244,20 @@ describe("UnlockScreen — recovery key", () => {
     expect(field("Recovery key").type).toBe("password");
   });
 
+  it("hides a revealed password when the person moves to a key tab", () => {
+    lockedWith("recovery", "age");
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(field("Password").type).toBe("text");
+    fireEvent.click(screen.getByRole("tab", { name: "Recovery key" }));
+    expect(field("Recovery key").type).toBe("password");
+    fireEvent.click(screen.getByRole("button", { name: "Show recovery key" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Age key" }));
+    expect(field("Age key").type).toBe("password");
+    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
+    expect(field("Password").type).toBe("password");
+  });
+
   it("drops what was typed when the person moves to another tab", () => {
     lockedWith("recovery", "age");
     render(<UnlockScreen />);

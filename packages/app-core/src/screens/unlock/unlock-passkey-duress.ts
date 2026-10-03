@@ -6,7 +6,11 @@
  * complete code before any protected-root unwrap.
  */
 
-import { type VaultHeader, WrongPasswordError } from "@opensesame/vault-core";
+import { WrongPasswordError } from "@opensesame/vault-core";
+import type {
+  PasskeyProbe,
+  PasskeyProbeOptions,
+} from "../../lib/vault/passkey-unlock-session.js";
 import type { ProtectorUnlockInput } from "../../lib/vault/protection/unlock-protector-open.js";
 import { maybePage } from "../../ports.js";
 import {
@@ -24,6 +28,8 @@ import {
   resolveRequireDurable,
 } from "./unlock-duress-refuse.js";
 import {
+  type PasskeyDuressEvidence,
+  clearHeldProtectorRoot,
   clearPasskeyDuressEvidence,
   hasHeldProtectorRoot,
   holdProtectorRoot,
@@ -32,6 +38,10 @@ import {
   takePasskeyDuressEvidence,
   toSelectOptions,
 } from "./unlock-passkey-evidence.js";
+import {
+  credentialsCarryingArmedPrf,
+  evidenceCarriesArmedPrf,
+} from "./unlock-prf-trigger.js";
 
 export type PasskeyUnlockResult =
   | "vault_opened"
@@ -41,14 +51,14 @@ export type PasskeyUnlockResult =
 type PasskeyUnlockStore = DuressContinueStore &
   Readonly<{
     unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-    probePasskeyPrf: (signal?: AbortSignal) => Promise<ArrayBuffer>;
+    probePasskeyCeremony: (
+      options?: PasskeyProbeOptions,
+    ) => Promise<PasskeyProbe>;
     unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
     unlockWithHeldProtectorRoot?: (
       root: ArrayBuffer,
       input: Pick<ProtectorUnlockInput, "method">,
     ) => Promise<void>;
-    /** The unlocking vault's header: names the passkey the PRF output came from. */
-    getSnapshot?: () => Readonly<{ header: VaultHeader | null }>;
   }>;
 
 export function armedTwoInputTrigger(): boolean {
@@ -70,18 +80,32 @@ export async function unlockWithPasskeyAfterDuressGate(
     return "vault_opened";
   }
 
-  const prfOutput = await store.probePasskeyPrf(signal);
-  // The ceremony asks for the header's own passkey, so its credential id is
-  // the one a prf_and_code trigger's binding is checked against.
-  const passkey = store.getSnapshot?.().header?.unlocks?.passkey;
-  stashPasskeyDuressEvidence(
-    toSelectOptions({
-      userVerified: true,
-      prfOutput: new Uint8Array(prfOutput),
-      origin: maybePage()?.location.origin,
-      credentialIdB64: passkey?.credentialIdB64,
-    }),
-  );
+  // An armed prf_and_code trigger is bound to one credential: only that one is
+  // offered, since another credential's PRF output cannot carry it.
+  const only = credentialsCarryingArmedPrf();
+  const probe = await store.probePasskeyCeremony({
+    signal,
+    onlyCredentialIds: only ?? undefined,
+  });
+  const prfOutput = new Uint8Array(probe.prfOutput);
+  try {
+    if (only && !only.includes(probe.credentialIdB64)) {
+      throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+    }
+    // The credential that answered, not the header's first: it is the one a
+    // prf_and_code trigger's binding is checked against.
+    stashPasskeyDuressEvidence(
+      toSelectOptions({
+        userVerified: true,
+        prfOutput,
+        origin: maybePage()?.location.origin,
+        credentialIdB64: probe.credentialIdB64,
+      }),
+    );
+  } finally {
+    // The stash holds its own copy.
+    prfOutput.fill(0);
+  }
   return "needs_duress_code";
 }
 
@@ -115,28 +139,14 @@ export async function completePasskeyDuressCode(
   }
 
   if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
-    if (!select.prfOutput) {
-      // An age-passkey tap carries no PRF output: it holds the root it opened.
-      const root = takeHeldProtectorRoot();
-      if (!root || !store.unlockWithHeldProtectorRoot) {
-        throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
-      }
-      try {
-        await store.unlockWithHeldProtectorRoot(root.root, root);
-      } catch (error) {
-        holdProtectorRoot(root.root, root.method);
-        stashPasskeyDuressEvidence(select);
-        throw error;
-      }
-      new Uint8Array(root.root).fill(0);
-      return "vault_opened";
+    if (!evidenceCarriesArmedPrf(select)) {
+      // A typed code that no trigger could be tried against is not an ordinary
+      // code: opening the vault here would ignore a duress code silently.
+      select.prfOutput?.fill(0);
+      clearHeldProtectorRoot();
+      throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
     }
-    const held = select.prfOutput.buffer.slice(
-      select.prfOutput.byteOffset,
-      select.prfOutput.byteOffset + select.prfOutput.byteLength,
-    );
-    await store.unlockWithHeldPrf(held);
-    select.prfOutput.fill(0);
+    await spendHeld(store, select);
     return "vault_opened";
   }
 
@@ -144,6 +154,37 @@ export async function completePasskeyDuressCode(
     stashPasskeyDuressEvidence(select);
   }
   throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+}
+
+/** The code was no duress code: spend what the ceremony held. */
+async function spendHeld(
+  store: PasskeyUnlockStore,
+  select: PasskeyDuressEvidence,
+): Promise<void> {
+  if (!select.prfOutput) {
+    // An age-passkey tap carries no PRF output: it holds the root it opened.
+    const root = takeHeldProtectorRoot();
+    if (!root || !store.unlockWithHeldProtectorRoot) {
+      // A root that cannot be spent is not kept: zero it before refusing.
+      if (root) new Uint8Array(root.root).fill(0);
+      throw new WrongPasswordError(UNLOCK_PASSKEY_MISS);
+    }
+    try {
+      await store.unlockWithHeldProtectorRoot(root.root, root);
+    } catch (error) {
+      holdProtectorRoot(root.root, root.method);
+      stashPasskeyDuressEvidence(select);
+      throw error;
+    }
+    new Uint8Array(root.root).fill(0);
+    return;
+  }
+  const held = select.prfOutput.buffer.slice(
+    select.prfOutput.byteOffset,
+    select.prfOutput.byteOffset + select.prfOutput.byteLength,
+  );
+  await store.unlockWithHeldPrf(held);
+  select.prfOutput.fill(0);
 }
 
 export function cancelPasskeyDuressCode(): void {

@@ -8,20 +8,15 @@ import type { FederatedProviderSummary } from "@opensesame/app-core/lib/provider
 import { noWayIn } from "@opensesame/app-core/lib/settings.js";
 import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
 import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
-import {
-  type UnlockTabId,
-  listProtectorUnlockTabs,
-} from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
+import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
 import {
   MIN_PIN_LENGTH,
   type SecondStepId,
   checkWebauthnHost,
-  listAvailableUnlockMethods,
   listSecondSteps,
   pinPolicyProblems,
-  preferredUnlockMethod,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   type DeviceVault,
@@ -29,15 +24,7 @@ import {
   listDeviceVaults,
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
-import { cancelPasskeyDuressCode } from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
@@ -61,6 +48,7 @@ import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
+import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
@@ -79,7 +67,12 @@ import {
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
 import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
+import {
+  fallbackUnlockMethod,
+  unlockMethodTabs,
+} from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
+import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -209,28 +202,10 @@ function UnlockForm({
   // Not "no identity service" (ADR 0078) — the narrower and truer claim: setup left no way in.
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
 
-  const methods = useMemo<UnlockTabId[]>(() => {
-    // A returning vault offers exactly the challenges it enrolled. The screen
-    // used to show all three whatever the vault had, on the theory that which
-    // ones exist is the person's own knowledge — but the header on disk is
-    // plaintext and already says so, so hiding it protected nothing and cost
-    // the person their own configuration: a PIN tab for a vault with no PIN,
-    // and no sign of the authenticator code they set up.
-    // Beside them, the manifest's protectors that open the vault from material
-    // nothing sealed inside it holds (ADR 0152): the header is plaintext and
-    // says which are enrolled, so exactly those are drawn.
-    if (!firstRun) {
-      const own: UnlockTabId[] = listAvailableUnlockMethods(header);
-      return [
-        ...own,
-        ...listProtectorUnlockTabs(header).filter((tab) => !own.includes(tab)),
-      ];
-    }
-    const available: UnlockTabId[] = [];
-    if (passkeyHost.ok) available.push("passkey");
-    available.push("pin", "password");
-    return available;
-  }, [firstRun, header, passkeyHost.ok]);
+  const methods = useMemo<UnlockTabId[]>(
+    () => unlockMethodTabs({ firstRun, header, passkeyOk: passkeyHost.ok }),
+    [firstRun, header, passkeyHost.ok],
+  );
   // A guest tomb that enrolled no key at all: guest entry itself is the road
   // in, and the commit says so rather than pretending to unlock something.
   const guestKeyless = guestUnlock && methods.length === 0;
@@ -247,11 +222,12 @@ function UnlockForm({
   const [method, setMethod] = useState<UnlockTabId | null>(null);
   const [awaitingPasskeyDuressCode, setAwaitingPasskeyDuressCode] =
     useState(false);
-  const fallbackMethod: UnlockTabId = firstRun
-    ? passkeyHost.ok
-      ? "passkey"
-      : "password"
-    : (preferredUnlockMethod(header) ?? "password");
+  const fallbackMethod = fallbackUnlockMethod({
+    firstRun,
+    header,
+    passkeyOk: passkeyHost.ok,
+    methods,
+  });
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
   const showMethodTabs =
@@ -301,23 +277,14 @@ function UnlockForm({
   const acceptRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const passkeyAbort = useRef<AbortController | null>(null);
-
-  // Switching methods (or leaving the passkey tab) must cancel any pending
-  // platform prompt — a blocking WebAuthn request must never hold the other
-  // unlock modes hostage.
-  const cancelPasskeyCeremony = useCallback(() => {
-    if (passkeyAbort.current) {
-      passkeyAbort.current.abort();
-      passkeyAbort.current = null;
-    }
-    cancelPasskeyDuressCode();
-    setAwaitingPasskeyDuressCode(false);
-    setBusy(false);
-  }, []);
+  const { passkeyAbort, cancelPasskeyCeremony } = usePasskeyCeremony(
+    setAwaitingPasskeyDuressCode,
+    setBusy,
+  );
 
   const formGated = lockedFor > 0;
-  useUnlockFormFocus({
+  const pendingFocus = useUnlockFormFocus({
+    busy,
     signInStage,
     showSignIn,
     formGated,
@@ -407,6 +374,7 @@ function UnlockForm({
       passwordRef,
       protectorRef,
       totpRef,
+      pendingFocus,
     });
   }
 
@@ -600,6 +568,7 @@ function UnlockForm({
                       setError(null);
                       setConfirm("");
                       setProtectorSecret("");
+                      setReveal(false); // one toggle serves every field
                     }}
                   >
                     {isCeremonyMethod(id) ? (
@@ -665,31 +634,7 @@ function UnlockForm({
             {(firstRun || !awaitingSecondStep) &&
             isCeremonyMethod(activeMethod) &&
             !passkeyHost.ok ? (
-              <output className="note note--warn">
-                <span>
-                  {passkeyHost.reason}
-                  {passkeyHost.fixUrl ? (
-                    <>
-                      {" "}
-                      {/* A button, same as the Settings twin's healPasskeyHost
-                          — the unlock screen was the one auth surface still
-                          repairing its environment through a raw anchor. */}
-                      <button
-                        type="button"
-                        className="unlock__switch"
-                        onClick={() =>
-                          window.location.assign(passkeyHost.fixUrl ?? "")
-                        }
-                      >
-                        Continue on localhost
-                      </button>{" "}
-                      (same vault data), then unlock with passkey.
-                    </>
-                  ) : (
-                    <> Open this app on a DNS hostname, then try again.</>
-                  )}
-                </span>
-              </output>
+              <PasskeyHostNote host={passkeyHost} />
             ) : null}
 
             {showsPinField ? (
