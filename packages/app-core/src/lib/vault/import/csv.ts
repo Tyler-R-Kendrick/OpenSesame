@@ -157,7 +157,7 @@ export function readHeaderRow(input: string): string[] | null {
 export function pick(row: CsvRow, ...names: string[]): string {
   for (const name of names) {
     const value = row[name];
-    if (typeof value === "string" && value.trim() !== "") return value;
+    if (value !== undefined && value.trim() !== "") return value;
   }
   return "";
 }

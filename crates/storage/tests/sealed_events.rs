@@ -134,7 +134,9 @@ async fn a_runner_step_rests_sealed_and_settles() {
         .expect("a pending step is claimable");
     assert_eq!(claimed.request_json, request);
 
-    let outcome = format!(r#"{{"result":"{SENTINEL}"}}"#);
+    // A stored outcome always carries its string `outcome` tag (the store refuses
+    // one that does not); the sentinel rides in another member.
+    let outcome = format!(r#"{{"outcome":"done","result":"{SENTINEL}"}}"#);
     assert!(db
         .settle_runner_step(
             "org-1",
@@ -157,7 +159,7 @@ async fn a_runner_step_rests_sealed_and_settles() {
 
     // The executor's rewrite of the settled outcome is the third writer of the
     // column: it must seal too.
-    let accepted = format!(r#"{{"accepted":"{SENTINEL}"}}"#);
+    let accepted = format!(r#"{{"outcome":"done","accepted":"{SENTINEL}"}}"#);
     assert!(db
         .replace_settled_runner_step_outcome("org-1", "run-1", 1, &accepted)
         .await

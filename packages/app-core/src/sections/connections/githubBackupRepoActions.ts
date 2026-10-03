@@ -8,7 +8,6 @@ import {
   type AppInstallAccount,
   createGithubAppRepo,
 } from "../../lib/github-app-repos.js";
-import { createGithubPasswordRepo } from "../../lib/github-history.js";
 import {
   type RepoChoice,
   mergeChoiceRows,
@@ -36,20 +35,7 @@ export async function createUnder(
       accountType: created.accountType,
     };
   }
-  if (connection.connectionId === "local-github-app") {
-    throw new Error("That account has no GitHub App installation.");
-  }
-  const created = await createGithubPasswordRepo(connection.connectionId, {
-    name,
-    private: true,
-  });
-  const owner = created.fullName.split("/")[0] ?? account.accountLogin;
-  return {
-    fullName: created.fullName,
-    installationId: "",
-    accountLogin: owner,
-    accountType: account.accountType,
-  };
+  throw new Error("That account has no GitHub App installation.");
 }
 
 function bindPayload(

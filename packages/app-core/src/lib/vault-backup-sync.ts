@@ -378,15 +378,15 @@ export async function syncVaultBackup(
   }
   const enabled = listLocalBackupTargets().filter((row) => row.enabled);
   let last: LocalBackupTarget | null = null;
-  let firstError: unknown = null;
+  let failure: { error: unknown } | null = null;
   for (const target of enabled) {
     try {
       last = await syncOneTarget(target);
     } catch (caught) {
-      firstError ??= caught;
+      failure ??= { error: caught };
     }
   }
-  if (firstError) throw firstError;
+  if (failure !== null) throw failure.error;
   return last;
 }
 

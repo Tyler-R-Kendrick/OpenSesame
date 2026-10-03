@@ -15,7 +15,7 @@ const HOST_PERMISSIONS = /(^|[^_])host_permissions\s*:/m;
 
 /** Source without its comments, so prose about a key is not the key. */
 const code = (source) =>
-  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  source.replace(/^\s*\/\*[\s\S]*?\*\//gm, "").replace(/^\s*\/\/.*$/gm, "");
 
 test("the companion declares no content script and no standing host permission", () => {
   const config = code(read(companion, "wxt.config.ts"));
@@ -95,20 +95,23 @@ test("a value is never logged or stored by the companion", () => {
   }
 });
 
-test("the default extension carries no fill code and no new permission", () => {
+test("the default extension carries no fill code and no standing new permission", () => {
+  // The default extension is also the local runner of a person's own run
+  // steps (ADR 0076/0079/0082), which holds nothing until a person asks the
+  // browser for one origin: `scripting` and `https://*/*` are optional only.
+  // What it still carries none of is autofill: no fill guard, no fill code,
+  // no daemon fill route, and nothing standing.
   assert.equal(existsSync(join(base, "lib")), false);
   assert.equal(existsSync(join(base, "entrypoints/fill-guard.ts")), false);
-  const config = code(read(base, "wxt.config.ts"));
-  assert.match(config, /permissions: \["storage", "alarms"\]/);
-  for (const absent of [
-    /scripting/,
-    /activeTab/,
-    /commands/,
-    /optional_host_permissions/,
-    /content_scripts/,
-  ]) {
-    assert.doesNotMatch(config, absent);
+  const flat = code(read(base, "wxt.config.ts")).replace(/\s+/g, "");
+  assert.match(flat, /[^_]permissions:\["storage","alarms"\]/);
+  assert.match(flat, /optional_permissions:\["scripting"\]/);
+  assert.match(flat, /optional_host_permissions:\["https:\/\/\*\/\*"\]/);
+  for (const absent of [/activeTab/, /commands/, /content_scripts/]) {
+    assert.doesNotMatch(flat, absent);
   }
+  // `scripting` is never a standing permission.
+  assert.equal((flat.match(/scripting/g) ?? []).length, 1);
   const background = read(base, "entrypoints/background.ts");
   assert.doesNotMatch(background, /opensesame\.fill|\/v1\/fill/);
   const pkg = JSON.parse(read(base, "package.json"));

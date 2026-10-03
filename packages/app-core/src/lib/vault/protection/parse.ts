@@ -69,16 +69,16 @@ type DupKeyState = {
   keyBuf: string;
 };
 
-const SIMPLE_ESCAPES: Record<string, string> = {
-  '"': '"',
-  "\\": "\\",
-  "/": "/",
-  b: "\b",
-  f: "\f",
-  n: "\n",
-  r: "\r",
-  t: "\t",
-};
+const SIMPLE_ESCAPES: ReadonlyMap<string, string> = new Map([
+  ['"', '"'],
+  ["\\", "\\"],
+  ["/", "/"],
+  ["b", "\b"],
+  ["f", "\f"],
+  ["n", "\n"],
+  ["r", "\r"],
+  ["t", "\t"],
+]);
 
 /**
  * Decode one escape so keys compare the way JSON.parse decodes them —
@@ -89,7 +89,7 @@ function consumeEscape(state: DupKeyState, raw: string, index: number): number {
   state.escaping = false;
   const ch = raw.charAt(index);
   if (ch !== "u") {
-    if (state.pendingKey) state.keyBuf += SIMPLE_ESCAPES[ch] ?? ch;
+    if (state.pendingKey) state.keyBuf += SIMPLE_ESCAPES.get(ch) ?? ch;
     return index;
   }
   const hex = raw.slice(index + 1, index + 5);

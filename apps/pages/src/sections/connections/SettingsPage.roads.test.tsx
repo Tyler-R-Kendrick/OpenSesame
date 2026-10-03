@@ -1,10 +1,6 @@
 /** @vitest-environment jsdom */
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import {
-  HOST_CONNECTIONS_WRITE,
-  hostGrantSeams,
-} from "@opensesame/app-core/lib/host-grant.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -15,14 +11,12 @@ import { ConnectorSettingsPage } from "./SettingsPage.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 const originalIdentity = { ...identitySeams };
-const originalGrant = { ...hostGrantSeams };
 const originalVault = vaultHooksSeams.useVault;
 const originalAws = { ...awsKmsConnectDependencies };
 
 afterEach(() => {
   cleanup();
   Object.assign(identitySeams, originalIdentity);
-  Object.assign(hostGrantSeams, originalGrant);
   vaultHooksSeams.useVault = originalVault;
   Object.assign(awsKmsConnectDependencies, originalAws);
 });
@@ -57,10 +51,10 @@ function draw(id: string) {
   );
 }
 
-function openHostRoad() {
+/** A Host is named and a grant to it is live: it opens no connector road. */
+function nameAHostWithALiveGrant() {
   identitySeams.hostBase = () => "https://host.test";
   identitySeams.hostLocalSessionEligible = () => true;
-  hostGrantSeams.capabilities = () => [HOST_CONNECTIONS_WRITE];
 }
 
 function unlocked() {
@@ -99,6 +93,21 @@ describe("a connector page whose only road is closed on this device", () => {
   });
 });
 
+describe("a Host opens no road", () => {
+  it("leaves an authorize-only connector with nothing to do, grant or not", () => {
+    nameAHostWithALiveGrant();
+    draw("linear");
+    expect(screen.queryByRole("heading", { name: "Connect" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Connect Linear/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Authorize with Linear/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("img", { name: "Not available here" }),
+    ).toBeTruthy();
+  });
+});
+
 describe("a key or a configuration seals on this device", () => {
   it("draws Better Auth's fields with no Host", () => {
     draw("better-auth");
@@ -116,8 +125,8 @@ describe("a key or a configuration seals on this device", () => {
     ).toBeNull();
   });
 
-  it("draws the same form once a Host is open", () => {
-    openHostRoad();
+  it("draws the same form with a Host named: the form saves on this device", () => {
+    nameAHostWithALiveGrant();
     draw("better-auth");
     expect(
       screen.getByRole("heading", {

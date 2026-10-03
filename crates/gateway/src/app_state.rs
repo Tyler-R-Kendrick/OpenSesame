@@ -131,6 +131,13 @@ pub struct AppState {
     /// the live service-binding set, and the operator status facts. `None`
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,
+    /// The web-login runs this process has started, tracked and bounded
+    /// (ADR 0159). The lifecycle scanner starts a run here and moves on.
+    pub web_login_runs: Arc<crate::web_login::registry::RunRegistry>,
+    /// The operator's approver for escalated agent actions (ADR 0159): the
+    /// Identity API and the requester's bearer on it. `None` when the
+    /// deployment configured none, which leaves every escalation a denial.
+    pub agent_hook_approver: Option<Arc<crate::agent_hook_approver::ApproverSettings>>,
     /// What a sandboxed run's lease revokes when the agent stops driving
     /// (ADR 0150 §6.2). The Host issues no surrogates itself, so this is
     /// [`NoRunCredentials`] until an embedder that does supplies its own; the
@@ -196,6 +203,10 @@ async fn build_with_security(
 
     let transport_config =
         crate::transport::config::TransportConfig::from_env().map_err(anyhow::Error::new)?;
+    // A partially configured approver refuses to start (ADR 0159): it would
+    // otherwise fail at the first escalation, hours into a rotation.
+    let approver =
+        crate::agent_hook_approver::ApproverSettings::from_env().map_err(anyhow::Error::new)?;
     let mut state = AppState {
         deployment: security.deployment,
         identity_mapping: security.identity_mapping,
@@ -231,6 +242,8 @@ async fn build_with_security(
         task_bus: Arc::new(RwLock::new(task_bus)),
         transport_lifecycle: crate::transport_lifecycle::LifecycleState::new(),
         transport: None,
+        web_login_runs: Arc::new(crate::web_login::registry::RunRegistry::from_env()),
+        agent_hook_approver: approver.map(Arc::new),
         run_credentials: Arc::new(NoRunCredentials),
     };
     // Built after the state exists: a `managed` identity source resolves

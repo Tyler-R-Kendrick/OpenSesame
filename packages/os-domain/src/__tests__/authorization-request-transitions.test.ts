@@ -4,6 +4,7 @@ import {
   canTransition,
   maybeExpire,
   settle,
+  withdrawRequest,
 } from "../machines/authorization-request.js";
 import type {
   AuthorizationRequest,
@@ -119,5 +120,24 @@ describe("authorization request transitions", () => {
   it("property: a request read before its deadline is untouched", () => {
     const live = pending();
     expect(maybeExpire(live, LATER)).toEqual(live);
+  });
+
+  it("contract: a requester's withdrawal records no decider", () => {
+    const withdrawn = withdrawRequest(pending(), LATER);
+    expect(withdrawn.status).toBe("cancelled");
+    expect(withdrawn.decidedAt).toEqual(LATER);
+    expect(withdrawn.version).toBe(2);
+    // Not a decision: nobody is named as having allowed or refused it.
+    expect(withdrawn.decidedByPrincipalId).toBeUndefined();
+    expect(withdrawn.decidedByKind).toBeUndefined();
+  });
+
+  it("adversarial: only a pending request can be withdrawn", () => {
+    for (const status of TERMINAL) {
+      expect(() => withdrawRequest(pending({ status }), LATER)).toThrow(
+        DomainError,
+      );
+    }
+    expect(() => withdrawRequest(pending(), AFTER_EXPIRY)).toThrow(/expired/i);
   });
 });

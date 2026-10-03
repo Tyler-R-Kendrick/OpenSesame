@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../host.js";
 import { createTestHost } from "../test-host.js";
@@ -61,34 +62,38 @@ describe("history backups", () => {
   });
 });
 
+type OpenRequest = {
+  onsuccess?: () => void;
+  onerror?: () => void;
+  onupgradeneeded?: () => void;
+  result?: BoundaryValue;
+};
+type ListRequest = {
+  onsuccess?: () => void;
+  onerror?: () => void;
+  result: BoundaryValue[];
+};
+type PutRequest = {
+  onsuccess?: () => void;
+  onerror?: () => void;
+  error: Error;
+};
+
 describe("history backup IndexedDB failures", () => {
   it("propagates a failed IndexedDB write instead of falling back to memory", async () => {
-    const failingIdb = {
+    const failing = {
       open: () => {
-        const req: {
-          onsuccess?: () => void;
-          onerror?: () => void;
-          onupgradeneeded?: () => void;
-          result?: unknown;
-        } = {};
+        const req: OpenRequest = {};
         req.result = {
           transaction: () => ({
             objectStore: () => ({
               getAll: () => {
-                const listed: {
-                  onsuccess?: () => void;
-                  onerror?: () => void;
-                  result: unknown[];
-                } = { result: [] };
+                const listed: ListRequest = { result: [] };
                 queueMicrotask(() => listed.onsuccess?.());
                 return listed;
               },
               put: () => {
-                const put: {
-                  onsuccess?: () => void;
-                  onerror?: () => void;
-                  error: Error;
-                } = { error: new Error("quota exceeded") };
+                const put: PutRequest = { error: new Error("quota exceeded") };
                 queueMicrotask(() => put.onerror?.());
                 return put;
               },
@@ -99,7 +104,8 @@ describe("history backup IndexedDB failures", () => {
         queueMicrotask(() => req.onsuccess?.());
         return req;
       },
-    } as unknown as IDBFactory;
+    };
+    const failingIdb: IDBFactory = overlapCast(failing);
     configureHost(createTestHost({ indexedDB: failingIdb }));
     try {
       await expect(

@@ -31,6 +31,8 @@ const ROUTES: &str = concat!(
     include_str!("wire_connections.rs"),
     include_str!("est_server.rs"),
     include_str!("agent_hooks.rs"),
+    include_str!("web_login_recipes.rs"),
+    include_str!("agent_runs.rs"),
     include_str!("aauth.rs")
 );
 

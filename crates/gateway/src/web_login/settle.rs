@@ -22,6 +22,7 @@ use opensesame_connection_broker::rotation::web_login::WebLoginSettlement;
 use opensesame_rotation_web::hooks::{HookedTransport, HostedRunError, Refusal};
 use opensesame_rotation_web::{ActionStep, BlockedReason, ExecutorError, RunOutcome, RunReport};
 
+use super::control::Stop;
 use crate::agent_hooks::machine_reason;
 
 /// `reason at point`, value-blind.
@@ -91,6 +92,41 @@ fn from_report(report: RunReport, refusal: Option<&Refusal>, promoted: bool) -> 
     }
 }
 
+/// A settlement for a run a person stopped: they asked for the page and it
+/// parked for them, or it was already theirs. Whether the site received a
+/// change is exactly what the executor's report said — this only adds why the
+/// run ended, so the job never reads as a fault in the runner.
+pub(crate) fn handed_over(settlement: WebLoginSettlement, stop: Stop) -> WebLoginSettlement {
+    let note = match stop {
+        Stop::HandedOff => "the run parked at a safe point for the person who asked for the page",
+        Stop::PersonHasIt => "a person holds the page, so the run sent nothing more",
+        Stop::Gone => return settlement,
+    };
+    match settlement {
+        WebLoginSettlement::Completed => WebLoginSettlement::Completed,
+        WebLoginSettlement::NotSubmitted(detail) => {
+            WebLoginSettlement::NotSubmitted(format!("{detail}; {note}"))
+        }
+        WebLoginSettlement::Reconcile(detail) => {
+            WebLoginSettlement::Reconcile(format!("{detail}; {note}"))
+        }
+    }
+}
+
+/// A settlement for a run that ran past its deadline — waiting, say, on an
+/// approval nobody answered. It is stopped where it stands, so what the site
+/// received is known only by whether a submit ever went out.
+pub(crate) fn overdue(submit_sent: bool) -> WebLoginSettlement {
+    const DETAIL: &str = "the run ran past its deadline and was stopped";
+    if submit_sent {
+        WebLoginSettlement::Reconcile(format!(
+            "{DETAIL}; a submit had been sent, so the site may have taken the change"
+        ))
+    } else {
+        WebLoginSettlement::NotSubmitted(DETAIL.into())
+    }
+}
+
 /// A settlement whose run's hook records could not all be written. A
 /// completed change is still a change, but one nobody can audit is not
 /// reported as a clean success.
@@ -107,6 +143,22 @@ pub(crate) fn unaudited(settlement: WebLoginSettlement) -> WebLoginSettlement {
             WebLoginSettlement::Reconcile(format!("{detail}; {NOTE}"))
         }
     }
+}
+
+/// A settlement for a run that could not be closed. Whatever the run reached,
+/// the job is parked for reconciliation rather than settled as final: the run
+/// is still open, so a driver's late answer to a step it still holds may yet
+/// be stored, and a person has to look. What is known about the site is kept.
+pub(crate) fn unclosed(settlement: WebLoginSettlement) -> WebLoginSettlement {
+    const NOTE: &str = "the run could not be closed, so its steps may still take an answer \
+         until it is reaped";
+    WebLoginSettlement::Reconcile(match settlement {
+        WebLoginSettlement::Completed => format!("the change completed, but {NOTE}"),
+        WebLoginSettlement::NotSubmitted(detail) => {
+            format!("not submitted ({detail}), but {NOTE}")
+        }
+        WebLoginSettlement::Reconcile(detail) => format!("{detail}; {NOTE}"),
+    })
 }
 
 #[cfg(test)]
@@ -169,6 +221,25 @@ mod tests {
             unaudited(WebLoginSettlement::Completed),
             WebLoginSettlement::Reconcile(_)
         ));
+    }
+
+    #[test]
+    fn a_run_that_could_not_be_closed_parks_whatever_it_reached() {
+        for reached in [
+            WebLoginSettlement::Completed,
+            WebLoginSettlement::NotSubmitted("a hook refused".into()),
+            WebLoginSettlement::Reconcile("the site may have it".into()),
+        ] {
+            let known = match &reached {
+                WebLoginSettlement::Completed => "the change completed".to_owned(),
+                WebLoginSettlement::NotSubmitted(d) | WebLoginSettlement::Reconcile(d) => d.clone(),
+            };
+            let WebLoginSettlement::Reconcile(detail) = unclosed(reached) else {
+                panic!("an unclosed run is a reconciliation");
+            };
+            assert!(detail.contains(&known), "what was known is kept: {detail}");
+            assert!(detail.contains("could not be closed"), "{detail}");
+        }
     }
 
     #[test]

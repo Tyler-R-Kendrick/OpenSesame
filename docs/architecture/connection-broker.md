@@ -16,8 +16,13 @@ foundations for sync and rotation events are in
 | Vault (`apps/pages`, OPFS) | passwords, passkeys, notes | No — sealed under the master password |
 | Authority (gateway `:8787`) | provider access/refresh tokens | Yes — required for egress injection and refresh |
 
-A connection is authority-plane state. The PWA is a control surface over it and never
-receives credential material.
+A connection is authority-plane state. The Host's own clients (its CLI, the Host API, the
+MCP servers) are the control surfaces over it and never receive credential material. The
+Pages PWA does not drive these routes ([ADR 0128](../adr/0128-pages-without-host.md)): there a
+connection is made by Vercel Connect, sealed on the device, or a local git remote, and a call
+no road can take is refused rather than sent
+([ADR 0151](../adr/0151-connector-pages-act-on-the-roads-a-device-has.md)). Where this page
+says "PWA" below it means a Host client that speaks the Host's browser-user routes.
 
 ## Lifecycle
 
@@ -262,7 +267,8 @@ the connection — no OAuth App required. Ambient `GITHUB_TOKEN` / `GH_TOKEN` /
 available to the Host. Detection covers the explicit field convention above, common
 provider variables (for example `OPENAI_API_KEY`, `WORKOS_API_KEY`, `VAULT_TOKEN`,
 and `AWS_ACCESS_KEY_ID`), standard AWS/GCP credential files, and `~/.vault-token` /
-`~/.bao-token`. The PWA calls it before listing connections. Detected values move
+`~/.bao-token`. The Host's own CLI and API drive it; the PWA does not call it
+([ADR 0128](../adr/0128-pages-without-host.md), [ADR 0151](../adr/0151-connector-pages-act-on-the-roads-a-device-has.md)). Detected values move
 directly into the tenant-bound sealed store and never enter an API response; incomplete
 configuration is ignored, the first local owner/admin organization claims discovery for that
 Host process, production requires the Host operator, and a revoked connection is not silently

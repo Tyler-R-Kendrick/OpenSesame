@@ -2,40 +2,34 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { vfsSeams } from "@opensesame/app-core/lib/vfs.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { releaseVaultKv, useVaultKv } from "./vault-kv.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { releaseVaultKv, useVaultKv, vaultKvSeams } from "./vault-kv.js";
 
-const control = vi.hoisted(() => ({
-  hold: null as Promise<void> | null,
-  held: false,
-}));
+type ReadControl = { hold: Promise<void> | null; held: boolean };
 
-vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs/promises")>();
-  return {
-    ...actual,
-    readFile: (async (
-      path: Parameters<typeof actual.readFile>[0],
-      options?: Parameters<typeof actual.readFile>[1],
-    ) => {
-      if (String(path).endsWith("vault-kv.json") && control.hold) {
-        const pending = control.hold;
-        control.hold = null;
-        control.held = true;
-        await pending;
-      }
-      return actual.readFile(
-        path,
-        options as Parameters<typeof actual.readFile>[1],
-      );
-    }) as typeof actual.readFile,
-  };
-});
+const control: ReadControl = { hold: null, held: false };
+const realReadText = vaultKvSeams.readText;
+
+/** Holds the next read of the vault file until the test lets it go. */
+async function heldReadText(path: string): Promise<string> {
+  if (path.endsWith("vault-kv.json") && control.hold) {
+    const pending = control.hold;
+    control.hold = null;
+    control.held = true;
+    await pending;
+  }
+  return realReadText(path);
+}
 
 describe("vault kv release", () => {
   let stateDir = "";
 
+  beforeEach(() => {
+    vaultKvSeams.readText = heldReadText;
+  });
+
   afterEach(async () => {
+    vaultKvSeams.readText = realReadText;
     control.hold = null;
     control.held = false;
     await releaseVaultKv();

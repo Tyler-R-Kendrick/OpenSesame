@@ -190,12 +190,104 @@ This ordering is a good candidate for a `pact::assert_source_order` test
 alongside the existing `rotation_authorizes_then_loads_connection_then_enqueues`
 in `crates/gateway/src/lib.rs`.
 
+## A person asks for the page mid-run
+
+The Host's runner keeps the executor's `ControlLease` in memory, and the control
+routes write the run's *row*. `crates/gateway/src/web_login/control.rs` is the
+executor's lease projected onto that row, consulted around every step the step
+queue hands the owner's browser:
+
+- **Before a step**, `agent_driving` goes ahead; an accepted
+  `handoff_requested` parks the run right there — `awaiting_human`, nothing
+  enqueued — and every state that is a person's (`awaiting_human`,
+  `human_driving`, `resume_requested`, `suspended`) refuses the step. The queue
+  itself refuses too (`enqueue_runner_step` and `claim_runner_step` admit only
+  `agent_driving` and `handoff_requested`), so no caller has to remember it.
+- **Around the critical section.** The gate opens the span on the row when it
+  lets `assert_present` through, so a handoff asked for inside it is *queued* by
+  the routes, and it never parks between the assertion and the submit. When the
+  submit returns the span closes, the queued handoff is released, and the next
+  step — the verification — parks. The change was submitted and not confirmed,
+  so the job reconciles; it never reads as "not submitted".
+- A run a person asked for is left **open** so they can take it; the job is
+  settled at once, with the reason the run stopped. The reaper closes it once
+  it has outlived the policy lease and nobody holds it.
+
+A gateway that stops mid-run leaves a `discovering` job and an open run. The
+reaper (`web_login/reaper.rs`) closes runs and parks jobs whose claim lease
+(`web_login_job_claims`) has lapsed, at startup and on a timer, with the detail *the run stopped
+before it settled; whether the site received the change is unknown*.
+
+## The hooked path
+
+Every run the Host executes is an
+[agent-hooks/0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md)
+session ([ADR 0159](../adr/0159-agent-hooks-interceptor.md)). The Host does not
+call the executor bare. `Harness::open` in `crates/gateway/src/web_login/launch.rs`
+builds a `HookedTransport` over an `ExtensionTransport` whose step channel is the
+step queue, registers the organization's own `OpenSesameInterceptor` (and, when an
+approver is configured, a per-run approval seam) on the `HookSession`, and drives
+`run_change_password_hooked`:
+
+```text
+agent_startup -> input -> [ pre_tool_call -> step queue -> driver -> post_tool_call ]* -> output -> agent_shutdown
+```
+
+- **A verb the policy denies is never enqueued.** A `pre_tool_call` deny means the
+  inner verb is not called, so the driver never sees the step and the executor's
+  fail-closed handling takes over: nothing is submitted after a refused fill or
+  assertion. A refusal of the submit itself settles the job as "not submitted".
+- **An escalation holds the run.** Nothing is enqueued until the person the
+  organization named approves the interaction bound to that step's
+  `context_identity`; a decline, a deadline or an unconfigured approver leaves the
+  step undispatched.
+- **Custody is not hooked.** Generating, sealing and promoting the candidate are
+  Host-owned steps with acknowledgement-only outcomes and are not tools in the
+  agent's surface. A policy cannot name them, but the hooked `navigate` and
+  `wait_for` that precede them still gate whether custody is reached.
+- **Authority is pinned.** An interceptor's transform may rewrite a selector or a
+  same-origin path; it cannot change which credential is filled, which slot a
+  capture seals into, or the origin a navigation reaches.
+- **The record is payload-free.** Each interception is a row in `agent_hook_records`
+  (point, decision, machine reason, the before and after context identities),
+  flushed before the next step reaches the driver, and removed with its run. The
+  Host holds no viewer key, so a hosted run seals no log: its observation is
+  these records (`GET /api/v1/agent/runs/{id}/hook-records`).
+- **A run is closed before its job settles,** and a run a stopped gateway left open
+  is closed by the reaper; runs are never resumed, because after a crash whether the
+  submit reached the site is unknown.
+- **A driver's answer is canonical or refused.** The settle route decodes the outcome
+  into the step's own outcome type and stores the canonical re-encoding; an unknown
+  field or an outcome for another step is `422`.
+- **The recipe is signed.** A run replays only a document whose Ed25519 signature
+  verifies against an organization-pinned signer that is still pinned, and an
+  unattended run additionally needs a passing canary no older than 90 days.
+
+## The extension runner
+
+The default browser extension is the local runner of the step protocol
+(`apps/browser-extension/runner`, ADR 0159 §16). It is the driver on the far side of
+the queue for a run whose credential its person owns: it claims a step with the
+person's Host session, executes it in the isolated world of the one tab on the run's
+origin, and settles an outcome built by closed constructors that mirror the Host's
+`StepOutcome`. It runs only while the person has armed the origin (an optional
+`scripting` permission and one optional host permission, granted on the person's own
+click and removed when the run closes or the 30-minute arm lapses), stops claiming at
+the next poll when a person asks for the page, presses a submit at most once, and
+proves the new password in a private window. It has no vault of its own: the
+credentials it holds are sealed at rest, and `seal_candidate` reports `backed_up`
+only after a recovery recipient's envelope has been pushed and read back. It answers
+`failed(transport)` for the two capture steps, since no host envelope scheme exists
+for them. A remote CDP sandbox remains an alternative transport (below); the
+extension is the one in this repository.
+
 ## Runner contract
 
 The sandbox is remote and swappable. **Playwright is a local driver and is not
 the contract.** The contract is transport-level:
 
-- CDP over a WebSocket to a remote browser
+- CDP over a WebSocket to a remote browser, or the browser extension's local
+  runner over the same step queue
 - the step IR (see [recipe schema](rotation-recipe-schema.md))
 - the tool surface above, with redaction applied inside the runner
 
@@ -222,7 +314,8 @@ assuming.
 
 ## Intended code homes
 
-For the implementation pass. Nothing below is built yet.
+Where each piece lives. The rows from `crates/rotation-web` onward are built, and the
+hooked path above is wired in `crates/gateway/src/web_login`.
 
 | Change | Where |
 |---|---|
@@ -232,7 +325,10 @@ For the implementation pass. Nothing below is built yet.
 | Routes for policies, teaching sessions, recordings | `crates/gateway/src/routes/rotation.rs` |
 | Live observation lanes, frame admission, control lease | `crates/session-observe` (exists; ADR 0081) |
 | Sealed observation log, attach ceremony, WSS relay | `crates/storage`, `crates/gateway/src/routes/rotation.rs` |
-| Registry entries | `packages/capability-registry/src/index.ts`, then regenerate `capabilities.json` |
+| Registry entries | `packages/capability-registry/src/index.ts`, `agent-hooks.ts`, `web-login-recipes.ts`, `extension-runner.ts`, then regenerate `capabilities.json` |
+| Hooked executor, signed recipe document | `crates/rotation-web/src/hooks`, `crates/rotation-web/src/recipe_doc` (ADR 0159) |
+| Runner, claim, reaper, settle route, recipe and signer routes | `crates/gateway/src/web_login`, `crates/gateway/src/routes/{agent_runs,web_login_recipes}*`, `crates/storage/src/web_login_runs*` |
+| Local runner | `apps/browser-extension/runner` |
 
 The new crate must **not** become a daemon dependency —
 `scripts/audit/daemon-deps-gate.sh` audits `invoke-through`, `tailscale-authn` and

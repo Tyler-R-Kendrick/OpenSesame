@@ -1,10 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { composeHost, configureHost, host } from "../../../host.js";
-import type { PeerEnvelope } from "./envelope.js";
+import { type PeerEnvelope, generatePeerKeyPair } from "./envelope.js";
 import { assertPeerOriginResolved } from "./origin-resolve.js";
 import { sendPeerEnvelope } from "./sender.js";
 
 const PUBLIC = "8.8.8.8";
+
+const ENVELOPE: PeerEnvelope = {
+  schemaVersion: 1,
+  alg: "ECDSA-P256-SHA256",
+  issuer: "sender-1",
+  audience: "receiver-1",
+  principalRef: "principal-1",
+  vaultRef: "vault-1",
+  deviceBindingRef: "device-1",
+  operation: "duress.peer.test",
+  incidentId: "incident-1",
+  policyRevision: 1,
+  keyEpoch: 1,
+  nonce: "nonce-1",
+  issuedAt: "2026-01-01T00:00:00.000Z",
+  expiresAt: "2026-01-01T00:05:00.000Z",
+  ciphertextB64: "",
+  signatureB64: "",
+};
 
 function installLookup(
   lookup: (hostname: string) => Promise<readonly string[]>,
@@ -89,11 +108,12 @@ describe("peer origin DNS policy", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const restore = installLookup(async () => ["169.254.169.254"]);
+    const { publicKey } = await generatePeerKeyPair();
     await expect(
-      sendPeerEnvelope({ audience: "receiver-1" } as PeerEnvelope, {
+      sendPeerEnvelope(ENVELOPE, {
         registeredOrigin: "https://rebind.example",
         audience: "receiver-1",
-        recipientPublicKey: {} as CryptoKey,
+        recipientPublicKey: publicKey,
       }),
     ).rejects.toThrow(/unapproved_route/);
     expect(fetchMock).not.toHaveBeenCalled();
