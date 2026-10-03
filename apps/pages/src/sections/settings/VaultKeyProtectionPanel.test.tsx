@@ -196,8 +196,6 @@ describe("VaultKeyProtectionPanel", () => {
     expect(row("aws_1")?.querySelector('[aria-label="Verified"]')).toBeTruthy();
     expect(
       row("recovery-key_a")?.querySelector(`[aria-label^="${note}"]`),
-<<<<<<< HEAD
-=======
     ).toBeNull();
   });
 
@@ -210,7 +208,6 @@ describe("VaultKeyProtectionPanel", () => {
     expect(row("aws_1")?.querySelector('[aria-label="Verified"]')).toBeTruthy();
     expect(
       row("recovery-key_a")?.querySelector(`[aria-label^="${note}"]`),
->>>>>>> origin/main
     ).toBeNull();
   });
 

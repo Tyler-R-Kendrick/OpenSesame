@@ -34,12 +34,9 @@ import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { fieldSteps } from "./lib/capture-field-steps.mjs";
-<<<<<<< HEAD
-=======
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
->>>>>>> origin/main
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
@@ -132,10 +129,7 @@ const STEPS = {
     await press(doorGuest(page));
     await page.waitForTimeout(1400);
   },
-<<<<<<< HEAD
-=======
   ...tabStep({ press, visit: (page, route) => STEPS.visit(page, route) }),
->>>>>>> origin/main
   async press(page, name) {
     const target = page
       .getByRole("button", { name: new RegExp(name, "i") })
