@@ -1,4 +1,5 @@
 mod access_area;
+mod agent_run_hooks;
 mod agent_runs;
 mod attach;
 mod bridge;
@@ -24,6 +25,7 @@ mod plugins;
 mod plugins_install;
 mod private_file;
 mod providers_native;
+mod rotate_recipes;
 mod security;
 mod serve;
 mod session;
@@ -48,6 +50,7 @@ use opensesame_connector_host::providers::{
 };
 use opensesame_host_core::endpoints::{self, HOST};
 use private_file::{write_private, write_private_new};
+pub(crate) use rotate_recipes::RotateCmd;
 use serde::Deserialize;
 use serde_json::json;
 use std::{env, path::PathBuf, time::Duration};
@@ -169,7 +172,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: plugins::PluginsCmd,
     },
-    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0150).
+    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0159).
     Hooks {
         #[command(subcommand)]
         cmd: hooks::HooksCmd,
@@ -184,28 +187,6 @@ pub(crate) enum CeremonyCmd {
     Show {
         /// A provider id, from `opensesame ceremony list`.
         provider: String,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-pub(crate) enum RotateCmd {
-    /// Sandboxed runs and where each one is (metadata only).
-    Runs,
-    /// Read a run's observation log. Sealed: sizes and lanes, never content.
-    Watch {
-        /// The run id, from `opensesame rotate runs`.
-        run: String,
-        /// Start after this sequence number. Defaults to the whole log.
-        #[arg(long, default_value = "-1")]
-        after: i64,
-        /// Keep polling for new entries.
-        #[arg(long)]
-        follow: bool,
-    },
-    /// Ask the agent to park so a person can take the page.
-    Attach {
-        /// The run id, from `opensesame rotate runs`.
-        run: String,
     },
 }
 

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="manifest.open_in_tab" content="true" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'self'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>OpenSesame runner</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <p class="brand">OpenSesame</p>
+      <h1>Local runner</h1>
+
+      <section aria-labelledby="ready-h">
+        <h2 id="ready-h">Ready</h2>
+        <ul id="ready" class="status" aria-live="polite"></ul>
+        <ul id="pass" class="status" aria-live="polite"></ul>
+      </section>
+
+      <section aria-labelledby="session-h">
+        <h2 id="session-h">Host session</h2>
+        <label class="field">
+          Access token
+          <input id="token" type="password" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="actions">
+          <button id="token-save" type="button">Save session</button>
+          <button id="token-clear" type="button" class="secondary">Forget session</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="recovery-h">
+        <h2 id="recovery-h">Recovery key</h2>
+        <label class="field">
+          Public key (JWK)
+          <textarea id="recovery-public" rows="3" spellcheck="false"></textarea>
+        </label>
+        <div class="actions">
+          <button id="recovery-pin" type="button">Pin key</button>
+          <button id="recovery-create" type="button" class="secondary">Create key</button>
+        </div>
+        <label class="field" id="recovery-private-field" hidden>
+          Private key (JWK) — shown once, keep it off this device
+          <textarea id="recovery-private" rows="4" readonly spellcheck="false"></textarea>
+        </label>
+      </section>
+
+      <section aria-labelledby="cred-h">
+        <h2 id="cred-h">Credential</h2>
+        <form id="credential" autocomplete="off">
+          <label class="field">Origin<input name="origin" type="url" placeholder="https://example.com" /></label>
+          <label class="field">Username<input name="username" type="text" autocomplete="off" /></label>
+          <label class="field">Current password<input name="password" type="password" autocomplete="off" /></label>
+          <fieldset>
+            <legend>Login check (optional, proves a new password works)</legend>
+            <label class="field">Login URL<input name="loginUrl" type="url" /></label>
+            <label class="field">Username selector<input name="usernameSelector" type="text" /></label>
+            <label class="field">Password selector<input name="passwordSelector" type="text" /></label>
+            <label class="field">Submit selector<input name="submitSelector" type="text" /></label>
+            <label class="field">Signed-in selector<input name="signedInSelector" type="text" /></label>
+            <label class="field">Rejected selector<input name="rejectedSelector" type="text" /></label>
+          </fieldset>
+          <div class="actions"><button type="submit">Save credential</button></div>
+        </form>
+        <ul id="credentials" class="status"></ul>
+      </section>
+
+      <section aria-labelledby="drive-h">
+        <h2 id="drive-h">Drive a site</h2>
+        <label class="field">
+          Origin
+          <select id="drive-origin"></select>
+        </label>
+        <div class="actions">
+          <button id="drive-arm" type="button">Allow this site</button>
+        </div>
+        <ul id="armed" class="status"></ul>
+      </section>
+
+      <section aria-labelledby="held-h">
+        <h2 id="held-h">Held candidates</h2>
+        <ul id="held" class="status"></ul>
+        <label class="field">
+          Recovery private key (JWK)
+          <textarea id="reveal-key" rows="3" spellcheck="false"></textarea>
+        </label>
+        <output id="revealed" class="hint"></output>
+      </section>
+
+      <p id="hint" class="hint" aria-live="polite" hidden></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

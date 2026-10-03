@@ -69,10 +69,19 @@ export const ApprovalMechanismSchema = z.enum([
  * into an oracle for which references and which principals are real.
  *
  * `approval_required` covers spending an interaction that carries no approval
- * to spend — never approved, or denied. It is not "you are not signed in":
+ * to spend *yet* — nobody has answered. It is not "you are not signed in":
  * the caller is authenticated and is the right caller, and what is missing is
  * the ceremony, which is exactly the distinction an authenticated-session-is-
  * not-an-approval system has to be able to state.
+ *
+ * `approval_denied` is the requester's answer to spending an interaction a
+ * person refused. It used to fold into `approval_required`, which told a
+ * requester that a refusal and silence were the same thing: it kept polling
+ * a question that had been answered, and a caller that put a deadline on the
+ * wait could only report "timed out" for "no". It is a 403 — the decision is
+ * recorded and will not change, so retrying is pointless — and it discloses
+ * nothing the unauthenticated short link does not already show any holder of
+ * the reference (`status: "denied"`).
  */
 export const InteractionErrorCodeSchema = z.enum([
   "interaction_not_found",
@@ -84,6 +93,8 @@ export const InteractionErrorCodeSchema = z.enum([
   /** One live interaction per ceremony; another already holds the slot. */
   "interaction_already_live",
   "approval_required",
+  /** A person refused. Final: the requester should stop waiting. */
+  "approval_denied",
   /**
    * Privileged approval needs a spent, interaction-scoped activation
    * (WebAuthn/TOTP/OID4VP). An ordinary session + digest echo is not enough.

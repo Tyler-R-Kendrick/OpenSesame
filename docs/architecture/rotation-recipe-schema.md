@@ -50,11 +50,20 @@ belong in a recipe.
   },
   "signature": {
     "alg": "ed25519",
-    "key_id": "rcp_…",
-    "value": "base64…"
+    "key_id": "rsk_…",
+    "value": "hex…"
   }
 }
 ```
+
+**What the Host implements today** is the executor's half of this: the document
+in [Web-login recipes](../operators/web-login-recipes.md) — one origin, an
+expiry, the change-password page and its selectors, an optional `canary`
+attestation and the `signature` above (Ed25519 over the RFC 8785 canonical form,
+domain-tagged, hex-encoded, with the key id derived from the public key). The
+members this schema describes beyond that (`rp`, `bundle_binding`,
+`composition`, `steps`, `success`) are not read by the executor and are refused
+by the Host's closed parser rather than stored unread.
 
 `max_length` and `forbidden_symbols` are not decoration. A generator that emits
 a 40-character password for a site that silently truncates at 16, or that emits

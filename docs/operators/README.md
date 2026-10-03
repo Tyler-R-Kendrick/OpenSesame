@@ -36,6 +36,8 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Host project-config authorization](config-authorization.md) | The operator-managed Host role ceiling for configuration and project permissions. |
 | [Local authority migration](local-authority-migration.md) | Moving local authority and deployment configuration onto the hardened interfaces. |
 | [General authority support matrix](general-authority-support-matrix.md) | Which hierarchical-authority features are enforced where, and which are not yet. |
+| [Agent hooks](agent-hooks.md) | The policy that decides what an agent may do, who is asked when it needs a person, the audit, and what fails closed (ADR 0159). |
+| [Web-login recipes](web-login-recipes.md) | Storing a recipe, pinning the keys that sign them, signing locally, and proving one with an attended canary before the scanner rotates a login on its own (ADR 0076 §4). |
 | [Access portal](access-portal.md) | The Access screen: just-in-time grants, approvals and live sessions. |
 | [Credential helpers](credential-helpers.md) | git, Docker, AWS and kubectl authenticating with short-lived derived tokens. |
 | [Browser identity verification](host-browser-verification.md) | Pairing a browser to the Host and the one-use controls that follow. |

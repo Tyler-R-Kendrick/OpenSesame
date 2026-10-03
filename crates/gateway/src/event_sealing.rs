@@ -20,6 +20,23 @@ use opensesame_storage::Db;
 /// Returns an error when a production Host has no sealing key, or when an
 /// existing row cannot be sealed or scrubbed.
 pub async fn install(db: &Db, config: &BrokerConfig, production: bool) -> anyhow::Result<()> {
+    scrub_failure_text(db).await?;
+    match config.key() {
+        Some(key) => seal_events(db, key).await,
+        None if production => anyhow::bail!(
+            "OPENSESAME_CONNECTION_KEY must be set on a networked or production Host: the Host's events (outbox, deliveries, receipts, signing and approval records) are sealed at rest under it"
+        ),
+        None => {
+            tracing::warn!(
+                "OPENSESAME_CONNECTION_KEY is not set: this development Host stores its events unsealed"
+            );
+            Ok(())
+        }
+    }
+}
+
+/// Scrub the failure text an older build stored as it came.
+async fn scrub_failure_text(db: &Db) -> anyhow::Result<()> {
     let scrubbed = db.scrub_legacy_failure_text().await?;
     if scrubbed > 0 {
         tracing::info!(
@@ -27,14 +44,11 @@ pub async fn install(db: &Db, config: &BrokerConfig, production: bool) -> anyhow
             "scrubbed failure text an older build stored as it came"
         );
     }
-    match config.key() {
-        Some(key) => seal_with(db, key).await,
-        None => without_key(production),
-    }
+    Ok(())
 }
 
-/// Seal with the Host key, then seal whatever an older build left in the clear.
-async fn seal_with(db: &Db, key: &[u8; 32]) -> anyhow::Result<()> {
+/// Install the sealer under `key`, then seal what an older build left in the clear.
+async fn seal_events(db: &Db, key: &[u8; 32]) -> anyhow::Result<()> {
     opensesame_event_seal::install(key);
     let sealed = db.seal_legacy_events().await?;
     if sealed > 0 {
@@ -43,18 +57,5 @@ async fn seal_with(db: &Db, key: &[u8; 32]) -> anyhow::Result<()> {
             "sealed event values an older build left in the clear"
         );
     }
-    Ok(())
-}
-
-/// No key: a production Host refuses to start, a development Host says so.
-fn without_key(production: bool) -> anyhow::Result<()> {
-    if production {
-        anyhow::bail!(
-            "OPENSESAME_CONNECTION_KEY must be set on a networked or production Host: the Host's events (outbox, deliveries, receipts, signing and approval records) are sealed at rest under it"
-        );
-    }
-    tracing::warn!(
-        "OPENSESAME_CONNECTION_KEY is not set: this development Host stores its events unsealed"
-    );
     Ok(())
 }
