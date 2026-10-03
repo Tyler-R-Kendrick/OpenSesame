@@ -23,7 +23,8 @@ import {
   IDLE,
   boundedBy,
   codeOf,
-  runPairing,
+  pairingActions,
+  pairingCalls,
   viewStore,
 } from "./session-view.js";
 
@@ -48,6 +49,7 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
   const store = viewStore();
   const lifetime = new AbortController();
   const bounded = boundedBy(lifetime.signal);
+  const calls = pairingCalls(lifetime.signal);
   /**
    * The pairing the view was read from (daemon host and pairing revision);
    * any other one reads again. Undefined until the first ask.
@@ -61,7 +63,11 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     const mine = epoch;
     store.publish({ ...IDLE, daemon: target, busy: true });
     try {
-      const read = await readPlugin(plugin, pinnedTo(daemon, target), bounded);
+      const read = await readPlugin(
+        plugin,
+        pinnedTo(daemon, target),
+        calls.bounded(),
+      );
       if (epoch !== mine) return;
       store.publish({ ...IDLE, daemon: target, ...read, read: true });
     } catch (error) {
@@ -81,6 +87,7 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     if (readFrom !== undefined && sameTarget(target, readFrom)) return;
     readFrom = target;
     epoch += 1;
+    calls.supersede();
     if (target === null) store.publish(IDLE);
     else void load(target);
   }
@@ -95,9 +102,10 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     const { state, busy, daemon: target } = store.view();
     if (store.closed() || busy || state === null || target === null) return;
     const mine = epoch;
+    const inEpoch = calls.bounded();
     store.publish({ ...store.view(), busy: true, error: null });
     try {
-      const next = await bounded((signal) =>
+      const next = await inEpoch((signal) =>
         setPluginEnabled(
           pinnedTo(daemon, target),
           state,
@@ -120,21 +128,7 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     subscribe: store.subscribe,
     ensure,
     toggle,
-    /** Whether this port can pair at all, and whether it could right now. */
-    pairable: daemon.pair !== undefined,
-    canPair: (): boolean => daemon.canPair?.() ?? false,
-    /** Trade a pasted pairing code for this page's own key. */
-    pair: (code: string) => {
-      const pair = daemon.pair;
-      return runPairing(
-        store,
-        bounded,
-        pair && ((signal) => pair(code, signal)),
-        ensure,
-      );
-    },
-    /** Forget this page's key, revoking it at the daemon when it answers. */
-    forget: () => runPairing(store, bounded, daemon.forget, ensure),
+    ...pairingActions(daemon, store, bounded, ensure),
     /** Abort what is in flight and forget the view; nothing is sent. */
     dispose(): void {
       store.close();

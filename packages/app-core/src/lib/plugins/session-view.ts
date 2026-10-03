@@ -4,6 +4,7 @@
  */
 
 import {
+  type PluginDaemon,
   type PluginDaemonTarget,
   PluginError,
   type PluginErrorCode,
@@ -70,19 +71,41 @@ export type Bounded = <T>(
   work: (signal: AbortSignal) => Promise<T>,
 ) => Promise<T>;
 
-/** One call's signal: the session's lifetime, capped at {@link REQUEST_MS}. */
-export function boundedBy(lifetime: AbortSignal): Bounded {
+/**
+ * One call's signal: every signal it is chained to (the session's lifetime,
+ * and the pairing it was issued under), capped at {@link REQUEST_MS}.
+ */
+export function boundedBy(...chained: readonly AbortSignal[]): Bounded {
   return async (work) => {
     const call = new AbortController();
     const stop = () => call.abort();
-    lifetime.addEventListener("abort", stop, { once: true });
+    for (const signal of chained) {
+      if (signal.aborted) stop();
+      else signal.addEventListener("abort", stop, { once: true });
+    }
     const timer = setTimeout(stop, REQUEST_MS);
     try {
       return await work(call.signal);
     } finally {
       clearTimeout(timer);
-      lifetime.removeEventListener("abort", stop);
+      for (const signal of chained) signal.removeEventListener("abort", stop);
     }
+  };
+}
+
+/**
+ * The requests of one pairing: each `bounded()` call is chained to the
+ * session's lifetime and to the current pairing, and `supersede` aborts every
+ * request still out for it as the next pairing begins.
+ */
+export function pairingCalls(lifetime: AbortSignal) {
+  let current = new AbortController();
+  return {
+    bounded: (): Bounded => boundedBy(lifetime, current.signal),
+    supersede(): void {
+      current.abort();
+      current = new AbortController();
+    },
   };
 }
 
@@ -104,4 +127,30 @@ export async function runPairing(
   } catch (error) {
     store.publish({ ...store.view(), busy: false, error: codeOf(error) });
   }
+}
+
+/** What the panel can do about the pairing, over whatever the port offers. */
+export function pairingActions(
+  daemon: PluginDaemon,
+  store: ViewStore,
+  bounded: Bounded,
+  ensure: () => void,
+) {
+  return {
+    /** Whether this port can pair at all, and whether it could right now. */
+    pairable: daemon.pair !== undefined,
+    canPair: (): boolean => daemon.canPair?.() ?? false,
+    /** Trade a pasted pairing code for this page's own key. */
+    pair: (code: string) => {
+      const pair = daemon.pair;
+      return runPairing(
+        store,
+        bounded,
+        pair && ((signal) => pair(code, signal)),
+        ensure,
+      );
+    },
+    /** Forget this page's key, revoking it at the daemon when it answers. */
+    forget: () => runPairing(store, bounded, daemon.forget, ensure),
+  };
 }
