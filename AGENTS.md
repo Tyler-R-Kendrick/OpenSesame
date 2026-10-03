@@ -226,7 +226,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
-# WebRTC. Direct: codes passed by hand, no WebSocket, no request off the
+# WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
+# build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
+# https://opensesame.example.test). The carrier and declined walks run on it,
+# because a carrier on loopback or a LAN is local operator authority the shared
+# github.io origin may not reach (`mayPairLocalAuthority`); verify:live-join
+# fails without that build. Direct: codes passed by hand, no WebSocket, no request off the
 # origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
 # never meets without Routes' address, meets at it with one. Carriers: an
 # in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
@@ -249,7 +254,9 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # each, a veth with multicast off between them and a harness namespace that
 # forwards nothing. mDNS hiding on, nothing filtered in the page. No address
 # named: never connects. Address named: connects over a pair at it, no ICE
-# server; again through a wss Nostr relay; and, veth down, relay-only TURN.
+# server (both on the github.io build). Then, on `build:live-dedicated` (run
+# it first; the relay and TURN server sit on a private address): again through
+# a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
 ```
@@ -441,7 +448,11 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
+<<<<<<< HEAD
   0001–0158).
+=======
+  0001–0156).
+>>>>>>> origin/main
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -618,7 +629,7 @@ Do not add new top-level directories or loose root files — find the group.
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
 - **Every key is a person's, and a few keep the road open**
-  ([ADR 0150](docs/adr/0150-keybindings-and-macros.md)). The shell's handler
+  ([ADR 0156](docs/adr/0156-keybindings-and-macros.md)). The shell's handler
   resolves every press through the effective keymap (the catalogue in
   `packages/app-core/src/lib/keymap/commands.ts`, overlaid by the person's
   sparse bindings), so a new key is a catalogue row, never a second

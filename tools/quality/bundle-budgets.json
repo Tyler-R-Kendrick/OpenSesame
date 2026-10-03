@@ -51,7 +51,7 @@
       "builds. Neither lowering experimentalMinChunkSize nor a dedicated",
       "module-support chunk kept `main` smaller; both made it larger.",
       "total, javascript and gzip budgets are unchanged and still pass.",
-      "2026-09-28: ADR 0150 changes no hardened budget of its own; largestAsset",
+      "2026-09-28: ADR 0156 changes no hardened budget of its own; largestAsset",
       "stays at 769 (ADR 0149, below). The front door's Join road is on every",
       "deployment now, so what it needs before any consent is core and rides",
       "`main`: the live-link parser boot uses to take a link out of the address",
@@ -79,7 +79,7 @@
       "JavaScript that no page loads. Measured 4105/1236 -> 4132/1246.",
       "`main` sits at 766.0 after the at-rest review fixes (lost-key guard,",
       "load timeout); 769 keeps it from failing on rounding alone.",
-      "2026-09-28: -> 4830/4200/1272/770 for ADR 0150 on top of main's static-auth 1.0.3 line above (CI measured the merge at 4783/4173/1260/765; budgets keep ~0.7% headroom). Keybindings is core, not an optional capability, so both profiles carry it: base 9ee047b8 builds both at 4706/4106/1237/764 and this branch at 4752/4144/1250/766 -- the lazy Keybindings panel chunk, the keymap model in the Settings chunk, and +2 KiB in main for the command catalogue the shell handler now reads every binding from. Neither profile gained a forbidden reachability.",
+      "2026-09-28: -> 4830/4200/1272/770 for ADR 0156 (keybindings) on top of main's static-auth 1.0.3 line above (CI measured the merge at 4783/4173/1260/765; budgets keep ~0.7% headroom). Keybindings is core, not an optional capability, so both profiles carry it: base 9ee047b8 builds both at 4706/4106/1237/764 and this branch at 4752/4144/1250/766 -- the lazy Keybindings panel chunk, the keymap model in the Settings chunk, and +2 KiB in main for the command catalogue the shell handler now reads every binding from. Neither profile gained a forbidden reachability.",
       "2026-09-29: total 4741 -> 4743, javascript 4140 -> 4141, largestAsset",
       "769 -> 789 for both (ADR 0152). Age-recipient, AWS KMS and Google Cloud",
       "KMS enrollment runs on the vault service the shell already loads",
@@ -104,15 +104,24 @@
       "moves to 4211, four kibibytes over that measurement.",
       "2026-09-29: merging keybindings onto the settings-rows ceilings keeps",
       "the higher measurement on each line: total 4830, javascript 4211,",
-      "javascriptGzip 1272, and largestAsset 793."
+      "javascriptGzip 1272, and largestAsset 793.",
+      "2026-10-03: total 4830 -> 4767, javascript 4211 -> 4164 and",
+      "javascriptGzip 1272 -> 1259 for both. Those three lines had only gone up",
+      "to take the keybindings merge, and a review asked for the payload to be",
+      "cut rather than the ceiling raised. They are back at the values they held",
+      "before that merge raised them. largestAsset stays",
+      "793, which is main's own measurement and not keybindings'. A hardened",
+      "build on this branch measures 2807 total, 2390 javascript, 749 gzip and",
+      "783 largestAsset, so nothing in the keybindings code needs to be cut",
+      "to fit; the ceilings are a ceiling to fall from, never to raise."
     ],
     "builds": {
       "minimal-local-hardened": {
         "dist": "apps/pages/dist-profiles/minimal-local-hardened",
         "budgets": {
-          "total": 4830,
-          "javascript": 4211,
-          "javascriptGzip": 1272,
+          "total": 4767,
+          "javascript": 4164,
+          "javascriptGzip": 1259,
           "css": 171,
           "largestAsset": 793
         }
@@ -120,9 +129,9 @@
       "family-local-hardened": {
         "dist": "apps/pages/dist-profiles/family-local-hardened",
         "budgets": {
-          "total": 4830,
-          "javascript": 4211,
-          "javascriptGzip": 1272,
+          "total": 4767,
+          "javascript": 4164,
+          "javascriptGzip": 1259,
           "css": 171,
           "largestAsset": 793
         }
@@ -169,7 +178,7 @@
         "2026-09-26: javascriptGzip 1290->1315 for the merge of main at 16242d78 into ADR 0147: this branch measured 1289 KiB in CI at 4ec3f3b3 and 1291 KiB once main's account-factor step-up (#525), static-auth fast fail (#526) and StatusMark touch twin (#527) joined it, +2 KiB none of which is connector code. Budget keeps ~2% headroom.",
         "2026-09-27: javascript 4420->4770 and javascriptGzip 1315->1435 because the vault's Import key and Settings' Formats panel come back (ADR 0052 explicit human import; the UI was lost in the ADR 0133 move on 2026-09-22, after which these budgets were set without it). Main at 24124002 builds 4375/1306 KiB and this branch 4677/1405, +302/+99: kdbxweb 200/61 KiB and hash-wasm's Argon2 28/11 KiB (both lazy, loaded only when a KDBX file is opened), the CSV/CXF/ZIP/manager-format parsers in the vault.interop-formats runtime +60/20 KiB, and the offline-backup and store-manifest readers; the rest is Rollup regrouping that nets out. The PWA precaches every JS byte, so lazy chunks still count. Budget keeps ~2% headroom.",
         "2026-09-28: javascript 4770->4800 and javascriptGzip 1435->1446 because the hosted static-auth SDK 1.0.3 (ADR 0149: the relying party's PKCE transaction sealed at rest) ships in public/ beside the frozen 1.0.2 -- releases are immutable -- adding 27.4 KiB raw / 9.8 KiB gzip of JavaScript no Pages route loads, plus ~1 KiB for the at-rest seal's review fixes. Measured 4771/1436 KiB; budgets keep ~0.6% headroom.",
-        "2026-09-28: javascript 4770->4800 and javascriptGzip 1435->1445 because ADR 0150 gives Keybindings its own Settings tab: a lazy KeybindingsPanels chunk (24.9 KiB, 8.3 gzip -- keymap table, key capture, conflict prompt, macro editor and recorder) and the keymap model the Settings chunk now validates config.yaml with (+6.6 KiB). Base measured 4744/1427, this branch 4782/1439; budgets keep ~0.5% headroom. Nothing reaches the boot path: the editor loads only on a Keybindings visit.",
+        "2026-09-28: javascript 4770->4800 and javascriptGzip 1435->1445 because ADR 0156 gives Keybindings its own Settings tab: a lazy KeybindingsPanels chunk (24.9 KiB, 8.3 gzip -- keymap table, key capture, conflict prompt, macro editor and recorder) and the keymap model the Settings chunk now validates config.yaml with (+6.6 KiB). Base measured 4744/1427, this branch 4782/1439; budgets keep ~0.5% headroom. Nothing reaches the boot path: the editor loads only on a Keybindings visit.",
         "2026-09-28: javascript 4800->5460 and javascriptGzip 1446->1650 for ADR",
         "0150 section 6, optional live-session routes. Three code carriers, each its",
         "own lazy chunk that loads only when a session names that kind: live-mqtt",

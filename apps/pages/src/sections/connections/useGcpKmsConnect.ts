@@ -66,7 +66,11 @@ export function useGcpKmsConnect(onFlash: (flash: Flash) => void) {
   const publicView = saved ? toGcpKmsPublic(saved) : null;
   // A saved connection is what Test opens the protector with, so it is not
   // removable, and its key is not replaceable, while a protector on this key
+<<<<<<< HEAD
   // is enrolled (ADR 0158 §3). Credentials for the same key may rotate.
+=======
+  // is enrolled (ADR 0150 §3). Credentials for the same key may rotate.
+>>>>>>> origin/main
   const enrolled = Boolean(
     saved?.keyName &&
       header?.protection?.records.some(

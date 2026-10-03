@@ -51,7 +51,7 @@ function WhichKey({ pending }: { pending: Pending }) {
 }
 
 /**
- * vim's `showcmd` and which-key, in the statusline (ADR 0150): the count and
+ * vim's `showcmd` and which-key, in the statusline (ADR 0156): the count and
  * keys typed so far, what each next key runs, and `recording @a` while a
  * register records. A screen reader hears a recording start and stop, never
  * each key.

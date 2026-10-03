@@ -217,7 +217,13 @@ like any optional capability, and a carrier is external service egress:
 ## Checking a setup
 
 `pnpm --filter @opensesame/pages verify:live-join` runs every road in real
-browsers over real WebRTC:
+browsers over real WebRTC. Build the app first, and also the dedicated build,
+`pnpm --filter @opensesame/pages build:live-dedicated` (it writes
+`apps/pages/dist-live-dedicated`, stamped `dedicated_origin` for
+`https://opensesame.example.test`). The carrier and declined walks run on it:
+their servers are on loopback, which is local operator authority the shared
+GitHub Pages origin may not reach, so the run fails without that build.
+The roads:
 
 - direct pairing;
 - a simulated tailnet, which never connects without the address and connects
@@ -265,7 +271,10 @@ missing server fails the run; it is never skipped silently.
   never meet (it waits 10 seconds, not the full connection timeout).
 
 `pnpm --filter @opensesame/pages verify:live-netns` checks the address hint on
-a network it builds rather than one it simulates:
+a network it builds rather than one it simulates. The no-address and address
+walks run on the GitHub Pages build; the Nostr relay and TURN walks put their
+servers on a private address, so they run on the dedicated build
+(`build:live-dedicated`, as above), which the run needs:
 
 - two Linux network namespaces, each with its own Chromium (mDNS candidate
   hiding on, nothing filtered in the page), joined by a veth pair with
