@@ -13,7 +13,7 @@ import {
   type Flash,
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   type GcpKmsFormState,
@@ -79,7 +79,7 @@ export function useGcpKmsConnect(onFlash: (flash: Flash) => void) {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  async function save(event: FormEvent) {
+  async function save(event: { preventDefault: () => void }) {
     event.preventDefault();
     if (!tomb) {
       onFlash({

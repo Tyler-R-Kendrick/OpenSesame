@@ -16,7 +16,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import {
-  awsKms,
+  awsKmsOn,
   headerWithRecords,
 } from "../settings/vault-protection-fixtures.test-support.js";
 import {
@@ -173,9 +173,7 @@ describe("AWS KMS connector", () => {
 
     function useSaved(enrolled: boolean) {
       awsKmsConnectDependencies.readAwsKmsConfig = async () => saved;
-      const header = enrolled
-        ? headerWithRecords([{ ...awsKms, keyArn: KEY_ARN }])
-        : null;
+      const header = enrolled ? headerWithRecords([awsKmsOn(KEY_ARN)]) : null;
       vaultHooksSeams.useVault = () => ({
         ...vaultState({ status: "unlocked", guest: false, tomb: "personal" }),
         header,
@@ -233,7 +231,7 @@ describe("AWS KMS connector", () => {
       expect(result.current.enrolled).toBe(true);
       act(() => result.current.setField("keyArn", OTHER_ARN));
       await act(async () => {
-        await result.current.save({ preventDefault: vi.fn() } as never);
+        await result.current.save({ preventDefault: vi.fn() });
       });
       expect(write).not.toHaveBeenCalled();
       expect(onFlash).toHaveBeenCalledWith(

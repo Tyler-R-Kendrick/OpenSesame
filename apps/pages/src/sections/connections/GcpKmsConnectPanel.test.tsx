@@ -16,7 +16,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import {
-  gcpKms,
+  gcpKmsOn,
   headerWithRecords,
 } from "../settings/vault-protection-fixtures.test-support.js";
 import {
@@ -166,9 +166,7 @@ describe("Google Cloud KMS connector", () => {
 
     function useSaved(enrolled: boolean) {
       gcpKmsConnectDependencies.readGcpKmsConfig = async () => saved;
-      const header = enrolled
-        ? headerWithRecords([{ ...gcpKms, keyName: KEY_NAME }])
-        : null;
+      const header = enrolled ? headerWithRecords([gcpKmsOn(KEY_NAME)]) : null;
       vaultHooksSeams.useVault = () => ({
         ...vaultState({ status: "unlocked", guest: false, tomb: "personal" }),
         header,
@@ -226,7 +224,7 @@ describe("Google Cloud KMS connector", () => {
       expect(result.current.enrolled).toBe(true);
       act(() => result.current.setField("keyName", OTHER_KEY));
       await act(async () => {
-        await result.current.save({ preventDefault: vi.fn() } as never);
+        await result.current.save({ preventDefault: vi.fn() });
       });
       expect(write).not.toHaveBeenCalled();
       expect(onFlash).toHaveBeenCalledWith(
