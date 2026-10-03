@@ -118,6 +118,99 @@ describe("passkeyOffered", () => {
   });
 });
 
+/** An open shadow root under a fresh host, appended to `parent`. */
+function shadowRoot(parent: Node = document.body): ShadowRoot {
+  const host = document.createElement("div");
+  parent.appendChild(host);
+  return host.attachShadow({ mode: "open" });
+}
+
+function formIn(parent: Node): HTMLFormElement {
+  const form = document.createElement("form");
+  parent.appendChild(form);
+  return form;
+}
+
+const PASSKEY = { type: "text", autocomplete: "username webauthn" };
+
+describe("passkeyOffered across shadow roots", () => {
+  it("sees a sibling webauthn field of a form-less field in the same open root", () => {
+    const root = shadowRoot();
+    input(PASSKEY, root);
+    expect(passkeyOffered(input({ type: "password" }, root))).toBe(true);
+  });
+
+  it("sees it when the password comes first in the root", () => {
+    const root = shadowRoot();
+    const password = input({ type: "password" }, root);
+    input(PASSKEY, root);
+    expect(passkeyOffered(password)).toBe(true);
+  });
+
+  it("scopes a form inside a shadow root to that form", () => {
+    const root = shadowRoot();
+    const form = formIn(root);
+    input(PASSKEY, form);
+    expect(passkeyOffered(input({ type: "password" }, form))).toBe(true);
+    const other = formIn(root);
+    expect(passkeyOffered(input({ type: "password" }, other))).toBe(false);
+  });
+
+  it("sees a sibling in a nested shadow root, and only the field's own root", () => {
+    const outer = shadowRoot();
+    const inner = shadowRoot(outer);
+    input(PASSKEY, inner);
+    expect(passkeyOffered(input({ type: "password" }, inner))).toBe(true);
+    // The outer root's own field has a passkey in a root below it: not its root.
+    expect(passkeyOffered(input({ type: "password" }, outer))).toBe(false);
+  });
+
+  it("does not count a webauthn field in the outer root for the inner one", () => {
+    const outer = shadowRoot();
+    input(PASSKEY, outer);
+    const inner = shadowRoot(outer);
+    expect(passkeyOffered(input({ type: "password" }, inner))).toBe(false);
+  });
+
+  it("does not count a webauthn field in a different root", () => {
+    const one = shadowRoot();
+    const two = shadowRoot();
+    input(PASSKEY, one);
+    expect(passkeyOffered(input({ type: "password" }, two))).toBe(false);
+  });
+
+  it("does not count a shadow root's webauthn field for a light-DOM field", () => {
+    input(PASSKEY, shadowRoot());
+    expect(passkeyOffered(input({ type: "password" }))).toBe(false);
+  });
+
+  it("does not count a light-DOM webauthn field for a shadow field", () => {
+    input(PASSKEY);
+    expect(passkeyOffered(input({ type: "password" }, shadowRoot()))).toBe(
+      false,
+    );
+  });
+
+  it("still sees a light-DOM sibling on the document", () => {
+    input(PASSKEY);
+    expect(passkeyOffered(input({ type: "password" }))).toBe(true);
+  });
+});
+
+describe("effectiveOpacity through a slot", () => {
+  it("counts a faded wrapper the field is slotted into", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = host.attachShadow({ mode: "open" });
+    const veil = document.createElement("div");
+    veil.style.opacity = "0";
+    veil.appendChild(document.createElement("slot"));
+    root.appendChild(veil);
+    const field = input({ type: "password" }, host);
+    expect(effectiveOpacity(field, window)).toBe(0);
+  });
+});
+
 describe("pageFacts feeding decideFill", () => {
   const arm = (origin: string) => ({
     trigger: "command",
@@ -175,5 +268,46 @@ describe("pageFacts feeding decideFill", () => {
       fill: false,
       refusal: "not_top_frame",
     });
+  });
+
+  it("refuses a shadow-root password beside a sibling webauthn field", () => {
+    const root = shadowRoot();
+    input(PASSKEY, root);
+    const field = input({ type: "password" }, root);
+    field.getBoundingClientRect = () => BOX;
+    root.elementFromPoint = () => field;
+    field.focus();
+    const facts = pageFacts(window);
+    expect(facts.passkeyOffered).toBe(true);
+    expect(decideFill(arm(location.origin), facts, Date.now())).toEqual({
+      fill: false,
+      refusal: "passkey_offered",
+    });
+  });
+
+  it("fills a shadow-root password when the only passkey is in another root", () => {
+    input(PASSKEY, shadowRoot());
+    const root = shadowRoot();
+    const field = input({ type: "password" }, root);
+    field.getBoundingClientRect = () => BOX;
+    root.elementFromPoint = () => field;
+    field.focus();
+    const facts = pageFacts(window);
+    expect(facts.passkeyOffered).toBe(false);
+    expect(decideFill(arm(location.origin), facts, Date.now()).fill).toBe(true);
+  });
+
+  it("refuses a field in a nested shadow root covered by an overlay in its root", () => {
+    const outer = shadowRoot();
+    const inner = shadowRoot(outer);
+    const field = input({ type: "password" }, inner);
+    const overlay = document.createElement("div");
+    inner.appendChild(overlay);
+    field.getBoundingClientRect = () => BOX;
+    inner.elementFromPoint = () => overlay;
+    field.focus();
+    expect(
+      decideFill(arm(location.origin), pageFacts(window), Date.now()),
+    ).toEqual({ fill: false, refusal: "covered" });
   });
 });
