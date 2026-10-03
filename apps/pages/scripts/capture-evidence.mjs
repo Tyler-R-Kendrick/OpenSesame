@@ -38,6 +38,7 @@ import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { openSessionSection } from "./lib/session-section.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
@@ -131,6 +132,13 @@ const STEPS = {
       await press(key);
       await page.waitForTimeout(450);
       await press(page.locator(".drawer__row", { hasText: name }).first());
+    } else if (/^(settings|activity)$/i.test(name)) {
+      // Session roots are not on the vault rail: the session prompt's menu
+      // lists them (lib/session-section.mjs).
+      await openSessionSection(
+        page,
+        name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
+      );
     } else {
       await press(page.locator(".railtree__row", { hasText: name }).first());
     }
@@ -304,6 +312,16 @@ const STEPS = {
         `capture-evidence fill("${label}"): no field matched — refusing a silent miss`,
       );
     await field.fill(json === undefined ? text : JSON.stringify(json));
+    await page.waitForTimeout(300);
+  },
+  /**
+   * `fill`, for a field only one of the two builds has — a tab the base does
+   * not draw is a legitimate difference, not a miss.
+   */
+  async fillOptional(page, { label, text }) {
+    const field = page.getByLabel(label, { exact: true }).first();
+    if (!(await field.count())) return;
+    await field.fill(text);
     await page.waitForTimeout(300);
   },
   /**
