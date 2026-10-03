@@ -21,21 +21,18 @@ import {
   importVaultKey,
 } from "@opensesame/vault-core";
 import type { PasskeyUnlockSessionHost } from "./passkey-unlock-session.js";
+import type { ProtectorUnlockMethodId } from "./protection/unlock-protector-methods.js";
 import {
   type ProtectorUnlockInput,
   isUncountedProtectorFailure,
   openRootWithProtector,
   protectorUnlockMiss,
 } from "./protection/unlock-protector-open.js";
-import type { ProtectorUnlockMethodId } from "./protection/unlock-protector-methods.js";
 
 export type { ProtectorUnlockInput };
 
 function copyOf(root: Uint8Array): ArrayBuffer {
-  return root.buffer.slice(
-    root.byteOffset,
-    root.byteOffset + root.byteLength,
-  ) as ArrayBuffer;
+  return root.slice().buffer;
 }
 
 /** Open the root from the protector; the caller owns (and must spend) it. */

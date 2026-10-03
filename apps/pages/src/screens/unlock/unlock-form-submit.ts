@@ -1,5 +1,5 @@
-import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
+import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import type { FormEvent, MutableRefObject } from "react";
 import {

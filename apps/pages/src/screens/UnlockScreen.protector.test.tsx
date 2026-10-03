@@ -20,7 +20,7 @@ import {
 
 const wrap = { ivB64: "aXY=", ctB64: "Y3Q=" };
 
-const RECORDS: Record<string, JsonObject> = {
+const RECORDS = {
   recovery: {
     kind: "recovery-key",
     protectorId: "recovery_a",
@@ -72,7 +72,7 @@ const RECORDS: Record<string, JsonObject> = {
     userVerification: "required",
     proofStatus: "verified",
   },
-};
+} satisfies Record<string, JsonObject>;
 
 function lockedWith(...names: (keyof typeof RECORDS)[]): void {
   v.state = {

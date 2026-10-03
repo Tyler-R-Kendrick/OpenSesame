@@ -9,8 +9,6 @@ import { parseTotp, totpCode } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { generateAgeKeyPair } from "../age-keys.js";
 import { kvGet, kvSet } from "../kv.js";
-import { LOCK_AFTER_FAILS } from "./store-scope.js";
-import { VaultStore } from "./store.js";
 import {
   GCP_KEY,
   HEADER_KEY,
@@ -20,7 +18,9 @@ import {
   clearVaultSurface,
   gcpFake,
 } from "./protection/protector-enrollment.test-support.js";
+import { LOCK_AFTER_FAILS } from "./store-scope.js";
 import { enrollTotp } from "./store-totp.fixture.js";
+import { VaultStore } from "./store.js";
 
 beforeEach(clearVaultSurface);
 

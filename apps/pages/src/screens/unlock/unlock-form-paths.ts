@@ -3,6 +3,7 @@ import {
   type UnlockTabId,
   isProtectorUnlockMethod,
 } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
+import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
   completePasskeyDuressCode,
@@ -12,7 +13,6 @@ import { unlockWithPasswordAfterDuressGate } from "@opensesame/app-core/screens/
 import { unlockWithPinAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-pin-duress.js";
 import { unlockWithProtectorAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-protector-duress.js";
 import { unlockSecondStepAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-second-step-duress.js";
-import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { MutableRefObject } from "react";
 
 type UnlockStore = Readonly<{
@@ -93,14 +93,18 @@ export async function submitSecondStepUnlock(input: {
   return outcome === "duress_session" ? "duress_stop" : "done";
 }
 
-/** A recovery key, age identity or age passkey enrolled in the manifest. */
-async function submitProtectorUnlock(input: {
+type ProtectorSubmit = {
   method: ProtectorUnlockInput["method"];
   store: UnlockStore;
   passkeyAbort: MutableRefObject<AbortController | null>;
   protectorSecret: string;
   setProtectorSecret: (value: string) => void;
-}): Promise<"duress_stop" | "needs_duress_code" | "done"> {
+};
+
+/** A recovery key, age identity or age passkey enrolled in the manifest. */
+async function submitProtectorUnlock(
+  input: ProtectorSubmit,
+): Promise<"duress_stop" | "needs_duress_code" | "done"> {
   const controller = new AbortController();
   input.passkeyAbort.current = controller;
   try {

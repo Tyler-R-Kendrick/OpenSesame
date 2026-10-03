@@ -54,14 +54,11 @@ async function tapUnlock(
     return "vault_opened";
   }
   holdProtectorRoot(await store.probeProtector(input), input.method);
+  // The tap proves user verification and nothing else: no PRF output.
+  const evidence = toSelectOptions({ userVerified: true, prfOutput: null });
   const origin = maybePage()?.location.origin;
-  stashPasskeyDuressEvidence(
-    toSelectOptions({
-      userVerified: true,
-      prfOutput: null,
-      ...(origin === undefined ? {} : { origin }),
-    }),
-  );
+  if (origin !== undefined) evidence.origin = origin;
+  stashPasskeyDuressEvidence(evidence);
   return "needs_duress_code";
 }
 

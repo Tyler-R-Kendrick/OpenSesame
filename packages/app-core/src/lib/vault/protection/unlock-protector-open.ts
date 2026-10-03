@@ -22,11 +22,11 @@ import {
   WrongPasswordError,
 } from "@opensesame/vault-core";
 import { isAgeIdentity } from "../../age-keys.js";
+import { openAgeCapsule } from "./adapters/age-recipient.js";
 import {
   type AgeWebauthnCrypto,
   openAgeWebauthn,
 } from "./adapters/age-webauthn.js";
-import { openAgeCapsule } from "./adapters/age-recipient.js";
 import { ProtectionError } from "./errors.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import {
@@ -73,7 +73,7 @@ function contextFor(
 }
 
 /** A prompt the person dismissed, or work a lock or a new attempt cancelled. */
-export function isUncountedProtectorFailure(error: unknown): boolean {
+export function isUncountedProtectorFailure<Thrown>(error: Thrown): boolean {
   if (error instanceof DOMException && error.name === "AbortError") return true;
   return (
     error instanceof ProtectionError &&
@@ -98,11 +98,11 @@ function openerFor(input: ProtectorUnlockInput): Opener {
       return openAgeCapsule(record, context, secret);
     }
     if (record.kind === "age-webauthn") {
-      return openAgeWebauthn({
-        context,
-        record,
-        ...(input.ageWebauthnCrypto ? { crypto: input.ageWebauthnCrypto } : {}),
-      });
+      return openAgeWebauthn(
+        input.ageWebauthnCrypto
+          ? { context, record, crypto: input.ageWebauthnCrypto }
+          : { context, record },
+      );
     }
     throw new ProtectionError("unavailable", "Nothing to open with.");
   };

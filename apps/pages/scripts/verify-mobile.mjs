@@ -22,7 +22,6 @@ import { fileURLToPath } from "node:url";
 import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
-import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import {
   AUDIT,
@@ -31,6 +30,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";

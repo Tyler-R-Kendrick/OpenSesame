@@ -80,14 +80,13 @@ const gcp = {
   kind: "gcp-kms",
   protectorId: "gcp_a",
   keyName: "projects/p/locations/g/keyRings/r/cryptoKeys/k",
-  keyVersionName: "projects/p/locations/g/keyRings/r/cryptoKeys/k/v/1",
   connectionId: "c",
   connectionConfigVersion: "1",
   wrappedSecretB64: "Y3Q=",
   localCapsule: wrap,
-  encryptionContext: {},
+  aadB64: "YWFk",
   proofStatus: "verified",
-} as unknown as ProtectionRecord;
+} satisfies ProtectionRecord;
 
 describe("the tabs the manifest adds to the unlock screen", () => {
   it("names a recovery key, an age key and an age passkey, in that screen order", () => {

@@ -7,6 +7,7 @@
 import {
   type AgeWebauthnProtectorRecord,
   type ProtectionContext,
+  type ProtectionRecord,
   WrongPasswordError,
   randomBytes,
 } from "@opensesame/vault-core";
@@ -17,12 +18,12 @@ import {
   enrollAgeWebauthn,
 } from "./protection/adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./protection/adapters/webauthn-prf-ops.js";
+import { ProtectionError } from "./protection/errors.js";
 import {
   HEADER_KEY,
   PASSWORD,
   clearVaultSurface,
 } from "./protection/protector-enrollment.test-support.js";
-import { ProtectionError } from "./protection/errors.js";
 import { VaultStore } from "./store.js";
 import { unlockMethodsSeams } from "./unlock-methods.js";
 
@@ -60,7 +61,10 @@ type Fixture = {
   root: Uint8Array;
   locked: () => VaultStore;
   addToManifest: (
-    make: (context: ProtectionContext, root: Uint8Array) => Promise<unknown>,
+    make: (
+      context: ProtectionContext,
+      root: Uint8Array,
+    ) => Promise<ProtectionRecord>,
     protectorId: string,
   ) => Promise<void>;
 };
@@ -190,7 +194,7 @@ describe("unlock with a passkey capsule enrolled in the manifest", () => {
   }
 
   it("opens through the passkey road, though the header holds no passkey", async () => {
-    const prf = randomBytes(32).buffer as ArrayBuffer;
+    const prf = randomBytes(32).slice().buffer;
     const f = await withCapsule(prf);
     Object.assign(unlockMethodsSeams, {
       getPasskeyUnlockCeremony: async () => prf,
@@ -202,9 +206,9 @@ describe("unlock with a passkey capsule enrolled in the manifest", () => {
   });
 
   it("counts an authenticator whose output opens no capsule", async () => {
-    const f = await withCapsule(randomBytes(32).buffer as ArrayBuffer);
+    const f = await withCapsule(randomBytes(32).slice().buffer);
     Object.assign(unlockMethodsSeams, {
-      getPasskeyUnlockCeremony: async () => randomBytes(32).buffer,
+      getPasskeyUnlockCeremony: async () => randomBytes(32).slice().buffer,
     });
     const locked = f.locked();
     await expect(locked.unlockWithPasskey()).rejects.toBeInstanceOf(

@@ -73,13 +73,9 @@ async function enrollAuthenticator(page, { check, totp }) {
 
 const focusedId = (page) => page.evaluate(() => document.activeElement?.id);
 
-export async function protectorJourney(h) {
-  const { browser, newPage, check, snap, setStep, openSecurity, lock } = h;
-  const { PASSWORD, ORIGIN, BASE, totp } = h;
-  const { page, context } = await newPage(browser);
-  setStep("3-protector");
-  await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page, PASSWORD);
+/** Enroll a recovery key, then an authenticator, from Settings; return both. */
+async function enrollBoth(page, h) {
+  const { check, snap, openSecurity, totp } = h;
   await openSecurity(page);
   check(
     (await page.locator(".sw--method", { hasText: "Recovery key" }).count()) ===
@@ -94,19 +90,22 @@ export async function protectorJourney(h) {
     (await row.getByRole("img", { name: "Verified" }).count()) === 1,
     "the recovery key is listed as verified",
   );
+  const preferred = row.getByRole("button", {
+    name: "Preferred unlock Recovery key",
+  });
+  const remove = row.getByRole("button", { name: "Remove Recovery key" });
   check(
-    (await row
-      .getByRole("button", { name: "Preferred unlock Recovery key" })
-      .count()) === 1 &&
-      (await row
-        .getByRole("button", { name: "Remove Recovery key" })
-        .count()) === 1,
+    (await preferred.count()) === 1 && (await remove.count()) === 1,
     "a verified recovery key can be preferred and removed from its row",
   );
   const seed = await enrollAuthenticator(page, { check, totp });
   await withdrawSelfAuthenticator(page, check);
-  await lock(page);
+  return { key, seed };
+}
 
+/** The locked screen: exact tabs, a wrong key refused, the right one opens. */
+async function unlockFromRecoveryKey(page, h, { key, seed }) {
+  const { check, snap, totp } = h;
   const locked = await snap(page, "3-protector-locked");
   const names = await tabs(page);
   check(
@@ -117,11 +116,8 @@ export async function protectorJourney(h) {
     /1 · Key/.test(locked) && /2 · Authenticator code/.test(locked),
     "the code is announced as step 2 before any key is taken",
   );
-  check(
-    (await page.getByRole("button", { name: "Continue as guest" }).count()) ===
-      1,
-    "guest stays offered beside the new tab",
-  );
+  const guest = page.getByRole("button", { name: "Continue as guest" });
+  check((await guest.count()) === 1, "guest stays offered beside the new tab");
 
   await page.getByRole("tab", { name: "Recovery key" }).click();
   await page.waitForTimeout(300);
@@ -143,9 +139,9 @@ export async function protectorJourney(h) {
     !/Confirm it is you/.test(refused),
     "a wrong recovery key reaches no second step",
   );
+  const field = page.getByLabel("Recovery key", { exact: true });
   check(
-    (await page.getByLabel("Recovery key", { exact: true }).inputValue()) ===
-      "",
+    (await field.inputValue()) === "",
     "the wrong key is not left in the field",
   );
   check(
@@ -158,19 +154,22 @@ export async function protectorJourney(h) {
   await page.keyboard.press("Enter");
   await page.waitForTimeout(2500);
   await finishUnlockWithCode(page, seed, "3-protector", { check, snap, totp });
+}
 
-  // Preferred: the unlock screen opens on it, now and after a reload.
+/** Preferred: the unlock screen opens on it, now and after a reload. */
+async function preferRecoveryKey(page, h) {
+  const { check, snap, setStep, openSecurity, lock, ORIGIN, BASE } = h;
   await openSecurity(page);
-  await page
-    .getByRole("button", { name: "Preferred unlock Recovery key" })
-    .click();
+  const prefer = page.getByRole("button", {
+    name: "Preferred unlock Recovery key",
+  });
+  await prefer.click();
   await page.waitForTimeout(800);
   await lock(page);
   await page.waitForTimeout(500);
+  const recoveryTab = page.getByRole("tab", { name: "Recovery key" });
   check(
-    (await page
-      .getByRole("tab", { name: "Recovery key" })
-      .getAttribute("aria-selected")) === "true",
+    (await recoveryTab.getAttribute("aria-selected")) === "true",
     "the preferred recovery key is the tab the screen opens on",
   );
   setStep("3-protector-reload");
@@ -178,16 +177,27 @@ export async function protectorJourney(h) {
   await page.waitForTimeout(1500);
   const reloaded = await snap(page, "3-protector-reloaded");
   check(/^Unlock$/m.test(reloaded), "a reload lands on Unlock");
+  const selected = await recoveryTab.getAttribute("aria-selected");
   check(
     (await tabs(page)).join(",") === "Password,Recovery key" &&
-      (await page
-        .getByRole("tab", { name: "Recovery key" })
-        .getAttribute("aria-selected")) === "true",
+      selected === "true",
     "after a reload the tabs and the preference are still the enrolled ones",
   );
   check(
     (await focusedId(page)) === "unlock-protector",
     "focus lands in the recovery key field after a reload, with no click",
   );
+}
+
+export async function protectorJourney(h) {
+  const { browser, newPage, setStep, lock, PASSWORD, ORIGIN, BASE } = h;
+  const { page, context } = await newPage(browser);
+  setStep("3-protector");
+  await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  await sealWithPassword(page, PASSWORD);
+  const secrets = await enrollBoth(page, h);
+  await lock(page);
+  await unlockFromRecoveryKey(page, h, secrets);
+  await preferRecoveryKey(page, h);
   await context.close();
 }

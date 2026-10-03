@@ -10,164 +10,211 @@ import { SECOND_STEP_LABEL } from "./labels.js";
  * text channel asks for, or one of the recovery codes standing in for it.
  * Presentation only — the screen owns the state and the submit.
  */
-export function SecondStepFields({
+type StepTabsProps = {
+  secondSteps: SecondStepId[];
+  activeSecondStep: SecondStepId;
+  lockedFor: number;
+  onPickStep: (id: SecondStepId) => void;
+};
+
+function StepIcon({ id }: { id: SecondStepId }) {
+  if (id === "totp") return <IconPhone size={16} />;
+  return id === "email" ? <IconMail size={16} /> : <IconMessage size={16} />;
+}
+
+function StepTabs({
   secondSteps,
   activeSecondStep,
-  recoveryMode,
+  lockedFor,
+  onPickStep,
+}: StepTabsProps) {
+  return (
+    <div className="unlock__methods" role="tablist" aria-label="Second step">
+      {secondSteps.map((id) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={activeSecondStep === id}
+          className={
+            activeSecondStep === id
+              ? "unlock__method unlock__method--active"
+              : "unlock__method"
+          }
+          disabled={lockedFor > 0}
+          onClick={() => onPickStep(id)}
+        >
+          <StepIcon id={id} />
+          {SECOND_STEP_LABEL[id]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RecoveryCodeField({
+  value,
+  disabled,
+  inputRef,
+  onChange,
+  onUseCode,
+}: {
+  value: string;
+  disabled: boolean;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onChange: (value: string) => void;
+  onUseCode: () => void;
+}) {
+  return (
+    <div className="field">
+      <label htmlFor="unlock-recovery">Recovery code</label>
+      <input
+        id="unlock-recovery"
+        ref={inputRef}
+        type="text"
+        autoComplete="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="xxxx-xxxx"
+      />
+      <p className="hint">
+        One of the codes you saved. It opens the vault once, then it is spent.
+      </p>
+      <button type="button" className="unlock__switch" onClick={onUseCode}>
+        Use the code instead
+      </button>
+    </div>
+  );
+}
+
+const CODE_LABEL = {
+  totp: "Authenticator code",
+  email: "Code from the email",
+  sms: "Code from the text",
+} satisfies Record<SecondStepId, string>;
+
+function CodeStep({
+  activeSecondStep,
   hasRecoveryCodes,
   sent,
   resendIn,
-  busy,
-  lockedFor,
+  disabled,
   totp,
-  recovery,
   totpRef,
-  onPickStep,
   onTotp,
-  onRecovery,
   onUseRecoveryCode,
-  onUseCode,
   onResend,
-  onStartOver,
   onComplete,
 }: {
-  secondSteps: SecondStepId[];
   activeSecondStep: SecondStepId;
-  recoveryMode: boolean;
   hasRecoveryCodes: boolean;
   sent: SentCode | null;
   resendIn: number;
-  busy: boolean;
-  lockedFor: number;
+  disabled: boolean;
   totp: string;
-  recovery: string;
   totpRef: RefObject<HTMLInputElement | null>;
-  onPickStep: (id: SecondStepId) => void;
   onTotp: (value: string) => void;
-  onRecovery: (value: string) => void;
   onUseRecoveryCode: () => void;
-  onUseCode: () => void;
   onResend: () => void;
-  onStartOver: () => void;
   onComplete: () => void;
 }) {
+  const sentByChannel = activeSecondStep !== "totp";
   return (
     <>
-      {secondSteps.length > 1 && !recoveryMode ? (
-        <div
-          className="unlock__methods"
-          role="tablist"
-          aria-label="Second step"
-        >
-          {secondSteps.map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeSecondStep === id}
-              className={
-                activeSecondStep === id
-                  ? "unlock__method unlock__method--active"
-                  : "unlock__method"
-              }
-              disabled={lockedFor > 0}
-              onClick={() => onPickStep(id)}
-            >
-              {id === "totp" ? (
-                <IconPhone size={16} />
-              ) : id === "email" ? (
-                <IconMail size={16} />
-              ) : (
-                <IconMessage size={16} />
-              )}
-              {SECOND_STEP_LABEL[id]}
-            </button>
-          ))}
-        </div>
+      {sentByChannel ? (
+        sent ? (
+          <output className="note note--ok">
+            <span>
+              A code was sent to {sent.to}. It is good for 10 minutes.
+            </span>
+          </output>
+        ) : (
+          <p className="hint">Sending a code…</p>
+        )
       ) : null}
-
-      {recoveryMode ? (
-        <div className="field">
-          <label htmlFor="unlock-recovery">Recovery code</label>
-          <input
-            id="unlock-recovery"
-            ref={totpRef}
-            type="text"
-            autoComplete="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            value={recovery}
-            disabled={busy || lockedFor > 0}
-            onChange={(e) => onRecovery(e.target.value)}
-            placeholder="xxxx-xxxx"
-          />
-          <p className="hint">
-            One of the codes you saved. It opens the vault once, then it is
-            spent.
-          </p>
-          <button type="button" className="unlock__switch" onClick={onUseCode}>
-            Use the code instead
+      <div className="field">
+        <label htmlFor="unlock-totp">{CODE_LABEL[activeSecondStep]}</label>
+        <CodeField
+          id="unlock-totp"
+          inputRef={totpRef}
+          value={totp}
+          disabled={disabled}
+          onChange={onTotp}
+          onComplete={onComplete}
+        />
+        <p className="hint">
+          {sentByChannel
+            ? "Six digits. Use the newest one you were sent."
+            : "The code your app shows for OpenSesame."}
+        </p>
+        {sentByChannel ? (
+          <button
+            type="button"
+            className="unlock__switch"
+            disabled={disabled || resendIn > 0}
+            onClick={onResend}
+          >
+            {resendIn > 0 ? `Send it again · in ${resendIn}s` : "Send it again"}
           </button>
-        </div>
+        ) : null}
+        {hasRecoveryCodes ? (
+          <button
+            type="button"
+            className="unlock__switch"
+            onClick={onUseRecoveryCode}
+          >
+            Use a recovery code
+          </button>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+export function SecondStepFields(
+  props: StepTabsProps & {
+    recoveryMode: boolean;
+    hasRecoveryCodes: boolean;
+    sent: SentCode | null;
+    resendIn: number;
+    busy: boolean;
+    totp: string;
+    recovery: string;
+    totpRef: RefObject<HTMLInputElement | null>;
+    onTotp: (value: string) => void;
+    onRecovery: (value: string) => void;
+    onUseRecoveryCode: () => void;
+    onUseCode: () => void;
+    onResend: () => void;
+    onStartOver: () => void;
+    onComplete: () => void;
+  },
+) {
+  const disabled = props.busy || props.lockedFor > 0;
+  return (
+    <>
+      {props.secondSteps.length > 1 && !props.recoveryMode ? (
+        <StepTabs {...props} />
+      ) : null}
+      {props.recoveryMode ? (
+        <RecoveryCodeField
+          value={props.recovery}
+          disabled={disabled}
+          inputRef={props.totpRef}
+          onChange={props.onRecovery}
+          onUseCode={props.onUseCode}
+        />
       ) : (
-        <>
-          {activeSecondStep !== "totp" ? (
-            sent ? (
-              <output className="note note--ok">
-                <span>
-                  A code was sent to {sent.to}. It is good for 10 minutes.
-                </span>
-              </output>
-            ) : (
-              <p className="hint">Sending a code…</p>
-            )
-          ) : null}
-          <div className="field">
-            <label htmlFor="unlock-totp">
-              {activeSecondStep === "totp"
-                ? "Authenticator code"
-                : activeSecondStep === "email"
-                  ? "Code from the email"
-                  : "Code from the text"}
-            </label>
-            <CodeField
-              id="unlock-totp"
-              inputRef={totpRef}
-              value={totp}
-              disabled={busy || lockedFor > 0}
-              onChange={onTotp}
-              onComplete={onComplete}
-            />
-            <p className="hint">
-              {activeSecondStep === "totp"
-                ? "The code your app shows for OpenSesame."
-                : "Six digits. Use the newest one you were sent."}
-            </p>
-            {activeSecondStep !== "totp" ? (
-              <button
-                type="button"
-                className="unlock__switch"
-                disabled={busy || resendIn > 0}
-                onClick={onResend}
-              >
-                {resendIn > 0
-                  ? `Send it again · in ${resendIn}s`
-                  : "Send it again"}
-              </button>
-            ) : null}
-            {hasRecoveryCodes ? (
-              <button
-                type="button"
-                className="unlock__switch"
-                onClick={onUseRecoveryCode}
-              >
-                Use a recovery code
-              </button>
-            ) : null}
-          </div>
-        </>
+        <CodeStep {...props} disabled={disabled} />
       )}
-      <button type="button" className="unlock__switch" onClick={onStartOver}>
+      <button
+        type="button"
+        className="unlock__switch"
+        onClick={props.onStartOver}
+      >
         Start over
       </button>
     </>
