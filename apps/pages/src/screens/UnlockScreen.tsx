@@ -48,6 +48,7 @@ import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
+import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
@@ -565,6 +566,9 @@ function UnlockForm({
                       setError(null);
                       setConfirm("");
                       setProtectorSecret("");
+                      // One toggle serves every field: a revealed password
+                      // must not show the next key typed.
+                      setReveal(false);
                     }}
                   >
                     {isCeremonyMethod(id) ? (
@@ -630,31 +634,7 @@ function UnlockForm({
             {(firstRun || !awaitingSecondStep) &&
             isCeremonyMethod(activeMethod) &&
             !passkeyHost.ok ? (
-              <output className="note note--warn">
-                <span>
-                  {passkeyHost.reason}
-                  {passkeyHost.fixUrl ? (
-                    <>
-                      {" "}
-                      {/* A button, same as the Settings twin's healPasskeyHost
-                          — the unlock screen was the one auth surface still
-                          repairing its environment through a raw anchor. */}
-                      <button
-                        type="button"
-                        className="unlock__switch"
-                        onClick={() =>
-                          window.location.assign(passkeyHost.fixUrl ?? "")
-                        }
-                      >
-                        Continue on localhost
-                      </button>{" "}
-                      (same vault data), then unlock with passkey.
-                    </>
-                  ) : (
-                    <> Open this app on a DNS hostname, then try again.</>
-                  )}
-                </span>
-              </output>
+              <PasskeyHostNote host={passkeyHost} />
             ) : null}
 
             {showsPinField ? (
