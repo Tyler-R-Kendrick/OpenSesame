@@ -82,14 +82,10 @@ afterEach(() => {
 });
 
 describe("Settings › Notifications — gating (ADR 0090)", () => {
-  it("with no Identity API shows the inbox alone, names no service, and asks nothing", async () => {
+  it("with no Identity API draws nothing, names no service, and asks nothing", async () => {
     remote = "";
     const { container } = show();
-    expect(screen.getByText("OpenSesame inbox")).toBeTruthy();
-    expect(
-      screen.getByRole("img", { name: "Always in the route" }),
-    ).toBeTruthy();
-    expect(container.textContent).not.toMatch(/identity|sign-in service|api/i);
+    expect(container.textContent).toBe("");
     await Promise.resolve();
     expect(server.fetch).not.toHaveBeenCalled();
     expect(session.files.list()).toEqual([]);

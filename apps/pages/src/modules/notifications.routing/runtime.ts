@@ -28,11 +28,13 @@ import {
   currentSession,
   isRemoteIdentityConfigured,
 } from "@opensesame/app-core/lib/identity.js";
+import { subscribeSettings } from "@opensesame/app-core/lib/settings.js";
 import {
   NOTIFICATIONS_GOALS,
   NOTIFICATIONS_ROUTES,
   NOTIFICATIONS_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/notifications-catalog.js";
+import type { RegistrationHandle } from "@opensesame/capability-composition";
 import { createElement } from "react";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
@@ -62,16 +64,30 @@ export const capabilityRuntime: CapabilityRuntime = {
     const session = createRoutingSession(identity);
     activation.onDispose(() => session.dispose());
     const Panel = () => createElement(NotificationsPanel, { session });
-    activation.register("settings-category", {
-      id: "notifications",
-      label: "Notifications",
-      guideId: "settings.notifications",
-      Panel,
-      // Channels draws in every state, the inbox-only one included.
-      panels: [{ id: "notif-channels", label: "Channels" }],
-      order: 300,
-      files: session.files,
-    });
+    // With no Identity API there is nothing to read, bind or order: the page
+    // would be one inbox row nobody can change (ADR 0158 §4). The category
+    // is there while a service is named, and goes with it.
+    let category: RegistrationHandle | null = null;
+    const follow = () => {
+      if (activation.disposed()) return;
+      const wanted = isRemoteIdentityConfigured();
+      if (wanted && category === null) {
+        category = activation.register("settings-category", {
+          id: "notifications",
+          label: "Notifications",
+          guideId: "settings.notifications",
+          Panel,
+          panels: [{ id: "notif-channels", label: "Channels" }],
+          order: 300,
+          files: session.files,
+        });
+      } else if (!wanted && category !== null) {
+        category.revoke();
+        category = null;
+      }
+    };
+    follow();
+    activation.onDispose(subscribeSettings(follow));
     registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
