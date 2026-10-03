@@ -25,7 +25,9 @@ had something a person could do. The rest were Host forms:
   `setConnectionCredential`, also Host-only.
 - The Host road is closed in Pages: `hostLocalSessionEligible()` needs a
   configured Host and a live approved grant, and Pages opens no pairing
-  ceremony (ADR 0128). So on every Pages build, Save could only fail.
+  ceremony (ADR 0128). So on every Pages build, Save could only fail. (A
+  live grant is also not enough, as the amendment below records: the grants
+  Pages can hold carry only sync or join capabilities.)
 - It failed silently. The failure was reported, as a `StatusMark` at the top of
   the page whose sentence lives in its `aria-label` — a 14px ✗ a screen-height
   from the key that was pressed, saying "This browser has no approved grant for
@@ -48,7 +50,10 @@ had something a person could do. The rest were Host forms:
   configuration sealed in an unlocked vault;
 - **connect** — Vercel Connect, once its credential is held: the page's own
   panels seal it, then create and authorize a connector;
-- **host** — a configured Host with a live grant (`hostRoadOpen`).
+- **host** — a configured Host with a live approved grant that carries
+  `host.connections.write` (`hostRoadOpen`). A grant that only syncs
+  (`host.sync.*`) or joins (`host.join`) is live and approved, and cannot create
+  a connection or write a credential; it opens no connector form.
 
 1. **A form that saves through a closed road is not drawn.** A key or a
    configuration form needs the Host road; an authorize form needs Connect or
@@ -102,3 +107,19 @@ session state `transport-status` reads.
   on a card is drawn only where `formRoad` finds a road (a configured Connect
   credential for a Connect-reachable connector, or an open Host road); a
   Host-only connector such as Bitwarden is a choice with no key.
+
+## Amendment (2026-10-03): the Host road is capability-specific
+
+`hostRoadOpen()` first read "any live approved grant" as an open Host road. A
+browser pairing carries only the capabilities of its ceiling
+(`browser-pairing.ts`: `host.sync.read|write`, or `host.join`), while creating a
+connection and writing its credential need `host.connections.write`
+(`crates/gateway/src/middleware/browser_user_routes.rs`). A tab holding a join
+or sync grant therefore drew forms whose Save the Host would refuse. The road
+is now open only when the live grant carries `host.connections.write`
+(`packages/app-core/src/lib/host-grant.ts`, `hostGrantAllows`), and the grant
+announces its changes (`subscribeBrowserGrant`: approved, renewed, ended, or
+lapsed on its own expiry) so `useConnectorRoads` redraws and tiles and forms
+appear and go with it. Today no Pages pairing ceiling carries that capability,
+so the road stays closed in every Pages build; a ceiling that adds it opens the
+forms with no further change here.

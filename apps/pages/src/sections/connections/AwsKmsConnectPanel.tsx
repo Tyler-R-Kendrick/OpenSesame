@@ -75,17 +75,18 @@ export function AwsKmsConnectPanel({
         <AwsKmsConnectFields
           form={panel.form}
           configured={panel.configured}
+          identityLocked={panel.enrolled}
           onChange={panel.setField}
         />
         <FormCommit
           label={panel.busy ? "Saving AWS KMS" : "Save AWS KMS"}
           disabled={panel.busy}
         >
-          {panel.enrolled ? null : (
+          {panel.enrolled || !panel.configured ? null : (
             <button
               type="button"
               className="icon-btn icon-btn--sm"
-              disabled={panel.busy || !panel.configured}
+              disabled={panel.busy}
               aria-label="Remove AWS KMS configuration"
               title="Remove AWS KMS configuration"
               onClick={() => void panel.forget()}

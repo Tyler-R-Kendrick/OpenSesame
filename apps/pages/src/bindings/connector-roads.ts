@@ -1,4 +1,8 @@
 import {
+  browserGrantEpoch,
+  subscribeBrowserGrant,
+} from "@opensesame/app-core/lib/browser-pairing.js";
+import {
   type FormRoad,
   connectRoadEpoch,
   connectorActs,
@@ -19,8 +23,9 @@ export type ConnectorRoads = {
 
 /**
  * What connectors can do on this device, read again when a road opens or
- * closes: the Host named in settings, a Connect credential sealed or
- * forgotten, a vault unlocked or locked.
+ * closes: the Host named in settings, the Host grant approved, renewed, ended
+ * or lapsed, a Connect credential sealed or forgotten, a vault unlocked or
+ * locked.
  */
 export function useConnectorRoads(): ConnectorRoads {
   useSettingsEpoch();
@@ -28,6 +33,11 @@ export function useConnectorRoads(): ConnectorRoads {
     subscribeConnectRoads,
     connectRoadEpoch,
     connectRoadEpoch,
+  );
+  useSyncExternalStore(
+    subscribeBrowserGrant,
+    browserGrantEpoch,
+    browserGrantEpoch,
   );
   const { status, guest, tomb } = useVault();
   const sealedVault = status === "unlocked" && !guest && Boolean(tomb);

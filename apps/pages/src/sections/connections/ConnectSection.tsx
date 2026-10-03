@@ -71,6 +71,7 @@ export function ConnectSection({
   } else if (connectFormDraws(provider)) {
     body = (
       <ConnectForm
+        key={provider.id}
         provider={provider}
         online={online}
         onFlash={onFlash}
