@@ -61,7 +61,8 @@ export function appendMacroRun(
   count: number,
 ): MacroStep[] {
   let next = [...steps];
-  const runs = Math.min(Math.max(1, count), MACRO_LIMITS.count);
+  // As many runs as the shell would replay: its run budget is the outer cap.
+  const runs = Math.min(Math.max(1, count), MACRO_LIMITS.runs);
   for (let run = 0; run < runs; run++) {
     for (const step of macro.steps) next = appendRecorded(next, step);
   }

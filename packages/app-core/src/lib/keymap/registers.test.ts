@@ -116,6 +116,14 @@ describe("a recording", () => {
     ]);
   });
 
+  it("writes a replay counted past 99, up to the run budget", () => {
+    const hop = { steps: [{ command: "listing.next", count: 1 }] };
+    const total = (runs: number) =>
+      appendMacroRun([], hop, runs).reduce((sum, step) => sum + step.count, 0);
+    expect(total(999)).toBe(999);
+    expect(total(5_000)).toBe(MACRO_LIMITS.runs);
+  });
+
   it("is kept as q-<register>, replacing an older one, and an empty one keeps nothing", () => {
     const older = withRecording(EMPTY_KEYMAP, "a", [
       { command: "listing.next", count: 1 },
