@@ -1,5 +1,5 @@
 /**
- * Where a caret is in a `config.yaml`, for completion (ADR 0134, ADR 0150):
+ * Where a caret is in a `config.yaml`, for completion (ADR 0134, ADR 0156):
  * the line it is on, whether that line sits inside the `keybindings:` mapping
  * or a `contexts.<listing>` mapping, and what has been typed of the key or
  * the value. Pure text in, text out; no DOM.

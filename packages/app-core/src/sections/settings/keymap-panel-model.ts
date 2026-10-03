@@ -1,5 +1,5 @@
 /**
- * View-model for Settings › Keybindings (ADR 0150, ADR 0133 §8): the rows the
+ * View-model for Settings › Keybindings (ADR 0156, ADR 0133 §8): the rows the
  * Keymap panel draws, the filters over them, and the macro recorder that turns
  * key presses back into steps. No React, no DOM.
  */
@@ -40,7 +40,7 @@ export const KEYMAP_FILTERS: readonly { id: KeymapFilter; label: string }[] = [
   { id: "waits", label: "shared prefix" },
 ];
 
-/** Where the table's keys apply: everywhere, or one listing (ADR 0150 §6). */
+/** Where the table's keys apply: everywhere, or one listing (ADR 0156 §6). */
 export type KeymapScope = "everywhere" | KeymapContext;
 
 export const KEYMAP_SCOPES: readonly { id: KeymapScope; label: string }[] = [
@@ -64,7 +64,7 @@ export type KeymapRow = Readonly<{
   command: KeymapCommand;
   keys: readonly KeyCell[];
   changed: boolean;
-  /** Asks before it acts: no key may be moved onto it (ADR 0150). */
+  /** Asks before it acts: no key may be moved onto it (ADR 0156). */
   locked: boolean;
 }>;
 

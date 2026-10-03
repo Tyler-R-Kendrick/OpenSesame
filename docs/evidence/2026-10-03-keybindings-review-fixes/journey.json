@@ -1,0 +1,136 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "keysOptional": {
+            "keys": ["g", "s"],
+            "wait": 1200
+          }
+        },
+        {
+          "open": "Keybindings"
+        },
+        {
+          "scrollToOptional": "Keybindings and views"
+        },
+        {
+          "pressOptional": "Change j for Next row"
+        },
+        {
+          "captureKeysOptional": {
+            "keys": ["w"],
+            "wait": 1400
+          }
+        },
+        {
+          "report": ".kb-row:has(.kb-row__id) .kb-row__label"
+        },
+        {
+          "keysOptional": {
+            "keys": ["g", "v"],
+            "wait": 1200
+          }
+        },
+        {
+          "keysOptional": {
+            "keys": ["?"],
+            "wait": 500
+          }
+        },
+        {
+          "report": "dialog"
+        },
+        {
+          "shot": "1280-help-sheet"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "keysOptional": {
+            "keys": ["g", "s"],
+            "wait": 1200
+          }
+        },
+        {
+          "open": "Keybindings"
+        },
+        {
+          "scrollToOptional": "Fixed"
+        },
+        {
+          "report": ".kb-group__label"
+        },
+        {
+          "shot": "1280-fixed-keys"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "keysOptional": {
+            "keys": ["g", "s"],
+            "wait": 1200
+          }
+        },
+        {
+          "open": "Keybindings"
+        },
+        {
+          "scrollToOptional": "Fixed"
+        },
+        {
+          "shot": "390-fixed-keys"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-help-sheet",
+      "width": 1280,
+      "title": "The ? sheet after moving a key \u2014 1280 \u00d7 900",
+      "caption": "j is moved to w for Next row in Settings, then ? is pressed. Before, the sheet still said j / k or arrows moved, then listed w again as an extra row. After, the rows are drawn from the keymap in force.",
+      "before": "stale 'j / k or arrows' row beside a second row for w",
+      "after": "rows follow the effective keymap"
+    },
+    {
+      "shot": "1280-fixed-keys",
+      "width": 1280,
+      "title": "Fixed keys, read-only \u2014 1280 \u00d7 900",
+      "caption": "The Fixed group lists every key that cannot be bound. After, it names the Menu key beside Shift+F10 and Shift+Enter.",
+      "before": "Shift+F10 / Shift+Enter",
+      "after": "Shift+F10 / Shift+Enter / Menu"
+    },
+    {
+      "shot": "390-fixed-keys",
+      "width": 390,
+      "title": "Fixed keys, read-only \u2014 390 \u00d7 844",
+      "caption": "The same group on a phone.",
+      "before": "Shift+F10 / Shift+Enter",
+      "after": "Shift+F10 / Shift+Enter / Menu"
+    }
+  ]
+}

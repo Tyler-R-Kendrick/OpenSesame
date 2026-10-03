@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * ADR 0150: vim's `showcmd` and which-key in the statusline. The handler
+ * ADR 0156: vim's `showcmd` and which-key in the statusline. The handler
  * publishes what is half-typed after every press; the segment draws the
  * count and keys, what each next key runs, and `recording @a`.
  */
