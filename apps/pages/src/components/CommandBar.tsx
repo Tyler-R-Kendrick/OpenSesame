@@ -14,6 +14,7 @@ import {
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
 import { IconArrowRight } from "./Icons.js";
+import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
 
 function useCommandRunner() {
@@ -100,12 +101,25 @@ function useCommandRunner() {
 }
 
 /**
+ * The field's hint. A phone's field is ~250px wide, so the desktop line is
+ * cut mid-word there; its touch twin is the same three verbs, short enough to
+ * be read whole.
+ */
+export function commandPlaceholder(asks: boolean, touch: boolean): string {
+  if (touch) return asks ? "Command or ask…" : "go to · search · copy";
+  return asks
+    ? "Command or ask… copy password for github"
+    : "go to vault · search · copy password for …";
+}
+
+/**
  * Shell omnibox. With no model it runs parsed commands: navigate, search,
  * copy. A model adds interpretation, the mic, and the ask road.
  */
 export function CommandBar() {
   const { value, setValue, notice, setNotice, busy, run, names, Voice, asks } =
     useCommandRunner();
+  const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
 
@@ -145,11 +159,7 @@ export function CommandBar() {
           aria-activedescendant={
             suggestions.open ? commandOptionId(suggestions.active) : undefined
           }
-          placeholder={
-            asks
-              ? "Command or ask… copy password for github"
-              : "go to vault · search · copy password for …"
-          }
+          placeholder={commandPlaceholder(asks, touch)}
           value={value}
           disabled={busy}
           onFocus={() => suggestions.setFocused(true)}

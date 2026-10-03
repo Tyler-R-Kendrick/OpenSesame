@@ -7,6 +7,7 @@ import {
 import { voiceRecognitionLang } from "@opensesame/app-core/lib/model-provider.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { registerCommandBarMic } from "../lib/command-bar/focus.js";
+import { isTouchPointer } from "../lib/gestures.js";
 import { MicButton } from "./command-bar-mic.js";
 
 /**
@@ -81,7 +82,9 @@ function useVoiceListenBar(
             draftRef.current = text;
             setValue(text);
             setNotice(
-              "Listening ended — press Enter to run, or tap mic again.",
+              isTouchPointer()
+                ? "Listening ended — tap the arrow to run, or tap mic again."
+                : "Listening ended — press Enter to run, or tap mic again.",
             );
             return;
           }
