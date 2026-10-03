@@ -11,7 +11,7 @@
  *                  AT-EVIDENCE-STALE, AT-BROWSER-CACHE, AT-STATIC-BADREMOTE)
  *                  (the empty origin draws the Transport form alone — no idle
  *                  rows, no Refresh key; rows and keys need an endpoint — ADR 0132
- *                  as amended 2026-09-28, ADR 0150)
+ *                  as amended 2026-09-28, ADR 0156)
  *   browser-cert   apps/pages/scripts/verify-browser-cert.mjs     (SW-INTEROP: AT-BROWSER-EXTERNAL,
  *                  AT-BROWSER-CORS)
  *

@@ -1,5 +1,5 @@
 /**
- * Which roads a connector's own page has on this device (ADR 0150, ADR 0128).
+ * Which roads a connector's own page has on this device (ADR 0156, ADR 0128).
  *
  * A connector page is a place to act. What it can act through is one of:
  *
@@ -132,7 +132,7 @@ function actsLocally(providerId: string): boolean {
 
 /**
  * Does this connector's page have anything a person can do on this device?
- * A tile whose page has nothing to act on is not drawn (ADR 0150): no row
+ * A tile whose page has nothing to act on is not drawn (ADR 0156): no row
  * that leads to a page that does not configure the thing.
  */
 export function connectorActs(

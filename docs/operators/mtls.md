@@ -490,7 +490,7 @@ is set (or a status has already been read). With no endpoint it draws the
 configuration form alone — there is nothing to ask, so no idle "Not checked"
 rows and no keys
 ([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md), amended
-2026-09-28; [ADR 0150](../adr/0150-settings-rows-act-or-are-absent.md)).
+2026-09-28; [ADR 0156](../adr/0156-settings-rows-act-or-are-absent.md)).
 
 | Field | Values | Reading |
 |---|---|---|

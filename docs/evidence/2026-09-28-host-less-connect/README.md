@@ -6,7 +6,7 @@ is `a04ceb7e`, built in its own worktree and captured with `EVIDENCE_DIST`;
 **after** is this branch. Every number below is printed by the browser during
 the capture (`count`, `values`, `labels` steps), not read from the diff.
 Decision: [ADR 0151](../../adr/0151-connector-pages-act-on-the-roads-a-device-has.md),
-building on [ADR 0150](../../adr/0150-settings-rows-act-or-are-absent.md).
+building on [ADR 0156](../../adr/0156-settings-rows-act-or-are-absent.md).
 
 | Sheet | What it shows |
 |---|---|

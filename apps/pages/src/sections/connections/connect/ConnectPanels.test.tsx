@@ -105,7 +105,7 @@ afterEach(() => {
   applyConnectCallbackBase(undefined);
 });
 
-describe("user-token keys are drawn only where they can act (ADR 0150)", () => {
+describe("user-token keys are drawn only where they can act (ADR 0156)", () => {
   it("draws no Test key in direct-token mode, where there is no relay to prove through", () => {
     draw("resend", connectConnection("resend"));
     expect(
@@ -201,7 +201,7 @@ describe("Resend", () => {
     expect(screen.getByRole("region", { name: "Vercel Connect" })).toBeTruthy();
     expect(screen.getByLabelText("Vercel access token")).toBeTruthy();
     // Create needs the credential above; until it is sealed the form is not
-    // drawn, rather than drawn with a key that stays disabled (ADR 0150).
+    // drawn, rather than drawn with a key that stays disabled (ADR 0156).
     expect(
       screen.queryByRole("button", { name: "Create connector" }),
     ).toBeNull();

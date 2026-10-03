@@ -34,7 +34,7 @@ import { useConnectSave } from "./useConnectSave.js";
  * A connector's own form. A git remote is sealed on this device and GitHub's
  * App is registered from the browser; every other form saves through a road
  * that must be open (`formRoad`), and with none open it is not drawn — a key
- * that could only fail is not offered (ADR 0150). What a person types stays
+ * that could only fail is not offered (ADR 0156). What a person types stays
  * until the save has worked; a failure is said beside the key and in the bell.
  */
 export function ConnectForm({

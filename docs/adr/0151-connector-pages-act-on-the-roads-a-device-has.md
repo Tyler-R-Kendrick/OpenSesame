@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-28
-- Builds on: [ADR 0150](0150-settings-rows-act-or-are-absent.md) (a Settings
+- Builds on: [ADR 0156](0156-settings-rows-act-or-are-absent.md) (a Settings
   row acts, or it is not drawn),
   [ADR 0128](0128-pages-without-host.md) (the PWA no longer speaks Host),
   [ADR 0090](0090-static-frontend-complete-without-backend.md) (a screen is
@@ -11,7 +11,7 @@
 
 ## Context
 
-ADR 0150 named one defect it left open: the Better Auth, WorkOS and Auth0 tiles
+ADR 0156 named one defect it left open: the Better Auth, WorkOS and Auth0 tiles
 under Settings › Capabilities "still create Host connections and give no
 feedback on a device with no Host". Walking every tile in a real browser as a
 guest on the static deployment, 48 connector tiles drew, and 14 of their pages

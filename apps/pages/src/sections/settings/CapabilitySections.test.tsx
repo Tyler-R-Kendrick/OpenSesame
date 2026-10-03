@@ -30,7 +30,7 @@ installPanelFixture();
 /**
  * Sections that draw nothing on a device with no Host, no Connect credential
  * and no unlocked vault. Encryption's panels seal a key in the vault, so a
- * locked vault draws no tile and no switch (ADR 0150). A key or a
+ * locked vault draws no tile and no switch (ADR 0156). A key or a
  * configuration seals on this device, so those sections stay.
  */
 const NOTHING_TO_DO_HERE = new Set(["encryption"]);

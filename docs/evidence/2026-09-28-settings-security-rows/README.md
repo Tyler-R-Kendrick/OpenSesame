@@ -3,7 +3,7 @@
 Two real builds walked the same way: **before** is `origin/main` at `d97827a9`
 (built in its own worktree), **after** is this branch. Numbers are read from the
 browser (`capture-evidence.mjs`, `count` steps), not from the diff. Decision:
-[ADR 0150](../../adr/0150-settings-rows-act-or-are-absent.md).
+[ADR 0156](../../adr/0156-settings-rows-act-or-are-absent.md).
 
 | Sheet | What it shows |
 |---|---|

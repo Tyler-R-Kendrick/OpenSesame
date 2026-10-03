@@ -70,7 +70,7 @@ describe("MfaStep", () => {
       screen.queryByRole("button", { name: "Connect This vault" }),
     ).toBeNull();
     // One that needs an account is a choice object; it carries a connect icon
-    // key only where a road exists to connect through (ADR 0150, ADR 0151).
+    // key only where a road exists to connect through (ADR 0156, ADR 0151).
     // With no Connect credential and no Host, no key could succeed, so none is
     // drawn.
     for (const name of ["Bitwarden", "Resend", "SendGrid", "Twilio"]) {

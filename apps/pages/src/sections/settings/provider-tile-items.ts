@@ -2,7 +2,7 @@
  * Which connector tiles a Capabilities section draws on this device, and so
  * whether the section draws at all. The page, the rail and the phone's page
  * index all ask here, so none lists a section or a tile the page leaves out
- * (ADR 0150: a row acts, or it is not drawn).
+ * (ADR 0156: a row acts, or it is not drawn).
  */
 
 import {
