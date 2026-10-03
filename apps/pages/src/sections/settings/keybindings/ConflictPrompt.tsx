@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import { IconCheck, IconSwap, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { Keycaps } from "./Keycaps.js";
+import type { Refusal } from "./useBindFlow.js";
 
 /**
  * The key is taken. Nothing is overwritten quietly: the prompt names what
@@ -21,6 +22,7 @@ export function ConflictPrompt({
   holder,
   commands,
   canSwap,
+  problem,
   onSwap,
   onReplace,
   onCancel,
@@ -29,6 +31,8 @@ export function ConflictPrompt({
   holder: string;
   commands: readonly KeymapCommand[];
   canSwap: boolean;
+  /** Why the swap or take was refused (storage said no), drawn as a mark. */
+  problem?: Refusal | null;
   onSwap: () => void;
   onReplace: () => void;
   onCancel: () => void;
@@ -55,6 +59,7 @@ export function ConflictPrompt({
         <Keycaps sequence={sequence} />
         <span className="kb-conflict__holder">{name}</span>
       </span>
+      {problem ? <StatusMark tone="err" label={problem.message} /> : null}
       <span className="actions">
         {canSwap ? (
           <button
