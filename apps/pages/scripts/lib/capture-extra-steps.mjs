@@ -16,6 +16,7 @@ import { orgSignInSteps } from "./capture-org-signin-steps.mjs";
 import { placeSteps } from "./capture-place-steps.mjs";
 import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
+import { keySteps } from "./key-steps.mjs";
 import { sealWithPin, unlockWithPassword } from "./pages-journey.mjs";
 
 async function sealPin(page) {
@@ -30,6 +31,7 @@ export function extraSteps({ press }) {
     ...factorSteps({ press }),
     ...fileSteps({ press }),
     ...invokeSteps(),
+    ...keySteps(),
     ...markSteps({ press }),
     ...memberSteps({ press }),
     ...placeSteps(),
@@ -108,25 +110,6 @@ export function extraSteps({ press }) {
         () => document.activeElement?.closest("[data-key-capture]") != null,
       );
       if (!capturing) return;
-      for (const key of keys) await page.keyboard.press(key);
-      await page.waitForTimeout(wait);
-    },
-    /**
-     * Press keys on the page as a person at the keyboard does, then wait
-     * `wait` ms. Nothing is pressed while a field holds focus: a stray key
-     * there would be typed, not read by the shell.
-     */
-    async keysOptional(page, { keys, wait = 0 }) {
-      const typing = await page.evaluate(() => {
-        const node = document.activeElement;
-        return (
-          node instanceof HTMLInputElement ||
-          node instanceof HTMLTextAreaElement ||
-          node instanceof HTMLSelectElement
-        );
-      });
-      if (typing) await page.evaluate(() => document.activeElement?.blur());
-      await page.locator("body").click({ position: { x: 1, y: 1 } });
       for (const key of keys) await page.keyboard.press(key);
       await page.waitForTimeout(wait);
     },
