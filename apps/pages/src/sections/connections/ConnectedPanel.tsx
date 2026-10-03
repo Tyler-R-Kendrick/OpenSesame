@@ -9,7 +9,7 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useState, useTransition } from "react";
 import { Link, useLocation } from "react-router";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconPlus, IconSettings } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -20,7 +20,7 @@ function nothingConnected() {
   return (
     <div className="empty">
       <h3>Nothing connected</h3>
-      <EmptyTip>{emptyTips.rail}</EmptyTip>
+      <EmptyTip tip="rail" />
     </div>
   );
 }

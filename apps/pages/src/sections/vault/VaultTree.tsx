@@ -13,7 +13,7 @@ import {
   tombPath,
 } from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconChevronRight } from "../../components/Icons.js";
 import { SlashSearchField } from "../../components/SlashSearch.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
@@ -270,11 +270,9 @@ export function VaultTree({
       {items.length === 0 ? (
         <div className="empty">
           <h2>{emptyMessage}</h2>
-          <EmptyTip>
-            {emptyMessage === "Trash is empty"
-              ? emptyTips.keymap
-              : emptyTips.vaultEmpty}
-          </EmptyTip>
+          <EmptyTip
+            tip={emptyMessage === "Trash is empty" ? "keymap" : "vaultEmpty"}
+          />
         </div>
       ) : null}
 

@@ -344,6 +344,14 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.
+- **Keyboard tips stay off touch-primary surfaces; one with a touch twin swaps
+  to it there.** No line a finger reads names a key (`Esc`, `Enter`, `n`, `/`,
+  `?`, `j/k`, `gv`). `EmptyTip` and the welcome buffer's key line draw a keys
+  voice and a touch voice and the stylesheet picks one under
+  `(pointer: coarse)`; copy that lives in an attribute (the command bar's
+  placeholder) reads `useCoarsePointer`. A narrow window with a mouse keeps the
+  keys: the pointer decides, not the width. A twin names only what the shell
+  really does (see `lib/gesture-help.ts`).
 - **A submenu is a drill-in, not a box.** A sheet's nested choices replace its
   list under a 44px back row that names the parent; the floating menu keeps its
   submenu beside the row. A finger is never shown the keyboard's inverse-video

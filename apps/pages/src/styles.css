@@ -1604,6 +1604,11 @@ body {
     display: inline;
   }
 
+  /* The `gv` chord chip names keys a finger does not have. */
+  .railtree__jump {
+    display: none;
+  }
+
   /* A phone's empty state is one screen tall already; 3rem above and below
      its line left the rest of the page a scroll away. */
   .empty {

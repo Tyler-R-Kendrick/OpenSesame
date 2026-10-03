@@ -8,6 +8,7 @@ import { voiceRecognitionLang } from "@opensesame/app-core/lib/model-provider.js
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { registerCommandBarMic } from "../lib/command-bar/focus.js";
 import { MicButton } from "./command-bar-mic.js";
+import { useCoarsePointer } from "./use-coarse-pointer.js";
 
 /**
  * The command bar's voice input — `support.local-ai`'s, contributed through
@@ -66,6 +67,12 @@ function useVoiceListenBar(
   const listeningRef = useRef(false);
   const draftRef = useRef("");
   const speechOk = detectSpeechRecognition() !== null;
+  // The same reactive read the placeholder uses, so a hybrid device cannot
+  // show one voice in the field and the other in the notice. A ref keeps the
+  // recogniser from being rebuilt when the pointer changes mid-listen.
+  const touch = useCoarsePointer();
+  const touchRef = useRef(touch);
+  touchRef.current = touch;
   const talk = useMemo(
     () =>
       createPushToTalk({
@@ -81,7 +88,9 @@ function useVoiceListenBar(
             draftRef.current = text;
             setValue(text);
             setNotice(
-              "Listening ended — press Enter to run, or tap mic again.",
+              touchRef.current
+                ? "Listening ended — tap the arrow to run, or tap mic again."
+                : "Listening ended — press Enter to run, or tap mic again.",
             );
             return;
           }

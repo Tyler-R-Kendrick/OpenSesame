@@ -157,6 +157,9 @@ export const gestureLimits = {
   longPressSlop: LONG_PRESS_SLOP,
 } as const;
 
+/** The one media query that says "a finger", for the CSS twin and the hook. */
+export const COARSE_POINTER_QUERY = "(pointer: coarse)";
+
 /**
  * Whether this pointer is a finger (or a stylus) rather than a mouse.
  *
@@ -164,5 +167,14 @@ export const gestureLimits = {
  * touch device, and treating it as one would change what the tests see.
  */
 export function isTouchPointer(): boolean {
-  return globalThis.matchMedia?.("(pointer: coarse)").matches ?? false;
+  return globalThis.matchMedia?.(COARSE_POINTER_QUERY).matches ?? false;
+}
+
+/**
+ * The ⋯ menu's row (and the page menu's, and the sheet's title) that lists
+ * every key, or every gesture where the pointer is a finger. Copy that points
+ * at that row names it through here, so the pointer and the row cannot drift.
+ */
+export function keymapLabel(touch: boolean = isTouchPointer()): string {
+  return touch ? "Gestures" : "Keyboard shortcuts";
 }
