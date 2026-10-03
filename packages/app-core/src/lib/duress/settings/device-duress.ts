@@ -13,17 +13,14 @@
  * neither, rather than a switch that promises what unlock does not do.
  */
 
-import { clearIncidentJournals } from "../incident/intent-journal.js";
+import { clearIncidentJournalsDurable } from "../incident/intent-journal.js";
 import {
   DURESS_PIN_MAX,
   DURESS_PIN_MIN,
   assertDuressCodeLength,
 } from "../keys/pin-floors.js";
 import { duressSessionFence } from "../session/fence.js";
-import {
-  clearEnrollmentStateForUnlock,
-  loadEnrollmentStateForUnlock,
-} from "../store/unlock-enrollment.js";
+import { loadEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
 import {
   armPersistedUnlockEnrollment,
   disarmPersistedUnlockEnrollment,
@@ -110,13 +107,20 @@ export async function enableDuressCode(input: {
     return { ok: false, code: "code_format" };
   }
   try {
+    // One code per device: a fresh enrollment, never the old one with a new
+    // trigger added. Replacing by profile id only drops a trigger of the same
+    // id, so an older code under another profile would keep firing. The
+    // revisions carry over so nothing sealed against them goes stale.
+    const before = loadEnrollmentStateForUnlock();
     const sealed = await sealUnlockTriggerFromCeremony({
       code: input.code,
       profileId: DEVICE_DURESS_PROFILE,
       vaultRef: input.vaultRef,
       deviceBindingRef: DEVICE_BINDING,
       presentation: PRESENTATION[input.outcome],
-      previous: loadEnrollmentStateForUnlock(),
+      previous: null,
+      policyRevision: before?.policyRevision ?? 1,
+      keyEpoch: before?.keyEpoch ?? 1,
       ownerConsent: true,
       capabilities: { durableLocalStorage: true, offlineReady: true },
     });
@@ -133,15 +137,25 @@ export async function enableDuressCode(input: {
   }
 }
 
-/** Turn the code off. The vault is untouched. */
+/**
+ * Turn the code off. The vault is untouched. Succeeds only once storage has
+ * forgotten the enrollment, so a reload cannot bring the code back.
+ */
 export async function removeDuressCode(): Promise<DuressResult> {
   if (duressSessionFence.readFence().activeIncidentIds.length > 0) {
     return { ok: false, code: "incident_active" };
   }
-  await disarmPersistedUnlockEnrollment();
-  clearEnrollmentStateForUnlock();
+  try {
+    await disarmPersistedUnlockEnrollment();
+  } catch {
+    return { ok: false, code: "failed" };
+  }
   return { ok: true };
 }
+
+export type DuressClearResult =
+  | { ok: true; status: DuressStatus }
+  | { ok: false; code: "failed" };
 
 /**
  * The owner clears what the code set off. A duress unlock leaves the device
@@ -149,12 +163,19 @@ export async function removeDuressCode(): Promise<DuressResult> {
  * code changes are refused — and only a session opened with the vault's own
  * key gets here: the panel is not drawn to a guest or a decoy. Clearing is
  * the owner's word that the danger has passed; the code stays armed.
+ *
+ * The incident journals go first and storage must confirm it: they say
+ * "active" until they are gone, and restart recovery would put a cleared fence
+ * back from them. If they will not go, the fence stays and nothing is
+ * reported cleared, so the owner can try again.
  */
-export function clearDuressIncidents(): DuressStatus {
+export async function clearDuressIncidents(): Promise<DuressClearResult> {
+  try {
+    await clearIncidentJournalsDurable();
+  } catch {
+    return { ok: false, code: "failed" };
+  }
   const ids = [...duressSessionFence.readFence().activeIncidentIds];
   if (ids.length > 0) duressSessionFence.resolve(ids, true);
-  // The journals say "active" until they are cleared, and restart recovery
-  // would put a cleared fence back from them.
-  clearIncidentJournals();
-  return duressStatus();
+  return { ok: true, status: duressStatus() };
 }

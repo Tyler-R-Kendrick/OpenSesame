@@ -5,6 +5,7 @@ import {
   enableDuressCode,
   removeDuressCode,
 } from "@opensesame/app-core/lib/duress/settings/device-duress.js";
+import { journalSeams } from "@opensesame/app-core/lib/duress/store/journal.js";
 import { clearEnrollmentStateForUnlock } from "@opensesame/app-core/lib/duress/store/unlock-enrollment.js";
 import { kvFlush } from "@opensesame/app-core/lib/kv.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
@@ -56,7 +57,7 @@ async function useTheCode() {
 async function resetDevice() {
   await kvFlush();
   clearEnrollmentStateForUnlock();
-  clearDuressIncidents();
+  await clearDuressIncidents();
   await kvFlush();
   clearEnrollmentStateForUnlock();
 }
@@ -144,6 +145,34 @@ describe("DuressPanel", () => {
     ).toBeTruthy();
     expect(duressStatus()).toEqual({ armed: true, incidents: 0 });
     expect(await removeDuressCode()).toEqual({ ok: true });
+  });
+
+  it("does not say it cleared when storage will not let go, and can be tried again", async () => {
+    await useTheCode();
+    render(<DuressPanel arm={arm} />);
+    const kept = journalSeams.deleteDurable;
+    journalSeams.deleteDurable = async () => {
+      throw new Error("storage refused the delete");
+    };
+    try {
+      await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+      expect(
+        await screen.findByText(
+          "It could not be cleared. Try again.",
+          {},
+          SEALING,
+        ),
+      ).toBeTruthy();
+      expect(duressStatus().incidents).toBe(1);
+      expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy();
+    } finally {
+      journalSeams.deleteDurable = kept;
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(
+      await screen.findByText("Cleared. The code is still on.", {}, SEALING),
+    ).toBeTruthy();
+    expect(duressStatus().incidents).toBe(0);
   });
 });
 
