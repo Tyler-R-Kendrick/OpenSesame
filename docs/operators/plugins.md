@@ -169,7 +169,7 @@ so a tampered settings file cannot aim `remove` at an arbitrary path.
 
 1. It collects the env-spec entries delivered as `Placeholder`, the
    legacy-token projections, placed in one header, and the web logins
-   (below).
+   (below), each with the scope its env-spec entry declared ([Scope](#scope-of-a-surrogate)).
 2. It spawns the plugin in its own process group and writes one JSON line to
    its stdin:
    `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], logins:[{env_var, origin, action, field, secret, ca_pem?}], passthrough_hosts, watched, notices_path}`.
@@ -192,6 +192,39 @@ so a tampered settings file cannot aim `remove` at an arbitrary path.
    when the plugin gets `SIGTERM` or `SIGINT`; or at the run's TTL. At the end
    every surrogate and login is revoked, the listener stops and the CA file is
    deleted.
+
+### Scope of a surrogate
+
+A surrogate is an attenuation of its connection, and ADR 0150 section 8
+requires the narrowest operation scope, so a run never issues one for "any
+path on the provider's host". The scope is what the env-spec entry declares:
+
+```
+GITHUB_TOKEN=opensesameConnection(conn://org/github, projection=legacy-token, paths="/repos/acme,/user", methods="GET,POST")
+```
+
+- `paths=` is a comma-separated list of absolute path prefixes. They match on
+  segment boundaries (`/repos/acme` admits `/repos/acme/app`, never
+  `/repos/acme-private`), and a dot segment, in the path or percent-encoded,
+  is refused. It has no default.
+- `methods=` names the HTTP methods the surrogate may be used with
+  (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`). Without it the
+  projection's methods apply (`GET`, `POST`, `PUT`, `PATCH`).
+- The root is not a scope. A prefix that is `/`, empty, relative, or has an
+  empty, `.` or `..` segment, a query, a fragment or whitespace fails the
+  schema (`opensesame dev resolve`) before any run starts. The rule is one
+  definition, `spec/conformance/surrogate-scope.json`, run by the env-spec
+  resolver and again by the plugin.
+- An entry that declares no `paths=` is sent to the plugin with none. For a
+  provider the plugin serves, the plugin refuses the whole run
+  (`spec_path_scope:<ENV_VAR>`) before it binds a listener or issues
+  anything, and `opensesame dev run --agent` exits non-zero naming the
+  variable. It does not widen to `/`, and it does not quietly fall back to
+  placeholders. A provider the plugin does not serve is unaffected: it is
+  listed in `unserved` and keeps its placeholder, scope or not.
+- A request outside the declared methods or prefixes is refused at the
+  proxy as `surrogate.out_of_scope` before the credential tool runs, and the
+  real credential is never placed on it.
 
 Every refused surrogate becomes a vetted `surrogate.*` notice line in
 `notices.jsonl`. A notice carries the run, the provider and the fence, never
