@@ -97,6 +97,14 @@ export interface AnonymousAgentDemoResult {
   finalState: string;
 }
 
+function redactWith(
+  options: AnonymousAgentDemoOptions | undefined,
+  registered: ReturnType<typeof RegisterAgentResponseSchema.parse>,
+): ReturnType<typeof redactSecrets> {
+  if (options?.redact) return options.redact(registered);
+  return redactSecrets(registered);
+}
+
 export async function runAnonymousAgentDemo(
   options?: AnonymousAgentDemoOptions,
 ): Promise<AnonymousAgentDemoResult> {
@@ -110,9 +118,7 @@ export async function runAnonymousAgentDemo(
     publicKeyJkt: jkt(),
   });
   const registered = RegisterAgentResponseSchema.parse(raw);
-  const safe = options?.redact
-    ? options.redact(registered)
-    : redactSecrets(registered);
+  const safe = redactWith(options, registered);
   if (JSON.stringify(safe).includes(registered.claimToken)) {
     throw new Error("claimToken was not redacted");
   }
