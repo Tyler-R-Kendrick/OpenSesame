@@ -5,8 +5,10 @@
  * before a carrier opens (`apps/pages/.../carriers/allowed.ts`), and by the
  * session whenever the plan changes (`session.ts`), which closes a carrier a
  * new plan no longer allows. A WebSocket cannot go through the egress port
- * (it is http(s)-only), so for Nostr, MQTT and NATS this is the whole gate;
- * ntfy is the egress port's, asked at every request, and is not judged here.
+ * (it is http(s)-only), so for Nostr, MQTT and NATS this is the whole gate.
+ * ntfy is the egress port's at every request, and is judged here too, by the
+ * same rule egress applies (`decideExternal`), because its stream is one long
+ * request that egress is not asked about again.
  *
  * Allowed when the capability is approved, external services are allowed,
  * and — once the operator narrowed the policy — the carrier's own origin is on
@@ -33,9 +35,8 @@ export function planRefusal(
   spec: CarrierSpec,
   plan: EffectivePlan | null,
 ): Refusal {
-  // BroadcastChannel never leaves the browser; ntfy goes through the egress
-  // port, which decides every request and which the carrier obeys at each one.
-  if (spec.kind === "broadcast" || spec.kind === "ntfy") return null;
+  // BroadcastChannel never leaves the browser.
+  if (spec.kind === "broadcast") return null;
   let url: URL;
   try {
     url = new URL(spec.url);
@@ -45,9 +46,13 @@ export function planRefusal(
   if (plan === null || capabilityState(plan, CAPABILITY)?.approved !== true)
     return "capability-not-approved";
   const space = targetAddressSpaceFor(url.href);
+  // A socket is `wss:` (or `ws:` on this device); ntfy is `https:` (or `http:`
+  // on this device), the same two schemes egress admits for it.
+  const [secure, plain] =
+    spec.kind === "ntfy" ? ["https:", "http:"] : ["wss:", "ws:"];
   if (
-    url.protocol !== "wss:" &&
-    !(url.protocol === "ws:" && space === "loopback")
+    url.protocol !== secure &&
+    !(url.protocol === plain && space === "loopback")
   )
     return "unsupported-scheme";
   // This device or a LAN is local operator authority whichever way a page

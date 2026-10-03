@@ -283,9 +283,10 @@ carrier that external services being denied, or its `wss://` origin leaving
 the operator's list, no longer allows is closed and shown as blocked, and one
 still opening is closed when it arrives. The session itself goes on, over the
 carriers that remain and by hand. A carrier the policy allows again is not
-reopened: the session names its carriers once. ntfy and BroadcastChannel are
-not judged here: ntfy's every request already goes through the egress port,
-which stops it for good at the first refusal.
+reopened: the session names its carriers once. ntfy is held to the same plan
+by the rule egress applies to it (its stream is one long request that egress
+is not asked about again, though it also stops the loop at the first refusal),
+and BroadcastChannel never leaves the browser.
 
 A socket carrier at an address on this device or a LAN is also refused where
 the deployment may not pair local authority (the shared GitHub Pages origin
