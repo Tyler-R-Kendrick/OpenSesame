@@ -5,11 +5,16 @@
  *
  *   node scripts/quality/log-hygiene-gate.mjs            # check
  *   node scripts/quality/log-hygiene-gate.mjs --update   # record improvements only
+ *   node scripts/quality/log-hygiene-gate.mjs --update --accept-new-debt
+ *                                                        # also record sites a widened detector
+ *                                                        # newly counts (file/kind with no entry);
+ *                                                        # never raises a recorded number
  *   node scripts/quality/log-hygiene-gate.mjs --seed     # write the first ledger; refuses if one exists
  *
  * Counts, per file, the ways production code goes around the shared logger:
- * `console.*`, a hand-built `pino(...)`, and a tracing subscriber installed
- * without the scrubbing writer. A file or kind with no entry is allowed zero,
+ * `console.*` (called, passed as a value or indexed), a hand-built `pino(...)`
+ * (aliased or `.default(...)` too), a direct `process.stdout/stderr.write` and a
+ * tracing subscriber or fmt layer built without the scrubbing writer. A file or kind with no entry is allowed zero,
  * so new code meets the rule outright; a recorded number only falls
  * (`tools/quality/log-hygiene-baseline.json`).
  */
@@ -30,6 +35,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const baselinePath = resolve(root, "tools/quality/log-hygiene-baseline.json");
 const update = process.argv.includes("--update");
 const seed = process.argv.includes("--seed");
+const acceptNewDebt = process.argv.includes("--accept-new-debt");
 
 const tracked = execFileSync("git", ["ls-files", "-z"], {
   cwd: root,
@@ -68,7 +74,10 @@ if (seed) {
 }
 
 if (update) {
-  if (regressions.length > 0) {
+  // A widened detector counts sites no entry covers yet; those alone may be
+  // accepted. A number that is already recorded is never raised.
+  const raised = regressions.filter((r) => r.allowed > 0);
+  if (regressions.length > 0 && !(acceptNewDebt && raised.length === 0)) {
     console.error(
       "log hygiene: refusing to record a regression; fix it instead",
     );
@@ -78,7 +87,7 @@ if (update) {
       `${JSON.stringify({ files: ledgerOf(found) }, null, 2)}\n`,
     );
     console.log(
-      `log hygiene: baseline updated -- ${improvements.length} improvement(s)`,
+      `log hygiene: baseline updated -- ${improvements.length} improvement(s), ${regressions.length} newly counted site(s) accepted`,
     );
     process.exit(0);
   }
