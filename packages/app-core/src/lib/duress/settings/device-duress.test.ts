@@ -36,7 +36,7 @@ function resetFence(): void {
   if (ids.length > 0) duressSessionFence.resolve(ids, true);
 }
 
-describe("this device's duress code (ADR 0150)", () => {
+describe("this device's duress code (ADR 0155)", () => {
   beforeEach(() => {
     clearEnrollmentStateForUnlock();
     resetFence();

@@ -8,8 +8,8 @@ import { AUTHORITY_TUTORIALS } from "./authority-help.js";
 export const CAPABILITY_TUTORIALS = {
   ...AUTHORITY_TUTORIALS,
   "vaults.switch": "vaults.switch",
-  "vaults.travel": "vaults.switch",
-  "vaults.duress_code": "vaults.switch",
+  "vaults.travel": "vaults.travel",
+  "vaults.duress_code": "vaults.duress-code",
   "device.browser_reset": "vaults.switch",
   "host.health.pages": "host.health.check",
   "host.whoami": "identity.account.add",

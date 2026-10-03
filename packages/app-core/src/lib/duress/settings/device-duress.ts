@@ -1,5 +1,5 @@
 /**
- * This device's duress code, as Settings › Security sets it (ADR 0150).
+ * This device's duress code, as Settings › Security sets it (ADR 0155).
  *
  * One code per device. Typed complete where a vault is unlocked, it is caught
  * before any unwrap and the person is shown one of two things, never the

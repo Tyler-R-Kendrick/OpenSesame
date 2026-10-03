@@ -5752,15 +5752,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-        "adr": "0150-the-device-duress-code.md"
+        "adr": "0155-the-device-duress-code.md"
       },
       "mcp_client": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-        "adr": "0150-the-device-duress-code.md"
+        "adr": "0155-the-device-duress-code.md"
       },
       "webmcp": {
         "reason": "the code that changes what a coerced person's device shows, and clearing what it set off, is that person's own decision; an agent never arms, changes or clears it",
-        "adr": "0150-the-device-duress-code.md"
+        "adr": "0155-the-device-duress-code.md"
       }
     }
   },
