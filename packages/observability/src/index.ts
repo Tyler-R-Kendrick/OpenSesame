@@ -18,3 +18,16 @@ export {
   registerAgentSecret,
   scrubLocalSecrets,
 } from "./agent-payload.js";
+export {
+  SEALED_LINE_PREFIX,
+  SealedLogFile,
+  UNREADABLE,
+  createSealedLogDestination,
+  loadLogKey,
+  loadOrCreateLogKey,
+  logKeyPath,
+  openLogLine,
+  readSealedTail,
+  sealExistingLog,
+  sealLogLine,
+} from "./sealed-log.js";

@@ -1,4 +1,3 @@
-import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
   createAuthenticationService,
@@ -44,11 +43,17 @@ import { createLogger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { createHonoApp } from "./app.js";
-import type { AppContext, ControlPlaneRepositories } from "./context.js";
+import { withChainedAudit } from "./chained-audit.js";
+import type { AppContext } from "./context.js";
 import type { CreateControlPlaneOptions } from "./create-app-options.js";
 import { resolveControlPlaneConfig } from "./create-app-options.js";
 import { createPasskeys } from "./create-passkeys.js";
 import { resolveWalletNativeMounts } from "./create-wallet-native-mounts.js";
+import {
+  resolveEventSealer,
+  sealExistingEvents,
+  sealPostgresEvents,
+} from "./event-sealing.js";
 import {
   type AccountLookupSlot,
   lookupHostedAccount,
@@ -125,44 +130,20 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       ? createDrizzle(config.databaseUrl)
       : undefined;
 
-  const baseRepos =
-    options.repos ??
-    (drizzleBundle
-      ? new PostgresRepositories(drizzleBundle.db)
-      : new MemoryRepositories());
-  // Every audit write goes through the chain, so a trail cannot be quietly
-  // rewritten by anything that cannot recompute every later digest. The tip is
-  // read from the store on the first append: starting each process at genesis
-  // would leave one disconnected run per restart, which is indistinguishable
-  // from a deleted tail.
-  const chainedAudit = createChainedAuditSink(
-    {
-      append: (event) => baseRepos.auditEvents.append(event),
-    },
-    {
-      tip: async () => {
-        const [newest] = await baseRepos.auditEvents.list({ limit: 1 });
-        return newest?.digest;
-      },
-      retryOnConflict: (error) => {
-        return (
-          "code" in error &&
-          error.code === "23505" &&
-          "constraint_name" in error &&
-          error.constraint_name === "audit_events_previous_digest_uidx"
-        );
-      },
-    },
+  // Event rows rest sealed in Postgres (ADR 0150).
+  const eventSealer = resolveEventSealer(
+    processEnv,
+    config.claimPepper,
+    Boolean(config.databaseUrl) && !options.database,
   );
-  const repos: ControlPlaneRepositories = {
-    ...baseRepos,
-    // Class methods are on the prototype; object spread would drop them.
-    transaction: (fn) => baseRepos.transaction(fn),
-    auditEvents: {
-      append: (event) => chainedAudit.append(event),
-      list: (filter) => baseRepos.auditEvents.list(filter),
-    },
-  };
+  const baseRepos = sealPostgresEvents(
+    options.repos ??
+      (drizzleBundle
+        ? new PostgresRepositories(drizzleBundle.db)
+        : new MemoryRepositories()),
+    eventSealer,
+  );
+  const repos = withChainedAudit(baseRepos);
   const claimStore = drizzleBundle
     ? new DurableClaimStore(drizzleBundle.db)
     : new IndexedClaimStore(clock);
@@ -252,6 +233,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       await runMigrations(config.databaseUrl);
     }
     if (drizzleBundle) await verifySecurityDatabase(drizzleBundle.db);
+    if (drizzleBundle) await sealExistingEvents(drizzleBundle.db, eventSealer);
     await ensureSystemOwnerPrincipal(repos, clock);
   })();
   systemPrincipalReady.catch(() => {
@@ -363,6 +345,8 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       try {
         await systemPrincipalReady;
         if (drizzleBundle) await verifySecurityDatabase(drizzleBundle.db);
+        if (drizzleBundle)
+          await sealExistingEvents(drizzleBundle.db, eventSealer);
         return true;
       } catch {
         return false;

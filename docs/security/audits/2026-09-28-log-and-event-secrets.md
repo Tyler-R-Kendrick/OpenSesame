@@ -48,6 +48,15 @@ URL, under an unlisted key.
    `IssuedCert.private_key`, `BitwardenKeyRotation`). None was logged at the
    time; nothing stopped a `{:?}`.
 
+6. **High — event rows and log files rested in the clear.** The Host's SQLite
+   file held its outbox, security deliveries, connection events, signing events
+   (command line, host, OS user, address), approval comments, runner steps and
+   receipts as plaintext JSON and text; the Identity plane's Postgres held audit
+   metadata and the outbox and delivery payloads the same way; `daemon.log`
+   was an append-only plaintext file, world-readable if it pre-dated the mode
+   fix, with no rotation, and `daemon logs` printed it raw. A copy of any of
+   them read the history.
+
 ## Fix
 
 - One rule set, `spec/log-scrub/log-scrub.json`, compiled by
@@ -60,6 +69,12 @@ URL, under an unlisted key.
 - The six structs print `[REDACTED]`.
 - `pnpm quality:log-hygiene` counts the ways round the logger; the ledger only
   falls.
+- Logs and events rest sealed (ADR 0150 items 7–9): an encrypted, rotating,
+  owner-only log file for the Host and the TypeScript services
+  (`OPENSESAME_LOG_FILE`; the daemon's by default); sealed event rows in Postgres
+  and SQLite under keys derived from secrets the deployment already holds;
+  existing rows and files sealed in place; a networked or production Host and a
+  persistent database refuse to start with no key.
 
 ## Verification
 
@@ -72,9 +87,30 @@ URL, under an unlisted key.
   `SecurityNotice`, delivery failure text, the six `Debug` impls.
 - `scripts/lib/log-hygiene.test.mjs` proves the gate fails on a new bypass.
 
+- Sealed-log format vectors: `crates/sealed-log` and `packages/observability`
+  open the same lines. A real `opensesame daemon start` was run: the file is
+  mode 0600 with no plaintext in it, the key file and pidfile are 0600, a
+  plaintext log from an older build was sealed and scrubbed, and
+  `daemon logs` reads it back.
+- Event rows are read from the table itself, not the API: PGlite (real
+  Postgres) for the audit trail, the outbox on both paths and the delivery
+  queues, with the hash chain verifying; the real SQLite schema for the
+  outbox, security deliveries and runner steps; a legacy sweep test; and a
+  sealed value with no sealer or the wrong key is refused.
+
 ## Residual risk
 
 - Recognition is by shape. An unlabelled, unprefixed random string in a message
   is not recognisable; the rule stays "log an id".
 - Free text a person types (an approval comment, a signing command line) is
-  scrubbed by shape only.
+  scrubbed by shape only where it is logged, and sealed where it is stored.
+- Sealing protects a copied file, a backup, a snapshot and a read-only
+  account. Whoever holds the process, or a sealed file and its key together,
+  reads it.
+- **Not events, and not covered here:** credentials Postgres keeps in columns
+  of their own: `oidc_payloads.payload` (sessions, codes, refresh tokens),
+  `better_auth_accounts` tokens and password hash, `better_auth_sessions.token`,
+  `webhook_endpoints.secret`, `byo_upstreams.client_secret`,
+  `organizations.sso_client_secret`, `org_ldap_config.service_bind_secret` and
+  `push_subscriptions.auth_secret`. They are plaintext at rest today and are the
+  next thing to seal.

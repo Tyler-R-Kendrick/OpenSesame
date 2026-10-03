@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 opensesame-storage = { path = "../../crates/storage" }
 opensesame-redaction = { path = "../../crates/redaction", features = ["tracing"] }
+opensesame-sealed-log = { path = "../../crates/sealed-log" }
 base64 = { workspace = true }
 opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-authn = { path = "../../crates/authn" }

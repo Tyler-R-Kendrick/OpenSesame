@@ -10,12 +10,12 @@ fn a_secret_in_a_summary_value_is_scrubbed_before_the_receipt_is_signed() {
         "status": "failed",
         "detail": "GET https://api.example/x?api_key=k_live_123 rejected; Authorization: Bearer abc.def.ghi",
     }));
-    let signed = signer.sign_receipt(receipt).unwrap();
-    let stored = signed.safe_result_summary.as_ref().unwrap().to_string();
+    let output = signer.sign_receipt(receipt).unwrap();
+    let stored = output.safe_result_summary.as_ref().unwrap().to_string();
     assert!(!stored.contains("k_live_123") && !stored.contains("abc.def.ghi"));
     assert!(stored.contains("failed"));
     signer
-        .verify_receipt(&signed)
+        .verify_receipt(&output)
         .expect("the signature covers the scrubbed summary");
 }
 

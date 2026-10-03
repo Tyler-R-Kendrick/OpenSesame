@@ -16,6 +16,7 @@ pub mod cert_issuers;
 mod config;
 mod connector_egress;
 mod dev_pki;
+mod event_sealing;
 mod github_webhook;
 mod host_authorization;
 mod identity_mapping;

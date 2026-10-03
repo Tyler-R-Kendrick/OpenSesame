@@ -30,7 +30,12 @@ beforeAll(async () => {
   db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: MIGRATIONS });
   // Two replicas of the Identity API over one database.
-  const options = { database: overlapCast(db) };
+  // Replicas share their configuration; the one they must share is the secret
+  // event rows are sealed under (ADR 0150).
+  const options = {
+    database: overlapCast(db),
+    processEnv: { ...process.env, OPENSESAME_CLAIM_PEPPER: "r".repeat(48) },
+  };
   first = createControlPlane(options);
   second = createControlPlane(options);
   await Promise.all([

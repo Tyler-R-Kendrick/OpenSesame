@@ -1,11 +1,12 @@
-# ADR 0150 — Logs and events carry no secrets
+# ADR 0150 — Logs and events carry no secrets, and rest sealed
 
 - Status: Accepted
 - Date: 2026-09-28
 - Builds on: [ADR 0080](0080-security-event-hooks.md) (every security fact is
   a `SecurityNotice`), [ADR 0139](0139-one-definition-every-target.md) (one
   definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md)
-  (nothing the client stores rests in the clear)
+  (nothing the client stores rests in the clear), [ADR 0032](0032-connection-broker-service-integrations.md)
+  (the Host sealing key)
 - Amends: ADR 0080 — the notice envelope scrubs its own text and payload
 
 ## Context
@@ -78,6 +79,60 @@ JWTs, `osc_` tokens and PEM blocks were invisible to it.
    allowed zero, and a recorded number only falls. The one sanctioned
    last-resort print is `console.error(describeError(err))`.
 
+## Decision: what a log or an event leaves behind rests sealed
+
+Scrubbing removes what a secret looks like. What a log line and an event row
+*say* (who unlocked, which certificate, what a webhook carried, what a person
+typed in an approval comment) is not a secret and is still nobody's business
+who copies the file, so it rests sealed too.
+
+7. **Logs a process writes for itself.** `OPENSESAME_LOG_FILE` names a file every
+   log line of the Host, the worker, the daemon and the TypeScript services is
+   sealed into, and it replaces stdout. Each line is sealed on its own,
+   `osl1.` + base64url(24-byte nonce ‖ XChaCha20-Poly1305 ciphertext and tag),
+   so a torn write costs one line and rotation needs no re-encryption. The key
+   lives apart from the file: `<log>.key` (mode 0600, published atomically) or
+   `OPENSESAME_LOG_KEY_FILE`, which an operator points at a secret mount. Files
+   are owner-only and a wider one is narrowed; rotation is 8 MiB × 3 whole
+   files. A plaintext log an older build wrote is scrubbed and sealed in place
+   when the file is opened. A configured sealed log that cannot be opened or
+   keyed **refuses to start** the process; it never falls back to a plaintext
+   file or the console. `opensesame daemon start` uses it for the daemon it
+   launches (so `~/.opensesame/daemon.log` is sealed, and its pidfile private),
+   `opensesame daemon logs` reads it, a panic and a fatal startup error are
+   routed through the logger and scrubbed. The format is one definition:
+   `crates/sealed-log` and `packages/observability` (`sealed-log.ts`) open the
+   vectors in `spec/conformance/sealed-log-vectors.json`.
+8. **Event rows on the Identity plane (Postgres).** The audit trail's
+   metadata and the outbox, webhook and notification delivery payloads are
+   sealed before they reach a row: AES-256-GCM, the column named in the
+   associated data, stored as `{"$sealed": "osev1.…"}` in the same jsonb column,
+   so the schema and every query that does not read the payload are unchanged.
+   A decorator (`withSealedEvents`) covers both ways into the outbox
+   (`outbox.append` and `uow.appendOutbox`) and opens what it lists, so the audit
+   hash chain, taken over the plaintext before it is appended, verifies as
+   before. The key is derived by HKDF from `OPENSESAME_EVENT_KEY`, else from the
+   claim pepper the deployment already requires; a persistent database with
+   neither **refuses to start**. A sealed payload that does not open throws, and
+   is never read as empty. Existing rows are sealed in place at start-up.
+9. **Event rows on the Host (SQLite).** The outbox, security deliveries,
+   connection events, signing events (command, host, OS user, address),
+   approval comments, runner steps, intents, invocations and receipts are sealed
+   (XChaCha20-Poly1305, `osev1.` text in the same column) under a key derived by
+   HKDF from the Host sealing key, `OPENSESAME_CONNECTION_KEY`. One sealer is
+   installed for the process before anything writes an event
+   (`opensesame-event-seal`), because free functions inside transactions write
+   these rows. A networked or production Host with no sealing key **refuses to
+   start**; a development Host stores events unsealed and says so. A sealed value
+   with no sealer, or the wrong key, is an error, never ciphertext handed on as
+   the event. Existing rows are sealed in place at start-up.
+10. **Failure text is scrubbed, not sealed.** `lastError` and delivery errors are
+    text an operator reads, and the outbox reuses `lastError` as a claim token
+    that SQL compares, so they are scrubbed by shape (item 3).
+
+Left readable on purpose: ids, timestamps, event types, states and counters,
+which every queue and every operator query needs.
+
 ## What this does not do
 
 - It recognises secrets by shape. An unlabelled, unprefixed random string in
@@ -86,7 +141,16 @@ JWTs, `osc_` tokens and PEM blocks were invisible to it.
 - The device-flow CLI prints a `user_code` on purpose, for a person to type.
   Its own key policy stands; only the value layer applies to it.
 - Free text a *person* types (an approval comment, a signing command line) is
-  scrubbed by shape only.
+  scrubbed by shape only where it is logged; where it is stored it is sealed.
+- Someone who holds the process's memory, or both a sealed file and its key,
+  reads it. Sealing protects a copied file, a backup, a snapshot and a
+  read-only database account; it is not a defence against the host.
+- Losing the key makes sealed logs and events unreadable. That is the design; a
+  key is backed up like any other secret.
+- Credentials that Postgres holds in columns of their own (the OIDC provider's
+  stored sessions and refresh tokens, Better Auth's account tokens, webhook
+  signing secrets, upstream client secrets) are not events and are out of this
+  decision. They are recorded in the audit note as residual.
 
 ## Consequences
 
@@ -95,6 +159,11 @@ JWTs, `osc_` tokens and PEM blocks were invisible to it.
 - `SENSITIVE_KEY_PATTERN` is replaced by `isSensitiveKey` (suffix-based, so
   compound and camelCase names are caught; exact `code` and `state` are not
   sensitive keys, because error codes are diagnostic).
+- `SecurityNotice` and receipts are scrubbed on the way *in*; the stores then
+  seal what they hold. A value scrubbed away is gone from both.
+- A Host with no sealing key was, until now, a Host that could start. A
+  networked or production one no longer can, which is a deployment change; the
+  error names the variable.
 - A URL parameter named `code`, `state`, `key` or `sig` is scrubbed wherever
   it appears in text. That over-scrubs a harmless `?key=sort` and is chosen
   over the alternative.

@@ -1,0 +1,20 @@
+[package]
+name = "opensesame-sealed-log"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "An encrypted, rotating log file: every line sealed on its own under a key kept apart from it (ADR 0150)"
+
+[dependencies]
+opensesame-redaction = { path = "../redaction" }
+base64 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+hex = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+opensesame-redaction = { path = "../redaction", features = ["tracing"] }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -8,7 +8,7 @@ use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;
 use std::{
     env,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command as StdCommand, Stdio},
 };
 
@@ -108,9 +108,18 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
 }
 
 async fn show_logs(base: &str, logfile: &str) {
-    if let Ok(content) = std::fs::read_to_string(logfile) {
-        let lines: Vec<&str> = content.lines().rev().take(40).collect();
-        let out: Vec<&str> = lines.into_iter().rev().collect();
+    let key_path = opensesame_sealed_log::key_path_for(
+        Path::new(logfile),
+        crate::log_sink::key_override().as_deref(),
+    );
+    let tail = opensesame_sealed_log::LogKey::load(&key_path).and_then(|key| {
+        if Path::new(logfile).exists() {
+            opensesame_sealed_log::read_tail(Path::new(logfile), &key, 40).map(Some)
+        } else {
+            Ok(None)
+        }
+    });
+    if let Ok(Some(out)) = tail {
         println!("{}", out.join("\n"));
         if out.is_empty() {
             println!(
@@ -118,6 +127,12 @@ async fn show_logs(base: &str, logfile: &str) {
                 json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
             );
         }
+    } else if let Err(error) = tail {
+        println!(
+            "{}",
+            json!({"status":"unreadable","logfile": logfile, "error": error.to_string(),
+                   "hint": "the log is sealed; its key is beside it or at OPENSESAME_LOG_KEY_FILE"})
+        );
     } else {
         let client = reqwest::Client::new();
         match client.get(format!("{base}/health")).send().await {
@@ -172,31 +187,28 @@ fn stop_daemon(pidfile: &str) {
 
 fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
     let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
-    // The daemon's own output lands here; it is not for other accounts.
-    let mut log_opts = std::fs::OpenOptions::new();
-    log_opts.create(true).append(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        log_opts.mode(0o600);
+    // The daemon's log is sealed (ADR 0150): opened and keyed here first, so a
+    // log that cannot be kept is reported now rather than lost, and one an older
+    // build wrote in the clear is sealed before the daemon appends to it.
+    if let Err(error) = crate::log_sink::open(Path::new(logfile)) {
+        println!(
+            "{}",
+            json!({"status":"error","error": format!("cannot open the sealed log: {error}"),
+                   "hint": "run it in the foreground with: opensesame daemon run"})
+        );
+        return;
     }
-    let (stdout, stderr) = match log_opts.open(logfile) {
-        Ok(file) => {
-            let stderr = file.try_clone().ok();
-            (Stdio::from(file), stderr.map_or(Stdio::null(), Stdio::from))
-        }
-        Err(_) => (Stdio::null(), Stdio::null()),
-    };
     let program = env::current_exe().unwrap_or_else(|_| PathBuf::from("opensesame"));
     match StdCommand::new(program)
         .args(["daemon", "run"])
-        .stdout(stdout)
-        .stderr(stderr)
+        .env(crate::log_sink::ENV_LOG_FILE, logfile)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
     {
         Ok(child) => {
             let pid = child.id();
-            let _ = std::fs::write(pidfile, format!("{pid}\n"));
+            let _ = crate::write_private(Path::new(pidfile), format!("{pid}\n").as_bytes());
             // Detach: forget Child so Drop doesn't kill it.
             std::mem::forget(child);
             println!(

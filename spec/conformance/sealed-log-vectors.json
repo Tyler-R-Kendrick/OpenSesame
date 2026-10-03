@@ -1,0 +1,41 @@
+{
+  "$comment": "Sealed log lines: every implementation of the format (crates/sealed-log, packages/observability) must open each `sealed` to its `plain` under `key`, and refuse each `notOpening`. Regenerated only when the format changes: UPDATE_SEALED_LOG_VECTORS=1 cargo test -p opensesame-sealed-log --test conformance.",
+  "format": "osl1. + base64url(24-byte nonce || XChaCha20-Poly1305 ciphertext and tag); associated data opensesame.log.v1",
+  "key": "0707070707070707070707070707070707070707070707070707070707070707",
+  "lines": [
+    {
+      "plain": "vault unlocked",
+      "sealed": "osl1.8qgjTgX_cnjAuyJwU-oh8nKKaBp8cosq7K40IPFd6Kyl-IwBfdMs-U0BHGn1_FMGpB3oB0il"
+    },
+    {
+      "plain": "{\"level\":\"INFO\",\"fields\":{\"message\":\"claim opened\",\"user\":\"ada\"}}",
+      "sealed": "osl1.VEO3v5RnBGd_FZphKeJ4GTr4wKG2aQfGMkL1cJFakoCU8rE2ueCZ4v91ap6-2XWwfwKvpWg89KYj0YlYORmMGmWtf7cGKFp0QwjziZPO0hqY2mZsh523pW5l2YtZiXTLkVPpqe25dHXD"
+    },
+    {
+      "plain": "unicode ✓ – non-ASCII, and a tab\there",
+      "sealed": "osl1.bVBIevBsndrEbp6-_7myOOkcuU5_tvNRFz80Mo_rYxVN7SB3dah0vnM3oWTFq70V_2AEC2Cz2JPyhew5hTMb066g8xU2-EID2WWKJvQpzBFr"
+    },
+    {
+      "plain": "",
+      "sealed": "osl1.z20h_VpmNU8rpg7b1dLCrTC1sU6Wli6wIu8uazBu2LL4er4GaZzIZA"
+    }
+  ],
+  "notOpening": [
+    {
+      "line": "plain text",
+      "why": "not sealed"
+    },
+    {
+      "line": "osl1.",
+      "why": "prefix only"
+    },
+    {
+      "line": "osl1.AAAA",
+      "why": "shorter than a nonce"
+    },
+    {
+      "line": "osl2.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "why": "wrong prefix"
+    }
+  ]
+}

@@ -122,14 +122,14 @@ mod tests {
     use super::*;
 
     fn run(format: Format, writes: &[&[u8]]) -> String {
-        let mut sink = Vec::new();
+        let mut captured = Vec::new();
         {
-            let mut writer = ScrubWriter::new(&mut sink, format);
+            let mut scrubber = ScrubWriter::new(&mut captured, format);
             for chunk in writes {
-                writer.write_all(chunk).unwrap();
+                scrubber.write_all(chunk).unwrap();
             }
         }
-        String::from_utf8(sink).unwrap()
+        String::from_utf8(captured).unwrap()
     }
 
     #[test]

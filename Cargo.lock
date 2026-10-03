@@ -3702,6 +3702,7 @@ dependencies = [
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
  "opensesame-redaction",
+ "opensesame-sealed-log",
  "opensesame-sealed-store",
  "opensesame-storage",
  "opensesame-vault-item-types",
@@ -3780,6 +3781,7 @@ dependencies = [
  "opensesame-claims",
  "opensesame-connection-detect",
  "opensesame-domain",
+ "opensesame-event-seal",
  "opensesame-invoke-through",
  "opensesame-relay",
  "opensesame-rotation",
@@ -3946,6 +3948,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-event-seal"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chacha20poly1305",
+ "hkdf",
+ "sha2 0.10.9",
+ "zeroize",
+]
+
+[[package]]
 name = "opensesame-gateway"
 version = "0.1.0"
 dependencies = [
@@ -3979,6 +3992,7 @@ dependencies = [
  "opensesame-connection-broker",
  "opensesame-connector-host",
  "opensesame-domain",
+ "opensesame-event-seal",
  "opensesame-host-core",
  "opensesame-ingress-evidence",
  "opensesame-lifecycle",
@@ -4430,6 +4444,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-sealed-log"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chacha20poly1305",
+ "hex",
+ "opensesame-redaction",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "zeroize",
+]
+
+[[package]]
 name = "opensesame-sealed-store"
 version = "0.1.0"
 dependencies = [
@@ -4513,7 +4542,9 @@ dependencies = [
  "futures",
  "insta",
  "opensesame-domain",
+ "opensesame-event-seal",
  "opensesame-lifecycle",
+ "opensesame-redaction",
  "proptest",
  "serde",
  "serde_json",

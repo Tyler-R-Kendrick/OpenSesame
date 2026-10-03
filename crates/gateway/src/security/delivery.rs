@@ -258,7 +258,7 @@ async fn send(
         .body(rendered.body)
         .send()
         .await
-        .map_err(|error| Failure::Retryable(super::failure_text::transport(&error)))?;
+        .map_err(|error| Failure::Retryable(super::failure_text::transport(error)))?;
 
     classify(response.status())
 }

@@ -6,6 +6,7 @@ import {
   type LoggerOptions,
   pino,
 } from "pino";
+import { createSealedLogDestination } from "./sealed-log.js";
 
 /** Paths redacted from structured logs (tokens, codes, secrets). */
 export const LOG_REDACT_PATHS = [
@@ -98,6 +99,18 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
 
   if (options.destination) {
     return pino(opts, options.destination);
+  }
+  // With OPENSESAME_LOG_FILE set, lines are sealed into that file and never
+  // written to stdout (ADR 0150); a file that cannot be opened throws.
+  const sealedFile = process.env.OPENSESAME_LOG_FILE;
+  if (sealedFile) {
+    return pino(
+      opts,
+      createSealedLogDestination(
+        sealedFile,
+        process.env.OPENSESAME_LOG_KEY_FILE,
+      ),
+    );
   }
   return pino(opts);
 }

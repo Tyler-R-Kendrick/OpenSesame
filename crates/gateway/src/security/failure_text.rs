@@ -14,7 +14,7 @@ pub fn persistable(detail: &str, max_chars: usize) -> String {
 }
 
 /// A transport error's text without the URL it names.
-pub fn transport(error: &reqwest::Error) -> String {
+pub fn transport(error: reqwest::Error) -> String {
     format!("request failed: {}", error.without_url())
 }
 
@@ -37,7 +37,7 @@ mod tests {
             .send()
             .await
             .unwrap_err();
-        let text = transport(&error);
+        let text = transport(error);
         assert!(
             !text.contains("abc123") && !text.contains("127.0.0.1:9/hook"),
             "{text}"

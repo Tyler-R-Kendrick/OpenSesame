@@ -282,6 +282,8 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
 | `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0150): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
+| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0150): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
+| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0150): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
@@ -453,6 +455,16 @@ Do not add new top-level directories or loose root files — find the group.
   `console.*`, a hand-built `pino(...)` or a bare `tracing_subscriber::fmt()`.
   `pnpm quality:log-hygiene` counts those and the ledger only falls. A struct
   holding a secret never derives `Debug`. Log an id, never the secret.
+- **Logs and events rest sealed** (ADR 0150 items 7–9). A log file a process
+  writes goes through `crates/sealed-log` / `packages/observability`'s sealed
+  destination (`OPENSESAME_LOG_FILE`); a new event or audit column the Host
+  writes is sealed through `opensesame-event-seal` and read back through it (add
+  it to `SEALED_COLUMNS` in `crates/storage/src/sealed.rs` so the legacy sweep
+  reaches it); a new Identity event payload goes through `withSealedEvents`.
+  Never write an event or a log line to disk in the clear, and never add a
+  plaintext fallback: a configured sealed sink that cannot open refuses to
+  start. The event keys derive from secrets the deployment already holds
+  (`docs/operators/log-and-event-sealing.md`).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

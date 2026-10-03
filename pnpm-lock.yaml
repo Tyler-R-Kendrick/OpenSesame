@@ -1329,6 +1329,9 @@ importers:
 
   packages/observability:
     dependencies:
+      '@noble/ciphers':
+        specifier: 1.3.0
+        version: 1.3.0
       '@opensesame/log-scrub':
         specifier: workspace:*
         version: link:../log-scrub

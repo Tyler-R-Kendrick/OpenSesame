@@ -39,22 +39,46 @@ pub async fn worker(cmd: WorkerCmd) -> anyhow::Result<()> {
 /// Every sink is wrapped in a scrubbing writer (ADR 0150): a call site that
 /// logs a secret by mistake, a library error that echoes a URL with a token in
 /// it and a panic message all reach the collector or the file already scrubbed.
+/// With `OPENSESAME_LOG_FILE` set the server's lines are sealed into that file
+/// instead of written to stdout.
 pub fn init_tracing(command: &Commands) {
     match command {
-        Commands::Host { .. } => tracing_subscriber::fmt()
-            .with_env_filter("info,tower_http=info")
-            .json()
-            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Json))
-            .init(),
-        Commands::Worker { .. } => tracing_subscriber::fmt()
-            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
-            .init(),
-        Commands::Daemon(args) if args.is_run() => tracing_subscriber::fmt()
-            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
-            .init(),
+        Commands::Host { .. } => init_host(),
+        Commands::Worker { .. } => init_text(),
+        Commands::Daemon(args) if args.is_run() => init_text(),
         _ => tracing_subscriber::fmt()
             .with_env_filter("warn")
             .with_writer(ScrubMakeWriter::new(std::io::stderr, Format::Text))
             .init(),
     }
+}
+
+fn init_host() {
+    let filter = "info,tower_http=info";
+    match crate::log_sink::from_env() {
+        Some(sink) => tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .json()
+            .with_writer(ScrubMakeWriter::new(move || sink.writer(), Format::Json))
+            .init(),
+        None => tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .json()
+            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Json))
+            .init(),
+    }
+    crate::log_sink::install_panic_hook();
+}
+
+fn init_text() {
+    match crate::log_sink::from_env() {
+        Some(sink) => tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_writer(ScrubMakeWriter::new(move || sink.writer(), Format::Text))
+            .init(),
+        None => tracing_subscriber::fmt()
+            .with_writer(ScrubMakeWriter::new(std::io::stdout, Format::Text))
+            .init(),
+    }
+    crate::log_sink::install_panic_hook();
 }

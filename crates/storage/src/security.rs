@@ -15,6 +15,8 @@
 //!   shape (claim under lease, backoff, dead-letter) but its own table, so hook
 //!   fan-out never provokes the backup actor.
 
+use crate::sealed;
+use crate::security_rows::delivery_from_row;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::{sqlite::SqliteRow, Row};
@@ -162,25 +164,6 @@ fn watermark_from_row(row: &SqliteRow) -> StoredLifecycleWatermark {
         stage: row.get("stage"),
         threshold_seconds: row.get("threshold_seconds"),
         expires_at: row.get("expires_at"),
-    }
-}
-
-fn delivery_from_row(row: &SqliteRow) -> StoredSecurityDelivery {
-    StoredSecurityDelivery {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        hook_id: row.get("hook_id"),
-        event_type: row.get("event_type"),
-        subject_kind: row.get("subject_kind"),
-        subject_id: row.get("subject_id"),
-        payload_json: row.get("payload_json"),
-        state: row.get("state"),
-        attempts: row.get("attempts"),
-        available_at: row.get("available_at"),
-        last_error: row.get("last_error"),
-        delivered_at: row.get("delivered_at"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
     }
 }
 
@@ -388,7 +371,7 @@ impl Db {
         } else {
             None
         })
-        .bind(error)
+        .bind(error.map(sealed::scrub))
         .bind(at.to_rfc3339())
         .bind(organization_id)
         .bind(id)
@@ -541,7 +524,7 @@ impl Db {
             .fetch_optional(self.pool())
             .await
             .context("get security delivery")?;
-        Ok(row.as_ref().map(delivery_from_row))
+        row.as_ref().map(delivery_from_row).transpose()
     }
 
     /// Queue one delivery.
@@ -565,11 +548,11 @@ impl Db {
         .bind(&delivery.event_type)
         .bind(&delivery.subject_kind)
         .bind(&delivery.subject_id)
-        .bind(&delivery.payload_json)
+        .bind(sealed::seal("security_deliveries.payload_json", &delivery.payload_json))
         .bind(&delivery.state)
         .bind(delivery.attempts)
         .bind(&delivery.available_at)
-        .bind(&delivery.last_error)
+        .bind(delivery.last_error.as_deref().map(sealed::scrub))
         .bind(&delivery.delivered_at)
         .bind(&delivery.created_at)
         .bind(&delivery.updated_at)
@@ -608,7 +591,10 @@ impl Db {
         .context("claim lifecycle deliveries")?;
 
         let lease_until = (now + chrono::Duration::seconds(lease_seconds.max(1))).to_rfc3339();
-        let claimed: Vec<StoredSecurityDelivery> = rows.iter().map(delivery_from_row).collect();
+        let claimed = rows
+            .iter()
+            .map(delivery_from_row)
+            .collect::<anyhow::Result<Vec<StoredSecurityDelivery>>>()?;
         for delivery in &claimed {
             sqlx::query("UPDATE security_deliveries SET available_at = ? WHERE id = ?")
                 .bind(&lease_until)
@@ -665,7 +651,7 @@ impl Db {
              last_error = ?, updated_at = ? WHERE id = ?",
         )
         .bind(retry_at.to_rfc3339())
-        .bind(error)
+        .bind(sealed::scrub(error))
         .bind(now.to_rfc3339())
         .bind(id)
         .execute(&self.pool)
@@ -690,7 +676,7 @@ impl Db {
             "UPDATE security_deliveries SET state = 'dead_lettered', attempts = attempts + 1, \
              available_at = NULL, last_error = ?, updated_at = ? WHERE id = ?",
         )
-        .bind(error)
+        .bind(sealed::scrub(error))
         .bind(now.to_rfc3339())
         .bind(id)
         .execute(&self.pool)
@@ -718,7 +704,7 @@ impl Db {
         .fetch_all(&self.pool)
         .await
         .context("list lifecycle deliveries")?;
-        Ok(rows.iter().map(delivery_from_row).collect())
+        rows.iter().map(delivery_from_row).collect()
     }
 
     // —— breach findings ——————————————————————————————————————————

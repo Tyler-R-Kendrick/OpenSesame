@@ -12,6 +12,7 @@ path = "src/lib.rs"
 opensesame-claims = { path = "../claims" }
 opensesame-connection-detect = { path = "../connection-detect" }
 opensesame-domain = { path = "../domain" }
+opensesame-event-seal = { path = "../event-seal" }
 opensesame-relay = { path = "../relay" }
 opensesame-rotation = { path = "../rotation" }
 opensesame-invoke-through = { path = "../invoke-through" }
