@@ -77,8 +77,9 @@ function mount(daemonState: Daemon = { open: true, accept: true }) {
 }
 
 const field = () => screen.getByLabelText("Pairing code");
-const pairKey = () =>
-  screen.getByRole("button", { name: "Pair with the daemon" });
+const PAIR = { name: "Pair with the daemon" };
+const pairKey = () => screen.getByRole("button", PAIR);
+const noPairKey = () => screen.queryByRole("button", PAIR);
 
 describe("PluginPanel pairing", () => {
   let undeclare: Array<() => void> = [];
@@ -95,9 +96,9 @@ describe("PluginPanel pairing", () => {
   it("takes a pasted code with one icon key, then draws the daemon's answer", async () => {
     const { pair, sent } = mount();
     expect(screen.getByLabelText("No daemon paired")).toBeTruthy();
-    expect(pairKey()).toHaveProperty("disabled", true);
-    expect(pairKey().getAttribute("title")).toBe("Pair with the daemon");
+    expect(noPairKey()).toBeNull();
     fireEvent.change(field(), { target: { value: CODE } });
+    expect(pairKey().getAttribute("title")).toBe("Pair with the daemon");
     fireEvent.click(pairKey());
     await waitFor(() => expect(pair).toHaveBeenCalledTimes(1));
     expect(pair.mock.calls[0]?.[0]).toBe(CODE);
@@ -118,10 +119,58 @@ describe("PluginPanel pairing", () => {
     expect(document.querySelector(".note, .conn-flash")).toBeNull();
   });
 
-  it("offers the field but no way to submit with no vault to keep the key in", () => {
-    mount({ open: false, accept: true });
-    expect(field()).toHaveProperty("disabled", true);
-    expect(pairKey()).toHaveProperty("disabled", true);
+  it("draws no field and no key with no vault to keep the key in", async () => {
+    const { sent } = mount({ open: false, accept: true });
+    expect(screen.getByLabelText("No daemon paired")).toBeTruthy();
+    expect(screen.queryByLabelText("Pairing code")).toBeNull();
+    expect(noPairKey()).toBeNull();
+    expect(document.querySelector("form, input")).toBeNull();
+    expect(sent).toEqual([]);
+  });
+
+  it("draws the key only once there is a code to send, and keeps focus on the field", () => {
+    mount();
+    field().focus();
+    expect(noPairKey()).toBeNull();
+    fireEvent.change(field(), { target: { value: "  " } });
+    expect(noPairKey()).toBeNull();
+    fireEvent.change(field(), { target: { value: CODE } });
+    expect(pairKey().hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("sends nothing for an empty code submitted with Enter", () => {
+    const { pair } = mount();
+    fireEvent.submit(field());
+    expect(pair).not.toHaveBeenCalled();
+  });
+
+  it("keeps focus inside the tile when pairing takes the field away", async () => {
+    mount();
+    fireEvent.change(field(), { target: { value: CODE } });
+    pairKey().focus();
+    fireEvent.click(pairKey());
+    await screen.findByLabelText("Installed, off");
+    expect(screen.queryByLabelText("Pairing code")).toBeNull();
+    const tile = document.getElementById("plugin-surrogate-proxy");
+    expect(tile?.contains(document.activeElement)).toBe(true);
+  });
+
+  it("keeps focus inside the tile when forgetting takes its key away", async () => {
+    mount();
+    fireEvent.change(field(), { target: { value: CODE } });
+    fireEvent.click(pairKey());
+    const key = await screen.findByRole("button", {
+      name: "Forget the paired daemon",
+    });
+    key.focus();
+    fireEvent.click(key);
+    await screen.findByLabelText("Pairing code");
+    expect(
+      screen.queryByRole("button", { name: "Forget the paired daemon" }),
+    ).toBeNull();
+    const tile = document.getElementById("plugin-surrogate-proxy");
+    expect(tile?.contains(document.activeElement)).toBe(true);
   });
 
   it("forgets the pairing with one icon key and offers the field again", async () => {

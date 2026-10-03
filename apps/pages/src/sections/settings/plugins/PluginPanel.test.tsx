@@ -37,6 +37,7 @@ function mount(
   state: BoundaryObject | null,
   notices: BoundaryValue[] = [],
   paired = true,
+  answer: BoundaryObject = { enabled: true, active: true },
 ) {
   const sent: string[] = [];
   const daemon: PluginDaemon = {
@@ -47,7 +48,7 @@ function mount(
       if (path === "/v1/plugins")
         return json({ plugins: state === null ? [] : [state] });
       if (path.endsWith("/notices")) return json({ notices });
-      return json(wireState({ enabled: true, active: true }));
+      return json(wireState(answer));
     },
   };
   const session = createPluginSession(pluginById("surrogate-proxy"), daemon);
@@ -57,8 +58,9 @@ function mount(
   return { sent, session };
 }
 
-const toggle = () =>
-  screen.getByRole("button", { name: "Surrogate proxy on the paired daemon" });
+const SWITCH = { name: "Surrogate proxy on the paired daemon" };
+const toggle = () => screen.getByRole("button", SWITCH);
+const noSwitch = () => screen.queryByRole("button", SWITCH);
 
 describe("PluginPanel", () => {
   // The tile is a tutorial target its module declares on activation.
@@ -80,7 +82,7 @@ describe("PluginPanel", () => {
     expect(sent).toEqual([]);
   });
 
-  it("shows an uninstalled plugin's mark and the command, and cannot switch it", async () => {
+  it("shows an uninstalled plugin's mark and the command, and draws no switch for it", async () => {
     mount(wireState({ installed: false, version: null }));
     expect(await screen.findByLabelText("Not installed")).toBeTruthy();
     expect(
@@ -91,20 +93,48 @@ describe("PluginPanel", () => {
     expect(
       screen.getByRole("button", { name: "Copy the install command" }),
     ).toBeTruthy();
-    expect(toggle()).toHaveProperty("disabled", true);
+    expect(noSwitch()).toBeNull();
   });
 
-  it("a forced-off plugin reads as off and cannot be turned on from here", async () => {
+  it("a forced-off plugin reads as off and draws no switch to turn it on", async () => {
     const { sent } = mount(
       wireState({ enabled: true, forced_off: true, active: false }),
     );
     expect(
       await screen.findByLabelText("Forced off on the daemon"),
     ).toBeTruthy();
-    expect(toggle().getAttribute("aria-pressed")).toBe("false");
-    expect(toggle()).toHaveProperty("disabled", true);
-    fireEvent.click(toggle());
+    expect(noSwitch()).toBeNull();
+    // The mark is the one thing left to say it, and it still says it.
+    expect(screen.getByLabelText("Forced off on the daemon")).toBeTruthy();
     expect(sent.some((line) => line.startsWith("PUT"))).toBe(false);
+  });
+
+  it("keeps the switch, and focus on it, while a switch is in flight", async () => {
+    mount(wireState());
+    expect(await screen.findByLabelText("Installed, off")).toBeTruthy();
+    toggle().focus();
+    fireEvent.click(toggle());
+    expect(toggle().getAttribute("aria-busy")).toBe("true");
+    expect(toggle().hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(toggle());
+    await waitFor(() => expect(screen.getByLabelText("On")).toBeTruthy());
+    expect(toggle().hasAttribute("aria-busy")).toBe(false);
+    expect(document.activeElement).toBe(toggle());
+  });
+
+  it("hands focus to the tile when the daemon's answer takes the switch away", async () => {
+    mount(wireState(), [], true, { forced_off: true, enabled: true });
+    expect(await screen.findByLabelText("Installed, off")).toBeTruthy();
+    toggle().focus();
+    expect(document.activeElement).toBe(toggle());
+    fireEvent.click(toggle());
+    expect(
+      await screen.findByLabelText("Forced off on the daemon"),
+    ).toBeTruthy();
+    expect(noSwitch()).toBeNull();
+    const tile = document.getElementById("plugin-surrogate-proxy");
+    expect(document.activeElement).not.toBe(document.body);
+    expect(tile?.contains(document.activeElement)).toBe(true);
   });
 
   it("switches an installed plugin on the paired daemon with one icon key", async () => {
