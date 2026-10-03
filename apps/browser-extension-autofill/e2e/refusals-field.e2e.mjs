@@ -159,3 +159,39 @@ describe("passkeys first", () => {
     });
   }
 });
+
+describe("passkeys first inside shadow roots", () => {
+  const offered = [
+    ["a sibling in the same open shadow root", "/shadow-passkey"],
+    ["the same form inside a shadow root", "/shadow-form-passkey"],
+    ["a sibling in a nested shadow root", "/shadow-nested-passkey"],
+  ];
+  for (const [name, path] of offered) {
+    for (const focus of ["#pass", "#user"]) {
+      it(`reports a passkey for ${name} and fills nothing, focus on ${focus}`, async () => {
+        const since = served(session);
+        const page = await openLogin(session, path, { focus });
+        const popup = await openPopup(session, page);
+        assert.equal(await mark(popup), WORDS.passkey, "the popup says so");
+        assert.deepEqual(await sendFill(popup), { outcome: "passkey_offered" });
+        await assertUntouched(session, page, focus, since);
+        await popup.close();
+        await page.close();
+      });
+    }
+  }
+
+  for (const [name, path] of [
+    ["no passkey anywhere", "/shadow-plain"],
+    ["a passkey field only in another root", "/shadow-other-root-passkey"],
+  ]) {
+    it(`still fills a shadow-root password with ${name}`, async () => {
+      const page = await openLogin(session, path, { focus: "#pass" });
+      const popup = await openPopup(session, page);
+      assert.deepEqual(await pressFill(popup), { outcome: "filled" });
+      assert.equal(await fieldValue(page, "#pass"), session.secret);
+      await popup.close();
+      await page.close();
+    });
+  }
+});

@@ -53,8 +53,13 @@ function filterOpacity(filter: string): number {
   return factor;
 }
 
-/** The element's parent, stepping out of a shadow root to its host. */
+/**
+ * The element's parent in the flat tree the browser paints: the slot a
+ * light-DOM child is assigned to (its wrapper's opacity fades it), else the
+ * DOM parent, stepping out of a shadow root to its host.
+ */
 function parentOf(el: Element): Element | null {
+  if (el.assignedSlot) return el.assignedSlot;
   if (el.parentElement) return el.parentElement;
   const root = el.getRootNode();
   return root instanceof ShadowRoot ? root.host : null;
@@ -79,12 +84,29 @@ function hitsSelf(input: HTMLInputElement, x: number, y: number): boolean {
   return scope?.elementFromPoint(x, y) === input;
 }
 
-/** Whether a passkey is offered beside `input`: passkeys come first. */
+/**
+ * The tree `input` lives in: its document, or the open shadow root that holds
+ * it. `ownerDocument` is the wrong scope for a field in a shadow root: its
+ * `querySelector` never enters a shadow tree, so a sibling passkey field in
+ * the same root would be invisible.
+ */
+function rootOf(input: HTMLInputElement): ParentNode {
+  const root = input.getRootNode();
+  return root instanceof ShadowRoot || root instanceof Document
+    ? root
+    : input.ownerDocument;
+}
+
+/**
+ * Whether a passkey is offered beside `input`: passkeys come first. The
+ * search is the field's form, else its own root; another root's field is not
+ * beside it.
+ */
 export function passkeyOffered(input: HTMLInputElement): boolean {
   if (tokens(input.getAttribute("autocomplete")).includes("webauthn")) {
     return true;
   }
-  const scope: ParentNode = input.form ?? input.ownerDocument;
+  const scope: ParentNode = input.form ?? rootOf(input);
   return scope.querySelector('input[autocomplete~="webauthn" i]') !== null;
 }
 

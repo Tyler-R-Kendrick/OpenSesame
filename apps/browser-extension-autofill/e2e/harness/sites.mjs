@@ -39,6 +39,26 @@ const HOSTILE = `<script>
   });
 </script>`;
 
+const SHADOW_STYLE =
+  "<style>input{display:block;width:260px;height:32px;margin:12px 0}</style>";
+const PASSKEY_USER = `<input id="user" name="username" autocomplete="username webauthn" type="text">`;
+
+// A login built inside an open shadow root (and, with `inner`, a second one
+// inside the first), the way web components ship one. `outer` is markup for
+// the outer root; `inner` is markup for a root attached under `#inner-host`.
+const shadowPage = (outer, inner) =>
+  page(
+    `<div id="host"></div>
+<script>
+  const root = document.getElementById("host").attachShadow({ mode: "open" });
+  root.innerHTML = ${JSON.stringify(SHADOW_STYLE + outer)};
+  const innerHost = root.getElementById("inner-host");
+  if (innerHost) {
+    innerHost.attachShadow({ mode: "open" }).innerHTML = ${JSON.stringify(SHADOW_STYLE + (inner ?? ""))};
+  }
+</script>`,
+  );
+
 /** Build the routes; `frameOrigin` is where the cross-origin frame comes from. */
 export function pages({ frameOrigin }) {
   return {
@@ -66,6 +86,21 @@ export function pages({ frameOrigin }) {
     ),
     "/passkey": page(
       `<form><input id="user" name="username" autocomplete="username webauthn" type="text">${PASS}</form>`,
+    ),
+    // The passkey field and the password are siblings in one open shadow root
+    // with no form: the root, not the document, is where the guard must look.
+    "/shadow-passkey": shadowPage(`${PASSKEY_USER}${PASS}`),
+    "/shadow-form-passkey": shadowPage(`<form>${PASSKEY_USER}${PASS}</form>`),
+    "/shadow-nested-passkey": shadowPage(
+      `<div id="inner-host"></div>`,
+      `${PASSKEY_USER}${PASS}`,
+    ),
+    // Controls: a shadow login with no passkey anywhere, and one whose only
+    // passkey field lives in another root (not beside it).
+    "/shadow-plain": shadowPage(`${USER}${PASS}`),
+    "/shadow-other-root-passkey": shadowPage(
+      `${PASSKEY_USER}<div id="inner-host"></div>`,
+      `${USER}${PASS}`,
     ),
     "/new-password": page(
       `<form>${USER}<input id="pass" type="password" autocomplete="new-password"></form>`,
