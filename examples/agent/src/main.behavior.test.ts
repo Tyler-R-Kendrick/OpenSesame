@@ -128,13 +128,20 @@ describe("example-agent behavior", () => {
     expect(result.finalState).toBe("pending");
   });
 
-  it("fails closed if the redacted payload still leaks the claimToken", async () => {
-    const fetchImpl = makeFetchImpl({
-      verificationUri: `http://localhost:5180/claim?token=${CLAIM_TOKEN}`,
-    });
-    await expect(
-      runAnonymousAgentDemo({ fetchImpl, sleep: async () => undefined }),
-    ).rejects.toThrow("claimToken was not redacted");
+  it("scrubs a token in a secret-named URL parameter by shape (ADR 0155)", async () => {
+    // Redaction by key name alone would let this through: the token rides in a
+    // parameter of a field nobody listed.
+    const lines = await captureStdout(() =>
+      runAnonymousAgentDemo({
+        fetchImpl: makeFetchImpl({
+          verificationUri: `http://localhost:5180/claim?token=${CLAIM_TOKEN}`,
+        }),
+        sleep: async () => undefined,
+      }),
+    );
+    const safe = lines.find((line) => line.startsWith("Safe payload: "));
+    expect(safe).toBeDefined();
+    expect(safe).not.toContain(CLAIM_TOKEN);
   });
 
   it("prints the complete link and the user code, and the bearer nowhere else", async () => {

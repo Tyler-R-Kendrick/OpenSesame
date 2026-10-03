@@ -15,6 +15,7 @@
   "dependencies": {
     "@opensesame/agent-protocols": "workspace:*",
     "@opensesame/contracts": "workspace:*",
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*"
   },

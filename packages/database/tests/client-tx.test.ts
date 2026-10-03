@@ -33,12 +33,24 @@ describe("createRepositories", () => {
   it("prefers Postgres when a database URL is given explicitly", () => {
     const repos = createRepositories({
       databaseUrl: "postgres://localhost:1/opensesame_test",
+      eventSealSecret: "s".repeat(40),
     });
     expect(repos).toBeInstanceOf(PostgresRepositories);
   });
 
+  it("refuses Postgres with no secret to seal its events under (ADR 0155)", () => {
+    vi.stubEnv("OPENSESAME_EVENT_KEY", "");
+    vi.stubEnv("OPENSESAME_CLAIM_PEPPER", "");
+    expect(() =>
+      createRepositories({
+        databaseUrl: "postgres://localhost:1/opensesame_test",
+      }),
+    ).toThrow(/OPENSESAME_EVENT_KEY or OPENSESAME_CLAIM_PEPPER/);
+  });
+
   it("prefers Postgres when DATABASE_URL is set in the environment", () => {
     vi.stubEnv("DATABASE_URL", "postgres://localhost:1/opensesame_test");
+    vi.stubEnv("OPENSESAME_CLAIM_PEPPER", "p".repeat(40));
     const repos = createRepositories();
     expect(repos).toBeInstanceOf(PostgresRepositories);
   });
