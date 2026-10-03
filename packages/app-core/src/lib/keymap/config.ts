@@ -89,6 +89,22 @@ export function reservedReason(sequence: string): string | null {
   return null;
 }
 
+/**
+ * Whether `target` asks before it acts and `sequence` is not its own locked
+ * default: such a command may only keep the keys it ships with.
+ */
+export function authorityLocked(
+  sequence: string,
+  target: string,
+  commands: readonly KeymapCommand[],
+  defaults: ReadonlyMap<string, string>,
+): boolean {
+  return (
+    commandById(target, commands)?.kind === "authority" &&
+    defaults.get(sequence) !== target
+  );
+}
+
 /** Why `target` may not be bound to `sequence`, or null. */
 export function bindingProblem(
   sequence: string,
@@ -112,7 +128,7 @@ export function bindingProblem(
   // it comes back.
   if (command === undefined && !target.startsWith(SECTION_PREFIX))
     return `Unknown action "${target}".`;
-  if (command?.kind === "authority" && defaults.get(sequence) !== target)
+  if (authorityLocked(sequence, target, commands, defaults))
     return `Action "${target}" requires confirmation and cannot be rebound to skip it.`;
   return null;
 }
