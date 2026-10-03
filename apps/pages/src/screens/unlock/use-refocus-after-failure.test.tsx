@@ -14,7 +14,9 @@ function field(): HTMLInputElement {
   return input;
 }
 
-function setup(props: { busy: boolean; gated: boolean }) {
+type Props = Readonly<{ busy: boolean; gated: boolean }>;
+
+function setup(props: Props) {
   return renderHook(({ busy, gated }) => useRefocusAfterFailure(busy, gated), {
     initialProps: props,
   });

@@ -68,12 +68,12 @@ export type PasskeyProbe = Readonly<{
 }>;
 
 export type PasskeyProbeOptions = Readonly<{
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
   /**
    * Offer only these credentials. A duress trigger bound to one passkey asks
    * for exactly that one: another credential's PRF output cannot carry it.
    */
-  onlyCredentialIds?: readonly string[];
+  onlyCredentialIds?: readonly string[] | undefined;
 }>;
 
 export async function probePasskeyCeremony(

@@ -125,7 +125,7 @@ describe("the passkey road with a prf_and_code trigger armed", () => {
   it("offers only the bound credential and opens the decoy on the duress code", async () => {
     await armPrfAndCode();
     const s = store();
-    await expect(unlockWithPasskeyAfterDuressGate(s as never)).resolves.toBe(
+    await expect(unlockWithPasskeyAfterDuressGate(s)).resolves.toBe(
       "needs_duress_code",
     );
     expect(s.probePasskeyCeremony).toHaveBeenCalledWith({
@@ -134,7 +134,7 @@ describe("the passkey road with a prf_and_code trigger armed", () => {
     expect(peekPasskeyDuressEvidence()?.credentialIdB64).toBe(BOUND);
 
     await expect(
-      completePasskeyDuressCode(s as never, DURESS_CODE, OPTIONS),
+      completePasskeyDuressCode(s, DURESS_CODE, OPTIONS),
     ).resolves.toBe("duress_session");
     expect(s.createGuest).toHaveBeenCalledOnce();
     expect(s.unlockWithHeldPrf).not.toHaveBeenCalled();
@@ -143,9 +143,9 @@ describe("the passkey road with a prf_and_code trigger armed", () => {
   it("still opens the vault for a code that is not the duress code", async () => {
     await armPrfAndCode();
     const s = store();
-    await unlockWithPasskeyAfterDuressGate(s as never);
+    await unlockWithPasskeyAfterDuressGate(s);
     await expect(
-      completePasskeyDuressCode(s as never, "99887766", OPTIONS),
+      completePasskeyDuressCode(s, "99887766", OPTIONS),
     ).resolves.toBe("vault_opened");
     expect(s.unlockWithHeldPrf).toHaveBeenCalledOnce();
   });
@@ -153,9 +153,9 @@ describe("the passkey road with a prf_and_code trigger armed", () => {
   it("refuses a capsule credential other than the bound one, whatever the store answered", async () => {
     await armPrfAndCode();
     const s = store(OTHER);
-    await expect(
-      unlockWithPasskeyAfterDuressGate(s as never),
-    ).rejects.toBeInstanceOf(WrongPasswordError);
+    await expect(unlockWithPasskeyAfterDuressGate(s)).rejects.toBeInstanceOf(
+      WrongPasswordError,
+    );
     expect(peekPasskeyDuressEvidence()).toBeNull();
     expect(s.unlockWithHeldPrf).not.toHaveBeenCalled();
   });
@@ -172,7 +172,7 @@ describe("the passkey road with a prf_and_code trigger armed", () => {
     });
     const s = store();
     await expect(
-      completePasskeyDuressCode(s as never, DURESS_CODE, OPTIONS),
+      completePasskeyDuressCode(s, DURESS_CODE, OPTIONS),
     ).rejects.toBeInstanceOf(WrongPasswordError);
     expect(s.unlockWithHeldPrf).not.toHaveBeenCalled();
     expect(s.createGuest).not.toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe("the age passkey with a prf_and_code trigger armed", () => {
     });
     const s = store();
     await expect(
-      completePasskeyDuressCode(s as never, DURESS_CODE, OPTIONS),
+      completePasskeyDuressCode(s, DURESS_CODE, OPTIONS),
     ).rejects.toBeInstanceOf(WrongPasswordError);
     expect(s.unlockWithHeldProtectorRoot).not.toHaveBeenCalled();
     expect(hasHeldProtectorRoot()).toBe(false);

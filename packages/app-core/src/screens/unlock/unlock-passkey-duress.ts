@@ -7,6 +7,10 @@
  */
 
 import { WrongPasswordError } from "@opensesame/vault-core";
+import type {
+  PasskeyProbe,
+  PasskeyProbeOptions,
+} from "../../lib/vault/passkey-unlock-session.js";
 import type { ProtectorUnlockInput } from "../../lib/vault/protection/unlock-protector-open.js";
 import { maybePage } from "../../ports.js";
 import {
@@ -47,12 +51,9 @@ export type PasskeyUnlockResult =
 type PasskeyUnlockStore = DuressContinueStore &
   Readonly<{
     unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-    probePasskeyCeremony: (options?: {
-      signal?: AbortSignal;
-      onlyCredentialIds?: readonly string[];
-    }) => Promise<
-      Readonly<{ prfOutput: ArrayBuffer; credentialIdB64: string }>
-    >;
+    probePasskeyCeremony: (
+      options?: PasskeyProbeOptions,
+    ) => Promise<PasskeyProbe>;
     unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
     unlockWithHeldProtectorRoot?: (
       root: ArrayBuffer,
@@ -83,8 +84,8 @@ export async function unlockWithPasskeyAfterDuressGate(
   // offered, since another credential's PRF output cannot carry it.
   const only = credentialsCarryingArmedPrf();
   const probe = await store.probePasskeyCeremony({
-    ...(signal ? { signal } : {}),
-    ...(only ? { onlyCredentialIds: only } : {}),
+    signal,
+    onlyCredentialIds: only ?? undefined,
   });
   const prfOutput = new Uint8Array(probe.prfOutput);
   try {

@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,14 +7,27 @@ import { SecondStepFields } from "./SecondStepFields.js";
 
 afterEach(cleanup);
 
-function draw(over: { busy?: boolean; lockedFor?: number; resendIn?: number }) {
+type Overrides = Readonly<{
+  busy?: boolean;
+  lockedFor?: number;
+  resendIn?: number;
+}>;
+
+const SENT = {
+  challengeId: "c1",
+  channel: "email",
+  to: "a•••@b.test",
+  expiresAt: "2026-10-03T12:00:00.000Z",
+} satisfies SentCode;
+
+function draw(over: Overrides) {
   render(
     <SecondStepFields
       secondSteps={["email"]}
       activeSecondStep="email"
       recoveryMode={false}
       hasRecoveryCodes={false}
-      sent={{ to: "a@b.test" } as never}
+      sent={SENT}
       resendIn={over.resendIn ?? 0}
       busy={over.busy ?? false}
       lockedFor={over.lockedFor ?? 0}

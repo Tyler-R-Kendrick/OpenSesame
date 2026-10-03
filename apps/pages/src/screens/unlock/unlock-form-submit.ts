@@ -1,3 +1,7 @@
+import type {
+  PasskeyProbe,
+  PasskeyProbeOptions,
+} from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
@@ -22,10 +26,9 @@ type UnlockStore = Readonly<{
   confirmTotp: (code: string) => Promise<void>;
   confirmRemoteCode: (code: string) => Promise<void>;
   unlockWithPasskey: (signal?: AbortSignal) => Promise<void>;
-  probePasskeyCeremony: (options?: {
-    signal?: AbortSignal;
-    onlyCredentialIds?: readonly string[];
-  }) => Promise<Readonly<{ prfOutput: ArrayBuffer; credentialIdB64: string }>>;
+  probePasskeyCeremony: (
+    options?: PasskeyProbeOptions,
+  ) => Promise<PasskeyProbe>;
   unlockWithHeldPrf: (prfOutput: ArrayBuffer) => Promise<void>;
   unlockWithPin: (pin: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;

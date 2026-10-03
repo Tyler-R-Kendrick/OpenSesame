@@ -42,6 +42,8 @@ export function credentialsCarryingArmedPrf(): readonly string[] | null {
   return ids.size === 1 && only !== undefined ? [only] : [];
 }
 
+type Binding = { origin?: string; credentialIdB64?: string };
+
 type Evidence = Readonly<{
   prfOutput: Uint8Array | null;
   credentialIdB64?: string | undefined;
@@ -53,7 +55,7 @@ export function evidenceCarriesArmedPrf(evidence: Evidence): boolean {
   const armed = armedPrfTriggers();
   if (armed.length === 0) return true;
   if (!evidence.prfOutput) return false;
-  const binding: { origin?: string; credentialIdB64?: string } = {};
+  const binding: Binding = {};
   if (evidence.origin !== undefined) binding.origin = evidence.origin;
   if (evidence.credentialIdB64 !== undefined) {
     binding.credentialIdB64 = evidence.credentialIdB64;
