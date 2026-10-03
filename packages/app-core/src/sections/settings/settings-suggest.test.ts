@@ -63,6 +63,22 @@ describe("suggesting inside the keymap file", () => {
     }
   });
 
+  it("judges a key the way the file does, whatever its spelling", () => {
+    // `X` is `item.purge`'s own locked key, and the file accepts it written
+    // any of these ways, so the completion list must offer it for each.
+    for (const key of ["X", "Shift+X", "shift+x", "Shift+x"]) {
+      expect(at(`keybindings:\n  ${key}: item.pu`), key).toEqual([
+        "item.purge",
+      ]);
+      expect(
+        decodeSettings("keybindings", `keybindings:\n  ${key}: item.purge\n`)
+          .ok,
+        key,
+      ).toBe(true);
+    }
+    expect(at("keybindings:\n  Shift+Y: item.pu")).toEqual([]);
+  });
+
   it("offers the macros the file names", () => {
     const source =
       "macros:\n  triage:\n    steps: [listing.first]\nkeybindings:\n  w: macro.";

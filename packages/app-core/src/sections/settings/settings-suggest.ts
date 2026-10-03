@@ -12,6 +12,7 @@ import {
 import { authorityLocked } from "../../lib/keymap/config.js";
 import { isKeymapContext } from "../../lib/keymap/context.js";
 import { defaultBindings } from "../../lib/keymap/effective.js";
+import { canonicalSequence } from "../../lib/keymap/notation.js";
 import { yamlKey, yamlWord } from "./settings-keymap-yaml.js";
 
 export type LineAt = Readonly<{ text: string; start: number; end: number }>;
@@ -158,7 +159,9 @@ export function bindingSuggestions(source: string, caret: number): string[] {
   }
   const commands = keymapCommands();
   const defaults = defaultBindings(commands);
-  const key = keyName(lineAt(source, caret).text) ?? "";
+  const written = keyName(lineAt(source, caret).text) ?? "";
+  // The file judges a key by its canonical spelling, so the list must too.
+  const key = canonicalSequence(written) ?? written;
   const ids = [
     ...commands.map((command) => command.id),
     ...macroIds(source),
