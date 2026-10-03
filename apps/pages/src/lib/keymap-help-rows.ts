@@ -63,7 +63,11 @@ function countedKeys(source: HelpSource, keysOf: KeysOf): string {
     .join("  ");
 }
 
-/** A changed row: one line per command that still has a key, then its fixed key. */
+/**
+ * A changed row: one line per command that still has a key, then its fixed
+ * key — which stays even when every command lost its keys, because Enter and
+ * Esc are not the person's to take away.
+ */
 function rebuilt(
   source: HelpSource,
   keysOf: KeysOf,
@@ -74,6 +78,8 @@ function rebuilt(
     return keys === "" ? [] : [[keys, source.action]];
   }
   const rows: KeymapHelpRow[] = [];
+  // A rebuilt row lists every key the command holds, so it can name more than
+  // the authored text did (`Ctrl-p` beside `k` on Previous row).
   for (const id of source.commands) {
     const keys = keysOf(id);
     if (keys.length === 0) continue;
@@ -82,7 +88,7 @@ function rebuilt(
       commandById(id, commands)?.label ?? id,
     ]);
   }
-  if (rows.length > 0 && source.fixed) rows.push(source.fixed);
+  if (source.fixed) rows.push(source.fixed);
   return rows;
 }
 

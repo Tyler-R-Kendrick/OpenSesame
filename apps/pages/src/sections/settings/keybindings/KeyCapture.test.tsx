@@ -152,3 +152,18 @@ describe("KeyCapture and Tab", () => {
     expect(loadKeymap().bindings).toEqual({});
   });
 });
+
+describe("KeyCapture's countdown hairline", () => {
+  it("carries the keymap timeout as a custom property the stylesheet reads", () => {
+    vi.useFakeTimers();
+    renderPanels();
+    openAdd();
+    press("w");
+    const drain = document.querySelector<HTMLElement>(".kb-capture__drain");
+    expect(drain?.style.getPropertyValue("--kb-drain-ms")).toBe(
+      `${keymapSeams.goTimeoutMs}ms`,
+    );
+    // Not the property the global reduced-motion rule overrides.
+    expect(drain?.style.animationDuration).toBe("");
+  });
+});

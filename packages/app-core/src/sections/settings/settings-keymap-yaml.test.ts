@@ -92,6 +92,18 @@ describe("contexts in the Keybindings config.yaml", () => {
   });
 });
 
+describe("a first binding with a leading comment", () => {
+  it("takes its comment with it when it is removed", () => {
+    const saved =
+      "keybindings:\n  # one\n  w: listing.next\n  # two\n  x: nop\n";
+    const out = reconcileSource("keybindings", saved, {
+      values: {},
+      keybindings: { x: "nop" },
+    });
+    expect(out).toBe("keybindings:\n  # two\n  x: nop\n");
+  });
+});
+
 describe("macros in the Keybindings config.yaml", () => {
   const saved = [
     "# my keys",
@@ -153,6 +165,159 @@ describe("macros in the Keybindings config.yaml", () => {
     expect(parsed.ok && parsed.doc.macros).toEqual({
       triage: { steps: ["listing.next", "listing.previous"] },
       extra: { on: "unlock", steps: ["listing.next"] },
+    });
+  });
+
+  it("keeps a block list a block list, and the comments on the steps that stay", () => {
+    const block =
+      "macros:\n  tidy:\n    steps:\n      # first\n      - listing.next # n\n      - listing.previous\n";
+    const out = reconcileSource("keybindings", block, {
+      ...base,
+      macros: { tidy: { steps: ["listing.next"] } },
+    });
+    expect(out).toContain(
+      "    steps:\n      # first\n      - listing.next # n",
+    );
+    expect(out).not.toContain("[");
+    expect(out).not.toContain("listing.previous");
+    const grown = reconcileSource("keybindings", block, {
+      ...base,
+      macros: {
+        tidy: { steps: ["listing.previous", "listing.next", "listing.first"] },
+      },
+    });
+    expect(grown).toContain("- listing.next # n");
+    expect(grown).not.toContain("[");
+    const parsed = decodeSettings("keybindings", grown);
+    expect(parsed.ok && parsed.doc.macros).toEqual({
+      tidy: { steps: ["listing.previous", "listing.next", "listing.first"] },
+    });
+  });
+
+  describe("a first macro with a leading comment", () => {
+    const two = [
+      "macros:",
+      "  # one",
+      "  a: [listing.next]",
+      "  # two",
+      "  b: [listing.previous]",
+      "",
+    ].join("\n");
+    const doc = (macros: Record<string, { steps: string[] }>) => ({
+      values: {},
+      keybindings: {},
+      macros,
+    });
+
+    it("takes its comment with it when it is removed", () => {
+      const out = reconcileSource(
+        "keybindings",
+        two,
+        doc({ b: { steps: ["listing.previous"] } }),
+      );
+      expect(out).not.toContain("# one");
+      expect(out).toBe("macros:\n  # two\n  b: [ listing.previous ]\n");
+      const parsed = decodeSettings("keybindings", out);
+      expect(parsed.ok && parsed.doc.macros).toEqual({
+        b: { steps: ["listing.previous"] },
+      });
+    });
+
+    it("keeps its place and comment when it is renamed", () => {
+      const out = reconcileSource(
+        "keybindings",
+        two,
+        doc({
+          c: { steps: ["listing.next"] },
+          b: { steps: ["listing.previous"] },
+        }),
+      );
+      expect(out).toBe(
+        [
+          "macros:",
+          "  # one",
+          "  c: [ listing.next ]",
+          "  # two",
+          "  b: [ listing.previous ]",
+          "",
+        ].join("\n"),
+      );
+    });
+
+    it("drops the comment with a sole macro that is removed for a new one", () => {
+      const one = "macros:\n  # one\n  a: [listing.next]\n";
+      const out = reconcileSource(
+        "keybindings",
+        one,
+        doc({ z: { steps: ["listing.last"] } }),
+      );
+      expect(out).not.toContain("# one");
+      const parsed = decodeSettings("keybindings", out);
+      expect(parsed.ok && parsed.doc.macros).toEqual({
+        z: { steps: ["listing.last"] },
+      });
+    });
+  });
+
+  describe("anchors and aliases", () => {
+    // The config profile refuses aliases (`alias_forbidden`), so a file that
+    // uses one cannot be patched: the editor shows the freshly derived file.
+    // That drops the comments, deliberately — the safety net is the contract,
+    // not an alias-aware patcher.
+    const intended = {
+      ...base,
+      macros: {
+        a: { steps: ["listing.previous"] },
+        b: { steps: ["listing.next"] },
+      },
+    };
+    const files = {
+      "a steps list": [
+        "macros:",
+        "  # first",
+        "  a:",
+        "    steps: &s [listing.next]",
+        "  b:",
+        "    steps: *s",
+        "",
+      ].join("\n"),
+      "a macro mapping": [
+        "macros:",
+        "  # first",
+        "  a: &m { steps: [listing.next] }",
+        "  b: *m",
+        "",
+      ].join("\n"),
+    };
+
+    for (const [name, saved] of Object.entries(files)) {
+      it(`falls back to a fresh, valid file for ${name}`, () => {
+        expect(decodeSettings("keybindings", saved).ok).toBe(false);
+        const out = reconcileSource("keybindings", saved, intended);
+        expect(out).toBe(encodeSettings("keybindings", intended));
+        expect(out).not.toContain("# first");
+        expect(out).not.toMatch(/[&*]/);
+        const parsed = decodeSettings("keybindings", out);
+        expect(parsed.ok && parsed.doc.macros).toEqual(intended.macros);
+      });
+    }
+  });
+
+  it("writes an added trigger first, as a fresh macro does", () => {
+    const out = reconcileSource("keybindings", saved, {
+      ...base,
+      macros: {
+        ...base.macros,
+        tidy: { on: "unlock", steps: ["listing.next"] },
+      },
+    });
+    expect(out).toContain(
+      "    # leave this one be\n    on: unlock\n    steps:\n      - listing.next",
+    );
+    const parsed = decodeSettings("keybindings", out);
+    expect(parsed.ok && parsed.doc.macros?.tidy).toEqual({
+      on: "unlock",
+      steps: ["listing.next"],
     });
   });
 

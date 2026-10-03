@@ -91,8 +91,33 @@ describe("Focus after a reset", () => {
         name: "The keymap could not be reset on this device.",
       }),
     ).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "The keymap could not be reset on this device.",
+    );
     expect(loadKeymap().bindings).toEqual({ w: "listing.next" });
     expect(row("Next row").hasAttribute("data-changed")).toBe(true);
+  });
+
+  it("drops the refusal once the keymap changes, so a later edit leaves none on screen", () => {
+    changed();
+    renderPanels();
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    const all = focused("Reset every key and macro");
+    fireEvent.click(all);
+    fireEvent.click(all);
+    set.mockRestore();
+    expect(screen.getByRole("alert")).toBeTruthy();
+    fireEvent.click(focused("Reset Next row to its default keys"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      screen.queryByRole("img", {
+        name: "The keymap could not be reset on this device.",
+      }),
+    ).toBeNull();
   });
 
   it("does not take focus the person already moved", () => {

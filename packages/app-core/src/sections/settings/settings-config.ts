@@ -12,6 +12,7 @@ import {
   type Document,
   type Node,
   type Pair,
+  type YAMLMap,
   type YAMLSeq,
   isMap,
   isNode,
@@ -133,16 +134,61 @@ function patchMacros(
     document.set("macros", node);
     return;
   }
+  const was = renameInPlace(written, before, after);
   for (const pair of [...written.items]) {
-    if (!Object.hasOwn(after, nameOf(pair)))
-      written.items.splice(written.items.indexOf(pair), 1);
+    if (!Object.hasOwn(after, nameOf(pair))) removePair(written, pair);
   }
   for (const [name, macro] of Object.entries(after)) {
     const pair = written.items.find((item) => nameOf(item) === name);
     if (pair === undefined) written.set(name, macroNode(document, macro));
-    else if (stableMacro(before[name]) !== stableMacro(macro))
+    else if (stableMacro(was[name]) !== stableMacro(macro))
       patchMacro(document, pair, macro);
   }
+}
+
+/**
+ * A macro that vanished while another with exactly the same trigger and steps
+ * appeared is a rename: its key is swapped where it stands, so the macro keeps
+ * its place, its comments and its spelling. Returns `before` under the names
+ * the file now uses.
+ */
+function renameInPlace(
+  written: YAMLMap,
+  before: Readonly<Record<string, MacroDoc>>,
+  after: Readonly<Record<string, MacroDoc>>,
+): Record<string, MacroDoc> {
+  const was = { ...before };
+  const names = written.items.map(nameOf);
+  const fresh = Object.keys(after).filter((name) => !names.includes(name));
+  for (const pair of written.items) {
+    const old = nameOf(pair);
+    if (Object.hasOwn(after, old) || !isScalar(pair.key)) continue;
+    const to = fresh.find(
+      (name) => stableMacro(after[name]) === stableMacro(was[old]),
+    );
+    if (to === undefined) continue;
+    fresh.splice(fresh.indexOf(to), 1);
+    pair.key.value = to;
+    was[to] = was[old] as MacroDoc;
+    delete was[old];
+  }
+  return was;
+}
+
+/**
+ * Takes `pair` out of `map`. YAML hangs the comment above a map's first entry
+ * on the map itself, so removing the first entry must take that comment with
+ * it and hand the next entry's own leading comment up to the map — otherwise
+ * it would be left above an entry it was never written for.
+ */
+function removePair(map: YAMLMap, pair: Pair): void {
+  const at = map.items.indexOf(pair);
+  if (at === -1) return;
+  map.items.splice(at, 1);
+  if (at !== 0) return;
+  const next = map.items[0]?.key;
+  map.commentBefore = isNode(next) ? next.commentBefore : undefined;
+  if (isNode(next)) next.commentBefore = undefined;
 }
 
 function macroNode(document: Document.Parsed, macro: MacroDoc): Node {
@@ -167,6 +213,8 @@ function patchMacro(
   }
   const body = pair.value;
   if (macro.on === undefined) body.delete("on");
+  else if (!body.has("on"))
+    body.items.unshift(document.createPair("on", macro.on));
   else if (body.get("on") !== macro.on) body.set("on", macro.on);
   const steps = body.get("steps", true);
   if (!isSeq(steps)) body.set("steps", stepsNode(document, macro.steps, true));
@@ -186,17 +234,33 @@ function patchSteps(
   pair.value = stepsNode(document, steps, old.flow, old);
 }
 
+/**
+ * A step list rewritten in the spelling it was written in: a missing `flow`
+ * means a block list, so only a list that was a flow list (or has no old
+ * spelling) is written as one. A step that is still there keeps the item node
+ * it had, so a comment on its line rides along; the comments above and beside
+ * the list itself stay too.
+ */
 function stepsNode(
   document: Document.Parsed,
   steps: readonly string[],
   flow: boolean | undefined,
   old?: YAMLSeq,
 ): Node {
-  const node = document.createNode([...steps], { flow: flow ?? true });
-  if (old !== undefined) {
-    node.comment = old.comment;
-    node.commentBefore = old.commentBefore;
-  }
+  const made = document.createNode([...steps], {
+    flow: old === undefined ? true : flow === true,
+  });
+  if (old === undefined || !isSeq(made)) return made;
+  const node: YAMLSeq = made;
+  node.comment = old.comment;
+  node.commentBefore = old.commentBefore;
+  const spare = old.items.filter(isScalar);
+  node.items = node.items.map((item) => {
+    const same = spare.findIndex(
+      (kept) => isScalar(item) && kept.value === item.value,
+    );
+    return same === -1 ? item : (spare.splice(same, 1)[0] ?? item);
+  });
   return node;
 }
 
@@ -244,8 +308,7 @@ function patchBindings(
   // A hand-written `0: x` has the number 0 for a key: pairs are matched by
   // the text of their key, never by `map.get("0")`, which misses it.
   for (const pair of [...map.items]) {
-    if (!Object.hasOwn(bindings, nameOf(pair)))
-      map.items.splice(map.items.indexOf(pair), 1);
+    if (!Object.hasOwn(bindings, nameOf(pair))) removePair(map, pair);
   }
   for (const [key, target] of Object.entries(bindings)) {
     const pair = map.items.find((item) => nameOf(item) === key);

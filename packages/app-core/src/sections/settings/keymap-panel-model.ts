@@ -263,7 +263,16 @@ export function stepsFromKeys(
   // which keeps its meaning (`g j` is `j`); a named key is read afresh.
   const resolve = (token: string): void => {
     const prefix = pending;
-    const sequence = [...prefix, token].join(" ");
+    let sequence = [...prefix, token].join(" ");
+    // The shell's `sequenceOf`: `g V` reads as `g v` after a prefix.
+    if (
+      prefix.length > 0 &&
+      !bindings.has(sequence) &&
+      !continues(sequence) &&
+      /^[A-Z]$/.test(token)
+    ) {
+      sequence = [...prefix, token.toLowerCase()].join(" ");
+    }
     if (continues(sequence)) {
       pending = sequence.split(" ");
       return;
@@ -288,11 +297,13 @@ export function stepsFromKeys(
   };
 
   for (const token of tokens) {
-    if (pending.length === 0 && /^[1-9]$/.test(token)) {
+    // The shell's `countKey` runs before any prefix is read, so a digit is
+    // a count even while a prefix is pending (`g 3 j` is `3 listing.next`).
+    if (/^[1-9]$/.test(token)) {
       count = Math.min(count * 10 + Number(token), 99);
       continue;
     }
-    if (pending.length === 0 && token === "0" && count > 0) {
+    if (token === "0" && count > 0) {
       count = Math.min(count * 10, 99);
       continue;
     }
