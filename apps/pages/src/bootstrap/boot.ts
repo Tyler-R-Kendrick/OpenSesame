@@ -126,6 +126,10 @@ export async function bootCore(): Promise<CoreBoot> {
     // sealed. Only the active tomb's was read, and the others drew as "not
     // sealed yet" — offering to seal a fresh vault over a sealed one.
     ...listProjects().map((project) => tombFileKey(project.id, HEADER_PATH)),
+    // The guest tomb is not a project, and a guest can enrol a PIN of its own.
+    // The duress code is checked against every header on the device, so this
+    // one is read whichever account was last, not only when it was the guest.
+    tombFileKey(GUEST_TOMB, HEADER_PATH),
   ]);
   // Move any legacy flat vault keys into the tomb before the store reads it.
   // Pre-unlock this is plaintext moves only (header params, sealed body

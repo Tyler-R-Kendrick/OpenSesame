@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { onCompleteUnlockCodeSubmission } from "../../../sections/settings/security/duress-unlock-bridge.js";
 import { kvDelete } from "../../kv.js";
 import { VaultStore } from "../../vault/store.js";
@@ -13,6 +13,7 @@ import {
   recoverDuressIncidentAfterRestart,
 } from "../incident/activate.js";
 import { duressSessionFence } from "../session/fence.js";
+import { journalSeams } from "../store/journal.js";
 import {
   clearEnrollmentStateForUnlock,
   loadEnrollmentStateForUnlock,
@@ -23,6 +24,10 @@ import {
   enableDuressCode,
   removeDuressCode,
 } from "./device-duress.js";
+import {
+  armPersistedUnlockEnrollment,
+  sealUnlockTriggerFromCeremony,
+} from "./unlock-arming.js";
 
 const CODE = "739104628";
 
@@ -196,7 +201,10 @@ describe("this device's duress code (ADR 0150)", () => {
       }),
     ).toEqual({ ok: false, code: "incident_active" });
     expect(currentIncidentIntent()).not.toBeNull();
-    expect(clearDuressIncidents()).toEqual({ armed: true, incidents: 0 });
+    expect(await clearDuressIncidents()).toEqual({
+      ok: true,
+      status: { armed: true, incidents: 0 },
+    });
     expect(currentIncidentIntent()).toBeNull();
     expect(recoverDuressIncidentAfterRestart().recovered).toBe(false);
     expect(duressStatus().incidents).toBe(0);
@@ -208,5 +216,140 @@ describe("this device's duress code (ADR 0150)", () => {
         requireDurable: false,
       }),
     ).toEqual({ ok: true });
+  });
+});
+
+const seams = { ...journalSeams };
+
+describe("what the owner is told matches what storage holds", () => {
+  beforeEach(() => {
+    clearEnrollmentStateForUnlock();
+    resetFence();
+  });
+  afterEach(() => {
+    Object.assign(journalSeams, seams);
+  });
+
+  async function armAndUse(): Promise<void> {
+    await enableDuressCode({
+      code: CODE,
+      outcome: "decoy",
+      vaultRef: "personal",
+      requireDurable: false,
+    });
+    const outcome = await onCompleteUnlockCodeSubmission(CODE, {
+      requireDurable: false,
+    });
+    if (outcome.kind === "duress")
+      outcome.match.plaintext.compartmentKey.fill(0);
+  }
+
+  it("keeps one code per device, even over a code set under another profile", async () => {
+    const legacy = await sealUnlockTriggerFromCeremony({
+      code: "111122223",
+      profileId: "legacy-preset",
+      vaultRef: "personal",
+      deviceBindingRef: "this-browser",
+      presentation: "decoy",
+      ownerConsent: true,
+      capabilities: { durableLocalStorage: true, offlineReady: true },
+    });
+    await armPersistedUnlockEnrollment(legacy, { requireDurable: false });
+    expect(
+      await enableDuressCode({
+        code: CODE,
+        outcome: "decoy",
+        vaultRef: "personal",
+        requireDurable: false,
+      }),
+    ).toEqual({ ok: true });
+    expect(loadEnrollmentStateForUnlock()?.triggers).toHaveLength(1);
+    const old = await onCompleteUnlockCodeSubmission("111122223", {
+      requireDurable: false,
+    });
+    expect(old.kind).toBe("normal");
+    const now = await onCompleteUnlockCodeSubmission(CODE, {
+      requireDurable: false,
+    });
+    expect(now.kind).toBe("duress");
+    if (now.kind === "duress") now.match.plaintext.compartmentKey.fill(0);
+  });
+
+  it("does not leave a code live when storage refuses it", async () => {
+    journalSeams.durability = () => "persistent";
+    journalSeams.setDurable = async () => {
+      throw new Error("storage refused the write: quota");
+    };
+    expect(
+      await enableDuressCode({
+        code: CODE,
+        outcome: "decoy",
+        vaultRef: "personal",
+      }),
+    ).toEqual({ ok: false, code: "not_durable" });
+    expect(duressStatus().armed).toBe(false);
+    const outcome = await onCompleteUnlockCodeSubmission(CODE, {
+      requireDurable: false,
+    });
+    expect(outcome.kind).toBe("inactive");
+  });
+
+  it("keeps the code it had when storage refuses a replacement", async () => {
+    await enableDuressCode({
+      code: CODE,
+      outcome: "decoy",
+      vaultRef: "personal",
+      requireDurable: false,
+    });
+    journalSeams.durability = () => "persistent";
+    journalSeams.setDurable = async () => {
+      throw new Error("storage refused the write");
+    };
+    expect(
+      await enableDuressCode({
+        code: "556677889",
+        outcome: "refuse",
+        vaultRef: "personal",
+      }),
+    ).toEqual({ ok: false, code: "not_durable" });
+    const refused = await onCompleteUnlockCodeSubmission("556677889", {
+      requireDurable: false,
+    });
+    expect(refused.kind).toBe("normal");
+    // Storage is back: using the code it kept writes an incident journal.
+    Object.assign(journalSeams, seams);
+    const kept = await onCompleteUnlockCodeSubmission(CODE, {
+      requireDurable: false,
+    });
+    expect(kept.kind).toBe("duress");
+    if (kept.kind === "duress") kept.match.plaintext.compartmentKey.fill(0);
+  });
+
+  it("does not say the code is removed while storage still holds it", async () => {
+    await enableDuressCode({
+      code: CODE,
+      outcome: "decoy",
+      vaultRef: "personal",
+      requireDurable: false,
+    });
+    journalSeams.deleteDurable = async () => {
+      throw new Error("storage refused the delete");
+    };
+    expect(await removeDuressCode()).toEqual({ ok: false, code: "failed" });
+  });
+
+  it("does not say the incident is cleared while storage still holds it", async () => {
+    await armAndUse();
+    expect(duressStatus().incidents).toBe(1);
+    journalSeams.deleteDurable = async () => {
+      throw new Error("storage refused the delete");
+    };
+    expect(await clearDuressIncidents()).toEqual({ ok: false, code: "failed" });
+    // The fence is untouched, so the owner can try again.
+    expect(duressStatus().incidents).toBe(1);
+    expect(currentIncidentIntent()).not.toBeNull();
+    Object.assign(journalSeams, seams);
+    expect((await clearDuressIncidents()).ok).toBe(true);
+    expect(duressStatus().incidents).toBe(0);
   });
 });
