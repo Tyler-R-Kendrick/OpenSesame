@@ -137,13 +137,16 @@ reached the joiner); an owner may name a carrier that passes them instead
    key and answers its own request; the browsers then connect.
 
 The catalog the owner then sends — names, types and unconcealed fields — is one
-data-channel frame, and a frame over 1 MiB never arrives. A vault at the
-limits (200 items of 32 fields with 16 KiB of text) is well past that, so the
-catalog is cut to 900 KiB before it is sent: unconcealed text is clipped
-shorter, in steps, and only if names alone still do not fit are the last items
-left out. Every check the owner makes on a request uses this same catalog, so
-an item the joiner was not shown cannot be revealed from. A frame that still
-cannot go out ends the seat; the guest is not counted as joined.
+data-channel message, and Chromium refuses one over 256 KiB (`send` throws).
+A vault at the limits (200 items of 32 fields with 16 KiB of text) is well
+past that, so the catalog is cut to 200 000 bytes before it is sent (bytes,
+not characters): unconcealed text is clipped shorter, in steps, and marked
+with an ellipsis where it was cut so a copy of it is not taken for the whole
+value, and only if names alone still do not fit are the last items left out.
+Every check the owner makes on a request uses this same catalog, so an item
+the joiner was not shown cannot be revealed from, and a vault is fitted once
+for as long as its items are the same. A frame that still cannot go out, or
+that the browser refuses, ends the seat; the guest is not counted as joined.
 
 Codes forgive what chat apps wrap around them (whitespace, quotes) and are
 refused whole otherwise. Another joiner holding the same link and code can
@@ -280,9 +283,10 @@ carrier that external services being denied, or its `wss://` origin leaving
 the operator's list, no longer allows is closed and shown as blocked, and one
 still opening is closed when it arrives. The session itself goes on, over the
 carriers that remain and by hand. A carrier the policy allows again is not
-reopened: the session names its carriers once. ntfy and BroadcastChannel are
-not judged here: ntfy's every request already goes through the egress port,
-which stops it for good at the first refusal.
+reopened: the session names its carriers once. ntfy is held to the same plan
+by the rule egress applies to it (its stream is one long request that egress
+is not asked about again, though it also stops the loop at the first refusal),
+and BroadcastChannel never leaves the browser.
 
 A socket carrier at an address on this device or a LAN is also refused where
 the deployment may not pair local authority (the shared GitHub Pages origin
