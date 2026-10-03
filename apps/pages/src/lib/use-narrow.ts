@@ -7,19 +7,33 @@ import { useSyncExternalStore } from "react";
  */
 export const NARROW_QUERY = "(max-width: 900px)";
 
-function query(): MediaQueryList | null {
+/** True while any attached pointer is precise: a mouse, a trackpad, a pen. */
+export const FINE_POINTER_QUERY = "(any-pointer: fine)";
+
+function list(media: string): MediaQueryList | null {
   if (globalThis.window === undefined) return null;
   try {
-    return window.matchMedia?.(NARROW_QUERY) ?? null;
+    return window.matchMedia?.(media) ?? null;
   } catch {
     return null;
   }
 }
 
-function subscribe(onChange: () => void): () => void {
-  const list = query();
-  list?.addEventListener("change", onChange);
-  return () => list?.removeEventListener("change", onChange);
+/**
+ * Whether a media query holds. `absent` is the answer where there is no
+ * `matchMedia` to ask (a test renderer, a server): each caller says which way
+ * its page is drawn when nothing can be measured.
+ */
+export function useMediaQuery(media: string, absent: boolean): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const found = list(media);
+      found?.addEventListener("change", onChange);
+      return () => found?.removeEventListener("change", onChange);
+    },
+    () => list(media)?.matches ?? absent,
+    () => absent,
+  );
 }
 
 /**
@@ -28,9 +42,16 @@ function subscribe(onChange: () => void): () => void {
  * complete, and the phone arrangement only exists where the width says so.
  */
 export function useNarrow(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => query()?.matches === true,
-    () => false,
-  );
+  return useMediaQuery(NARROW_QUERY, false);
+}
+
+/**
+ * False where no pointing device is attached, which is how a touch-only
+ * phone reads. `(any-pointer: fine)` detects pointers, not keyboards, so a
+ * phone whose only extra is a hardware keyboard also reads false and loses
+ * the Keybindings tab (DESIGN.md § Touch). A laptop, a tablet with a mouse or
+ * trackpad, and a renderer with no `matchMedia` all count as having a key.
+ */
+export function useFinePointer(): boolean {
+  return useMediaQuery(FINE_POINTER_QUERY, true);
 }

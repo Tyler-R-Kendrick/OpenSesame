@@ -1,13 +1,13 @@
 import { uniqueFolderKind } from "@opensesame/app-core/components/vault-rail-model.js";
 import {
   isSettingsConfigSearch,
-  settingsCategoryFromLocation,
   settingsConfigRoute,
 } from "@opensesame/app-core/lib/crumbs.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
 import type { VaultItem } from "@opensesame/vault-core";
 import { useLocation, useSearchParams } from "react-router";
 import { treeCurrent } from "../lib/vault-list-path.js";
+import { useSettingsCategory } from "../sections/settings/use-settings-category.js";
 import { selectedRailPath } from "./rail-path.js";
 
 /**
@@ -23,10 +23,7 @@ export function useSelectedRail(
   const location = useLocation();
   const [params] = useSearchParams();
   const folder = params.get("folder");
-  const category = settingsCategoryFromLocation(
-    location.pathname,
-    location.hash,
-  );
+  const category = useSettingsCategory();
   const selected =
     location.pathname.startsWith("/settings") &&
     isSettingsConfigSearch(location.search)
