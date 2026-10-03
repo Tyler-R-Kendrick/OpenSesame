@@ -42,12 +42,36 @@
 //! `agent_shutdown`, never the model points — and it says so to the CTK.
 //! `docs/validation/agent-hooks-conformance.md` has the claim.
 //!
+//! The engine itself is wider than that claim. [`HookSession`] can also bracket a
+//! tool known only by name and a model exchange (`dynamic`), through the same lock,
+//! phase and label ledger the verbs use. Nothing on a rotation or capture run's
+//! path calls them; they exist so the emission machinery can be run end to end
+//! under the CTK's own contract — a mocked model and mocked tools — as a second,
+//! separately named claim about the engine and not about a run.
+//!
 //! # Labels (§5.4)
 //!
 //! A permit's `result_labels` are persisted with the run and resurfaced as
 //! `extensions.<namespace>.source_labels` on every later emission, so a
 //! label-flow policy (`OpenSesame`'s own included) sees provenance across
 //! verbs. The `labels` module has the rule and why it is session-sticky.
+//!
+//! # An interceptor does not choose the credential
+//!
+//! A `pre_tool_call` transform is applied, but only to content. The
+//! credential reference a verb names, the capture slot it seals into and the
+//! origin a navigation reaches are pinned (`authority`): a transform that
+//! changes any of them is `host_error:transform_invalid` and the verb is not
+//! called with the altered value. What a run touches and where it is filled
+//! is the operator's and the executor's decision (ADR 0005, ADR 0076).
+//!
+//! # Concurrency (§12.2)
+//!
+//! A [`HookSession`] is `Sync`, and a verb parked on the approval seam holds
+//! no lock: emissions of different tool calls overlap, `sequence` is assigned
+//! atomically, records leave in `sequence` order, and a run's boundaries
+//! (startup, input, output, shutdown) are emitted alone. The `session`
+//! module documents the three steps of an emission.
 //!
 //! # Value-blind throughout
 //!
@@ -56,13 +80,21 @@
 //! identifiers and outcomes. The verbs' arguments are URLs, selectors and
 //! references — the tool boundary has no value to put there.
 
+mod args;
+mod authority;
+mod dynamic;
+mod emission;
 mod labels;
+mod log;
+mod phase;
+mod recipe;
 mod refusal;
 mod run;
 mod session;
 mod transport;
 mod verbs;
 
+pub use dynamic::ModelResponse;
 pub use refusal::{InputRole, Refusal, ShutdownReason, OUT_OF_ORDER};
 pub use run::{
     host_run, run_capture_steps_hooked, run_change_password_hooked, HostInput, HostedRunError,

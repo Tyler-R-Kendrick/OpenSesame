@@ -39,6 +39,8 @@ opensesame-plugin-settings = { path = "../plugin-settings", optional = true }
 base64 = { workspace = true, optional = true }
 secrecy = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }
+url.workspace = true
+tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
 # The crate tests itself with the plugin feature on, so the Rust CI job's
@@ -51,4 +53,4 @@ secrecy = { workspace = true }
 serde_json = { workspace = true }
 # The CTK runner and `Harness` seam (§13.2), for tests/agent_hooks_ctk.rs.
 agent-hooks-sdk = { version = "=0.1.0-alpha.5", features = ["ctk"] }
-tokio = { workspace = true, features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["macros", "rt", "test-util", "time"] }

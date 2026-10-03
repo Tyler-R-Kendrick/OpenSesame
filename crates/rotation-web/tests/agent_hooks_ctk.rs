@@ -9,75 +9,30 @@
 //!
 //! Run with `--nocapture` to see the per-part report a claim attaches.
 
+mod ctk_common;
 mod ctk_support;
 
-use std::collections::BTreeMap;
-use std::path::PathBuf;
-
-use agent_hooks::ctk::{load_vectors, run_vector, VectorResult};
+use agent_hooks::ctk::{run_vector, VectorResult};
 use agent_hooks::{canonical_json, context_identity, AgentContext};
+use ctk_common::{corpus, failures, print_report, vectors};
 use ctk_support::{RotationWebHarness, CAPABILITIES};
 use serde_json::Value;
 
-fn corpus() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/agent-hooks/conformance")
-}
-
 async fn run_all() -> Vec<VectorResult> {
-    let vectors = load_vectors(corpus().join("vectors")).expect("the vendored corpus loads");
-    assert_eq!(
-        vectors.len(),
-        47,
-        "the v0.1.0-alpha.5 corpus has 47 vectors"
-    );
-    let mut results = Vec::with_capacity(vectors.len());
-    for vector in &vectors {
+    let mut results = Vec::new();
+    for vector in &vectors() {
         let mut harness = RotationWebHarness::default();
         results.push(run_vector(&mut harness, vector).await);
     }
     results
 }
 
-fn print_report(results: &[VectorResult]) {
-    let mut parts: BTreeMap<&str, [usize; 3]> = BTreeMap::new();
-    for result in results {
-        let part = if result.part.is_empty() {
-            "(untagged)"
-        } else {
-            &result.part
-        };
-        let slot = match result.status {
-            "pass" => 0,
-            "fail" => 1,
-            _ => 2,
-        };
-        parts.entry(part).or_default()[slot] += 1;
-    }
-    println!("agent-hooks/0.1 CTK — opensesame-rotation-web, capabilities {CAPABILITIES:?}");
-    println!("{:<40} {:>4} {:>4} {:>4}", "part", "pass", "fail", "skip");
-    for (part, [pass, fail, skip]) in &parts {
-        println!("{part:<40} {pass:>4} {fail:>4} {skip:>4}");
-    }
-    for result in results {
-        let detail = if result.detail.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", result.detail)
-        };
-        println!("{} {} {}{detail}", result.status, result.id, result.title);
-    }
-}
-
 #[tokio::test]
 async fn every_applicable_vector_passes_on_the_declared_surface() {
     let results = run_all().await;
-    print_report(&results);
+    print_report("opensesame-rotation-web", &CAPABILITIES, &results);
 
-    let failures: Vec<String> = results
-        .iter()
-        .filter(|r| r.status == "fail")
-        .map(|r| format!("{}: {:?}", r.id, r.failures))
-        .collect();
+    let failures = failures(&results);
     assert!(failures.is_empty(), "{failures:#?}");
 
     let passed: Vec<&str> = results
