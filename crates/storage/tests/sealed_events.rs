@@ -154,6 +154,22 @@ async fn a_runner_step_rests_sealed_and_settles() {
         .unwrap()
         .unwrap();
     assert_eq!(step.outcome_json.as_deref(), Some(outcome.as_str()));
+
+    // The executor's rewrite of the settled outcome is the third writer of the
+    // column: it must seal too.
+    let accepted = format!(r#"{{"accepted":"{SENTINEL}"}}"#);
+    assert!(db
+        .replace_settled_runner_step_outcome("org-1", "run-1", 1, &accepted)
+        .await
+        .unwrap());
+    let stored = raw(&db, "SELECT outcome_json FROM runner_steps").await;
+    assert!(stored.starts_with("osev1.") && !stored.contains(SENTINEL));
+    let step = db
+        .get_runner_step("org-1", "run-1", 1)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(step.outcome_json.as_deref(), Some(accepted.as_str()));
     opensesame_event_seal::clear();
 }
 
@@ -206,11 +222,136 @@ async fn a_sealed_row_with_no_sealer_is_an_error_not_ciphertext() {
     let db = Db::connect_memory().await.unwrap();
     db.append_outbox("test.event", r#"{"a":1}"#).await.unwrap();
     opensesame_event_seal::clear();
-    assert!(db.claim_outbox_batch(10, 30).await.is_err());
-    opensesame_event_seal::install(&[9; 32]);
     assert!(
         db.claim_outbox_batch(10, 30).await.is_err(),
-        "the wrong key is refused too"
+        "with no sealer a missing key must not dead-letter the queue"
+    );
+    opensesame_event_seal::install(&KEY);
+    assert_eq!(db.claim_outbox_batch(10, 30).await.unwrap().len(), 1);
+    opensesame_event_seal::clear();
+}
+
+#[tokio::test]
+async fn an_unreadable_outbox_row_is_quarantined_and_the_queue_moves_on() {
+    let _turn = SERIAL.lock().await;
+    opensesame_event_seal::install(&[9; 32]);
+    let db = Db::connect_memory().await.unwrap();
+    let old = db.append_outbox("old.key", r#"{"a":1}"#).await.unwrap();
+    opensesame_event_seal::install(&KEY);
+    let newer = db.append_outbox("new.key", r#"{"b":2}"#).await.unwrap();
+
+    let claimed = db.claim_outbox_batch(10, 30).await.unwrap();
+    assert_eq!(claimed.len(), 1, "the readable row is not held behind it");
+    assert_eq!(claimed[0].id, newer);
+    let reason = raw(
+        &db,
+        &format!("SELECT last_error FROM outbox_events WHERE id = '{old}'"),
+    )
+    .await;
+    assert_eq!(reason, "unreadable: sealed value did not open");
+    let kept = raw(
+        &db,
+        &format!("SELECT payload_json FROM outbox_events WHERE id = '{old}'"),
+    )
+    .await;
+    assert!(
+        kept.starts_with("osev1."),
+        "the sealed value is left as it was"
+    );
+    assert!(
+        db.claim_outbox_batch(10, 0)
+            .await
+            .unwrap()
+            .iter()
+            .all(|e| e.id != old),
+        "and the quarantined row is not claimed again"
     );
     opensesame_event_seal::clear();
+}
+
+#[tokio::test]
+async fn an_unreadable_security_delivery_is_dead_lettered_and_the_queue_moves_on() {
+    let _turn = SERIAL.lock().await;
+    opensesame_event_seal::install(&[9; 32]);
+    let db = db_without_parents().await;
+    db.enqueue_security_delivery(&delivery("d-old", r#"{"a":1}"#))
+        .await
+        .unwrap();
+    opensesame_event_seal::install(&KEY);
+    let mut newer = delivery("d-new", r#"{"b":2}"#);
+    newer.created_at = "2026-09-29T00:00:00Z".into();
+    db.enqueue_security_delivery(&newer).await.unwrap();
+
+    let claimed = db
+        .claim_security_deliveries(10, 30, chrono::Utc::now())
+        .await
+        .unwrap();
+    assert_eq!(claimed.len(), 1);
+    assert_eq!(claimed[0].id, "d-new");
+    let state = raw(
+        &db,
+        "SELECT state || '|' || last_error FROM security_deliveries WHERE id = 'd-old'",
+    )
+    .await;
+    assert_eq!(state, "dead_lettered|unreadable: sealed value did not open");
+    opensesame_event_seal::clear();
+}
+
+#[tokio::test]
+async fn legacy_plaintext_in_any_case_of_the_prefix_is_sealed() {
+    let _turn = SERIAL.lock().await;
+    opensesame_event_seal::clear();
+    let db = db_without_parents().await;
+    // SQLite's LIKE ignores case, so a `NOT LIKE 'osev1.%'` sweep skipped this.
+    let upper = "OSEV1.looks-sealed-but-is-not";
+    db.append_outbox("legacy.upper", upper).await.unwrap();
+    opensesame_event_seal::install(&KEY);
+    assert_eq!(db.seal_legacy_events().await.unwrap(), 1);
+    let stored = raw(&db, "SELECT payload_json FROM outbox_events").await;
+    assert!(stored.starts_with("osev1.") && !stored.contains("looks-sealed"));
+    assert_eq!(
+        db.claim_outbox_batch(10, 30).await.unwrap()[0].payload_json,
+        upper
+    );
+    opensesame_event_seal::clear();
+}
+
+#[tokio::test]
+async fn failure_text_an_older_build_stored_as_it_came_is_scrubbed_once() {
+    let _turn = SERIAL.lock().await;
+    opensesame_event_seal::clear();
+    let db = db_without_parents().await;
+    let id = db.append_outbox("legacy.event", "{}").await.unwrap();
+    db.enqueue_security_delivery(&delivery("d-legacy", "{}"))
+        .await
+        .unwrap();
+    let leaky = "POST https://hook.example/x?token=abc123 refused";
+    sqlx::query("UPDATE outbox_events SET last_error = ? WHERE id = ?")
+        .bind(leaky)
+        .bind(&id)
+        .execute(db.pool())
+        .await
+        .unwrap();
+    sqlx::query("UPDATE security_deliveries SET last_error = ?")
+        .bind(leaky)
+        .execute(db.pool())
+        .await
+        .unwrap();
+
+    assert_eq!(db.scrub_legacy_failure_text().await.unwrap(), 2);
+    for sql in [
+        "SELECT last_error FROM outbox_events",
+        "SELECT last_error FROM security_deliveries",
+    ] {
+        let text = raw(&db, sql).await;
+        assert!(
+            !text.contains("abc123") && text.contains("refused"),
+            "{text}"
+        );
+    }
+    assert_eq!(
+        db.scrub_legacy_failure_text().await.unwrap(),
+        0,
+        "a second pass finds nothing"
+    );
 }

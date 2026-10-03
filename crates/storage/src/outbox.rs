@@ -49,19 +49,23 @@ impl Db {
         .bind(limit)
         .fetch_all(&mut *transaction)
         .await?;
-        let events = rows
-            .into_iter()
-            .map(|row| {
-                let stored: String = row.get("payload_json");
-                Ok(OutboxEvent {
-                    id: row.get("id"),
+        let mut events = Vec::with_capacity(rows.len());
+        let mut unreadable = Vec::new();
+        for row in rows {
+            let stored: String = row.get("payload_json");
+            let id: String = row.get("id");
+            match sealed::open_or_quarantine("outbox_events.payload_json", &stored)? {
+                Some(payload_json) => events.push(OutboxEvent {
+                    id,
                     event_type: row.get("event_type"),
-                    payload_json: sealed::open("outbox_events.payload_json", &stored)?,
+                    payload_json,
                     created_at: row.get("created_at"),
                     attempts: row.get("attempts"),
-                })
-            })
-            .collect::<anyhow::Result<Vec<OutboxEvent>>>()?;
+                }),
+                None => unreadable.push(id),
+            }
+        }
+        sealed::quarantine::quarantine_outbox(&mut transaction, &unreadable, now).await?;
         if !events.is_empty() {
             let lease = (now + chrono::Duration::seconds(lease_seconds)).to_rfc3339();
             for event in &events {

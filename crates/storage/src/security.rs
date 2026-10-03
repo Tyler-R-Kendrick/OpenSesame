@@ -16,7 +16,7 @@
 //!   fan-out never provokes the backup actor.
 
 use crate::sealed;
-use crate::security_rows::delivery_from_row;
+use crate::security_rows::{delivery_from_row, readable_deliveries};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::{sqlite::SqliteRow, Row};
@@ -591,10 +591,7 @@ impl Db {
         .context("claim lifecycle deliveries")?;
 
         let lease_until = (now + chrono::Duration::seconds(lease_seconds.max(1))).to_rfc3339();
-        let claimed = rows
-            .iter()
-            .map(delivery_from_row)
-            .collect::<anyhow::Result<Vec<StoredSecurityDelivery>>>()?;
+        let claimed = readable_deliveries(&mut transaction, &rows, now).await?;
         for delivery in &claimed {
             sqlx::query("UPDATE security_deliveries SET available_at = ? WHERE id = ?")
                 .bind(&lease_until)

@@ -268,7 +268,7 @@ impl Db {
             "UPDATE runner_steps SET outcome_json = ? \
              WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'settled'",
         )
-        .bind(outcome_json)
+        .bind(sealed::seal("runner_steps.outcome_json", outcome_json))
         .bind(organization_id)
         .bind(run_id)
         .bind(seq)

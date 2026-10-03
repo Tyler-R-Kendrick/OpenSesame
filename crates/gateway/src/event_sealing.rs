@@ -18,8 +18,15 @@ use opensesame_storage::Db;
 /// # Errors
 ///
 /// Returns an error when a production Host has no sealing key, or when an
-/// existing row cannot be sealed.
+/// existing row cannot be sealed or scrubbed.
 pub async fn install(db: &Db, config: &BrokerConfig, production: bool) -> anyhow::Result<()> {
+    let scrubbed = db.scrub_legacy_failure_text().await?;
+    if scrubbed > 0 {
+        tracing::info!(
+            scrubbed,
+            "scrubbed failure text an older build stored as it came"
+        );
+    }
     match config.key() {
         Some(key) => {
             opensesame_event_seal::install(key);
