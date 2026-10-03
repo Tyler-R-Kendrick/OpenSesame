@@ -141,14 +141,43 @@ describe("a policy that changes under a running session", () => {
     expect(statuses()).toEqual(["ready", "blocked", "ready"]);
   });
 
-  it("leaves ntfy and BroadcastChannel to their own gates", async () => {
+  it("closes an ntfy stream the policy no longer allows, and leaves BroadcastChannel", async () => {
     await host([
       { kind: "ntfy", url: NTFY },
       { kind: "broadcast", url: "" },
     ]);
     publish(plan(true, false, deny));
-    expect(closed).toEqual([]);
-    expect(statuses()).toEqual(["ready", "ready"]);
+    expect(closed).toEqual([NTFY]);
+    expect(statuses()).toEqual(["blocked", "ready"]);
+  });
+
+  it("does not turn a refused carrier's later failure into a connection fault", async () => {
+    let fail: (reason: Error) => void = () => {};
+    const failing: CarrierFactory = () =>
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      });
+    await startHosting({
+      title: "Team",
+      scope: { kind: "vault" },
+      policy: "read",
+      admission: "invite",
+      minutes: 5,
+      peers: net.factory(),
+      transport: {
+        addresses: [],
+        ice: [],
+        relay: false,
+        carriers: [{ kind: "nostr", url: RELAY }],
+      },
+      carriers: failing,
+    });
+    await settle();
+    publish(plan(true, false, deny));
+    expect(statuses()).toEqual(["blocked"]);
+    fail(new Error("socket closed"));
+    await settle();
+    expect(statuses()).toEqual(["blocked"]);
   });
 
   it("does not reopen a closed carrier when the policy allows it again", async () => {

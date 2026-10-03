@@ -3,6 +3,7 @@
  * (ADR 0150 §5): a vault at the limits is cut to fit, and a frame that still
  * does not go out ends the seat instead of counting the guest in.
  */
+import { overlapCast } from "@opensesame/os-domain";
 import { type VaultItem, createItem } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { LiveGuest } from "./guest.js";
@@ -39,7 +40,8 @@ function catalogOf(held: readonly VaultItem[]): Catalog {
 }
 
 function weight(catalog: Catalog): number {
-  return JSON.stringify({ t: "catalog", catalog }).length;
+  return new TextEncoder().encode(JSON.stringify({ t: "catalog", catalog }))
+    .length;
 }
 
 describe("a catalog at the limits", () => {
@@ -50,13 +52,48 @@ describe("a catalog at the limits", () => {
   });
 
   it("has its unconcealed text clipped to fit, every item still listed", () => {
-    // 30 items x 32 fields x 16 KiB is 15 MiB: far past the frame.
-    const catalog = catalogOf(items(30, 32, "y".repeat(16 * 1024)));
+    // 8 items x 32 fields x 16 KiB is 4 MiB: far past the frame.
+    const catalog = catalogOf(items(8, 32, "y".repeat(16 * 1024)));
     expect(weight(catalog)).toBeLessThanOrEqual(CATALOG_BUDGET);
-    expect(catalog.items).toHaveLength(30);
+    expect(catalog.items).toHaveLength(8);
     const value = catalog.items[0]?.fields[0]?.value ?? "";
     expect(value.length).toBeGreaterThan(0);
     expect(value.length).toBeLessThan(16 * 1024);
+    // Cut text says so, so a copy of it is not taken for the whole value.
+    expect(value.endsWith("\u2026")).toBe(true);
+  });
+
+  it("counts bytes, not characters", () => {
+    // Four bytes to a character, a few thousand of them.
+    const catalog = catalogOf(items(40, 8, "\u{1F511}".repeat(600)));
+    expect(weight(catalog)).toBeLessThanOrEqual(CATALOG_BUDGET);
+  });
+
+  it("is worked out once for a vault as it stands", () => {
+    const held = items(3, 4, "x");
+    const first = vaultCatalog({
+      title: "T",
+      policy: "read",
+      expiresAt: 1,
+      scope: { kind: "vault" },
+      items: () => held,
+    });
+    const again = vaultCatalog({
+      title: "T",
+      policy: "read",
+      expiresAt: 1,
+      scope: { kind: "vault" },
+      items: () => held,
+    });
+    expect(again).toBe(first);
+    const changed = vaultCatalog({
+      title: "T",
+      policy: "read",
+      expiresAt: 1,
+      scope: { kind: "vault" },
+      items: () => [...held],
+    });
+    expect(changed).not.toBe(first);
   });
 
   it("leaves out the last items only when names alone do not fit", () => {
@@ -122,5 +159,22 @@ describe("a catalog frame the channel cannot carry", () => {
     const seat = host.state.guests.find((g) => g.key === received.key);
     expect(seat?.state).not.toBe("joined");
     expect(guest.status.at).not.toBe("joined");
+  });
+});
+
+describe("a channel send", () => {
+  it("reports a refusal instead of throwing it", async () => {
+    const { PeerChannel } = await import("./peer.js");
+    const refusing = Object.assign(new EventTarget(), {
+      readyState: "open" as const,
+      send: () => {
+        throw new TypeError("message too large");
+      },
+      close: () => {},
+    });
+    // The test double carries only what a channel reader looks at.
+    const asChannel: RTCDataChannel = overlapCast(refusing);
+    const channel = new PeerChannel(asChannel);
+    expect(channel.send({ t: "end" })).toBe(false);
   });
 });

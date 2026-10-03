@@ -217,6 +217,9 @@ export class Rendezvous {
   #mark(at: number, status: CarrierState["status"]): void {
     const state = this.#states[at];
     if (!state || this.#closed) return;
+    // Refused by the policy while still opening: how it then ends (a failed
+    // connection, a late arrival) does not change why it is not carrying.
+    if (this.#revoked.has(at) && status !== "blocked") return;
     this.#states[at] = { ...state, status };
     for (const listener of this.#listeners) listener(this.states);
     // Nothing left to wait for once every carrier has failed or been refused.

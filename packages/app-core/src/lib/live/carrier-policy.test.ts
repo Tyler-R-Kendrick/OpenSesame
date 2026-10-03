@@ -51,4 +51,31 @@ describe("a socket carrier on this device or a LAN", () => {
       planRefusal({ kind: "nostr", url: "ws://relay.example.com" }, allowed),
     ).toBe("unsupported-scheme");
   });
+
+  it("holds ntfy to the same rule as egress: https, or http on this device", () => {
+    localNetworkFetchSeams.eligible = () => true;
+    const open = plan(true, false, {
+      externalServices: "allow",
+      allowedServiceOrigins: ["https://ntfy.example.com"],
+    });
+    expect(
+      planRefusal({ kind: "ntfy", url: "https://ntfy.example.com" }, open),
+    ).toBeNull();
+    expect(
+      planRefusal({ kind: "ntfy", url: "https://other.example.com" }, open),
+    ).toBe("origin-not-allowed");
+    expect(
+      planRefusal({ kind: "ntfy", url: "http://ntfy.example.com" }, allowed),
+    ).toBe("unsupported-scheme");
+    expect(
+      planRefusal({ kind: "ntfy", url: "http://127.0.0.1:8080" }, allowed),
+    ).toBeNull();
+    const denied = plan(true, false, {
+      externalServices: "deny",
+      allowedServiceOrigins: [],
+    });
+    expect(
+      planRefusal({ kind: "ntfy", url: "https://ntfy.example.com" }, denied),
+    ).toBe("external-services-denied");
+  });
 });
