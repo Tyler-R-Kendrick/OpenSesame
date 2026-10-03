@@ -228,7 +228,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
-# WebRTC. Direct: codes passed by hand, no WebSocket, no request off the
+# WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
+# build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
+# https://opensesame.example.test). The carrier and declined walks run on it,
+# because a carrier on loopback or a LAN is local operator authority the shared
+# github.io origin may not reach (`mayPairLocalAuthority`); verify:live-join
+# fails without that build. Direct: codes passed by hand, no WebSocket, no request off the
 # origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
 # never meets without Routes' address, meets at it with one. Carriers: an
 # in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
@@ -251,7 +256,9 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # each, a veth with multicast off between them and a harness namespace that
 # forwards nothing. mDNS hiding on, nothing filtered in the page. No address
 # named: never connects. Address named: connects over a pair at it, no ICE
-# server; again through a wss Nostr relay; and, veth down, relay-only TURN.
+# server (both on the github.io build). Then, on `build:live-dedicated` (run
+# it first; the relay and TURN server sit on a private address): again through
+# a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
 ```
