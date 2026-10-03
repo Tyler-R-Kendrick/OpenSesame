@@ -78,7 +78,7 @@ describe("listing keymap contract", () => {
       "n / .",
       "s",
       "qa … q  @a  @@",
-      "Shift-F10 / Shift-Enter",
+      "Shift-F10 / Shift-Enter / Menu",
       "g v/c/a/i/w/y/s",
     ]);
   });
