@@ -111,6 +111,26 @@ describe("KeyCapture after a refusal", () => {
   });
 });
 
+describe("KeyCapture announcing a refusal", () => {
+  it("speaks every refusal, the same one again too, beside the mark", () => {
+    vi.useFakeTimers();
+    renderPanels();
+    openAdd();
+    const seen: HTMLElement[] = [];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      press("3");
+      lapse();
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toMatch(/3 is fixed/);
+      expect(alert.className).toContain("visually-hidden");
+      // A new node each time: a live region only speaks what is inserted.
+      expect(seen).not.toContain(alert);
+      seen.push(alert);
+      expect(screen.getByRole("img", { name: /3 is fixed/ })).toBeTruthy();
+    }
+  });
+});
+
 describe("KeyCapture and Tab", () => {
   it("drops a half-typed sequence when Tab moves on", () => {
     vi.useFakeTimers();
@@ -130,5 +150,20 @@ describe("KeyCapture and Tab", () => {
     act(() => screen.getByRole("button", { name: "Cancel" }).focus());
     lapse();
     expect(loadKeymap().bindings).toEqual({});
+  });
+});
+
+describe("KeyCapture's countdown hairline", () => {
+  it("carries the keymap timeout as a custom property the stylesheet reads", () => {
+    vi.useFakeTimers();
+    renderPanels();
+    openAdd();
+    press("w");
+    const drain = document.querySelector<HTMLElement>(".kb-capture__drain");
+    expect(drain?.style.getPropertyValue("--kb-drain-ms")).toBe(
+      `${keymapSeams.goTimeoutMs}ms`,
+    );
+    // Not the property the global reduced-motion rule overrides.
+    expect(drain?.style.animationDuration).toBe("");
   });
 });
