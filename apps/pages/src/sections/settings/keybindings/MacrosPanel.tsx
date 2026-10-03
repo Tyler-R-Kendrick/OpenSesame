@@ -60,10 +60,9 @@ function MacroRow({
   waiting: ReadonlySet<string>;
 }) {
   const target = `${MACRO_PREFIX}${name}`;
-  const keys = keysFor(target, state.config, state.commands).map((key) => ({
-    ...key,
-    waits: waiting.has(key.sequence),
-  }));
+  const keys = keysFor(target, state.config, state.commands, state.scope).map(
+    (key) => ({ ...key, waits: waiting.has(key.sequence) }),
+  );
   const on = macroEvents(state).find((item) => item.id === macro.on);
   return (
     <li className="kb-row kb-macro" data-macro={name}>

@@ -4,7 +4,7 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::sqlite::SqliteRow;
-use sqlx::Row as _;
+use sqlx::{Row as _, SqliteConnection};
 
 use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
 use crate::Db;
@@ -48,25 +48,35 @@ impl Db {
         rows.iter().map(policy_from).collect()
     }
 
-    /// Set a policy, keeping its id if it has one.
+    /// Set a policy, keeping its id if it has one. A policy that excludes
+    /// members is set with `bitwarden_put_policy_enforcing`, which revokes
+    /// them in the same transaction.
     ///
     /// # Errors
     ///
     /// Returns an error when the write fails.
     pub async fn bitwarden_put_policy(&self, policy: &BitwardenPolicy) -> anyhow::Result<()> {
-        sqlx::query(
-            "INSERT INTO bitwarden_org_policies (id, org_id, policy_type, enabled, data, revision_at) \
-             VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(org_id, policy_type) DO UPDATE SET \
-             enabled = excluded.enabled, data = excluded.data, revision_at = excluded.revision_at",
-        )
-        .bind(&policy.id)
-        .bind(&policy.org_id)
-        .bind(policy.policy_type)
-        .bind(i64::from(policy.enabled))
-        .bind(&policy.data)
-        .bind(bitwarden_timestamp(policy.revision_at))
-        .execute(&self.pool)
-        .await?;
-        Ok(())
+        let mut conn = self.pool.acquire().await?;
+        put_policy(&mut conn, policy).await
     }
+}
+
+pub(super) async fn put_policy(
+    conn: &mut SqliteConnection,
+    policy: &BitwardenPolicy,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO bitwarden_org_policies (id, org_id, policy_type, enabled, data, revision_at) \
+         VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(org_id, policy_type) DO UPDATE SET \
+         enabled = excluded.enabled, data = excluded.data, revision_at = excluded.revision_at",
+    )
+    .bind(&policy.id)
+    .bind(&policy.org_id)
+    .bind(policy.policy_type)
+    .bind(i64::from(policy.enabled))
+    .bind(&policy.data)
+    .bind(bitwarden_timestamp(policy.revision_at))
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
 }

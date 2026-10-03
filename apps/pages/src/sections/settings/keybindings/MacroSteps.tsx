@@ -116,6 +116,11 @@ function StepRow({
   onRemove: () => void;
 }) {
   const n = index + 1;
+  // A step may be kept though it is not offered (a section whose capability
+  // is absent today): the select still has to show what will be saved.
+  const offered = choices.some((entry) =>
+    entry.commands.some((command) => command.id === step.command),
+  );
   return (
     <li className="kb-step" data-step={index}>
       <input
@@ -138,7 +143,7 @@ function StepRow({
         value={step.command}
         onChange={(event) => onStep({ ...step, command: event.target.value })}
       >
-        {problem ? <option value={step.command}>{step.command}</option> : null}
+        {offered ? null : <option value={step.command}>{step.command}</option>}
         {choices.map((entry) => (
           <optgroup key={entry.group} label={GROUP_LABEL[entry.group]}>
             {entry.commands.map((command) => (
