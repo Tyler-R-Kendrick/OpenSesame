@@ -21,7 +21,7 @@ const INSTALLED = {
   forced_off: false,
   active: false,
 };
-const DESK = { label: "Desk", host: "desk.tail4c2e.ts.net" };
+const DESK = { label: "Desk", host: "desk.tail4c2e.ts.net", revision: 1 };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function pairingDaemon(open = true) {

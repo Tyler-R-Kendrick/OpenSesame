@@ -13,87 +13,21 @@ import type { PluginEntry } from "./catalog.js";
 import {
   type PluginDaemon,
   type PluginDaemonTarget,
-  PluginError,
-  type PluginErrorCode,
   readPluginNotices,
   readPluginStates,
   setPluginEnabled,
 } from "./client.js";
-import type { PluginNotice, PluginState } from "./wire.js";
+import { pinnedTo, sameTarget } from "./pinned.js";
+import {
+  type Bounded,
+  IDLE,
+  boundedBy,
+  codeOf,
+  runPairing,
+  viewStore,
+} from "./session-view.js";
 
-export type PluginView = Readonly<{
-  /** The paired daemon, or null when there is none to ask. */
-  daemon: PluginDaemonTarget | null;
-  /** Null until the daemon answered, or when it reported no such plugin. */
-  state: PluginState | null;
-  notices: readonly PluginNotice[];
-  /** Whether the daemon has answered for this daemon at least once. */
-  read: boolean;
-  busy: boolean;
-  error: PluginErrorCode | null;
-}>;
-
-const IDLE: PluginView = {
-  daemon: null,
-  state: null,
-  notices: [],
-  read: false,
-  busy: false,
-  error: null,
-};
-
-/** How long one call may take before the panel says it went unanswered. */
-export const REQUEST_MS = 10_000;
-
-/** The code a refusal carries; anything else is a call that went unanswered. */
-function codeOf<Thrown>(error: Thrown): PluginErrorCode {
-  return error instanceof PluginError ? error.code : "unreachable";
-}
-
-/** The view and who is told when it changes; nothing after `close`. */
-function viewStore() {
-  let view: PluginView = IDLE;
-  let closed = false;
-  const listeners = new Set<() => void>();
-  return {
-    view: () => view,
-    closed: () => closed,
-    publish(next: PluginView): void {
-      if (closed) return;
-      view = next;
-      for (const listener of listeners) listener();
-    },
-    subscribe(listener: () => void): () => void {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    close(): void {
-      closed = true;
-      listeners.clear();
-      view = IDLE;
-    },
-  };
-}
-
-type Bounded = <T>(work: (signal: AbortSignal) => Promise<T>) => Promise<T>;
-
-/** One call's signal: the session's lifetime, capped at {@link REQUEST_MS}. */
-function boundedBy(lifetime: AbortSignal): Bounded {
-  return async (work) => {
-    const call = new AbortController();
-    const stop = () => call.abort();
-    lifetime.addEventListener("abort", stop, { once: true });
-    const timer = setTimeout(stop, REQUEST_MS);
-    try {
-      return await work(call.signal);
-    } finally {
-      clearTimeout(timer);
-      lifetime.removeEventListener("abort", stop);
-    }
-  };
-}
+export { REQUEST_MS, type PluginView } from "./session-view.js";
 
 /** The plugin's state, and its tripwires once it is installed. */
 async function readPlugin(
@@ -114,18 +48,24 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
   const store = viewStore();
   const lifetime = new AbortController();
   const bounded = boundedBy(lifetime.signal);
-  /** The daemon host the view was read from; another one reads again. */
-  let readFrom: string | null | undefined;
+  /**
+   * The pairing the view was read from (daemon host and pairing revision);
+   * any other one reads again. Undefined until the first ask.
+   */
+  let readFrom: PluginDaemonTarget | null | undefined;
+  /** Bumped each time `readFrom` moves; an answer for an older one is stale. */
+  let epoch = 0;
   let unwatch: (() => void) | null = null;
 
   async function load(target: PluginDaemonTarget): Promise<void> {
+    const mine = epoch;
     store.publish({ ...IDLE, daemon: target, busy: true });
     try {
-      const read = await readPlugin(plugin, daemon, bounded);
-      if (readFrom !== target.host) return;
+      const read = await readPlugin(plugin, pinnedTo(daemon, target), bounded);
+      if (epoch !== mine) return;
       store.publish({ ...IDLE, daemon: target, ...read, read: true });
     } catch (error) {
-      if (readFrom !== target.host) return;
+      if (epoch !== mine) return;
       store.publish({ ...IDLE, daemon: target, error: codeOf(error) });
     }
   }
@@ -138,39 +78,38 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     if (unwatch === null && daemon.subscribe)
       unwatch = daemon.subscribe(ensure);
     const target = daemon.target();
-    const host = target?.host ?? null;
-    if (host === readFrom) return;
-    readFrom = host;
+    if (readFrom !== undefined && sameTarget(target, readFrom)) return;
+    readFrom = target;
+    epoch += 1;
     if (target === null) store.publish(IDLE);
     else void load(target);
   }
 
-  /** Run one of the port's pairing calls, then read whatever it changed. */
-  async function pairing(
-    work: ((signal: AbortSignal) => Promise<void>) | undefined,
-  ): Promise<void> {
-    if (store.closed() || store.view().busy || work === undefined) return;
-    store.publish({ ...store.view(), busy: true, error: null });
-    try {
-      await bounded(work);
-      store.publish({ ...store.view(), busy: false });
-      ensure();
-    } catch (error) {
-      store.publish({ ...store.view(), busy: false, error: codeOf(error) });
-    }
-  }
-
-  /** Switch the plugin; refused before sending when the last read forbids it. */
+  /**
+   * Switch the plugin; refused before sending when the last read forbids it.
+   * The call is bound to the pairing that read came from: if the pairing has
+   * moved, nothing is sent, and neither is an answer drawn that was for the
+   * old one. The new pairing is read instead.
+   */
   async function toggle(): Promise<void> {
-    const { state, busy } = store.view();
-    if (store.closed() || busy || state === null) return;
+    const { state, busy, daemon: target } = store.view();
+    if (store.closed() || busy || state === null || target === null) return;
+    const mine = epoch;
     store.publish({ ...store.view(), busy: true, error: null });
     try {
       const next = await bounded((signal) =>
-        setPluginEnabled(daemon, state, !state.enabled, signal),
+        setPluginEnabled(
+          pinnedTo(daemon, target),
+          state,
+          !state.enabled,
+          signal,
+        ),
       );
+      if (epoch !== mine) return;
       store.publish({ ...store.view(), state: next, busy: false });
     } catch (error) {
+      if (epoch === mine && codeOf(error) === "target-changed") ensure();
+      if (epoch !== mine) return;
       store.publish({ ...store.view(), busy: false, error: codeOf(error) });
     }
   }
@@ -187,10 +126,15 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     /** Trade a pasted pairing code for this page's own key. */
     pair: (code: string) => {
       const pair = daemon.pair;
-      return pairing(pair && ((signal) => pair(code, signal)));
+      return runPairing(
+        store,
+        bounded,
+        pair && ((signal) => pair(code, signal)),
+        ensure,
+      );
     },
     /** Forget this page's key, revoking it at the daemon when it answers. */
-    forget: () => pairing(daemon.forget),
+    forget: () => runPairing(store, bounded, daemon.forget, ensure),
     /** Abort what is in flight and forget the view; nothing is sent. */
     dispose(): void {
       store.close();

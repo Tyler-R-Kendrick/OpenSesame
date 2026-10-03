@@ -19,6 +19,7 @@ import {
   dropPluginPairing,
   keepPluginPairing,
   pluginPairingPossible,
+  pluginPairingRevision,
   subscribePluginPairing,
 } from "./plugin-daemon-store.js";
 import {
@@ -101,6 +102,21 @@ describe("the plugin-daemon pairing", () => {
     await dropPluginPairing();
     expect(currentPluginPairing()).toBeNull();
     expect(await readPluginDaemonConfig(vaultStore.activeTomb())).toBeNull();
+  });
+
+  it("moves its revision whenever the pairing does, and keeps no key in it", async () => {
+    await vaultStore.create(PASSWORD);
+    stop = subscribePluginPairing(() => {});
+    const seen = [pluginPairingRevision()];
+    await keepPluginPairing(PAIRED);
+    seen.push(pluginPairingRevision());
+    // The same daemon, paired again with a rotated key.
+    await keepPluginPairing({ ...PAIRED, token: `${PAIRED.token.slice(1)}A` });
+    seen.push(pluginPairingRevision());
+    await dropPluginPairing();
+    seen.push(pluginPairingRevision());
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.every((n) => Number.isInteger(n))).toBe(true);
   });
 
   it("is never kept for a guest", async () => {

@@ -20,10 +20,18 @@ let pairing: PluginDaemonPairing | null = null;
 /** The tomb `pairing` was read from; any other open vault has none. */
 let pairedTomb: string | null = null;
 let seenKey = "";
+/**
+ * Opaque counter, bumped on every change of the pairing (kept, dropped, read
+ * again after a vault change, forgotten on the last unsubscribe). It lets a
+ * caller tell "the same daemon, paired again" from "the pairing it started
+ * with"; it is not a secret and is not derived from the key.
+ */
+let revision = 0;
 let unfollow: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
 function notify(): void {
+  revision += 1;
   for (const listener of listeners) listener();
 }
 
@@ -36,6 +44,11 @@ export function pluginPairingPossible(): boolean {
 function vaultKey(): string {
   const snap = vaultStore.getSnapshot();
   return `${snap.tomb}:${snap.status}:${snap.guest}`;
+}
+
+/** The revision of the pairing in force; changes whenever the pairing does. */
+export function pluginPairingRevision(): number {
+  return revision;
 }
 
 /** The pairing of the vault open now, or null. */
@@ -53,6 +66,7 @@ async function load(): Promise<void> {
   pairing = null;
   pairedTomb = null;
   if (had) notify();
+  else revision += 1;
   if (!pluginPairingPossible()) return;
   const key = vaultKey();
   const tomb = vaultStore.activeTomb();
@@ -85,6 +99,7 @@ export function subscribePluginPairing(listener: () => void): () => void {
     unfollow = null;
     pairing = null;
     pairedTomb = null;
+    revision += 1;
   };
 }
 

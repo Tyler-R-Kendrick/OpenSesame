@@ -41,7 +41,7 @@ function mount(
   const sent: string[] = [];
   const daemon: PluginDaemon = {
     target: () =>
-      !paired ? null : { label: "desk", host: "desk.tail.ts.net" },
+      !paired ? null : { label: "desk", host: "desk.tail.ts.net", revision: 1 },
     request: async (path, init) => {
       sent.push(`${init.method} ${path}`);
       if (path === "/v1/plugins")
@@ -147,7 +147,7 @@ describe("PluginPanel", () => {
 
   it("says the daemon refused in a mark, not a box", async () => {
     const daemon: PluginDaemon = {
-      target: () => ({ label: "desk", host: "desk.tail.ts.net" }),
+      target: () => ({ label: "desk", host: "desk.tail.ts.net", revision: 1 }),
       request: async () => json({ error: "operator_unauthorized" }, 401),
     };
     const session = createPluginSession(pluginById("surrogate-proxy"), daemon);
