@@ -224,7 +224,9 @@ WireGuard, Pangolin's clients) through an address hint, or anything at all
 through TURN.
 
 The link carries what the joiner needs — the ICE servers, relay only, and the
-carriers — and the joiner's page lists every host it names before anything
+carriers — and a link that asks for relay only without naming a TURN server is
+refused whole, as the owner's profile refuses it, since a relay-only peer with
+nowhere to relay would only hang. The joiner's page lists every host it names before anything
 is contacted. The person keeps them or pairs directly by hand; declining
 leaves no trace on any of them. A browser may also ask the person before a
 public page reaches a carrier on a tailnet or LAN address (Chrome's Local

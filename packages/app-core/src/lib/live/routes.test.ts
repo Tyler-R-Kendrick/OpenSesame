@@ -73,6 +73,19 @@ describe("a link names only what it may", () => {
     expect(readRoutes({ carriers: [{ ...carrier, topic: "t" }] })).toBeNull();
   });
 
+  it("refuses relay only with no TURN server, as the owner's profile does", () => {
+    const turn = {
+      urls: ["turn:turn.example.com:3478"],
+      username: "u",
+      credential: "c",
+    };
+    expect(readRoutes({ ice: [ICE], relay: true })).toBeNull();
+    expect(readRoutes({ relay: true })).toBeNull();
+    expect(readRoutes({ ice: [ICE, turn], relay: true })).not.toBeNull();
+    expect(readRoutes({ ice: [ICE], relay: false })).not.toBeNull();
+    expect(readTransport({ ice: [ICE], relay: true }).ok).toBe(false);
+  });
+
   it("the owner's profile keeps `secret` and still refuses other strays", () => {
     const turn = { urls: ["turn:turn.example.com"], secret: "rest" };
     expect(readTransport({ ice: [turn] }).ok).toBe(true);
