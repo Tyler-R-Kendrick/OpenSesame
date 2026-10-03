@@ -507,7 +507,9 @@ Do not add new top-level directories or loose root files — find the group.
   (TypeScript) or a subscriber whose writer is `ScrubMakeWriter` (Rust); never
   `console.*`, a hand-built `pino(...)` or a bare `tracing_subscriber::fmt()`.
   `pnpm quality:log-hygiene` counts those and the ledger only falls. A struct
-  holding a secret never derives `Debug`. Log an id, never the secret.
+  holding a secret never derives `Debug`: write `impl fmt::Debug` and print
+  `[REDACTED]` for it; `scripts/lib/secret-debug.test.mjs` (in `pnpm quality`) fails on a
+  derived `Debug` over a field named like a credential. Log an id, never the secret.
 - **Logs and events rest sealed** (ADR 0155 items 7–9). A log file a process
   writes goes through `crates/sealed-log` / `packages/observability`'s sealed
   destination (`OPENSESAME_LOG_FILE`); a new event or audit column the Host
