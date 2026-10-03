@@ -194,6 +194,12 @@ mod imp {
                     org.revoked
                 );
             }
+            if org.ownerless {
+                println!(
+                    "  no owner stands: its owners arrived revoked; restore one from the \
+                     organization's members before anyone can run it"
+                );
+            }
             for (kind, count) in &org.left_behind {
                 println!("  left behind: {count} {kind}");
             }

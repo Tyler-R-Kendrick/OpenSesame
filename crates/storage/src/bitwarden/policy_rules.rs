@@ -102,7 +102,7 @@ async fn elsewhere(tx: &mut SqliteConnection, org_id: &str, user_id: &str) -> an
 
 /// Whether a single-organization policy of another organization binds the
 /// account as one of its ordinary members.
-async fn bound_elsewhere(
+pub(super) async fn bound_elsewhere(
     tx: &mut SqliteConnection,
     org_id: &str,
     user_id: &str,
@@ -124,7 +124,7 @@ async fn bound_elsewhere(
 /// The policy, if any, that keeps `user_id` from standing in `org_id` with
 /// `role`. A policy binding the account in another organization applies to
 /// every role; the organization's own apply to ordinary members only.
-async fn violation(
+pub(super) async fn violation(
     tx: &mut SqliteConnection,
     org_id: &str,
     user_id: &str,
@@ -316,24 +316,22 @@ impl Db {
         Ok(Ok(true))
     }
 
-    /// Change a member's role, flag, permissions or status, first checking
-    /// the member as they will stand when `enforce` is set (a restore, or a
-    /// demotion from owner or administrator).
+    /// Restore a revoked member, first checking them as the confirmed
+    /// member they will be again.
     ///
     /// # Errors
     ///
     /// Returns an error when the transaction fails.
-    pub async fn bitwarden_update_member_enforced(
+    pub async fn bitwarden_restore_member_enforced(
         &self,
         member: &BitwardenOrgMember,
-        enforce: bool,
     ) -> anyhow::Result<Result<(), PolicyViolation>> {
         let mut tx = begin_write(&self.pool).await?;
         let stands = matches!(
             member.status,
             member_status::ACCEPTED | member_status::CONFIRMED
         );
-        if let (true, true, Some(user_id)) = (enforce, stands, member.user_id.as_deref()) {
+        if let (true, Some(user_id)) = (stands, member.user_id.as_deref()) {
             if let Some(refused) =
                 violation(&mut tx, &member.org_id, user_id, member.member_type).await?
             {

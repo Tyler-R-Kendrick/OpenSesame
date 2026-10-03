@@ -272,52 +272,6 @@ impl Db {
         Ok(out)
     }
 
-    /// Add members; one whose email is already a member is skipped. Returns
-    /// the ones added.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the transaction fails.
-    pub async fn bitwarden_add_members(
-        &self,
-        members: &[BitwardenOrgMember],
-    ) -> anyhow::Result<Vec<String>> {
-        let mut tx = self.pool.begin().await?;
-        let mut added = Vec::new();
-        for member in members {
-            if insert_member(&mut tx, member).await? {
-                added.push(member.id.clone());
-            }
-        }
-        tx.commit().await?;
-        Ok(added)
-    }
-
-    /// Claim every invitation waiting for `email` for the account that now
-    /// has it: they become accepted, awaiting an administrator's confirmation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the write fails.
-    pub async fn bitwarden_claim_invitations(
-        &self,
-        user_id: &str,
-        email: &str,
-    ) -> anyhow::Result<u64> {
-        let done = sqlx::query(
-            "UPDATE bitwarden_org_members SET user_id = ?, status = ?, revision_at = ? \
-             WHERE email = ? AND user_id IS NULL AND status = ?",
-        )
-        .bind(user_id)
-        .bind(member_status::ACCEPTED)
-        .bind(bitwarden_timestamp(Utc::now()))
-        .bind(email)
-        .bind(member_status::INVITED)
-        .execute(&self.pool)
-        .await?;
-        Ok(done.rows_affected())
-    }
-
     /// Confirm an accepted member with the organization key wrapped for them.
     /// Only an `Accepted` member can be confirmed, once.
     ///

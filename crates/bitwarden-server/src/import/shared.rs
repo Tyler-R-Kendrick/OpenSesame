@@ -31,6 +31,8 @@ pub struct OrgReport {
     pub attachments: usize,
     /// Members the organization's own policies excluded; they arrived revoked.
     pub revoked: usize,
+    /// Its owners arrived revoked, so nobody can run it until one is restored.
+    pub ownerless: bool,
     pub left_behind: LeftBehind,
 }
 
@@ -71,13 +73,13 @@ pub async fn write_shared(
     for arriving in &source.organizations {
         let arrival = &arriving.arrival;
         let mut left_behind = arriving.left_behind.clone();
-        let (written, revoked) = if options.dry_run {
-            (Written::DryRun, 0)
+        let (written, revoked, ownerless) = if options.dry_run {
+            (Written::DryRun, 0, false)
         } else {
             let arrived = db
                 .bitwarden_arrive_organization(arrival, options.replace)
                 .await?;
-            (written(arrived.outcome), arrived.revoked)
+            (written(arrived.outcome), arrived.revoked, arrived.ownerless)
         };
         let attachments = if matches!(written, Written::Created | Written::Replaced) {
             write_attachments(db, &arriving.attachments, &mut left_behind).await?
@@ -92,6 +94,7 @@ pub async fn write_shared(
             ciphers: arrival.ciphers.len(),
             attachments,
             revoked,
+            ownerless,
             left_behind,
         });
     }

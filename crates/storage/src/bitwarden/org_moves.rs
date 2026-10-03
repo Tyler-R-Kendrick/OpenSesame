@@ -27,6 +27,8 @@ pub struct BitwardenOrgArrived {
     pub outcome: ArrivalOutcome,
     /// Members its policies excluded, who arrived revoked.
     pub revoked: usize,
+    /// No owner is left standing: every one arrived revoked.
+    pub ownerless: bool,
 }
 
 /// One organization as it arrives, whole.
@@ -169,6 +171,7 @@ impl Db {
         let refused = |outcome| BitwardenOrgArrived {
             outcome,
             revoked: 0,
+            ownerless: false,
         };
         if exists && !replace {
             return Ok(refused(ArrivalOutcome::IdTaken));
@@ -189,6 +192,17 @@ impl Db {
             }
         }
         let revoked = insert_contents(&mut tx, arrival).await?;
+        let ownerless = sqlx::query(
+            "SELECT 1 FROM bitwarden_org_members WHERE org_id = ? AND member_type = ? \
+             AND status IN (?, ?)",
+        )
+        .bind(&arrival.org.id)
+        .bind(super::member_type::OWNER)
+        .bind(super::member_status::ACCEPTED)
+        .bind(super::member_status::CONFIRMED)
+        .fetch_optional(&mut *tx)
+        .await?
+        .is_none();
         tx.commit().await?;
         Ok(BitwardenOrgArrived {
             outcome: if exists {
@@ -197,6 +211,7 @@ impl Db {
                 ArrivalOutcome::Created
             },
             revoked,
+            ownerless,
         })
     }
 

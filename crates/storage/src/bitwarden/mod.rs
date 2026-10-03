@@ -10,6 +10,7 @@ mod collections;
 mod devices;
 mod emergency;
 mod folders;
+mod member_edit;
 mod moves;
 mod org_ciphers;
 mod org_moves;

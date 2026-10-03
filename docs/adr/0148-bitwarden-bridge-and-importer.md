@@ -328,8 +328,14 @@ a policy is never on with a violator still confirmed, and an account is never
 left in two organizations under a single-organization policy. Enabling a
 policy revokes the members it excludes in the transaction that enables it,
 and removing the last two-step provider revokes the account's memberships in
-the transaction that removes it; clients are told after the commit. The
-decisions are exercised by `tests/org_policy_membership.rs`.
+the transaction that removes it; clients are told after the commit. A role
+edit reads the member's standing from the row under the lock and never writes
+their status, so an edit that raced a revocation cannot undo it. An invitation
+to an existing account, and the claim of a waiting one, skip an organization
+the account is bound out of by another's single-organization policy, so no
+seat is left half-held. The decisions are exercised by
+`tests/org_policy_membership.rs` (the creation race runs over a database file,
+whose pool has several connections) and `tests/org_seats.rs`.
 
 A Send is changed only by deleting it once Disable Send is on: the policy
 holds for creating, updating, removing a password, and completing a file
@@ -338,7 +344,9 @@ announced before the policy came on.
 Policies move with an organization from vaultwarden, and they are enforced as
 the organization arrives: a member the enabled policies exclude — an account
 whose authenticator did not come across, one already in another organization —
-arrives revoked, and the importer reports how many. `/plans` answers with
+arrives revoked, and the importer reports how many — and says so when no
+owner is left standing, as when its owner is bound in another organization,
+since nobody can then run it until one is restored. `/plans` answers with
 the one plan this server has, so the web vault can create an organization.
 
 ## Consequences

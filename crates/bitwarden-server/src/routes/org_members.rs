@@ -273,10 +273,6 @@ async fn update(
             "Organization must have at least one confirmed owner.",
         ));
     }
-    // Becoming an ordinary member puts the account under its organization's
-    // policies, and under any that bind it elsewhere: checked as they stand.
-    let demoted = matches!(target.member_type, member_type::OWNER | member_type::ADMIN)
-        && !matches!(role, member_type::OWNER | member_type::ADMIN);
     target.member_type = role;
     // Only owners and admins give a member every collection.
     if view.manages() {
@@ -289,7 +285,7 @@ async fn update(
     let access = collection_access(&view, &target.id, &body)?;
     server
         .db
-        .bitwarden_update_member_enforced(&target, demoted)
+        .bitwarden_edit_member_enforced(&target)
         .await?
         .map_err(super::policy_rules::refusal)?;
     server

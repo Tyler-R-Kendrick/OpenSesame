@@ -160,7 +160,8 @@ Groups, single sign-on and account recovery are not served.
 
 An organization imported from vaultwarden is held to its enabled policies as
 it arrives: members they exclude — an account whose authenticator did not
-come across, for instance — arrive revoked, and the importer says how many.
+come across, for instance — arrive revoked, and the importer says how many,
+and when no owner is left standing (restore one before anyone can run it).
 Restore them once they meet the policy.
 
 ## Emergency access and key rotation

@@ -55,7 +55,7 @@ async fn act(server: &BitwardenServer, view: &OrgView, member: &str, verb: Verb)
             // decided in the transaction that restores them.
             server
                 .db
-                .bitwarden_update_member_enforced(&target, true)
+                .bitwarden_restore_member_enforced(&target)
                 .await?
                 .map_err(super::policy_rules::refusal)?;
         }

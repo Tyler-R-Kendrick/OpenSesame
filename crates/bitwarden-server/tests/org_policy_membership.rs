@@ -121,20 +121,32 @@ async fn an_owner_is_still_held_to_a_single_organization_policy_binding_them_els
     );
     set(&first, &bound, 3, true).await;
 
-    // As an admin of another organization they would hold two seats, which
-    // the policy that binds them in the first forbids.
+    // As an admin or owner of another organization they would hold two seats,
+    // which the policy that binds them in the first forbids: the invitation
+    // is not taken up, and the seat they hold is untouched.
     for role in [member_type::ADMIN, member_type::OWNER] {
-        let (status, body) =
-            invite_and_confirm(&second, &other, "member@example.com", &member, role).await;
-        assert_eq!(status, 400, "role {role}: {body}");
-        let id = member_id(&second, &other, "member@example.com").await;
         second
             .ok(
-                "DELETE",
-                &format!("/organizations/{}/users/{id}", other.id),
-                None,
+                "POST",
+                &format!("/organizations/{}/users/invite", other.id),
+                Some(json!({"emails": ["member@example.com"], "type": role, "collections": []})),
             )
             .await;
+        let listed = second
+            .ok("GET", &format!("/organizations/{}/users", other.id), None)
+            .await;
+        assert!(
+            listed["data"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|m| m["email"] != "member@example.com"),
+            "role {role}: no second seat"
+        );
+        assert_eq!(
+            standing(&first, &bound, "member@example.com").await,
+            (member_status::CONFIRMED, member_type::USER)
+        );
     }
 }
 
@@ -221,6 +233,10 @@ async fn an_organization_arriving_with_policies_on_revokes_the_members_they_excl
         .unwrap();
 
     assert_eq!(shared.organizations[0].revoked, 1);
+    assert!(
+        shared.organizations[0].ownerless,
+        "its only owner arrived revoked"
+    );
     let members = target.db.bitwarden_org_members(&org_id).await.unwrap();
     assert!(members
         .iter()
@@ -230,8 +246,11 @@ async fn an_organization_arriving_with_policies_on_revokes_the_members_they_excl
 
 #[tokio::test]
 async fn creating_an_organization_and_enabling_single_organization_never_leave_two_seats() {
-    let harness = Harness::start().await;
-    for round in 0..3 {
+    // A database file, so the pool holds several connections and only the
+    // store's write lock stands between the two requests.
+    let dir = tempfile::tempdir().unwrap();
+    let harness = Harness::start_in_file(&dir.path().join("race.sqlite3")).await;
+    for round in 0..4 {
         let (_, owner) = account(&harness, &format!("owner{round}@example.com")).await;
         let (_, member) = account(&harness, &format!("member{round}@example.com")).await;
         let (org, _) = Org::create(&owner, "Held").await;
