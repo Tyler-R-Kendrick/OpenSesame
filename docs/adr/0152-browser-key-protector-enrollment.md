@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-28
 - Builds on: [ADR 0129](0129-vault-key-protection-manifest.md) (the manifest of
-  protectors), [ADR 0156](0156-settings-rows-act-or-are-absent.md) (a row acts,
+  protectors), [ADR 0158](0158-settings-rows-act-or-are-absent.md) (a row acts,
   or it is not drawn), [ADR 0090](0090-static-frontend-complete-without-backend.md)
   (the static front end needs no backend),
   [ADR 0149](0149-nothing-stored-in-the-clear.md) (nothing rests in the clear),
@@ -12,7 +12,7 @@
   [ADR 0065](0065-agent-surface-parity.md) (every PWA action is mapped or
   excluded), [ADR 0052](0052-password-manager-ecosystem-bridging.md) (key
   ecosystems are human/device plane)
-- Amends: ADR 0129 §8 and the second consequence bullet of ADR 0156
+- Amends: ADR 0129 §8 and the second consequence bullet of ADR 0158
 - Amended 2026-10-03: a protector that can open the vault is a way in at the
   unlock screen ("Opening the vault from a protector", below); the sentence that
   said only the header's own wraps do is replaced
@@ -27,7 +27,7 @@ Settings › Security › Vault key protection lists the protectors enrolled on 
 unlocked personal vault. Its Add sheet could enroll three kinds — a recovery
 key, a passkey, an age passkey — while the model carried six more kinds with
 adapters: `age-recipient`, `yubikey-piv-age`, `aws-kms`, `azure-key-vault-keys`,
-`gcp-kms` and `device-local`. ADR 0156 removed the "setup intent" row that stood for
+`gcp-kms` and `device-local`. ADR 0158 removed the "setup intent" row that stood for
 the missing ones and left the sentence "it returns with its enrollment". A
 protector kind that a person can be told about but not enroll is a gap, and a
 Capabilities › Encryption tile, a Connections page and a key-vault ceremony in
@@ -322,7 +322,7 @@ vault ceremonies; nothing in this ADR builds them.
 `capabilityConnectors.encryption` is no longer written or read by any screen.
 The key-vault ceremony in the status bar is the Add sheet; the AWS and Google
 connection pages drop Prefer and their preference marks and offer no Remove
-while a protector on that key is enrolled (ADR 0156 §3); the YubiKey and Azure
+while a protector on that key is enrolled (ADR 0158 §3); the YubiKey and Azure
 tiles, pages and sealed files are gone from Pages (the files are removed at
 unlock); the setup-intent model is deleted. A preference an earlier version
 saved is ignored, so it cannot turn the glyph amber over an authorization
@@ -344,7 +344,7 @@ nothing consumes.
 - The static core is unchanged: no certificate, no Host, no daemon. Cloud
   enrollment makes a request only when a person presses the key, to a provider
   host they named.
-- ADR 0156's consequence that cloud, YubiKey and age-recipient enrollment "return
+- ADR 0158's consequence that cloud, YubiKey and age-recipient enrollment "return
   with their enrollment" is superseded: age recipient and the two clouds have
   returned, YubiKey PIV, Azure Key Vault Keys and device-local do not, for the
   reasons above.

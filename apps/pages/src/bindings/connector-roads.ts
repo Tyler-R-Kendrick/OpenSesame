@@ -15,7 +15,7 @@ import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useVault } from "../lib/vault/hooks.js";
 
 export type ConnectorRoads = {
-  /** The page has something a person can do here (ADR 0156). */
+  /** The page has something a person can do here (ADR 0158). */
   acts: (provider: Pick<Provider, "id">) => boolean;
   /** The road a key, configuration or authorize form saves through. */
   form: (provider: Pick<Provider, "id" | "authKind">) => FormRoad | null;

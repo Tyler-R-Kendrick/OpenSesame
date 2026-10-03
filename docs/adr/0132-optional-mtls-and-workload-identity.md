@@ -6,7 +6,7 @@ Supplements: ADR 0005 (authority handles), ADR 0017 (host/client topology),
 ADR 0042 (NATS TaskBus and auth callout), ADR 0048 §5 (daemon dependency
 budget), ADR 0075 (host certificate key custody), ADR 0090 / ADR 0128 (Pages
 is complete without a backend)
-Amended: 2026-09-28 (Transport panel, ADR 0156)
+Amended: 2026-09-28 (Transport panel, ADR 0158)
 Operator reference: [docs/operators/mtls.md](../operators/mtls.md)
 Threat model: [docs/security/mtls-threat-model.md](../security/mtls-threat-model.md)
 Evidence: [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
@@ -18,7 +18,7 @@ endpoint configured, Settings › Security › Transport render the five status
 rows (desired, credential, runtime, observed, enforcement) as idle "Not checked"
 marks and offer a keyboard-reachable Refresh key. `AT-BROWSER-UX` measured that
 key on the phone journeys. The rows and the key had nothing to read from and
-nothing to ask, which [ADR 0156](0156-settings-rows-act-or-are-absent.md)
+nothing to ask, which [ADR 0158](0158-settings-rows-act-or-are-absent.md)
 ("a Settings row acts, or it is not drawn") rules out, and the product owner
 has decided that Transport follows it.
 

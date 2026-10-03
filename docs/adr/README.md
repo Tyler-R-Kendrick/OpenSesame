@@ -198,4 +198,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0153](0153-minimal-pwa-optional-sections.md) | Minimal PWA: vault, activity, settings | Accepted |
 | [0154](0154-setup-configuration-choice.md) | Setup starts with a configuration choice | Accepted |
 | [0155](0155-the-device-duress-code.md) | The device's duress code, in Settings | Accepted |
-| [0156](0156-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
+| [0158](0158-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |

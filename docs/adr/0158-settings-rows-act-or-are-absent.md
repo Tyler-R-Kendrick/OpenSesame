@@ -1,4 +1,4 @@
-# ADR 0156 — A Settings row acts, or it is not drawn
+# ADR 0158 — A Settings row acts, or it is not drawn
 
 - Status: Accepted
 - Date: 2026-09-28

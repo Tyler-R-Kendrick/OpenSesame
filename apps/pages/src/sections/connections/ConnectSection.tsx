@@ -36,7 +36,7 @@ function sealedPanel(id: string): Sealed | undefined {
  * A connector page's Connect panel. It is drawn only when it has something to
  * act on: a vault-sealed panel for an unlocked vault, or the form whose road
  * is open on this device. A panel with no control in it is not a panel
- * (ADR 0156).
+ * (ADR 0158).
  */
 export function ConnectSection({
   provider,

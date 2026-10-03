@@ -75,7 +75,7 @@ function CheckFacts({ check }: { check: TokenCheck }) {
 }
 
 /**
- * Each key is drawn only where it can act (ADR 0156): Authorize when the
+ * Each key is drawn only where it can act (ADR 0158): Authorize when the
  * person may manage the connector and has an identity to authorize as, Prove
  * when this page holds a relay to prove through. `wait` is the one transient
  * reason to be disabled — a request in flight, or no network.
