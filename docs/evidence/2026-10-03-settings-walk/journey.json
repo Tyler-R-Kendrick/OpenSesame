@@ -33,41 +33,15 @@
           "guest": null
         },
         {
-          "visit": "settings/capabilities"
-        },
-        {
-          "tileOptional": "github"
-        },
-        {
-          "count": [
-            ".section__inner .capsection__title",
-            "main",
-            ".section__inner"
-          ]
-        },
-        {
-          "address": null
-        },
-        {
-          "shot": "390-github-tile"
-        }
-      ]
-    },
-    {
-      "width": 390,
-      "height": 844,
-      "steps": [
-        {
-          "guest": null
-        },
-        {
           "visit": "settings/keybindings"
         },
         {
           "disabledKeys": ".section__inner"
         },
         {
-          "count": ["[data-resets]"]
+          "count": [
+            "[data-resets]"
+          ]
         },
         {
           "shot": "390-keybindings"
@@ -76,7 +50,9 @@
           "pressOptional": "New macro"
         },
         {
-          "count": ["[data-new-macro]"]
+          "count": [
+            "[data-new-macro]"
+          ]
         },
         {
           "disabledKeys": ".section__inner"
@@ -118,7 +94,10 @@
           "sheetPressOptional": "Set PIN"
         },
         {
-          "count": [".section__inner .note", ".section__inner p.hint"]
+          "count": [
+            ".section__inner .note",
+            ".section__inner p.hint"
+          ]
         },
         {
           "report": ".section__inner .note"
@@ -157,7 +136,10 @@
           "disabledKeys": "#vault-environments"
         },
         {
-          "count": ["#vault-environments select", "#vault-environments li"]
+          "count": [
+            "#vault-environments select",
+            "#vault-environments li"
+          ]
         },
         {
           "shot": "390-environments"
@@ -208,7 +190,10 @@
           "visit": "settings"
         },
         {
-          "count": [".set__nav-link", ".plugin-tile"]
+          "count": [
+            ".set__nav-link",
+            ".plugin-tile"
+          ]
         },
         {
           "report": ".set__nav"
@@ -223,7 +208,9 @@
           "scrollToOptional": "Surrogate credentials"
         },
         {
-          "count": [".plugin-tile"]
+          "count": [
+            ".plugin-tile"
+          ]
         },
         {
           "shot": "390-plugin-tiles"
@@ -247,7 +234,9 @@
           "scrollToOptional": "Identity"
         },
         {
-          "count": ["#feature-identity [role=switch]"]
+          "count": [
+            "#feature-identity [role=switch]"
+          ]
         },
         {
           "report": "#feature-identity [role=img]"
@@ -274,7 +263,9 @@
           "pressOptional": "Homelab"
         },
         {
-          "count": [".preset__opt.is-on"]
+          "count": [
+            ".preset__opt.is-on"
+          ]
         },
         {
           "shot": "390-preset"
@@ -295,7 +286,9 @@
           "scrollToOptional": "Travel"
         },
         {
-          "count": ["[aria-label='Turn on travel mode']"]
+          "count": [
+            "[aria-label='Turn on travel mode']"
+          ]
         },
         {
           "shot": "390-travel"
@@ -360,42 +353,15 @@
           "guest": null
         },
         {
-          "visit": "settings/capabilities"
-        },
-        {
-          "tileOptional": "github"
-        },
-        {
-          "count": [
-            ".section__inner .capsection__title",
-            "main",
-            ".section__inner"
-          ]
-        },
-        {
-          "address": null
-        },
-        {
-          "shot": "1280-github-tile"
-        }
-      ]
-    },
-    {
-      "width": 1280,
-      "height": 900,
-      "desktop": true,
-      "steps": [
-        {
-          "guest": null
-        },
-        {
           "visit": "settings/keybindings"
         },
         {
           "disabledKeys": ".section__inner"
         },
         {
-          "count": ["[data-resets]"]
+          "count": [
+            "[data-resets]"
+          ]
         },
         {
           "shot": "1280-keybindings"
@@ -404,7 +370,9 @@
           "pressOptional": "New macro"
         },
         {
-          "count": ["[data-new-macro]"]
+          "count": [
+            "[data-new-macro]"
+          ]
         },
         {
           "disabledKeys": ".section__inner"
@@ -447,7 +415,10 @@
           "sheetPressOptional": "Set PIN"
         },
         {
-          "count": [".section__inner .note", ".section__inner p.hint"]
+          "count": [
+            ".section__inner .note",
+            ".section__inner p.hint"
+          ]
         },
         {
           "report": ".section__inner .note"
@@ -487,7 +458,10 @@
           "disabledKeys": "#vault-environments"
         },
         {
-          "count": ["#vault-environments select", "#vault-environments li"]
+          "count": [
+            "#vault-environments select",
+            "#vault-environments li"
+          ]
         },
         {
           "shot": "1280-environments"
@@ -540,7 +514,10 @@
           "visit": "settings"
         },
         {
-          "count": [".set__nav-link", ".plugin-tile"]
+          "count": [
+            ".set__nav-link",
+            ".plugin-tile"
+          ]
         },
         {
           "report": ".set__nav"
@@ -555,7 +532,9 @@
           "scrollToOptional": "Surrogate credentials"
         },
         {
-          "count": [".plugin-tile"]
+          "count": [
+            ".plugin-tile"
+          ]
         },
         {
           "shot": "1280-plugin-tiles"
@@ -580,7 +559,9 @@
           "scrollToOptional": "Identity"
         },
         {
-          "count": ["#feature-identity [role=switch]"]
+          "count": [
+            "#feature-identity [role=switch]"
+          ]
         },
         {
           "report": "#feature-identity [role=img]"
@@ -608,7 +589,9 @@
           "pressOptional": "Homelab"
         },
         {
-          "count": [".preset__opt.is-on"]
+          "count": [
+            ".preset__opt.is-on"
+          ]
         },
         {
           "shot": "1280-preset"
@@ -630,7 +613,9 @@
           "scrollToOptional": "Travel"
         },
         {
-          "count": ["[aria-label='Turn on travel mode']"]
+          "count": [
+            "[aria-label='Turn on travel mode']"
+          ]
         },
         {
           "shot": "1280-travel"
@@ -667,18 +652,10 @@
     {
       "shot": "390-capabilities",
       "width": 390,
-      "title": "Capabilities, a fresh device: tiles only where their pages exist \u2014 390 \u00d7 844",
-      "caption": "With Connections off \u2014 the default \u2014 every provider tile linked to a route only Connections registers, and Telemetry and Certificate authority carried switches over no code. The sections that held only those are not drawn; Connections is the switch that brings the tiles in.",
+      "title": "Capabilities, a fresh device: no switch over no code \u2014 390 \u00d7 844",
+      "caption": "Telemetry and Certificate authority carried a switch over a capability that has no Pages code. The sections that held only those are not drawn; both stay in the catalog for a policy to name. (The provider tiles that led to blank pages are the connectors branch's, already in both builds.)",
       "before": "20 sections, 43 provider links, 37 switches; Telemetry and Certificate authority sections drawn",
       "after": "14 sections, 0 provider links, 28 switches; Telemetry and Certificate authority not drawn"
-    },
-    {
-      "shot": "390-github-tile",
-      "width": 390,
-      "title": "Pressing the GitHub tile \u2014 390 \u00d7 844",
-      "caption": "The tile opened a blank page. With Connections off it is not drawn, so there is nothing to press and the page stays where it is.",
-      "before": "pressing GitHub lands on /settings/connections/github: 0 sections, 0 panels (blank page)",
-      "after": "no GitHub tile; the page stays on /settings/capabilities (14 sections)"
     },
     {
       "shot": "390-keybindings",
@@ -779,18 +756,10 @@
     {
       "shot": "1280-capabilities",
       "width": 1280,
-      "title": "Capabilities, a fresh device: tiles only where their pages exist \u2014 1280 \u00d7 900",
-      "caption": "With Connections off \u2014 the default \u2014 every provider tile linked to a route only Connections registers, and Telemetry and Certificate authority carried switches over no code. The sections that held only those are not drawn; Connections is the switch that brings the tiles in.",
+      "title": "Capabilities, a fresh device: no switch over no code \u2014 1280 \u00d7 900",
+      "caption": "Telemetry and Certificate authority carried a switch over a capability that has no Pages code. The sections that held only those are not drawn; both stay in the catalog for a policy to name. (The provider tiles that led to blank pages are the connectors branch's, already in both builds.)",
       "before": "20 sections, 43 provider links, 37 switches; Telemetry and Certificate authority sections drawn",
       "after": "14 sections, 0 provider links, 28 switches; Telemetry and Certificate authority not drawn"
-    },
-    {
-      "shot": "1280-github-tile",
-      "width": 1280,
-      "title": "Pressing the GitHub tile \u2014 1280 \u00d7 900",
-      "caption": "The tile opened a blank page. With Connections off it is not drawn, so there is nothing to press and the page stays where it is.",
-      "before": "pressing GitHub lands on /settings/connections/github: 0 sections, 0 panels (blank page)",
-      "after": "no GitHub tile; the page stays on /settings/capabilities (14 sections)"
     },
     {
       "shot": "1280-keybindings",

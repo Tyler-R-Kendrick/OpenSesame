@@ -40,10 +40,6 @@ async function subscribed(): Promise<boolean> {
   return (await worker.pushManager.getSubscription()) !== null;
 }
 
-function describe(caught: unknown): string {
-  return caught instanceof Error ? caught.message : String(caught);
-}
-
 export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
   const configured = useIdentityConfigured();
   const session = useIdentitySession();
@@ -95,7 +91,7 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
         id: NOTICE_ID,
         tone: "err",
         title: "Push on this device",
-        body: describe(caught),
+        body: caught instanceof Error ? caught.message : String(caught),
       });
       setOn(await subscribed().catch(() => false));
     } finally {

@@ -11,11 +11,11 @@ import {
   listSecondSteps,
 } from "../../lib/vault/unlock-methods.js";
 
-const SECOND_STEP_LABEL: Record<SecondStepId, string> = {
+const SECOND_STEP_LABEL = {
   totp: "Authenticator app",
   email: "Email code",
   sms: "Text message",
-};
+} satisfies Record<SecondStepId, string>;
 
 /**
  * What rotating the vault key takes with it. A new root keeps the password's

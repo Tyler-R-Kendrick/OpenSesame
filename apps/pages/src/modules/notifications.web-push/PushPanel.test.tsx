@@ -19,8 +19,7 @@ const originalPush = { ...pushSeams };
 const originalRemote = deviceIdentitySeams.remoteIdentityApi;
 const originalSession = identityHookSeams.useIdentitySession;
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status });
+const reply = (body: string) => new Response(body, { status: 200 });
 
 const SUBSCRIPTION = {
   endpoint: "https://push.example/endpoint/abc",
@@ -81,8 +80,8 @@ afterEach(() => {
 
 describe("Push on this device", () => {
   it("turns push on with one key, remembers the id, and turns it off again", async () => {
-    fetchFn.mockResolvedValueOnce(json({ publicKey: "cHVibGlja2V5" }));
-    fetchFn.mockResolvedValueOnce(json({ id: "push_1", createdAt: "x" }));
+    fetchFn.mockResolvedValueOnce(reply('{"publicKey":"cHVibGlja2V5"}'));
+    fetchFn.mockResolvedValueOnce(reply('{"id":"push_1","createdAt":"x"}'));
     show();
     expect(await screen.findByRole("img", { name: "Off" })).toBeTruthy();
     fireEvent.click(

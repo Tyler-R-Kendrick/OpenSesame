@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { optionalCapabilityIds } from "./catalog.js";
 import {
-  type Feature,
   NO_SURFACE,
   featureById,
   featureOf,
@@ -15,8 +14,8 @@ describe("capabilities with no Pages code behind them", () => {
     for (const id of NO_SURFACE) {
       expect(optional.has(id), id).toBe(true);
       const feature = featureOf(id);
-      expect(feature, id).not.toBeNull();
-      expect(shown(feature as Feature).capabilities).not.toContain(id);
+      if (feature === null) throw new Error(`${id} is not in FEATURES`);
+      expect(shown(feature).capabilities).not.toContain(id);
     }
     expect(isSwitchable(featureById("telemetry"))).toBe(false);
     expect(isSwitchable(featureById("certificates"))).toBe(false);
