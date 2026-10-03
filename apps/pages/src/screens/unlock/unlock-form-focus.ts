@@ -1,8 +1,13 @@
 import { type RefObject, useEffect } from "react";
 import { firstControl, landFocus } from "../../lib/focus.js";
+import {
+  type PendingFocus,
+  useRefocusAfterFailure,
+} from "./use-refocus-after-failure.js";
 
 /** Land the caret on the live unlock control for this ceremony. */
 export function useUnlockFormFocus(args: {
+  busy: boolean;
   signInStage: boolean;
   showSignIn: boolean;
   formGated: boolean;
@@ -18,8 +23,9 @@ export function useUnlockFormFocus(args: {
   goRef: RefObject<HTMLButtonElement | null>;
   acceptRef: RefObject<HTMLInputElement | null>;
   formRef: RefObject<HTMLFormElement | null>;
-}): void {
+}): PendingFocus {
   const {
+    busy,
     signInStage,
     showSignIn,
     formGated,
@@ -62,4 +68,6 @@ export function useUnlockFormFocus(args: {
     formGated,
     status,
   ]);
+  // A failed attempt asks for the caret back; granted once the form re-enables.
+  return useRefocusAfterFailure(busy, formGated);
 }

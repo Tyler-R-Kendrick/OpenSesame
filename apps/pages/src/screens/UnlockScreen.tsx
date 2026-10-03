@@ -73,7 +73,6 @@ import {
 } from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
-import { useRefocusAfterFailure } from "./unlock/use-refocus-after-failure.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -284,8 +283,8 @@ function UnlockForm({
   );
 
   const formGated = lockedFor > 0;
-  const pendingFocus = useRefocusAfterFailure(busy, formGated);
-  useUnlockFormFocus({
+  const pendingFocus = useUnlockFormFocus({
+    busy,
     signInStage,
     showSignIn,
     formGated,
@@ -569,9 +568,7 @@ function UnlockForm({
                       setError(null);
                       setConfirm("");
                       setProtectorSecret("");
-                      // One toggle serves every field: a revealed password
-                      // must not show the next key typed.
-                      setReveal(false);
+                      setReveal(false); // one toggle serves every field
                     }}
                   >
                     {isCeremonyMethod(id) ? (
