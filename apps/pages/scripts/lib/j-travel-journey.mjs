@@ -1,5 +1,5 @@
 /**
- * J-TRAVEL: travel mode from Settings › Security, end to end (ADR 0143, 0150)
+ * J-TRAVEL: travel mode from Settings › Security, end to end (ADR 0143, 0155)
  * — in the built app, real storage, a real bundle file.
  *
  * Two extra vaults, one marked safe. The mark survives a reload. The rest

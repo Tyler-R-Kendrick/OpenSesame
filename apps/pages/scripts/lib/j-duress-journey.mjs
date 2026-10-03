@@ -1,6 +1,6 @@
 /**
  * J-DURESS: the device's duress code, set from Settings and used where a
- * vault unlocks (ADR 0150) — in the built app, with nothing mocked.
+ * vault unlocks (ADR 0155) — in the built app, with nothing mocked.
  *
  * The owner turns the code on in Settings › Security, locks, types it at the
  * unlock screen and lands in an empty decoy that shows no Duress row; then

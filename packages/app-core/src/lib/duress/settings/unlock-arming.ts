@@ -8,7 +8,7 @@ import { createIndependentCompartmentKey } from "../crypto/slots.js";
 import type { JournalWriteResult } from "../store/journal.js";
 import { codeOpensDeviceVault } from "../store/ordinary-unlock-probe.js";
 import {
-  clearEnrollmentStateForUnlock,
+  clearEnrollmentStateDurable,
   persistEnrollmentStateForUnlock,
 } from "../store/unlock-enrollment.js";
 import {
@@ -143,6 +143,7 @@ export async function armPersistedUnlockEnrollment(
   );
 }
 
+/** Disarm, waiting for storage: a code that comes back on reload was not removed. */
 export async function disarmPersistedUnlockEnrollment(): Promise<void> {
-  clearEnrollmentStateForUnlock();
+  await clearEnrollmentStateDurable();
 }

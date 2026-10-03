@@ -16,6 +16,8 @@ import { guideRouteWithin } from "./routes.js";
 const GOAL_CONTEXT_ROUTES = new Map(
   Object.entries({
     "vaults.switch": ["/vault", "/unlock", "/settings"],
+    "vaults.duress-code": ["/settings/security"],
+    "vaults.travel": ["/settings/security"],
     "host.health.check": [],
     "identity.account.add": ["/identity"],
     "identity.users.manage": ["/identity"],
