@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod login;
+mod scope;
 pub use login::{web_login, WebLogin, LOGIN_RESOLVER};
+pub use scope::{is_bounded_prefix, is_http_method};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnvSpecDocument {
@@ -70,6 +72,9 @@ pub enum EnvSpecError {
     Bridge(String),
     #[error(transparent)]
     Domain(#[from] DomainError),
+    /// A `paths=` or `methods=` declaration that does not bound a surrogate.
+    #[error("{0}")]
+    Scope(String),
 }
 
 fn bridge_bin() -> PathBuf {
@@ -200,6 +205,12 @@ pub struct ResolvedEnvEntry {
     /// `omitted`: only the surrogate-proxy plugin delivers anything for it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub login: Option<WebLogin>,
+    /// The path prefixes the entry declared with `paths=` (ADR 0150 section
+    /// 8): the most a surrogate for it may reach. Empty when none were
+    /// declared, never defaulted to the root; the plugin issues nothing for a
+    /// served entry that has none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub path_prefixes: Vec<String>,
 }
 
 /// Unguessable, per-projection placeholder suffix.
@@ -226,10 +237,12 @@ fn resolve_connection_entry(
             omitted: false,
             warning: None,
             login: None,
+            path_prefixes: Vec::new(),
         });
     }
 
     policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
+    let declared = scope::declared(&item.key, resolver)?;
     let pattern = starts_with_from_type(item.r#type.as_ref()).unwrap_or_else(|| "ostest_*".into());
     let mut projection = LegacyProjection {
         env_var: item.key.clone(),
@@ -245,6 +258,9 @@ fn resolve_connection_entry(
         },
         delivery: CredentialDeliveryMode::Placeholder,
     };
+    if let Some(methods) = declared.methods {
+        projection.placement.methods = methods;
+    }
     // A fresh suffix binds substitution to this projection instead of a
     // shared or guessable placeholder with the same shape.
     let placeholder = projection.shaped_placeholder(&placeholder_suffix());
@@ -258,6 +274,7 @@ fn resolve_connection_entry(
         omitted: false,
         warning: None,
         login: None,
+        path_prefixes: declared.path_prefixes,
     })
 }
 
@@ -276,6 +293,7 @@ fn resolve_item(
             omitted: false,
             warning: None,
             login: None,
+            path_prefixes: Vec::new(),
         }));
     }
     if let Some(resolver) = &item.resolver {
@@ -293,6 +311,7 @@ fn resolve_item(
                 omitted: true,
                 warning: Some(format!("unresolved resolver {}", resolver.fn_name)),
                 login: None,
+                path_prefixes: Vec::new(),
             }));
         };
         return resolve_connection_entry(item, resolver, uri, policy).map(Some);
@@ -317,6 +336,7 @@ fn resolve_item(
             "materialize allowed — legacy warning".into()
         }),
         login: None,
+        path_prefixes: Vec::new(),
     }))
 }
 

@@ -192,3 +192,80 @@ fn an_entry_without_a_login_serializes_as_before() {
     let text = serde_json::to_string(&entries).unwrap();
     assert!(!text.contains("\"login\""), "{text}");
 }
+
+fn scoped(args: &str) -> EnvSpecDocument {
+    let json = r#"{"schema_path":"x","parser":"p","items":[{
+        "key":"GITHUB_TOKEN","sensitive":true,"required":true,"public":false,
+        "type":null,"value":null,"decorators":[],
+        "resolver":{"fn":"opensesameConnection","args":[
+            {"value":"conn://demo/github"},
+            {"key":"projection","value":"legacy-token"}ARGS
+        ]}}]}"#;
+    parse_schema_json(&json.replace("ARGS", args)).unwrap()
+}
+
+fn resolve_scoped(args: &str) -> Result<Vec<ResolvedEnvEntry>, EnvSpecError> {
+    resolve_for_delivery(&scoped(args), &DevDeliveryPolicy::agent_default(), true)
+}
+
+#[test]
+fn an_entry_that_declares_no_paths_carries_none_and_is_never_widened_to_the_root() {
+    let entry = resolve_scoped("").unwrap().remove(0);
+    assert!(entry.path_prefixes.is_empty(), "{:?}", entry.path_prefixes);
+    let wire = serde_json::to_value(&entry).unwrap();
+    assert!(wire.get("path_prefixes").is_none(), "{wire}");
+}
+
+#[test]
+fn declared_paths_and_methods_are_carried_into_the_entry() {
+    let entry = resolve_scoped(
+        r#",{"key":"paths","value":"/repos/acme, /user/ ,/repos/acme"},
+            {"key":"methods","value":"get,Post"}"#,
+    )
+    .unwrap()
+    .remove(0);
+    assert_eq!(entry.path_prefixes, ["/repos/acme", "/user"]);
+    let placement = &entry.projection.as_ref().unwrap().placement;
+    assert_eq!(placement.methods, ["GET", "POST"]);
+}
+
+#[test]
+fn a_paths_declaration_without_methods_fails_the_resolve_instead_of_granting_write_verbs() {
+    let error = resolve_scoped(r#",{"key":"paths","value":"/user"}"#)
+        .expect_err("paths= alone must not default to write methods");
+    let text = error.to_string();
+    assert!(text.starts_with("GITHUB_TOKEN: "), "{text}");
+    assert!(text.contains("methods="), "{text}");
+}
+
+#[test]
+fn methods_alone_still_narrow_the_placement_and_carry_no_paths() {
+    let entry = resolve_scoped(r#",{"key":"methods","value":"GET"}"#)
+        .unwrap()
+        .remove(0);
+    assert!(entry.path_prefixes.is_empty());
+    assert_eq!(
+        entry.projection.as_ref().unwrap().placement.methods,
+        ["GET"]
+    );
+}
+
+#[test]
+fn a_paths_declaration_that_does_not_bound_the_surrogate_fails_the_resolve() {
+    for bad in ["/", "", " , ", "repos", "/repos/../x", "/a?b", "/user,/"] {
+        let error = resolve_scoped(&format!(r#",{{"key":"paths","value":"{bad}"}}"#))
+            .expect_err(&format!("{bad:?} must be refused"));
+        let text = error.to_string();
+        assert!(text.starts_with("GITHUB_TOKEN: "), "{text}");
+        assert!(text.contains("paths="), "{text}");
+    }
+}
+
+#[test]
+fn a_methods_declaration_that_names_no_http_method_fails_the_resolve() {
+    for bad in ["", "GET,TEAPOT", "*", "CONNECT"] {
+        let error = resolve_scoped(&format!(r#",{{"key":"methods","value":"{bad}"}}"#))
+            .expect_err(&format!("{bad:?} must be refused"));
+        assert!(error.to_string().contains("methods="), "{error}");
+    }
+}

@@ -77,5 +77,6 @@ pub(crate) fn resolve_login(item: &EnvSpecItem, resolver: &EnvResolver) -> Resol
         omitted: true,
         warning: Some(warning.into()),
         login,
+        path_prefixes: Vec::new(),
     }
 }
