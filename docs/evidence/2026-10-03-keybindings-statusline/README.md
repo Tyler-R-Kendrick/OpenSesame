@@ -4,9 +4,12 @@
 statusline a segment that shows keys while they are half-typed. The pull request
 that added it (#574) shipped without a before/after sheet; this gallery is it.
 
-Two real builds walked the same journey (`journey.json`): the base is the commit
-before #574 (`25395fba^`), the branch is this stack. Each build opens as a guest,
-goes to the vault, reads the statusline, types `3` then `g` and reads it again.
+Two real builds walked the same journey (`journey.json`). The **after** build is
+this stack. The **before** build is the same tree with the one line that mounts
+the segment (`<PendingKeys />` in `components/Statusline.tsx`) removed, so the
+only difference between the two sides is the segment itself — not the months of
+unrelated changes between #574 and today. Each build opens as a guest, goes to
+the vault, reads the statusline, types `3` then `g` and reads it again.
 
 | Sheet | Shows |
 |---|---|
@@ -15,10 +18,10 @@ goes to the vault, reads the statusline, types `3` then `g` and reads it again.
 
 ## Measurements (from the browser)
 
-| Width | Statusline, idle | Statusline, keys pending |
-|---|---|---|
-| 1280 | 1280 × 53 | 1280 × 53 |
-| 390 | 390 × 56 | 390 × 56 |
+| Width | Before, idle | Before, `3 g` typed | After, idle | After, `3 g` typed |
+|---|---|---|---|---|
+| 1280 | 1280 × 53 | 1280 × 53 | 1280 × 53 | 1280 × 53 |
+| 390 | 390 × 56 | 390 × 56 | 390 × 56 | 390 × 56 |
 
 The statusline does not change height when the segment appears: it is a part of
 the row, never a layer over it, and the phone keeps its one line
