@@ -186,7 +186,9 @@ export function runMacro(macro: Macro, run: CommandRun): number {
   if (!Array.isArray(macro?.steps)) return 0;
   const commands = keymapCommands();
   let budget = MACRO_LIMITS.runs;
-  const rounds = Math.min(run.steps, MACRO_LIMITS.count);
+  // The shell's counts reach 999; the run budget is the cap, and it also
+  // stops a macro of several steps part-way through a round.
+  const rounds = Math.min(run.steps, MACRO_LIMITS.runs);
   for (let round = 0; round < rounds && budget > 0; round++) {
     for (const step of macro.steps) {
       budget -= runStep(step, run, budget, commands);

@@ -196,3 +196,19 @@ export function readKeymapParts(
     defaultBindings(commands),
   );
 }
+
+/** One macro compared by what it does: its trigger and its steps. */
+export function stableMacro(macro: MacroDoc | undefined): string {
+  return JSON.stringify([macro?.on ?? null, macro?.steps ?? null]);
+}
+
+/** Macros compared by what they do: order and field order aside. */
+export function stableMacros(
+  macros: Readonly<Record<string, MacroDoc>> = {},
+): string {
+  return JSON.stringify(
+    Object.keys(macros)
+      .sort()
+      .map((name) => [name, stableMacro(macros[name])]),
+  );
+}

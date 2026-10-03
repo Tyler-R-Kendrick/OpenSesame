@@ -4,6 +4,7 @@ import {
   loadKeymap,
   resetKeymap,
 } from "@opensesame/app-core/lib/keymap/store.js";
+import { isMountedGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
 import {
   act,
   cleanup,
@@ -136,6 +137,47 @@ describe("Settings › Keybindings › Keymap", () => {
     });
   });
 
+  it("shows a refused swap in the prompt, and keeps the keymap as it was", () => {
+    vi.useFakeTimers();
+    renderPanels();
+    fireEvent.click(
+      within(row("Next row")).getByRole("button", {
+        name: "Change j for Next row",
+      }),
+    );
+    press("k");
+    act(() => {
+      vi.advanceTimersByTime(keymapSeams.goTimeoutMs);
+    });
+    const prompt = screen.getByRole("group", {
+      name: "k is taken by Previous row",
+    });
+    const set = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    fireEvent.click(
+      within(prompt).getByRole("button", {
+        name: "Swap: Previous row takes the key you replaced",
+      }),
+    );
+    set.mockRestore();
+    expect(
+      within(
+        screen.getByRole("group", { name: "k is taken by Previous row" }),
+      ).getByRole("img", {
+        name: "The keymap could not be saved on this device.",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(
+        screen.getByRole("group", { name: "k is taken by Previous row" }),
+      ).getByRole("alert").textContent,
+    ).toBe("The keymap could not be saved on this device.");
+    expect(loadKeymap().bindings).toEqual({});
+  });
+
   it("refuses a fixed key in place, and keeps recording", () => {
     renderPanels();
     fireEvent.click(
@@ -166,6 +208,18 @@ describe("Settings › Keybindings › Keymap", () => {
       }),
     );
     expect(loadKeymap().singleKeys).toBe(false);
+  });
+});
+
+describe("Settings › Keybindings › tutorial target", () => {
+  it("leaves the category link the one owner of settings.keybindings", () => {
+    // The Keybindings tab link carries the target; a panel-wrapping one made
+    // every click inside the editor read as activating the tab.
+    renderPanels();
+    expect(isMountedGuideTarget("settings.keybindings")).toBe(false);
+    expect(
+      document.querySelector('[data-guide-target="settings.keybindings"]'),
+    ).toBeNull();
   });
 });
 
