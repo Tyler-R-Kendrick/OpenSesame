@@ -12,7 +12,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { renderPanels, row } from "./keybindings-test-kit.js";
+import { press, renderPanels, row } from "./keybindings-test-kit.js";
 
 afterEach(() => {
   cleanup();
@@ -123,4 +123,46 @@ describe("A step whose command is no longer offered", () => {
     expect(select.value).toBe("section.gone-today");
     expect(select.selectedOptions[0]?.textContent).toBe("section.gone-today");
   });
+});
+
+describe("Leaving the step recorder with Tab", () => {
+  function startRecording() {
+    renderPanels();
+    fireEvent.click(screen.getByRole("button", { name: "New macro" }));
+    const editor = screen.getByRole("form", { name: "New macro" });
+    fireEvent.click(
+      within(editor).getByRole("button", {
+        name: "Record steps by pressing keys",
+      }),
+    );
+    return editor;
+  }
+
+  it.each([
+    ["Tab", false],
+    ["Shift+Tab", true],
+  ])(
+    "%s keeps what was pressed as steps and stops recording",
+    (_name, shift) => {
+      const editor = startRecording();
+      press("g", "g", "3", "j");
+      const recorder = within(editor).getByLabelText(/^Recording/);
+      const allowed = fireEvent.keyDown(recorder, {
+        key: "Tab",
+        shiftKey: shift,
+      });
+      // The press is left alone, so the browser still moves focus.
+      expect(allowed).toBe(true);
+      expect(within(editor).queryByLabelText(/^Recording/)).toBeNull();
+      expect(
+        within(editor).getByRole("combobox", { name: "Command for step 1" }),
+      ).toHaveProperty("value", "listing.first");
+      expect(
+        within(editor).getByRole("combobox", { name: "Command for step 2" }),
+      ).toHaveProperty("value", "listing.next");
+      expect(
+        within(editor).getByRole("spinbutton", { name: "Times for step 2" }),
+      ).toHaveProperty("value", "3");
+    },
+  );
 });
