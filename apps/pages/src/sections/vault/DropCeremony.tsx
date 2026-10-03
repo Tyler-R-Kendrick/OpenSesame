@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 /**
  * Drop ceremonies (docs/design/secret-drop.md §3/§4/§5).
  *
@@ -30,12 +30,12 @@ import {
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
-import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconDownload, IconDrop, IconX } from "../../components/Icons.js";
+import { IconDownload } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import { DROP_TTL_OPTIONS, TtlPicker } from "./DropTtl.js";
+import { DROP_TTL_OPTIONS } from "./DropTtl.js";
+import { ShareForm, ShareOffer, useShareFocus } from "./ShareOffer.js";
 import { formatExpiry } from "./expiry.js";
 
 /** What a finished ceremony shows: link, code, QR, expiry — never the payload. */
@@ -103,18 +103,7 @@ export function ShareSecretDrop({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drop, setDrop] = useState<SharedOnce | null>(null);
-  const keyRef = useRef<HTMLButtonElement>(null);
-  const ttlRef = useRef<HTMLSelectElement>(null);
-  // The key that was pressed unmounts with its own state, so focus follows the
-  // ceremony: to the first control when it opens, back to the offer on Cancel.
-  const moveFocus = useRef<"ttl" | "key" | null>(null);
-
-  useEffect(() => {
-    const target = moveFocus.current;
-    moveFocus.current = null;
-    if (target === "ttl" && open) ttlRef.current?.focus();
-    if (target === "key" && !open) keyRef.current?.focus();
-  }, [open]);
+  const focus = useShareFocus(open);
 
   async function share() {
     if (text === null) return;
@@ -145,61 +134,36 @@ export function ShareSecretDrop({
   }
 
   if (!open) {
-    // On a phone the key sits in a headed group like every other action on the
-    // page; the stylesheet draws the bar there and nowhere else. The head is
-    // aria-hidden because the key already carries the name.
     return (
-      <section className="detail__group detail__offer">
-        <div className="detail__groupbar">
-          <h2 className="detail__grouphead" aria-hidden="true">
-            Share once
-          </h2>
-          <IconKey
-            label="Share once"
-            small
-            keyRef={keyRef}
-            onClick={() => {
-              moveFocus.current = "ttl";
-              setOpen(true);
-            }}
-          >
-            <IconDrop size={15} />
-          </IconKey>
-        </div>
-      </section>
+      <ShareOffer
+        keyRef={focus.keyRef}
+        onOpen={() => {
+          focus.expect("ttl");
+          setOpen(true);
+        }}
+      />
     );
   }
 
   return (
-    <section className="detail__group" aria-label="Share this item once">
-      <h2 className="detail__grouphead">Share once</h2>
-      <TtlPicker value={ttlMs} onChange={setTtlMs} selectRef={ttlRef} />
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : null}
-      <div className="actions">
-        <FormCommit
-          label={busy ? "Sealing…" : "Seal and share"}
-          disabled={busy}
-          busy={busy}
-          onClick={() => void share()}
-          icon={<IconDrop size={18} />}
-        />
-        <IconKey
-          label="Cancel"
-          small
-          disabled={busy}
-          onClick={() => {
-            moveFocus.current = "key";
-            setOpen(false);
-          }}
-        >
-          <IconX size={16} />
-        </IconKey>
-      </div>
-    </section>
+    <ShareForm
+      ttlMs={ttlMs}
+      onTtl={setTtlMs}
+      ttlRef={focus.ttlRef}
+      notice={
+        error ? (
+          <p className="note note--err" role="alert">
+            <span>{error}</span>
+          </p>
+        ) : null
+      }
+      busy={busy}
+      onSeal={() => void share()}
+      onCancel={() => {
+        focus.expect("key");
+        setOpen(false);
+      }}
+    />
   );
 }
 
