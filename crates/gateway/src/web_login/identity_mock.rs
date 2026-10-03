@@ -1,5 +1,5 @@
 //! A stand-in for the Identity API's interaction routes, on loopback, for the
-//! tests that drive a hooked run through the real approver (ADR 0150).
+//! tests that drive a hooked run through the real approver (ADR 0156).
 //!
 //! It answers the four routes the approver speaks with the shapes
 //! `packages/control-plane` answers them with, computes the request digest it

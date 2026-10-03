@@ -1,6 +1,6 @@
 /**
  * The inputs of `spec/conformance/request-digest-vectors.json` (ADR 0139,
- * ADR 0150).
+ * ADR 0156).
  *
  * Only the *requests* are written here. The canonical details string and the
  * digest of every case are produced by `canonicalRequestDigest` itself when

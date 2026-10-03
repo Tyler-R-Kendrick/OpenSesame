@@ -1,5 +1,5 @@
 //! Replacing the policy takes the operator or a fresh step-up, whatever role
-//! a caller holds; and each class of caller gets its own answer (ADR 0150,
+//! a caller holds; and each class of caller gets its own answer (ADR 0156,
 //! ADR 0146).
 
 use super::*;

@@ -1,5 +1,5 @@
 //! `opensesame hooks policy preset …` and `put --preset`, driven through the
-//! real binary (ADR 0150): the presets need no Host, and a replacement a
+//! real binary (ADR 0156): the presets need no Host, and a replacement a
 //! plain session is refused says what to present instead.
 
 use std::io::{Read, Write};

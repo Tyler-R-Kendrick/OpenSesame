@@ -1,4 +1,4 @@
-//! A web-login job a dead process left half-run (ADR 0076 §9, ADR 0150).
+//! A web-login job a dead process left half-run (ADR 0076 §9, ADR 0156).
 //!
 //! The Host's runner walks a job `Scheduled → Discovering` before its first
 //! step and settles it at the end. A gateway that stops in between leaves the

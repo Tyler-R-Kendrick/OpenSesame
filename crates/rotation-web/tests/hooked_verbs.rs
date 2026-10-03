@@ -1,5 +1,5 @@
 //! Every verb of the tool boundary, bracketed by `pre_tool_call` and
-//! `post_tool_call` (ADR 0150; agent-hooks/0.1 §4.3, §6, §6.1, §12.2).
+//! `post_tool_call` (ADR 0156; agent-hooks/0.1 §4.3, §6, §6.1, §12.2).
 //!
 //! Each property is asserted against what the inner transport actually
 //! received, not against what the wrapper says it did: a deny means the inner

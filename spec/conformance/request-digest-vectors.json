@@ -1,5 +1,5 @@
 {
-  "about": "Interaction request digest vectors (ADR 0086, ADR 0139, ADR 0150). Every digest and canonicalDetails is generated from packages/os-domain crypto/request-digest.ts (UPDATE_REQUEST_DIGEST_VECTORS=1); crates/agent-hooks recomputes them independently. Never edit by hand, and never regenerate to make a reader pass.",
+  "about": "Interaction request digest vectors (ADR 0086, ADR 0139, ADR 0156). Every digest and canonicalDetails is generated from packages/os-domain crypto/request-digest.ts (UPDATE_REQUEST_DIGEST_VECTORS=1); crates/agent-hooks recomputes them independently. Never edit by hand, and never regenerate to make a reader pass.",
   "encoding": {
     "purpose": "opensesame:interaction-request:v1",
     "fields": [

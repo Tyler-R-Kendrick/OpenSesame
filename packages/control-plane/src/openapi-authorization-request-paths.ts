@@ -253,7 +253,7 @@ export const authorizationRequestPaths = {
     post: {
       summary: "The requester withdraws a request nobody has answered",
       description:
-        "Requester only (ADR 0150): the approver has /deny, which records a decision, and a withdrawal records none. Everyone else, the approver included, gets the same 404 as an id that never existed. Idempotent: withdrawing a request already withdrawn answers its current state. A request that already has another ending keeps it (409 request_not_pending, 410 expired_request). Also closes the interaction fronting the request, if one is live, so nothing stays approvable for a question that no longer exists.",
+        "Requester only (ADR 0156): the approver has /deny, which records a decision, and a withdrawal records none. Everyone else, the approver included, gets the same 404 as an id that never existed. Idempotent: withdrawing a request already withdrawn answers its current state. A request that already has another ending keeps it (409 request_not_pending, 410 expired_request). Also closes the interaction fronting the request, if one is live, so nothing stays approvable for a question that no longer exists.",
       security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
       parameters: [
         {

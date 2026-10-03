@@ -1,4 +1,4 @@
-//! The append-only audit of agent-hooks verdicts (ADR 0150, migration 0046).
+//! The append-only audit of agent-hooks verdicts (ADR 0156, migration 0046).
 //!
 //! One row per answered interception, written in the request that produced
 //! the verdict. It is the Host's own trail, not a change feed: it is never on

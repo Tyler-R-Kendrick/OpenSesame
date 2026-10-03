@@ -1,4 +1,4 @@
-//! The agent-hooks decision audit (ADR 0150, migration 0046): append-only,
+//! The agent-hooks decision audit (ADR 0156, migration 0046): append-only,
 //! value-blind by shape, paginated newest first, filterable, and trimmed by
 //! retention.
 

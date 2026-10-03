@@ -1,4 +1,4 @@
-//! A run is bounded end to end, not only step by step (ADR 0150): the reaper's
+//! A run is bounded end to end, not only step by step (ADR 0156): the reaper's
 //! horizon is the policy lease, so a live run must never outlast it — and a
 //! hook waiting on a person's approval is not a step.
 

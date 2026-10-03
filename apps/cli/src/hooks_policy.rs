@@ -1,5 +1,5 @@
 //! `opensesame hooks policy get|put` — the organization's agent-hooks policy
-//! on the Host (ADR 0150).
+//! on the Host (ADR 0156).
 //!
 //! The Host's remote interceptor decides under this policy. Reading and
 //! replacing it is owner/admin or operator work, and a replacement is a

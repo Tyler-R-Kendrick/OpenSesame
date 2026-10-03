@@ -1,5 +1,5 @@
 //! `OpenSesame` as an [agent-hooks/0.1] interceptor and approval resolver
-//! (ADR 0150).
+//! (ADR 0156).
 //!
 //! agent-hooks is a framework-neutral control contract: a host (an agent
 //! framework) builds an `AgentContext` at eight fixed points of its loop,

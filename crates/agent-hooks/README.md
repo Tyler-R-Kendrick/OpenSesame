@@ -108,7 +108,7 @@ source file holds a string a secret scanner would flag.
 
 ## Related
 
-- [ADR 0150](../../docs/adr/0150-agent-hooks-interceptor.md) — this crate, the
+- [ADR 0156](../../docs/adr/0156-agent-hooks-interceptor.md) — this crate, the
   Host routes, the hosted runs and the approver
 - [`docs/validation/agent-hooks-conformance.md`](../../docs/validation/agent-hooks-conformance.md) —
   the host-side conformance claims

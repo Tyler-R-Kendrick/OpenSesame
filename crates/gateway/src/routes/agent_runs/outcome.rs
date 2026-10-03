@@ -1,4 +1,4 @@
-//! What a driver's outcome must be before it is stored (ADR 0150).
+//! What a driver's outcome must be before it is stored (ADR 0156).
 //!
 //! The settle route used to persist whatever JSON the driver sent, and only
 //! the executor, later and only if it was still waiting, decoded it. That left

@@ -12,7 +12,7 @@ import {
 } from "./interaction-factory-helpers.js";
 
 /**
- * Who may be asked, and how a requester takes a question back (ADR 0150).
+ * Who may be asked, and how a requester takes a question back (ADR 0156).
  *
  * The approver library of `crates/agent-hooks` raises an authorization request
  * and fronts it with an interaction. These tests hold the Identity API to the

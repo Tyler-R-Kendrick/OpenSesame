@@ -169,7 +169,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: plugins::PluginsCmd,
     },
-    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0150).
+    /// Govern agent loops over agent-hooks/0.1: `OpenSesame` as an interceptor (ADR 0156).
     Hooks {
         #[command(subcommand)]
         cmd: hooks::HooksCmd,

@@ -1,6 +1,6 @@
 //! A web-login rotation, hooked end to end, driven through the real step
 //! routes the way the owner's browser extension would drive it (ADR 0076,
-//! ADR 0150).
+//! ADR 0156).
 //!
 //! The fake driver below knows nothing the extension would not: it lists the
 //! owner's runs, claims each step over `POST …/steps/claim`, and settles it

@@ -131,9 +131,9 @@ pub struct AppState {
     /// when the deployment configured none of it.
     pub transport: Option<Arc<crate::transport::TransportRuntime>>,
     /// The web-login runs this process has started, tracked and bounded
-    /// (ADR 0150). The lifecycle scanner starts a run here and moves on.
+    /// (ADR 0156). The lifecycle scanner starts a run here and moves on.
     pub web_login_runs: Arc<crate::web_login::registry::RunRegistry>,
-    /// The operator's approver for escalated agent actions (ADR 0150): the
+    /// The operator's approver for escalated agent actions (ADR 0156): the
     /// Identity API and the requester's bearer on it. `None` when the
     /// deployment configured none, which leaves every escalation a denial.
     pub agent_hook_approver: Option<Arc<crate::agent_hook_approver::ApproverSettings>>,
@@ -196,7 +196,7 @@ async fn build_with_security(
 
     let transport_config =
         crate::transport::config::TransportConfig::from_env().map_err(anyhow::Error::new)?;
-    // A partially configured approver refuses to start (ADR 0150): it would
+    // A partially configured approver refuses to start (ADR 0156): it would
     // otherwise fail at the first escalation, hours into a rotation.
     let approver =
         crate::agent_hook_approver::ApproverSettings::from_env().map_err(anyhow::Error::new)?;

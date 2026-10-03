@@ -1,4 +1,4 @@
-//! Who owns a web-login job (ADR 0076 §9, ADR 0150).
+//! Who owns a web-login job (ADR 0076 §9, ADR 0156).
 //!
 //! A web-login job has two possible owners: the generic rotation consumer,
 //! which parks it with "requires a configured sandbox runner", and the Host's

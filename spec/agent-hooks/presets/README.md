@@ -1,6 +1,6 @@
 # Agent-hooks policy presets
 
-Named, ready-made `opensesame hooks policy` documents (ADR 0150). Each file is
+Named, ready-made `opensesame hooks policy` documents (ADR 0156). Each file is
 `{ "preset": 1, "name": <file stem>, "summary": …, "policy": <HookPolicy> }`;
 `policy` is exactly what `PUT /api/v1/agent-hooks/policy` takes.
 

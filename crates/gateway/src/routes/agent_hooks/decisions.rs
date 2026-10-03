@@ -1,5 +1,5 @@
 //! `GET /api/v1/agent-hooks/decisions` — the audit of every verdict the
-//! Host's intercept route has answered for the organization (ADR 0150).
+//! Host's intercept route has answered for the organization (ADR 0156).
 //!
 //! The same gate as the policy it audits: owner/admin or the operator, and
 //! never through an agent capability or a browser grant — an agent that could

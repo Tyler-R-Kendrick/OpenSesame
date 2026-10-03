@@ -1,5 +1,5 @@
 //! The keys an organization trusts to sign web-login recipes (ADR 0076 §4,
-//! ADR 0150), pinned by an owner/admin or the operator and never by a recipe.
+//! ADR 0156), pinned by an owner/admin or the operator and never by a recipe.
 //!
 //! The row is a public key and a name; the private half never reaches the
 //! Host. A key id is derived from the key by the caller (`rsk_` and a digest),

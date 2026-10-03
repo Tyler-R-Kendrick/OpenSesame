@@ -1,4 +1,4 @@
-//! Who an organization's escalated agent actions are put to (ADR 0150):
+//! Who an organization's escalated agent actions are put to (ADR 0156):
 //! `GET|PUT /api/v1/agent-hooks/approver`.
 //!
 //! The policy says whether an action needs a person; this says which one. It

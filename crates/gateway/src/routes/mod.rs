@@ -361,9 +361,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
         .route("/api/v1/tasks/{id}", get(tasks::get_task))
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
-        // ADR 0150: agent-hooks verdicts and the organization's hook policy.
+        // ADR 0156: agent-hooks verdicts and the organization's hook policy.
         .merge(agent_hooks::routes())
-        // ADR 0076 §4, ADR 0150: the recipes a web-login run replays, and their signers.
+        // ADR 0076 §4, ADR 0156: the recipes a web-login run replays, and their signers.
         .merge(web_login_recipes::routes())
         .merge(aauth::routes());
     // Vault KV v2 read facade (ops plane, default off). Merged rather than

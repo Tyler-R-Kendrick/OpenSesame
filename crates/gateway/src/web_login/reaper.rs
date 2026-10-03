@@ -1,4 +1,4 @@
-//! What a stopped gateway leaves behind (ADR 0076 §5, ADR 0081, ADR 0150).
+//! What a stopped gateway leaves behind (ADR 0076 §5, ADR 0081, ADR 0156).
 //!
 //! A run is a task in one process. If that process stops — a crash, a deploy,
 //! a killed pod — nothing else writes the run's next transition: the rotation

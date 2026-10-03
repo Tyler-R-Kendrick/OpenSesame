@@ -4,7 +4,7 @@ What was run to check that OpenSesame's own agent-driven runs are an
 [Agent Hooks 0.1](https://github.com/responsibleai/agent-hooks/blob/v0.1.0-alpha.5/spec/AGENT-HOOKS-0.1.md)
 host, what was observed, and what the result does and does not show.
 
-[ADR 0150](../adr/0150-agent-hooks-interceptor.md) put OpenSesame on the
+[ADR 0156](../adr/0156-agent-hooks-interceptor.md) put OpenSesame on the
 interceptor's side of the contract. This page is about the other side: the
 runs `crates/rotation-web` orders — a web-login rotation
 ([ADR 0076](../adr/0076-autonomous-web-login-rotation.md)) and a registration
@@ -149,7 +149,7 @@ sections below state each, what it shows, and what it does not.
 |---|---|---|
 | Capabilities | `tool_calls`, `int64_json` | No model calls: ADR 0076 §8 keeps the model in the remote runner, on the far side of the tool boundary, and no model client is a dependency of the crate — a tool router in §3.2's sense. `int64_json`: contexts are `serde_json` values holding `i64`. `bigint_json` is not claimed (`serde_json` coerces beyond-u64 literals at load). |
 | Profiles | all four (`sequential/first_deny`, `sequential/run_all`, `parallel/strictest`, `parallel/unanimous`), every knob value | `SessionConfig.composition` is handed to the SDK emitter unchanged. |
-| Identity provider | `jcs-sha256` (default); `null` and host-defined providers accepted per session | `SessionConfig.identity`; approvals bind to `jcs-sha256` (ADR 0150 §6). |
+| Identity provider | `jcs-sha256` (default); `null` and host-defined providers accepted per session | `SessionConfig.identity`; approvals bind to `jcs-sha256` (ADR 0156 §6). |
 | `buffered_output` | `true` | The report is returned whole, only after the `output` verdict permits; nothing streams. |
 | `tool_seam_host_error` | `terminate`, for `run_change_password_hooked` / `run_capture_steps_hooked` | A refused verb ends the run through the executor's own semantics (§6.2's "unless the host's own semantics terminate the turn"): a rotation reports `blocked: hook_refused` (or reconciles, if the refused step was the submit or the verification), and a capture run fails. The posture is declaration-only here: it post-dates the pinned runner (upstream #68), which neither reads it nor carries `run_outcome_by_posture`. |
 
@@ -228,8 +228,9 @@ No, in no run mode, so claim A does not and must not declare `model_calls`.
 - **ADR 0079.** Its relay is a TURN server for WebRTC between people's
   clients; no model is in that path.
 - **The code.** `crates/rotation-web` has no model client (`Cargo.toml`), the
-  gateway's agent-run routes queue and settle `StepRequest` JSON for a driver
-  without linking this crate, and a T4 runner is a remote process.
+  gateway's web-login runner (`crates/gateway/src/web_login`) drives T3 recipe
+  replays over the step queue with no model in the loop, and a T4 runner is a
+  remote process.
 
 So there is no `HookedModel` to add to a run path. What exists instead is the
 engine's untyped surface (`src/hooks/dynamic.rs`): `HookSession::tool_call`
@@ -392,6 +393,7 @@ are not part of either claim:
 | `tests/hooked_authority.rs` | The pinned fields: a fill, presence assertion or login check cannot be pointed at another credential or candidate (also by replacing the whole argument object); a capture or download cannot be sealed into another slot; a navigation cannot change host, scheme, port or userinfo, cannot become protocol-relative, and a relative one cannot become absolute. Each asserts the inner transport saw nothing, the record is `transform_invalid` with `decided_by` null and `enforced_identity` = `input_identity`, and no `post_tool_call` was emitted. Positive controls: restating the reference unchanged, a selector rewrite in the frame (fill, capture, `wait_for`), a same-origin navigation rewrite. `src/hooks/authority.rs` unit-tests the destination comparison. |
 | `tests/hooked_runs.rs` | Lifecycle order through `run_change_password_hooked`, startup/input/output denies (an output deny is `Withheld`, after the submit), an input or output transform that would change the request or the outcome refused as `transform_invalid`, a refused fill blocking before submit, escalation lifted by an approving resolver, `cancelled` when a person holds the page, a capture run. |
 | `tests/hooked_concurrency.rs` | §12.2 under paused time: a verb parked on the approval seam does not delay another (measured against the frozen clock); sequences unique, contiguous and delivered in order; labels persisted per emission; a shutdown waits for the parked emission and nothing follows it; an abandoned emission releases the records behind it. |
+| `tests/hooked_ledger.rs` | A refused ledger read in a capture run is a refusal, never the ledger: a report that listed sealed slots as outstanding would have the caller ask for them again, so under `tool_seam_host_error: terminate` the hosted run fails. |
 | `tests/hooked_records.rs` | What the session keeps (no sink: all; sink: none unless asked; a limit), and that each per-emission emitter carries the session's approval redactor and identity provider. |
 | `tests/hooked_labels.rs` | §5.4: a permit's labels resurface under the interceptor's namespace on every later emission, accumulate without duplicates, and are never resurfaced for a deny, an unapplied transform, a label the combined verdict dropped, or an unnamed or reserved namespace. |
 | `tests/hooked_dynamic.rs` | The engine's untyped surface: a proposed call's own id on both emissions, a pre transform reaching the tool and a deny keeping it from running, an error staying an error through a post transform, model points in the same ordered session, model points and named tools refused without an emission outside a turn, a `post_model_call` refused without an emission unless a `pre_model_call` that proceeded is still open to pair with (§3.1.4), two posts in flight for one open pre leaving exactly one paired, a transform that leaves a model message, a model response or a tool's arguments off §4.2's shape refused as `transform_invalid`, and input that is off-shape to begin with refused as `context_invalid` without an emission (§6.3). |
@@ -403,9 +405,14 @@ are not part of either claim:
   conditions. Agent Hooks is a cooperative contract; OpenSesame's boundary
   remains the Host API's `ConnectionRef` authorization (ADR 0005), and the
   tool boundary has no verb that returns a credential regardless of any hook.
-- **Mocked I/O.** Both claims and the supplementary tests drive mocks (a
-  browser for A, a model and tools for B). They do not show that a production
-  run is wired through the hosted adapter; see the next section.
+- **Mocked I/O.** Both claims and the crate's own tests drive mocks (a browser
+  for A, a model and tools for B). That a production run is wired through the
+  hosted adapter is shown by the gateway tests in the last section, which drive
+  the real step routes with a scripted driver, not by either claim.
+- **Web-login rotations only.** The Host's runner starts web-login rotations.
+  `run_capture_steps_hooked` is exercised by the crate's tests and walked under
+  the `rotation-web-login` preset in the gateway's tests, but no gateway runner
+  starts a capture run.
 - **Two claims, not one.** A passes 4 of the 4 vectors its surface admits; that
   is narrow and honest. B passes 46 of 46 on a surface that includes
   `model_calls`, which no rotation run has. Read A for the run and B for the
@@ -419,12 +426,40 @@ are not part of either claim:
 
 ## Production wiring
 
-No production path constructs a `BrowserTransport` today: the gateway's
-agent-run routes (`crates/gateway/src/routes/agent_runs.rs`) queue and settle
-`StepRequest` JSON for a driver without linking this crate. When a run
-executor lands, it wraps its transport in `HookedTransport::new(transport,
+The Host's web-login runner (`crates/gateway/src/web_login`) is the production
+path, and it is the hosted adapter, not a bare executor. A run is spawned and
+tracked by the lifecycle scanner (`registry.rs`, `start.rs`), owns its job
+through an atomic claim, and is driven by `launch.rs`. `Harness::open`
+builds `HookedTransport::new(ExtensionTransport::new(BrowserChannel(..)),
 HookSession::new(SessionConfig::new(run_id), interceptors, resolver)?
-.with_record_sink(sink))` and calls `run_change_password_hooked` /
-`run_capture_steps_hooked` instead of the bare executors. It maps
-`HostedRunError::Refused` to a run that never began, and
-`HostedRunError::Withheld` to a run that needs reconciliation.
+.with_record_sink(sink))` with the organization's own `OpenSesameInterceptor`,
+and `drive` calls `run_change_password_hooked`. `settlement_of` maps
+`HostedRunError::Refused` to a run that never began (the job records "not
+submitted"), `HostedRunError::Withheld` and a refused or failed run after a
+submit to a reconciliation, and a `pre_tool_call` refusal of the submit to
+"not submitted" because the step was never enqueued.
+
+What the surrounding tests pin, so the claims above are about a run and not
+only about the machinery:
+
+| Where | What it shows |
+|---|---|
+| `routes/agent_runs_web_login_tests.rs`, `web_login/custody_hooks_tests.rs` | A rotation runs hooked end to end through the real step routes; a denied verb is stopped before it is enqueued; custody steps are never hooked; nothing credential-valued reaches a record, a route body or a job detail. |
+| `routes/agent_runs/outcome.rs`, `driver_tests.rs` | The settle route accepts only an outcome the pending step may produce, in its canonical encoding: a driver-added field (`{"outcome":"done","password":"x"}`) at any depth is refused with 422 and never stored; an outcome for another step is refused; a claim past its lease cannot settle before anyone reclaims it. |
+| `routes/agent_runs_settle_tests.rs` | A credential-shaped string in an accepted outcome is stored as its marker, and a policy that denies credentials stores the step as refused. |
+| `web_login/close_tests.rs` | A run is closed durably, read back, before its rotation is settled; a close that fails is retried with backoff and the job stays unsettled until it lands; one that never lands parks the job for reconciliation with a detail that says so, and the reaper closes the run later. |
+| `web_login/claim_tests.rs`, `connection-broker` `rotation_web_login_claim_tests.rs` | The runner's job is created already claimed and never offered to the generic consumer; the claim is an organization-scoped compare-and-set with a persisted lease naming the run; recovery reads the lease. |
+| `web_login/approver_tests.rs`, `agent_hook_approver_tests.rs` | A hooked rotation whose policy escalates a verb, with the Identity API replaced by a local server: the run is held with nothing enqueued until the person approves the request it was bound to, then proceeds whole; a refusal, a deadline (the interaction and request withdrawn), an approval bound to other content, an organization nobody is named for, and a deployment with no approver each leave that step undispatched; a partial approver configuration stops the Host from building. |
+| `web_login/reaper_tests.rs`, `retention_tests.rs`, storage `agent_hook_records_fk_tests.rs` | A stopped gateway's runs are closed and jobs parked at startup and on a timer; expired runs go with their steps and hook records, and the hook records cannot outlive or name a run that does not exist (migration 0053). |
+| `routes/agent_hooks/presets_walk_tests.rs` | The `rotation-web-login` preset proven on real hooked runs: a full change-password walk, a capture ceremony, and each of the eleven verbs decided by the real interceptor. |
+| `routes/agent_runs_hook_records_tests.rs` | A hosted run's hook records are paged by `sequence` under the sealed log's entitlement, summarised on the run, and stand in for a sealed log the Host has no key to write. |
+
+The Interaction-backed approver (`crates/agent-hooks/src/interaction`) is the
+approval seam production plugs in, built per run by the launcher from the
+deployment's `OPENSESAME_AGENT_HOOKS_APPROVER_*` configuration and the
+organization's stored approver (`docs/operators/agent-hooks.md`); with neither,
+every escalation stays a denial, which is §9's reading of an unresolved
+approval. Its Identity API
+client resolves routes with `Url::join` under an enforced path invariant, so a
+base URL with a path prefix is kept (`interaction::http`, with
+`tests/interaction_approver.rs` driving a prefixed server).

@@ -1,4 +1,4 @@
--- ADR 0150: one agent-hooks policy per organization — the document
+-- ADR 0156: one agent-hooks policy per organization — the document
 -- `opensesame-agent-hooks` parses (`HookPolicy`, version 1), stored in its
 -- canonical form with every default filled, so what the Host decides with is
 -- exactly what an operator reads back. `version` is the compare-and-set

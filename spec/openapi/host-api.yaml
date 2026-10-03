@@ -2538,7 +2538,7 @@ paths:
     post:
       summary: Answer one agent-hooks/0.1 interception with a verdict
       description: >-
-        OpenSesame as a remote agent-hooks/0.1 interceptor (ADR 0150), for an
+        OpenSesame as a remote agent-hooks/0.1 interceptor (ADR 0156), for an
         agent framework that cannot spawn `opensesame hooks intercept`. The body
         is one `AgentContext`; the answer is its `Verdict`, decided under the
         caller organization's hook policy (the built-in default — every tool
@@ -2673,7 +2673,7 @@ paths:
         1, unambiguous rules — whose errors name a rule's position and pass
         through as the `hint`. What is stored is the parsed policy with its
         defaults filled. Owner/admin or operator only, and it takes a
-        **step-up** (ADR 0150, on ADR 0146): the operator token, or a native
+        **step-up** (ADR 0156, on ADR 0146): the operator token, or a native
         session carrying a fresh passkey step-up (`assurance`
         `phishing_resistant`, `amr` `["webauthn"]`, `last_step_up_at` within
         five minutes) and no agent capability. A role alone is not enough —
@@ -2859,7 +2859,7 @@ paths:
         `runnable.unattended` (the lifecycle scanner runs it alone, which also
         needs a passing canary). Owner/admin or operator only; never an agent
         surface — an agent must not read, let alone write, the recipes that
-        govern it (ADR 0150).
+        govern it (ADR 0156).
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       parameters:
         - $ref: "#/components/parameters/OperatorOrganization"
@@ -3101,7 +3101,7 @@ paths:
         key (`rsk_` and 32 hex of its SHA-256), so a request cannot choose one.
         The private half never reaches the Host. Owner/admin or operator only,
         and it takes the same **step-up** as replacing the agent-hooks policy
-        (ADR 0150, on ADR 0146): a key an agent framework could pin under an
+        (ADR 0156, on ADR 0146): a key an agent framework could pin under an
         administrator's own token would sign the recipes that govern it.
         Without it the answer is `403` `step_up_required`. A key already
         pinned, or revoked (revocation is final), is `409` `signer_exists`;
@@ -3322,7 +3322,7 @@ paths:
       summary: Read one run's state
       description: >-
         Carries `hook_records`, the count-and-verdict summary of the run's
-        agent-hooks records (ADR 0150): counts only, never a reason or a
+        agent-hooks records (ADR 0156): counts only, never a reason or a
         digest. The listing does not carry it.
       security: [{ HostBearer: [] }]
       parameters:
@@ -3422,7 +3422,7 @@ paths:
     get:
       summary: Read one page of a run's agent-hooks records
       description: >-
-        The payload-free agent-hooks record of a Host-run agent (ADR 0150): one
+        The payload-free agent-hooks record of a Host-run agent (ADR 0156): one
         row per interception, in `sequence` order — interception point,
         decision, a machine reason, and the `sha256:` identities of the context
         before and after composition. No message, no target and no transform
@@ -3585,7 +3585,7 @@ paths:
 
 
         Steps are enqueued by the Host's web-login runner, which hosts each run
-        as an agent-hooks/0.1 session (ADR 0150): a verb the organization's
+        as an agent-hooks/0.1 session (ADR 0156): a verb the organization's
         hook policy refuses at `pre_tool_call` is never enqueued. Besides the
         browser's verbs (`navigate`, `wait_for`, `fill_credential` with
         `reference` `current_password` or a candidate handle, `assert_present`,

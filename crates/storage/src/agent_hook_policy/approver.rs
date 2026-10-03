@@ -1,4 +1,4 @@
-//! Who an organization's escalated agent actions are put to (ADR 0150).
+//! Who an organization's escalated agent actions are put to (ADR 0156).
 //!
 //! A sibling of the policy ([`super`]): the policy says whether an
 //! action needs a person, this row says which one. It lives beside the policy

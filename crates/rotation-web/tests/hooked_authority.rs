@@ -1,4 +1,4 @@
-//! An interceptor is trusted with content, never with authority (ADR 0150,
+//! An interceptor is trusted with content, never with authority (ADR 0156,
 //! ADR 0005, ADR 0076 §1; agent-hooks/0.1 §1.4).
 //!
 //! A `pre_tool_call` transform may redact a free-text field or move a selector

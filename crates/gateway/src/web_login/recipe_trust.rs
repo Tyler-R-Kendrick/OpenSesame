@@ -1,5 +1,5 @@
 //! The recipe a run may replay, and the proof it is entitled to (ADR 0076 §4,
-//! ADR 0150).
+//! ADR 0156).
 //!
 //! The store hands back a row only when its signer is pinned and unrevoked
 //! *now* and the row is unexpired, and — for an unattended run — carries a

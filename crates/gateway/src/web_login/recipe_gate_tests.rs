@@ -1,4 +1,4 @@
-//! The rule a run's recipe must meet (ADR 0076 §4, ADR 0150): signed by a key
+//! The rule a run's recipe must meet (ADR 0076 §4, ADR 0156): signed by a key
 //! the organization still pins, the very document that signature covers,
 //! unexpired — and, with nobody watching, proven by a real change. The
 //! store's trust column is never taken on its word.

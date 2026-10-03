@@ -1,5 +1,5 @@
 //! The recipes a web-login run replays, and the rule that makes one of them
-//! replayable (ADR 0076 §4, ADR 0150).
+//! replayable (ADR 0076 §4, ADR 0156).
 //!
 //! `trust` is never an input. A write carries the *verification* the Host
 //! performed — which pinned signer's signature checked, and a canary the

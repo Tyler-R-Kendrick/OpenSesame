@@ -1,5 +1,5 @@
 //! Retention: what the Host's own audit and run records are allowed to keep
-//! (ADR 0076 §5, ADR 0081, ADR 0150).
+//! (ADR 0076 §5, ADR 0081, ADR 0156).
 //!
 //! Two things grew without a caller that ever trimmed them:
 //!

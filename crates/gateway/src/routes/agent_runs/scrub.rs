@@ -1,4 +1,4 @@
-//! What a driver's outcome becomes before it is stored (ADR 0150).
+//! What a driver's outcome becomes before it is stored (ADR 0156).
 //!
 //! The outcome route is the one place a driver's word becomes a queue row, so
 //! it is scrubbed here rather than left to whoever reads the row: a step the

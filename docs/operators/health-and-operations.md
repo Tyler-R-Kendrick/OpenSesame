@@ -18,7 +18,7 @@
 - Claim bearer secrets cannot be reconstructed from digests after catastrophic loss; in-flight claims must be re-issued.
 - Issuer URL changes break RP trust; treat issuer as sticky.
 
-## Agent-hooks and web-login housekeeping (ADR 0150)
+## Agent-hooks and web-login housekeeping (ADR 0156)
 The Host runs background actors for these, none of which need configuring:
 
 - **Decision audit retention.** Every verdict `POST /api/v1/agent-hooks/intercept`

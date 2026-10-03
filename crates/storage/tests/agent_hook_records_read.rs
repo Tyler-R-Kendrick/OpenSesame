@@ -1,4 +1,4 @@
-//! Reading a hosted run's hook records back (ADR 0150): pages by `sequence`,
+//! Reading a hosted run's hook records back (ADR 0156): pages by `sequence`,
 //! a count-and-verdict summary, tenancy, and the rule that a run opened with
 //! no viewer key takes no sealed event (ADR 0081 §9).
 

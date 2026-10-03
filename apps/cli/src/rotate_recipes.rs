@@ -1,5 +1,5 @@
 //! `opensesame rotate …` and the recipes a web-login run replays (ADR 0076
-//! §4, ADR 0150).
+//! §4, ADR 0156).
 //!
 //! The recipe verbs read and write the organization's recipes on the Host;
 //! the signer verbs pin the Ed25519 public keys the organization trusts to
@@ -18,7 +18,7 @@
 //!    whose completion is the recipe's canary (`recipe get` shows it); an
 //!    unattended run needs one.
 //!
-//! An agent has none of these (ADR 0076 §1, ADR 0150): the recipes govern it.
+//! An agent has none of these (ADR 0076 §1, ADR 0156): the recipes govern it.
 
 #[path = "rotate_recipes_call.rs"]
 mod call;

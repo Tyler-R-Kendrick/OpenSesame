@@ -21,7 +21,7 @@ What was run for each feature, and what the results do and do not show.
 | Page | Feature |
 |---|---|
 | [AgentAuth conformance](agent-auth-conformance.md) | `auth.md` and agent registration against the RFCs. |
-| [Agent Hooks conformance](agent-hooks-conformance.md) | OpenSesame's own runs as an Agent Hooks 0.1 host, against the upstream CTK ([ADR 0150](../adr/0150-agent-hooks-interceptor.md)). |
+| [Agent Hooks conformance](agent-hooks-conformance.md) | OpenSesame's own runs as an Agent Hooks 0.1 host, against the upstream CTK ([ADR 0156](../adr/0156-agent-hooks-interceptor.md)). |
 | [AI contextual support](ai-contextual-support.md) | The in-product assistant and GuideLang ([ADR 0088](../adr/0088-ai-native-contextual-support.md)). |
 | [Ambient SSO](ambient-sso.md) | Opt-in automatic sign-in. |
 | [Authentication service parity](authentication-service-parity.md) | The self-hosted authentication service against Passwordless.dev's concepts. |

@@ -70,7 +70,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     tokio::spawn(sync_actor::run(state.clone()));
     // What a stopped gateway left half-run — a `discovering` web-login job, an
     // observation run still open — is closed *before* the scanner starts
-    // anything of this process's own, and then swept on a timer (ADR 0150).
+    // anything of this process's own, and then swept on a timer (ADR 0156).
     web_login::reaper::reconcile_at_startup(&state).await;
     tokio::spawn(web_login::reaper::run(state.clone()));
     // RETENTION: trims the agent-hooks decision audit and expired web-login

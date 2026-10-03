@@ -1,4 +1,4 @@
-//! What a settled outcome may hold once it is stored (ADR 0150): scrubbed at
+//! What a settled outcome may hold once it is stored (ADR 0156): scrubbed at
 //! the route, whether or not anyone is still waiting for it.
 
 use std::sync::atomic::{AtomicBool, Ordering};

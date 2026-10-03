@@ -93,7 +93,7 @@ passkey. The Identity API holds four rules here; they are not settings.
   gets `404 not_found`. Withdrawing twice answers the same state; a request
   already approved, refused or lapsed keeps that ending (`409
   request_not_pending`, `410 expired_request`). The agent-hooks Interaction
-  approver (`crates/agent-hooks`, ADR 0150) calls it on every exit that is not
+  approver (`crates/agent-hooks`, ADR 0156) calls it on every exit that is not
   an approval.
 - **A refusal is not silence.** Spending an interaction a person refused
   (`POST /v1/interactions/{ref}/consume`) answers `403 approval_denied`, final.

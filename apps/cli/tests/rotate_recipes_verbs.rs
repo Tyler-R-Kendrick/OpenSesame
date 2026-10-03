@@ -1,5 +1,5 @@
 //! `rotate recipe` and `rotate signer`, driven through the real binary against
-//! a stand-in Host (ADR 0076 §4, ADR 0150): signing is local, a recipe that is
+//! a stand-in Host (ADR 0076 §4, ADR 0156): signing is local, a recipe that is
 //! not one never leaves the machine, and each verb names the right route.
 
 mod hooks_mock;

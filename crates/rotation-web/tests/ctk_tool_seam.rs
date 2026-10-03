@@ -101,7 +101,7 @@ async fn ctk_021_the_deprecated_policy_target_alias_rewrites_the_argument() {
 async fn ctk_021_the_same_rewrite_to_another_origin_is_transform_invalid() {
     // ...and is `transform_invalid` when it would move the navigation to
     // another origin: which site a run reaches is not an interceptor's call
-    // (`hooks::authority`, ADR 0150).
+    // (`hooks::authority`, ADR 0156).
     let hooked = under("AH-CTK-021").await;
     assert_eq!(
         hooked.navigate("https://example.com/risky").await,

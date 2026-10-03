@@ -3,12 +3,12 @@ name = "opensesame-agent-hooks"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "OpenSesame as an agent-hooks/0.1 interceptor and approval resolver (ADR 0150)"
+description = "OpenSesame as an agent-hooks/0.1 interceptor and approval resolver (ADR 0156)"
 
 [dependencies]
 # The canonical agent-hooks core (MIT, responsibleai/agent-hooks). Pinned
 # exactly: the contract is pre-1.0 and every bump is a deliberate re-read of
-# the spec (ADR 0150 §1).
+# the spec (ADR 0156 §1).
 agent-hooks-sdk = "=0.1.0-alpha.5"
 async-trait = { workspace = true }
 regex = "1.11.1"
@@ -20,7 +20,7 @@ serde = { workspace = true }
 # `float_roundtrip`: the digest reads every number as the nearest double, as
 # `JSON.parse` does, and serde_json's default float parser can be one ulp off.
 serde_json = { workspace = true, features = ["float_roundtrip"] }
-# The interaction request digest is recomputed here, not trusted (ADR 0150).
+# The interaction request digest is recomputed here, not trusted (ADR 0156).
 # Already in the tree through the SDK; named so the digest does not depend on
 # a transitive dependency staying.
 sha2 = { workspace = true }

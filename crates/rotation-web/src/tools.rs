@@ -146,7 +146,7 @@ pub enum StepError {
     Challenge,
     #[error("the runner is unavailable")]
     Transport,
-    /// An agent-hooks verdict refused the step (ADR 0150): a combined deny at
+    /// An agent-hooks verdict refused the step (ADR 0156): a combined deny at
     /// `pre_tool_call` (the step was never dispatched) or at `post_tool_call`
     /// (its result was discarded), or a transform the host could not apply.
     /// Carries no reason on purpose — `StepError` crosses the driver channel,

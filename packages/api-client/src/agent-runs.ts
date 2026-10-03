@@ -9,7 +9,7 @@ import { decodeAgentRun, decodeClaim } from "./agent-run-wire.js";
 import type { HostRequestContext } from "./http.js";
 
 /**
- * The driver's half of a sandboxed run (ADR 0079 §4, ADR 0081, ADR 0150): the
+ * The driver's half of a sandboxed run (ADR 0079 §4, ADR 0081, ADR 0156): the
  * owner's own browser claims the run's outstanding step and settles what it
  * did. These types mirror `crates/rotation-web/src/extension.rs`
  * (`StepRequest` / `StepOutcome`) and `crates/gateway/src/web_login/custody.rs`
@@ -223,7 +223,7 @@ export function agentRunsApi(ctx: HostRequestContext) {
       };
     },
 
-    /** One page of the run's payload-free agent-hooks records (ADR 0150). */
+    /** One page of the run's payload-free agent-hooks records (ADR 0156). */
     async readRunHookRecords(
       runId: string,
       page: HookRecordPage = {},

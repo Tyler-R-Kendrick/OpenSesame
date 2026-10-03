@@ -1,4 +1,4 @@
-//! Reading a hosted run's agent-hooks records back out (ADR 0150).
+//! Reading a hosted run's agent-hooks records back out (ADR 0156).
 //!
 //! Writing is [`Db::append_agent_hook_records`]; this is the other half, and
 //! it is deliberately narrower than the table: a page of the payload-free

@@ -90,7 +90,7 @@ pub async fn cmd_watch(
             .await
             .context("reading the observation log")?;
         // A run the Host opened has no viewer key, so nothing was ever sealed
-        // to one: its hook record is the observation (ADR 0081 §9, ADR 0150).
+        // to one: its hook record is the observation (ADR 0081 §9, ADR 0156).
         if body.get("observation").and_then(Value::as_str) == Some("hook_records_only") {
             return crate::agent_run_hooks::observe(
                 server,

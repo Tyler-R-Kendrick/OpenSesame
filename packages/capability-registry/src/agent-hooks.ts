@@ -2,7 +2,7 @@ import { extensionRunnerCapabilities } from "./extension-runner.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { webLoginRecipeCapabilities } from "./web-login-recipes.js";
 
-export const ADR_AGENT_HOOKS = "0150-agent-hooks-interceptor.md";
+export const ADR_AGENT_HOOKS = "0156-agent-hooks-interceptor.md";
 
 /**
  * An interceptor answers the framework that runs an agent loop, at that
@@ -171,7 +171,7 @@ const RUN_RECORDS_EXCLUSIONS = {
 } as const;
 
 /**
- * OpenSesame as an agent-hooks/0.1 interceptor (ADR 0150): the verdict for
+ * OpenSesame as an agent-hooks/0.1 interceptor (ADR 0156): the verdict for
  * one interception — locally, or from the Host — and the policy that
  * decides it.
  */

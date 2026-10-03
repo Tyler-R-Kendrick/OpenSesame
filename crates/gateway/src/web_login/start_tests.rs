@@ -1,4 +1,4 @@
-//! The scanner starts a web-login run and moves on (ADR 0150): a tracked task
+//! The scanner starts a web-login run and moves on (ADR 0156): a tracked task
 //! per run, bounded globally and per organization, one per target, the
 //! policy lease claimed when the run begins to execute — and the run's own
 //! outcome, not the scanner's, on the feed.

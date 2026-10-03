@@ -1,4 +1,4 @@
-//! The recipe writer and the replay rule (ADR 0076 §4, ADR 0150): trust is
+//! The recipe writer and the replay rule (ADR 0076 §4, ADR 0156): trust is
 //! derived from a verification, never supplied; a pinned-then-revoked signer
 //! stops a recipe at the next run; an unattended run needs a fresh canary and
 //! an attended one does not; every change commits its audit with the row.

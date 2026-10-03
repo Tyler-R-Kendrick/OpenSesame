@@ -1,5 +1,5 @@
 //! `opensesame hooks decisions` — the audit of every agent-hooks verdict the
-//! Host's remote interceptor has answered for the organization (ADR 0150).
+//! Host's remote interceptor has answered for the organization (ADR 0156).
 //!
 //! Newest first, `--limit` at a time, filterable by exact match on the
 //! decision, the interception point, who asked, the reason and the policy

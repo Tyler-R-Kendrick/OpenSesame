@@ -1,4 +1,4 @@
-//! agent-hooks/0.1 over the Host API (ADR 0150): a remote interceptor, and
+//! agent-hooks/0.1 over the Host API (ADR 0156): a remote interceptor, and
 //! the per-organization policy it decides under.
 //!
 //! - `POST /api/v1/agent-hooks/intercept` — one `AgentContext` in, its

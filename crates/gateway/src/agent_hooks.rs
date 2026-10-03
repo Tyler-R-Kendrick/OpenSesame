@@ -1,4 +1,4 @@
-//! The Host's side of agent-hooks/0.1 (ADR 0150): each organization's hook
+//! The Host's side of agent-hooks/0.1 (ADR 0156): each organization's hook
 //! policy, and the value-blind record of every verdict answered under it.
 //!
 //! Everything that decides under an organization's policy loads it through

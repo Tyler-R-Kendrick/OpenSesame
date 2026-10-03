@@ -161,7 +161,9 @@ describe("pfReadDom", () => {
   });
 
   it("bounds what it returns", () => {
-    const { call } = inPage(`<body>${"<p>x</p>".repeat(60_000)}</body>`);
+    const { call } = inPage(
+      `<body>${`<p>${"x".repeat(2_000)}</p>`.repeat(150)}</body>`,
+    );
     expect(call(pfReadDom, []).length).toBe(200_000);
   });
 

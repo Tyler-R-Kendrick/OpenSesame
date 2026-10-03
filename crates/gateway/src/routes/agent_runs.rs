@@ -9,7 +9,7 @@
 //!   ciphertext it cannot read, so this route is a courier: it decides *who may
 //!   read the stream*, and the viewer key decides *what they can make of it*.
 //! - **Hook records** (`hook_records`) — the payload-free agent-hooks record of
-//!   a Host-run agent (ADR 0150): what a run with no viewer key has in place of
+//!   a Host-run agent (ADR 0156): what a run with no viewer key has in place of
 //!   a sealed log.
 //! - **Control** (`lease`) — request the page, take it, hand it back. Every
 //!   transition goes through `crates/session-observe`'s lease machine and is
@@ -55,7 +55,7 @@ pub(super) fn routes() -> Router<AppState> {
         .route("/api/v1/agent/runs/{id}", get(get_run))
         .route("/api/v1/agent/runs/{id}/observe", get(stream::observe))
         .route("/api/v1/agent/runs/{id}/log", get(stream::read_log))
-        // ADR 0150: the payload-free hook record of a Host-run agent.
+        // ADR 0156: the payload-free hook record of a Host-run agent.
         .route(
             "/api/v1/agent/runs/{id}/hook-records",
             get(hook_records::read_hook_records),
@@ -254,7 +254,7 @@ pub async fn get_run(
         Err(response) => return response,
     };
     // Metadata beside metadata: how many verdicts the run met and of which
-    // kinds, never what they were about (ADR 0150).
+    // kinds, never what they were about (ADR 0156).
     let summary = match hook_records::summary_of(&st, &organization_id, &run.id).await {
         Ok(summary) => summary,
         Err(response) => return response,

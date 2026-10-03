@@ -1,5 +1,5 @@
 //! `opensesame hooks policy preset ls|show` and `put --preset` — named hook
-//! policies as data (ADR 0150, ADR 0139).
+//! policies as data (ADR 0156, ADR 0139).
 //!
 //! A preset is a file under `spec/agent-hooks/presets/`, embedded here and
 //! in the gateway (`GET /api/v1/agent-hooks/presets`), each with a drift test

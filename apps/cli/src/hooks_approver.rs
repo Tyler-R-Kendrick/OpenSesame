@@ -1,5 +1,5 @@
 //! `opensesame hooks approver get|put` — who the Host puts the organization's
-//! escalated agent actions to (ADR 0150).
+//! escalated agent actions to (ADR 0156).
 //!
 //! The policy (`hooks policy`) says whether an action needs a person; this
 //! says which one. `put` names the inbox handle (`--ref`, from the approver's

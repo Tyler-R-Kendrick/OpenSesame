@@ -1,5 +1,5 @@
 //! The recipes a web-login run replays, and the keys that sign them (ADR 0076
-//! §4, ADR 0150).
+//! §4, ADR 0156).
 //!
 //! No recipe was ever written before this, so every real web-login job parked
 //! with "no verified recipe for this origin". These routes are the writer and
@@ -30,7 +30,7 @@
 //!
 //! Every route is for a native session of an owner or admin, or the operator,
 //! and never for an agent capability or a browser grant: an agent must not
-//! write the recipes that govern it (ADR 0076 §1, ADR 0150). The guards
+//! write the recipes that govern it (ADR 0076 §1, ADR 0156). The guards
 //! refuse both before dispatch, and the handlers refuse them again.
 //!
 //! A recipe is selectors and one URL — no value, no account, no session — so

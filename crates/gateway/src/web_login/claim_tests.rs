@@ -1,4 +1,4 @@
-//! The runner owns its job from the moment it is requested (ADR 0150): the
+//! The runner owns its job from the moment it is requested (ADR 0156): the
 //! generic rotation consumer is never offered it, the claim is a persisted
 //! lease naming the run, and a missing prerequisite parks the job through that
 //! claim rather than racing the consumer for it.

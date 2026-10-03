@@ -13,7 +13,7 @@
 //!   ([`super::recipe_trust`]). A candidate recipe is a hypothesis and is
 //!   never replayed;
 //! - **a hook policy the Host can read** — a stored document this build no
-//!   longer parses is refused, never replaced by the default (ADR 0150).
+//!   longer parses is refused, never replaced by the default (ADR 0156).
 
 use chrono::Utc;
 use opensesame_domain::OrganizationId;

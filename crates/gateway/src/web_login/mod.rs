@@ -1,5 +1,5 @@
 //! The Host's web-login runner: the executor side of the step channel, run as
-//! an agent-hooks/0.1 session (ADR 0076, ADR 0081, ADR 0150).
+//! an agent-hooks/0.1 session (ADR 0076, ADR 0081, ADR 0156).
 //!
 //! The gateway already served the *driver's* half — a browser claims a
 //! queued step and settles its outcome (`routes/agent_runs.rs`). This is the

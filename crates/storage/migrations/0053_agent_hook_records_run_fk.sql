@@ -1,4 +1,4 @@
--- ADR 0150: a hosted run's hook records belong to the run, and go with it.
+-- ADR 0156: a hosted run's hook records belong to the run, and go with it.
 --
 -- 0050 created agent_hook_records with the run id as a bare column, so
 -- nothing tied a record to an observation run: a record could name a run that

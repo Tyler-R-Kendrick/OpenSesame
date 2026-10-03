@@ -643,7 +643,7 @@ export function createInteractionHandoffRoutes(): Hono<{
         return fail(c, "interaction_not_found");
       }
       // Who may be asked about an agent's request: its addressee, and never
-      // the caller (ADR 0150). Same answer as every other refusal here.
+      // the caller (ADR 0156). Same answer as every other refusal here.
       if (
         !(await approverMayBeAsked(ctx, {
           kind: body.kind,

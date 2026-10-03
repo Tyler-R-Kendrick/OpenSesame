@@ -35,7 +35,7 @@ pub enum BlockedReason {
     HumanDriving,
     /// The runner could not act.
     Transport,
-    /// An agent-hooks verdict refused a step before the submit (ADR 0150).
+    /// An agent-hooks verdict refused a step before the submit (ADR 0156).
     HookRefused,
 }
 

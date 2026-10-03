@@ -1,4 +1,4 @@
-//! The web-login runner's tables (ADR 0076, ADR 0150): hook records are
+//! The web-login runner's tables (ADR 0076, ADR 0156): hook records are
 //! append-only, and a settled step's outcome can be narrowed to what the
 //! executor accepted. Which recipe a run may replay is `web_login_recipes.rs`.
 

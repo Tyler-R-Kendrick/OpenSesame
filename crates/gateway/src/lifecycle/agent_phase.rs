@@ -1,4 +1,4 @@
-//! A web-login run's outcome on the `agent.*` feed (ADR 0081, ADR 0150).
+//! A web-login run's outcome on the `agent.*` feed (ADR 0081, ADR 0156).
 //!
 //! A web login is observed, so its runs are announced there as well as on the
 //! lifecycle feed: `lifecycle.*` reports that a deadline was acted on,
