@@ -15,10 +15,7 @@
           "scrollToOptional": "Duress"
         },
         {
-          "pressIn": [
-            "#duress-profiles",
-            "Add"
-          ]
+          "pressIn": ["#duress-profiles", "Add"]
         },
         {
           "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox], [role=dialog] [aria-pressed]"
@@ -72,10 +69,7 @@
           "scrollToOptional": "Duress"
         },
         {
-          "pressIn": [
-            "#duress-profiles",
-            "Add"
-          ]
+          "pressIn": ["#duress-profiles", "Add"]
         },
         {
           "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox], [role=dialog] [aria-pressed]"
