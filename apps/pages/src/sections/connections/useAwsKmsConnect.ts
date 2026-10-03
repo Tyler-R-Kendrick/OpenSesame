@@ -13,7 +13,7 @@ import {
   type Flash,
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 import {
   type AwsKmsFormState,
@@ -46,7 +46,8 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
   const configured = Boolean(saved?.keyArn && saved.secretAccessKey);
   const publicView = saved ? toAwsKmsPublic(saved) : null;
   // A saved connection is what Test opens the protector with, so it is not
-  // removable while a protector on this key is enrolled (ADR 0150 §3).
+  // removable, and its key is not replaceable, while a protector on this key
+  // is enrolled (ADR 0158 §3). Credentials for the same key may rotate.
   const enrolled = Boolean(
     saved?.keyArn &&
       header?.protection?.records.some(
@@ -74,10 +75,17 @@ export function useAwsKmsConnect(onFlash: (flash: Flash) => void) {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  async function save(event: FormEvent) {
+  async function save(event: { preventDefault: () => void }) {
     event.preventDefault();
     if (!tomb) {
       onFlash({ tone: "warn", text: "Unlock a vault to seal AWS KMS." });
+      return;
+    }
+    if (enrolled && form.keyArn.trim() !== saved?.keyArn) {
+      onFlash({
+        tone: "err",
+        text: "A vault protector wraps with this key. Remove the protector before changing the key ARN.",
+      });
       return;
     }
     setBusy(true);

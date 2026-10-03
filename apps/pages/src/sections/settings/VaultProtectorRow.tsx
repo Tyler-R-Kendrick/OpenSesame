@@ -1,6 +1,9 @@
 import type { ProtectorViewRow } from "@opensesame/app-core/lib/vault/protection/protection-view.js";
 import { protectorCanBeTested } from "@opensesame/app-core/lib/vault/protection/protector-proof.js";
-import { protectorUnlocksVault } from "@opensesame/app-core/lib/vault/unlock-preference.js";
+import {
+  protectorIsHeaderWrap,
+  protectorUnlocksVault,
+} from "@opensesame/app-core/lib/vault/unlock-preference.js";
 import type { ReactNode } from "react";
 import { IconRefresh, IconStar, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -28,10 +31,13 @@ export function ProtectorRow({
   onPreferred: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  // Only the header's own wraps open the vault, so only they can be preferred
-  // — and they are removed under Unlock methods, where the wrap goes with the
-  // row. Every other protector is proved with Test and removed here.
+  // What opens the vault at the unlock screen can be preferred: the header's
+  // own wraps, and a verified recovery key, age key or passkey capsule
+  // (ADR 0152). A header wrap is removed under Unlock methods, where the wrap
+  // goes with the row; every other protector is proved with Test and removed
+  // here.
   const unlocks = protectorUnlocksVault(row);
+  const isHeaderWrap = protectorIsHeaderWrap(row);
   return (
     <div className="sw sw--method" data-protector-id={row.protectorId}>
       <div>
@@ -71,7 +77,7 @@ export function ProtectorRow({
             <IconStar size={16} />
           </button>
         ) : null}
-        {unlocks ? null : (
+        {isHeaderWrap ? null : (
           <button
             type="button"
             className="icon-btn icon-btn--sm"

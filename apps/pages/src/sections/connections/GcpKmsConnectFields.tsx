@@ -23,9 +23,11 @@ export function emptyGcpKmsForm(): GcpKmsFormState {
 
 function KeyNameField({
   form,
+  locked,
   onChange,
 }: {
   form: GcpKmsFormState;
+  locked: boolean;
   onChange: (key: keyof GcpKmsFormState, value: string) => void;
 }) {
   const keyId = useId();
@@ -49,6 +51,7 @@ function KeyNameField({
         title={help.help}
         aria-describedby={`${keyId}-help`}
         value={form.keyName}
+        readOnly={locked}
         onChange={(event) => onChange("keyName", event.target.value)}
       />
       <p className="hint" id={`${keyId}-help`}>
@@ -61,10 +64,12 @@ function KeyNameField({
 function CredentialFields({
   form,
   configured,
+  locked,
   onChange,
 }: {
   form: GcpKmsFormState;
   configured: boolean;
+  locked: boolean;
   onChange: (key: keyof GcpKmsFormState, value: string) => void;
 }) {
   const projectId = useId();
@@ -97,6 +102,7 @@ function CredentialFields({
           placeholder={projectHelp.placeholder}
           title={projectHelp.help}
           value={form.projectId}
+          readOnly={locked}
           onChange={(event) => onChange("projectId", event.target.value)}
         />
       </div>
@@ -156,18 +162,22 @@ function OptionalFields({
 export function GcpKmsConnectFields({
   form,
   configured,
+  identityLocked = false,
   onChange,
 }: {
   form: GcpKmsFormState;
   configured: boolean;
+  /** The key a protector wraps with: drawn read-only while one is enrolled. */
+  identityLocked?: boolean;
   onChange: (key: keyof GcpKmsFormState, value: string) => void;
 }) {
   return (
     <>
-      <KeyNameField form={form} onChange={onChange} />
+      <KeyNameField form={form} locked={identityLocked} onChange={onChange} />
       <CredentialFields
         form={form}
         configured={configured}
+        locked={identityLocked}
         onChange={onChange}
       />
       <OptionalFields form={form} onChange={onChange} />

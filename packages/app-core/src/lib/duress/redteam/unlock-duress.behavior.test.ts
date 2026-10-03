@@ -127,19 +127,22 @@ describe("duress unlock behaviour", () => {
     );
 
     const unlockWithPasskey = vi.fn(async () => undefined);
-    const probePasskeyPrf = vi.fn(async () => new ArrayBuffer(32));
+    const probePasskeyCeremony = vi.fn(async () => ({
+      prfOutput: new ArrayBuffer(32),
+      credentialIdB64: "cred-1",
+    }));
     const unlockWithHeldPrf = vi.fn(async () => undefined);
     const createGuest = vi.fn(async () => undefined);
     await expect(
       unlockWithPasskeyAfterDuressGate({
         unlockWithPasskey,
-        probePasskeyPrf,
+        probePasskeyCeremony,
         unlockWithHeldPrf,
         createGuest,
       }),
     ).resolves.toBe("needs_duress_code");
     expect(unlockWithPasskey).not.toHaveBeenCalled();
-    expect(probePasskeyPrf).toHaveBeenCalledOnce();
+    expect(probePasskeyCeremony).toHaveBeenCalledOnce();
     expect(unlockWithHeldPrf).not.toHaveBeenCalled();
 
     clearEnrollmentStateForUnlock();

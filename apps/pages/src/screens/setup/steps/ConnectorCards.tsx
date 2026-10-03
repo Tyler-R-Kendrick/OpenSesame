@@ -96,7 +96,7 @@ function useConnectFlow(
 /**
  * The card's one status or key. A key is drawn only where a road exists to
  * connect through — a Connect route or an open Host road — because otherwise
- * it could only fail (ADR 0150, ADR 0151); the card then names what it needs
+ * it could only fail (ADR 0158, ADR 0151); the card then names what it needs
  * and offers none.
  */
 function CardSide({
