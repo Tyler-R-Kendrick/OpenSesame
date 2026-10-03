@@ -6,14 +6,15 @@ import {
   tokenFromPress,
 } from "@opensesame/app-core/lib/keymap/notation.js";
 import {
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
   useRef,
   useState,
 } from "react";
-import { StatusMark } from "../../../components/StatusMark.js";
 import { keymapSeams } from "../../../lib/keymap.js";
+import { Refused } from "./Refused.js";
 import type { Refusal } from "./useBindFlow.js";
 
 /**
@@ -96,6 +97,16 @@ function usePressedKeys(
 }
 
 /**
+ * The keymap timeout as a custom property, not `animation-duration`: the
+ * global reduced-motion rule forces that one to 0.01ms, and only the
+ * stylesheet can answer it.
+ */
+function drainStyle(): CSSProperties {
+  // SAFETY: structurally a CSSProperties; the typing only lacks an index for custom properties.
+  return { "--kb-drain-ms": `${keymapSeams.goTimeoutMs}ms` } as CSSProperties;
+}
+
+/**
  * Where a key is recorded, in place of the keycap it replaces — never a
  * dialog. Press the keys: one press, or a sequence (`g v`, `Space f`), which
  * is kept once nothing follows for the keymap's own timeout — the hairline
@@ -158,7 +169,6 @@ export function KeyCapture({
     });
 
   const shown = tokens.length > 0 ? tokens.map(keycapLabel).join(" ") : text;
-  const drain = { animationDuration: `${keymapSeams.goTimeoutMs}ms` };
 
   return (
     <span
@@ -194,12 +204,12 @@ export function KeyCapture({
           <span
             key={tokens.length}
             className="kb-capture__drain"
-            style={drain}
+            style={drainStyle()}
             aria-hidden="true"
           />
         ) : null}
       </span>
-      {problem ? <StatusMark tone="err" label={problem.message} /> : null}
+      {problem ? <Refused {...problem} /> : null}
       {children}
     </span>
   );

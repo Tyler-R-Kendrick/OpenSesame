@@ -58,6 +58,8 @@ that round-trips with the table.
        steps: [listing.search, "3 listing.next"]
    ```
 
+   Reset all reports a refused reset and leaves storage unchanged.
+
 4. **Macros are named step lists.** Each step is a command and a count, and a
    macro is bound like any command. A count typed before its key repeats it
    (`3 Space t`). The Macros panel builds steps by picking or by *recording*:
@@ -136,6 +138,7 @@ that round-trips with the table.
    still repeats), and a command that throws is not recorded. `register.*` is refused
    as a macro step and never runs from an event trigger. Because a recording
    is an ordinary macro it shows in the Macros panel and can be bound.
+   A recording that storage refuses is announced as not kept and stays for a retry.
 
 ### Guardrails
 
@@ -146,7 +149,7 @@ that round-trips with the table.
   or AltGr (`@` on a German layout) is that symbol and binds as one. The
   browser's own tab, window and
   reload keys are refused too (Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+PageUp/Down,
-  Ctrl+1–9, Ctrl+W/T, Ctrl+Shift+T/W/N, Ctrl+Q, Ctrl+R, F5, F11, F12).
+  Ctrl+1–9, Ctrl+N/W/T, Ctrl+Shift+T/W/N, Ctrl+Q, Ctrl+R, F5, F11, F12).
 - **A command that asks before it acts** (`item.trash`, `item.share`) is
   locked. No key may be moved onto it, so a remap cannot turn a key that
   used to move the cursor into a share. No macro may run it. Its own key
@@ -191,8 +194,12 @@ that round-trips with the table.
   prefix is marked, because it waits. Commands can be found by name or by
   pressing the keys (VS Code's Record Keys). The editor loads as its own
   chunk on a Keybindings visit.
-- `KEYMAP_HELP_CORE` still describes the defaults. The `?` sheet adds a row
-  for each of the person's own bindings and struck defaults.
+- `KEYMAP_HELP_CORE` still describes the defaults, and the `?` sheet reads
+  that way while nothing is rebound. Once a person moves or strikes a key, the
+  sheet is drawn from the effective bindings: a row whose commands changed is
+  rebuilt one line per command, a key moved onto another command is on that
+  command, a row whose commands lost every key is dropped, and only keys for
+  commands the sheet has no row for (and context-scoped keys) follow.
 - `j` and `gg` now bring the keyboard to the listing they move, exactly as
   `k` and `G` always did. The overlay that ran them used to skip that step.
 - The Keymap panel head has a scope choice beside the view filter:

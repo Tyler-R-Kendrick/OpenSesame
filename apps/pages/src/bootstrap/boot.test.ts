@@ -202,7 +202,7 @@ describe("pre-unlock boot path", () => {
     expect(vaultStore.getSnapshot().status).toBe("empty");
   });
 
-  it("pulls the guest tomb out of storage when it is the account to ask about", async () => {
+  it("pulls the guest tomb out of storage when it is the account to ask about, and its header always", async () => {
     // The tomb the unlock screen will ask about is the guest tomb when that
     // was the last authorized account (AGENTS.md §5). Hydrating only the
     // active project left a guest's enrolled gate unreadable on reload, and
@@ -213,11 +213,14 @@ describe("pre-unlock boot path", () => {
       expect.arrayContaining([tombFileKey(GUEST_TOMB, HEADER_PATH)]),
     );
 
-    // And it does not pull a tomb it has no reason to ask about.
+    // Otherwise it pulls only the guest tomb's header, not its body: the
+    // duress code is checked against every header on the device, a guest's PIN
+    // included, but nothing else of that tomb is asked about.
     hydrated.keys = [];
     kvDelete(LAST_VAULT_KEY);
     await boot();
-    expect(hydrated.keys).not.toContain(tombFileKey(GUEST_TOMB, HEADER_PATH));
+    expect(hydrated.keys).toContain(tombFileKey(GUEST_TOMB, HEADER_PATH));
+    expect(hydrated.keys).not.toContain(tombFileKey(GUEST_TOMB, BODY_PATH));
   });
 
   it("asks for the gate a guest enrolled, from a cold boot (ADR 0091)", async () => {

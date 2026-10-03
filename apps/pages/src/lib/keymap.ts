@@ -19,7 +19,11 @@ import {
   startRegister,
 } from "./keymap-chord.js";
 import { runTarget } from "./keymap-commands.js";
-import { contributedKeymapExtras, keymapHelpRows } from "./keymap-help.js";
+import {
+  type KeymapView,
+  contributedKeymapExtras,
+  keymapHelpRows,
+} from "./keymap-help.js";
 import { sectionJumpKeys } from "./keymap-jumps.js";
 import { recordRun } from "./keymap-registers.js";
 import { type Fire, resolveToken } from "./keymap-resolve.js";
@@ -60,14 +64,18 @@ export { sectionJumpKeys, sectionJumpPath } from "./keymap-jumps.js";
 export {
   KEYMAP_HELP_CORE,
   type KeymapHelpRow,
+  type KeymapView,
   keymapHelpRows,
   registerKeymapHelp,
   showKeymapHelp,
 } from "./keymap-help.js";
 
-/** The sheet for the jumps and controls registered right now. */
-export function keymapHelp() {
-  return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras());
+/**
+ * The sheet for the jumps and controls registered right now; with the keymap
+ * in force, drawn from the keys a person actually has.
+ */
+export function keymapHelp(view?: KeymapView) {
+  return keymapHelpRows(sectionJumpKeys(), contributedKeymapExtras(), view);
 }
 
 type BindingsFor = (

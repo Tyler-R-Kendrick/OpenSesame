@@ -278,10 +278,19 @@ its access code, and signs in with the same code on the password grant
 - The server keeps the wrap and a SHA-256 digest of the access code, never
   the code or the key. A request is open for fifteen minutes and is spent by
   the one sign-in it allows; a denial deletes it.
-- An account has at most five unanswered requests at once; wrong codes are
-  limited per request, and requests per address by the sign-in limiter.
+- An address may make five requests in a window, and the count is its own —
+  not the failed-password count — charged to every normalized address alike,
+  so a made-up address gets no fresh allowance and the refusal says nothing
+  about who has an account. An account also has at most five unanswered
+  requests at once, held by the store as the same bound; wrong codes are
+  limited per request.
 - An address with no account gets a well-formed request that nothing will
   ever answer, so asking reveals nothing about who has an account.
+- A device waiting on the anonymous hub takes its seat first and then looks
+  again at the request: an answer that landed in between is told to it, so
+  no one waits on an answer that came. The wait ends when the request is
+  answered or denied, and in any case when its fifteen minutes are up.
+  Requests are swept by when they were made, which is indexed.
 - The pinned SignalR client, connected as `AnonymousHubService` connects,
   hears the answer (`AuthRequestResponseRecieved`, Bitwarden's spelling)
   under the oracle; the signed-in client hears the request and its answer.
@@ -298,18 +307,46 @@ from there, as they do against Bitwarden's server.
 The server enforces the ones that guard what it stores, on members who are
 neither owners nor admins, as Bitwarden's does:
 
-- **Two-step login:** enabling it revokes members without it; turning one's
-  own off revokes one from such organizations; a member without it is
-  neither confirmed nor restored.
+- **Two-step login:** enabling it revokes members without it; removing an
+  account's last provider revokes it from such organizations; a member
+  without it is neither confirmed, restored, nor demoted into the role.
 - **Single organization:** enabling it revokes members who belong to
   another organization; such a member is neither confirmed nor restored into
-  another, and creates none.
+  another, and creates none. An owner or admin is exempt from the policies
+  of the organization they run, but not from one that binds them in another:
+  an account bound there is not confirmed here in any role.
 - **Personal ownership:** no new items in the personal vault (items go to an
   organization's collections instead).
 - **Disable Send**, and **Send options**' "hide my email": no new or changed
   Sends, or none hiding the address.
 
-Policies move with an organization from vaultwarden. `/plans` answers with
+Who may be a member is decided in the store, in the one transaction that
+changes the membership, after the transaction has taken the write lock — the
+same discipline as the authority fence. Whichever of "enable the policy" and
+"confirm, restore, demote, create, import" commits first, the other sees it:
+a policy is never on with a violator still confirmed, and an account is never
+left in two organizations under a single-organization policy. Enabling a
+policy revokes the members it excludes in the transaction that enables it,
+and removing the last two-step provider revokes the account's memberships in
+the transaction that removes it; clients are told after the commit. A role
+edit reads the member's standing from the row under the lock and never writes
+their status, so an edit that raced a revocation cannot undo it. An invitation
+to an existing account, and the claim of a waiting one, skip an organization
+the account is bound out of by another's single-organization policy, so no
+seat is left half-held. The decisions are exercised by
+`tests/org_policy_membership.rs` (the creation race runs over a database file,
+whose pool has several connections) and `tests/org_seats.rs`.
+
+A Send is changed only by deleting it once Disable Send is on: the policy
+holds for creating, updating, removing a password, and completing a file
+announced before the policy came on.
+
+Policies move with an organization from vaultwarden, and they are enforced as
+the organization arrives: a member the enabled policies exclude — an account
+whose authenticator did not come across, one already in another organization —
+arrives revoked, and the importer reports how many — and says so when no
+owner is left standing, as when its owner is bound in another organization,
+since nobody can then run it until one is restored. `/plans` answers with
 the one plan this server has, so the web vault can create an organization.
 
 ## Consequences
