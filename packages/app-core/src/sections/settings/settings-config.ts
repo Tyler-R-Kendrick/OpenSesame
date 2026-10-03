@@ -247,10 +247,11 @@ function stepsNode(
   flow: boolean | undefined,
   old?: YAMLSeq,
 ): Node {
-  const node = document.createNode([...steps], {
+  const made = document.createNode([...steps], {
     flow: old === undefined ? true : flow === true,
   });
-  if (old === undefined || !isSeq(node)) return node;
+  if (old === undefined || !isSeq(made)) return made;
+  const node: YAMLSeq = made;
   node.comment = old.comment;
   node.commentBefore = old.commentBefore;
   const spare = old.items.filter(isScalar);
