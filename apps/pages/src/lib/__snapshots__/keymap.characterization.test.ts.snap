@@ -63,7 +63,7 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
     "Record or replay a macro",
   ],
   [
-    "Shift-F10 / Shift-Enter",
+    "Shift-F10 / Shift-Enter / Menu",
     "Actions for the focused row",
   ],
   [

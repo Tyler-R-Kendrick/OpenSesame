@@ -24,6 +24,48 @@ async function openKeybindings(page) {
     .waitFor({ timeout: 8000 });
 }
 
+/**
+ * The recording hairline is the only sign the keymap timeout is running, and
+ * the global reduced-motion rule forces every animation to 0.01ms. Under
+ * reduced motion it must still last the timeout, in steps, not vanish while
+ * the timer keeps counting (computed style, not the stylesheet's text).
+ */
+async function reducedMotionCountdown(page, check) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "Add a key for Next row" }).click();
+  await page.keyboard.press("x");
+  const drain = page.locator(".kb-capture__drain");
+  await drain.waitFor({ timeout: 8000 });
+  const read = () =>
+    drain.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        duration: style.animationDuration,
+        timing: style.animationTimingFunction,
+        transform: style.transform,
+      };
+    });
+  const early = await read();
+  check(
+    early.duration === "1s",
+    `reduced motion keeps the countdown at the keymap timeout (${early.duration})`,
+  );
+  check(
+    /^steps\(4/.test(early.timing),
+    `reduced motion steps the countdown (${early.timing})`,
+  );
+  await page.waitForTimeout(300);
+  const later = await read();
+  const scaleX = Number(/matrix\(([^,]+),/.exec(later.transform)?.[1] ?? "NaN");
+  check(
+    scaleX > 0 && scaleX < 1,
+    `the countdown is still draining after 300ms (${later.transform})`,
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.keyboard.press("Escape");
+  await drain.waitFor({ state: "detached", timeout: 8000 });
+}
+
 export async function walkJNav({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPassword(page);
@@ -34,6 +76,7 @@ export async function walkJNav({ page, origin, base, check, snap }) {
     "Settings › General carries no approvals view",
   );
   await openKeybindings(page);
+  await reducedMotionCountdown(page, check);
   // Record `w` for Next row by pressing it, the way a person does: the field
   // keeps the key once the keymap's own timeout lapses.
   await page.getByRole("button", { name: "Add a key for Next row" }).click();
