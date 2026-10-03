@@ -12,12 +12,14 @@
 //! "everything the provider's host serves", and it has no default: an entry
 //! that declares none carries none, and the surrogate-proxy plugin refuses to
 //! issue one for it. The root is not a prefix (it bounds nothing). `methods=`
-//! narrows or names the HTTP methods the surrogate may be used with; without
-//! it the projection's default placement methods apply.
+//! names the HTTP methods the surrogate may be used with, and a `paths=`
+//! declaration requires it: a scope is complete when declared, so a bounded
+//! read-only run never inherits write verbs from a default.
 
 use crate::{arg_string, EnvResolver, EnvSpecError};
 
-/// Methods a declaration may name.
+/// Methods a declaration may name. The set the surrogate-proxy plugin checks
+/// on the wire; both run `methods` in `spec/conformance/surrogate-scope.json`.
 const METHODS: [&str; 7] = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
 
 /// What an entry declared. Empty or `None` is "not declared".
@@ -45,7 +47,7 @@ fn refuse(key: &str, reason: &str) -> EnvSpecError {
 ///
 /// A `paths=` entry that is not a bounded absolute prefix (see
 /// [`is_bounded_prefix`]), a `methods=` entry that is not an HTTP method, or
-/// either one declared empty.
+/// either one declared empty, or `paths=` declared without `methods=`.
 pub(crate) fn declared(key: &str, resolver: &EnvResolver) -> Result<Declared, EnvSpecError> {
     let mut out = Declared::default();
     if let Some(raw) = keyed(resolver, "paths") {
@@ -73,7 +75,7 @@ pub(crate) fn declared(key: &str, resolver: &EnvResolver) -> Result<Declared, En
         let mut methods: Vec<String> = Vec::new();
         for method in items(&raw) {
             let method = method.to_ascii_uppercase();
-            if !METHODS.contains(&method.as_str()) {
+            if !is_http_method(&method) {
                 return Err(refuse(
                     key,
                     &format!(
@@ -91,6 +93,13 @@ pub(crate) fn declared(key: &str, resolver: &EnvResolver) -> Result<Declared, En
         }
         out.methods = Some(methods);
     }
+    if !out.path_prefixes.is_empty() && out.methods.is_none() {
+        return Err(refuse(
+            key,
+            "paths= needs methods= beside it: name the verbs the surrogate may use, for \
+             example methods=\"GET\"",
+        ));
+    }
     Ok(out)
 }
 
@@ -100,9 +109,16 @@ fn items(raw: &str) -> impl Iterator<Item = &str> {
         .filter(|item| !item.is_empty())
 }
 
+/// Whether `method` is one an operator may grant: exactly an upper-case entry
+/// of [`METHODS`].
+#[must_use]
+pub fn is_http_method(method: &str) -> bool {
+    METHODS.contains(&method)
+}
+
 /// Whether `prefix` bounds a path: absolute, with at least one named segment
-/// and no empty, `.` or `..` segment, query, fragment, backslash, whitespace
-/// or control character. The same rule the surrogate-proxy plugin enforces on
+/// and no empty, `.` or `..` segment, query, fragment, backslash, semicolon,
+/// whitespace or control character. The same rule the surrogate-proxy plugin enforces on
 /// the wire (`plugin::wire::is_bounded_prefix`); both run
 /// `spec/conformance/surrogate-scope.json` (ADR 0139).
 #[must_use]
@@ -117,7 +133,7 @@ pub fn is_bounded_prefix(prefix: &str) -> bool {
             .all(|segment| !matches!(segment, "" | "." | ".."))
         && !prefix
             .chars()
-            .any(|c| c.is_control() || c.is_whitespace() || matches!(c, '?' | '#' | '\\'))
+            .any(|c| c.is_control() || c.is_whitespace() || matches!(c, '?' | '#' | '\\' | ';'))
 }
 
 #[cfg(test)]
@@ -143,6 +159,17 @@ mod tests {
         }
         for prefix in vectors("unbounded") {
             assert!(!is_bounded_prefix(&prefix), "{prefix:?} must not bound");
+        }
+    }
+
+    #[test]
+    fn the_shared_vectors_decide_what_is_an_http_method() {
+        let all: serde_json::Value = serde_json::from_str(VECTORS).unwrap();
+        for (kind, expected) in [("valid", true), ("invalid", false)] {
+            for method in all["methods"][kind].as_array().unwrap() {
+                let method = method.as_str().unwrap();
+                assert_eq!(is_http_method(method), expected, "{method:?}");
+            }
         }
     }
 }

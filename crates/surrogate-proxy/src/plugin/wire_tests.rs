@@ -175,3 +175,34 @@ fn the_shared_vectors_decide_what_bounds_a_path() {
         }
     }
 }
+
+#[test]
+fn a_served_entry_naming_something_that_is_not_an_http_method_is_refused() {
+    for methods in [
+        serde_json::json!([""]),
+        serde_json::json!(["*"]),
+        serde_json::json!(["GET", "TEAPOT"]),
+        serde_json::json!(["get"]),
+    ] {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&line("r", 60, "/tmp/n")).unwrap();
+        value["entries"][0]["methods"] = methods.clone();
+        let request = parse_request(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let error = to_run_spec(&request).expect_err(&format!("{methods} must be refused"));
+        assert_eq!(error.class(), "spec_path_scope:GITHUB_TOKEN", "{methods}");
+    }
+}
+
+#[test]
+fn the_shared_vectors_decide_what_is_an_http_method() {
+    let all: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../spec/conformance/surrogate-scope.json"
+    ))
+    .unwrap();
+    for (kind, expected) in [("valid", true), ("invalid", false)] {
+        for method in all["methods"][kind].as_array().unwrap() {
+            let method = method.as_str().unwrap();
+            assert_eq!(is_http_method(method), expected, "{method:?}");
+        }
+    }
+}

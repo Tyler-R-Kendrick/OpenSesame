@@ -334,7 +334,7 @@ fn refusal(class: &str) -> String {
         Some(var) => format!(
             "the surrogate-proxy plugin refused the run and issued nothing: {var} has no bounded \
              scope. Declare what the child may reach on its env-spec entry, for example \
-             paths=\"/repos/acme,/user\" (and methods=\"GET\"); the root is not a scope"
+             paths=\"/repos/acme,/user\" and methods=\"GET\"; the root is not a scope"
         ),
         None => format!("the surrogate-proxy plugin refused the run: {class}"),
     }

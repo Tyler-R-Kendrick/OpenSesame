@@ -230,12 +230,24 @@ fn declared_paths_and_methods_are_carried_into_the_entry() {
 }
 
 #[test]
-fn methods_default_to_the_placement_when_not_declared() {
-    let entry = resolve_scoped(r#",{"key":"paths","value":"/user"}"#)
+fn a_paths_declaration_without_methods_fails_the_resolve_instead_of_granting_write_verbs() {
+    let error = resolve_scoped(r#",{"key":"paths","value":"/user"}"#)
+        .expect_err("paths= alone must not default to write methods");
+    let text = error.to_string();
+    assert!(text.starts_with("GITHUB_TOKEN: "), "{text}");
+    assert!(text.contains("methods="), "{text}");
+}
+
+#[test]
+fn methods_alone_still_narrow_the_placement_and_carry_no_paths() {
+    let entry = resolve_scoped(r#",{"key":"methods","value":"GET"}"#)
         .unwrap()
         .remove(0);
-    let placement = &entry.projection.as_ref().unwrap().placement;
-    assert_eq!(placement.methods, PlaceholderPlacement::default().methods);
+    assert!(entry.path_prefixes.is_empty());
+    assert_eq!(
+        entry.projection.as_ref().unwrap().placement.methods,
+        ["GET"]
+    );
 }
 
 #[test]

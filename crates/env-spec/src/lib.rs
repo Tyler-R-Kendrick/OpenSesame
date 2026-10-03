@@ -13,7 +13,7 @@ use std::process::Command;
 mod login;
 mod scope;
 pub use login::{web_login, WebLogin, LOGIN_RESOLVER};
-pub use scope::is_bounded_prefix;
+pub use scope::{is_bounded_prefix, is_http_method};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnvSpecDocument {

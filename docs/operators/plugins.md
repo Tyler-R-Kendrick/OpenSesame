@@ -205,16 +205,22 @@ GITHUB_TOKEN=opensesameConnection(conn://org/github, projection=legacy-token, pa
 
 - `paths=` is a comma-separated list of absolute path prefixes. They match on
   segment boundaries (`/repos/acme` admits `/repos/acme/app`, never
-  `/repos/acme-private`), and a dot segment, in the path or percent-encoded,
-  is refused. It has no default.
+  `/repos/acme-private`). It has no default.
 - `methods=` names the HTTP methods the surrogate may be used with
-  (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`). Without it the
-  projection's methods apply (`GET`, `POST`, `PUT`, `PATCH`).
+  (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, upper case on
+  the plugin's wire). A `paths=` declaration requires it, so a scope is
+  complete when it is declared and a read-only run never inherits write
+  verbs from a default; `paths=` without `methods=` fails the schema. An
+  entry with `methods=` and no `paths=` is still unscoped and, for a served
+  provider, refused by the plugin.
 - The root is not a scope. A prefix that is `/`, empty, relative, or has an
-  empty, `.` or `..` segment, a query, a fragment or whitespace fails the
-  schema (`opensesame dev resolve`) before any run starts. The rule is one
-  definition, `spec/conformance/surrogate-scope.json`, run by the env-spec
-  resolver and again by the plugin.
+  empty, `.` or `..` segment, a query, a fragment, a backslash, a semicolon,
+  whitespace or a control character fails the schema (`opensesame dev
+  resolve`) before any run starts. A method that is not in the list above
+  fails it too. The rule is one definition,
+  `spec/conformance/surrogate-scope.json`, run by the env-spec resolver and
+  again by the plugin, which refuses a served entry with no methods, a method
+  outside the list, or an unbounded prefix (`spec_path_scope:<ENV_VAR>`).
 - An entry that declares no `paths=` is sent to the plugin with none. For a
   provider the plugin serves, the plugin refuses the whole run
   (`spec_path_scope:<ENV_VAR>`) before it binds a listener or issues
@@ -224,7 +230,11 @@ GITHUB_TOKEN=opensesameConnection(conn://org/github, projection=legacy-token, pa
   listed in `unserved` and keeps its placeholder, scope or not.
 - A request outside the declared methods or prefixes is refused at the
   proxy as `surrogate.out_of_scope` before the credential tool runs, and the
-  real credential is never placed on it.
+  real credential is never placed on it. So is a request whose path, raw or
+  percent-decoded, has a `.` or `..` segment, a backslash, a `;` or a control
+  character: the proxy does not resolve those, because the upstream's reading
+  of them is the one that counts. The query string is not part of the path
+  and is not inspected for scope.
 
 Every refused surrogate becomes a vetted `surrogate.*` notice line in
 `notices.jsonl`. A notice carries the run, the provider and the fence, never

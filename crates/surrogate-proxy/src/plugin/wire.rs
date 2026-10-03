@@ -224,9 +224,19 @@ pub fn is_served(provider_id: &str) -> bool {
     rule_for(EGRESS_RULES, provider_id).is_some() && source_tool(provider_id).is_some()
 }
 
+/// The HTTP methods a surrogate may be scoped to, exactly as the resolver
+/// writes them. Shared vectors: `spec/conformance/surrogate-scope.json`.
+const METHODS: [&str; 7] = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+
+/// Whether `method` is one a surrogate may be scoped to.
+#[must_use]
+pub fn is_http_method(method: &str) -> bool {
+    METHODS.contains(&method)
+}
+
 /// Whether `prefix` bounds a path: absolute, with at least one named
 /// segment and no empty, `.` or `..` segment, query, fragment, backslash,
-/// whitespace or control character. The root bounds nothing.
+/// semicolon, whitespace or control character. The root bounds nothing.
 #[must_use]
 pub fn is_bounded_prefix(prefix: &str) -> bool {
     let Some(rest) = prefix.strip_prefix('/') else {
@@ -239,7 +249,7 @@ pub fn is_bounded_prefix(prefix: &str) -> bool {
             .all(|segment| !matches!(segment, "" | "." | ".."))
         && !prefix
             .chars()
-            .any(|c| c.is_control() || c.is_whitespace() || matches!(c, '?' | '#' | '\\'))
+            .any(|c| c.is_control() || c.is_whitespace() || matches!(c, '?' | '#' | '\\' | ';'))
 }
 
 /// The run spec for the served entries, and the env vars of the rest.
@@ -247,7 +257,8 @@ pub fn is_bounded_prefix(prefix: &str) -> bool {
 /// # Errors
 ///
 /// `Site` when a served entry names a site that does not parse, `PathScope`
-/// when a served entry has no method or a path prefix that is not bounded.
+/// when a served entry has no method, a method that is not an HTTP method, or
+/// a path prefix that is not bounded.
 pub fn to_run_spec(request: &RunRequest) -> Result<(RunSpec, Vec<String>), SpecError> {
     let ttl = Duration::from_secs(request.ttl_secs);
     let mut grants = Vec::new();
@@ -258,6 +269,7 @@ pub fn to_run_spec(request: &RunRequest) -> Result<(RunSpec, Vec<String>), SpecE
             continue;
         }
         if entry.methods.is_empty()
+            || !entry.methods.iter().all(|m| is_http_method(m))
             || entry.path_prefixes.is_empty()
             || !entry.path_prefixes.iter().all(|p| is_bounded_prefix(p))
         {
