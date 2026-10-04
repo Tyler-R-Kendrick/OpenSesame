@@ -3,25 +3,28 @@
 /**
  * Adding a provider connection — the journey the whole feature exists for.
  *
- * A walkthrough here is not a script that plays to the end. It is one short
- * trajectory that says the next true thing and then stops at an observation
- * boundary, and a model that plans the next one from where the person actually
- * got to. Both stories below are that loop; they differ only in how the person
+ * A model's walkthrough is one short tutorial that says the next true thing and
+ * points at it, and the next one is planned from where the person actually got
+ * to. Both stories below are that loop; they differ only in how the person
  * chose to arrive, which is exactly the thing the runtime is supposed not to
  * care about.
  */
 
 import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { GUIDE_RUNTIME_NOTES } from "@opensesame/guide-runtime";
 import { fakeAgentReplanning } from "@opensesame/support-agent";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  TOURING,
   askSupport,
   countClicks,
+  finishTutorial,
+  nextStep,
   openSupport,
   renderJourney,
   resetJourney,
+  stepOf,
+  tutorialCard,
 } from "./harness.jsx";
 
 /** Ends at the boundary: the person has to open Connections themselves. */
@@ -73,6 +76,11 @@ describe(
       await openSupport(user);
       await askSupport(user, "How do I add a connection?");
 
+      // The tutorial opens on its sentence; the pointing is the next step.
+      await tutorialCard();
+      expect(await stepOf()).toBe("Step 1 of 2");
+      expect(journey.focused()).toEqual([]);
+      await nextStep(user);
       await waitFor(() =>
         expect(journey.focused()).toEqual(["nav.connections"]),
       );
@@ -87,16 +95,17 @@ describe(
 
       await user.click(railEntry);
 
-      // The trajectory ends where the model planned it to end — at the wait it
-      // could not see past — rather than by running out of instructions.
+      // The person did the thing the step was waiting on, so the tutorial moves
+      // to its closing card by itself; Done finishes it.
+      await waitFor(async () => expect(await stepOf()).toBe("Complete"));
+      await finishTutorial(user);
       await waitFor(() => expect(journey.outcomes()).toHaveLength(1));
-      expect(journey.outcomes()[0]).toMatchObject({
-        kind: "observed",
+      expect(journey.outcomes()[0]).toEqual({
+        kind: "completed",
         goal: "connection.create",
-        note: GUIDE_RUNTIME_NOTES.waitSatisfied,
       });
 
-      // The panel stepped aside while the walkthrough was live. The answer it
+      // The panel stepped aside while the tutorial was live. The answer it
       // came with is still in the transcript when the person comes back.
       await openSupport(user);
       expect(
@@ -132,6 +141,7 @@ describe(
         "assistant",
       ]);
 
+      await tutorialCard();
       await waitFor(() =>
         expect(journey.focused()).toEqual([
           "nav.connections",
@@ -143,15 +153,10 @@ describe(
       expect(resolveGuideTargetElement("connections.provider-picker")).toBe(
         screen.getByLabelText("Search connectors"),
       );
-      // Still nothing navigated, and the second trajectory is parked on its own
-      // boundary — the Authorization panel appearing.
+      // Still nothing navigated, and the second tutorial is on its step.
       expect(journey.navigations()).toEqual([]);
       expect(journey.outcomes()).toHaveLength(1);
-      expect(
-        await screen.findByRole("button", {
-          name: "Support — walkthrough in progress",
-        }),
-      ).toBeTruthy();
+      expect(await screen.findByRole("button", { name: TOURING })).toBeTruthy();
     }, 20_000);
 
     it("advances when the person arrives their own way, not when they take the highlight", async () => {
@@ -175,10 +180,12 @@ describe(
       if (!railEntry) throw new Error("the guide pointed at nothing on screen");
       const clicksOnTheHighlight = countClicks(railEntry);
 
-      // The keyboard jump the shell has always had: `g` then `c`. The guide is
+      // The keyboard jump the shell has always had: `g` then `c`. The tutorial is
       // waiting on arrival, and this is an arrival.
       await user.keyboard("gc");
 
+      await waitFor(async () => expect(await stepOf()).toBe("Complete"));
+      await finishTutorial(user);
       await waitFor(() => expect(journey.outcomes()).toHaveLength(1));
       expect(journey.outcomes()[0]).toEqual({
         kind: "completed",
@@ -188,10 +195,14 @@ describe(
       // guide never navigated on the person's behalf either.
       expect(clicksOnTheHighlight()).toBe(0);
       expect(journey.navigations()).toEqual([]);
-      // `end` takes the overlay down with it.
-      expect(journey.drawn().map((call) => call.kind)).toEqual([
-        "focus",
-        "clear",
+      // The tutorial took its overlay down with it.
+      expect(journey.drawn().filter((call) => call.kind === "focus")).toEqual([
+        {
+          kind: "focus",
+          target: "nav.connections",
+          message: "Connections is the next stop. Open it however you like.",
+          side: "right",
+        },
       ]);
 
       await openSupport(user);

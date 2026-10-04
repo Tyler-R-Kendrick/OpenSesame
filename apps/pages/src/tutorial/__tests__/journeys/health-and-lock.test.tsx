@@ -16,12 +16,17 @@ import { fakeAgentAnswering } from "@opensesame/support-agent";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  TOURING,
   askSupport,
   countClicks,
+  finishTutorial,
+  nextStep,
   openSupport,
   renderJourney,
   reopenSupport,
   resetJourney,
+  stepOf,
+  tutorialCard,
 } from "./harness.jsx";
 
 /** The authored program, compiled by the same pipeline model output goes through. */
@@ -35,19 +40,29 @@ describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
   afterEach(resetJourney);
 
   it("walks to the report on the items", async () => {
-    const journey = renderJourney(
-      fakeAgentAnswering(
-        "Vault health lists weak, reused and aging items.",
-        authored("host.health.check"),
-      ),
-    );
+    const journey = renderJourney(fakeAgentAnswering("Unused."));
     const { user } = journey;
 
-    await openSupport(user);
-    await askSupport(user, "How do I check whether OpenSesame is healthy?");
+    // A checked-in walkthrough is started from the library: it names a control
+    // on the screen it is about to navigate to, which a model's route-scoped
+    // vocabulary cannot contain.
+    const sheet = await openSupport(user);
+    await user.click(within(sheet).getByRole("tab", { name: "Tutorials" }));
+    const row = sheet.querySelector<HTMLElement>(
+      '[data-tutorial="host.health.check"]',
+    );
+    if (!row) throw new Error("the library does not offer the health tour");
+    await user.click(row);
 
+    // The tutorial opens on its first sentence and goes nowhere until the
+    // person says so: nothing is highlighted, nothing has navigated.
+    await tutorialCard();
+    expect(await stepOf()).toMatch(/^Step 1 of \d+$/);
     expect(journey.focused()).toEqual([]);
-    // The walkthrough takes the person to the report itself.
+    expect(journey.navigations()).toEqual([]);
+
+    await nextStep(user);
+    // The step after it takes the person to the report itself.
     await waitFor(() =>
       expect(journey.navigations()).toEqual(["/vault/health"]),
     );
@@ -64,13 +79,25 @@ describe("asking whether OpenSesame is healthy", { timeout: 20_000 }, () => {
       ),
     ).toBeTruthy();
 
+    // The next sentence points at the verdict on that screen.
+    await waitFor(async () =>
+      expect(resolveGuideTargetElement("vault.health.summary")).not.toBeNull(),
+    );
+    await nextStep(user);
+
+    // The closing card says where the person is, and Done finishes it.
+    expect(await stepOf()).toBe("Complete");
+    expect(
+      within(await tutorialCard()).getByText("This is Vault health."),
+    ).toBeTruthy();
+    await finishTutorial(user);
     await waitFor(() => expect(journey.outcomes()).toHaveLength(1));
     expect(journey.outcomes()[0]).toEqual({
       kind: "completed",
       goal: "host.health.check",
     });
-    // It ended, so it took its overlay with it.
-    expect(journey.drawn().map((call) => call.kind)).toEqual(["clear"]);
+    // It ended, so it took its overlay with it: the last thing drawn is the clear.
+    expect(journey.drawn().at(-1)?.kind).toBe("clear");
 
     await openSupport(user);
     expect(await screen.findByText("This is Vault health.")).toBeTruthy();
@@ -92,6 +119,10 @@ describe("asking where the lock is", () => {
     await openSupport(user);
     await askSupport(user, "Where do I lock the vault?");
 
+    // Step one is a sentence about what locking does; step two lights the lock.
+    expect(await stepOf()).toBe("Step 1 of 2");
+    expect(journey.focused()).toEqual([]);
+    await nextStep(user);
     await waitFor(() => expect(journey.focused()).toEqual(["shell.lock"]));
     const lock = resolveGuideTargetElement("shell.lock");
     if (!lock) throw new Error("the guide pointed at nothing on screen");
@@ -100,21 +131,18 @@ describe("asking where the lock is", () => {
     expect(lock.closest(".statusline")).toBeNull();
     const pressesOnTheLock = countClicks(lock);
 
-    // The trajectory is parked on `wait target "shell.lock" event=activate`,
-    // and parked is where it stays: nothing synthesised a click, nothing
-    // reached the vault store, and the conversation is still here — which it
-    // would not be, because locking drops the transcript with the keys.
+    // The tutorial is parked on this step, which is waiting for the person
+    // to press the lock themselves — and parked is where it stays. Nothing
+    // synthesised a click, nothing reached the vault store, and the
+    // conversation is still here, which it would not be if the lock had
+    // fired, because locking drops the transcript with the keys.
+    expect(await stepOf()).toBe("Step 2 of 2");
     await waitFor(() =>
-      expect(
-        screen.getByRole("button", {
-          name: "Support — walkthrough in progress",
-        }),
-      ).toBeTruthy(),
+      expect(screen.getByRole("button", { name: TOURING })).toBeTruthy(),
     );
     expect(pressesOnTheLock()).toBe(0);
     expect(journey.lockPresses()).toBe(0);
     expect(journey.outcomes()).toEqual([]);
-    expect(journey.drawn()).toHaveLength(1);
     expect(journey.engineDestroyed()).toBe(false);
 
     const panel = await reopenSupport(user);
@@ -123,12 +151,13 @@ describe("asking where the lock is", () => {
         "It sits beside your profile and vault switcher.",
       ),
     ).toBeTruthy();
-    const status = within(panel).getByRole("region", {
-      name: "Walkthrough in progress",
-    });
-    expect(status.textContent).toContain("Lock the vault");
-    expect(within(status).getByRole("button", { name: "Stop" })).toBeTruthy();
+    // The tutorial's own card carries its progress, not the sheet.
+    expect(
+      within(panel).queryByRole("region", { name: "Walkthrough in progress" }),
+    ).toBeNull();
+    expect((await tutorialCard()).textContent).toContain("Lock the vault");
     // Reading about the lock did not lock anything either.
     expect(journey.lockPresses()).toBe(0);
+    expect(pressesOnTheLock()).toBe(0);
   }, 20_000);
 });

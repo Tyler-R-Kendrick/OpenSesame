@@ -21,12 +21,13 @@ import { useSupport } from "../session.js";
 import { SupportComposer } from "./SupportComposer.js";
 import "../support.css";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
-import { Availability, GuideStatus } from "./SupportPanelChrome.js";
+import { Availability } from "./SupportPanelChrome.js";
 import {
   SupportQuestions,
   questionsFromGoals,
   questionsFromTopics,
 } from "./SupportQuestions.js";
+import { SupportTutorials } from "./SupportTutorials.js";
 
 const SPEAKER = {
   question: "you",
@@ -77,6 +78,7 @@ export function SupportPanel(): ReactElement {
   useModalFocus(true, sheetRef, closeRef, close);
 
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"ask" | "tutorials">("ask");
 
   const topics = useMemo(
     () =>
@@ -139,113 +141,164 @@ export function SupportPanel(): ReactElement {
             availability={availability}
             onAcquire={() => void support.acquireModel()}
           />
-          <GuideStatus />
 
-          {/* The region is always here, even while empty. A live region created
+          <div className="support__tabs" role="tablist" aria-label="Support">
+            {(["ask", "tutorials"] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`support-tab-${id}`}
+                aria-selected={tab === id}
+                aria-controls={`support-panel-${id}`}
+                tabIndex={tab === id ? 0 : -1}
+                className={`support__tab${tab === id ? " is-active" : ""}`}
+                onClick={() => setTab(id)}
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+                    return;
+                  }
+                  event.preventDefault();
+                  const next = id === "ask" ? "tutorials" : "ask";
+                  setTab(next);
+                  document.getElementById(`support-tab-${next}`)?.focus();
+                }}
+              >
+                {id === "ask" ? "Ask" : "Tutorials"}
+              </button>
+            ))}
+          </div>
+
+          {tab === "tutorials" ? (
+            <div
+              role="tabpanel"
+              id="support-panel-tutorials"
+              aria-labelledby="support-tab-tutorials"
+            >
+              <SupportTutorials
+                query={query}
+                route={view.route}
+                support={support}
+              />
+            </div>
+          ) : (
+            <div
+              className="support__ask"
+              role="tabpanel"
+              id="support-panel-ask"
+              aria-labelledby="support-tab-ask"
+            >
+              {/* The region is always here, even while empty. A live region created
               in the same paint as its first message is not reliably announced,
               which would lose exactly the turn that matters most: the first
               question somebody asks and the answer they get back. */}
-          <section
-            className="support__thread"
-            aria-label="Conversation"
-            aria-live="polite"
-          >
-            {view.transcript.map((entry) => (
-              <article
-                key={entry.id}
-                className={`support__line support__line--${entry.kind}`}
-                aria-label={SPOKEN_SPEAKER[entry.kind]}
+              <section
+                className="support__thread"
+                aria-label="Conversation"
+                aria-live="polite"
               >
-                <span className="support__who" aria-hidden="true">
-                  {SPEAKER[entry.kind]}
-                </span>
-                <p className="support__text">{entry.text}</p>
-                {entry.thoughts ? (
-                  <details className="support__trace" aria-live="off">
-                    <summary>Thoughts</summary>
-                    <p className="support__trace-body">{entry.thoughts}</p>
-                  </details>
-                ) : null}
-                {entry.computer.length > 0 ? (
-                  <details className="support__trace" aria-live="off">
-                    <summary>Computer</summary>
-                    <ol className="support__computer">
-                      {entry.computer.map((step, index) => (
-                        <li key={`${step.title}:${index}`}>
-                          <span className="support__computer-title">
-                            {step.title}
-                          </span>
-                          {step.detail ? (
-                            <p className="support__computer-detail">
-                              {step.detail}
-                            </p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                ) : null}
-                {entry.walkthroughs.length > 0 ? (
-                  <div className="support__suggestions">
-                    {entry.walkthroughs.map((walkthrough) => {
-                      const named = guideGoal(walkthrough.goal);
-                      if (!named) return null;
-                      return (
-                        <button
-                          key={walkthrough.goal}
-                          type="button"
-                          className="btn btn--sm choice"
-                          onClick={() =>
-                            void support.startGuide(named.guide, "authored")
-                          }
-                        >
-                          Show me: {walkthrough.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-                {entry.suggestions.length > 0 ? (
-                  <div className="support__suggestions">
-                    {entry.suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        className="btn btn--sm btn--ghost"
-                        disabled={!canAsk}
-                        onClick={() => void support.ask(suggestion)}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </section>
+                {view.transcript.map((entry) => (
+                  <article
+                    key={entry.id}
+                    className={`support__line support__line--${entry.kind}`}
+                    aria-label={SPOKEN_SPEAKER[entry.kind]}
+                  >
+                    <span className="support__who" aria-hidden="true">
+                      {SPEAKER[entry.kind]}
+                    </span>
+                    <p className="support__text">{entry.text}</p>
+                    {entry.thoughts ? (
+                      <details className="support__trace" aria-live="off">
+                        <summary>Thoughts</summary>
+                        <p className="support__trace-body">{entry.thoughts}</p>
+                      </details>
+                    ) : null}
+                    {entry.computer.length > 0 ? (
+                      <details className="support__trace" aria-live="off">
+                        <summary>Computer</summary>
+                        <ol className="support__computer">
+                          {entry.computer.map((step, index) => (
+                            <li key={`${step.title}:${index}`}>
+                              <span className="support__computer-title">
+                                {step.title}
+                              </span>
+                              {step.detail ? (
+                                <p className="support__computer-detail">
+                                  {step.detail}
+                                </p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ) : null}
+                    {entry.walkthroughs.length > 0 ? (
+                      <div className="support__suggestions">
+                        {entry.walkthroughs.map((walkthrough) => {
+                          const named = guideGoal(walkthrough.goal);
+                          if (!named) return null;
+                          return (
+                            <button
+                              key={walkthrough.goal}
+                              type="button"
+                              className="btn btn--sm choice"
+                              onClick={() =>
+                                void support.startGuide(named.guide, "authored")
+                              }
+                            >
+                              Show me: {walkthrough.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {entry.suggestions.length > 0 ? (
+                      <div className="support__suggestions">
+                        {entry.suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            className="btn btn--sm btn--ghost"
+                            disabled={!canAsk}
+                            onClick={() => void support.ask(suggestion)}
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </section>
 
-          {view.transcript.length > 0 ? (
-            <div className="actions">
-              <IconKey
-                label="Clear conversation"
-                small
-                onClick={() => support.clear()}
-              >
-                <IconTrash size={16} />
-              </IconKey>
+              {view.transcript.length > 0 ? (
+                <div className="actions">
+                  <IconKey
+                    label="Clear conversation"
+                    small
+                    onClick={() => support.clear()}
+                  >
+                    <IconTrash size={16} />
+                  </IconKey>
+                </div>
+              ) : null}
+
+              {view.thinking ? (
+                <div className="support__pending">
+                  <output className="support__pending-read">Thinking…</output>
+                  <IconKey
+                    label="Cancel"
+                    small
+                    onClick={() => support.cancel()}
+                  >
+                    <IconX size={16} />
+                  </IconKey>
+                </div>
+              ) : null}
+
+              <SupportQuestions questions={questions} />
             </div>
-          ) : null}
-
-          {view.thinking ? (
-            <div className="support__pending">
-              <output className="support__pending-read">Thinking…</output>
-              <IconKey label="Cancel" small onClick={() => support.cancel()}>
-                <IconX size={16} />
-              </IconKey>
-            </div>
-          ) : null}
-
-          <SupportQuestions questions={questions} />
+          )}
         </div>
         <div className="sheet__foot">
           <SupportComposer query={query} onQueryChange={setQuery} />

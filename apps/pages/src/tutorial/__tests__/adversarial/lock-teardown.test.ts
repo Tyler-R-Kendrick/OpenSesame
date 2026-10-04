@@ -6,9 +6,9 @@
  * The runtime suite proves `cancel("lock")` clears its renderer, and the panel
  * suite proves the transcript goes when the vault locks. Neither drives the
  * composition: the controller, the real support session, the real target
- * registry and the real Driver.js overlays are four separate owners of state
- * that a lock has to reach, and the only way to know it reaches all four is to
- * lock while each of them is holding something.
+ * registry and the tutorial card are four separate owners of state that a lock
+ * has to reach, and the only way to know it reaches all four is to lock while
+ * each of them is holding something.
  *
  * The provider used here ignores its abort signal, so every case also answers
  * the question the well-behaved fakes cannot: what happens when the model
@@ -34,6 +34,7 @@ import {
   createDomEngine,
   guideSource,
   liveOverlayCount,
+  mountCoach,
   settle,
   waitUntil,
 } from "./harness.js";
@@ -62,6 +63,7 @@ function wire(): Wired {
     clearTargets: clearMountedGuideTargets,
   };
   const controller = createSupportController(dependencies);
+  const unmountCard = mountCoach(controller);
   const stop = dependencies.onLock(() => controller.lock());
   return {
     controller,
@@ -72,6 +74,7 @@ function wire(): Wired {
     },
     dispose: () => {
       stop();
+      unmountCard();
       controller.destroy();
       engine.targets.unmountAll();
       document.body.replaceChildren();
@@ -133,12 +136,14 @@ describe("locking while a model request is in flight", () => {
 });
 
 describe("locking while a guide is on screen", () => {
-  it("tears down an armed wait, its deadline and its overlays", async () => {
+  it("tears down an armed wait, its timers and its overlays", async () => {
     const wired = wire();
     try {
       const running = wired.controller.startGuide(ARMED_WAIT);
-      await waitUntil(() => wired.engine.clock.pending() === 1);
-      expect(liveOverlayCount()).toBeGreaterThan(0);
+      await waitUntil(() => liveOverlayCount() > 0);
+      await waitUntil(
+        () => wired.controller.view().guide?.status === "waiting",
+      );
 
       const control = wired.engine.targets.element("shell.lock");
       wired.lock();
@@ -159,12 +164,12 @@ describe("locking while a guide is on screen", () => {
     }
   });
 
-  it("tears down a highlight left standing by a pause", async () => {
+  it("tears down the step a tutorial is holding on", async () => {
     const wired = wire();
     try {
-      await wired.controller.startGuide(HIGHLIGHT);
+      void wired.controller.startGuide(HIGHLIGHT);
       await waitUntil(() => liveOverlayCount() > 0);
-      expect(wired.controller.view().guide?.status).toBe("paused");
+      expect(wired.controller.view().guide?.status).toBe("waiting");
 
       wired.lock();
       await settle();
@@ -176,21 +181,17 @@ describe("locking while a guide is on screen", () => {
     }
   });
 
-  it("tears down a persistent annotation, which outlives its own step", async () => {
+  it("tears down a step that annotates, as it does one that highlights", async () => {
     const wired = wire();
     try {
-      await wired.controller.startGuide(ANNOTATION);
-      await waitUntil(
-        () =>
-          document.querySelectorAll("[data-os-guide-annotation]").length > 0,
-      );
+      void wired.controller.startGuide(ANNOTATION);
+      await waitUntil(() => liveOverlayCount() > 0);
 
       wired.lock();
       await settle();
 
-      expect(
-        document.querySelectorAll("[data-os-guide-annotation]"),
-      ).toHaveLength(0);
+      expect(liveOverlayCount()).toBe(0);
+      expect(wired.controller.view().guide).toBeNull();
     } finally {
       wired.dispose();
     }
@@ -201,17 +202,19 @@ describe("after a lock", () => {
   it("cannot be driven again by a guide compiled before it", async () => {
     const wired = wire();
     try {
-      await wired.controller.startGuide(HIGHLIGHT);
+      void wired.controller.startGuide(HIGHLIGHT);
       await waitUntil(() => liveOverlayCount() > 0);
       wired.lock();
       await settle();
 
       // A caller that kept the source and asks again gets a fresh engine over
-      // a registry with nothing mounted, so the step fails closed.
-      await wired.controller.startGuide(HIGHLIGHT);
+      // a registry with nothing mounted, so nothing is lit: the control the
+      // old guide pointed at is gone, and a card with no control to point at
+      // is all the tutorial can be.
+      void wired.controller.startGuide(HIGHLIGHT);
       await settle();
 
-      expect(liveOverlayCount()).toBe(0);
+      expect(document.querySelectorAll(".coach__ring")).toHaveLength(0);
     } finally {
       wired.dispose();
     }
@@ -229,8 +232,9 @@ describe("the lock the application actually subscribes to", () => {
       clearTargets: clearMountedGuideTargets,
     });
     const stop = supportSessionSeams.onLock(() => controller.lock());
+    const unmountCard = mountCoach(controller);
     try {
-      await controller.startGuide(HIGHLIGHT);
+      void controller.startGuide(HIGHLIGHT);
       await waitUntil(() => liveOverlayCount() > 0);
 
       vaultStore.lock();
@@ -241,6 +245,7 @@ describe("the lock the application actually subscribes to", () => {
       expect(engine.destroyed()).toBe(true);
     } finally {
       stop();
+      unmountCard();
       controller.destroy();
       engine.targets.unmountAll();
     }

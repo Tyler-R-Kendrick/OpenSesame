@@ -16,15 +16,18 @@ import { useDeviceOperator } from "./useDeviceOperator.js";
 export function SectionHead({
   id,
   title,
+  headRef,
   children,
 }: {
   /** The heading's id, which names its section (`aria-labelledby`). */
   id: string;
   title: string;
+  /** Binds the heading row as the section's tutorial target. */
+  headRef?: (element: HTMLDivElement | null) => void;
   children?: ReactNode;
 }) {
   return (
-    <div className="conn-group__label capsection__head">
+    <div className="conn-group__label capsection__head" ref={headRef}>
       <h3 className="capsection__title" id={id}>
         {title}
       </h3>

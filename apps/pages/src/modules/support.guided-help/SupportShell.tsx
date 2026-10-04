@@ -6,13 +6,13 @@
  * `app-root.tsx` used to nest these three around the shell itself
  * (`SupportProvider` / `SupportSlotProvider` / `SupportLauncher`). They are
  * one component here so the core shell knows only "a capability wraps the
- * body", and so nothing of the support tree — the panel, Driver.js, the
- * guide runtime, the agents — is reachable from a build that excludes this
- * capability.
+ * body", and so nothing of the support tree — the panel, the tutorial card,
+ * the guide runtime, the agents — is reachable from a build that excludes
+ * this capability.
  *
  * Nothing in the tree acts on the page. `SupportLauncher` draws a button;
  * the panel behind it is `lazy`, so a vault that never asks for help never
- * fetches the renderer.
+ * fetches the tutorial card or the runtime.
  */
 
 import type { ReactElement, ReactNode } from "react";
