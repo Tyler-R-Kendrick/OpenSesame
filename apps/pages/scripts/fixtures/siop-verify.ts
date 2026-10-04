@@ -1,6 +1,8 @@
 import {
   ecP256JwkThumbprint,
+  pagesOriginOf,
   parseFragmentResponse,
+  serializePagesSiopMetadata,
   verifySelfIssuedIdToken,
 } from "@opensesame/siop-v2";
 
@@ -40,4 +42,12 @@ export function parseSiopDenyRedirect(redirectUrl: string) {
     throw new Error(`Expected SIOP error fragment, got ${parsed.kind}`);
   }
   return parsed;
+}
+
+/** The bytes the build is expected to have published (ADR 0161 drift check). */
+export function expectedMetadataText(origin: string, base: string): string {
+  return serializePagesSiopMetadata({
+    ...pagesOriginOf(origin),
+    basePath: base,
+  });
 }

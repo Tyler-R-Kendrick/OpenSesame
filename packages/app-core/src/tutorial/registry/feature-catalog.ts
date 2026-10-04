@@ -172,6 +172,14 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "feature.local-notifications",
+    description:
+      "The Local notifications section of Settings › Capabilities: its switch adds this device's own requests list, bell and system notifications.",
+    role: "surface",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
     id: "feature.telemetry",
     description:
       "The Telemetry section of Settings › Capabilities: its switch sends anonymous usage and error telemetry to an operator's collector, and is off until chosen.",

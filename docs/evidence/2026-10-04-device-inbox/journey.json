@@ -1,0 +1,184 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "inboxSeed": {
+            "capabilities": ["Access authority", "Browser-local IAM"],
+            "optional": ["Local notifications"]
+          }
+        },
+        {
+          "inboxAllowSystem": null
+        },
+        {
+          "inboxRaise": "Sign in to the payroll application"
+        },
+        {
+          "inboxReport": null
+        },
+        {
+          "shot": "1280-requests"
+        },
+        {
+          "inboxView": "background"
+        },
+        {
+          "shot": "1280-background-tab"
+        },
+        {
+          "inboxView": "front"
+        },
+        {
+          "inboxApprove": null
+        },
+        {
+          "inboxReceipts": null
+        },
+        {
+          "inboxReport": null
+        },
+        {
+          "inboxScroll": "Receipts"
+        },
+        {
+          "shot": "1280-receipts"
+        },
+        {
+          "inboxCapabilities": null
+        },
+        {
+          "shot": "1280-capabilities"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "inboxSeed": {
+            "capabilities": ["Access authority", "Browser-local IAM"],
+            "optional": ["Local notifications"]
+          }
+        },
+        {
+          "inboxAllowSystem": null
+        },
+        {
+          "inboxRaise": "Sign in to the payroll application"
+        },
+        {
+          "inboxReport": null
+        },
+        {
+          "shot": "390-requests"
+        },
+        {
+          "inboxView": "background"
+        },
+        {
+          "inboxBell": null
+        },
+        {
+          "shot": "390-background-tab"
+        },
+        {
+          "inboxView": "front"
+        },
+        {
+          "inboxApprove": null
+        },
+        {
+          "inboxReceipts": null
+        },
+        {
+          "inboxReport": null
+        },
+        {
+          "inboxScroll": "Receipts"
+        },
+        {
+          "shot": "390-receipts"
+        },
+        {
+          "inboxCapabilities": null
+        },
+        {
+          "shot": "390-capabilities"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-requests",
+      "width": 1280,
+      "title": "Access \u203a Requests, a request raised \u2014 1280 \u00d7 900",
+      "caption": "A request is raised in a vault with no Identity API and no Host. Before, the request sits in the list and nothing else on the device knows it waits. After, the Requests tab carries a status mark naming it, and the bell in the status line is lit.",
+      "before": "status marks on the page: none",
+      "after": "status mark: \"1 request waiting\" on the Requests tab"
+    },
+    {
+      "shot": "1280-background-tab",
+      "width": 1280,
+      "title": "A second tab, in the background \u2014 1280 \u00d7 900",
+      "caption": "The same vault in a second tab that is not being looked at. Before, it stays as it was. After, its title says (1), its bell is lit with a card that says only that a request is waiting and keys to it, and, the person having turned the system doorbell on with its own key (it is never on by default), one system notification rang whose body is the same for every request and whose data is { kind, action, ref } and nothing a request holds. No server was asked.",
+      "before": "title \"OpenSesame\"; bell 0; system notifications 0",
+      "after": "title \"(1) OpenSesame\"; bell 1; system notifications 1: \"Request waiting\" / \"A request is waiting for you.\""
+    },
+    {
+      "shot": "1280-receipts",
+      "width": 1280,
+      "title": "Access \u203a Sessions \u203a Receipts, after approval \u2014 1280 \u00d7 900",
+      "caption": "The request is approved with the keyboard and the passkey. Before, Sessions has no Receipts on a device with no Identity session. After, the device keeps its own receipts, sealed and append-only, naming the application and never a scope, a reason or an address.",
+      "before": "Receipts rows: 0",
+      "after": "Receipts rows: 2 \u2014 \"Request approved \u00b7 Test application\", \"Request raised \u00b7 Test application\""
+    },
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities, notifications \u2014 1280 \u00d7 900",
+      "caption": "With no Identity API, the notifications section offered Push and Routing, which need one. After, those are withdrawn and the section is Local notifications: its own switch, and the two places the device can ring (system notifications, asked for only on that key; the tab's title and badge).",
+      "before": "section \"Notifications\": Push notifications, Notification routing; 16 sections; policy cards \"0 required \u00b7 25 optional\"",
+      "after": "section \"Local notifications\": System notifications, Tab title and badge; 17 sections; \"0 required \u00b7 26 optional\""
+    },
+    {
+      "shot": "390-requests",
+      "width": 390,
+      "title": "Access \u203a Requests, a request raised \u2014 390 \u00d7 844",
+      "caption": "A request is raised in a vault with no Identity API and no Host. Before, the request sits in the list and nothing else on the device knows it waits. After, the Requests tab carries a status mark naming it, and the bell in the status line is lit.",
+      "before": "status marks on the page: none",
+      "after": "status mark: \"1 request waiting\" on the Requests tab"
+    },
+    {
+      "shot": "390-background-tab",
+      "width": 390,
+      "title": "A second tab, in the background \u2014 390 \u00d7 844",
+      "caption": "The same vault in a second tab that is not being looked at. Before, it stays as it was. After, its title says (1), its bell is lit with a card that says only that a request is waiting and keys to it, and, the person having turned the system doorbell on with its own key (it is never on by default), one system notification rang whose body is the same for every request and whose data is { kind, action, ref } and nothing a request holds. No server was asked.",
+      "before": "title \"OpenSesame\"; bell 0; system notifications 0",
+      "after": "title \"(1) OpenSesame\"; bell 1; system notifications 1: \"Request waiting\" / \"A request is waiting for you.\""
+    },
+    {
+      "shot": "390-receipts",
+      "width": 390,
+      "title": "Access \u203a Sessions \u203a Receipts, after approval \u2014 390 \u00d7 844",
+      "caption": "The request is approved with the keyboard and the passkey. Before, Sessions has no Receipts on a device with no Identity session. After, the device keeps its own receipts, sealed and append-only, naming the application and never a scope, a reason or an address.",
+      "before": "Receipts rows: 0",
+      "after": "Receipts rows: 2 \u2014 \"Request approved \u00b7 Test application\", \"Request raised \u00b7 Test application\""
+    },
+    {
+      "shot": "390-capabilities",
+      "width": 390,
+      "title": "Settings \u203a Capabilities, notifications \u2014 390 \u00d7 844",
+      "caption": "With no Identity API, the notifications section offered Push and Routing, which need one. After, those are withdrawn and the section is Local notifications: its own switch, and the two places the device can ring (system notifications, asked for only on that key; the tab's title and badge).",
+      "before": "section \"Notifications\": Push notifications, Notification routing; 16 sections; policy cards \"0 required \u00b7 25 optional\"",
+      "after": "section \"Local notifications\": System notifications, Tab title and badge; 17 sections; \"0 required \u00b7 26 optional\""
+    }
+  ]
+}

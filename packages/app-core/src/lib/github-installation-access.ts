@@ -39,6 +39,11 @@ export type GithubInstallationSnapshot = {
   ownerId: string | null;
   /** Sealed Access audit trail — allowlisted metadata only (ADR 0015). */
   auditEvents: LocalAccessAuditEvent[];
+  /**
+   * False when the trail could not be read. Whether a person revoked the
+   * standing grant is then unknown, and unknown is answered as revoked.
+   */
+  auditReadable: boolean;
 };
 
 function githubIntegrations(rows: Integration[]): Integration[] {
@@ -89,6 +94,7 @@ export const EMPTY_GITHUB_SNAPSHOT: GithubInstallationSnapshot = {
   shares: [],
   ownerId: null,
   auditEvents: [],
+  auditReadable: true,
 };
 
 /** Load install identity, Access grants and their audit trail. */
@@ -108,13 +114,17 @@ export async function loadGithubInstallationSnapshot(
   }
   const shares = githubShares(await listLocalShares(tomb));
   const owner = await ownerPersonId(tomb);
-  const auditEvents = await listAccessAuditEvents(tomb).catch(() => []);
+  const trail = await listAccessAuditEvents(tomb).then(
+    (events) => ({ events, readable: true }),
+    () => ({ events: [], readable: false }),
+  );
   return {
     integrations,
     installations,
     shares,
     ownerId: owner?.id ?? null,
-    auditEvents,
+    auditEvents: trail.events,
+    auditReadable: trail.readable,
   };
 }
 
@@ -173,6 +183,9 @@ export function shouldEnsureGithubAccessGrant(
 ): boolean {
   const { ownerId } = snapshot;
   if (ownerId === null || ownerGrant(snapshot.shares, ownerId)) return false;
+  // A trail that cannot be read cannot say a person did not revoke the grant:
+  // a card that issued it anyway would undo their decision behind their back.
+  if (!snapshot.auditReadable) return false;
   // A person who revoked the owner's grant in Access decided; the card does
   // not re-issue it behind their back. Someone else's revocation — the support
   // agent's, another policy's — is not that decision (ADR 0147 §5).

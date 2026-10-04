@@ -317,7 +317,7 @@ describe("UnlockMethodsPanel", () => {
     await waitFor(() => expect(store.enrollPin).toHaveBeenCalled());
     view.rerender(<UnlockMethodsPanel />);
     await waitFor(() => expect(store.beginTotpEnrollment).toHaveBeenCalled());
-    expect(sheet().getByTestId("qr")).toBeTruthy();
+    expect(await sheet().findByTestId("qr")).toBeTruthy();
   });
 
   it("drops an enrollment when the sheet closes before a code matched", async () => {
@@ -381,8 +381,8 @@ describe("UnlockMethodsPanel", () => {
         "tyler@example.com",
       ),
     );
-    expect(dialog.getByText("Code sent")).toBeTruthy();
-    expect(dialog.getByText("t•••@example.com")).toBeTruthy();
+    expect(await dialog.findByText("Code sent")).toBeTruthy();
+    expect(await dialog.findByText("t•••@example.com")).toBeTruthy();
     await userEvent.type(
       dialog.getByLabelText("Code from the email"),
       "123456",

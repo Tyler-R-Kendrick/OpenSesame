@@ -140,6 +140,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "settings.model-provider",
       "settings.notifications",
+      "settings.local-notifications",
       "settings.surrogate-credentials",
       "settings.browser-autofill",
       "feature.password-reset",

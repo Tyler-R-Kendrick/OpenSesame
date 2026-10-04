@@ -15,6 +15,7 @@ import {
   STRONG,
   UPSTREAM,
   beginSignIn,
+  catalogSettled,
   chooseSealMethod,
   continueAsGuest,
   endSession,
@@ -323,8 +324,8 @@ describe("UnlockScreen — first run", () => {
 
   it("falls back to the single default sign-in when no catalog is published", async () => {
     render(<UnlockScreen />);
-    await waitFor(() => expect(listFederatedProviders).toHaveBeenCalled());
-    // First run must never dead-end on a catalog fetch.
+    await catalogSettled();
+    expect(listFederatedProviders).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
   });
 
@@ -351,7 +352,7 @@ describe("UnlockScreen — first run", () => {
     ]);
     render(<UnlockScreen />);
     await screen.findByRole("button", { name: "Continue with Google" });
-    await waitFor(() => expect(listFederatedProviders).toHaveBeenCalled());
+    await catalogSettled();
     fireEvent.click(
       screen.getByRole("button", { name: "Continue with Google" }),
     );
@@ -376,7 +377,7 @@ describe("UnlockScreen — first run", () => {
       },
     ]);
     render(<UnlockScreen />);
-    await waitFor(() => expect(listFederatedProviders).toHaveBeenCalled());
+    await catalogSettled();
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with Google" }),
     );
@@ -768,10 +769,7 @@ describe("UnlockScreen — password unlock", () => {
     render(<UnlockScreen />);
     openSignIn();
     expect(
-      await screen.findByRole("button", { name: "Continue with Google" }),
-    ).toBeTruthy();
-    expect(
-      screen.getAllByRole("button", { name: "Continue with Google" }),
+      await screen.findAllByRole("button", { name: "Continue with Google" }),
     ).toHaveLength(1);
   });
 
@@ -791,7 +789,9 @@ describe("UnlockScreen — password unlock", () => {
       name: "Continue with Google",
     });
     expect(google.className).toContain("signin__provider--google");
-    const github = screen.getByRole("button", { name: "Continue with GitHub" });
+    const github = await screen.findByRole("button", {
+      name: "Continue with GitHub",
+    });
     expect(github.className).toContain("signin__provider--github");
   });
 

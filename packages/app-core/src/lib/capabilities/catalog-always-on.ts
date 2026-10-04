@@ -127,6 +127,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.local.access.manage",
         "identity.local.policy.manage",
         "identity.local.requests.manage",
+        "identity.local.receipts.read",
         "receipts.read",
         "shared_sessions.join_request",
       ],

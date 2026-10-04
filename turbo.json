@@ -3,7 +3,13 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": [
+        "PAGES_CANONICAL_ORIGIN",
+        "PAGES_DEPLOYMENT_PROFILE",
+        "PAGES_HEADER_SECURITY",
+        "GITHUB_REPOSITORY_OWNER"
+      ]
     },
     "dev": {
       "cache": false,

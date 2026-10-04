@@ -7,7 +7,11 @@ import {
   LocalDirectoryError,
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
-import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import {
+  subscribeLocalIamChanges,
+  subscribeLocalIamChangesFromOtherTabs,
+} from "@opensesame/app-core/lib/local-iam-events.js";
+import { isSignInInFlight } from "@opensesame/app-core/lib/local-request-summary.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 async function read(tomb: string) {
@@ -16,7 +20,12 @@ async function read(tomb: string) {
     readLocalApplications(tomb),
     listLocalAccessRequests(tomb),
   ]);
-  return { directory, applications: applications.applications, requests };
+  return {
+    directory,
+    applications: applications.applications,
+    // A sign-in being consented to in its own window is decided there.
+    requests: requests.filter((row) => !isSignInInFlight(row)),
+  };
 }
 
 export function useLocalRequests(tomb: string) {
@@ -47,12 +56,15 @@ export function useLocalRequests(tomb: string) {
     alive.current = true;
     const refresh = () => void reload();
     const off = subscribeLocalIamChanges(refresh);
+    // A request raised or decided in another tab is waiting here too.
+    const offOtherTabs = subscribeLocalIamChangesFromOtherTabs(refresh);
     window.addEventListener("focus", refresh);
     refresh();
     return () => {
       alive.current = false;
       generation.current++;
       off();
+      offOtherTabs();
       window.removeEventListener("focus", refresh);
     };
   }, [reload]);

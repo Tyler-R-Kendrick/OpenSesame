@@ -205,6 +205,7 @@ describe("web push through the worker", () => {
       aggregateType: "authorization_request",
       aggregateId: AUTH_REQ,
       eventType: "authority.invocation.completed",
+      availableAt: NOW,
       payload: { principalId: APPROVER, authReqId: AUTH_REQ },
     });
     const arrival = w.service.next(5000);
@@ -268,6 +269,7 @@ describe("the worker's Web Push configuration", () => {
       aggregateType: "authorization_request",
       aggregateId: AUTH_REQ,
       eventType: "authority.invocation.requested",
+      availableAt: NOW,
       payload: { principalId: APPROVER, authReqId: AUTH_REQ },
     });
     const result = await runCleanupTick({

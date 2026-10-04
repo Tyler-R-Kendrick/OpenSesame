@@ -15,6 +15,7 @@ export type SiopV2ErrorCode =
   | "token_expired"
   | "token_not_fresh"
   | "limit_exceeded"
+  | "malformed_metadata"
   | "not_supported";
 
 export type SiopV2Checkpoint =
@@ -31,6 +32,7 @@ export type SiopV2Checkpoint =
   | "validity"
   | "response_serialize"
   | "response_parse"
+  | "metadata"
   | "limits";
 
 const MESSAGES = {
@@ -47,6 +49,7 @@ const MESSAGES = {
   token_not_fresh:
     "ID Token issued-at is outside the accepted freshness window",
   limit_exceeded: "input exceeded a size or time limit",
+  malformed_metadata: "Self-Issued OP metadata is not acceptable",
   not_supported: "feature is not supported by this package",
 } as const satisfies Record<SiopV2ErrorCode, string>;
 

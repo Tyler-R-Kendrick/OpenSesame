@@ -19,6 +19,7 @@ const KINDS = [
   "tutorial-goal",
   "tutorial-route",
   "tutorial-target",
+  "unlock-effect",
 ];
 
 describe("access.authority runtime", () => {
@@ -39,8 +40,9 @@ describe("access.authority runtime", () => {
       capability: "access.authority",
       kinds: KINDS,
       // 1 section + 3 routes + 1 section command + 6 tab commands + 1 jump
-      // + tutorial descriptors
-      count: 1 + 3 + 1 + 6 + 1 + targets.length + goals.length + routes.length,
+      // + 1 unlock effect + tutorial descriptors
+      count:
+        1 + 3 + 1 + 6 + 1 + 1 + targets.length + goals.length + routes.length,
     });
   });
 
@@ -85,6 +87,21 @@ describe("access.authority runtime", () => {
     );
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual(["/access"]);
     expect(t.hydrated).toEqual([]);
+    await handle.dispose();
+  });
+
+  it("writes any receipt still waiting when the vault is opened, and fails nothing when none is", async () => {
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const [effect] = t.entries("unlock-effect");
+    expect(effect?.id).toBe("receipts-flush");
+    await expect(
+      effect?.run({
+        tomb: "no-such-tomb",
+        guest: false,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBeUndefined();
     await handle.dispose();
   });
 });

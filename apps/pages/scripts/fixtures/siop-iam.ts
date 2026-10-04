@@ -11,8 +11,14 @@ import {
 import { enrollLocalPasskey } from "@opensesame/app-core/lib/local-passkeys.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 
-/** Disposable browser-context fixture. This entry is never part of the Pages build. */
-export async function seed() {
+const DEFAULT_REDIRECTS = ["https://rp.example.test/callback"];
+
+/**
+ * Disposable browser-context fixture. This entry is never part of the Pages
+ * build. Both applications register every address in `redirectUris`: the
+ * default relying party, and whichever real servers a journey names.
+ */
+export async function seed(redirectUris: string[] = DEFAULT_REDIRECTS) {
   await vaultStore.create("Cedar-lantern-47-river!");
   const tomb = vaultStore.activeTomb();
   async function change(command: LocalDirectoryChange) {
@@ -59,7 +65,7 @@ export async function seed() {
     await configureLocalApplication(tomb, revision, applicationId, {
       applicationId,
       organizationId: org.id,
-      redirectUris: ["https://rp.example.test/callback"],
+      redirectUris,
       scopes: ["openid"],
       scopeRoles: [{ scope: "openid", roles: ["owner", "admin", "member"] }],
     });

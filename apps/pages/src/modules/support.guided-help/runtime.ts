@@ -1,7 +1,7 @@
 /**
  * `support.guided-help` — the support panel, the authored help topics and
  * the tutorials that *point* at authored targets and never act (ADR 0088,
- * ADR 0161): the shell wrapper that mounts the panel, and the two guidance
+ * ADR 0163): the shell wrapper that mounts the panel, and the two guidance
  * tools (`opensesame_help`, `opensesame_guide_start`) that let an in-browser
  * agent open help or start an authored walkthrough by id.
  *

@@ -251,6 +251,11 @@ export const SECTION_RULES = [
     "Settings › Notifications' files: routing.json, channels.json, bindings.json (ADR 0134, 0140 D9)",
   ),
   optional(
+    "src/sections/settings/local-notifications-files",
+    "notifications.local",
+    "Settings › Capabilities' local-notifications.json (ADR 0134, 0162)",
+  ),
+  optional(
     "src/sections/settings/FeatureBindingsPanel",
     CONNECTORS,
     "capability → connector bindings",

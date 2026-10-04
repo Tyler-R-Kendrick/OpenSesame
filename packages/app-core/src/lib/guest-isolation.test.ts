@@ -58,6 +58,7 @@ it("does not load Host installs or mint grants for a guest session", async () =>
     shares: [],
     ownerId: null,
     auditEvents: [],
+    auditReadable: true,
   });
   await expect(ensureGithubAccessGrant(GUEST_TOMB, null)).rejects.toThrow(
     /Guests cannot/,
