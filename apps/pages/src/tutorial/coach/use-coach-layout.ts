@@ -8,6 +8,7 @@ import {
   useLiveRect,
   useMeasured,
   usePhoneLayout,
+  useSafeInsets,
   useViewport,
 } from "./use-geometry.js";
 
@@ -33,6 +34,7 @@ export function useCoachLayout(
   );
   const viewport = useViewport();
   const phone = usePhoneLayout();
+  const insets = useSafeInsets();
   const stepKey = `${runId}:${tour.kind}:${tour.step}`;
   const size = useMeasured(card, `${stepKey}:${tour.message}:${phone}`);
   const box = rect === null ? null : padded(rect);
@@ -48,7 +50,7 @@ export function useCoachLayout(
         });
   const hole =
     box !== null && size !== null && placement?.kind === "dock"
-      ? clearOfDock(box, viewport, size, placement.edge)
+      ? clearOfDock(box, viewport, size, placement.edge, insets)
       : box;
   return {
     stepKey,
