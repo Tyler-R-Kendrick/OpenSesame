@@ -120,11 +120,19 @@ The unit tests prove the runtime and the card; `pnpm --filter
 @opensesame/pages verify:tutorials` proves the product. It starts each
 tutorial from the library, gets through it with Next alone (mouse on one
 step, keyboard on the next), and fails on any step whose card is outside the
-viewport, whose Next is missing, whose control is not lit, uncovered and
-reachable through the aperture, or whose control is missing. It then goes
-Back, Replays, finishes with Done and checks that focus was handed back. It
-runs at desktop and phone width, with every optional capability on, and it
-sits in the required Bundle budgets job.
+viewport, whose Next is missing, whose steps are not numbered 1..N with none
+skipped, or whose control is missing or not lit. The control is found by its
+registry target id (`data-guide-targets`, set where the registry binds it),
+never by the ring the product drew, and a pointer at the visible centre of its
+box must reach it, not the card, the dim or anything else. A control that has
+not mounted is given the runtime's own appear grace before "not on screen" is
+believed. It then goes Back, Replays, finishes with Done and checks that focus
+was handed back, leaves a tour with Escape from the card and from the lit
+control, and makes the move an action step waits for through the aperture. It
+waits on conditions, not sleeps, runs at desktop and phone width with every
+optional capability on, and sits in the required Bundle budgets check as one
+job per width (`tutorials-e2e`, folded into `bundle-check`) so the walk does not
+share the bundle job's time.
 
 ## Consequences
 
