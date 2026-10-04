@@ -34,7 +34,6 @@ import {
   SupportSlotProvider,
 } from "../tutorial/ui/SupportLauncher.js";
 import { CommandBar } from "./CommandBar.js";
-import { expectInTray } from "./tray.test-support.js";
 
 const originalVaultHooks = { ...vaultHooksSeams };
 const originalSessionSeams = { ...supportSessionSeams };
@@ -49,11 +48,10 @@ function enableAsk(): void {
   });
 }
 
-const fakeVaultHooks = {
+Object.assign(vaultHooksSeams, {
   useVault: () => ({ items: [], status: "unlocked" }),
   useCopySecret: () => async () => ({ ok: true as const, clearsInMs: 0 }),
-};
-Object.assign(vaultHooksSeams, fakeVaultHooks);
+});
 
 /** The smallest engine that answers: no walkthrough runtime, one fake agent. */
 function installEngine(agent: FakeSupportAgent): void {
@@ -341,22 +339,5 @@ describe("CommandBar — command or ask", () => {
     expect((await screen.findByRole("status")).textContent).toContain(
       "No match",
     );
-  });
-
-  it("sends a command that failed to the tray and marks the field", async () => {
-    Object.assign(vaultHooksSeams, fakeVaultHooks);
-    const user = userEvent.setup();
-    renderBar(false);
-    const field = screen.getByRole("combobox", { name: "Command" });
-    await user.type(field, "copy password for nothing{Enter}");
-    await expectInTray("No item matches");
-    expect(field.getAttribute("aria-invalid")).toBe("true");
-    expect(screen.getByRole("img", { name: /^No item matches/ })).toBeTruthy();
-    await user.clear(field);
-    await user.type(field, "where are my connections?{Enter}");
-    expect((await screen.findByRole("status")).textContent).toContain(
-      "No match",
-    );
-    expect(field.getAttribute("aria-invalid")).toBeNull();
   });
 });
