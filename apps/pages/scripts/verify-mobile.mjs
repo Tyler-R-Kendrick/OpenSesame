@@ -30,6 +30,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { backOutStops, openVaultList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -179,6 +180,8 @@ async function sections(page, stop) {
   ]) {
     if (await openTab(page, name)) await audit(page, stop(label));
   }
+  // Settings is the last stop: no finger can press a key, so no key editor.
+  await auditKeybindingsAbsent(page, harness, stop);
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;

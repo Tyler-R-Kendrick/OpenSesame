@@ -11,10 +11,19 @@ import {
   settingsTabsFrom,
 } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import { useContributions } from "../bindings/contributions.js";
+import { useFinePointer } from "../lib/use-narrow.js";
 
+/** The tabs the page draws: no Keybindings where there is no key to press. */
 export function useSettingsTabs(): readonly SettingsTab[] {
   const contributions = useContributions("settings-category");
-  return useMemo(() => settingsTabsFrom(contributions), [contributions]);
+  const keys = useFinePointer();
+  return useMemo(
+    () =>
+      settingsTabsFrom(contributions).filter(
+        (tab) => keys || tab.id !== "keybindings",
+      ),
+    [contributions, keys],
+  );
 }
 
 /** One category link, named so a guide can point at it. */

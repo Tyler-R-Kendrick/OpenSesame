@@ -386,6 +386,10 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   is reachable only by scrolling.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
+- **Keybindings is drawn only where a pointing device is attached.** Settings ›
+  Keybindings is absent when `(any-pointer: fine)` is false, and its address
+  lands on General; the query cannot see a keyboard, so a phone with only a
+  hardware keyboard loses the tab.
 
 None of this is a screenshot review: `pnpm --filter @opensesame/pages
 verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
