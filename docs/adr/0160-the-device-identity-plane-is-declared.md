@@ -275,6 +275,11 @@ this ADR does not repeat it.
 - `verify:device-identity` drives a guest on a static build with no Identity API
   at desktop and mobile widths: the sign-out row appears only after the device
   session exists, the connectivity status reads "This device", and none of the
-  forbidden copy appears across Settings and Access.
+  forbidden copy appears across Settings and Access. A second scenario seals a
+  password vault: its bound principal is the key's thumbprint, locked it
+  answers 423 and issues nothing, unlocked it is the same principal, and a
+  guest beside it is another principal that the member's bearer does not speak
+  for. A third holds the local IAM chunk back and shows Receipts arrive without
+  a navigation.
 - `verify:static`, `verify:local-iam`, `verify:siop`, `verify:keyboard`,
   `verify:mobile` and `verify:auth` stay green.

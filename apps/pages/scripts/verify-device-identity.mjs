@@ -19,6 +19,12 @@
 //      roll.
 //   D. Settings › General now draws the row.
 //   E. Every Settings section reads clean (the forbidden-copy gate).
+//   G. A member vault (password-sealed): the bound principal is the vault key's
+//      thumbprint; locked, every device route answers 423; unlocked again it is
+//      the same principal; a guest beside it is another principal and the
+//      member's bearer does not speak for it.
+//   H. A capability that activates after Access Sessions drew (its chunk is
+//      held back) shows Receipts without a navigation.
 //   F. Access, once chosen: every tab reads clean, and Receipts is drawn only
 //      once Browser-local IAM is on, because only it keeps an audit trail for
 //      the device plane to serve.
@@ -34,8 +40,13 @@ import {
   capabilityOffSwitch,
   capabilityOnSwitch,
 } from "./lib/always-on.mjs";
-import { doorGuest } from "./lib/front-door.mjs";
-import { waitOpen } from "./lib/pages-journey.mjs";
+import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
+import {
+  lockVault,
+  sealLocalOnly,
+  unlockWithPassword,
+  waitOpen,
+} from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -189,6 +200,170 @@ async function walkAccess(page, label, { receipts }) {
   }
 }
 
+/**
+ * The device host the app itself runs, imported by URL: the same module
+ * instance, so its sessions and the vault it reads are the app's own. It is a
+ * lazy chunk named for the module.
+ */
+const HOST_CHUNK = fs
+  .readdirSync(path.join(DIST, "assets"))
+  .find((file) => /^device-identity-host-.*\.js$/.test(file));
+
+async function hostCall(page, route, init = {}) {
+  return page.evaluate(
+    async ([url, to, options]) => {
+      const host = await import(url);
+      const res = await host.deviceIdentityFetch(to, options);
+      return { status: res.status, body: await res.json() };
+    },
+    [`${ORIGIN}${BASE}assets/${HOST_CHUNK}`, route, init],
+  );
+}
+
+const mintInit = { method: "POST", body: "{}" };
+const asBearer = (token) => ({ headers: { authorization: `Bearer ${token}` } });
+
+async function memberVault(browser) {
+  const label = "member";
+  setStep(label);
+  check(HOST_CHUNK !== undefined, `${label}: the device host is its own chunk`);
+  const { page, context } = await newPage(browser);
+  await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  await passTheDoor(page);
+  await sealLocalOnly(page);
+
+  const first = await hostCall(page, "/v1/principals/provisional", mintInit);
+  check(first.status === 201, `${label}: a member vault mints a session`);
+  const member = first.body.principalId;
+  check(
+    /^prn_[A-Za-z0-9_-]{43}$/.test(member),
+    `${label}: the principal is the vault key's thumbprint`,
+  );
+  const me = await hostCall(
+    page,
+    "/v1/principals/me",
+    asBearer(first.body.accessToken),
+  );
+  check(
+    me.status === 200 &&
+      me.body.id === member &&
+      me.body.state === "active" &&
+      me.body.assurance === "provisional",
+    `${label}: /me is the active, provisional member principal`,
+  );
+
+  await lockVault(page);
+  const locked = await hostCall(
+    page,
+    "/v1/principals/me",
+    asBearer(first.body.accessToken),
+  );
+  check(
+    locked.status === 423 && locked.body.error === "locked",
+    `${label}: locked, the bearer answers 423`,
+  );
+  const remint = await hostCall(page, "/v1/principals/provisional", mintInit);
+  check(remint.status === 423, `${label}: locked, nothing is issued`);
+  const claim = await hostCall(page, "/v1/claims", {
+    method: "POST",
+    ...asBearer(first.body.accessToken),
+    body: JSON.stringify({ targetManifest: { kind: "drop" } }),
+  });
+  check(claim.status === 423, `${label}: locked, no claim is created`);
+
+  await unlockWithPassword(page);
+  const again = await hostCall(
+    page,
+    "/v1/principals/me",
+    asBearer(first.body.accessToken),
+  );
+  check(
+    again.status === 200 && again.body.id === member,
+    `${label}: unlocked, the same bearer is the same principal`,
+  );
+  const second = await hostCall(page, "/v1/principals/provisional", mintInit);
+  check(
+    second.body.principalId === member,
+    `${label}: a new session after unlock is the same principal`,
+  );
+
+  // A guest beside the sealed vault: another tomb, another key.
+  await lockVault(page);
+  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await waitOpen(page);
+  const guest = await hostCall(page, "/v1/principals/provisional", mintInit);
+  check(
+    guest.status === 201 &&
+      /^prn_[A-Za-z0-9_-]{43}$/.test(guest.body.principalId) &&
+      guest.body.principalId !== member,
+    `${label}: a guest beside the vault has its own principal`,
+  );
+  const guestMe = await hostCall(
+    page,
+    "/v1/principals/me",
+    asBearer(guest.body.accessToken),
+  );
+  check(
+    guestMe.body.state === "provisional" &&
+      guestMe.body.assurance === "provisional",
+    `${label}: the guest is provisional`,
+  );
+  const stray = await hostCall(
+    page,
+    "/v1/principals/me",
+    asBearer(second.body.accessToken),
+  );
+  check(
+    stray.status === 401,
+    `${label}: the member's bearer does not speak for the guest vault`,
+  );
+  await context.close();
+}
+
+/** A capability that arrives after the panel drew is seen without navigating. */
+async function lateActivation(browser) {
+  const label = "late";
+  setStep(label);
+  const { page, context } = await newPage(browser);
+  await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  await doorGuest(page).click();
+  await waitOpen(page);
+  await chooseCapability(page, "Access authority");
+  await page.setViewportSize(WIDTHS[0].narrow);
+  await connect(page, label);
+  await page.setViewportSize(WIDTHS[0].size);
+  // The local IAM chunk arrives late: the plan commits, the module follows.
+  await page.route("**/assets/cap-identity.local-iam-*.js", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    await route.fallback();
+  });
+  await go(page, "/settings/capabilities");
+  await awaitCapabilitySections(page);
+  const add = capabilityOffSwitch(page, "Browser-local IAM");
+  await add.waitFor({ timeout: 15000 });
+  await add.click();
+  await capabilityOnSwitch(page, "Browser-local IAM").waitFor({
+    timeout: 15000,
+  });
+  await go(page, "/access?view=sessions");
+  const early = await page.locator("#access-receipts").count();
+  await snap(page, `${label}-before-activation`);
+  await page
+    .locator("#access-receipts")
+    .waitFor({ state: "attached", timeout: 20000 })
+    .catch(() => undefined);
+  const late = await page.locator("#access-receipts").count();
+  check(
+    early === 0,
+    `${label}: Receipts is not drawn while the capability is still arriving`,
+  );
+  check(
+    late === 1,
+    `${label}: Receipts appears once the capability activates, with no navigation`,
+  );
+  await context.close();
+}
+
 const browser = await launch();
 for (const width of WIDTHS) {
   const label = width.name;
@@ -249,6 +424,8 @@ for (const width of WIDTHS) {
 
   await context.close();
 }
+await memberVault(browser);
+await lateActivation(browser);
 await browser.close();
 
 fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));
