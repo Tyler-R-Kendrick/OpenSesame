@@ -16,6 +16,9 @@ describe("the sheet a finger reads", () => {
     expect(rows).toContainEqual(["Two-finger swipe right", "Climb out"]);
     expect(rows).toContainEqual(["Two-finger tap", "Command bar"]);
     expect(rows).toContainEqual(["Shake the phone", "Keyboard help"]);
+    // A count has no gesture: no "or row N" under a finger.
+    expect(rows).toContainEqual(["Two-finger swipe up", "Last row"]);
+    expect(rows).toContainEqual(["Two-finger swipe down", "First row"]);
   });
 
   it("follows a gesture a person moved, and drops one they struck", () => {

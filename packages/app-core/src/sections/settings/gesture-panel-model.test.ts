@@ -24,6 +24,14 @@ describe("what a gesture's row offers", () => {
     expect(ids(groups)).toContain("listing.next");
   });
 
+  it("says a command the way a gesture does: no count", () => {
+    const labels = targetGroups(EMPTY_KEYMAP, commands).flatMap((group) =>
+      group.options.map((option) => option.label),
+    );
+    expect(labels).toContain("Last row");
+    expect(labels.some((label) => label.includes("row N"))).toBe(false);
+  });
+
   it("never offers a command that asks first, or a register key", () => {
     const offered = ids(targetGroups(EMPTY_KEYMAP, commands));
     for (const locked of ["item.trash", "item.share", "item.purge"])

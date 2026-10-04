@@ -180,3 +180,11 @@ export const LOADOUTS: readonly { id: Loadout; label: string }[] = [
 export function preferredLoadout(touch: boolean): Loadout {
   return touch ? "gestures" : "keyboard";
 }
+
+/**
+ * A command's label as a gesture says it. A count has no gesture, so "Last row,
+ * or row N" is "Last row" under a finger.
+ */
+export function gestureActionLabel(label: string): string {
+  return label.replace(/, or row N$/, "");
+}

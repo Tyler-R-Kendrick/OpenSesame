@@ -2,7 +2,10 @@ import { keymapCommands } from "@opensesame/app-core/lib/keymap/commands.js";
 import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
 import { targetLabel } from "@opensesame/app-core/lib/keymap/effective.js";
 import { effectiveGestures } from "@opensesame/app-core/lib/keymap/gesture-bindings.js";
-import { GESTURES } from "@opensesame/app-core/lib/keymap/gestures.js";
+import {
+  GESTURES,
+  gestureActionLabel,
+} from "@opensesame/app-core/lib/keymap/gestures.js";
 
 export type GestureHelpRow = readonly [gesture: string, action: string];
 
@@ -43,7 +46,7 @@ export function gestureHelpRows(view?: GestureView): readonly GestureHelpRow[] {
     const target = live.get(gesture.id);
     if (target === undefined) return [];
     if (gesture.family === "motion" && !view.motion) return [];
-    return [[gesture.label, targetLabel(target, commands)]];
+    return [[gesture.label, gestureActionLabel(targetLabel(target, commands))]];
   });
   return [...GESTURE_HELP, ...own];
 }

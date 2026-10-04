@@ -10,7 +10,10 @@ import {
   REGISTER_PREFIX,
 } from "../../lib/keymap/commands.js";
 import type { KeymapConfig } from "../../lib/keymap/config.js";
-import { gestureBindingProblem } from "../../lib/keymap/gestures.js";
+import {
+  gestureActionLabel,
+  gestureBindingProblem,
+} from "../../lib/keymap/gestures.js";
 
 export type TargetOption = Readonly<{ id: string; label: string }>;
 
@@ -41,7 +44,10 @@ export function targetGroups(
     label: GROUP_LABEL[group],
     options: commands
       .filter((command) => command.group === group && allowed(command))
-      .map((command) => ({ id: command.id, label: command.label })),
+      .map((command) => ({
+        id: command.id,
+        label: gestureActionLabel(command.label),
+      })),
   }));
   const macros = Object.keys(config.macros)
     .sort()
