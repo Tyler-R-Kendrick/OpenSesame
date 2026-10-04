@@ -103,3 +103,47 @@ export async function treeActions(page, stop, { harness, audit }) {
   await page.getByRole("link", { name: "Back to sections" }).first().tap();
   await page.waitForTimeout(500);
 }
+
+/**
+ * The Back keys climb the history instead of adding to it. The Navigation
+ * API's own entry index is the ground truth: a key that pushed the pane it
+ * climbed to would leave the index one higher each time, and the system Back
+ * button would walk back through every pane just visited. Needs an item in the
+ * vault (the deepest leg opens it) and leaves the walk on the tree it found.
+ */
+export async function backKeysPop(page, stop, { harness }) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) !== "tree") return;
+  const label = stop("back-keys-pop");
+  const entry = () =>
+    page.evaluate(() => window.navigation?.currentEntry?.index);
+  const tap = async (locator) => {
+    await locator.first().tap();
+    await page.waitForTimeout(500);
+  };
+  const tree = await entry();
+  harness.check(
+    Number.isInteger(tree),
+    `${label}: the Navigation API is there`,
+  );
+  await tap(page.getByRole("treeitem", { name: /^all\b/i }));
+  const list = await entry();
+  await tap(page.locator('.vault__list [role="treeitem"]'));
+  const item = await entry();
+  await tap(page.getByRole("link", { name: "Back to all items" }));
+  const backToList = await entry();
+  await tap(page.getByRole("link", { name: "Back to sections" }));
+  const backToTree = await entry();
+  harness.check(
+    list === tree + 1 && item === tree + 2,
+    `${label}: going down adds one entry a pane (${tree}, ${list}, ${item})`,
+  );
+  harness.check(
+    backToList === list,
+    `${label}: Back to all items returns to the list's entry (${backToList}, expected ${list})`,
+  );
+  harness.check(
+    backToTree === tree,
+    `${label}: Back to sections returns to the tree's entry (${backToTree}, expected ${tree})`,
+  );
+}
