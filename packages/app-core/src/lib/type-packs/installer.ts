@@ -74,21 +74,60 @@ const cancelled = new Set<string>();
 const transient = new Set<string>();
 let draining = false;
 
+/** How many downloads may be in the air at once. Installs never overlap. */
+const FETCH_AHEAD = 6;
+
+type Fetched = { ok: true; text: string } | { ok: false; reason: string };
+
+/** Downloads started and not yet taken by the install loop. */
+const fetching = new Map<string, Promise<Fetched>>();
+
+/**
+ * Start a download. Fetching waits on the network and never on the main
+ * thread, so a few go at once and the wall time of a bulk switch is the
+ * slowest chunk, not the sum of all of them; only installing is one at a time.
+ */
+function startFetch(id: string): Promise<Fetched> {
+  const started = fetching.get(id);
+  if (started !== undefined) return started;
+  setStatus(id, { phase: "downloading" });
+  const download = packSeams.fetchText(id).then(
+    (text): Fetched => ({ ok: true, text }),
+    (error): Fetched => ({
+      ok: false,
+      reason: error instanceof Error ? error.message : "It did not download.",
+    }),
+  );
+  fetching.set(id, download);
+  return download;
+}
+
+function prefetch(): void {
+  for (const id of queue.slice(0, FETCH_AHEAD)) {
+    if (!cancelled.has(id)) startFetch(id);
+  }
+}
+
 async function installOne(id: string): Promise<void> {
   const entry = packEntry(id);
   if (entry === undefined) return;
-  setStatus(id, { phase: "downloading" });
+  const download = startFetch(id);
   await packSeams.yieldToMain();
+  const got = await download;
+  fetching.delete(id);
+  if (cancelled.has(id)) return;
+  if (!got.ok) {
+    setStatus(id, { phase: "failed", reason: got.reason });
+    return;
+  }
   try {
-    const text = await packSeams.fetchText(id);
-    if (cancelled.has(id)) return;
     setStatus(id, { phase: "installing" });
     await packSeams.yieldToMain();
-    const definition = await verifyPackText(id, text);
+    const definition = await verifyPackText(id, got.text);
     if (cancelled.has(id)) return;
     if (!transient.has(id)) {
       await updateStoredPacks((stored) => {
-        stored.set(id, { sha256: entry.sha256, text });
+        stored.set(id, { sha256: entry.sha256, text: got.text });
       });
       if (cancelled.has(id)) {
         await updateStoredPacks((stored) => {
@@ -97,7 +136,7 @@ async function installOne(id: string): Promise<void> {
         return;
       }
     }
-    registerPack(definition, text);
+    registerPack(definition, got.text);
     setStatus(id, { phase: "on" });
   } catch (error) {
     if (cancelled.has(id)) return;
@@ -116,6 +155,7 @@ async function drain(): Promise<void> {
       const id = queue.shift();
       if (id === undefined) break;
       if (cancelled.has(id)) continue;
+      prefetch();
       announcePacks();
       await installOne(id);
       announcePacks();
@@ -124,6 +164,7 @@ async function drain(): Promise<void> {
   } finally {
     draining = false;
     cancelled.clear();
+    fetching.clear();
     announcePacks();
     if (getPackSnapshot().pending === 0) resetSettled();
   }
@@ -148,12 +189,17 @@ export function enablePack(id: string, options: EnableOptions = {}): void {
   dismissNotice(`type-pack:${id}`);
   setStatus(id, { phase: "queued" });
   queue.push(id);
+  // A pack joining while others are installing starts its download at once.
+  prefetch();
   announcePacks();
   void drain();
 }
 
-export function enablePacks(ids: readonly string[]): void {
-  for (const id of ids) enablePack(id);
+export function enablePacks(
+  ids: readonly string[],
+  options: EnableOptions = {},
+): void {
+  for (const id of ids) enablePack(id, options);
 }
 
 export type DisableOutcome = Readonly<
@@ -167,6 +213,7 @@ export async function disablePack(id: string): Promise<DisableOutcome> {
   const { phase } = statusOf(id);
   if (isBusy(phase)) {
     cancelled.add(id);
+    fetching.delete(id);
     const at = queue.indexOf(id);
     if (at >= 0) queue.splice(at, 1);
     setStatus(id, { phase: "off" });

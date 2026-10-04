@@ -4,10 +4,13 @@
  * secret. The contribution is the creation surface (SURFACE-08): a record
  * already in the vault still opens when this capability is off.
  *
- * The definitions are packs (ADR 0165): `activate` loads all of them, one at a
- * time, from their own chunks of this same origin — no other egress. A person
- * who wants some of them, not all, switches those in Settings › Vaults › Item
- * types, which needs no capability.
+ * The definitions are packs (ADR 0165). The kinds are registered at once from
+ * the pack index, which is in the bundle, so nothing here waits on the network;
+ * the definitions are then queued behind them (one at a time, the main thread
+ * handed back between each, told in the bell tray) from their own chunks of
+ * this same origin — no other egress. A person who wants some of them, not
+ * all, switches those in Settings › Vaults › Item types, which needs no
+ * capability.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
@@ -16,8 +19,8 @@ import {
   derivedKindOrder,
   derivedKindSegment,
 } from "@opensesame/app-core/lib/derived-item-kinds.js";
-import { itemTypeRegistry, typeLabel } from "@opensesame/vault-core";
-import { directoryName, loadPack } from "@opensesame/vault-item-types";
+import { enablePacks } from "@opensesame/app-core/lib/type-packs/installer.js";
+import { directoryOf, packEntry } from "@opensesame/vault-item-types";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "vault.derived-records";
@@ -27,23 +30,20 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    // The definitions are packs (ADR 0165): the capability being on is the
-    // cue to fetch them, one at a time so the page is never held.
-    for (const kind of DERIVED_ITEM_KINDS) {
-      await loadPack(kind).catch(() => undefined);
-      if (activation.disposed()) return activation.handle();
-    }
-    const registry = itemTypeRegistry();
     DERIVED_ITEM_KINDS.forEach((kind, index) => {
-      const definition = registry.get(kind);
-      if (definition === undefined) return;
+      const entry = packEntry(kind);
+      if (entry === undefined) return;
       activation.register("item-kind", {
         kind,
-        label: typeLabel(kind),
-        segment: derivedKindSegment(kind, directoryName(definition)),
+        label: entry.title,
+        segment: derivedKindSegment(kind, directoryOf(entry.plural, kind)),
         order: derivedKindOrder(kind, index),
       });
     });
+    // Installed for this document, not remembered as a choice: the capability
+    // being on is the reason, and turning it off must not leave switches the
+    // person never pressed.
+    enablePacks(DERIVED_ITEM_KINDS, { keep: false });
     return activation.handle();
   },
 };

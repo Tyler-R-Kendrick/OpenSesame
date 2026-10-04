@@ -77,7 +77,11 @@ export function directoryName(definition: ItemTypeDefinition): string {
   return directoryOf(definition.spec.plural, definition.metadata.id);
 }
 
-function directoryOf(plural: string, id: string): string {
+/**
+ * The directory a type of this plural and id would take, for a caller that has
+ * the pack's index entry and not yet its definition (ADR 0165).
+ */
+export function directoryOf(plural: string, id: string): string {
   const slug = plural
     .replaceAll(/[A-Z]/g, (letter) => letter.toLowerCase())
     .replaceAll(/[^a-z0-9]+/g, "-")

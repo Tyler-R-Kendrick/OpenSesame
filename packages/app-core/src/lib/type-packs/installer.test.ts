@@ -20,6 +20,7 @@ import {
   resetPackStateForTests,
   setCounts,
   statusOf,
+  subscribePackState,
 } from "./state.js";
 
 const original = { ...packSeams };
@@ -44,9 +45,7 @@ afterEach(() => {
 describe("switching a pack on", () => {
   it("walks queued → downloading → installing → on and registers the type", async () => {
     const phases: string[] = [];
-    const stop = (await import("./state.js")).subscribePackState(() =>
-      phases.push(statusOf("login").phase),
-    );
+    const stop = subscribePackState(() => phases.push(statusOf("login").phase));
     enablePack("login");
     await idle();
     stop();
@@ -77,18 +76,30 @@ describe("switching a pack on", () => {
     expect(yielded.mock.calls.length).toBeGreaterThanOrEqual(9);
   });
 
-  it("runs one pack at a time", async () => {
+  it("installs one pack at a time, however many are on their way", async () => {
     const seen: number[] = [];
-    packSeams.fetchText = async (id) => {
-      const busy = packEntries().filter(
-        (entry) => statusOf(entry.id).phase === "downloading",
-      ).length;
-      seen.push(busy);
-      return importPackText(id);
-    };
+    const sample = () =>
+      packEntries().filter((entry) => statusOf(entry.id).phase === "installing")
+        .length;
+    const stop = subscribePackState(() => seen.push(sample()));
     enablePacks(["login", "card", "note"]);
     await idle();
-    expect(seen).toEqual([1, 1, 1]);
+    stop();
+    expect(Math.max(...seen)).toBe(1);
+    expect(["login", "card", "note"].every((id) => isPackOn(id))).toBe(true);
+  });
+
+  it("downloads a few ahead, so a bulk switch takes the slowest chunk and not the sum", async () => {
+    const releases = new Map<string, () => void>();
+    packSeams.fetchText = (id) =>
+      new Promise((resolve) => {
+        releases.set(id, () => resolve(importPackText(id)));
+      });
+    enablePacks(["login", "card", "note"]);
+    // All three are in the air before any has landed.
+    await vi.waitFor(() => expect(releases.size).toBe(3));
+    for (const release of releases.values()) release();
+    await idle();
     expect(["login", "card", "note"].every((id) => isPackOn(id))).toBe(true);
   });
 

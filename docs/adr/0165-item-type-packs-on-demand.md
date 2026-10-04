@@ -67,7 +67,10 @@ off → queued → downloading → installing → on
                     ↘ failed ↙ (the switch, pressed again, retries)
 ```
 
-- **One pack at a time**, queued, so "switch on all" is a line and not a burst.
+- **Downloads a few ahead, installs one at a time.** Fetching waits on the
+  network and not on the main thread, so up to six downloads are in the air
+  and the wall time of "switch on all" is the slowest chunk, not the sum; the
+  digest, parse, sealed copy and registration are strictly one pack at a time.
 - **The main thread is handed back** before each step and between packs
   (`scheduler.yield()`, else a macrotask). Fetch and the digest (`crypto.subtle`)
   are asynchronous; parsing is a few milliseconds. Taps, scrolling and typing
@@ -121,8 +124,11 @@ mark; the capability's own switch is the one to press).
 
 `itemKindsFrom` adds the packs that are on to the capabilities' `item-kind`
 contributions, deduplicated, at the rail positions the same kinds have when a
-capability contributes them. `vault.derived-records` loads the 18 definitions
-when it activates, so the coarse capability still means "all of them".
+capability contributes them. `vault.derived-records` registers its 18 kinds at once from the index — nothing
+in `activate` waits on the network, because a plan that is slow to settle
+delays every capability behind it — and queues the 18 definitions behind them,
+installed for the document and not remembered as a choice, so the coarse
+capability still means "all of them".
 
 ## Consequences
 

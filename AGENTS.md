@@ -767,8 +767,8 @@ Do not add new top-level directories or loose root files — find the group.
   SHA-256, nothing else). Settings › Vaults › Item types is a list of switches —
   the whole row is the switch, `role="switch"`, for a thumb. Switching on queues
   `enablePack` (`packages/app-core/src/lib/type-packs/`): download, digest,
-  parse, sealed copy for offline, register — one at a time, the main thread
-  handed back between steps, no reload, state told on the row, in a live region
+  parse, sealed copy for offline, register — downloads a few ahead, installs one
+  at a time, the main thread handed back between steps, no reload, state told on the row, in a live region
   and in the bell tray. Never import `*.generated.js` under `src/packs/`
   statically, and never read a pack's text from the entry; a type the open
   vault holds items of is installed for the document and has no switch. After
