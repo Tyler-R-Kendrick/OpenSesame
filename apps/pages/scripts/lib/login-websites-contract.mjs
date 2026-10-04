@@ -1,9 +1,11 @@
 import { expect } from "@playwright/test";
+import { toTheList } from "./phone-vault.mjs";
 
 export async function checkLoginWebsites(page, check) {
   const viewport = page.viewportSize();
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 800 });
+    await toTheList(page);
     await page.getByRole("link", { name: "New item", exact: true }).click();
     await page
       .getByRole("button", { name: "Add address", exact: true })

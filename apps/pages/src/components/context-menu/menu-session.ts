@@ -82,6 +82,8 @@ export type MenuSession = {
   subButtons: RefObject<(HTMLButtonElement | null)[]>;
   own: RefObject<HTMLDivElement | null>;
   activate: (item: MenuItem | undefined) => void;
+  /** Leave the open submenu for its parent list. */
+  leave: () => void;
 };
 
 /** Parent rows, and one open submenu beside the row that owns it. */
@@ -142,5 +144,6 @@ export function useMenuSession(
     subButtons,
     own,
     activate,
+    leave: () => void onLeft(),
   };
 }

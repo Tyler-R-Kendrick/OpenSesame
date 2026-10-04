@@ -36,8 +36,34 @@
 .ctxmenu--sheet .ctxmenu__sub {
   position: static;
   left: auto;
-  margin: 0.15rem 0 0.15rem 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
   box-shadow: none;
+}
+
+/* A sheet's submenu replaces its list: the parent's rows stand down and a
+   back row names where you are, so the choices are never a box hung below a
+   row that scrolled out of reach. */
+.ctxmenu--sheet.is-drilled > .ctxmenu__item,
+.ctxmenu--sheet.is-drilled > .ctxmenu__sep {
+  display: none;
+}
+
+.ctxmenu__back {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.5rem 0 0.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
 /* The phone arrangement: an action sheet on the bottom edge, full width,
@@ -55,13 +81,15 @@
   overscroll-behavior: contain;
   padding: 0.25rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
   border-width: 1px 0 0;
-  border-radius: 0;
+  /* The same top edge as every other bottom sheet (`.sheet`). */
+  border-radius: 18px 18px 0 0;
 }
 
 .ctxmenu__title {
   margin: 0;
   font-family: inherit;
   padding: 0.6rem 0.5rem 0.4rem;
+  font-weight: 600;
   overflow: hidden;
   font-size: 0.75rem;
   color: var(--ink-3);
@@ -154,6 +182,18 @@
 
   .ctxmenu__hint {
     display: none;
+  }
+
+  /* The inverse-video cursor is the keyboard's. Under a finger the first entry
+     is focused only so the list has a place to start, and painting it solid
+     reads as an answer nobody gave. */
+  .ctxmenu__item:focus:not(:focus-visible):not(.is-armed) {
+    background: transparent;
+    color: inherit;
+  }
+
+  .ctxmenu__item.is-danger:focus:not(:focus-visible):not(.is-armed) {
+    color: var(--err);
   }
 
   /* Holding a row asks for its menu, so the platform must not answer the
