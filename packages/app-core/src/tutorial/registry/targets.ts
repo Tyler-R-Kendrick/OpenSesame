@@ -42,6 +42,31 @@ type MountedTarget = {
 
 type ActivationListener = () => void;
 
+/**
+ * The attribute a bound element carries, a space-separated list of the target
+ * ids it answers to. Nothing in the app reads it: resolution is the registry's
+ * and only the registry's. It exists so a real-browser run can ask the page
+ * which element an id stands for, instead of trusting the ring a tour drew.
+ */
+export const GUIDE_TARGETS_ATTRIBUTE = "data-guide-targets";
+
+function markBound(element: HTMLElement, id: GuideTargetId): void {
+  const held = (element.getAttribute(GUIDE_TARGETS_ATTRIBUTE) ?? "")
+    .split(" ")
+    .filter(Boolean);
+  if (!held.includes(id)) {
+    element.setAttribute(GUIDE_TARGETS_ATTRIBUTE, [...held, id].join(" "));
+  }
+}
+
+function markUnbound(element: HTMLElement, id: GuideTargetId): void {
+  const left = (element.getAttribute(GUIDE_TARGETS_ATTRIBUTE) ?? "")
+    .split(" ")
+    .filter((held) => held !== "" && held !== id);
+  if (left.length === 0) element.removeAttribute(GUIDE_TARGETS_ATTRIBUTE);
+  else element.setAttribute(GUIDE_TARGETS_ATTRIBUTE, left.join(" "));
+}
+
 const descriptorsById = new Map<GuideTargetId, GuideTargetDescriptor>();
 let indexed: readonly GuideTargetDescriptor[] | null = null;
 
@@ -151,6 +176,7 @@ export function mountGuideTarget(
     },
   };
   mounted.set(id, [...candidates, entry]);
+  markBound(element, id);
   announce();
 
   return () => {
@@ -159,6 +185,7 @@ export function mountGuideTarget(
     const remaining = live.filter((candidate) => candidate !== entry);
     if (remaining.length === live.length) return;
     entry.detach();
+    markUnbound(element, id);
     if (remaining.length === 0) mounted.delete(id);
     else mounted.set(id, remaining);
     announce();
