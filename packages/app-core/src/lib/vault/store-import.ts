@@ -9,15 +9,26 @@
  * it ranks against a key this vault holds. The backup's key is taken only when
  * the person asks for it and the vault has done nothing yet; otherwise it is
  * ignored and the vault keeps its principal.
+ *
+ * A key taken that way has to outlast the next sync. Another device of this
+ * vault still holds the key it replaced, and a merge keeps the older of two
+ * keys, so the key taken is dated just before the one it replaced (inside the
+ * vault's window, `deviceKeyTimeBounds`): the person's choice outranks the
+ * key it replaced on every device that knows it. A key some third device minted
+ * earlier and has not yet synced still ranks first; that is the same rule every
+ * two keys meet under, and the person is told when it happens.
  */
 
 import { isString, overlapCast } from "@opensesame/os-domain";
 import {
   type DeviceIdentityKeyRecord,
+  type DeviceKeyTimeBounds,
   type SealedBlob,
   type VaultBody,
   type VaultHeader,
+  clampDeviceKeyTime,
   deviceKeyField,
+  deviceKeyTimeBounds,
   importVaultKey,
   syncInstalledTypes,
   vaultSealBinding,
@@ -126,9 +137,10 @@ export async function importSealedInto(
   if (carried.kind === "trusted") {
     const outcome = await importWithKey(port, incoming, carried.record);
     if (outcome.added !== null) return outcome.added;
-    // The tomb holds a record this build cannot read, which is never replaced.
+    // This device's own record cannot be read, so it is never replaced: the
+    // backup's key is fine, and it is not taken. Say that, not the opposite.
     const added = await mergeAndCount(port, incoming);
-    await tell("restored-unusable");
+    await tell("own-unreadable");
     return added;
   }
   const added = await mergeAndCount(port, incoming);
@@ -160,6 +172,27 @@ async function tell(cause: IdentityChange): Promise<void> {
 type ImportWithKey = Readonly<{ added: number | null }>;
 
 /**
+ * The key a restore takes, dated to outrank the one it replaces: just before
+ * it (so a merge on any device that holds the old key keeps this one), never
+ * after the backup's own date, and inside the vault's window. The same key
+ * as the tomb's is kept as the tomb holds it.
+ */
+function takenKey(
+  record: DeviceIdentityKeyRecord,
+  previous: DeviceIdentityKeyRecord | null,
+  bounds: DeviceKeyTimeBounds,
+): DeviceIdentityKeyRecord {
+  if (previous?.keyId === record.keyId)
+    return clampDeviceKeyTime(previous, bounds);
+  const replaced = previous ? clampDeviceKeyTime(previous, bounds) : null;
+  const createdAt = Math.min(
+    record.createdAt,
+    replaced ? replaced.createdAt - 1 : record.createdAt,
+  );
+  return clampDeviceKeyTime({ ...record, createdAt }, bounds);
+}
+
+/**
  * The person took the backup's key. The tomb's file and the body (with the
  * items) change as one step under the identity lock: the tomb's key is written
  * first and put back if the body cannot be written, so a failed restore leaves
@@ -181,8 +214,13 @@ async function importWithKey(
     } catch {
       return { added: null, replaced: false };
     }
+    const taken = takenKey(
+      record,
+      previous,
+      deviceKeyTimeBounds(port.header()?.createdAt),
+    );
     if (previous?.keyId !== record.keyId) {
-      await keys.writeStoredDeviceIdentityKey(tomb, record);
+      await keys.writeStoredDeviceIdentityKey(tomb, taken);
     }
     let added = 0;
     try {
@@ -194,7 +232,7 @@ async function importWithKey(
           );
         }
         added = mergeItemsInto(body, incoming);
-        body.deviceIdentityKey = deviceKeyField(record);
+        body.deviceIdentityKey = deviceKeyField(taken);
       });
     } catch (error) {
       await keys.restoreStoredDeviceIdentityKey(tomb, previous);

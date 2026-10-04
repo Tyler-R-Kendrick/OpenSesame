@@ -88,7 +88,8 @@ export type IdentityChange =
   | "ranked"
   | "restored"
   | "restored-without-key"
-  | "restored-unusable";
+  | "restored-unusable"
+  | "own-unreadable";
 
 const NOTICES = {
   ranked: {
@@ -106,6 +107,10 @@ const NOTICES = {
   "restored-unusable": {
     title: "Identity key not taken",
     body: "That backup's identity key is one this device cannot use, so this vault keeps its own. Its principal differs from the one the backup was made under.",
+  },
+  "own-unreadable": {
+    title: "Identity key not taken",
+    body: "This device's own identity key could not be read, so the backup's was not taken and the record was left as it was.",
   },
 } as const satisfies Record<IdentityChange, { title: string; body: string }>;
 

@@ -6,11 +6,7 @@
  */
 
 /** @vitest-environment jsdom */
-import {
-  type BoundaryValue,
-  type JsonObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import {
   createItem,
   readDeviceIdentityKeyRecord,
@@ -19,21 +15,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { genuineField } from "../__tests__/device-identity-records.js";
 import { webLocksDouble } from "../__tests__/web-locks-double.js";
 import { deviceKeyCarrier } from "../device-identity-carrier.js";
-import { deviceIdentityFetch } from "../device-identity-host.js";
-import { readDeviceIdentityKey } from "../device-identity-key.js";
 import { deviceVaultSeams } from "../device-identity-vault.js";
 import { clearNotices, listNotices } from "../notices.js";
-import {
-  bodyPortOf,
-  installDeviceKeyCarrier,
-} from "../vault/store-device-key.js";
+import { bodyPortOf } from "../vault/store-device-key.js";
 import { adoptSnapshot } from "./adopt.js";
-import { type Device, as, device } from "./devices.fixture.js";
-import { type MemoryDrive, PAIRING, memoryDrive } from "./drive.fixture.js";
-import { syncOnce } from "./engine.js";
+import { as, device } from "./devices.fixture.js";
+import { memoryDrive } from "./drive.fixture.js";
+import {
+  PASSWORD,
+  acting,
+  connect,
+  principalOf,
+  sync,
+  whoAmI,
+} from "./identity-devices.fixture.js";
 
-const PASSWORD = "correct horse battery staple";
-const TOMB = "personal";
 const carrier = { ...deviceKeyCarrier };
 const view = deviceVaultSeams.view;
 let clock = Date.parse("2026-09-01T00:00:00.000Z");
@@ -41,50 +37,6 @@ let clock = Date.parse("2026-09-01T00:00:00.000Z");
 function tick(): void {
   clock += 60_000;
   vi.setSystemTime(clock);
-}
-
-/** Act as `on`, with the device host reading that device's vault and body. */
-function acting<T>(on: Device, act: () => Promise<T>): Promise<T> {
-  return as(on, async () => {
-    installDeviceKeyCarrier(() => bodyPortOf(on.store));
-    deviceVaultSeams.view = () => ({
-      kind: "unlocked",
-      tomb: TOMB,
-      guest: false,
-    });
-    return act();
-  });
-}
-
-const principalOf = (on: Device) =>
-  acting(on, async () => (await readDeviceIdentityKey(TOMB))?.principalId);
-
-async function connect(
-  on: Device,
-): Promise<{ principalId: string; token: string }> {
-  return acting(on, async () => {
-    const res = await deviceIdentityFetch("/v1/principals/provisional", {
-      method: "POST",
-      body: "{}",
-    });
-    const body = overlapCast(await res.json());
-    return {
-      principalId: String(body.principalId),
-      token: String(body.accessToken),
-    };
-  });
-}
-
-function whoAmI(on: Device, token: string): Promise<Response> {
-  return acting(on, () =>
-    deviceIdentityFetch("/v1/principals/me", {
-      headers: { authorization: `Bearer ${token}` },
-    }),
-  );
-}
-
-function sync(on: Device, drive: MemoryDrive) {
-  return as(on, () => syncOnce(on.store, PAIRING, drive));
 }
 
 /** A laptop with a vault; the phone is set up from the drive and opens it. */

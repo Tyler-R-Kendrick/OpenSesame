@@ -31,6 +31,7 @@ import {
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
   PERSONAL_TOMB,
+  readFile,
   tombFileKey,
   vfsFlush,
   vfsSeams,
@@ -314,9 +315,15 @@ describe("a restore that cannot finish", () => {
       restore();
     }
     forgetDeviceIdentityKeyInFlightForTests();
+    // Read, never minted: `principal()` would make a key and prove nothing.
     expect(await readDeviceIdentityKey(PERSONAL_TOMB)).toBeNull();
+    await expect(readFile(PERSONAL_TOMB, KEY_FILE)).rejects.toMatchObject({
+      code: "not-found",
+    });
     expect(bodyPortOf(target).body().deviceIdentityKey).toBeUndefined();
-    expect(await principal()).not.toBe(theirs);
+    expect(JSON.stringify(bodyPortOf(target).body())).not.toContain(
+      theirs.slice("prn_".length),
+    );
   });
 });
 

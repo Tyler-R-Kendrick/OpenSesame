@@ -337,6 +337,11 @@ describe("what the person is told", () => {
       "carries no identity key",
     ],
     ["restored-unusable", "Identity key not taken", "cannot use"],
+    [
+      "own-unreadable",
+      "Identity key not taken",
+      "own identity key could not be read",
+    ],
   ] as const satisfies readonly (readonly [IdentityChange, string, string])[];
 
   it.each(cases)("says %s in its own words", (cause, title, body) => {
