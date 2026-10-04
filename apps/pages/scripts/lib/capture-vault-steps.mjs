@@ -18,6 +18,28 @@ export function vaultSteps({ press, visit }) {
       }
     },
     /**
+     * Hold a finger on a control as raw touch events, long enough for the
+     * app's own long-press recognizer, then lift: the road a phone takes to a
+     * context menu.
+     */
+    async hold(page, selector) {
+      const box = await page.locator(selector).first().boundingBox();
+      if (!box)
+        throw new Error(`capture-evidence hold("${selector}"): not drawn`);
+      const cdp = await page.context().newCDPSession(page);
+      const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [at],
+      });
+      await page.waitForTimeout(900);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await page.waitForTimeout(600);
+    },
+    /**
      * Type into the shell's command field and run it, the way a person would.
      * Refuses a silent miss: the field is on every unlocked screen.
      */

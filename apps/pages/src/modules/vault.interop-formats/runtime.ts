@@ -26,7 +26,10 @@ import type {
   CapabilityRuntime,
   VaultCommandContribution,
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { ImportKey } from "../../sections/vault/import/ImportKey.js";
+import {
+  ImportEntry,
+  ImportKey,
+} from "../../sections/vault/import/ImportKey.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "vault.interop-formats";
@@ -36,6 +39,7 @@ export const IMPORT_COMMAND: VaultCommandContribution = {
   id: "import",
   order: 10,
   Command: ImportKey,
+  Entry: ImportEntry,
 };
 
 export const capabilityRuntime: CapabilityRuntime = {

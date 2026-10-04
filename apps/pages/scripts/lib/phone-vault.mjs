@@ -53,11 +53,12 @@ export async function backOutStops(page, stop, { harness, audit }) {
 }
 
 /**
- * The phone's vault actions, measured. The tree carries Import and Export as
- * labelled full-width rows (a word and a glyph, 44px or taller) and no strip of
- * keys; the list's header is back and the view it shows, named, as one choice
- * the width of the rest; New is the corner button, pinned over the pane's
- * bottom right and clear of the statusline; and search is the status-line
+ * The phone's vault actions, measured. The tree is the sections and nothing
+ * else: no strip of keys, no tool rows. Add is one button in the bottom corner
+ * — the `+`, one tap, with a vertical ellipsis attached — and the ellipsis and
+ * a real long press on the `+` open the same menu of the alternatives (Import,
+ * Export), without navigating. The list's header is back and the view it
+ * shows, named, as one choice the width of the rest. Search is the status-line
  * prompt's `/?` verb — the one text input on the screen, which keeps the words
  * and narrows the list as they are typed. Skipped where the walk is not on the
  * tree, so it can be called wherever the vault is entered.
@@ -65,32 +66,14 @@ export async function backOutStops(page, stop, { harness, audit }) {
 export async function treeActions(page, stop, { harness, audit }) {
   const pane = () => page.locator(".vault").first().getAttribute("data-pane");
   if ((await pane()) !== "tree") return;
-  const rows = await page
-    .locator(".vault__tree .vtools .vtool")
-    .evaluateAll((nodes) =>
-      nodes.map((node) => {
-        const box = node.getBoundingClientRect();
-        return {
-          name: node.getAttribute("aria-label"),
-          label: node.textContent?.trim(),
-          width: Math.round(box.width),
-          height: Math.round(box.height),
-        };
-      }),
-    );
   harness.check(
-    rows.some((r) => r.name === "Export items" && r.label === "Export items"),
-    `${stop("tree-actions")}: Export is a labelled row on the tree (${JSON.stringify(rows)})`,
-  );
-  harness.check(
-    rows.length > 0 && rows.every((r) => r.height >= 44 && r.width >= 280),
-    `${stop("tree-actions")}: every tool row is 44px tall and full width`,
-  );
-  harness.check(
-    (await page.locator(".vault__tree .vtree__pathbar").count()) === 0,
-    `${stop("tree-actions")}: the tree carries no strip of keys`,
+    (await page
+      .locator(".vault__tree .vtree__pathbar, .vault__tree .vtools")
+      .count()) === 0,
+    `${stop("tree-actions")}: the tree carries no strip of keys and no tool rows`,
   );
   await fabIsPinned(page, stop("tree-actions"), harness);
+  await addMenu(page, stop("tree-actions"), harness);
   await audit(page, stop("tree-actions"));
 
   await page
@@ -163,32 +146,95 @@ export async function treeActions(page, stop, { harness, audit }) {
   await page.waitForTimeout(500);
 }
 
-/** The corner button: 56px, in the bottom right, above the statusline. */
+/** The Add button: `+` 56px and an attached ellipsis, bottom right, above the prompt. */
 async function fabIsPinned(page, label, harness) {
   const fab = await page.evaluate(() => {
     const node = document.querySelector(".fab");
-    if (!node) return null;
+    const add = node?.querySelector(".fab__add");
+    const more = node?.querySelector(".fab__more");
+    if (!node || !add || !more) return null;
     const box = node.getBoundingClientRect();
+    const plus = add.getBoundingClientRect();
+    const dots = more.getBoundingClientRect();
     const strip = document
       .querySelector(".statusline")
       ?.getBoundingClientRect();
     return {
-      width: Math.round(box.width),
-      height: Math.round(box.height),
+      plus: `${Math.round(plus.width)}x${Math.round(plus.height)}`,
+      plusOk: plus.width >= 56 && plus.height >= 56,
+      dots: `${Math.round(dots.width)}x${Math.round(dots.height)}`,
+      dotsOk: dots.width >= 44 && dots.height >= 44,
+      attached: Math.abs(dots.left - plus.right) <= 1,
       right: Math.round(window.innerWidth - box.right),
       clearOfStrip: strip ? box.bottom <= strip.top + 1 : false,
       inRightHalf: box.left > window.innerWidth / 2,
-      label: node.getAttribute("aria-label"),
+      label: add.getAttribute("aria-label"),
+      more: more.getAttribute("aria-label"),
     };
   });
   harness.check(
     fab !== null &&
       fab.label === "New item" &&
-      fab.width >= 56 &&
-      fab.height >= 56 &&
+      fab.more === "More ways to add" &&
+      fab.plusOk &&
+      fab.dotsOk &&
+      fab.attached &&
       fab.inRightHalf &&
       fab.right >= 8 &&
       fab.clearOfStrip,
-    `${label}: New item is a 56px corner button above the prompt (${JSON.stringify(fab)})`,
+    `${label}: Add is a + (56px) with an attached ellipsis (44px+), bottom right, above the prompt (${JSON.stringify(fab)})`,
   );
+}
+
+/** The menu behind the Add button: by the ellipsis, by a real long press, and what it starts. */
+async function addMenu(page, label, harness) {
+  const entries = () =>
+    page.locator('[role="menuitem"]').evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        name: node.textContent?.trim(),
+        height: Math.round(node.getBoundingClientRect().height),
+      })),
+    );
+  const where = () => page.evaluate(() => location.pathname);
+  const before = await where();
+  await page.locator(".fab__more").tap();
+  await page.waitForTimeout(400);
+  const byEllipsis = await entries();
+  harness.check(
+    byEllipsis.map((e) => e.name).join("|") === "Import items|Export items" &&
+      byEllipsis.every((e) => e.height >= 44),
+    `${label}: the ellipsis lists Import and Export at 44px+ (${JSON.stringify(byEllipsis)})`,
+  );
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 4000 }).catch(() => null),
+    page.getByRole("menuitem", { name: "Import items" }).tap(),
+  ]);
+  harness.check(
+    chooser !== null,
+    `${label}: Import starts the OS file picker from the menu tap`,
+  );
+  await page.waitForTimeout(300);
+  // A real hold, as raw touch events: the app's own recognizer must see it,
+  // and the lift that ends it must not follow the \`+\` link.
+  const box = await page.locator(".fab__add").boundingBox();
+  const cdp = await page.context().newCDPSession(page);
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [at],
+  });
+  await page.waitForTimeout(900);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await page.waitForTimeout(500);
+  const byHold = await entries();
+  harness.check(
+    byHold.map((e) => e.name).join("|") === "Import items|Export items" &&
+      (await where()) === before,
+    `${label}: a long press on the + opens the same menu and does not navigate (${JSON.stringify(byHold)})`,
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
 }

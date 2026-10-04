@@ -1,5 +1,12 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -8,6 +15,10 @@ import {
   resetShellRender,
   vault,
 } from "../components/app-shell.test-harness.js";
+import {
+  closeContextMenu,
+  contextMenuSnapshot,
+} from "../components/context-menu/menu-model.js";
 import { createKeymapHandler } from "../lib/keymap.js";
 import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
@@ -88,21 +99,56 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?f=all");
   });
 
-  it("the tree carries Import and Export as labelled rows, and no strip of keys", () => {
+  it("the tree is the sections and nothing else: no strip of keys, no tool rows", () => {
     renderVault("/vault");
-    const tools = screen.getByRole("region", { name: "Vault tools" });
-    for (const name of ["Import items", "Export items"]) {
-      const row = within(tools).getByRole("button", { name });
-      // A word on the face, not a glyph a person has to decode.
-      expect(row.textContent).toBe(name);
-      expect(row.querySelector("svg")).not.toBeNull();
-    }
     const tree = document.querySelector<HTMLElement>(".vault__tree");
     expect(tree?.querySelector(".vtree__pathbar")).toBeNull();
-    expect(tree?.querySelector('[aria-label="New item"]')).toBeNull();
-    const fab = document.querySelector<HTMLAnchorElement>(".vault > .fab");
-    expect(fab?.getAttribute("aria-label")).toBe("New item");
-    expect(fab?.getAttribute("href")).toMatch(/^\/vault\/new/);
+    expect(tree?.querySelector(".vtools")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import items" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Export items" })).toBeNull();
+  });
+
+  it("Add is one button: the default + with an attached ellipsis", () => {
+    renderVault("/vault");
+    const add = document.querySelector<HTMLAnchorElement>(".vault > .fab");
+    const plus = within(add as HTMLElement).getByRole("link", {
+      name: "New item",
+    });
+    expect(plus.getAttribute("href")).toMatch(/^\/vault\/new/);
+    const more = within(add as HTMLElement).getByRole("button", {
+      name: "More ways to add",
+    });
+    expect(more.getAttribute("aria-haspopup")).toBe("menu");
+    expect(more.textContent).toBe("");
+  });
+
+  it("the ellipsis, and a context menu on the +, list the alternatives to adding", () => {
+    renderVault("/vault");
+    const listed = () =>
+      contextMenuSnapshot()
+        ?.groups.flat()
+        .map((entry) => entry.label) ?? [];
+    expect(listed()).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "More ways to add" }));
+    expect(listed()).toEqual(["Import items", "Export items"]);
+    expect(contextMenuSnapshot()?.label).toBe("Add actions");
+    closeContextMenu();
+    // A long press is the platform's context-menu road: the same ask, the
+    // same menu — not the link's "Open link / Copy link address" menu.
+    fireEvent.contextMenu(screen.getByRole("link", { name: "New item" }));
+    expect(listed()).toEqual(["Import items", "Export items"]);
+    expect(contextMenuSnapshot()?.label).toBe("Add actions");
+  });
+
+  it("the menu lists Import before Export, each a flow the button mounts", () => {
+    renderVault("/vault");
+    fireEvent.click(screen.getByRole("button", { name: "More ways to add" }));
+    const entries = contextMenuSnapshot()?.groups.flat() ?? [];
+    expect(entries.map((entry) => entry.id)).toEqual(["import", "export"]);
+    // Their file input is mounted beside the button, ready for the tap.
+    expect(
+      document.querySelector('input[type="file"][aria-label]'),
+    ).not.toBeNull();
   });
 
   it("the list's header is back and the view it shows, named; nothing else is a key", () => {

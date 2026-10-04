@@ -48,7 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card is unchanged (ADR 0161) |
-| [`2026-10-04-search-in-prompt-fab/`](2026-10-04-search-in-prompt-fab/README.md) | One text input; actions redrawn for a phone |
+| [`2026-10-04-search-in-prompt-fab/`](2026-10-04-search-in-prompt-fab/README.md) | One text input; Add is one button |
 | [`2026-10-04-push-enrolment-copy/`](2026-10-04-push-enrolment-copy/README.md) | Push enrolment: the Push row and its notices, before and after |
 | [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
 | [`2026-10-04-device-inbox/`](2026-10-04-device-inbox/README.md) | Device-mode receipts, inbox and local notifications (ADR 0162) — before and after |

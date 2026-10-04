@@ -5,7 +5,9 @@
       "width": 390,
       "height": 844,
       "steps": [
-        { "guest": null },
+        {
+          "guest": null
+        },
         {
           "seed": [
             "Amazon",
@@ -24,48 +26,122 @@
             "Stripe"
           ]
         },
-        { "visit": "vault" },
-        { "shot": "390-landing" },
+        {
+          "visit": "vault"
+        },
+        {
+          "shot": "390-landing"
+        },
         {
           "measure": ".vault__tree .vtree__keys a, .vault__tree .vtree__keys button"
         },
-        { "measure": ".vault__tree .vtool" },
-        { "measure": ".fab" },
-        { "visit": "vault?f=all" },
-        { "shot": "390-list" },
+        {
+          "measure": ".fab"
+        },
+        {
+          "visit": "vault?f=all"
+        },
+        {
+          "shot": "390-list"
+        },
         {
           "measure": ".vault__list .vtree__keys a, .vault__list .vtree__keys button"
         },
-        { "measure": ".vfilter__open" },
-        { "measure": ".fab" },
-        { "only": "before", "pressOptional": "Search \\(/\\)" },
+        {
+          "measure": ".vfilter__open"
+        },
+        {
+          "measure": ".fab"
+        },
+        {
+          "pressOptional": "More ways to add"
+        },
+        {
+          "shot": "390-add-menu"
+        },
+        {
+          "escape": null
+        },
+        {
+          "hold": "a[aria-label=\"New item\"]:visible"
+        },
+        {
+          "shot": "390-add-hold"
+        },
+        {
+          "escape": null
+        },
         {
           "only": "before",
-          "fill": { "label": "Search items", "text": "ban" }
+          "pressOptional": "Search \\(/\\)"
         },
-        { "only": "after", "fill": { "label": "Command", "text": "/? ban" } },
-        { "shot": "390-search" },
-        { "measure": "input:not([type=file]):not(.visually-hidden)" },
-        { "report": ".vault__status-meta" },
-        { "only": "before", "shot": "390-search-kept" },
-        { "only": "after", "command": "/? ban" },
-        { "only": "after", "shot": "390-search-kept" },
-        { "only": "after", "measure": ".command-bar__status" },
-        { "only": "after", "report": ".vault__status-meta" }
+        {
+          "only": "before",
+          "fill": {
+            "label": "Search items",
+            "text": "ban"
+          }
+        },
+        {
+          "only": "after",
+          "fill": {
+            "label": "Command",
+            "text": "/? ban"
+          }
+        },
+        {
+          "shot": "390-search"
+        },
+        {
+          "measure": "input:not([type=file]):not(.visually-hidden)"
+        },
+        {
+          "report": ".vault__status-meta"
+        },
+        {
+          "only": "before",
+          "shot": "390-search-kept"
+        },
+        {
+          "only": "after",
+          "command": "/? ban"
+        },
+        {
+          "only": "after",
+          "shot": "390-search-kept"
+        },
+        {
+          "only": "after",
+          "measure": ".command-bar__status"
+        },
+        {
+          "only": "after",
+          "report": ".vault__status-meta"
+        }
       ]
     },
     {
       "width": 320,
       "height": 568,
       "steps": [
-        { "guest": null },
+        {
+          "guest": null
+        },
         {
           "seed": ["Amazon", "Bankwest", "GitHub", "Gmail", "Netflix", "Slack"]
         },
-        { "visit": "vault?f=all" },
-        { "shot": "320-list" },
-        { "measure": ".fab" },
-        { "measure": ".vfilter__open" }
+        {
+          "visit": "vault?f=all"
+        },
+        {
+          "shot": "320-list"
+        },
+        {
+          "measure": ".fab"
+        },
+        {
+          "measure": ".vfilter__open"
+        }
       ]
     },
     {
@@ -73,10 +149,18 @@
       "height": 800,
       "desktop": true,
       "steps": [
-        { "guest": null },
-        { "shot": "1280-vault" },
-        { "count": ".fab" },
-        { "measure": ".vtree__keys a, .vtree__keys button" }
+        {
+          "guest": null
+        },
+        {
+          "shot": "1280-vault"
+        },
+        {
+          "count": ".fab"
+        },
+        {
+          "measure": ".vtree__keys a, .vtree__keys button"
+        }
       ]
     }
   ],
@@ -85,17 +169,33 @@
       "shot": "390-landing",
       "width": 390,
       "title": "Landing — 390 × 844",
-      "caption": "Import and Export are rows that say what they do, under the tree they act on. New is the corner button.",
-      "before": "no tool rows; add, import, export and search as bare glyphs in a strip at the top",
-      "after": "52px labelled rows under the tree; a 56px corner button; no strip"
+      "caption": "The tree is the sections and nothing else. Add is one button in the corner, with its alternatives behind it.",
+      "before": "no corner button; add, import, export and search as bare glyphs in a strip at the top",
+      "after": "no strip; a `+` with an attached vertical ellipsis, bottom right"
     },
     {
       "shot": "390-list",
       "width": 390,
       "title": "List — 390 × 844",
-      "caption": "The header is back and the view the list is showing, named, as one wide choice. The corner button rides above the status line and the prompt.",
+      "caption": "The header is back and the view the list is showing, named. Add is the corner button: `+` for a new item, the ellipsis for the rest.",
       "before": "back, funnel, +, import, export and search as six unlabelled glyphs",
-      "after": "back and `All items ▾` across the width; `+` is the corner button"
+      "after": "back and `All items ▾` across the width; `+ ⋮` in the corner"
+    },
+    {
+      "shot": "390-add-menu",
+      "width": 390,
+      "title": "The ellipsis — 390 × 844",
+      "caption": "The vertical ellipsis on the Add button opens the alternatives to a new item: Import and Export, as a bottom action sheet.",
+      "before": "Import and Export were two bare arrows in a strip at the top; there is no menu",
+      "after": "`Add actions` sheet: Import items, Export items"
+    },
+    {
+      "shot": "390-add-hold",
+      "width": 390,
+      "title": "A long press on Add — 390 × 844",
+      "caption": "Holding the `+` is the same ask as the ellipsis. It does not follow the link.",
+      "before": "holding the strip's `+` raised the generic link menu: Open link, Open link in new tab, Copy link address",
+      "after": "the same `Add actions` sheet as the ellipsis"
     },
     {
       "shot": "390-search",

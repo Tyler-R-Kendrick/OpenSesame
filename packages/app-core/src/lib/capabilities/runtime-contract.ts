@@ -216,11 +216,14 @@ export type CommandAssistContribution = Readonly<{
 export type VaultCommandContribution = Readonly<{
   id: string;
   order: number;
+  /** The icon key in a desktop list's path strip. */
+  Command: ComponentType;
   /**
-   * Drawn as an icon key in the list's path strip on a desktop, and as a
-   * labelled full-width row among the vault's tools on a phone (`row`).
+   * The same flow as a way to add, for a phone: mounted beside the corner Add
+   * button, it registers a menu entry (the long-press and ellipsis menu on that
+   * button) and draws its own sheet, and draws nothing else.
    */
-  Command: ComponentType<{ row?: boolean }>;
+  Entry?: ComponentType;
 }>;
 
 export type BackgroundJobContribution = Readonly<{

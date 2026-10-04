@@ -1,4 +1,6 @@
-/* The phone's one primary action, pinned to the pane's bottom corner.
+/* A phone's Add button: the `+`, one tap, with a vertical ellipsis attached
+   for the alternatives (Import, Export). A long press on the `+` opens the
+   same menu.
 
    Absolute inside `.vault`, whose box ends on the statusline's top edge and
    never scrolls (the rows inside it do), so the button stays put without a
@@ -8,6 +10,7 @@
 .vault {
   position: relative;
   --fab-size: 3.5rem;
+  --fab-more: 2.75rem;
   --fab-gap: 1rem;
   --vault-status-h: 2rem;
 }
@@ -17,31 +20,68 @@
   z-index: 3;
   right: max(var(--fab-gap), env(safe-area-inset-right));
   bottom: var(--fab-gap);
-  display: grid;
-  place-items: center;
-  width: var(--fab-size);
+  display: flex;
+  align-items: stretch;
   height: var(--fab-size);
-  border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: calc(var(--fab-size) / 2);
   background: var(--ink);
   color: var(--canvas);
-  box-shadow: var(--shadow);
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 140ms var(--ease);
+  /* The edge is a ring, not a border: a border would take a pixel off every
+     side of the targets inside, and the + is 56px or it is not. */
+  box-shadow: 0 0 0 1px var(--line), var(--shadow);
+  /* A held finger asks for the menu; it is not selecting, and a held link
+     must not raise the platform's own preview. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .vault[data-pane="list"] .fab {
   bottom: calc(var(--vault-status-h) + var(--fab-gap));
 }
 
-.fab:active {
-  transform: scale(0.96);
+.fab__add,
+.fab__more {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 140ms var(--ease);
 }
 
-.fab:focus-visible {
-  border-radius: 50%;
-  outline-offset: 3px;
+.fab__add {
+  width: var(--fab-size);
+  border-radius: calc(var(--fab-size) / 2) 0 0 calc(var(--fab-size) / 2);
+}
+
+.fab__more {
+  width: var(--fab-more);
+  border-left: 1px solid color-mix(in srgb, var(--canvas) 24%, transparent);
+  border-radius: 0 calc(var(--fab-size) / 2) calc(var(--fab-size) / 2) 0;
+}
+
+.fab__add:active,
+.fab__more:active {
+  background: color-mix(in srgb, var(--canvas) 16%, transparent);
+}
+
+.fab__add:focus-visible,
+.fab__more:focus-visible {
+  outline-offset: -4px;
+  outline-color: var(--canvas);
+}
+
+.fab__add:focus-visible {
+  border-radius: calc(var(--fab-size) / 2) 0 0 calc(var(--fab-size) / 2);
+}
+
+.fab__more:focus-visible {
+  border-radius: 0 calc(var(--fab-size) / 2) calc(var(--fab-size) / 2) 0;
 }
 
 /* The last row clears the button instead of ending under it. */
@@ -58,7 +98,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fab {
+  .fab__add,
+  .fab__more {
     transition: none;
   }
 }

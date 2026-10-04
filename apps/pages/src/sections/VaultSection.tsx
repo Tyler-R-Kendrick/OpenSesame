@@ -30,7 +30,6 @@ import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
-import { VaultTools } from "./vault/VaultTools.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
@@ -215,10 +214,6 @@ export function VaultSection() {
         {narrow ? (
           <>
             <NavTree />
-            {/* Import and Export act on the whole vault, so they are rows
-                under its sections rather than keys on a list. New is the
-                corner button. */}
-            <VaultTools />
           </>
         ) : null}
       </div>
