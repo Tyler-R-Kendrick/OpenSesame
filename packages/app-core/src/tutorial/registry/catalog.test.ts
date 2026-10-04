@@ -87,9 +87,7 @@ const TARGET_SOURCES = [
 
 const GOALS_SOURCES = [
   "goals.ts",
-  // The unlock and setup answers (`SETUP_HELP`) sit between the core list and the shell topics.
   "setup-goals.ts",
-  // The shell's help topics close the core list (`SHELL_HELP`).
   "shell-goals.ts",
   "duress-goals.ts",
   "connections-goals.ts",

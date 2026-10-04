@@ -151,10 +151,15 @@ describe("keyboard operability", () => {
     const next = await screen.findByRole("button", { name: /^Next/ });
     await waitFor(() => expect(document.activeElement).toBe(next));
     await user.keyboard("{Enter}");
-    // The control the second step points at is not drawn in this harness; the
-    // card still offers Next, and Enter still moves on.
+    // The control the second step points at is not drawn in this harness. Next
+    // while the card waits for it only stops the waiting: the step is then
+    // shown as text, and one more Enter moves on.
     const second = await screen.findByRole("button", { name: /^Next/ });
     await waitFor(() => expect(document.activeElement).toBe(second));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText(/not on screen/)).toBeTruthy();
+    const third = await screen.findByRole("button", { name: /^Next/ });
+    await waitFor(() => expect(document.activeElement).toBe(third));
     await user.keyboard("{Enter}");
     expect(await screen.findByText("This is Vault health.")).toBeTruthy();
     const done = await screen.findByRole("button", { name: /^Done/ });
