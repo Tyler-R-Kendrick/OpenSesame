@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 431,
-    "violations": 676,
-    "oversizedLines": 220012
+    "files": 430,
+    "violations": 675,
+    "oversizedLines": 219553
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
