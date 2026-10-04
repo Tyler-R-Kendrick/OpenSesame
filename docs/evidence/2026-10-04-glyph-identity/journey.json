@@ -113,9 +113,9 @@
       "shot": "320-prompt",
       "width": 320,
       "title": "The narrowest phone \u2014 320 \u00d7 640",
-      "caption": "The top bar at 320: the glyphs leave room for every key beside them.",
-      "before": "prompt 143\u00d754",
-      "after": "prompt 143\u00d754, no text to ellipsise; the keys beside it are unchanged (44\u00d744 at 8, 214, 268)"
+      "caption": "The top bar at 320: with the names gone there is room for every key beside the glyphs, the lock included.",
+      "before": "prompt 143\u00d754; the lock key is clipped out of the bar (not drawn)",
+      "after": "prompt 143\u00d754; the lock is drawn (44\u00d744) and clears the theme key by 13px; the other keys are unchanged"
     },
     {
       "shot": "1280-prompt",

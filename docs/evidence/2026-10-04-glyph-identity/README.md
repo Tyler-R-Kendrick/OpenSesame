@@ -32,7 +32,9 @@ named beside its glyph.
 
 ![320](320-prompt.png)
 
-The prompt is 143×54 either way; the keys beside it are unchanged.
+The prompt is 143×54 either way. Base: the lock key is clipped out of the bar
+and not drawn at all. Branch: it is drawn (44×44) and clears the theme key by
+13px; the other keys are unchanged.
 
 ## Desktop rail — 1280 × 900
 
