@@ -154,24 +154,34 @@ describe("completeLogin — what a hostile or confused response gets", () => {
     ).toBe("signature_invalid");
   });
 
+  // Mutation-style: the token, state, nonce, audience and binding are all
+  // right, and the control below shows they are. Only the address the response
+  // arrived at differs, so a kit whose redirect_uri comparison were removed (or
+  // loosened to origin or path alone) would answer these instead of refusing.
   it("refuses a response that arrives at a different redirect_uri", async () => {
-    const { rp } = relyingParty();
     const keys = await p256Pair();
-    const started = await rp.startLogin();
-    const token = await mint(keys, { nonce: started.nonce });
     for (const receivedRedirectUri of [
       "https://rp.example/other-callback",
       "https://evil.example/callback",
+      "https://rp.example/callback?extra=1",
+      "https://rp.example/callback/",
+      "http://rp.example/callback",
     ]) {
+      // A login each: three refusals close one (see above).
+      const { rp } = relyingParty();
+      const started = await rp.startLogin();
+      const token = await mint(keys, { nonce: started.nonce });
       expect(
         await codeOf(() =>
           rp.completeLogin(answerFor(started, token, { receivedRedirectUri })),
         ),
         receivedRedirectUri,
       ).toBe("redirect_mismatch");
+      // The control: the same token, state, nonce and binding at the right
+      // address are accepted, so the address was the only thing wrong.
+      const result = await rp.completeLogin(answerFor(started, token));
+      expect(result.state).toBe(started.state);
     }
-    const result = await rp.completeLogin(answerFor(started, token));
-    expect(result.state).toBe(started.state);
   });
 
   it("refuses a state it never issued, and no state at all", async () => {

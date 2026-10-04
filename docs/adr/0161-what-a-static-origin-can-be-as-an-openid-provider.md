@@ -17,9 +17,10 @@
   [ADR 0139](0139-one-definition-every-target.md) (one definition, every
   target), [ADR 0140](0140-pages-hosts-every-ceremony.md) D11 (`.well-known` on
   GitHub Pages)
-- Companion: the ADR *The device identity plane is declared* says what a
-  device's own identity plane is; this one says what the **static origin** of
-  that plane offers a relying party on another origin, and what it cannot.
+- Companion: [ADR 0160](0160-the-device-identity-plane-is-declared.md) says
+  what a device's own identity plane is; this one says what the **static
+  origin** of that plane offers a relying party on another origin, and what it
+  cannot.
 
 ## Context
 
@@ -115,7 +116,9 @@ are refused, `SUPPORT_MATRIX`). Consequences, stated plainly:
   visitor's vault already knows.
 - A relying party for several people takes each person's application id per
   login (`startLogin({ clientId })`), and binds the audience to the id *that
-  login sent*, not to a global.
+  login sent*, not to a global. A second registered callback is chosen the same
+  way (`startLogin({ redirectUri })`, checked against the operator's
+  `allowedRedirectUris`).
 - A first-contact registration prompt (an unknown `client_id` and exact
   `redirect_uri` shown to the person to accept) is **rejected**. It would let
   any site that can open a window put a consent card in front of a person for an
@@ -131,32 +134,71 @@ are refused, `SUPPORT_MATRIX`). Consequences, stated plainly:
 because `verifySelfIssuedIdToken` cannot know which login a token answers:
 
 - `SiopRelyingParty` (`createSiopRelyingParty`): `startLogin()` mints a fresh
-  `state` and `nonce`, remembers them with the `client_id` and exact
-  `redirect_uri`; `completeLogin()` takes the state **first** (single use),
-  then compares the `redirect_uri` the *route* received the response on, then
-  refuses a token already seen, then verifies issuer, audience, nonce,
-  freshness and signature. A login that fails three times is closed.
-- `MemoryLoginStore`, `MemoryReplayLedger` (bounded), `StorageLoginStore`
-  (`sessionStorage`, for a single page): the interfaces `SiopLoginStore` and
-  `SiopReplayLedger` are where several server instances share state. A store
-  must give `take` a single winner; that property *is* the replay defence for
-  the state, and the ledger still refuses a token twice if a store fails it.
+  `state`, `nonce` and **binding**, remembers them with the `client_id` and the
+  exact `redirect_uri` it sent, and hands the binding to the caller.
+  `completeLogin({ response, binding, receivedRedirectUri })` takes the state
+  **first** (single use), then compares the binding in constant time, then the
+  expiry, then a provider error, then the `redirect_uri` the *route* received
+  the response on, then refuses a token already seen, then verifies issuer,
+  audience, nonce, freshness and signature. A login that fails three times is
+  closed.
+- **The binding is the browser's half of a login.** Without it a response is
+  only proof that *somebody* answered *some* login, so an attacker who starts a
+  login of their own, completes it, and gets the victim's browser to deliver
+  that response would sign the victim into the attacker's account (login CSRF
+  and session fixation). The caller keeps the binding where only the starting
+  browser has it: the example server sets it as a `__Host-` `HttpOnly`
+  `SameSite=Lax` cookie and reads it on the callback `POST`; the example single
+  page keeps it, sealed, in the tab's own `sessionStorage`. A response with a
+  different or missing binding is `login_unknown`, and the login is put back
+  **unchanged**: an attacker without the binding can neither complete a login
+  nor use up or close one, so a forged `#error=…&state=…` cannot cancel a
+  person's login either. (A binding is useless against an attacker who can
+  already read the victim's cookie jar or storage; that is a stolen browser,
+  not this attack.)
+- **`receivedRedirectUri` is required** and compared with the `redirect_uri`
+  the login sent as origin + path + query. The example builds it from the
+  request the server received, never from a value the page posts about itself.
+  A redirect with a query is registered with its query and arrives with it.
+- **Stores are bounded, and a full store refuses.** `put` first drops what has
+  expired (amortised O(1), from the oldest end), then refuses a new login when
+  the store is full: `startLogin` throws `capacity_exceeded`, and the example
+  answers `503` with `retry-after`. It never evicts a login a person is in the
+  middle of to make room for an anonymous one, and the example adds a per-client
+  rate limit on `/auth/start` (`429`) so one address cannot fill the store.
+  `MemoryLoginStore` and `StorageLoginStore` are both bounded; the
+  `MemoryReplayLedger` prunes only at capacity and evicts oldest, because a
+  forgotten token is bounded by the token's own lifetime. The interfaces
+  `SiopLoginStore` and `SiopReplayLedger` are where several server instances
+  share state. A store must give `take` a single winner; that property *is* the
+  replay defence for the state, and the ledger still refuses a token twice if a
+  store fails it.
 - Discovery consumer: `fetchSiopMetadata` / `parseSiopMetadata`, with an
-  injected `fetch`, no redirects, an 8 KiB bound, and the **issuer pinned by
-  the relying party**. A document that names another issuer, an authorization
-  endpoint on another origin, or promises something the kit cannot consume is
-  refused whole. A SPA fallback served in place of a missing file is refused
-  as not JSON.
+  injected `fetch`, no redirects, an 8 KiB bound enforced on `Content-Length`
+  *and* on the bytes actually read (a body that lies is cancelled mid-stream),
+  and the **issuer pinned by the relying party**. An explicit `metadataUrl`
+  must be at the issuer's own origin unless the operator names a mirror
+  (`allowMirror`); `http` is refused except on loopback and only when the
+  operator opts in (`allowLoopbackHttp`). A document that names another issuer,
+  an authorization endpoint on another origin or with a query, or promises
+  something the kit cannot consume is refused whole. A SPA fallback served in
+  place of a missing file is refused as not JSON. The timeout is an
+  `AbortController` with `setTimeout`, not `AbortSignal.timeout`, which the
+  single-page build targets (Chrome 100, Safari 15) do not all have.
 - Two copy-ready examples, `examples/siop-rp`: an Express server (`src/app.ts`,
-  routes only) and a single-page app (`src/spa`). Guide:
+  routes only) and a single-page app (`src/spa`). The single page keeps its
+  login in `sessionStorage` sealed with `@opensesame/browser-at-rest` (ADR
+  0149), so nothing about a login rests in the clear; where the origin can keep
+  no key, sign-in is refused before the redirect rather than written in the
+  clear or lost by it. Guide:
   [Use OpenSesame Pages as your login](../operators/use-pages-as-your-login.md).
 
 Refusals are stable machine-readable codes: `SiopRpError.code` for the login
 (`login_unknown`, `login_replayed`, `login_expired`, `redirect_mismatch`,
-`token_replayed`, `provider_error`, `missing_state`, `invalid_configuration`)
-and `SiopV2Error.code` for the token (`nonce_mismatch`, `audience_mismatch`,
-`issuer_mismatch`, `token_expired`, `token_not_fresh`, `signature_invalid`,
-…). Neither carries token contents.
+`token_replayed`, `provider_error`, `missing_state`, `invalid_configuration`,
+`capacity_exceeded`) and `SiopV2Error.code` for the token (`nonce_mismatch`,
+`audience_mismatch`, `issuer_mismatch`, `token_expired`, `token_not_fresh`,
+`signature_invalid`, …). Neither carries token contents.
 
 ### 3. What the discovery document honestly says
 
@@ -193,11 +235,17 @@ A build publishes `siop-metadata.json` at the base path. Its shape is
 - It is **generated at build time** by a Vite plugin
   (`apps/pages/scripts/siop-metadata-plugin.mjs`), from the kit, for the
   deployment's origin and base. Origin comes from `PAGES_CANONICAL_ORIGIN`
-  (the variable `security-profile.json` already reads). A build under the
-  shipped base `/OpenSesame/` with no variable names the shipped project; a
-  build under any other base with no variable publishes **nothing** and warns,
-  rather than a document naming an issuer it is not. The dev server serves the
-  same path from the origin it is reached on.
+  (the variable `security-profile.json` already reads) and, in GitHub Actions,
+  from `GITHUB_REPOSITORY_OWNER`. A build at the shipped base `/OpenSesame/`
+  names the shipped project when it is the shipped project's own: no owner to
+  read (a build by hand) or the upstream owner. A **fork's** Actions build with
+  no `PAGES_CANONICAL_ORIGIN` of its own, a fork that names the upstream origin
+  as its own, and a build under any other base with no variable publish
+  **nothing** and warn, rather than a document naming an issuer they are not.
+  A fork that builds by hand has no owner to read and gets what
+  `security-profile.json` names, so it sets the variable. `turbo.json` declares
+  the variables (its strict env mode dropped them before the build saw them).
+  The dev server serves the same path from the origin it is reached on.
 - Ownership (ADR 0130): `PUBLIC_FILE_OWNERSHIP["siop-metadata.json"]` is
   `identity.siop`, a generated file (`GENERATED_PUBLIC_FILES`); a hardened build
   that excludes the capability prunes it.
@@ -246,7 +294,8 @@ so a different origin starts with different keys and different `sub`s; even a
 vault restored from backup keeps its keys but changes `iss`, and a relying
 party pinned to the old issuer refuses it. Changing the issuer is a migration
 the relying party opts into; there is no redirect from an old issuer to a new
-one. A fork sets `PAGES_CANONICAL_ORIGIN` (and its base) in its own deploy.
+one. A fork sets `PAGES_CANONICAL_ORIGIN` (and its base) in its own deploy;
+until it does, its build publishes no metadata.
 
 **The WebAuthn RP ID is the host.** The passkey that gates consent is scoped
 to the origin's effective domain, `tyler-r-kendrick.github.io`, which every
@@ -290,30 +339,57 @@ its constraints are not rediscovered.
 ## Testing, and what is not claimed
 
 - `packages/siop-v2`: unit tests for the metadata builder, the consumer (every
-  refusal), the relying-party kit (wrong nonce, audience, issuer, redirect_uri;
-  expired, from-the-future and tampered tokens; replay of a response, of a token
-  across logins, and through a store that is not single use; a lost race;
-  attempt limits; per-person audience; configuration; bounded memory).
-- `examples/siop-rp`: the Express app over real HTTP, and the single-page flow
-  with injected storage, clock and `fetch`.
+  refusal, the byte cap on a lying `Content-Length` and on a streamed body, the
+  origin tie, the loopback opt-in, a query on the endpoint), and the
+  relying-party kit (wrong nonce, audience, issuer, redirect_uri; expired,
+  from-the-future and tampered tokens; replay of a response, of a token across
+  logins, and through a store that is not single use; a lost race; attempt
+  limits; per-person audience; configuration; bounded memory and a full store).
+  `rp.binding.test.ts` holds the binding tests and a mutation-style table in
+  which each of the binding, redirect_uri, nonce, audience, issuer, freshness
+  and signature checks is made to be the **only** thing wrong with a response
+  and must still refuse, each beside a control that succeeds, so removing any
+  one of them fails a named row. (The state, token replay, attempt-limit and
+  expiry checks have their own tests in the other `rp.*.test.ts` files.)
+- `examples/siop-rp`: the Express app over real HTTP (the binding cookie, a
+  wrong or missing cookie, a forged `#error`, the redirect_uri derived from the
+  request including its query, a login for a second registered callback, a full
+  store and the rate limit), and the single-page flow with injected storage,
+  clock and `fetch` and a real at-rest key (sealed storage, another tab, a
+  wrong binding, no key).
 - `pnpm --filter @opensesame/pages verify:siop`: the example Node RP as its own
   process and the example SPA on its own origin sign in against the built
-  Pages app with a virtual authenticator. It reads the built
+  Pages app with a virtual authenticator. The Node RP is signed in to through
+  its own `<form>` in the browser, so Chromium submits it, receives the RP's
+  `302` and `Set-Cookie`, and checks the redirect to Pages against the page's
+  `form-action`; a control page whose policy allows only `'self'` shows that the
+  same form is stopped at the redirect. The run reads the built
   `siop-metadata.json` through the kit's consumer (and checks it byte for byte
   against the kit's own output), and provokes each refusal through the real
   ceremony: wrong nonce, audience and redirect_uri, a replayed response and a
-  replayed token, a tampered signature, an expired token (the browser's clock
+  replayed token, a response to **another browser's** login (and one with no
+  cookie at all), a tampered signature, an expired token (the browser's clock
   two hours back), an unregistered redirect_uri refused by Pages with nothing
   sent to the RP, no Allow without a passkey and no token without a click, Deny
   reaching the RP as `access_denied`, a locked vault issuing nothing. It also
-  failed, as it should, when the redirect_uri check was disabled.
+  signs in at a second registered callback, checks the startup refusals
+  (a document from another origin, loopback `http` without the opt-in), the `429`
+  and `503`, and, for the single page, that every `sessionStorage` write is an
+  at-rest seal and that a response opened in another tab is refused.
+- That the `redirect_uri` and binding checks are load-bearing is shown by the
+  mutation-style table above and by the per-address `redirect_uri` cases in
+  `rp.refusals.test.ts` (a different path, origin, scheme, trailing slash and
+  query, each with a control that the same response is accepted at the right
+  address). No claim is made about how an earlier version of the browser journey
+  behaved.
 - Agents: `identity.local.siop.authorize` is excluded from every agent surface
   (`packages/capability-registry`), and `approveSiopAuthorization` refuses a
   non-passkey session (`siop-authority.test.ts`).
 - **Not claimed:** OIDC Core, Discovery or any OpenID conformance profile;
   that a given third-party OIDC library works against Pages (it will not);
-  that GitHub Pages would serve an uploaded `.well-known`; anything about the
-  Vercel relay.
+  that GitHub Pages would serve an uploaded `.well-known`; that a build outside
+  GitHub Actions can tell a fork from the project; anything about the Vercel
+  relay.
 
 ## Consequences
 
@@ -328,7 +404,8 @@ its constraints are not rediscovered.
 - Operators who need conventional OIDC choose the native host (local), the
   Identity API (hosted), or accept a hosted relay's trust model (§7).
 - `siop-metadata.json` joins the shipped files, owned by `identity.siop`.
-  Forks and other bases set `PAGES_CANONICAL_ORIGIN` or ship none.
+  Forks and other bases set `PAGES_CANONICAL_ORIGIN` or ship none; a fork's
+  Actions build ships none until it does.
 - Settings › Capabilities, the tutorial and the registry say *SIOPv2
   (Implementer's Draft)* and *not a conventional OpenID Connect provider* where
   a capability is described; screens carry no explainer (ADR 0158, design

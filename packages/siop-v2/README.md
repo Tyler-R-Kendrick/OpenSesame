@@ -25,8 +25,8 @@ it lists what is implemented and, with a reason each, what is not.
 | ID tokens | `buildSelfIssuedIdToken`, `verifySelfIssuedIdToken`, `exportPublicEcP256Jwk`, `STATIC_SELF_ISSUED_ISSUER` |
 | Keys | `parsePublicEcP256Jwk`, `ecP256JwkThumbprint` (RFC 7638), `readSignedCompactJws`, `SUPPORTED_SIGNATURE_ALGORITHMS` |
 | Issuers | `resolveIssuer`, `assertAllowedIssuer`, `STATIC_SIOP_METADATA` — static `https://self-issued.me/v2`, or a dynamic HTTPS issuer with `i_am_siop: true` (loopback HTTP for local dogfood) |
-| Pages metadata | `pagesSiopIssuer`, `pagesOriginOf`, `siopMetadataUrl`, `buildPagesSiopMetadata`, `serializePagesSiopMetadata` (what a build publishes as `siop-metadata.json`, derived from `STATIC_SIOP_METADATA`); `parseSiopMetadata`, `fetchSiopMetadata` (the consumer: injected `fetch`, no redirects, issuer pinned by the RP) |
-| Relying-party kit | `createSiopRelyingParty` / `SiopRelyingParty` (`startLogin`, `completeLogin`: state, nonce, audience, redirect_uri, replay), `SiopRpError`, `generateLocalClientId`; stores `MemoryLoginStore`, `MemoryReplayLedger`, `StorageLoginStore` and the `SiopLoginStore` / `SiopReplayLedger` interfaces |
+| Pages metadata | `pagesSiopIssuer`, `pagesOriginOf`, `siopMetadataUrl`, `buildPagesSiopMetadata`, `serializePagesSiopMetadata` (what a build publishes as `siop-metadata.json`, derived from `STATIC_SIOP_METADATA`); `parseSiopMetadata`, `fetchSiopMetadata` (the consumer: injected `fetch`, no redirects, byte-capped, issuer pinned by the RP, an explicit `metadataUrl` at the issuer's origin unless `allowMirror`, loopback `http` only with `allowLoopbackHttp`) |
+| Relying-party kit | `createSiopRelyingParty` / `SiopRelyingParty` (`startLogin` returns a `binding` the caller keeps in the starting browser; `completeLogin` requires it with `receivedRedirectUri`: state, binding, nonce, audience, redirect_uri, replay), `SiopRpError`, `generateLocalClientId`; stores `MemoryLoginStore`, `MemoryReplayLedger`, `StorageLoginStore` (bounded: they prune what expired, then refuse when full) and the `SiopLoginStore` / `SiopReplayLedger` interfaces |
 | Validity | `assertTokenFreshness`, `assertIAmSiopClaim`, `readEpoch`, `readAudience` |
 | Linking | `resolveSiopLinkProfile`, `challengeIssuerFromProfile`, `bodyOffersEmailJoin` |
 | Responses | `serializeFragmentSuccess`, `serializeFragmentError`, `parseFragmentResponse`, `attachFragment` |
@@ -40,8 +40,9 @@ pnpm --filter @opensesame/siop-v2 typecheck
 ```
 
 `src/matrix.test.ts` pins the support matrix; the `*.adversarial.test.ts` and
-`request.property.test.ts` (fast-check) suites cover refusals; `discovery.test.ts`,
-`rp.test.ts` and `rp-store.test.ts` cover the metadata and the relying-party kit.
+`request.property.test.ts` (fast-check) suites cover refusals; `discovery*.test.ts`,
+`rp*.test.ts` (`rp.binding.test.ts` holds the binding and the every-check-fails-alone
+table) and `rp-store.test.ts` cover the metadata and the relying-party kit.
 The browser journey, including the example relying parties on other origins, is
 `pnpm --filter @opensesame/pages verify:siop`. The copy-ready examples are
 [`examples/siop-rp`](../../examples/siop-rp) and the guide is

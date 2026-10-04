@@ -23,7 +23,8 @@ remains a separate OIDC issuer; do not merge the two planes.
 
 A relying party reads `{origin}{base}siop-metadata.json` (generated at build
 time, owned by `identity.siop`; set `PAGES_CANONICAL_ORIGIN` on any deployment
-that is not the shipped project) and verifies the token with the kit in
+that is not the shipped project: a fork's Actions build publishes none until it
+does) and verifies the token with the kit in
 `@opensesame/siop-v2`. The guide is
 [Use OpenSesame Pages as your login](use-pages-as-your-login.md); the decision,
 the measurements and the non-goals are
@@ -63,5 +64,6 @@ WebAuthn, captures the fragment redirect, and verifies the token with
 `@opensesame/siop-v2`—without mocking the verifier. It then runs the example
 Node relying party as its own process and the example single-page relying party
 on its own origin against the build, and provokes every refusal (wrong nonce,
-audience and redirect_uri, replay, tampered signature, expired token, locked
-vault, no consent without a click) through the real ceremony.
+audience and redirect_uri, replay, a response delivered to another browser,
+tampered signature, expired token, locked vault, no consent without a click)
+through the real ceremony.
