@@ -1394,12 +1394,12 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/notification-channels/push/subscriptions": {
         post: {
           summary: "Register a Web Push subscription",
-          description:
-            "The endpoint is a capability URL: it is stored, and never returned, logged, or written to audit metadata.",
+          description: "A capability URL: stored, never echoed.",
           security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           responses: {
             "201": { description: "Subscription id and device label" },
             "400": { description: "Invalid subscription" },
+            "409": { description: "Owned by someone else, or limit reached" },
             ...authenticationUnauthorizedResponse,
           },
         },

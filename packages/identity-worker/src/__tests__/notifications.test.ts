@@ -612,7 +612,7 @@ describe("notification delivery", () => {
 
   it("chaos: a crash between claim and send burns exactly one attempt", async () => {
     const slack = stubAdapter("slack");
-    const { repos, deps } = await harness({
+    const { repos, deps, clock } = await harness({
       adapters: [slack],
       bindings: [binding("slack")],
       preference: { channels: ["slack"], fanOut: false },
@@ -625,8 +625,8 @@ describe("notification delivery", () => {
     expect((await rowsFor(repos))[0]?.attempts).toBe(1);
     expect(slack.sent).toHaveLength(0);
 
-    // The next process picks it up and burns the second — one per claim, so
-    // the ladder cannot be reset by crashing.
+    // The next process gets it once the 5 minute lease runs out: one attempt per claim.
+    clock.now = new Date(NOW.getTime() + 6 * 60_000);
     await deliverNotifications(deps);
     expect((await rowsFor(repos))[0]?.attempts).toBe(2);
     expect(slack.sent).toHaveLength(1);
