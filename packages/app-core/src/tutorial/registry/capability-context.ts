@@ -42,6 +42,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "settings.notifications": ["/settings/notifications"],
     "settings.local-notifications": ["/settings/capabilities"],
     "settings.backup": ["/settings/capabilities"],
+    "feature.certificates": ["/settings/capabilities"],
     "settings.surrogate-credentials": ["/settings/capabilities"],
     "settings.browser-autofill": ["/settings/capabilities"],
     "identity.sign-in": ["/unlock", "/identity"],

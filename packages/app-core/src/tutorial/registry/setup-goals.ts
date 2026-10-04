@@ -1,4 +1,4 @@
-import type { GuideGoalDescriptor } from "./goals.js";
+import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 
 /**
  * Goals for the gates and the ceremony behind them: opening the vault, the
@@ -24,6 +24,7 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "identity.account-factors",
     title: "Add a passkey or authenticator app to your account",
+    requires: ["identity.connected"],
     // Offered where the rows are, not on every route (the context budget).
     routes: ["/settings"],
     guide: [
@@ -31,8 +32,8 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "identity.account-factors"',
       "say \"Your account's passkeys and authenticator app prove it is you to your sign-in service. They never open a vault: the vault's own keys are the lists above them.\"",
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings"',
-      'wait route "/settings" timeout=15000',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
       'focus "settings.account-factors" "Press Add on Account passkey or Account authenticator app; the sheet makes it with your sign-in service. Remove on a row takes one away." side=bottom',
       "end",
     ].join("\n"),
@@ -73,6 +74,48 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
       'focus "setup.join" "A shared link opens this by itself." side=top',
       "end",
     ].join("\n"),
+  },
+];
+
+/** What the unlock screen and setup answer to a question about them. */
+export const SETUP_HELP: readonly HelpTopic[] = [
+  {
+    id: "help.unlock",
+    title: "How do I unlock the vault?",
+    answer:
+      "The unlock screen is the passkey, PIN or master password challenge for this device. Signing in with an identity provider is a separate tab and does not unwrap the vault key.",
+    routes: ["/unlock"],
+    goal: "unlock.open",
+    keywords: [
+      "unlock",
+      "open",
+      "locked",
+      "master password",
+      "pin",
+      "passkey",
+      "get in",
+      "sign in",
+    ],
+  },
+  {
+    id: "help.setup",
+    title: "How do I choose who can sign in?",
+    answer:
+      "An empty device offers two roads: set it up as the operator, or join a session you were invited to. The operator road is the allowlist of sign-in providers; finish records it and returns to sign-in. An empty list is a local-only vault.",
+    routes: ["/setup"],
+    goal: "setup.first-run",
+    keywords: [
+      "setup",
+      "set up",
+      "first run",
+      "operator",
+      "allowlist",
+      "who can sign in",
+      "sign-in providers",
+      "join",
+      "new device",
+      "install",
+    ],
   },
 ];
 

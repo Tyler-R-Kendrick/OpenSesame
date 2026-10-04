@@ -182,6 +182,11 @@ export function VaultSection() {
   const newItemRef = useRef<HTMLAnchorElement>(null);
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
+  // A phone opens on the section tree, where the list pane is not drawn: the
+  // tree's own command row and the tree itself answer to the same two targets,
+  // and the registry points at whichever copy is on screen.
+  const treeCreateRef = useGuideTarget<HTMLAnchorElement>("vault.create");
+  const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
 
   useVaultFocus({
@@ -210,14 +215,26 @@ export function VaultSection() {
       {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane
           never hold two trees at once. */}
-      <div className="vault__tree" ref={treePaneRef}>
+      <div
+        className="vault__tree"
+        ref={(element) => {
+          treePaneRef.current = element;
+          if (narrow) treeListRef(element);
+          else treeListRef(null);
+        }}
+      >
         {narrow ? (
           <>
             {/* The list's own command row, so adding, importing and backing
                 up are on the screen a phone opens on. Search jumps to the
                 list of everything with its prompt open. */}
             <VaultPathbar
-              verbs={<VaultActions createPath={createPath} />}
+              verbs={
+                <VaultActions
+                  createPath={createPath}
+                  createRef={treeCreateRef}
+                />
+              }
               search={() => {
                 askForSearch();
                 navigate(PHONE_ALL_ITEMS);

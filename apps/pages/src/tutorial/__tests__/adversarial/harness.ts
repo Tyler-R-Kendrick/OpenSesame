@@ -28,7 +28,7 @@ import {
  * draw, and where the router was asked to go. An attack that leaves both empty
  * left no trace on the page.
  */
-import { compileGuide } from "@opensesame/guide-lang";
+import { AUTHORED_GUIDE_LIMITS, compileGuide } from "@opensesame/guide-lang";
 import {
   type GuideRuntime,
   type TestGuideClock,
@@ -41,8 +41,17 @@ import {
   createSupportSession,
   supportVocabulary,
 } from "@opensesame/support-agent";
-import { createDriverRenderer } from "../../rendering/driver-renderer.js";
-import type { SupportEngine } from "../../session.js";
+import { render } from "@testing-library/react";
+import { createElement } from "react";
+import { CoachHud } from "../../coach/CoachHud.js";
+import { createScrollRenderer } from "../../coach/scroll-renderer.js";
+import {
+  type SupportController,
+  type SupportEngine,
+  createSupportController,
+} from "../../session.js";
+import { SupportContext } from "../../support-context.js";
+import { tourRunner } from "../../tour-runner.js";
 import {
   type MountedTargets,
   type RecordingRoutes,
@@ -61,6 +70,7 @@ export {
   createSupportChain,
   guideSource,
   mountTargets,
+  walkToEnd,
 } from "./chain.js";
 
 export type DomEngine = SupportEngine & {
@@ -74,7 +84,7 @@ export type DomEngine = SupportEngine & {
 
 /**
  * The engine `apps/pages` actually builds, minus the provider: the real
- * Driver.js renderer over the real target registry, the real compiler over the
+ * scroll renderer over the real target registry, the real compiler over the
  * real page vocabulary, and the real support session. Only the model and the
  * clock are substituted, because neither can be driven deterministically.
  */
@@ -93,7 +103,7 @@ export function createDomEngine(
   const targets = mountTargets(vocabulary.targets);
   const routes = createRecordingRoutes(route);
   const clock = createTestClock();
-  const renderer = createDriverRenderer({
+  const renderer = createScrollRenderer({
     resolveElement: resolveGuideTargetElement,
     reducedMotion: () => true,
   });
@@ -136,15 +146,19 @@ export function createDomEngine(
     // the app: a cross-route guide names a control on the screen it is about to
     // navigate to, which the route-scoped vocabulary cannot contain.
     compileAuthored(source) {
-      const result = compileGuide(source, {
-        goals: guideGoalIds(),
-        targets: guideTargetIds(),
-        routes: GUIDE_ROUTES.map((route) => route.id),
-        predicates: guidePredicateIds(),
-      });
+      const result = compileGuide(
+        source,
+        {
+          goals: guideGoalIds(),
+          targets: guideTargetIds(),
+          routes: GUIDE_ROUTES.map((route) => route.id),
+          predicates: guidePredicateIds(),
+        },
+        AUTHORED_GUIDE_LIMITS,
+      );
       return result.ok ? result.program : null;
     },
-    runGuide: (program) => runtime.start(program),
+    ...tourRunner(runtime, AUTHORED_GUIDE_LIMITS),
     pauseGuide: () => runtime.pause(),
     cancelGuide: (reason) => runtime.cancel(reason),
     subscribeGuide: (listener) => runtime.subscribe({ onSnapshot: listener }),
@@ -159,18 +173,62 @@ export function createDomEngine(
   };
 }
 
-/** Overlay nodes the guide renderer owns, counted straight off the document. */
-export const OVERLAY_SELECTOR =
-  ".driver-popover, .driver-overlay, .driver-active-element, [data-os-guide-annotation]";
+/** The tutorial card and its dim, counted straight off the document. */
+export const OVERLAY_SELECTOR = ".coach";
 
 export function liveOverlayCount(): number {
   return document.querySelectorAll(OVERLAY_SELECTOR).length;
 }
 
 /**
- * Drains the macrotask queue as well as the microtask one. The renderer loads
- * Driver.js through a dynamic import, so a microtask-only flush would observe
- * a page that has not drawn yet and call it proof of nothing rendering.
+ * The controller a tutorial is started through, with the card that draws it
+ * mounted over the real engine. Tests that used to read a Driver popover read
+ * this card instead: it is the only place a step's words become visible.
+ */
+/** Mounts only the card over an existing controller; returns its unmount. */
+export function mountCoach(controller: SupportController): () => void {
+  const mounted = render(
+    createElement(
+      SupportContext.Provider,
+      { value: controller },
+      createElement(CoachHud),
+    ),
+  );
+  return () => mounted.unmount();
+}
+
+export type MountedTour = {
+  readonly controller: SupportController;
+  unmount(): void;
+};
+
+export function mountTour(engine: DomEngine): MountedTour {
+  const controller = createSupportController({
+    loadEngine: () => Promise.resolve(engine),
+    onLock: () => () => {},
+    clearTargets: () => {},
+  });
+  const mounted = render(
+    createElement(
+      SupportContext.Provider,
+      { value: controller },
+      createElement(CoachHud),
+    ),
+  );
+  return {
+    controller,
+    unmount() {
+      mounted.unmount();
+      controller.destroy();
+    },
+  };
+}
+
+/**
+ * Drains the macrotask queue as well as the microtask one. The card is a lazy
+ * React tree and a step is drawn a frame after it is published, so a
+ * microtask-only flush would observe a page that has not drawn yet and call it
+ * proof of nothing rendering.
  */
 export async function settle(turns = 4): Promise<void> {
   for (let turn = 0; turn < turns; turn += 1) {

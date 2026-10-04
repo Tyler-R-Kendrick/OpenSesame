@@ -14,39 +14,15 @@ import { contributionsSnapshot } from "../../lib/contributions.js";
 import { ACCESS_HELP } from "./access-goals.js";
 import { AUTHORITY_HELP } from "./authority-help.js";
 import { CONNECTIONS_HELP } from "./connections-goals.js";
+import { FEATURE_GOALS } from "./feature-goals.js";
+import type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
-import { SETUP_GOALS, SHELL_GOALS } from "./setup-goals.js";
+import { SETUP_GOALS, SETUP_HELP, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
-export type GuideGoalDescriptor = {
-  readonly id: GuideGoalId;
-  readonly title: string;
-  /** Routes where offering this goal makes sense; empty means everywhere. */
-  readonly routes: readonly GuideRouteId[];
-  /**
-   * A checked-in GuideLang program. Runs verbatim when no model can answer,
-   * and is parsed and validated by exactly the same pipeline model output
-   * goes through — an authored guide gets no privileged path.
-   */
-  readonly guide: string;
-};
-
-export type HelpTopic = {
-  readonly id: string;
-  readonly title: string;
-  /** Authored answer shown when there is no model to ask. */
-  readonly answer: string;
-  readonly routes: readonly GuideRouteId[];
-  /** Authored walkthrough that answers this question in tutorial mode. */
-  readonly goal: GuideGoalId;
-  /**
-   * The words a person uses for this that the title and answer do not: "user"
-   * for an account, "reset" for a master password. Retrieval is lexical and
-   * offline, so synonyms are authored here rather than inferred anywhere.
-   */
-  readonly keywords: readonly string[];
-};
+export { FEATURE_TUTORIALS } from "./feature-goals.js";
+export type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 
 /**
  * The goals the core shell always offers. A goal that walks an optional
@@ -93,6 +69,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Vault health lists weak, reused and aging items. Whether this device is connected lives in Settings → Connections."',
       'navigate "/vault/health"',
       'wait route "/vault/health" timeout=15000',
+      'focus "vault.health.summary" "The verdict: how many passwords were reviewed, and how many are weak, reused or aging." side=bottom',
       'success "This is Vault health."',
       "end",
     ].join("\n"),
@@ -107,8 +84,11 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Items are sealed on this device. Nothing you type here is uploaded anywhere."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "vault.create" "This opens the editor for the kind the current filter names — a login unless you narrowed the list." side=bottom',
+      'focus "vault.list" "Everything the vault holds is listed here, grouped by folder and narrowed by whichever filter is active." side=right',
+      'focus "vault.create" "New item opens the editor for the kind the current filter names — a login unless you narrowed the list. Nothing is stored until you save." side=bottom',
       'wait target "vault.create" event=activate timeout=60000',
+      'success "Name it, enter the secret and save. The item is sealed with the rest of the vault."',
+      "end",
     ].join("\n"),
   },
   {
@@ -133,10 +113,13 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.security.review"',
+      'say "Security holds the keys that open this vault, the second steps asked after one, and the master password those unlocks are wrapped under."',
       'navigate "/settings/security"',
       'wait route "/settings/security" timeout=15000',
-      'say "Security holds the unlock methods enrolled on this device, the keys enrolled on each open vault (Vault key protection), and the master password those unlocks are wrapped under."',
+      'focus "settings.vault-key-protection" "The keys enrolled on this vault. Add opens one sheet for a recovery key, a passkey, an age recipient or a cloud key; each row can be tested, and most removed." side=top',
       'focus "settings.master-password" "Changing it re-wraps the vault key. No item is re-encrypted, and nothing is re-uploaded." side=top',
+      'focus "settings.second-step" "Second steps are asked after a key. Nothing turns on until a code from the new method matches." side=top',
+      'success "Every row here has one action, and each opens the same sheet."',
       "end",
     ].join("\n"),
   },
@@ -193,8 +176,8 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "vault.second-step.code"',
       'say "A code by email or text is a fallback for a lost phone, not a first second step: it needs a sign-in service to send it, and anyone who can read the inbox or hold the number can read the code. Keep an authenticator app or passkey enrolled too."',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings"',
-      'wait route "/settings" timeout=15000',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
       'focus "settings.second-step" "Press Add on Email code or Text message. The sheet asks where to send it, offers your account address, sends the first code, and turns the channel on only once that code matches." side=bottom',
       "end",
     ].join("\n"),
@@ -208,9 +191,9 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "vault.recovery-codes"',
       'say "Recovery codes stand in for the second step once each. They are made when the first second step turns on and shown once; save them somewhere the phone is not."',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings"',
-      'wait route "/settings" timeout=15000',
-      'focus "settings.recovery" "View shows which codes are left, with the used ones struck through. Make a new set replaces them all." side=bottom',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
+      'focus "settings.second-step" "Turn on a second step here. The first one makes the recovery codes and shows them once; after that the Recovery row opens the list — View shows which are left, and Make a new set replaces them all." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -235,10 +218,10 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "vault.export"',
-      'wait state "vault.unlocked" is=true timeout=60000',
+      'say "An export is one encrypted backup file: the sealed vault body plus its key-wrapping header. It is opened again with the master password, for moving to another device."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "vault.export" "The export is the sealed body plus its wrapping header. The master password still opens it." side=bottom',
+      'focus "vault.export" "This opens the export sheet. Nothing is written until you choose where to save it." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -275,11 +258,15 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "client.support"',
-      'focus "shell.support" "Support is always one press away. Ask how to do something, and a walkthrough will point at the control." side=right',
+      'say "Support has two halves. Ask answers a question about the screen — in your own words when a model is available, from the written help when not. Tutorials lists every walkthrough, and each can be replayed."',
+      'focus "shell.support" "Press this to open it. It is always one press away." side=right',
+      'wait target "shell.support" event=activate timeout=30000',
+      'success "Ask a question, or choose a tutorial from the list."',
       "end",
     ].join("\n"),
   },
   ...SHELL_GOALS,
+  ...FEATURE_GOALS,
 ];
 
 /** Authored help whose walkthrough is a core goal. */
@@ -388,44 +375,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
       "lock timer",
     ],
   },
-  {
-    id: "help.unlock",
-    title: "How do I unlock the vault?",
-    answer:
-      "The unlock screen is the passkey, PIN or master password challenge for this device. Signing in with an identity provider is a separate tab and does not unwrap the vault key.",
-    routes: ["/unlock"],
-    goal: "unlock.open",
-    keywords: [
-      "unlock",
-      "open",
-      "locked",
-      "master password",
-      "pin",
-      "passkey",
-      "get in",
-      "sign in",
-    ],
-  },
-  {
-    id: "help.setup",
-    title: "How do I choose who can sign in?",
-    answer:
-      "An empty device offers two roads: set it up as the operator, or join a session you were invited to. The operator road is the allowlist of sign-in providers; finish records it and returns to sign-in. An empty list is a local-only vault.",
-    routes: ["/setup"],
-    goal: "setup.first-run",
-    keywords: [
-      "setup",
-      "set up",
-      "first run",
-      "operator",
-      "allowlist",
-      "who can sign in",
-      "sign-in providers",
-      "join",
-      "new device",
-      "install",
-    ],
-  },
+  ...SETUP_HELP,
   ...SHELL_HELP,
 ];
 
@@ -482,6 +432,7 @@ export function describeGuideGoals(
   route: GuideRouteId,
 ): readonly SupportGoalDescription[] {
   return mergedGuideGoals()
+    .filter((goal) => goal.libraryOnly !== true)
     .filter(
       (goal) =>
         goal.routes.length === 0 ||

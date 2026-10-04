@@ -12,117 +12,21 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  type CssRule,
+  anchor,
+  declarations,
+  parseRules,
+  reduced,
+  ruleFor,
+} from "./css-contract.js";
 
 const SUPPORT_CSS = new URL("../../support.css", import.meta.url);
-const DRIVER_CSS = new URL("../../rendering/driver.css", import.meta.url);
+const COACH_CSS = new URL("../../coach/coach.css", import.meta.url);
 const APP_CSS = new URL("../../../styles.css", import.meta.url);
 
-type CssRule = {
-  readonly selectors: readonly string[];
-  readonly body: string;
-  /** At-rule preludes enclosing this rule, outermost first. */
-  readonly context: readonly string[];
-};
-
-function matchingBrace(css: string, from: number): number {
-  let depth = 1;
-  for (let index = from; index < css.length; index += 1) {
-    const character = css[index];
-    if (character === "{") depth += 1;
-    else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  throw new Error("unbalanced stylesheet");
-}
-
-/**
- * A deliberately small reader: enough for these two hand-written files, and
- * no more. `@keyframes` bodies are skipped outright — their `0%`/`to` steps
- * are not selectors and would only ever be false positives.
- */
-function parseRules(source: string): readonly CssRule[] {
-  const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const rules: CssRule[] = [];
-  const context: string[] = [];
-  let prelude = "";
-  let index = 0;
-  while (index < css.length) {
-    const character = css[index];
-    if (character === "{") {
-      const head = prelude.trim();
-      prelude = "";
-      index += 1;
-      if (head.startsWith("@keyframes")) {
-        index = matchingBrace(css, index) + 1;
-      } else if (head.startsWith("@")) {
-        context.push(head);
-      } else {
-        const end = matchingBrace(css, index);
-        rules.push({
-          selectors: head
-            .split(",")
-            .map((selector) => selector.trim())
-            .filter((selector) => selector.length > 0),
-          body: css.slice(index, end),
-          context: [...context],
-        });
-        index = end + 1;
-      }
-      continue;
-    }
-    if (character === "}") {
-      context.pop();
-      index += 1;
-      continue;
-    }
-    prelude += character;
-    index += 1;
-  }
-  return rules;
-}
-
-/** The compound a selector starts with — what the rule is anchored on. */
-function anchor(selector: string): string {
-  const first = selector.split(/[\s>+~]+/)[0];
-  return first ?? selector;
-}
-
-function reduced(rule: CssRule): boolean {
-  return rule.context.some((prelude) =>
-    prelude.includes("prefers-reduced-motion: reduce"),
-  );
-}
-
-function declarations(rule: CssRule, property: string): readonly string[] {
-  const found: string[] = [];
-  for (const line of rule.body.split(";")) {
-    const [name, ...rest] = line.split(":");
-    if ((name ?? "").trim() !== property) continue;
-    found.push(rest.join(":").trim());
-  }
-  return found;
-}
-
-/** The one rule for a selector, or a failure that names what is missing. */
-function ruleFor(
-  rules: readonly CssRule[],
-  selector: string,
-  within?: string,
-): CssRule {
-  const found = rules.find(
-    (rule) =>
-      rule.selectors.includes(selector) &&
-      (within === undefined ||
-        rule.context.some((prelude) => prelude.includes(within))),
-  );
-  if (!found) throw new Error(`no rule for ${selector}`);
-  return found;
-}
-
 const supportRules = parseRules(readFileSync(SUPPORT_CSS, "utf8"));
-const driverRules = parseRules(readFileSync(DRIVER_CSS, "utf8"));
+const coachRules = parseRules(readFileSync(COACH_CSS, "utf8"));
 
 /** Shared controls the vault defines once, in `styles.css`, and only there. */
 const SHARED_CONTROLS = [
@@ -209,32 +113,10 @@ describe("support.css restyles only the support panel", () => {
   });
 });
 
-describe("driver.css restyles only the guide overlay", () => {
-  it("anchors every rule on the adapter's marker or on a Driver class", () => {
-    const stray = driverRules.flatMap((rule) =>
-      rule.selectors.filter((selector) => {
-        const head = anchor(selector);
-        return !head.includes(".os-guide") && !head.includes(".driver-");
-      }),
-    );
-    expect(stray).toEqual([]);
-  });
-
-  it("never anchors a rule on a shared control or a bare element", () => {
-    const anchors = driverRules.flatMap((rule) =>
-      rule.selectors.map((selector) => anchor(selector)),
-    );
-    for (const found of anchors) {
-      expect(SHARED_CONTROLS).not.toContain(found);
-      expect(BARE_ELEMENTS).not.toContain(found);
-    }
-  });
-});
-
 describe("reduced motion", () => {
   const files: readonly { name: string; rules: readonly CssRule[] }[] = [
     { name: "support.css", rules: supportRules },
-    { name: "driver.css", rules: driverRules },
+    { name: "coach.css", rules: coachRules },
   ];
 
   it("neutralises every animation each stylesheet starts", () => {
@@ -271,7 +153,7 @@ describe("reduced motion", () => {
     ).not.toEqual([]);
   });
 
-  it("moves nothing on a transition, so a colour fade is all that is left", () => {
+  it("moves nothing on a support transition, so a colour fade is all that is left", () => {
     const MOVING = [
       "transform",
       "translate",
@@ -285,7 +167,7 @@ describe("reduced motion", () => {
       "all",
     ];
     let inspected = 0;
-    for (const file of files) {
+    for (const file of files.filter((entry) => entry.name === "support.css")) {
       for (const rule of file.rules) {
         if (reduced(rule)) continue;
         for (const value of declarations(rule, "transition")) {

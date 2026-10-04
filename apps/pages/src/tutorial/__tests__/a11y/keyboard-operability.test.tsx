@@ -146,10 +146,28 @@ describe("keyboard operability", () => {
     await tabTo(user, start);
     await user.keyboard("{Enter}");
 
-    const mark = await screen.findByRole("button", { name: "Support" });
-    await tabTo(user, mark);
+    // The tutorial opens with the caret already on Next, so the whole walk —
+    // the sentence, the screen it goes to, the closing card — is Enter.
+    const next = await screen.findByRole("button", { name: /^Next/ });
+    await waitFor(() => expect(document.activeElement).toBe(next));
+    await user.keyboard("{Enter}");
+    // The control the second step points at is not drawn in this harness. Next
+    // while the card waits for it only stops the waiting: the step is then
+    // shown as text, and one more Enter moves on.
+    const second = await screen.findByRole("button", { name: /^Next/ });
+    await waitFor(() => expect(document.activeElement).toBe(second));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText(/not on screen/)).toBeTruthy();
+    const third = await screen.findByRole("button", { name: /^Next/ });
+    await waitFor(() => expect(document.activeElement).toBe(third));
     await user.keyboard("{Enter}");
     expect(await screen.findByText("This is Vault health.")).toBeTruthy();
+    const done = await screen.findByRole("button", { name: /^Done/ });
+    await waitFor(() => expect(document.activeElement).toBe(done));
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /^Tutorial:/ })).toBeNull(),
+    );
   });
 
   it("offers nothing that only a pointer can use", async () => {
