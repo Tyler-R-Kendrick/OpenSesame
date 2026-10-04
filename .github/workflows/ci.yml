@@ -392,7 +392,7 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: pnpm exec turbo run build --filter=@opensesame/pages
       - name: Every tutorial, walked end to end
-        # ADR 0161: the Support sheet's Tutorials tab lists them, each is
+        # ADR 0163: the Support sheet's Tutorials tab lists them, each is
         # started from its row and walked with Next alone at this width, on
         # the shell with every capability on. Escape from the card and from
         # the lit control ends a tour, and the move a step waits for, made
