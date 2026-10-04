@@ -90,6 +90,35 @@ export async function until(read, ok, what, timeout = 60_000) {
   throw new Error(`${what}: ${JSON.stringify(last)}`);
 }
 
+/**
+ * Hold a context's pages until the core worker has taken the first one.
+ *
+ * A device's first load runs under no worker. The core worker installs
+ * (precaching the shell, which takes as long as the machine is slow), claims
+ * the page, and the page reloads once, by design: it does not yet know which
+ * release it booted under (`onControllerChange`, `worker/plan-sync.ts`). A
+ * walk that opens a guest vault before that reload loses it, and waits for a
+ * "Lock vault" key that a reloaded front door never shows. `controller` being
+ * set is not the signal: the reload follows it. A document born with a
+ * controller is, and is not reloaded for the claim again.
+ *
+ * Call `trackControlledBirth(context)` before the context's first page loads,
+ * then `await untilBornControlled(page)` before touching the door.
+ */
+export const trackControlledBirth = (context) =>
+  context.addInitScript(() => {
+    window.__osBornControlled =
+      navigator.serviceWorker?.controller?.scriptURL ?? null;
+  });
+
+export const untilBornControlled = (page, timeout = 30_000) =>
+  until(
+    () => page.evaluate(() => window.__osBornControlled ?? null),
+    (script) => script !== null && new URL(script).pathname.endsWith("/sw.js"),
+    "the core worker to take the first load and the page to reload under it",
+    timeout,
+  );
+
 export const notificationsOf = (page) =>
   page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
