@@ -1,4 +1,7 @@
-import type { PushSubscriptionRepository } from "@opensesame/database";
+import type {
+  PushSubscription,
+  PushSubscriptionRepository,
+} from "@opensesame/database";
 import {
   DELIVERY_TIMEOUT_MS,
   type ChannelAdapter as PackageChannelAdapter,
@@ -99,6 +102,52 @@ export interface WebPushChannelDeps {
   log?: Logger;
 }
 
+/** What one delivery learned from pushing to a person's subscriptions. */
+interface Tally {
+  delivered: number;
+  retryable?: string;
+  permanent?: string;
+}
+
+/** Push to one subscription and record what came of it. */
+async function pushTo(
+  deps: WebPushChannelDeps,
+  message: RenderedMessage,
+  subscription: PushSubscription,
+  now: Date,
+  tally: Tally,
+): Promise<void> {
+  const outcome = await deps.adapter.deliver(message, {
+    channel: "native_push",
+    subscription: {
+      endpoint: subscription.endpoint,
+      keys: { p256dh: subscription.p256dhKey, auth: subscription.authSecret },
+    },
+  });
+  if (outcome.status === "delivered") {
+    tally.delivered += 1;
+    return;
+  }
+  const error = outcome.error ?? outcome.status;
+  if (outcome.status === "retryable") {
+    tally.retryable = error;
+    return;
+  }
+  tally.permanent = error;
+  if (outcome.status === "permanent" && retiresSubscription(error)) {
+    await deps.subscriptions.disable(subscription.id, now);
+    // An id and a digest, never the endpoint: it is a capability URL.
+    deps.log?.info(
+      {
+        subscriptionId: subscription.id,
+        endpointDigest: subscription.endpointDigest,
+        error,
+      },
+      "web push subscription retired",
+    );
+  }
+}
+
 export function createWebPushChannel(deps: WebPushChannelDeps): ChannelAdapter {
   const render = (input: ChannelRenderInput): JsonObject => {
     const notificationClass: NotificationClass = input.notificationClass;
@@ -129,68 +178,34 @@ export function createWebPushChannel(deps: WebPushChannelDeps): ChannelAdapter {
       // (the inbox, at the last) instead of retrying a person with no phone.
       return { ok: false, retryable: false, error: "no_subscription" };
     }
-    let delivered = 0;
-    let retryable: string | undefined;
-    let permanent: string | undefined;
+    const tally: Tally = { delivered: 0 };
     // A person's browsers are pushed to side by side, and no new send starts
     // once there is no longer time for it to finish inside the row's deadline
     // (each send carries its own transport timeout). A subscription that never
     // answers costs this row one timeout, not one timeout per subscription.
     const startBy = Date.now() + DELIVERY_DEADLINE_MS - DELIVERY_TIMEOUT_MS;
-    await mapBounded(
-      subscriptions,
-      {
-        concurrency: PUSH_CONCURRENCY,
-        perKey: PUSH_CONCURRENCY,
-        keyOf: () => "push",
-      },
-      async (subscription) => {
-        if (Date.now() > startBy) {
-          retryable ??= "deadline_exceeded";
-          return;
-        }
-        const outcome = await deps.adapter.deliver(message, {
-          channel: "native_push",
-          subscription: {
-            endpoint: subscription.endpoint,
-            keys: {
-              p256dh: subscription.p256dhKey,
-              auth: subscription.authSecret,
-            },
-          },
-        });
-        if (outcome.status === "delivered") {
-          delivered += 1;
-          return;
-        }
-        const error = outcome.error ?? outcome.status;
-        if (outcome.status === "retryable") {
-          retryable = error;
-          return;
-        }
-        permanent = error;
-        if (outcome.status === "permanent" && retiresSubscription(error)) {
-          await deps.subscriptions.disable(subscription.id, input.now);
-          // An id and a digest, never the endpoint: it is a capability URL.
-          deps.log?.info(
-            {
-              subscriptionId: subscription.id,
-              endpointDigest: subscription.endpointDigest,
-              error,
-            },
-            "web push subscription retired",
-          );
-        }
-      },
-    );
+    const pass = {
+      concurrency: PUSH_CONCURRENCY,
+      perKey: PUSH_CONCURRENCY,
+      keyOf: () => "push",
+    };
+    await mapBounded(subscriptions, pass, async (subscription) => {
+      if (Date.now() > startBy) {
+        tally.retryable ??= "deadline_exceeded";
+        return;
+      }
+      await pushTo(deps, message, subscription, input.now, tally);
+    });
     // One device that got it is delivered. Retrying the row for another that
     // did not would ring the first again; the inbox still holds the request.
-    if (delivered > 0) return { ok: true };
-    if (retryable) return { ok: false, retryable: true, error: retryable };
+    if (tally.delivered > 0) return { ok: true };
+    if (tally.retryable) {
+      return { ok: false, retryable: true, error: tally.retryable };
+    }
     return {
       ok: false,
       retryable: false,
-      error: permanent ?? "no_subscription",
+      error: tally.permanent ?? "no_subscription",
     };
   };
 

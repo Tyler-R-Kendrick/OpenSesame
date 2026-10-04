@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 433,
-    "violations": 683,
-    "oversizedLines": 221631
+    "violations": 682,
+    "oversizedLines": 221517
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1108,11 +1108,11 @@
       "max-lines": 856
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1741
+      "max-lines": 1718
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,
-      "max-lines": 2784
+      "max-lines": 2732
     },
     "packages/database/src/schema/index.ts": {
       "max-lines": 2370
@@ -1171,8 +1171,8 @@
       "max-statements": 1
     },
     "packages/identity-worker/src/notifications.ts": {
-      "complexity": 3,
-      "max-lines": 1003,
+      "complexity": 2,
+      "max-lines": 964,
       "max-lines-per-function": 1,
       "max-statements": 1
     },

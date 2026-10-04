@@ -56,6 +56,12 @@ async function setup(respond: (endpoint: string) => Promise<Response>) {
       });
     }
   };
+  const payload = await channel.render({
+    eventType: "authority.invocation.requested",
+    notificationClass: "authorization_request",
+    confidentiality: "minimal",
+    payload: { authReqId: "areq_1" },
+  });
   const row: NotificationDelivery = {
     id: "ndl_1",
     principalId: PRINCIPAL,
@@ -63,12 +69,7 @@ async function setup(respond: (endpoint: string) => Promise<Response>) {
     notificationClass: "authorization_request",
     eventType: "authority.invocation.requested",
     outboxEventId: "obx_1",
-    payload: channel.render({
-      eventType: "authority.invocation.requested",
-      notificationClass: "authorization_request",
-      confidentiality: "minimal",
-      payload: { authReqId: "areq_1" },
-    }) as NotificationDelivery["payload"],
+    payload,
     confidentiality: "minimal",
     state: "pending",
     attempts: 1,

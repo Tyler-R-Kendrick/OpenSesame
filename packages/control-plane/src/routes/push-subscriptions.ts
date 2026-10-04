@@ -1,19 +1,15 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   PushPublicKeyResponseSchema,
   PushSubscriptionResponseSchema,
-  RegisterPushSubscriptionSchema,
 } from "@opensesame/contracts";
 import { ConflictError, type PushSubscription } from "@opensesame/database";
-import {
-  normalizePushEndpoint,
-  pushSubscriptionRefusal,
-} from "@opensesame/notification-adapters";
 import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { admit, overCap, readRegistration } from "./push-enrolment.js";
 
 /**
  * Web Push enrolment (ADR 0084), mounted at `/v1/notification-channels/push`.
@@ -21,19 +17,6 @@ import { authenticatedPrincipalId } from "./organizations.js";
  * provider identity, and needs none of the binding ceremony.
  */
 export const pushSubscriptionRoutes = new Hono<{ Variables: Variables }>();
-
-/**
- * Live subscriptions one principal may hold. A person has a handful of
- * browsers; anything near this is somebody pointing the shared worker at
- * endpoints that never answer, and every one of them is a request the worker
- * must wait out. Registering past it answers 409 `subscription_limit_reached`;
- * replacing a subscription already held, or unsubscribing one, never counts
- * against it.
- */
-export const MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL = 10;
-
-const sha256Hex = (text: string) =>
-  createHash("sha256").update(text).digest("hex");
 
 pushSubscriptionRoutes.get("/key", requirePrincipal(), (c) => {
   const ctx = c.get("ctx");
@@ -61,69 +44,25 @@ pushSubscriptionRoutes.post("/subscriptions", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const repo = ctx.repos.pushSubscriptions;
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const parsed = RegisterPushSubscriptionSchema.safeParse(
-    await c.req.json().catch(() => ({})),
-  );
-  if (!parsed.success) {
-    return c.json(
-      { error: "invalid_request", detail: parsed.error.message },
-      400,
-    );
-  }
-  // One spelling per endpoint, so the digest the ownership rule keys on cannot
-  // be sidestepped with a differently written copy of the same URL.
-  const endpoint = normalizePushEndpoint(parsed.data.endpoint);
-  if (!endpoint) {
-    return c.json(
-      { error: "invalid_request", detail: "insecure_endpoint" },
-      400,
-    );
-  }
-  // The same policy delivery enforces, applied while the person can still be
-  // told: HTTPS, no userinfo, no loopback, private or metadata host, and keys
-  // that are what RFC 8291 encrypts to. A row failing any of it could never
-  // be delivered to.
-  const refusal = pushSubscriptionRefusal({
-    endpoint,
-    keys: parsed.data.keys,
-  });
-  if (refusal) {
-    return c.json({ error: "invalid_request", detail: refusal }, 400);
-  }
-  const digest = sha256Hex(endpoint);
-  // Rows written before endpoints were normalized are keyed on the raw string.
-  // They keep working as they are; one the presented spelling matches is still
-  // somebody's, and is carried over below if it is the caller's own.
-  const rawDigest = sha256Hex(parsed.data.endpoint);
-  const legacy =
-    rawDigest === digest ? null : await repo.findByEndpointDigest(rawDigest);
-  const legacyLive = legacy && !legacy.disabledAt ? legacy : null;
-  if (legacyLive && legacyLive.principalId !== principalId) {
-    return c.json({ error: "endpoint_already_registered" }, 409);
-  }
-  const limit = (): Response =>
-    c.json({ error: "subscription_limit_reached" }, 409);
-  const held = await repo.listForPrincipal(principalId);
-  const replacing = held.some(
-    (row) => row.endpointDigest === digest || row.endpointDigest === rawDigest,
-  );
-  if (!replacing && held.length >= MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL) {
-    return limit();
-  }
+  const registration = readRegistration(await c.req.json().catch(() => ({})));
+  if ("invalid" in registration) return c.json(registration.invalid, 400);
+  const admission = await admit(repo, principalId, registration);
+  if ("refused" in admission) return c.json({ error: admission.refused }, 409);
+
   const now = ctx.clock();
   let created: PushSubscription;
   try {
     created = await repo.create({
       id: `push_${randomBytes(12).toString("base64url")}`,
       principalId,
-      endpoint,
-      p256dhKey: parsed.data.keys.p256dh,
-      authSecret: parsed.data.keys.auth,
+      endpoint: registration.endpoint,
+      p256dhKey: registration.keys.p256dh,
+      authSecret: registration.keys.auth,
       // How a subscription is named and deduplicated without naming the
       // capability URL itself.
-      endpointDigest: digest,
-      ...(parsed.data.deviceLabel
-        ? { deviceLabel: parsed.data.deviceLabel }
+      endpointDigest: registration.digest,
+      ...(registration.deviceLabel
+        ? { deviceLabel: registration.deviceLabel }
         : undefined),
       createdAt: now,
     });
@@ -136,18 +75,12 @@ pushSubscriptionRoutes.post("/subscriptions", requirePrincipal(), async (c) => {
     }
     throw error;
   }
-  // Concurrent registrations can each pass the check above. Count again, and
-  // withdraw this one if the principal is now over: two racers may both back
-  // out (fail closed), but the cap is never exceeded.
-  if (
-    !replacing &&
-    (await repo.listForPrincipal(principalId)).length >
-      MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL
-  ) {
+  if (!admission.replacing && (await overCap(repo, principalId))) {
     await repo.disable(created.id, now, principalId);
-    return limit();
+    return c.json({ error: "subscription_limit_reached" }, 409);
   }
-  if (legacyLive) await repo.disable(legacyLive.id, now, principalId);
+  if (admission.legacy)
+    await repo.disable(admission.legacy.id, now, principalId);
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "notification.push.subscribed",
     principalId,

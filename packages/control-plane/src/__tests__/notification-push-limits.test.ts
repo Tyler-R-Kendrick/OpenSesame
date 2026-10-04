@@ -3,7 +3,7 @@ import type { RegisterPushSubscription } from "@opensesame/contracts";
 import { mintPushSubscription } from "@opensesame/notification-adapters/test-support";
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import { MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL } from "../routes/push-subscriptions.js";
+import { MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL } from "../routes/push-enrolment.js";
 import { type App, authed, plane, principal } from "./notification-kit.js";
 
 /**

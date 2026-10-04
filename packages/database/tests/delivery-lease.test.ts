@@ -24,7 +24,12 @@ afterAll(async () => {
   await pg.client.close();
 });
 
-const engines: { name: string; repos: () => Repositories }[] = [
+interface Engine {
+  name: string;
+  repos: () => Repositories;
+}
+
+const engines: Engine[] = [
   { name: "MemoryRepositories", repos: () => new MemoryRepositories() },
   { name: "PostgresRepositories", repos: () => pg.repos },
 ];
