@@ -98,7 +98,6 @@ export const CAPABILITY_TUTORIALS = {
   "vault.item_types.marketplace": "vault.item-types.install",
   "vault.export": "vault.export",
   "vault.import": "vault.import",
-  "vault.store_manifest.export": "vault.store-manifest",
   "vault.store_manifest.import": "vault.import",
   "app.status": "host.health.check",
   "app.navigate": "client.support",

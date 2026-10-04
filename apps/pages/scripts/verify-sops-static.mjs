@@ -14,6 +14,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { doorGuest } from "./lib/front-door.mjs";
+import { untilBornControlled } from "./lib/push-worker-harness.mjs";
 import {
   createStaticServer,
   documentJourney,
@@ -105,7 +107,9 @@ const produced = { online: "", offline: "", created: "" };
   });
   setStep("B-offline");
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  // Let the service worker install and precache before cutting the network.
+  // Installed means precached. The page reloads once under the worker it
+  // claimed, and only that document is worth taking offline.
+  await untilBornControlled(page);
   const ready = await page.evaluate(async () => {
     if (!("serviceWorker" in navigator)) return "unsupported";
     const registration = await navigator.serviceWorker.ready.catch(() => null);
@@ -113,13 +117,12 @@ const produced = { online: "", offline: "", created: "" };
   });
   record("service-worker", ready);
   check(ready === "ready", "the service worker installed from the static host");
-  await page.waitForTimeout(4000);
 
   await context.setOffline(true);
   record("offline", "context.setOffline(true)");
   // A real reload: the app must boot from the precache with no network.
   await page.reload({ waitUntil: "load" });
-  await page.waitForTimeout(2500);
+  await doorGuest(page).waitFor();
   check(
     await page.evaluate(() => document.body.innerText.length > 40),
     "the installed app booted offline",

@@ -116,6 +116,35 @@ describe("the Bundle budgets aggregate", () => {
     expect(listed).toContain("changes");
   });
 
+  it("runs the static SOPS walk in a CI job of its own, gated on the bundle area, and Bundle budgets still reports it", () => {
+    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    // It once ran nowhere but a developer's `verify:sops-browser`, and the
+    // Settings rework broke it unseen: the script must be a CI step.
+    const bundle = ci.split("  bundle:")[1]?.split("  device-inbox:")[0] ?? "";
+    expect(bundle).not.toContain("verify:sops-static");
+    const job = ci.split("  sops-static:")[1]?.split("\n  push-e2e:")[0] ?? "";
+    expect(job).toContain("pnpm --filter @opensesame/pages verify:sops-static");
+    expect(job).toContain("needs: changes");
+    expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");
+    expect(job).toContain(
+      "pnpm exec turbo run build --filter=@opensesame/pages",
+    );
+    expect(job).toMatch(/timeout-minutes: 15\b/);
+    const check =
+      ci.split("  bundle-check:")[1]?.split("  rust-check:")[0] ?? "";
+    expect(check).toContain('sops="${{ needs.sops-static.result }}"');
+    expect(check).toMatch(
+      /case "\$sops" in\n\s+success\|skipped\) ;;\n\s+\*\) echo[^\n]*; exit 1 ;;/,
+    );
+    // The package script the job calls exists and runs the walk.
+    const pkg = JSON.parse(
+      readFileSync(join(root, "apps/pages/package.json"), "utf8"),
+    );
+    expect(pkg.scripts["verify:sops-static"]).toBe(
+      "node scripts/verify-sops-static.mjs",
+    );
+  });
+
   it("runs the device identity walk in its own job, gated on the bundle area, and Bundle budgets still reports it", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
     const bundle = ci.split("  bundle:")[1]?.split("  push-e2e:")[0] ?? "";
