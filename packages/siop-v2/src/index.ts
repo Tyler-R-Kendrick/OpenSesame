@@ -70,6 +70,54 @@ export {
   STATIC_SIOP_METADATA,
 } from "./issuer.js";
 
+export {
+  type AcceptedSiopMetadata,
+  type FetchSiopMetadataInput,
+  type MetadataFetch,
+  type MetadataResponse,
+  type PagesOrigin,
+  type PagesSiopMetadata,
+  DEFAULT_METADATA_TIMEOUT_MS,
+  MAX_SIOP_METADATA_BYTES,
+  PAGES_SIOP_EXTENSION,
+  PAGES_SIOP_ISSUER_PATH,
+  SIOP_DRAFT,
+  SIOP_METADATA_FILE,
+  buildPagesSiopMetadata,
+  fetchSiopMetadata,
+  pagesOriginOf,
+  pagesSiopIssuer,
+  parseSiopMetadata,
+  serializePagesSiopMetadata,
+  siopMetadataUrl,
+} from "./discovery.js";
+
+export {
+  type CompleteSiopLoginInput,
+  type SiopLoginResult,
+  type SiopLoginStart,
+  type SiopRelyingPartyConfig,
+  type SiopRpErrorCode,
+  type StartSiopLoginInput,
+  SiopRelyingParty,
+  SiopRpError,
+  createSiopRelyingParty,
+  generateLocalClientId,
+} from "./rp.js";
+
+export {
+  type LoginStorage,
+  type PendingSiopLogin,
+  type SiopLoginStore,
+  type SiopReplayLedger,
+  DEFAULT_LOGIN_TTL_MS,
+  DEFAULT_MAX_LEDGER_ENTRIES,
+  DEFAULT_MAX_PENDING_LOGINS,
+  MemoryLoginStore,
+  MemoryReplayLedger,
+  StorageLoginStore,
+} from "./rp-store.js";
+
 export { readAudience } from "./audience.js";
 
 export {
@@ -127,6 +175,9 @@ export const SUPPORT_MATRIX = {
     "dynamic issuer profile with HTTPS iss (or loopback HTTP for local dogfood) and i_am_siop:true",
     "fragment response_mode serialize/parse helpers",
     "documented size and time limits with typed SiopV2Error refusals",
+    "Pages deployment metadata: buildPagesSiopMetadata derives the published siop-metadata.json from STATIC_SIOP_METADATA (SIOP-shaped, not OIDC Discovery; no jwks_uri, no token_endpoint)",
+    "metadata consumer: parseSiopMetadata / fetchSiopMetadata with an injected fetch, no redirects, a size bound, and the issuer pinned by the relying party",
+    "relying-party kit: SiopRelyingParty binds a login to state, nonce, audience, issuer and redirect_uri, single-use state, token replay ledger, bounded stores",
   ],
   notSupported: [
     {
@@ -167,9 +218,15 @@ export const SUPPORT_MATRIX = {
         "credential presentation is owned by @opensesame/openid4vp; this package stops at the Self-Issued ID Token.",
     },
     {
-      feature: "Self-Issued OP discovery document HTTP client",
+      feature:
+        "OpenID Connect Discovery (/.well-known/openid-configuration), token_endpoint and jwks_uri",
       reason:
-        "discovery metadata shapes are documented in SUPPORT_MATRIX issuer profiles; fetching and caching them is deployment-owned.",
+        "a static origin has no back-channel to answer a token request and no per-person keys to list; the metadata a Pages deployment publishes is SIOP-shaped and says conventional_oidc:false (ADR 0161).",
+    },
+    {
+      feature: "Dynamic relying-party registration for a Pages deployment",
+      reason:
+        "the person registers an application, its exact redirect_uri and scopes in their own vault before it can sign anyone in; there is no endpoint a relying party can register itself at (ADR 0106, ADR 0161).",
     },
   ],
 } as const;

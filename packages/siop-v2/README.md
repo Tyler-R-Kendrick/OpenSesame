@@ -14,7 +14,7 @@ it lists what is implemented and, with a reason each, what is not.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), `jose`.
 - ES256 on P-256 only, `response_type=id_token`, `scope=openid`, `response_mode=fragment`, subject syntax `urn:ietf:params:oauth:jwk-thumbprint`. The JOSE header fence refuses `alg: none` and every other algorithm before a signature is checked.
 - A token is verified with the bare key in `sub_jwk` only, never a `jwks_uri`; a `sub_jwk` carrying a private `d` is refused.
-- Not supported: `did:` subjects, `response_mode=post`, signed request objects and `request_uri`, dynamic RP registration, VP tokens (those belong to [`openid4vp`](../openid4vp)), and a discovery HTTP client.
+- Not supported: `did:` subjects, `response_mode=post`, signed request objects and `request_uri`, dynamic RP registration, VP tokens (those belong to [`openid4vp`](../openid4vp)), and OpenID Connect Discovery (`.well-known/openid-configuration`, `token_endpoint`, `jwks_uri`): a static origin has no back channel and no per-person key set ([ADR 0161](../../docs/adr/0161-what-a-static-origin-can-be-as-an-openid-provider.md)). This is SIOPv2 (Implementer's Draft), **not a conventional OIDC provider**.
 - Every input has a documented size and time limit (`limits.ts`); a breach is a typed `SiopV2Error`, never a partial result.
 
 ## Surface
@@ -25,6 +25,8 @@ it lists what is implemented and, with a reason each, what is not.
 | ID tokens | `buildSelfIssuedIdToken`, `verifySelfIssuedIdToken`, `exportPublicEcP256Jwk`, `STATIC_SELF_ISSUED_ISSUER` |
 | Keys | `parsePublicEcP256Jwk`, `ecP256JwkThumbprint` (RFC 7638), `readSignedCompactJws`, `SUPPORTED_SIGNATURE_ALGORITHMS` |
 | Issuers | `resolveIssuer`, `assertAllowedIssuer`, `STATIC_SIOP_METADATA` — static `https://self-issued.me/v2`, or a dynamic HTTPS issuer with `i_am_siop: true` (loopback HTTP for local dogfood) |
+| Pages metadata | `pagesSiopIssuer`, `pagesOriginOf`, `siopMetadataUrl`, `buildPagesSiopMetadata`, `serializePagesSiopMetadata` (what a build publishes as `siop-metadata.json`, derived from `STATIC_SIOP_METADATA`); `parseSiopMetadata`, `fetchSiopMetadata` (the consumer: injected `fetch`, no redirects, issuer pinned by the RP) |
+| Relying-party kit | `createSiopRelyingParty` / `SiopRelyingParty` (`startLogin`, `completeLogin`: state, nonce, audience, redirect_uri, replay), `SiopRpError`, `generateLocalClientId`; stores `MemoryLoginStore`, `MemoryReplayLedger`, `StorageLoginStore` and the `SiopLoginStore` / `SiopReplayLedger` interfaces |
 | Validity | `assertTokenFreshness`, `assertIAmSiopClaim`, `readEpoch`, `readAudience` |
 | Linking | `resolveSiopLinkProfile`, `challengeIssuerFromProfile`, `bodyOffersEmailJoin` |
 | Responses | `serializeFragmentSuccess`, `serializeFragmentError`, `parseFragmentResponse`, `attachFragment` |
@@ -38,10 +40,15 @@ pnpm --filter @opensesame/siop-v2 typecheck
 ```
 
 `src/matrix.test.ts` pins the support matrix; the `*.adversarial.test.ts` and
-`request.property.test.ts` (fast-check) suites cover refusals. The browser
-journey is `pnpm --filter @opensesame/pages verify:siop`.
+`request.property.test.ts` (fast-check) suites cover refusals; `discovery.test.ts`,
+`rp.test.ts` and `rp-store.test.ts` cover the metadata and the relying-party kit.
+The browser journey, including the example relying parties on other origins, is
+`pnpm --filter @opensesame/pages verify:siop`. The copy-ready examples are
+[`examples/siop-rp`](../../examples/siop-rp) and the guide is
+[Use OpenSesame Pages as your login](../../docs/operators/use-pages-as-your-login.md).
 
 ## Related
 
 - [ADR 0116](../../docs/adr/0116-browser-native-siop-v2.md) — browser-native SIOPv2
 - [ADR 0117](../../docs/adr/0117-hosted-siop-oidc-bridge.md) — the hosted SIOP-to-OIDC bridge
+- [ADR 0161](../../docs/adr/0161-what-a-static-origin-can-be-as-an-openid-provider.md) — what a static origin can be as an OpenID Provider
