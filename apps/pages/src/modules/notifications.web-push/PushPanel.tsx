@@ -19,30 +19,23 @@ import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useIdentitySession } from "../../bindings/identity.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconBell, IconPlus, IconX } from "../../components/Icons.js";
 import {
   disablePush,
   enablePush,
-  pushSeams,
+  forgetPushSubscription,
+  pushSubscribed,
   pushSupported,
-} from "../../lib/push.js";
+} from "../../lib/push-enrolment.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { CeremonyRow } from "../../sections/settings/CeremonyRow.js";
 
 const NOTICE_ID = "push-on-this-device";
 /** The id the Identity API gave this browser's subscription, so it can be withdrawn. */
 export const PUSH_SUBSCRIPTION_KEY = "push.subscription.id";
-
-/** Whether this browser holds a push subscription now. */
-async function subscribed(): Promise<boolean> {
-  const container = pushSeams.serviceWorkerContainer();
-  if (!container) return false;
-  const worker = await container.ready;
-  return (await worker.pushManager.getSubscription()) !== null;
-}
 
 type Credentials = { baseUrl: string; accessToken: string } | null;
 
@@ -71,8 +64,14 @@ async function turnPush(
     return false;
   }
   if (credentials === null) return false;
+  const stale = kvGet(PUSH_SUBSCRIPTION_KEY);
   const record = await enablePush(credentials);
   if (record.id) kvSet(PUSH_SUBSCRIPTION_KEY, record.id);
+  // The browser lost the subscription that id named (a cleared site, an
+  // expired one): the service still lists it, and nothing else will ever ask
+  // it to forget it. Best effort, and never a reason to fail the enrolment.
+  if (stale && record.id && stale !== record.id)
+    await forgetPushSubscription(credentials, stale).catch(() => undefined);
   return true;
 }
 
@@ -82,12 +81,14 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
   const supported = pushSupported();
   const [on, setOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  // State lags a render behind a second press; a ref does not.
+  const pressed = useRef(false);
   const live = configured && session !== null && supported;
 
   useEffect(() => {
     if (!supported) return;
     let current = true;
-    void subscribed().then(
+    void pushSubscribed().then(
       (value) => {
         if (current) setOn(value);
       },
@@ -105,6 +106,8 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
   if (on === null || (!on && !live)) return null;
 
   const turn = async () => {
+    if (pressed.current) return;
+    pressed.current = true;
     dismissNotice(NOTICE_ID);
     setBusy(true);
     try {
@@ -120,8 +123,9 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
         title: "Push on this device",
         body: caught instanceof Error ? caught.message : String(caught),
       });
-      setOn(await subscribed().catch(() => false));
+      setOn(await pushSubscribed().catch(() => false));
     } finally {
+      pressed.current = false;
       setBusy(false);
     }
   };
@@ -148,9 +152,7 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
                   : "Turn on push on this device"
               }
               aria-busy={busy || undefined}
-              onClick={() => {
-                if (!busy) void turn();
-              }}
+              onClick={() => void turn()}
             >
               {on ? <IconX size={16} /> : <IconPlus size={16} />}
             </IconKey>

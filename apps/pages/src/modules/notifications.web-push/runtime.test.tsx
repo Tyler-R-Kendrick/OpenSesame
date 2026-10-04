@@ -3,7 +3,7 @@ import { planWith } from "@opensesame/app-core/lib/capabilities/__tests__/plan-w
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { createEgressPort } from "@opensesame/app-core/lib/capabilities/egress.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pushSeams } from "../../lib/push.js";
+import { pushSeams } from "../../lib/push-enrolment.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,

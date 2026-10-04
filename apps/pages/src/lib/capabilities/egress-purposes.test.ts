@@ -22,6 +22,9 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
+import { WEB_PUSH_ENROLMENT_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
+import { LIVE_CARRIER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -36,10 +39,30 @@ const NOT_PRODUCTION =
   /(\.test\.|\.test-support\.|\.fixture\.|\.d\.ts$|\/__tests__\/|\/doubles\/|test-harness|test-context|runtime-test-kit)/;
 const CATALOG_IMPORT = /capabilities\/catalog-[a-z-]+(\.js)?$/;
 
-const catalogModules = import.meta.glob(
-  "../../../../../packages/app-core/src/lib/capabilities/catalog-*.ts",
-  { eager: true },
+const CATALOG_DIR = join(repo, "packages/app-core/src/lib/capabilities");
+
+/** Every purpose constant a catalog file exports, with its text. */
+const catalogConstants: ReadonlyMap<string, string> = new Map(
+  Object.entries({
+    LIVE_CARRIER_PURPOSE,
+    PLUGIN_DAEMON_PURPOSE,
+    WEB_PUSH_ENROLMENT_PURPOSE,
+  }),
 );
+
+/** The `*_PURPOSE` names the catalog files export, read from their source. */
+function exportedPurposeNames(): string[] {
+  return readdirSync(CATALOG_DIR)
+    .filter((name) => /^catalog-.*\.ts$/.test(name))
+    .flatMap((name) =>
+      [
+        ...readFileSync(join(CATALOG_DIR, name), "utf8").matchAll(
+          /^export const ([A-Z_]+_PURPOSE)\b/gm,
+        ),
+      ].map((match) => match[1] ?? ""),
+    )
+    .sort();
+}
 
 const declared = CAPABILITY_CATALOG.capabilities.flatMap((d) =>
   d.egress.map((e) => ({ capability: d.id, purpose: e.purpose })),
@@ -143,7 +166,9 @@ function importedFrom(source: ts.SourceFile, name: string): string | null {
 }
 
 /** The catalog export a purpose expression comes from, or why it does not. */
-function catalogConstant(site: Site): string | { problem: string } {
+function catalogConstant(
+  site: Site,
+): Readonly<{ name: string }> | Readonly<{ problem: string }> {
   let current: ts.Expression = site.value;
   for (let hops = 0; hops < 5; hops += 1) {
     if (ts.isStringLiteralLike(current))
@@ -153,7 +178,7 @@ function catalogConstant(site: Site): string | { problem: string } {
     const specifier = importedFrom(site.source, current.text);
     if (specifier !== null) {
       return CATALOG_IMPORT.test(specifier)
-        ? current.text
+        ? { name: current.text }
         : { problem: `imports ${current.text} from ${specifier}` };
     }
     const alias = localInitializer(site.source, current.text);
@@ -173,15 +198,6 @@ function literalCapability(site: Site): string | null {
   return null;
 }
 
-const catalogConstants = new Map<string, string>(
-  Object.values(catalogModules).flatMap((module) =>
-    Object.entries(module as Record<string, unknown>).filter(
-      (entry): entry is [string, string] =>
-        entry[0].endsWith("_PURPOSE") && typeof entry[1] === "string",
-    ),
-  ),
-);
-
 describe("the sweep finds the places a purpose reaches the egress port", () => {
   it("includes the capabilities known to use one", () => {
     const files = new Set(SITES.map((site) => site.file));
@@ -198,19 +214,15 @@ describe("every purpose handed to egress is the catalog's own", () => {
   it.each(SITES.map((site) => [`${site.file}:${site.line}`, site] as const))(
     "%s",
     (_where, site) => {
-      const constant = catalogConstant(site);
-      expect(typeof constant === "string" ? "" : constant.problem).toBe("");
-      const text = catalogConstants.get(String(constant));
-      expect(
-        text,
-        `${String(constant)} is not exported by a catalog`,
-      ).toBeDefined();
+      const found = catalogConstant(site);
+      expect("problem" in found ? found.problem : "").toBe("");
+      const name = "name" in found ? found.name : "";
+      const text = catalogConstants.get(name);
+      expect(text, `${name} is not a listed catalog constant`).toBeDefined();
       const owners = declared
         .filter((entry) => entry.purpose === text)
         .map((entry) => entry.capability);
-      expect(owners, `no descriptor declares ${String(constant)}`).not.toEqual(
-        [],
-      );
+      expect(owners, `no descriptor declares ${name}`).not.toEqual([]);
       const capability = literalCapability(site);
       if (capability !== null) expect(owners).toContain(capability);
     },
@@ -227,12 +239,8 @@ describe("the catalog's declarations can be matched", () => {
     }
   });
 
-  it("declares every exported purpose constant on some descriptor", () => {
-    expect([...catalogConstants.keys()].sort()).toEqual([
-      "LIVE_CARRIER_PURPOSE",
-      "PLUGIN_DAEMON_PURPOSE",
-      "WEB_PUSH_ENROLMENT_PURPOSE",
-    ]);
+  it("lists every purpose constant the catalog files export, and declares each on some descriptor", () => {
+    expect([...catalogConstants.keys()].sort()).toEqual(exportedPurposeNames());
     for (const [name, text] of catalogConstants)
       expect(
         declared.some((entry) => entry.purpose === text),
