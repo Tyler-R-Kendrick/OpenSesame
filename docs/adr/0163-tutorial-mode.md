@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-04
 - Amends: [ADR 0088](0088-ai-native-contextual-support.md) §1 and §4 (the
-  authored budget, and what draws a step). It does not widen the language.
+  authored budget, and what draws a step) and §5 (Driver.js is no longer the
+  rendering primitive). It does not widen the language.
 - Builds on: [ADR 0065](0065-agent-surface-parity.md) (ceremonies stay human),
   [ADR 0130](0130-operator-controlled-capability-composition.md) (every
   feature is a capability), [ADR 0149](0149-nothing-stored-in-the-clear.md)
@@ -31,9 +32,11 @@ observation boundary and stop — and the panel closed while it ran, so:
 
 ### 1. A run has a mode, and a tour is paced by the person
 
-`GuideRuntime.start(program, { mode, limits })` takes a mode. `auto` is
-unchanged: a model's trajectory, every wait with a deadline. `tour` is a
-person walking a tutorial:
+`GuideRuntime.start(program, { mode, limits })` takes a mode. `auto` is the
+runtime's original trajectory, every wait with a deadline, and it is unchanged
+and still tested, but the browser no longer starts it: every guide the app
+runs, authored or model-written, runs as a `tour` (`tourRunner`), and only its
+origin chooses the budget (§2). `tour` is a person walking a tutorial:
 
 - a program is read as **steps** (`planGuideSteps`): a `say`, a pointing
   directive with the `wait` on its own target, or the closing `success`. The
@@ -82,9 +85,15 @@ because the sheet is closed while a tutorial runs.
 The HUD is **not a modal**: the aperture passes clicks to the lit control, Tab
 leaves the card for the page, and the card owns only the keys that belong to
 a tour — Escape exits (except from a text field, where it is the field's own
-way out), and the arrow keys step it while the caret is in the card. Focus
-moves to the card when a tour starts and goes back to where it was when the
-tour ends; in between it moves only if it was already the card's.
+way out, and except while an open sheet, drawer, menu or status bubble should
+take it first; from the card itself it always exits), and the arrow keys step
+it while the caret is in the card. A pane with nothing to close does not
+consume Escape while a tour is live. Focus moves to the card when a tour
+starts — unless the person is typing in a page text field and did not start
+the tour from the Support sheet (an agent-started tour never takes a caret) —
+and goes back to where it was when the tour ends; in between it moves only if
+it was already the card's, or if the page took it on arrival after a step that
+navigated and the person's last input was in the card.
 
 On a phone (`max-width: 900px` or a coarse pointer) the card is a sheet docked
 to the screen edge the lit control is *not* on, and its keys are 44px.
@@ -119,7 +128,8 @@ sits in the required Bundle budgets job.
   skipped the click; authored tours are written so that every step is
   reachable by navigation alone, and the browser suite enforces it.
 - `GuideRuntimeSnapshot` gains `tour`, and the runtime gains `next`, `back`
-  and `restart`. `auto` mode and every existing test of it are untouched.
+  and `restart`. `auto` mode and every existing test of it are untouched,
+  although the app now runs model guides as tours too.
 - Widening GuideLang is still an ADR, and this is not one: no directive was
   added, and none of the ten can act.
 - The transcript stays memory only. Which tutorials a person has finished is

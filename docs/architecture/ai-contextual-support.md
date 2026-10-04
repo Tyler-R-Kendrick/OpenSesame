@@ -43,7 +43,7 @@ text of unknown origin — and after it, it is still re-checked by the runtime.
         ▲                            (depends on guide-lang)
         │            │
         └────────────┴──── apps/pages/src/tutorial/  — registries, browser
-                                adapters, Driver.js renderer, the panel UI
+                                adapters, the coach HUD, the panel UI
 ```
 
 Every arrow points toward the pure packages. `guide-lang` has no dependency on
@@ -171,13 +171,13 @@ tutorial/agents/prompt-api/     off; prompts leave the device)
       ▼                ▼                  ▼                    ▼
 GuideRenderer   GuideTargetResolver  GuideRouteController  GuideStateObserver
       │                │                  │                    │
-rendering/        registry/           registry/            registry/
-driver-renderer   targets.ts          routes.ts            state.ts
+coach/            registry/           registry/            registry/
+scroll-renderer   targets.ts          routes.ts            state.ts
  Element only,    React-ref mounts    registered ids       boolean predicates
- textContent
+ scroll only
       │
       ▼
-Driver.js 1.8.0 (dynamic import) — overlay, stage, popover
+CoachHud (React card, from the runtime snapshot) — dim, aperture, step card
       │
       ▼
 GuideOutcome ──────────────────────────────────► the model replans
@@ -244,32 +244,28 @@ never by a model, so the support layer branches on it without parsing prose.
 
 ## 7. Rendering
 
-`apps/pages/src/tutorial/rendering/driver-renderer.ts` implements
-`GuideRenderer` over Driver.js 1.8.0, loaded through a dynamic import so it
-stays out of the vault's initial bundle. Two rules define the adapter.
+A tutorial is drawn by `CoachHud` (`apps/pages/src/tutorial/coach/`), a React
+component reading the runtime's own snapshot (ADR 0163). Two rules define it.
 
-**A target becomes an `Element`, never a string.** Driver.js's
-`DriveStep.element` accepts `string | Element | (() => Element)`; the string
-form is its CSS-selector path. The adapter takes an injected `resolveElement`
-— the registry's resolver — and passes elements, so the selector path is never
-taken and there is no edge from an identifier to a query.
+**A target becomes an `Element`, never a string.** `createScrollRenderer`
+(`coach/scroll-renderer.ts`) implements `GuideRenderer` and has one job left:
+bringing an off-screen control into view before its step is shown. It takes an
+injected `resolveElement` — the registry's resolver — so no identifier is ever
+turned into a selector, and `use-geometry.ts` measures the lit control through
+the same resolver.
 
-**Model prose is written as `textContent`.** Driver.js sets popover `title` and
-`description` with `innerHTML`. The adapter therefore never puts a message in a
-step at all: the popover is handed a fixed placeholder, and the real text is
-written from Driver's `onPopoverRender` hook, which runs after the markup sink
-and before the popover is measured. There is no path from a message to an HTML
-parser.
+**Model prose is a React text node.** The step's text, target id and side are
+data the runtime publishes as `GuideTourView`; the card renders the text as a
+child node and parses no markup, so there is no path from a message to an HTML
+parser and no second place a message could become visible.
 
-`focus` uses Driver's overlay-and-popover path; `hint` uses its separate
-`driver.js/hints` entry point, so a beacon can sit beside a control without
-dimming the page; and `annotate` uses `annotation.ts`, an OpenSesame surface
-with no library behind it, for the cases where even a beacon would be too much.
-All three stylesheets — Driver's two and ours — are imported alongside the
-library, on demand. The adapter's local types
-(`GuideDriverStep`, `GuidePopoverNodes`, `GuideDriverFactory`) model only the
-slice of Driver.js used here, and none of the library's own types cross the
-module boundary — which is how the port stays replaceable.
+`focus` lights one control inside an accent ring over a dimmed page, with the
+aperture passing clicks through to it; the card (name, "Step N of M", meter,
+Back / Next) is placed against the screen edge the control is not on
+(`placement.ts`) and docked as a sheet on a phone. `hint` and `annotate`
+steps draw as the same kind of step in the card. The HUD is lazy: the React
+chunk loads the first time a tutorial has a step to draw, so a closed panel
+costs the boot bundle nothing.
 
 ## 8. The support agent and its providers
 
@@ -353,7 +349,7 @@ registries, whichever agent this browser can reach, the runtime and the
 renderer, and exposes a controller to the panel. Nothing above it knows any of
 those exist, and nothing costly is imported at module scope — a closed panel
 costs the boot bundle one button and a state machine, while the agent adapters,
-the runtime, Driver.js and the capability registry all arrive on first open.
+the runtime, the coach HUD and the capability registry all arrive on first open.
 `tutorial/ui/` holds the panel's presentation.
 
 ## 9. Lifecycle
@@ -443,7 +439,7 @@ the first request for a guide that "just opens the approval dialog".
 | Bounded repair that never echoes model text | `packages/support-agent/src/turn.ts` | `runSupportTurn` |
 | Security clauses cannot silently disappear | `packages/support-agent/src/instructions.ts` | `SUPPORT_POLICY_CLAUSES` |
 | The only identifier-to-element edge | `packages/app-core/src/tutorial/registry/targets.ts` | `resolveGuideTargetElement` |
-| Model prose written as text, never markup | `apps/pages/src/tutorial/rendering/driver-renderer.ts` | `createDriverRenderer` |
+| Model prose written as text, never markup | `apps/pages/src/tutorial/coach/CoachHud.tsx` | `CoachHud` |
 | Transcript never persisted; dropped on lock | `packages/support-agent/src/session.ts` | `destroy` |
 | Where a question may be sent, and that it carries no credential | `packages/app-core/src/tutorial/agents/ag-ui/endpoint.ts` | `readAgUiEndpointUrl` |
 | A server's tool calls and state patches are unheard, not refused | `packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.ts` | `createAgUiSupportAgent` |

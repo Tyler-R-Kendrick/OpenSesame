@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 /**
- * Who takes Escape while a tour is live (ADR 0161 §3).
+ * Who takes Escape while a tour is live (ADR 0163 §3).
  *
  * The shell keymap and the coach are both window capture listeners, so the
  * order they were registered in must not decide anything. Here the keymap is
@@ -10,7 +10,7 @@
  */
 
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -18,6 +18,7 @@ import {
   registerVaultKeymap,
 } from "../../lib/keymap-targets.js";
 import { createKeymapHandler } from "../../lib/keymap.js";
+import { usePaneEscape } from "../../lib/pane-escape.js";
 import {
   disposeSupport,
   mountSupport,
@@ -160,5 +161,21 @@ describe("Escape under an open surface", () => {
 
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(tourOpen()).not.toBeNull();
+  });
+});
+
+describe("Escape on a pane, with the page's own pane-escape registered first", () => {
+  it("leaves the tour instead of being consumed by a pane with nothing to close", async () => {
+    const pane = document.createElement("main");
+    pane.tabIndex = -1;
+    document.body.appendChild(pane);
+    cleanups.push(() => pane.remove());
+    const mounted = renderHook(() => usePaneEscape());
+    cleanups.push(() => mounted.unmount());
+    await startTour();
+    pane.focus();
+
+    fireEvent.keyDown(pane, { key: "Escape" });
+    await waitFor(() => expect(tourOpen()).toBeNull());
   });
 });

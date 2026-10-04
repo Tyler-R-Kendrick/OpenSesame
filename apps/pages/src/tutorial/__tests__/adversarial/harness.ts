@@ -70,6 +70,7 @@ export {
   createSupportChain,
   guideSource,
   mountTargets,
+  walkToEnd,
 } from "./chain.js";
 
 export type DomEngine = SupportEngine & {

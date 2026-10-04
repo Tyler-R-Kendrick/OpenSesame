@@ -23,6 +23,7 @@ import {
   resolveGuideTargetElement,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { compileGuide } from "@opensesame/guide-lang";
+import { TOUR_APPEAR_GRACE_MS } from "@opensesame/guide-runtime";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -30,6 +31,7 @@ import {
   createSupportChain,
   guideSource,
   settle,
+  walkToEnd,
 } from "./harness.js";
 
 let chain: SupportChain | null = null;
@@ -118,11 +120,16 @@ describe("a route that is well-formed but nobody registered", () => {
 
     // Handed straight to the runtime as an AST, the way a parser regression or
     // a future caller that assembles a program itself would reach it.
-    const outcome = await active.runtime.start({
+    // The program is checked before a run picks a mode, so the refusal is the
+    // same on the tour path the app runs and on the runtime's own auto mode.
+    const program = {
       version: 1,
       goal: "vault.lock",
       instructions: [{ kind: "navigate", route: "/admin/secrets" }],
-    });
+    } as const;
+    const outcome = await active.runGuide(program, "model");
+    const viaAuto = await active.runtime.start(program);
+    expect(viaAuto).toEqual(outcome);
 
     expect(outcome).toEqual({
       kind: "failed",
@@ -199,15 +206,49 @@ describe("a second element claiming a target already on screen", () => {
 });
 
 describe("a target that leaves the page mid-walkthrough", () => {
-  it("stops the trajectory instead of pointing at nothing", async () => {
+  const PROGRAM_SOURCE = guideSource(
+    'focus "vault.create" "Start here." side=bottom',
+    'wait target "vault.create" event=disappear timeout=30000',
+    'focus "vault.create" "Still here?" side=bottom',
+  );
+
+  it("shows the next step as text instead of pointing at nothing", async () => {
     const active = open();
-    const program = active.compile(
-      guideSource(
-        'focus "vault.create" "Start here." side=bottom',
-        'wait target "vault.create" event=disappear timeout=30000',
-        'focus "vault.create" "Still here?" side=bottom',
-      ),
-    );
+    const program = active.compile(PROGRAM_SOURCE);
+    if (program === null) throw new Error("fixture did not compile");
+
+    const running = active.runGuide(program, "model");
+    await settle();
+    expect(active.runtime.snapshot().tour?.message).toBe("Start here.");
+    expect(active.renderer.renderCalls().map((call) => call.kind)).toEqual([
+      "scroll",
+      "focus",
+    ]);
+
+    active.targets.unmount("vault.create");
+    await active.clock.advance(0);
+    await active.clock.advance(TOUR_APPEAR_GRACE_MS);
+
+    expect(active.runtime.snapshot()).toMatchObject({
+      status: "waiting",
+      tour: { message: "Still here?", target: "vault.create", degraded: true },
+    });
+    // The control that went away is not drawn on again.
+    expect(active.renderer.renderCalls().map((call) => call.kind)).toEqual([
+      "scroll",
+      "focus",
+    ]);
+    expect(await walkToEnd(active, running)).toEqual({
+      kind: "completed",
+      goal: "vault.lock",
+    });
+    expect(active.clock.pending()).toBe(0);
+  });
+
+  // Runtime API only: the app never starts a guide in auto mode.
+  it("stops an auto-mode trajectory instead of pointing at nothing", async () => {
+    const active = open();
+    const program = active.compile(PROGRAM_SOURCE);
     if (program === null) throw new Error("fixture did not compile");
 
     const running = active.runtime.start(program);

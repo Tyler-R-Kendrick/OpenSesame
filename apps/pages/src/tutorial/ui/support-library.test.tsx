@@ -6,8 +6,12 @@
  */
 
 import {
-  GUIDE_GOALS,
+  TUTORIAL_AREAS,
+  tutorialLibrary,
+} from "@opensesame/app-core/tutorial/registry/areas.js";
+import {
   type GuideGoalDescriptor,
+  guideGoal,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
 import { screen, waitFor, within } from "@testing-library/react";
@@ -169,8 +173,16 @@ describe("filtering the library", () => {
     expect(filterLibrary(groups, "zebra")).toEqual([]);
   });
 
-  it("only ever lists goals the product has", () => {
-    expect(GUIDE_GOALS.length).toBeGreaterThan(0);
+  it("only ever lists goals the product has, each placed in an area", () => {
+    const placed = new Set(TUTORIAL_AREAS.flatMap((area) => area.goals));
+    const rows = tutorialLibrary("/vault").flatMap((group) =>
+      group.tutorials.map((entry) => entry.goal.id),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const id of rows) {
+      expect(guideGoal(id)?.id).toBe(id);
+      expect(placed.has(id)).toBe(true);
+    }
   });
 });
 
