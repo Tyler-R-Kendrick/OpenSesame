@@ -65,7 +65,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
+import { EmptyTip } from "../components/EmptyTip.js";
 import { IconKey, ReloadKey } from "../components/IconKey.js";
 import {
   IconAlert,
@@ -1098,7 +1098,7 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
         {identities && identities.length === 0 ? (
           <div className="empty">
             <h3>No linked identities</h3>
-            <EmptyTip>{emptyTips.rail}</EmptyTip>
+            <EmptyTip tip="rail" />
           </div>
         ) : null}
 
@@ -1536,7 +1536,7 @@ function ServiceAccountsPanel({
           {clients && clients.length === 0 ? (
             <div className="empty">
               <h3>No applications registered.</h3>
-              <EmptyTip>{emptyTips.navigate}</EmptyTip>
+              <EmptyTip tip="navigate" />
             </div>
           ) : null}
 
@@ -1822,7 +1822,7 @@ function OrganizationPanel({
           {orgs && orgs.length === 0 ? (
             <div className="empty">
               <h3>No organizations yet</h3>
-              <EmptyTip>{emptyTips.navigate}</EmptyTip>
+              <EmptyTip tip="navigate" />
             </div>
           ) : null}
         </div>
