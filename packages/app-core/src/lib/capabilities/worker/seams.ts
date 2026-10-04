@@ -33,7 +33,14 @@ function reloadDefault(): void {
   scope.location?.reload();
 }
 
+/** Run `run` after `ms`; the returned function cancels it. */
+function laterDefault(run: () => void, ms: number): () => void {
+  const timer = setTimeout(run, ms);
+  return () => clearTimeout(timer);
+}
+
 export const workerControllerSeams = {
+  later: laterDefault,
   serviceWorkerContainer: serviceWorkerContainerDefault,
   crossOriginIsolated: crossOriginIsolatedDefault,
   baseUrl: baseUrlDefault,

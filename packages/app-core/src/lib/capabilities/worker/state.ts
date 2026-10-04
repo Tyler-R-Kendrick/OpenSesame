@@ -30,13 +30,19 @@ export type ControllerState = {
     moduleIds: readonly string[];
   }> | null;
   pendingTransition: PendingTransition | null;
+  /** A worker already controlled this page when the controller started. */
+  bootControlled: boolean;
+  /** The release the page's shell belongs to: its first controller's answer. */
+  bootReleaseId: string | null;
+  /** A hello is out and unanswered; another is not sent on top of it. */
+  helloPending: boolean;
   /**
-   * This page itself replaced the registered script and the next
-   * `controllerchange` is that replacement taking the page, not a new release:
-   * the shell the page runs is the one the new script serves, so the page
-   * keeps running and only re-introduces itself to the worker.
+   * The controller changed and the new one has been asked which release it
+   * is; the answer decides whether this page reloads. Cancels its own timeout.
    */
-  variantSwitch: boolean;
+  takeover: { cancel: () => void } | null;
+  /** Set by the controller: re-read which variant holds the scope. */
+  afterTakeover: (() => void) | null;
   /** The page has already been told to reload for a new release. */
   reloadStarted: boolean;
   reconciling: Promise<void>;
@@ -46,6 +52,7 @@ const INITIAL_STATUS: WorkerStatus = {
   supported: true,
   variant: null,
   requiredVariant: null,
+  pendingVariant: null,
   releaseId: null,
   offlineStatus: "online-only",
   savedModuleIds: [],
@@ -65,7 +72,11 @@ function initialFields(): ControllerState {
     lastPlanKey: null,
     postedPlan: null,
     pendingTransition: null,
-    variantSwitch: false,
+    bootControlled: false,
+    bootReleaseId: null,
+    helloPending: false,
+    takeover: null,
+    afterTakeover: null,
     reloadStarted: false,
     reconciling: Promise.resolve(),
   };

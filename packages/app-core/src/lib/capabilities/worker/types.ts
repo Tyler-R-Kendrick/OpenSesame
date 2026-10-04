@@ -30,10 +30,12 @@ export type WorkerTransition = Readonly<{
 export type WorkerStatus = Readonly<{
   /** False when the page has no usable `navigator.serviceWorker`. */
   supported: boolean;
-  /** Variant of the script registered for this scope, when known. */
+  /** Variant of the script that is active for this scope, when known. */
   variant: string | null;
   /** Variant the current plan requires (`core-only` when the plan says null). */
   requiredVariant: string | null;
+  /** Variant of a worker this page asked for that has not taken the scope yet. */
+  pendingVariant: string | null;
   /** The controlling worker's release id, from `WORKER_INFO`. */
   releaseId: string | null;
   offlineStatus: OfflineStatus;
@@ -83,6 +85,11 @@ export type PendingTransition = Readonly<{
   scriptUrl: string;
   to: string;
 }>;
+
+/** How long a replacement worker may take to activate before it is given up on. */
+export const ACTIVATION_WAIT_MS = 60_000;
+/** How long a page waits for the worker that took it to say which release it is. */
+export const TAKEOVER_WAIT_MS = 2_000;
 
 export const CORE_ONLY_VARIANT = "core-only";
 export const WORKER_GRAPH_UNAVAILABLE = "WORKER_GRAPH_UNAVAILABLE";

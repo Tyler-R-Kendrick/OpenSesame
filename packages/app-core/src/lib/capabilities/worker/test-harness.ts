@@ -163,6 +163,28 @@ export class FakeStore implements CompositionStoreForWorker {
 
 type Handler = (event: { data: JsonObject }) => void;
 
+/** A worker the fake registration holds; `set` is the browser moving it on. */
+export class FakeWorker {
+  private readonly listeners = new Set<() => void>();
+  constructor(
+    readonly scriptURL: string,
+    public state: ServiceWorkerState = "installing",
+  ) {}
+  addEventListener(_type: string, listener: () => void): void {
+    this.listeners.add(listener);
+  }
+  removeEventListener(_type: string, listener: () => void): void {
+    this.listeners.delete(listener);
+  }
+  set(state: ServiceWorkerState): void {
+    this.state = state;
+    for (const listener of [...this.listeners]) listener();
+  }
+}
+
+/** What a replacement script does once registered. */
+export type InstallOutcome = "activate" | "redundant" | "hang";
+
 export class FakeContainer {
   readonly registered: {
     url: string;
@@ -179,6 +201,10 @@ export class FakeContainer {
   registerFails = false;
   /** Whether a replacement takes the page (`controllerchange`) on register. */
   claimOnRegister = false;
+  /** What a script registered over the scope does. */
+  installOutcome: InstallOutcome = "activate";
+  /** The worker of the last `register`, for a test that makes it move on. */
+  lastInstalling: FakeWorker | null = null;
   activeScript: string | null;
   hasController: boolean;
   private readonly handlers = new Map<string, Handler[]>();
@@ -196,33 +222,24 @@ export class FakeContainer {
     return { postMessage: (m) => this.posted.push(m) };
   }
 
-  async register(url: string, options?: RegistrationOptions): Promise<void> {
-    this.registered.push({ url, options });
-    if (this.registerFails) throw new TypeError("script fetch failed");
-    this.activeScript = url;
-    if (this.claimOnRegister) this.emit("controllerchange");
+  /** The browser finishing the install the last `register` started. */
+  finishInstall(outcome: "activate" | "redundant"): void {
+    const worker = this.lastInstalling;
+    if (!worker) return;
+    this.installingScript = null;
+    if (outcome === "activate") {
+      this.activeScript = worker.scriptURL;
+      worker.set("activated");
+      if (this.claimOnRegister) this.emit("controllerchange");
+    } else worker.set("redundant");
   }
 
-  async getRegistration(): Promise<
-    | {
-        active: { scriptURL: string } | null;
-        installing: { scriptURL: string } | null;
-        waiting: null;
-        pushManager: {
-          getSubscription: () => Promise<{
-            unsubscribe: () => Promise<boolean>;
-          } | null>;
-        };
-        unregister: () => Promise<boolean>;
-      }
-    | undefined
-  > {
-    if (!this.activeScript && !this.installingScript) return undefined;
+  private view() {
     const script = this.activeScript;
     return {
-      active: script ? { scriptURL: script } : null,
+      active: script ? new FakeWorker(script, "activated") : null,
       installing: this.installingScript
-        ? { scriptURL: this.installingScript }
+        ? (this.lastInstalling ?? new FakeWorker(this.installingScript))
         : null,
       waiting: null,
       pushManager: {
@@ -243,6 +260,40 @@ export class FakeContainer {
         return true;
       },
     };
+  }
+
+  async register(url: string, options?: RegistrationOptions) {
+    this.registered.push({ url, options });
+    if (this.registerFails) throw new TypeError("script fetch failed");
+    const worker = new FakeWorker(url);
+    this.lastInstalling = worker;
+    if (this.installOutcome === "activate") {
+      this.activeScript = url;
+      worker.state = "activated";
+      this.installingScript = null;
+      if (this.claimOnRegister) this.emit("controllerchange");
+    } else if (this.installOutcome === "redundant") {
+      worker.state = "redundant";
+      this.installingScript = null;
+    } else this.installingScript = url;
+    const registration = this.view();
+    return {
+      ...registration,
+      active: this.activeScript
+        ? this.activeScript === url
+          ? worker
+          : new FakeWorker(this.activeScript, "activated")
+        : null,
+      installing: this.installOutcome === "hang" ? worker : null,
+      // A redundant worker is not held by the registration; it is returned
+      // only so the caller can watch it fail.
+      ...(this.installOutcome === "redundant" ? { installing: worker } : {}),
+    };
+  }
+
+  async getRegistration() {
+    if (!this.activeScript && !this.installingScript) return undefined;
+    return this.view();
   }
 
   addEventListener(
@@ -279,13 +330,38 @@ export class FakeContainer {
 const original = { ...workerControllerSeams };
 
 /** What the seams did, for a test to assert on. */
-export const env = { reloads: 0, isolated: false };
+export const env: {
+  reloads: number;
+  isolated: boolean;
+  timers: { run: () => void; ms: number; live: boolean }[];
+  /** Run every timer still waiting, as if its time had come. */
+  elapse: () => void;
+} = {
+  reloads: 0,
+  isolated: false,
+  timers: [],
+  elapse() {
+    for (const timer of [...env.timers]) {
+      if (!timer.live) continue;
+      timer.live = false;
+      timer.run();
+    }
+  },
+};
 
 /** Fresh controller state and fresh seams; call from `beforeEach`. */
 export function installSeams(): void {
   resetWorkerController();
   env.reloads = 0;
   env.isolated = false;
+  env.timers = [];
+  workerControllerSeams.later = (run, ms) => {
+    const timer = { run, ms, live: true };
+    env.timers.push(timer);
+    return () => {
+      timer.live = false;
+    };
+  };
   workerControllerSeams.baseUrl = () => BASE;
   workerControllerSeams.crossOriginIsolated = () => env.isolated;
   workerControllerSeams.reload = () => {

@@ -64,7 +64,7 @@
     },
     {
       "id": "run-worker-split",
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities/worker-controller.test.ts src/lib/capabilities/worker-controller-plan.test.ts",
+      "command": "pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities/worker-controller.test.ts src/lib/capabilities/worker-controller-plan.test.ts",
       "vitest": "4.1.10",
       "testFiles": 2,
       "tests": 14,
@@ -1404,25 +1404,25 @@
       "status": "covered",
       "tests": [
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "variant selection (PWA-02) registers the core-only script once, classic and never via cache, for a null variant",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "variant selection (PWA-02) does nothing without a service worker container",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "variant selection (PWA-02) does not register on a cross-origin-isolated page",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "variant selection (PWA-02) waits for a plan before deciding anything",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
@@ -1435,19 +1435,19 @@
       "status": "covered",
       "tests": [
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "push variant gating (PWA-03) does not register the push worker without a persisted selection and receipt",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "push variant gating (PWA-03) registers it once the capability is approved and in the receipt",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "push variant gating (PWA-03) publishes WORKER_GRAPH_UNAVAILABLE when the distribution lacks the variant",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
@@ -1485,18 +1485,30 @@
     },
     {
       "id": "PWA-06",
-      "statement": "A variant change is reported as transition-required and then made in place: the required script is registered over the scope that holds the other one (never unregistered, never a second scope) once the variant is eligible, without reloading the page.",
+      "statement": "A variant change is reported as transition-required and then made in place: the required script is registered over the scope that holds the other one (never unregistered, never a second scope) once the variant is eligible. The status reports the active variant and the installing one only as pending; a replacement that turns redundant or never activates leaves the worker in charge and nothing that depended on it happens. A page reloads on a change of controller only for a different release, never for another variant of the one it runs, in the tab that made the change or any other.",
       "status": "covered",
       "tests": [
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller.test.ts",
           "name": "transitions (PWA-02, PWA-06) replaces the registered script in place once the variant is eligible (approval is the consent)",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
           "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
-          "name": "approving Push notifications on a device that holds the core worker installs the push worker the moment the approval lands, without reloading the page",
+          "name": "approving Push notifications on a device that holds the core worker installs the push worker the moment the approval lands, and does not reload the page for it",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
+          "name": "a replacement that does not take the scope leaves the worker in charge, and says so, when the install turns redundant",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-takeover.test.ts",
+          "name": "a second tab, when another tab changes the variant neither reloads nor loses its page: the new worker says it is the same release",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         }
@@ -1513,13 +1525,13 @@
           "observed": "read-only"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-plan.test.ts",
           "name": "plan assets and offline status asks the worker who it is, then posts module ids only \u2014 never a URL or a worker unit",
           "observed": "run-passed",
           "run": "run-worker-split"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-plan.test.ts",
           "name": "plan assets and offline status posts nothing beyond the shell when the selection is shell-only",
           "observed": "run-passed",
           "run": "run-worker-split"
@@ -1549,7 +1561,7 @@
           "observed": "read-only"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller-plan.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-plan.test.ts",
           "name": "plan assets and offline status ignores messages that are not from the worker vocabulary",
           "observed": "run-passed",
           "run": "run-worker-split"

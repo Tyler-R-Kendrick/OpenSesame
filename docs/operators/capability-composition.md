@@ -433,14 +433,44 @@ Consequences an operator should expect:
   script differs from the one the plan requires, the controller reports
   `transition-required` and then replaces the script in place — the persisted
   selection and consent receipt `variantEligible` demands are the consent, so
-  approving Push notifications installs `sw-push.js` at once, and a page that
-  boots with it already approved does the same. It never unregisters (that would
-  leave no worker and drop the push subscription), never registers a second
-  scope, and does not reload the page for a move between two variants of one
-  build. Removing the capability returns the core worker and drops the push
-  subscription the push worker held, because the core worker has no `push`
-  handler. `pnpm --filter @opensesame/pages verify:push-worker` walks it in a real
-  browser.
+  approving Push notifications installs `sw-push.js`, and a page that boots with
+  it already approved does the same. It never unregisters (that would leave no
+  worker and drop the push subscription) and never registers a second scope.
+  - **What the status says.** `variant` is the worker that is *active*;
+    a replacement still installing is `pendingVariant` only. A replacement that
+    turns redundant or does not activate within a minute leaves the worker in
+    charge, sets the diagnostic `WORKER_INSTALL_FAILED`, and nothing that
+    depended on it happens; the next plan change tries again. Chrome activates
+    an installed worker once the old one is idle. With a second tab open it has
+    been seen to leave the new worker waiting (about one run in six of
+    `verify:push-worker`, which nudges it through CDP and prints that it did):
+    the status then reads `pendingVariant` until the browser activates it, which
+    a navigation or a closed tab brings about.
+  - **Reloads.** A page reloads on a change of controller only for a different
+    *release*. It learns the release it runs from its first controller, and asks
+    the worker that takes over which release it is; the same release means the
+    page keeps running — in the tab that approved and in every other tab of the
+    origin, whose unlocked vaults are not touched. No answer within two seconds,
+    or a page that never knew its release (its first load), reloads as it
+    always did.
+  - **Removal.** Removing the capability returns the core worker (the core
+    worker has no `push` handler). Once the core worker is active the browser's
+    push subscription is dropped locally, and the Identity API's id for it moves
+    from `push.subscription.id` to the pending list `push.forget.pending`. The
+    Identity API is told to forget pending ids the next time the Push row is
+    shown with a session, or push is turned on again — not at removal, because
+    the capability is then withdrawn and its egress refuses. Until then the
+    Identity API still lists the record; it also drops it when the push service
+    answers 404 or 410. Turning push off with the row, or turning it on again,
+    keeps an id the service could not be told about in the same list rather than
+    losing it.
+  - **After removal.** An enrolment request still in flight has no road out: the
+    seam is closed (refused as `capability-not-approved`), never the raw
+    `fetch`. Every call to the Identity API and the browser's `subscribe` is
+    bounded (15 s and 30 s).
+
+  `pnpm --filter @opensesame/pages verify:push-worker` walks approval, a second
+  tab, a push delivered through CDP and removal in a real browser.
 - **Caches are namespaced** `opensesame-pages:<scopePath>:<releaseId>:<variant>`,
   and cleanup touches only names matching that application and scope path.
   (The pre-composition worker deleted every cache on the origin. That is fixed;

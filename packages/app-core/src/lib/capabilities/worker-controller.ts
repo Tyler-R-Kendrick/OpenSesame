@@ -18,9 +18,13 @@
  * deferred: the old script is never unregistered (a registration with no
  * script would leave the person with no worker, and unregistering drops the
  * push subscription it holds), the new one installs beside it and takes over
- * only when ready, and the page it takes over is not reloaded — both variants
- * of one build serve the same shell. `transition-required` stays visible for
- * the moment between noticing the difference and acting on it.
+ * only when ready — the status reports the variant that is *active*, and the
+ * one installing only as `pendingVariant` — and a page it takes over reloads
+ * only for a different release, never for another variant of the one it runs,
+ * in this tab or any other (`onControllerChange`). `transition-required` stays
+ * visible for the moment between noticing the difference and acting on it.
+ * A replacement that never activates (a failed install, a timeout) leaves the
+ * worker the person has in charge and says so (`WORKER_INSTALL_FAILED`).
  *
  * Once a worker controls the page the controller asks it who it is
  * (`WORKER_HELLO` → `WORKER_INFO`) and, when the selection asks for
@@ -36,7 +40,14 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
-import { onWorkerMessage, syncPlan } from "./worker/plan-sync.js";
+import { retirePushSubscriptionId } from "../push-ledger.js";
+import { activeScript, becomesActive } from "./worker/activation.js";
+import {
+  askWorker,
+  onControllerChange,
+  onWorkerMessage,
+  syncPlan,
+} from "./worker/plan-sync.js";
 import { scriptUrlFor, workerControllerSeams } from "./worker/seams.js";
 import {
   diagnose,
@@ -71,7 +82,8 @@ export type {
 } from "./worker/types.js";
 
 /** Which variant a registered script is, by the distribution's table. */
-function variantOfScript(scriptUrl: string): string | null {
+function variantOfScript(scriptUrl: string | null): string | null {
+  if (scriptUrl === null) return null;
   const variant = state.distribution?.workerVariants.find(
     (v) => scriptUrlFor(v.scriptPath) === scriptUrl,
   );
@@ -83,7 +95,7 @@ function variantOfScript(scriptUrl: string): string | null {
  * so a replacement still installing counts as the answer and is not asked for
  * a second time.
  */
-function registeredScript(
+function newestScript(
   registration: ServiceWorkerRegistration | undefined,
 ): string | null {
   if (!registration) return null;
@@ -119,18 +131,17 @@ function variantEligible(
 async function register(
   container: ServiceWorkerContainer,
   scriptUrl: string,
-): Promise<boolean> {
+): Promise<ServiceWorkerRegistration | null> {
   state.registeredThisPage = true;
   try {
-    await container.register(scriptUrl, {
+    return await container.register(scriptUrl, {
       type: "classic",
       updateViaCache: "none",
       scope: workerControllerSeams.baseUrl(),
     });
-    return true;
   } catch {
     diagnose("WORKER_REGISTRATION_FAILED");
-    return false;
+    return null;
   }
 }
 
@@ -143,28 +154,16 @@ function attachContainerListeners(container: ServiceWorkerContainer): void {
     onWorkerMessage(overlapCast(event.data));
   });
   container.addEventListener("controllerchange", onControllerChange);
+  state.afterTakeover = () => void refreshVariant(container);
 }
 
-/**
- * A new worker took the page. Another release may have deleted assets the
- * shell it was served by references, so the page reloads — once, as it always
- * did. The exception is the move this page made itself between two variants
- * of the same build: nothing is stale, and a reload would end whatever the
- * person is in the middle of (an unlocked vault included). The page keeps
- * running and introduces itself to the worker that now controls it.
- */
-function onControllerChange(): void {
-  if (state.variantSwitch) {
-    state.variantSwitch = false;
-    state.workerReleaseId = null;
-    state.lastPlanKey = null;
-    state.postedPlan = null;
-    if (state.latest) syncPlan(state.latest);
-    return;
-  }
-  if (state.reloadStarted) return;
-  state.reloadStarted = true;
-  workerControllerSeams.reload();
+/** Re-read which variant holds the scope, and introduce the plan to it. */
+async function refreshVariant(
+  container: ServiceWorkerContainer,
+): Promise<void> {
+  const registration = await currentRegistration(container);
+  publish({ variant: variantOfScript(activeScript(registration)) });
+  if (state.latest) syncPlan(state.latest);
 }
 
 async function currentRegistration(
@@ -200,23 +199,33 @@ async function enterTransition(
   await transitionWorker();
 }
 
+/** The first registration of this page, and the worker it becomes. */
 async function ensureRegistered(
   container: ServiceWorkerContainer,
   current: string | null,
+  requiredId: string,
   requiredUrl: string,
 ): Promise<void> {
   if (current) return;
   if (state.registeredThisPage) return;
   if (workerControllerSeams.crossOriginIsolated()) return;
-  await register(container, requiredUrl);
+  const registration = await register(container, requiredUrl);
+  if (!registration) return;
+  publish({ pendingVariant: requiredId });
+  const active = await becomesActive(registration, requiredUrl);
+  publish({ pendingVariant: null, variant: active ? requiredId : null });
+  if (!active) diagnose("WORKER_INSTALL_FAILED");
 }
 
-function publishVariant(current: string | null, requiredId: string): void {
-  if (current) {
-    publish({ variant: variantOfScript(current) });
-    return;
-  }
-  publish({ variant: state.registeredThisPage ? requiredId : null });
+/** What runs is the active worker; a newer one still installing is pending. */
+function publishVariant(registration: ServiceWorkerRegistration | undefined) {
+  const newest = variantOfScript(newestScript(registration));
+  const active = variantOfScript(activeScript(registration));
+  if (!registration) return;
+  publish({
+    variant: active,
+    pendingVariant: newest !== active ? newest : null,
+  });
 }
 
 async function reconcile(
@@ -235,7 +244,7 @@ async function reconcile(
   if (!variantEligible(requiredId, snapshot)) return;
   const requiredUrl = scriptUrlFor(variant.scriptPath);
   const registration = await currentRegistration(container);
-  const current = registeredScript(registration);
+  const current = newestScript(registration);
   if (registration && current && current !== requiredUrl) {
     await enterTransition(registration, current, requiredId, requiredUrl);
     return;
@@ -243,8 +252,8 @@ async function reconcile(
   state.pendingTransition = null;
   if (state.status.transition?.status === "transition-required")
     publish({ transition: null });
-  await ensureRegistered(container, current, requiredUrl);
-  publishVariant(current, requiredId);
+  await ensureRegistered(container, current, requiredId, requiredUrl);
+  publishVariant(registration);
   syncPlan(snapshot);
 }
 
@@ -267,6 +276,10 @@ export function registerWorkerForPlan(
   state.container = container;
   state.distribution = options.distribution;
   attachContainerListeners(container);
+  // A page that starts under a worker learns which release that is; it is what
+  // a later change of controller is compared with (`onControllerChange`).
+  state.bootControlled = container.controller != null;
+  if (state.bootControlled) askWorker();
   const apply = () => {
     const snapshot = store.getSnapshot();
     state.latest = snapshot;
@@ -311,25 +324,32 @@ export async function transitionWorker(): Promise<boolean> {
   if (!pending || !container) return false;
   const from = state.status.transition?.from ?? null;
   state.pendingTransition = null;
-  publish({ transition: { from, to: pending.to, status: "transitioning" } });
-  state.variantSwitch = true;
-  if (!(await register(container, pending.scriptUrl))) {
-    state.variantSwitch = false;
-    publish({ transition: null });
+  publish({
+    pendingVariant: pending.to,
+    transition: { from, to: pending.to, status: "transitioning" },
+  });
+  const registration = await register(container, pending.scriptUrl);
+  const active =
+    registration !== null &&
+    (await becomesActive(registration, pending.scriptUrl));
+  if (!registration || !active) {
+    // The worker the person has stays in charge; the next plan change tries
+    // again. Nothing that depended on the new one happens.
+    if (registration) diagnose("WORKER_INSTALL_FAILED");
+    publish({ pendingVariant: null, transition: null });
     return false;
   }
-  // Leaving the push variant: the worker that now holds the scope has no
-  // `push` handler, so a subscription left behind would show the browser's own
-  // "updated in the background" notice for every push.
+  // Leaving the push variant, now that the core worker really holds the scope:
+  // it has no `push` handler, so a subscription left behind would show the
+  // browser's own "updated in the background" notice for every push, and the
+  // stored id moves to the pending list for the Identity API to forget.
   if (from === "push" && pending.to !== "push")
-    await dropPushSubscription(pending.registration);
-  state.workerReleaseId = null;
-  state.lastPlanKey = null;
-  publish({ variant: pending.to, transition: null });
-  // The change of controller may have been seen while the status still said
-  // "transitioning", when the worker conversation is silent: say hello now
-  // unless that change is still to come (it will, then).
-  if (!state.variantSwitch && state.latest) syncPlan(state.latest);
+    await dropPushSubscription(registration);
+  publish({ variant: pending.to, pendingVariant: null, transition: null });
+  // The claim may have been seen while the status still said "transitioning",
+  // when the worker conversation is silent: say hello now unless the answer to
+  // the claim's own question is still to come.
+  if (!state.takeover && state.latest) syncPlan(state.latest);
   return true;
 }
 
@@ -341,4 +361,5 @@ async function dropPushSubscription(
   } catch {
     // No subscription to drop, or the browser already dropped it.
   }
+  await retirePushSubscriptionId().catch(() => undefined);
 }
