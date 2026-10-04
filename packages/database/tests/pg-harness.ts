@@ -1,10 +1,10 @@
 import { PGlite } from "@electric-sql/pglite";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
-import { createDrizzle } from "../src/client.js";
 import type { Repositories } from "../src/repos/interfaces.js";
 import { PostgresRepositories } from "../src/repos/postgres.js";
 import * as schema from "../src/schema/index.js";
+import { createPgTestContext } from "./pg-harness-full.js";
 
 /** Subset of 0000_brave_sally_floyd.sql needed for outbox SKIP LOCKED. */
 const OUTBOX_DDL = `
@@ -23,20 +23,20 @@ CREATE TABLE IF NOT EXISTS "outbox_events" (
 `;
 
 /**
- * Run `fn` against the Postgres outbox implementation. Uses DATABASE_URL when
- * set (real server, already migrated); otherwise an in-process PGlite so SKIP
- * LOCKED is always exercised — never skipped.
+ * Run `fn` against the Postgres outbox implementation. With DATABASE_URL set it
+ * is that real server, in a throwaway database this helper creates, migrates
+ * and drops (the server may be empty, as in CI); otherwise an in-process PGlite
+ * so SKIP LOCKED is always exercised, never skipped.
  */
 export async function withPostgresRepos<T>(
   fn: (repos: Repositories) => Promise<T>,
 ): Promise<T> {
-  const url = process.env.DATABASE_URL;
-  if (url) {
-    const { sql, db } = createDrizzle(url);
+  if (process.env.DATABASE_URL?.trim()) {
+    const ctx = await createPgTestContext();
     try {
-      return await fn(new PostgresRepositories(db));
+      return await fn(ctx.repos);
     } finally {
-      await sql.end({ timeout: 5 });
+      await ctx.client.close();
     }
   }
 
