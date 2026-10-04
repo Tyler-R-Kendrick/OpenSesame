@@ -341,10 +341,13 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   rule that sizes a field reads `max(<its size>, var(--field-min))`; the token
   is `0` on a desktop and `1rem` under coarse/narrow, so the trap cannot be
   reopened by adding one more field style.
-- **A finger gets gestures where the keyboard has keys.** The keymap is for a
-  keyboard: under a coarse pointer the help row says *Gestures* and its sheet
-  lists the ones the shell recognises (`lib/gesture-help.ts`) — tap opens, hold
-  or swipe a row left asks for its actions, swipe right goes back, and what
+- **A finger gets gestures where the keyboard has keys.** The keymap has two
+  loadouts ([ADR 0164](docs/adr/0164-gesture-loadout.md)), and the device leads
+  with the one it is used with: under a coarse pointer the help row says
+  *Gestures* and its sheet lists the ones the shell recognises
+  (`lib/gesture-help.ts`) — tap opens, hold
+  or swipe a row left asks for its actions, swipe right goes back, then the
+  two-finger swipes, the two-finger tap and the shake in force — and what
   the vault's first pane asks of a thumb is drawn for one: search is the
   full-width field the tree opens on, and adding is a single filled 60px key in
   the bottom corner whose action sheet carries New item, Import and Export as
@@ -407,10 +410,13 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   is reachable only by scrolling.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
-- **Keybindings is drawn only where a pointing device is attached.** Settings ›
-  Keybindings is absent when `(any-pointer: fine)` is false, and its address
-  lands on General; the query cannot see a keyboard, so a phone with only a
-  hardware keyboard loses the tab.
+- **Keybindings is drawn on every device, as two tabs.** Settings › Keybindings
+  has a Keyboard tab and a Gestures tab, and opens on the one the pointer in
+  use is (a finger lands on Gestures). Neither is withheld: a phone with a
+  hardware keyboard keeps the keys, and a touch laptop keeps the gestures. Under
+  `(pointer: coarse), (max-width: 900px)` the tabs are 44px, and a gesture's
+  row is its name over its choice at the full width of the panel, the reset key
+  at the end of the name's line.
 
 None of this is a screenshot review: `pnpm --filter @opensesame/pages
 verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
@@ -623,6 +629,17 @@ never invisible: it is listed under **Unavailable**, after the commands and
 before **Fixed**, as its keycap and the command's id, with a status mark
 that says the command is not on this plan and a remove key. There is no
 caption above it.
+
+Keyboard and Gestures are tabs over a hairline, as Installed and Marketplace
+are: text, with a 2px ink rule under the chosen one. The Gestures tab is a
+list, not a table of keycaps: a gesture's glyph (two dots trailing an arrow for a
+swipe, a ring about each for a tap, a phone between two swings for a shake),
+its name over its id, and what it runs as a native choice, grouped as the
+keymap's rows are and ending with the person's macros. "No action" strikes a
+gesture. A command that asks before it acts is not a choice at all. A change is
+the same gutter mark and reset key a keyboard row carries; the fixed gestures sit
+under the lock. The motion switch is not drawn where the browser has no motion
+sensor, and its Allow key only where the browser asks first.
 
 A key is recorded where its keycap was, never in a dialog, and pressing the
 Remove or Cancel key beside the field never costs it its focus. Press the key,
