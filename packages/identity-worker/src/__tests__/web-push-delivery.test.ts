@@ -13,6 +13,7 @@ import {
   NOW,
   SUBJECT,
   type World,
+  type WorldOptions,
   env,
   makeWorld,
   vapid,
@@ -35,7 +36,7 @@ afterEach(async () => {
   current = undefined;
 });
 
-async function open(options: { standInKey?: string } = {}) {
+async function open(options: WorldOptions = {}) {
   current = await makeWorld(new MemoryRepositories(), options);
   return current;
 }

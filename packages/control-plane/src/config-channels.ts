@@ -1,4 +1,5 @@
 import {
+  type WebPushEnv,
   loadVapidIdentity,
   readVapidPublicKey,
 } from "@opensesame/notification-adapters";
@@ -6,6 +7,12 @@ import {
   NOTIFICATION_CHANNEL_KINDS,
   type NotificationChannelKind,
 } from "@opensesame/os-domain";
+
+/** What the environment decides about notification channels. */
+export interface NotificationChannelConfig {
+  availableChannels: NotificationChannelKind[];
+  pushPublicKey: string;
+}
 
 export function parseChannelKinds(
   raw: string | undefined,
@@ -37,11 +44,8 @@ export function parseChannelKinds(
  * (`WebPushConfigError`).
  */
 export function notificationChannelsFromEnv(
-  env: Readonly<Record<string, string | undefined>>,
-): {
-  availableChannels: NotificationChannelKind[];
-  pushPublicKey: string;
-} {
+  env: WebPushEnv,
+): NotificationChannelConfig {
   const listed = parseChannelKinds(env.OPENSESAME_NOTIFICATION_CHANNELS, [
     "in_app",
   ]);

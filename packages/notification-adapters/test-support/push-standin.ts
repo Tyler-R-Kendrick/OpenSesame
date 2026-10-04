@@ -48,6 +48,14 @@ import ece from "http_ece";
 import jws from "jws";
 
 import {
+  type JsonValue,
+  isNumber,
+  readJsonObject,
+  readString,
+} from "@opensesame/os-domain";
+
+import { base64UrlDecode, parseJsonValue } from "../src/bytes.js";
+import {
   type MintOptions,
   type MintedPushSubscription,
   STAND_IN_PUSH_ORIGIN,
@@ -78,7 +86,7 @@ export interface AcceptedPush {
   /** The decrypted body, as text. */
   payload: string;
   /** The decrypted body, parsed. */
-  json: unknown;
+  json: JsonValue;
 }
 
 export interface RefusedPush {
@@ -124,36 +132,40 @@ const MAX_VAPID_LIFETIME_SECONDS = 24 * 60 * 60;
  * `{kind, action}` from the two fixed lists, plus an opaque `ref` when there is
  * one, and no other key.
  */
-export function wakePayloadViolation(json: unknown): string | undefined {
-  if (typeof json !== "object" || json === null || Array.isArray(json)) {
-    return "payload is not an object";
-  }
-  const keys = Object.keys(json);
-  const extra = keys.filter((key) => !["kind", "action", "ref"].includes(key));
+export function wakePayloadViolation(
+  json: JsonValue | undefined,
+): string | undefined {
+  const wake = readJsonObject(json);
+  if (!wake) return "payload is not an object";
+  const extra = Object.keys(wake).filter(
+    (key) => !["kind", "action", "ref"].includes(key),
+  );
   if (extra.length > 0) return `unexpected keys: ${extra.join(",")}`;
-  const { kind, action, ref } = json as Record<string, unknown>;
-  if (typeof kind !== "string" || !WAKE_KINDS.includes(kind)) {
+  if (!WAKE_KINDS.includes(readString(wake.kind) ?? "")) {
     return "kind is not in the worker's title table";
   }
-  if (typeof action !== "string" || !WAKE_ACTIONS.includes(action)) {
+  if (!WAKE_ACTIONS.includes(readString(wake.action) ?? "")) {
     return "action is not in the worker's body table";
   }
-  if (ref !== undefined && !(typeof ref === "string" && OPAQUE_REF.test(ref))) {
+  const ref = readString(wake.ref);
+  if (wake.ref !== undefined && !(ref !== undefined && OPAQUE_REF.test(ref))) {
     return "ref is not opaque";
   }
   return undefined;
 }
 
-function verifyVapid(
-  authorization: string,
-  vapidPublicKey: string,
-  audience: string,
-): { claims: VapidClaims } | { status: number; reason: string } {
-  const match = VAPID_HEADER.exec(authorization);
-  if (!match) return { status: 401, reason: "bad_authorization_header" };
-  const [, jwt = "", key = ""] = match;
-  if (key !== vapidPublicKey) return { status: 401, reason: "k_mismatch" };
-  const point = Buffer.from(key, "base64url");
+/** A header Node may hand over as a list is still one value to us. */
+function headerValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+type VapidVerdict =
+  | { claims: VapidClaims }
+  | { status: number; reason: string };
+
+/** The ES256 signature over the token, under the application server key. */
+function signatureHolds(jwt: string, vapidPublicKey: string): boolean {
+  const point = Buffer.from(vapidPublicKey, "base64url");
   const pem = createPublicKey({
     key: {
       kty: "EC",
@@ -163,25 +175,43 @@ function verifyVapid(
     },
     format: "jwk",
   }).export({ type: "spki", format: "pem" });
-  if (!jws.verify(jwt, "ES256", pem)) {
-    return { status: 401, reason: "jwt_signature_invalid" };
-  }
-  const claims = JSON.parse(
-    Buffer.from(jwt.split(".")[1] ?? "", "base64url").toString("utf8"),
-  ) as Partial<VapidClaims>;
-  if (claims.aud !== audience) {
-    return { status: 401, reason: `aud_mismatch:${String(claims.aud)}` };
+  return jws.verify(jwt, "ES256", pem);
+}
+
+/** RFC 8292 §2: audience is the push service origin, expiry within 24h, a contact. */
+function checkClaims(jwt: string, audience: string): VapidVerdict {
+  const claims = readJsonObject(
+    parseJsonValue(base64UrlDecode(jwt.split(".")[1] ?? "").toString("utf8")),
+  );
+  const aud = readString(claims?.aud);
+  if (aud !== audience) {
+    return { status: 401, reason: `aud_mismatch:${aud ?? "none"}` };
   }
   const now = Date.now() / 1000;
-  const exp = claims.exp ?? 0;
+  const exp = isNumber(claims?.exp) ? claims.exp : 0;
   if (!(exp > now && exp - now <= MAX_VAPID_LIFETIME_SECONDS)) {
     return { status: 401, reason: "exp_invalid" };
   }
-  const subject = claims.sub ?? "";
+  const subject = readString(claims?.sub) ?? "";
   if (!/^(?:mailto:|https:)/u.test(subject)) {
     return { status: 401, reason: "sub_invalid" };
   }
-  return { claims: { aud: claims.aud, exp, sub: subject } };
+  return { claims: { aud, exp, sub: subject } };
+}
+
+function verifyVapid(
+  authorization: string,
+  vapidPublicKey: string,
+  audience: string,
+): VapidVerdict {
+  const match = VAPID_HEADER.exec(authorization);
+  if (!match) return { status: 401, reason: "bad_authorization_header" };
+  const [, jwt = "", key = ""] = match;
+  if (key !== vapidPublicKey) return { status: 401, reason: "k_mismatch" };
+  if (!signatureHolds(jwt, vapidPublicKey)) {
+    return { status: 401, reason: "jwt_signature_invalid" };
+  }
+  return checkClaims(jwt, audience);
 }
 
 interface StandInState {
@@ -238,12 +268,8 @@ function handlePush(
     return refuse(400, `decrypt_failed:${why}`, id);
   }
   const payload = plaintext.toString("utf8");
-  let json: unknown;
-  try {
-    json = JSON.parse(payload);
-  } catch {
-    return refuse(400, "payload_not_json", id);
-  }
+  const json = parseJsonValue(payload);
+  if (json === undefined) return refuse(400, "payload_not_json", id);
   const violation = state.checkContract
     ? wakePayloadViolation(json)
     : undefined;
@@ -252,8 +278,8 @@ function handlePush(
     ok: true,
     subscriptionId: id,
     vapid: { publicKey: state.vapidPublicKey, claims: vapid.claims },
-    ttl: req.headers.ttl as string | undefined,
-    urgency: req.headers.urgency as string | undefined,
+    ttl: headerValue(req.headers.ttl),
+    urgency: headerValue(req.headers.urgency),
     payload,
     json,
   };
@@ -296,12 +322,12 @@ export async function startPushStandIn(
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  // SAFETY: the listen contract on a TCP server with a host gives AddressInfo, not a pipe path.
+  const { port } = server.address() as AddressInfo;
+  const url = `http://127.0.0.1:${port}`;
 
   const fetchImpl: typeof fetch = async (input, init) => {
-    const target = new URL(
-      typeof input === "string" || input instanceof URL ? input : input.url,
-    );
+    const target = new URL(input instanceof Request ? input.url : `${input}`);
     if (target.origin !== publicOrigin) {
       throw new TypeError(`stand-in: refusing to fetch ${target.origin}`);
     }

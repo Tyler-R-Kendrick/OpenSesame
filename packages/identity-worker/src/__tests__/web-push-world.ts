@@ -29,9 +29,15 @@ export const env = (overrides: Record<string, string | undefined> = {}) => ({
 
 export type World = Awaited<ReturnType<typeof makeWorld>>;
 
+/** What a test may change about the stand-in. */
+export interface WorldOptions {
+  /** The application server key the push service was told to expect. */
+  standInKey?: string;
+}
+
 export async function makeWorld(
   repos: Repositories,
-  options: { standInKey?: string } = {},
+  options: WorldOptions = {},
 ) {
   const service = await startPushStandIn({
     vapidPublicKey: options.standInKey ?? vapid.publicKey,

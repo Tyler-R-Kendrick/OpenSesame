@@ -37,9 +37,10 @@ export class WebPushConfigError extends Error {
   override readonly name = "WebPushConfigError";
 }
 
-type Env = Readonly<Record<string, string | undefined>>;
+/** The slice of `process.env` Web Push reads. */
+export type WebPushEnv = Readonly<Record<string, string | undefined>>;
 
-function read(env: Env, name: string): string {
+function read(env: WebPushEnv, name: string): string {
   return (env[name] ?? "").trim();
 }
 
@@ -68,7 +69,7 @@ export function isVapidPublicKey(value: string): boolean {
  * every browser that subscribed under it would hold a subscription no push
  * service could ever accept a message for.
  */
-export function readVapidPublicKey(env: Env): string {
+export function readVapidPublicKey(env: WebPushEnv): string {
   const publicKey = read(env, WEBPUSH_PUBLIC_KEY_ENV);
   if (publicKey && !isVapidPublicKey(publicKey)) {
     throw new WebPushConfigError(
@@ -82,7 +83,7 @@ export function readVapidPublicKey(env: Env): string {
  * The signing identity, or `undefined` when this process has no private key.
  * Throws `WebPushConfigError` for one that is present and unusable.
  */
-export function loadVapidIdentity(env: Env): VapidIdentity | undefined {
+export function loadVapidIdentity(env: WebPushEnv): VapidIdentity | undefined {
   const vapidPublicKey = readVapidPublicKey(env);
   const vapidPrivateKey = read(env, WEBPUSH_PRIVATE_KEY_ENV);
   if (!vapidPrivateKey) return undefined;

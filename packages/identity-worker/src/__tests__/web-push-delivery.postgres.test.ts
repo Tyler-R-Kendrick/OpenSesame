@@ -39,6 +39,10 @@ describe.skipIf(!url)("web push through the worker on Postgres", () => {
   const name = `t_${randomUUID().replaceAll("-", "")}`;
   let repos: Repositories;
   let world: World | undefined;
+  const current = (): World => {
+    if (!world) throw new Error("the Postgres world was not built");
+    return world;
+  };
   let admin: ReturnType<typeof createDrizzle>["sql"];
 
   beforeAll(async () => {
@@ -60,7 +64,7 @@ describe.skipIf(!url)("web push through the worker on Postgres", () => {
   });
 
   it("publishes the outbox, delivers the push and settles the row", async () => {
-    const w = world as World;
+    const w = current();
     const sub = w.service.mint();
     await w.enrol(sub);
     await w.ask();
@@ -80,7 +84,7 @@ describe.skipIf(!url)("web push through the worker on Postgres", () => {
   });
 
   it("retires a gone subscription and dead-letters the row", async () => {
-    const w = world as World;
+    const w = current();
     // The first test's browser is still enrolled and would take the push.
     for (const earlier of await w.repos.pushSubscriptions.listForPrincipal(
       APPROVER,

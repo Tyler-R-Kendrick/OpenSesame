@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
 
+import {
+  NOTIFICATION_CLASSES,
+  type NotificationClass,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,6 +14,7 @@ import {
 } from "../adapters/web-push.js";
 import type { WebPushConfig } from "../adapters/web-push.js";
 import { base64UrlDecode, base64UrlEncode } from "../bytes.js";
+import type { WakeAction } from "../contract.js";
 import { jsonFetch, renderInput, subscribe, vapidConfig } from "./helpers.js";
 
 /**
@@ -23,8 +28,9 @@ describe("web push payload and configuration", () => {
       authorization_request: "review",
       authorization_decision: "decided",
       security_event: "none",
-    } as const;
-    for (const [notificationClass, action] of Object.entries(expected)) {
+    } as const satisfies { readonly [cls in NotificationClass]: WakeAction };
+    for (const notificationClass of NOTIFICATION_CLASSES) {
+      const action = expected[notificationClass];
       const recorder = jsonFetch("", 201);
       const { subscription, uaPrivateKey, authSecret } = subscribe();
       const push = createWebPushAdapter(
@@ -33,7 +39,7 @@ describe("web push payload and configuration", () => {
       const message = push.render(
         renderInput({
           kind: "native_push",
-          notificationClass: notificationClass as keyof typeof expected,
+          notificationClass,
         }),
       );
       await push.deliver(message, { channel: "native_push", subscription });

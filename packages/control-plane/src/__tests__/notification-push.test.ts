@@ -1,3 +1,4 @@
+import type { RegisterPushSubscription } from "@opensesame/contracts";
 import { mintPushSubscription } from "@opensesame/notification-adapters/test-support";
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
@@ -6,7 +7,7 @@ import { type App, authed, plane, principal } from "./notification-kit.js";
 async function register(
   app: App,
   token: string,
-  body: Record<string, unknown>,
+  body: RegisterPushSubscription,
 ) {
   return app.request("/v1/notification-channels/push/subscriptions", {
     method: "POST",
@@ -181,7 +182,7 @@ describe("validation: a subscription that could never be delivered is refused", 
   const keys = (p256dh: string, auth: string = valid.keys.auth) => ({
     keys: { p256dh, auth },
   });
-  const cases: Array<[string, Record<string, unknown>]> = [
+  const cases: Array<[string, Partial<RegisterPushSubscription>]> = [
     ["http endpoint", { endpoint: "http://push.example.test/send/x" }],
     ["loopback endpoint", { endpoint: "https://127.0.0.1/send/x" }],
     ["localhost endpoint", { endpoint: "https://localhost/send/x" }],

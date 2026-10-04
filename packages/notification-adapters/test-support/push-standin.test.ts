@@ -1,3 +1,4 @@
+import { type JsonObject, readJsonObject } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -147,11 +148,11 @@ describe("stand-in push service", () => {
     const { adapter, standIn: service } = await setup();
     const sub = service.mint();
     const message = adapter.render(RENDER);
+    const wake = message.wake;
+    if (!wake) throw new Error("the adapter rendered no wake signal");
     // A wake with a requester's text smuggled in beside the valid fields.
-    const tampered = {
-      ...message,
-      wake: { ...message.wake, title: "Transfer funds" },
-    } as typeof message;
+    const smuggled = { ...wake, title: "Transfer funds" };
+    const tampered = { ...message, wake: smuggled };
     await expect(
       adapter.deliver(tampered, {
         channel: "native_push",
@@ -159,17 +160,15 @@ describe("stand-in push service", () => {
       }),
     ).resolves.toEqual({ status: "delivered" });
     const last = service.received.at(-1);
-    expect(last?.ok && Object.keys(last.json as object).sort()).toEqual([
-      "action",
-      "kind",
-      "ref",
-    ]);
+    expect(
+      last?.ok && Object.keys(readJsonObject(last.json) ?? {}).sort(),
+    ).toEqual(["action", "kind", "ref"]);
   });
 
   it("answers 400 and says why when a correctly signed, correctly encrypted push breaks the contract", async () => {
     const { vapid, standIn: service } = await setup();
     const sub = service.mint();
-    const post = (payload: object) =>
+    const post = (payload: JsonObject) =>
       service.fetchImpl(sub.endpoint, {
         method: "POST",
         headers: {

@@ -6,6 +6,7 @@ import {
   WEBPUSH_PUBLIC_KEY_ENV,
   WEBPUSH_SUBJECT_ENV,
   WebPushConfigError,
+  type WebPushEnv,
   isVapidPublicKey,
   loadVapidIdentity,
   readVapidPublicKey,
@@ -14,7 +15,7 @@ import {
 const pair = generateVapidKeyPair();
 const other = generateVapidKeyPair();
 
-function env(overrides: Record<string, string | undefined> = {}) {
+function env(overrides: WebPushEnv = {}) {
   return {
     [WEBPUSH_PUBLIC_KEY_ENV]: pair.publicKey,
     [WEBPUSH_PRIVATE_KEY_ENV]: pair.privateKey,

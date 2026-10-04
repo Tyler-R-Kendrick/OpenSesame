@@ -130,7 +130,7 @@ describe("the configuration loaded from the environment", () => {
 });
 
 describe("the effective route with Web Push configured", () => {
-  async function effective(env: Record<string, string>) {
+  async function effective(env: NodeJS.ProcessEnv) {
     const { app } = createControlPlane({
       processEnv: {
         OPENSESAME_ENV: "development",
