@@ -6,6 +6,7 @@ import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   DEVICE_IDENTITY_KEY_PATH,
+  DEVICE_KEY_CLOCK_MARGIN_MS,
   type DeviceIdentityKeyRecord,
   deviceKeyField,
   mergeDeviceKeyFields,
@@ -189,4 +190,42 @@ describe("a vault merge", () => {
     expect(sameVaultContent(withKey(older), emptyBody())).toBe(false);
     expect(sameVaultContent(withKey(older), withKey(older))).toBe(true);
   });
+});
+
+describe("a key's time must be one an honest device could have written", () => {
+  const now = 1_790_000_000_000;
+  const at = (createdAt: number) =>
+    readDeviceIdentityKeyRecord({ ...deviceKeyField(older), createdAt }, now);
+
+  it("refuses the epoch, a time before it, and a time past the clock margin", () => {
+    expect(at(0)).toBeNull();
+    expect(at(-1)).toBeNull();
+    expect(at(now + DEVICE_KEY_CLOCK_MARGIN_MS + 1)).toBeNull();
+  });
+
+  it("reads a time up to the margin ahead of this device's clock, and any time before it", () => {
+    expect(at(1)?.createdAt).toBe(1);
+    expect(at(now)?.createdAt).toBe(now);
+    expect(at(now + DEVICE_KEY_CLOCK_MARGIN_MS)?.createdAt).toBe(
+      now + DEVICE_KEY_CLOCK_MARGIN_MS,
+    );
+  });
+
+  it("states its margin: a day", () => {
+    expect(DEVICE_KEY_CLOCK_MARGIN_MS).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("a body's field that is not an object is no record", () => {
+  const field = deviceKeyField(older);
+
+  it.each([null, "text", 7, true, []])(
+    "merging %s with a key keeps the key, from either side",
+    (odd) => {
+      // A body is JSON from anywhere: a merge takes it as it comes.
+      expect(mergeDeviceKeyFields(odd, field)).toBe(field);
+      expect(mergeDeviceKeyFields(field, odd)).toBe(field);
+      expect(mergeDeviceKeyFields(odd, odd)).toBeUndefined();
+    },
+  );
 });

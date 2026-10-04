@@ -11,7 +11,9 @@
  * ones. The merge picks one deterministically (the older `createdAt`, then the
  * smaller key id), so either argument order converges and so do all devices.
  * A record this build cannot read — a newer version, a shape it does not know —
- * is never replaced by one it can: a newer build may own it.
+ * is never replaced by one it can: a newer build may own it. The caller vets
+ * both sides first (a forged or null record is dropped, not kept): this module
+ * ranks, it does not trust.
  *
  * Leaf module: no platform, no storage, no hashing. Whether a record's key id
  * is its public key's thumbprint is the caller's check (it needs SHA-256).
@@ -30,6 +32,14 @@ export const DEVICE_IDENTITY_KEY_PATH = "config/device-identity-key";
 
 const THUMBPRINT = /^[A-Za-z0-9_-]{43}$/;
 
+/**
+ * How far past this device's clock a record's `createdAt` may sit. A key
+ * minted on a device whose clock runs ahead is still read; one dated beyond
+ * a day is not a key any honest device made, and a ranking by age must not let
+ * a forged date decide it. Both ends are read as untrusted, never as old.
+ */
+export const DEVICE_KEY_CLOCK_MARGIN_MS = 24 * 60 * 60 * 1000;
+
 export type DeviceIdentityKeyRecord = Readonly<{
   version: 1;
   /** The RFC 7638 thumbprint of `publicJwk`; the principal is `prn_` + this. */
@@ -40,9 +50,16 @@ export type DeviceIdentityKeyRecord = Readonly<{
   createdAt: number;
 }>;
 
-/** A record this build reads, or null: unknown version, wrong shape, bad id. */
+/**
+ * A record this build reads, or null: unknown version, wrong shape, bad id, or
+ * a `createdAt` that is not a positive time no later than a day past `now`.
+ * Shape only: whether the key id is the public key's thumbprint and the
+ * private half belongs to it takes SHA-256 and a signature, which the app
+ * core checks (`device-identity-trust.ts`) before any record is ranked.
+ */
 export function readDeviceIdentityKeyRecord(
   value: BoundaryValue,
+  now: number = Date.now(),
 ): DeviceIdentityKeyRecord | null {
   if (!isJsonObject(value) || value.version !== 1) return null;
   const pub = value.publicJwk;
@@ -50,13 +67,8 @@ export function readDeviceIdentityKeyRecord(
     !isString(value.keyId) ||
     !THUMBPRINT.test(value.keyId) ||
     !isString(value.privateJwkJson) ||
-    !isNumber(value.createdAt) ||
-    !Number.isSafeInteger(value.createdAt) ||
-    !isJsonObject(pub) ||
-    pub.kty !== "EC" ||
-    pub.crv !== "P-256" ||
-    !isString(pub.x) ||
-    !isString(pub.y)
+    !plausibleTime(value.createdAt, now) ||
+    !isP256Public(pub)
   ) {
     return null;
   }
@@ -67,6 +79,28 @@ export function readDeviceIdentityKeyRecord(
     privateJwkJson: value.privateJwkJson,
     createdAt: value.createdAt,
   };
+}
+
+/** A whole, positive time no later than a day past `now`. */
+function plausibleTime(value: BoundaryValue, now: number): value is number {
+  return (
+    isNumber(value) &&
+    Number.isSafeInteger(value) &&
+    value > 0 &&
+    value <= now + DEVICE_KEY_CLOCK_MARGIN_MS
+  );
+}
+
+function isP256Public(
+  value: BoundaryValue,
+): value is JsonObject & { x: string; y: string } {
+  return (
+    isJsonObject(value) &&
+    value.kty === "EC" &&
+    value.crv === "P-256" &&
+    isString(value.x) &&
+    isString(value.y)
+  );
 }
 
 /** The record as the body stores it. */
@@ -102,9 +136,12 @@ export function winningDeviceKey(
  * one. Commutative, so a drive can be merged in either order.
  */
 export function mergeDeviceKeyFields(
-  left: JsonObject | undefined,
-  right: JsonObject | undefined,
+  leftField: BoundaryValue,
+  rightField: BoundaryValue,
 ): JsonObject | undefined {
+  // A body is JSON from anywhere: `null`, a string or a number is no record.
+  const left = isJsonObject(leftField) ? leftField : undefined;
+  const right = isJsonObject(rightField) ? rightField : undefined;
   if (left === undefined) return right;
   if (right === undefined) return left;
   const a = readDeviceIdentityKeyRecord(left);

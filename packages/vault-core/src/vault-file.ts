@@ -139,8 +139,11 @@ export function summarizeVaultBody(
       kind: item.kind,
       path: paths.get(item.id) ?? item.name,
     })),
+    // `null` is absent, as in the native reader.
     concealed:
-      body.deviceIdentityKey === undefined ? [] : [DEVICE_IDENTITY_KEY_PATH],
+      body.deviceIdentityKey === undefined || body.deviceIdentityKey === null
+        ? []
+        : [DEVICE_IDENTITY_KEY_PATH],
   };
 }
 

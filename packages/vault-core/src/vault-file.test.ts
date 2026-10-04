@@ -11,7 +11,12 @@ import fixture from "../../../spec/conformance/vault-vectors.json" with {
 import { VaultCorruptError, WrongPasswordError } from "./crypto.js";
 import { unwrapRawVaultKeyFromPassword } from "./crypto.js";
 import { readDeviceIdentityKeyRecord } from "./device-key.js";
-import { openVaultBody, openVaultFile, readVaultFile } from "./vault-file.js";
+import {
+  openVaultBody,
+  openVaultFile,
+  readVaultFile,
+  summarizeVaultBody,
+} from "./vault-file.js";
 
 const vectors = Object.entries(fixture.vectors);
 
@@ -97,4 +102,18 @@ describe("openVaultFile over the golden vectors", () => {
     expect(() => readVaultFile("{}")).toThrow(VaultCorruptError);
     expect(() => readVaultFile("not json")).toThrow(VaultCorruptError);
   });
+});
+
+describe("which bodies list the device identity key", () => {
+  const sealed = readVaultFile(fixture.vectors["export-personal"].file);
+
+  // The same rows the Rust reader runs (`crates/human-vault`, `body.rs`): a
+  // `null` key is absent in both, any other value is listed by name.
+  it.each(fixture.concealedBodies.map((row) => [row.name, row] as const))(
+    "%s",
+    (_name, row) => {
+      const listed = summarizeVaultBody(sealed, overlapCast(row.body), true);
+      expect(listed.concealed).toEqual(row.concealed);
+    },
+  );
 });

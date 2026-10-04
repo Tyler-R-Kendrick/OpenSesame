@@ -106,5 +106,72 @@
         "concealed": ["config/device-identity-key"]
       }
     }
-  }
+  },
+  "concealedBodies": [
+    {
+      "name": "no key",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": []
+      },
+      "concealed": []
+    },
+    {
+      "name": "a null key is absent",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": null
+      },
+      "concealed": []
+    },
+    {
+      "name": "a key",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": {
+          "version": 1,
+          "keyId": "k"
+        }
+      },
+      "concealed": ["config/device-identity-key"]
+    },
+    {
+      "name": "a record of a newer version",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": {
+          "version": 2
+        }
+      },
+      "concealed": ["config/device-identity-key"]
+    },
+    {
+      "name": "a value that is not an object is still listed by name",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": "text"
+      },
+      "concealed": ["config/device-identity-key"]
+    },
+    {
+      "name": "an empty object",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": {}
+      },
+      "concealed": ["config/device-identity-key"]
+    }
+  ],
+  "concealedBodiesAbout": "Which plaintext body shapes list config/device-identity-key (ADR 0160 §5a); null is absent. Read by vault-core and crates/human-vault."
 }

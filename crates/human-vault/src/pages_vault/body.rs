@@ -6,7 +6,7 @@
 //! are zeroized. The device identity key the body may carry (ADR 0160 §5) is
 //! reduced to the fact that it is there: its value is never read out.
 
-use serde::Deserialize;
+use serde::{de::IgnoredAny, Deserialize};
 use serde_json::Value;
 
 use super::{
@@ -55,9 +55,11 @@ struct BodyWire {
     items: Option<Vec<ItemMeta>>,
     folders: Option<Vec<FolderMeta>>,
     rev: Option<Value>,
-    /// Only whether the field is present is kept; the key is never parsed.
+    /// Whether the field is present, and nothing of it: `IgnoredAny` skips the
+    /// value as the parser reads it, so the private half is never built into
+    /// a string or a tree. `null` is absent, as in the TypeScript reader.
     #[serde(rename = "deviceIdentityKey", default)]
-    device_identity_key: Option<Value>,
+    device_identity_key: Option<IgnoredAny>,
 }
 
 /// A body opened with VK, reduced to what may be shown.
@@ -89,7 +91,12 @@ pub fn open_body(file: &SealedVaultFile, key: &VaultKey) -> Result<OpenedBody> {
             false,
         ),
     };
-    let wire: BodyWire = serde_json::from_slice(&plain)
+    read_body(&plain, bound)
+}
+
+/// The plaintext body, reduced to what may be shown.
+fn read_body(plain: &[u8], bound: bool) -> Result<OpenedBody> {
+    let wire: BodyWire = serde_json::from_slice(plain)
         .map_err(|_| VaultFileError::Corrupt("decrypted payload is not a vault body"))?;
     let rev = match wire.rev {
         None | Some(Value::Null) => None,
@@ -101,14 +108,15 @@ pub fn open_body(file: &SealedVaultFile, key: &VaultKey) -> Result<OpenedBody> {
         items: wire.items.unwrap_or_default(),
         folders: wire.folders.unwrap_or_default(),
         rev,
-        carries_device_identity_key: !matches!(wire.device_identity_key, None | Some(Value::Null)),
+        carries_device_identity_key: wire.device_identity_key.is_some(),
         bound,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::vault_seal_binding;
+    use super::{read_body, vault_seal_binding};
+    use serde_json::Value;
 
     #[test]
     fn binding_is_the_writers_bytes() {
@@ -116,5 +124,27 @@ mod tests {
             vault_seal_binding("personal", "body"),
             b"vault-seal\0personal\0body"
         );
+    }
+
+    /// The cases `spec/conformance/vault-vectors.json` records for which body
+    /// shapes list the device identity key; the TypeScript reader runs the
+    /// same rows (`vault-file.test.ts`).
+    #[test]
+    fn lists_the_key_for_the_bodies_the_fixture_names() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../spec/conformance/vault-vectors.json"
+        ))
+        .expect("fixture");
+        let rows = fixture["concealedBodies"].as_array().expect("rows");
+        assert!(rows.len() >= 5);
+        for row in rows {
+            let opened = read_body(row["body"].to_string().as_bytes(), true).expect("body");
+            let expected = row["concealed"].as_array().expect("expectation").len() == 1;
+            assert_eq!(
+                opened.carries_device_identity_key, expected,
+                "{}",
+                row["name"]
+            );
+        }
     }
 }
