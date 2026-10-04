@@ -6,8 +6,6 @@
 
 import { pushSessions } from "./capture-harness.mjs";
 
-const LIMIT = 10;
-
 export function pushSteps({ harness, press }) {
   const sessionOf = (page) => {
     const session = pushSessions.get(page);
@@ -47,7 +45,7 @@ export function pushSteps({ harness, press }) {
      */
     async pushLimit(page) {
       const { principal } = sessionOf(page);
-      for (let i = 0; i < LIMIT; i += 1) {
+      for (let i = 0; i < harness.stack.limit; i += 1) {
         const made = await harness.stack.register(
           principal.bearer,
           harness.stack.standIn.mint(),

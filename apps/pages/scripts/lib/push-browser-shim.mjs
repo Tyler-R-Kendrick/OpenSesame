@@ -31,6 +31,7 @@ export async function installPushShim(context, mint) {
     endpoint: sub.endpoint,
     keys: sub.keys,
     id: sub.id,
+    appKey: sub.appKey ?? null,
   });
   await context.exposeBinding("__pushShim", async (_source, op, arg) => {
     if (op === "get") return state.held ? describe(state.held) : null;
@@ -38,6 +39,8 @@ export async function installPushShim(context, mint) {
       if (state.hang) return new Promise(() => {});
       state.keys.push(arg);
       state.held = state.queue.shift() ?? mint();
+      // A subscription remembers the key it was made with, as a browser's does.
+      state.held.appKey = arg;
       state.subscribed.push(state.held);
       return describe(state.held);
     }
@@ -89,7 +92,9 @@ export async function installPushShim(context, mint) {
     };
     PushManager.prototype.getSubscription = async () => {
       const held = await window.__pushShim("get");
-      return held ? wrap(held, appKey) : null;
+      return held
+        ? wrap(held, held.appKey ? bytes(held.appKey) : appKey)
+        : null;
     };
   });
   return state;

@@ -40,14 +40,14 @@ import {
   waitOpen,
 } from "./lib/pages-journey.mjs";
 import { installPushShim } from "./lib/push-browser-shim.mjs";
+import { policyWalk } from "./lib/push-policy-walk.mjs";
 import { PAGES_ORIGIN, startPushStack } from "./lib/push-stack.mjs";
-import { OPERATOR_POLICY, createRun } from "./lib/push-verify-kit.mjs";
+import { createRun } from "./lib/push-verify-kit.mjs";
 import { notificationsOf, until } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist-push-verify");
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const scope = `${PAGES_ORIGIN}${base}`;
-const LIMIT = 10;
 const TURN_ON = { name: "Turn on push on this device" };
 const TURN_OFF = { name: "Turn off push on this device" };
 
@@ -56,6 +56,7 @@ const { check, step, finish } = createRun();
 /** What the deployment's `os-runtime-config.json` adds; the last scenario sets it. */
 let served = {};
 const stack = await startPushStack({ dist, base, runtimeConfig: () => served });
+const LIMIT = stack.limit;
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
   channel: process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined,
@@ -327,68 +328,45 @@ try {
     "the browser holds no half-enrolled subscription",
   );
 
+  step(
+    "failure: a subscription another tab made, at the limit (409): not left On over nothing",
+  );
+  // The row says Off; then another tab's subscribe leaves this browser holding
+  // one the Identity API does not list, and the principal is still full.
+  shim.held = stack.standIn.mint();
+  shim.held.appKey = stack.vapid.publicKey;
+  const unsubscribedBeforeHeld = shim.unsubscribed.length;
+  await turnOn().click();
+  await until(
+    pushNotices,
+    (found) => found.length === 1,
+    "a notice that the server refused (409)",
+    10_000,
+  );
+  await rowIs("Off");
+  check(
+    shim.held === null &&
+      shim.unsubscribed.length === unsubscribedBeforeHeld + 1,
+    "the held subscription the server cannot record was let go",
+  );
+  check(
+    (await stack.live(principal.id)).length === LIMIT,
+    "the server's records are unchanged",
+  );
+
   check(pageErrors.length === 0, `no page errors (${pageErrors.join(" | ")})`);
   await context.close();
 
   step("failure: an operator policy does not name the Identity API's origin");
-  served = {
-    capabilityComposition: {
-      schemaVersion: 1,
-      instancePolicy: OPERATOR_POLICY,
+  await policyWalk({
+    browser,
+    stack,
+    scope,
+    check,
+    serve: (config) => {
+      served = config;
     },
-  };
-  const governed = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
-    serviceWorkers: "allow",
   });
-  await governed.grantPermissions(["notifications"], { origin: PAGES_ORIGIN });
-  const governedShim = await installPushShim(governed, () =>
-    stack.standIn.mint(),
-  );
-  const second = await governed.newPage();
-  const pushCalls = [];
-  second.on("request", (request) => {
-    if (request.url().includes("/v1/notification-channels/push"))
-      pushCalls.push(request.url());
-  });
-  await second.goto(scope);
-  await doorGuest(second).waitFor({ timeout: 20_000 });
-  await doorGuest(second).click();
-  await waitOpen(second);
-  await addCapabilities(second, ["Push notifications", "Notification routing"]);
-  await openSettingsCategory(second, "General");
-  await second.getByRole("button", TURN_ON).click();
-  await second.getByRole("button", { name: /^Notifications — / }).click();
-  const sheet = second.getByRole("dialog", { name: "Notifications" });
-  const refused = await until(
-    () =>
-      sheet
-        .locator(".notice-card")
-        .filter({ hasText: "Push on this device" })
-        .allInnerTexts(),
-    (found) => found.length === 1,
-    "a notice that this installation may not reach the service",
-    10_000,
-  );
-  check(
-    /may not reach the sign-in service for push \(origin-not-allowed\), so notifications were not changed/.test(
-      refused[0],
-    ),
-    `the notice names this installation's policy, not the network (${JSON.stringify(refused[0])})`,
-  );
-  check(
-    !/not reachable/.test(refused[0]),
-    "a refusal by policy is not called the service being unreachable",
-  );
-  check(
-    pushCalls.length === 0,
-    "no request left for the Identity API's push routes",
-  );
-  check(
-    governedShim.subscribed.length === 0,
-    "the browser subscribed to nothing",
-  );
-  await governed.close();
 } catch (error) {
   console.error(error);
   exit = 1;

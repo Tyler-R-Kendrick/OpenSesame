@@ -42,14 +42,31 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 
-/** A P-256 application server key pair, in the base64url form the Host reads. */
-export function newVapid() {
+/**
+ * A P-256 application server key pair, in the base64url form the Host reads:
+ * the public point (65 octets) and the private scalar left-padded to its 32.
+ * `getPrivateKey()` drops leading zero octets (about one scalar in 256), which
+ * is why the scalar is padded on the left here and not on the right.
+ */
+export function vapidFromScalar(scalar) {
+  const padded = Buffer.alloc(32);
+  scalar.copy(padded, 32 - scalar.length);
   const ecdh = crypto.createECDH("prime256v1");
-  ecdh.generateKeys();
+  ecdh.setPrivateKey(padded);
   return {
     publicKey: ecdh.getPublicKey().toString("base64url"),
-    privateKey: ecdh.getPrivateKey().toString("base64url").padEnd(43, "A"),
+    privateKey: padded.toString("base64url"),
   };
+}
+
+/** A fresh key pair; a JWK's `d` is always the full 32 octets. */
+export function newVapid() {
+  const { privateKey } = crypto.generateKeyPairSync("ec", {
+    namedCurve: "P-256",
+  });
+  return vapidFromScalar(
+    Buffer.from(privateKey.export({ format: "jwk" }).d, "base64url"),
+  );
 }
 
 /** `dist` under `base`, as a static host serves it, with this deployment's config. */
@@ -183,6 +200,9 @@ export async function startPushStack({
   const { runCleanupTick } = await import(
     source("packages/identity-worker/src/cleanup.ts")
   );
+  const { MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL } = await import(
+    source("packages/control-plane/src/routes/push-enrolment.ts")
+  );
   const started = await startServer();
   const standIn = await startPushStandIn({ vapidPublicKey: vapid.publicKey });
   const adapters = createWorkerNotificationAdapters({
@@ -200,6 +220,8 @@ export async function startPushStack({
   const stack = {
     api,
     origin: PAGES_ORIGIN,
+    /** What the Identity API allows one principal: the server's own constant. */
+    limit: MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL,
     vapid,
     standIn,
     repos: started.ctx.repos,
