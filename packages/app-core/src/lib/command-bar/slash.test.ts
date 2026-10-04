@@ -38,28 +38,29 @@ describe("slashSuggestions", () => {
     ).toEqual(["/copy password "]);
   });
 
-  it("completes item names after a verb and never invents a secret", () => {
-    const rows = slashSuggestions("/search g", SECTIONS, [
+  it("completes item names after open/copy, never a secret", () => {
+    const rows = slashSuggestions("/open g", SECTIONS, [
       "GitHub",
       "Google",
       "Bank",
     ]);
     expect(rows.map((row) => row.insert)).toEqual([
-      "/search GitHub",
-      "/search Google",
+      "/open GitHub",
+      "/open Google",
     ]);
     expect(
-      rows.every((row) => row.label === row.insert.slice("/search ".length)),
+      rows.every((row) => row.label === row.insert.slice("/open ".length)),
     ).toBe(true);
     expect(JSON.stringify(rows)).not.toContain("password");
   });
 
-  it("answers `/?` as search, and completes names after it in kind", () => {
+  it("answers `/?` as search, and offers no names after it: the listing is the completion", () => {
     expect(slashSuggestions("/?", SECTIONS, []).map((row) => row.id)).toEqual([
       "search",
     ]);
-    const rows = slashSuggestions("/? g", SECTIONS, ["GitHub", "Bank"]);
-    expect(rows.map((row) => row.insert)).toEqual(["/? GitHub"]);
+    for (const typed of ["/? g", "/search g", "/? "]) {
+      expect(slashSuggestions(typed, SECTIONS, ["GitHub", "Bank"])).toEqual([]);
+    }
   });
 
   it("canonicalizes a copy-field alias before naming items", () => {

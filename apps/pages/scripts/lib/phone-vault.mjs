@@ -53,64 +53,112 @@ export async function backOutStops(page, stop, { harness, audit }) {
 }
 
 /**
- * The phone's tree: importing and exporting are in the row above it, each key
- * at the 44px floor; New is the corner button, pinned over the pane's bottom
- * right and clear of the statusline's prompt; and search is the prompt's own
- * `/?` verb — there is no search key, and typing it lands on the list narrowed
- * to the words. Skipped where the walk is not on the tree, so it can be called
- * wherever the vault is entered.
+ * The phone's vault actions, measured. The tree carries Import and Export as
+ * labelled full-width rows (a word and a glyph, 44px or taller) and no strip of
+ * keys; the list's header is back and the view it shows, named, as one choice
+ * the width of the rest; New is the corner button, pinned over the pane's
+ * bottom right and clear of the statusline; and search is the status-line
+ * prompt's `/?` verb — the one text input on the screen, which keeps the words
+ * and narrows the list as they are typed. Skipped where the walk is not on the
+ * tree, so it can be called wherever the vault is entered.
  */
 export async function treeActions(page, stop, { harness, audit }) {
   const pane = () => page.locator(".vault").first().getAttribute("data-pane");
   if ((await pane()) !== "tree") return;
-  const row = page.locator(".vault__tree .vtree__keys");
-  const keys = await row.locator("a, button").evaluateAll((nodes) =>
-    nodes.map((node) => {
-      const box = node.getBoundingClientRect();
-      return {
-        name: node.getAttribute("aria-label") ?? node.getAttribute("title"),
-        width: Math.round(box.width),
-        height: Math.round(box.height),
-      };
-    }),
-  );
-  // The `?` key stands down on a phone: drawn nowhere, so it has no size.
-  const shown = keys.filter((key) => key.width > 0);
+  const rows = await page
+    .locator(".vault__tree .vtools .vtool")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return {
+          name: node.getAttribute("aria-label"),
+          label: node.textContent?.trim(),
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+        };
+      }),
+    );
   harness.check(
-    keys.some((key) => key.name === "Export items"),
-    `${stop("tree-actions")}: the tree carries the Export items key`,
-  );
-  harness.check(
-    !keys.some((key) => key.name === "New item" || key.name === "Search (/)"),
-    `${stop("tree-actions")}: New is the corner button and search is the prompt, neither a key in the row`,
+    rows.some((r) => r.name === "Export items" && r.label === "Export items"),
+    `${stop("tree-actions")}: Export is a labelled row on the tree (${JSON.stringify(rows)})`,
   );
   harness.check(
-    shown.length > 0 && shown.every((k) => k.width >= 44 && k.height >= 44),
-    `${stop("tree-actions")}: every key is 44px (${shown
-      .map((k) => `${k.name} ${k.width}x${k.height}`)
-      .join(", ")})`,
+    rows.length > 0 && rows.every((r) => r.height >= 44 && r.width >= 280),
+    `${stop("tree-actions")}: every tool row is 44px tall and full width`,
+  );
+  harness.check(
+    (await page.locator(".vault__tree .vtree__pathbar").count()) === 0,
+    `${stop("tree-actions")}: the tree carries no strip of keys`,
   );
   await fabIsPinned(page, stop("tree-actions"), harness);
   await audit(page, stop("tree-actions"));
 
+  await page
+    .getByRole("treeitem", { name: /^all\b/i })
+    .first()
+    .tap();
+  await page.waitForTimeout(600);
+  const header = await page.evaluate(() => {
+    const bar = document.querySelector(".vault__list .vtree__pathbar");
+    const view = bar?.querySelector(".vfilter__open");
+    if (!bar || !view) return null;
+    const box = view.getBoundingClientRect();
+    // The `?` shortcuts key stands down on a touch device: drawn nowhere.
+    const keys = [...bar.querySelectorAll("a, button")].filter(
+      (n) => n.getBoundingClientRect().width > 0,
+    );
+    return {
+      height: Math.round(box.height),
+      share: Math.round((box.width / bar.getBoundingClientRect().width) * 100),
+      text: view.textContent?.trim(),
+      keys: keys.length,
+    };
+  });
+  harness.check(
+    header !== null && header.height >= 44 && header.share >= 70 && header.text,
+    `${stop("tree-actions")}: the header names the view as one wide choice (${JSON.stringify(header)})`,
+  );
+  harness.check(
+    header !== null && header.keys === 2,
+    `${stop("tree-actions")}: the header is back and the view, nothing else`,
+  );
+
   const prompt = page.locator("#command-bar-input");
   await prompt.fill("/? zz-no-such-item");
+  await page.waitForTimeout(400);
+  const live = await page.locator(".vault__status-meta").first().textContent();
+  harness.check(
+    (live ?? "").includes("/zz-no-such-item"),
+    `${stop("tree-actions")}: the list narrows as the words are typed (${live})`,
+  );
   await prompt.press("Enter");
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(500);
   harness.check(
-    (await pane()) === "list",
-    `${stop("tree-actions")}: /? opens the list`,
-  );
-  const meta = await page.locator(".vault__status-meta").first().textContent();
-  harness.check(
-    (meta ?? "").includes("/zz-no-such-item"),
-    `${stop("tree-actions")}: the list is narrowed to the words (${meta})`,
+    (await prompt.inputValue()) === "/? zz-no-such-item",
+    `${stop("tree-actions")}: Enter keeps the words in the prompt`,
   );
   harness.check(
-    (await page.locator(".vtree__cmd").count()) === 0,
-    `${stop("tree-actions")}: no second search box is drawn above the prompt`,
+    (await page.locator(".command-bar__status").count()) === 0,
+    `${stop("tree-actions")}: no notice box opens over the prompt`,
+  );
+  const inputs = await page.evaluate(
+    () =>
+      [...document.querySelectorAll("input, textarea")].filter((el) => {
+        const type = el.getAttribute("type") ?? "text";
+        if (["file", "hidden", "checkbox", "radio"].includes(type))
+          return false;
+        if (el.classList.contains("visually-hidden")) return false;
+        const box = el.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      }).length,
+  );
+  harness.check(
+    inputs === 1,
+    `${stop("tree-actions")}: the prompt is the only text input on screen (${inputs})`,
   );
   await fabIsPinned(page, stop("tree-actions"), harness);
+  await prompt.fill("");
+  await page.waitForTimeout(300);
   await page.getByRole("link", { name: "Back to sections" }).first().tap();
   await page.waitForTimeout(500);
 }

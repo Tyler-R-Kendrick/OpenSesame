@@ -8,39 +8,35 @@ import { ExportKey } from "./ExportKey.js";
  * The keys that add to a vault or take it out: New item, whatever a capability
  * adds beside it (Import, from the formats it reads), and Export.
  *
- * On a phone New leaves the cluster for `NewItemFab`, the one primary action
- * pinned to the corner where a thumb already rests; the rest stay in the row.
- *
- * One cluster, two places. The list pane carries it in its command row; a
- * phone's first pane is the section tree, and the same row sits above it so
- * the way to add, import or back up a vault is on the screen a phone opens on
- * rather than a pane away.
+ * A desktop's list carries the cluster in its command row. A phone does not
+ * draw it: New is `NewItemFab`, the one primary action pinned to the corner
+ * where a thumb rests, and Import and Export are labelled rows among
+ * `VaultTools` on the screen a phone opens on.
  */
 export function VaultActions({
   createPath,
   createRef,
-  create = true,
+  hidden = false,
 }: {
   createPath: string;
   /** Where the list pane records its New key for focus and the guide. */
   createRef?: Ref<HTMLAnchorElement>;
-  /** False where New is drawn elsewhere: a phone's corner button. */
-  create?: boolean;
+  /** A phone draws none of this cluster: see `NewItemFab` and `VaultTools`. */
+  hidden?: boolean;
 }) {
   const commands = useContributions("vault-command");
+  if (hidden) return null;
   return (
     <>
-      {create ? (
-        <Link
-          ref={createRef}
-          className="icon-btn icon-btn--sm"
-          aria-label="New item"
-          title="New item (n)"
-          to={createPath}
-        >
-          <IconPlus size={15} />
-        </Link>
-      ) : null}
+      <Link
+        ref={createRef}
+        className="icon-btn icon-btn--sm"
+        aria-label="New item"
+        title="New item (n)"
+        to={createPath}
+      >
+        <IconPlus size={15} />
+      </Link>
       {commands.map(({ id, Command }) => (
         <Command key={id} />
       ))}

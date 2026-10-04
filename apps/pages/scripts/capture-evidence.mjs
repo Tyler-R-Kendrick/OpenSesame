@@ -44,6 +44,7 @@ import { pushSteps } from "./lib/capture-push-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
+import { vaultSteps } from "./lib/capture-vault-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -191,6 +192,7 @@ const STEPS = {
   ...extraSteps({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
+  ...vaultSteps({ press, visit: (page, route) => STEPS.visit(page, route) }),
   ...inboxSteps({ origin, base }),
   ...liveSteps({ harness }),
   ...livePolicySteps({ press, openSettings }),
@@ -279,18 +281,6 @@ const STEPS = {
   /** Print the address bar, so a sheet can show what a link left in it. */
   async address(page) {
     console.log(`  address: ${page.url()}`);
-  },
-  /**
-   * Type into the shell's command field and run it, the way a person would.
-   * Refuses a silent miss: the field is on every unlocked screen.
-   */
-  async command(page, text) {
-    const field = page.locator("#command-bar-input");
-    if (!(await field.count()))
-      throw new Error("capture-evidence command: no command field is drawn");
-    await field.fill(text);
-    await field.press("Enter");
-    await page.waitForTimeout(900);
   },
   async escape(page) {
     await page.keyboard.press("Escape");

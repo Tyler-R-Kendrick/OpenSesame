@@ -3,6 +3,7 @@
  * Suggestions name commands and item names. They never carry a secret.
  */
 
+import { liveSearchOf } from "./parse.js";
 import type { CommandField } from "./types.js";
 
 export type SlashSuggestion = {
@@ -167,11 +168,9 @@ function argumentSuggestions(
   text: string,
   itemNames: readonly string[],
 ): readonly SlashSuggestion[] | null {
-  const search = /^\/(search|\?)\s+(.*)$/i.exec(text);
-  if (search) {
-    const verb = search[1] === "?" ? "?" : "search";
-    return itemRows("search", `/${verb} `, search[2] ?? "", itemNames);
-  }
+  // Search has no list of names to pick from: the listing narrows as the
+  // words are typed, and is the completion.
+  if (liveSearchOf(text) !== null) return [];
   const opened = /^\/open\s+(.*)$/i.exec(text);
   if (opened) return itemRows("open", "/open ", opened[1] ?? "", itemNames);
   const copied = /^\/copy\s+(\S+)\s+(.*)$/i.exec(text);

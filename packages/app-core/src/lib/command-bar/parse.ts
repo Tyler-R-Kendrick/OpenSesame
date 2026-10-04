@@ -110,6 +110,17 @@ function parseOpenOrSearch(text: string): AppCommand | null {
 }
 
 /**
+ * The words after `/?` or `/search` while the field holds that verb, so a
+ * listing can narrow as they are typed instead of waiting for Enter. `""` is
+ * the verb with nothing after it yet; `null` is any other text, and a bare
+ * `/?` with no space after it, which is still help.
+ */
+export function liveSearchOf(raw: string): string | null {
+  const match = /^\s*\/(?:search|\?)\s(.*)$/i.exec(raw);
+  return match ? (match[1] ?? "").replace(/^\s+/, "") : null;
+}
+
+/**
  * Deterministic NL → command. Runs before any model so offline / no-Prompt-API
  * devices still get Discord-style voice control for the common verbs.
  */

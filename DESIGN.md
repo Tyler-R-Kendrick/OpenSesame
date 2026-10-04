@@ -204,31 +204,43 @@ buffer where a finger can reach it, and the screen the vault opens on), the
 mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
-unreachable, and the list keeps its funnel key for switching without going
-back. The list's command row is not a pane away either: the keys that add or
-take out — whatever a capability adds (Import) and Export — are pinned above
-the tree (`VaultActions`, in the list's own `VaultPathbar`), each at the 44px
-floor. The funnel and the back key stay on the list, where there is something
-to filter and somewhere to go back from.
+unreachable, and the list keeps a way to switch without going back.
 
-**New is the one primary action, and on a phone it is a corner button**
-(`NewItemFab`): a 56px circle pinned to the bottom right of the tree and of
-the list, the way a phone's own apps seat theirs, instead of a key in a row at
-the top. It is drawn in the vault's box, which never scrolls (its rows do), so
-it is always under the thumb, above the pane's status line and clear of the
-statusline's prompt; the last row pads past it. The item's screen and the
-trash draw none. It is the only floating control, and it is the exception to
-"nothing floating rests on a control" only in motion — at rest, and at the end
-of the list, it covers nothing (`verify:mobile` measures its size, its corner
-and its clearance of the statusline).
+**A phone does not get a desktop's strip of icon keys.** Four thin glyphs in a
+row at the top (a funnel, a down arrow, an up arrow) are a guess nobody can
+read, and the top of a tall screen is the hardest place to reach. The phone's
+actions are redrawn for a thumb, each where it is used:
 
-**Search is a verb of the prompt, never a second box.** The statusline's
-command field lists `search` in its hint, and `/? words` (or `/search words`)
-narrows the list of everything to them: the command navigates to
-`/vault?f=all&q=…` and the list reads `q` from the address, so a search
-survives opening an item and coming back, and Esc clears it. There is no
-search key in the row and no search field above the prompt; the `/` key
-writes `/? ` into the prompt and focuses it. Bare `/?` is still help.
+- **The list's header** is back and the view it is showing, *named* — `All
+  items ▾`, one choice the width of the rest and 48px tall
+  (`VaultFilterMenu`), in the accent colour while it narrows the vault. Nothing
+  else is a key there.
+- **New is the one primary action, a corner button** (`NewItemFab`): a 56px
+  circle at the bottom right of the tree and of the list, drawn in the vault's
+  box, which never scrolls (its rows do), so it is always under the thumb,
+  above the pane's status line and clear of the prompt. The last row pads past
+  it. The item's screen and the trash draw none. Rows pass beneath it as they
+  scroll, as in any phone app; at rest and at the end of the list it covers
+  nothing (`verify:mobile` measures its size, its corner and its clearance of
+  the statusline).
+- **Import and Export are labelled rows under the section tree**
+  (`VaultTools`), a word and a glyph at 52px, full width. They act on the whole
+  vault, not on a list, so they live on the screen a phone opens on. A
+  capability that adds a `vault-command` draws it as a row there (`row`) and as
+  an icon key on a desktop.
+
+**Search is a verb of the one text input, never a second box.** The
+statusline's prompt lists `search` in its hint, and `/? words` (or `/search
+words`) is typed into it. The words are published as they are typed
+(`lib/command-bar/search.ts`) and whichever listing is on screen — the vault,
+Activity, the connector catalog — narrows to them live, with the count in its
+status line. Enter keeps the words in the field, hands the keyboard to the
+listing (or brings up the vault's list when nothing on screen is searching),
+and opens no notice over the prompt; Esc, in the field or the list, empties it.
+Words typed for one section are dropped when a person goes to another by any
+other road. There is no search key and no search field in any pane; the `/`
+key writes `/? ` into the prompt and focuses it. A bare `/?` is still help.
+`verify:mobile` counts the text inputs on the screen and fails on a second.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 

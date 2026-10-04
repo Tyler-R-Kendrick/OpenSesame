@@ -5,13 +5,14 @@ import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { ImportSheet } from "./ImportSheet.js";
 
 /**
- * The vault path strip's Import key (`vault.interop-formats`). It opens the
+ * The vault path strip's Import key (`vault.interop-formats`), or on a phone
+ * (`row`) the same flow as a labelled row among the vault's tools. It opens the
  * OS file picker directly — the one click before the dialog — and the file
  * chosen opens the import sheet beside the list, where it is previewed and
  * merged under a second, explicit action (ADR 0052 §6). Nothing is read
  * until a file is picked, and nothing is written until the sheet commits.
  */
-export function ImportKey() {
+export function ImportKey({ row = false }: { row?: boolean }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const guideRef = useGuideTarget<HTMLButtonElement>("vault.import");
   const [file, setFile] = useState<File | null>(null);
@@ -22,14 +23,15 @@ export function ImportKey() {
       <button
         ref={guideRef}
         type="button"
-        className="icon-btn icon-btn--sm"
+        className={row ? "choice vtool" : "icon-btn icon-btn--sm"}
         aria-label="Import items"
         title="Import items"
         aria-haspopup="dialog"
         aria-expanded={file !== null}
         onClick={pick}
       >
-        <IconDownload size={15} />
+        <IconDownload size={row ? 20 : 15} />
+        {row ? <span className="vtool__name">Import items</span> : null}
       </button>
       <input
         ref={fileRef}

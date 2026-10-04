@@ -6,11 +6,13 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { registerCommandBarFill } from "../lib/command-bar/focus.js";
+import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportIfMounted } from "../tutorial/support-access.js";
@@ -129,7 +131,9 @@ export function CommandBar() {
   const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => registerCommandBarFill(setValue), [setValue]);
+  const search = useFieldSearch({ value, setValue, inputRef });
 
   const choose = (suggestion: SlashSuggestion) => {
     setValue(suggestion.insert);
@@ -144,6 +148,10 @@ export function CommandBar() {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     suggestions.setDismissed(true);
+    if (search.live !== null) {
+      search.commit();
+      return;
+    }
     void run(value);
   };
 
@@ -154,6 +162,7 @@ export function CommandBar() {
           Command
         </label>
         <input
+          ref={inputRef}
           id="command-bar-input"
           className="command-bar__input"
           type="text"
@@ -172,7 +181,10 @@ export function CommandBar() {
           disabled={busy}
           onFocus={() => suggestions.setFocused(true)}
           onBlur={() => suggestions.setFocused(false)}
-          onKeyDown={(event) => suggestions.onKeyDown(event, choose)}
+          onKeyDown={(event) =>
+            search.onEscape(event, suggestions.open) ||
+            suggestions.onKeyDown(event, choose)
+          }
           onChange={(event) => {
             suggestions.setDismissed(false);
             setNotice(null);

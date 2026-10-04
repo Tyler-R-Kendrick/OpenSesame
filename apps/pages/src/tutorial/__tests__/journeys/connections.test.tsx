@@ -141,7 +141,7 @@ describe(
       // The second trajectory names a control that did not exist in the
       // vocabulary the first one was compiled against.
       expect(resolveGuideTargetElement("connections.provider-picker")).toBe(
-        screen.getByLabelText("Search connectors"),
+        screen.getByRole("combobox", { name: "Command" }),
       );
       // Still nothing navigated, and the second trajectory is parked on its own
       // boundary — the Authorization panel appearing.

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -13,6 +13,7 @@ import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultSection } from "./VaultSection.js";
 import { ItemDetail } from "./vault/ItemDetail.js";
+import "./vault/commands.test-support.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
 import { makeLogin } from "./vault/section-items.test-support.js";
 
@@ -87,18 +88,47 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?f=all");
   });
 
-  it("the tree's row carries import and export; New is the corner button and search is the prompt", () => {
+  it("the tree carries Import and Export as labelled rows, and no strip of keys", () => {
     renderVault("/vault");
-    const row = document.querySelector<HTMLElement>(".vault__tree");
-    expect(
-      row?.querySelector('[aria-label="Export items"], [title="Export items"]'),
-    ).not.toBeNull();
-    // No New key and no search key in the row: neither is drawn twice.
-    expect(row?.querySelector('[aria-label="New item"]')).toBeNull();
-    expect(row?.querySelector('[title="Search (/)"]')).toBeNull();
+    const tools = screen.getByRole("region", { name: "Vault tools" });
+    for (const name of ["Import items", "Export items"]) {
+      const row = within(tools).getByRole("button", { name });
+      // A word on the face, not a glyph a person has to decode.
+      expect(row.textContent).toBe(name);
+      expect(row.querySelector("svg")).not.toBeNull();
+    }
+    const tree = document.querySelector<HTMLElement>(".vault__tree");
+    expect(tree?.querySelector(".vtree__pathbar")).toBeNull();
+    expect(tree?.querySelector('[aria-label="New item"]')).toBeNull();
     const fab = document.querySelector<HTMLAnchorElement>(".vault > .fab");
     expect(fab?.getAttribute("aria-label")).toBe("New item");
     expect(fab?.getAttribute("href")).toMatch(/^\/vault\/new/);
+  });
+
+  it("the list's header is back and the view it shows, named; nothing else is a key", () => {
+    renderVault("/vault?f=all");
+    const bar = document.querySelector<HTMLElement>(
+      ".vault__list .vtree__pathbar",
+    );
+    const view = within(bar as HTMLElement).getByRole("button", {
+      name: /^Filter — /,
+    });
+    expect(view.textContent).toBe("All items");
+    expect(
+      within(bar as HTMLElement).getByRole("link", {
+        name: "Back to sections",
+      }),
+    ).toBeTruthy();
+    // New is the corner button; Import and Export are on the landing; search
+    // is the prompt. None is repeated in the header.
+    for (const name of ["New item", "Import items", "Export items"]) {
+      expect(
+        (bar as HTMLElement).querySelector(`[aria-label="${name}"]`),
+      ).toBeNull();
+    }
+    expect(
+      (bar as HTMLElement).querySelector('[title="Search (/)"]'),
+    ).toBeNull();
   });
 
   it("the corner button follows the tree and the list, and leaves the item and the trash alone", () => {

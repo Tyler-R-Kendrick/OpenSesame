@@ -14,10 +14,14 @@ import "./new-item-fab.css";
 export function NewItemFab({
   to,
   fabRef,
+  shown,
 }: {
   to: string;
   fabRef?: Ref<HTMLAnchorElement>;
+  /** Where the button is drawn: a phone's tree and list, never an item or the trash. */
+  shown: boolean;
 }) {
+  if (!shown) return null;
   return (
     <Link
       ref={fabRef}

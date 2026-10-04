@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 433,
-    "violations": 682,
+    "files": 432,
+    "violations": 681,
     "oversizedLines": 221446
   },
   "files": {
@@ -171,9 +171,6 @@
     },
     "apps/pages/src/sections/access/VaultSessionsPanel.tsx": {
       "max-lines-per-function": 2
-    },
-    "apps/pages/src/sections/connections/CatalogPanel.tsx": {
-      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/ConnectForm.tsx": {
       "max-lines-per-function": 1

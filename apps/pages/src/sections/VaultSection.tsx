@@ -30,7 +30,7 @@ import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
-import { VaultPathbar } from "./vault/VaultPathbar.js";
+import { VaultTools } from "./vault/VaultTools.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
@@ -214,12 +214,11 @@ export function VaultSection() {
       <div className="vault__tree" ref={treePaneRef}>
         {narrow ? (
           <>
-            {/* The list's own command row, so importing and backing up are
-                on the screen a phone opens on. New is the corner button. */}
-            <VaultPathbar
-              verbs={<VaultActions createPath={createPath} create={false} />}
-            />
             <NavTree />
+            {/* Import and Export act on the whole vault, so they are rows
+                under its sections rather than keys on a list. New is the
+                corner button. */}
+            <VaultTools />
           </>
         ) : null}
       </div>
@@ -266,8 +265,8 @@ export function VaultSection() {
                 />
               ) : (
                 <VaultActions
+                  hidden={narrow}
                   createPath={createPath}
-                  create={!narrow}
                   createRef={recordNewItem}
                 />
               )}
@@ -285,9 +284,11 @@ export function VaultSection() {
       {/* A phone's primary action, pinned to the corner of the tree and the
           list; the item's own screen has its own keys, and the trash has
           nothing to add to. */}
-      {narrow && showing !== "detail" && !inTrash ? (
-        <NewItemFab to={createPath} fabRef={recordNewItem} />
-      ) : null}
+      <NewItemFab
+        shown={narrow && showing !== "detail" && !inTrash}
+        to={createPath}
+        fabRef={recordNewItem}
+      />
     </div>
   );
 }

@@ -1,61 +1,65 @@
-# Search is the prompt's `/?` verb; New is a phone's corner button
+# One text input; actions redrawn for a phone
 
 Before/after from two real builds — the base (`49c9e438`, `main`) and this
-branch — same journey (`journey.json`), a touch context at 390 × 844 and
-320 × 568, and a mouse context at 1280 × 800. Steps marked `only` run on one
-side of the pair: the base has a search key to press, the branch has a verb
-to type.
+branch — same journey (`journey.json`): a vault seeded with 14 logins through
+the editor, a touch context at 390 × 844 and 320 × 568, a mouse context at
+1280 × 800. Steps marked `only` run on one side of the pair: the base has a
+search key to press, the branch has a verb to type.
 
-Measured in the browser (`capture-evidence.mjs` `measure` / `count`, and
-`verify:mobile` at 320, 390, 430 and landscape):
+Everything below is read from the browser (`capture-evidence.mjs` `measure` /
+`report`), and `verify:mobile` fails the build on the same facts at 320, 390,
+430 and landscape.
 
-| | before | after |
+| 390 × 844 | before | after |
 |---|---|---|
-| New item, 390 | key `44 × 44` in the top row | `56 × 56` circle at `318,716`, 16px above the statusline |
-| New item, 320 | key `44 × 44` in the top row | `56 × 56` circle at `248,408` |
-| Keys in the list's row, 390 | back, filter, +, import, export, search (six, `44 × 44`) | back, filter, import, export (four, `44 × 44`) |
-| Keys in the tree's row, 390 | +, import, export, search | import, export |
-| Search boxes drawn when searching, 390 | 2 — `.vtree__cmd` `390 × 55` above the status line, and the statusline's `248 × 44` prompt | 1 — the statusline's `248 × 44` prompt; `.vtree__cmd` count `0` |
-| Status line after `/? bank` | n/a | `-/- · /bank` (read from `.vault__status-meta`) |
-| Desktop 1280, corner buttons | 0 | 0 |
+| Text inputs on screen while searching | **2** — `352 × 44` (a `/` box above the status line) and the prompt `248 × 44` | **1** — the prompt, `248 × 44` |
+| What the list header holds | 6 unlabelled glyphs, each `44 × 44` (back, funnel, +, import, export, search) | back `44 × 44` and the view, named: `All items ▾` at `331 × 48` |
+| Import / Export | two bare arrows in a strip at the top | two labelled rows, `371 × 52` each, under the tree |
+| New item | a `44 × 44` glyph in the strip | a `56 × 56` corner button at `318,684`, above the status line and the prompt |
+| After Enter on a search | `/search ban` emptied the prompt and opened a bordered "Searching for…" box over it (from the command bar's code; the list never read the `?q=` it navigated to) | the words stay in the prompt; `.command-bar__status` absent (measured) |
+| Search `ban` | `2/14 · /ban` after typing in the second box | `2/14 · /ban` while typing in the prompt, before Enter |
+| 320 × 568 header | funnel `44 × 44` among six keys | `All items ▾` `261 × 48` |
+| 1280 × 800 list row | icon keys, one of them the `/` search key | the same icon keys without it (one fewer measured key); no corner button (`.fab` count `0`) |
 
 ## 1. Landing — 390
 
 ![Landing](390-landing.png)
 
-New leaves the top row for the corner, where a thumb already rests. The
-section tree keeps Import and Export above it.
+Import and Export say what they do, and sit under the tree they act on — they
+act on the whole vault, not on a list. No strip of keys above the tree. New is
+the corner button.
 
 ## 2. List — 390
 
 ![List](390-list.png)
 
-The corner button sits above the pane's status line and clear of the
-statusline's prompt. The empty-state tip now says "The + button" instead of
-"The + above".
+The header is back and the view the list is showing, named, as one choice the
+width of the rest. Narrowed is said in the accent colour.
 
 ## 3. Search — 390
 
 ![Search](390-search.png)
 
-Before: the search key opened a second `/` prompt above the status line, with
-the statusline's own prompt (whose hint already lists `search`) below it.
-After: `/? bank` is typed into that one prompt and run; the list narrows to
-the words (`?f=all&q=bank`). The "Searching for “bank”" notice is the command
-bar's own, and sits over the pane's status line until the next keystroke, so
-the `-/- · /bank` count is quoted from the browser above rather than visible
-here. Focus lands on the corner button because the guest vault is empty and
-an empty list hands the keyboard to its New control; in a vault with items it
-lands on the tree.
+Before: a search key opened a second `/` box above the status line, with the
+statusline's own prompt (whose hint already lists `search`) below it. After:
+`/? ban` is typed into that one prompt and the list narrows as it is typed,
+with the count in the status line. The same prompt searches Activity and the
+connector catalog; those screens' search keys and boxes are gone too.
 
-## 4. List — 320
+## 4. Enter keeps the words — 390
+
+![Search, committed](390-search-kept.png)
+
+Enter hands the keyboard to the list; the words stay in the prompt, no notice
+box opens over it, and Esc (in the prompt or the list) empties it.
+
+## 5. List — 320
 
 ![List at 320](320-list.png)
 
-## 5. Desktop — 1280
+## 6. Desktop — 1280
 
 ![Desktop](1280-vault.png)
 
-The list's row keeps New, Import and Export; there is no corner button. The
-`/` search key is gone from the row, and the `/` key on a keyboard writes
-`/? ` into the prompt and focuses it.
+The list's row keeps its icon keys for New, Import and Export. The `/` key on
+a keyboard writes `/? ` into the prompt and focuses it.

@@ -216,7 +216,11 @@ export type CommandAssistContribution = Readonly<{
 export type VaultCommandContribution = Readonly<{
   id: string;
   order: number;
-  Command: ComponentType;
+  /**
+   * Drawn as an icon key in the list's path strip on a desktop, and as a
+   * labelled full-width row among the vault's tools on a phone (`row`).
+   */
+  Command: ComponentType<{ row?: boolean }>;
 }>;
 
 export type BackgroundJobContribution = Readonly<{

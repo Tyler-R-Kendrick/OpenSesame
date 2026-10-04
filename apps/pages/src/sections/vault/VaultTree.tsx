@@ -13,7 +13,6 @@ import {
   tombPath,
 } from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconChevronRight } from "../../components/Icons.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
@@ -24,6 +23,7 @@ import { useClaimedDrags } from "../../lib/use-claimed-drags.js";
 import { VaultPathbar } from "./VaultPathbar.js";
 import { Decorations } from "./VaultRowDecorations.js";
 import { useMenuFlip } from "./use-menu-flip.js";
+import { useVaultSearch } from "./use-vault-search.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
 
@@ -69,11 +69,6 @@ export function VaultTree({
   emptyMessage,
 }: VaultTreeProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  // Search is the command bar's `/?` verb; the list only reads what it left
-  // in the address (`?q=`), so there is no second box to type into and a
-  // narrowed list survives opening an item and coming back.
-  const [params, setParams] = useSearchParams();
-  const query = params.get("q");
   const [cursor, setCursor] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const rowsRef = useRef<TreeRow[]>([]);
@@ -81,6 +76,7 @@ export function VaultTree({
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const treeRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
   useClaimedDrags(treeRef);
   const { listRef, menuAbove } = useMenuFlip(menuFor, treeRef);
   const onMenuClose = (restore: boolean) => {
@@ -102,19 +98,10 @@ export function VaultTree({
     setAndSaveCollapsedRef.current(next);
   });
 
-  // The keymap effect registers once; this hands it the live setter.
-  const clearQueryRef = useRef(() => {});
-  clearQueryRef.current = () => {
-    if (!params.has("q")) return;
-    setParams(
-      (current) => {
-        const next = new URLSearchParams(current);
-        next.delete("q");
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const { query, close: closeSearch } = useVaultSearch(paneRef, treeRef);
+  // The keymap effect registers once; this hands it the live close.
+  const closeSearchRef = useRef(closeSearch);
+  closeSearchRef.current = closeSearch;
 
   const tomb = vaultTreeSeams.activeTomb();
   const needle = (query ?? "").trim().toLowerCase();
@@ -256,7 +243,7 @@ export function VaultTree({
       },
       search: searchInCommandBar,
       closeSearch: () => {
-        clearQueryRef.current();
+        closeSearchRef.current();
         treeRef.current?.focus();
       },
       copySecret: withItem((item) => actionsRef.current.copySecret(item)),
@@ -278,7 +265,7 @@ export function VaultTree({
       : `${items.length || "-"}/${total || "-"} · ${title}`;
 
   return (
-    <div className="vtree">
+    <div className="vtree" ref={paneRef}>
       <VaultPathbar verbs={verbs} />
       {items.length === 0 ? (
         <div className="empty">

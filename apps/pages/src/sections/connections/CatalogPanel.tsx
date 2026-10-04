@@ -15,11 +15,7 @@ import { Link, useLocation } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconChevronRight, IconInfo, IconX } from "../../components/Icons.js";
-import {
-  SlashSearchField,
-  SlashSearchKey,
-  useListingSearch,
-} from "../../components/SlashSearch.js";
+import { useListingSearch } from "../../components/SlashSearch.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
@@ -47,9 +43,13 @@ export function CatalogPanel({
     if (hash.startsWith("#catalog-")) search.close();
   }, [hash, search.close]);
   const panelRef = useGuideTarget<HTMLElement>("connections.catalog");
-  const searchKeyRef = useGuideTarget<HTMLButtonElement>(
-    "connections.provider-picker",
-  );
+  // The catalog is searched in the status-line prompt, so the guide points
+  // at that field while this panel is on screen.
+  const pickerRef = useGuideTarget<HTMLElement>("connections.provider-picker");
+  useEffect(() => {
+    pickerRef(document.getElementById("command-bar-input"));
+    return () => pickerRef(null);
+  }, [pickerRef]);
   const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
   const catalogProviders = (providers ?? []).filter(
     isConnectionCatalogProvider,
@@ -64,15 +64,6 @@ export function CatalogPanel({
     <section id="catalog" className="panel" ref={panelRef}>
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
-        <div className="conn-catalog__tools">
-          <div className="vtree__keys">
-            <SlashSearchKey
-              navRef={searchKeyRef}
-              onOpen={search.open}
-              label="Search connectors"
-            />
-          </div>
-        </div>
       </div>
 
       <div className="panel__body">
@@ -130,15 +121,6 @@ export function CatalogPanel({
           </>
         )}
       </div>
-      {search.query !== null ? (
-        <SlashSearchField
-          query={search.query}
-          onChange={(value) => search.setQuery(value)}
-          onClose={search.close}
-          inputRef={search.inputRef}
-          label="Search connectors"
-        />
-      ) : null}
     </section>
   );
 }

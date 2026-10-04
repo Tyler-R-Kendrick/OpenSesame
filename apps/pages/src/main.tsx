@@ -18,7 +18,6 @@ import { ResetGate } from "./screens/unlock/ResetGate.js";
 // 44px floor that way. Order here is the order the bundle always had.
 import "./components/command-bar.css";
 import "./components/connections-tree.css";
-import "./components/slash-search.css";
 import "./components/statusline.css";
 import "./components/wordmark.css";
 import "./sections/vault.css";

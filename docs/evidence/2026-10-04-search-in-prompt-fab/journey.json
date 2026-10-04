@@ -6,21 +6,51 @@
       "height": 844,
       "steps": [
         { "guest": null },
+        {
+          "seed": [
+            "Amazon",
+            "Apple ID",
+            "Bank of Example",
+            "Bankwest",
+            "Cloudflare",
+            "Dropbox",
+            "Figma",
+            "GitHub",
+            "Gmail",
+            "Linear",
+            "Netflix",
+            "Notion",
+            "Slack",
+            "Stripe"
+          ]
+        },
+        { "visit": "vault" },
         { "shot": "390-landing" },
+        {
+          "measure": ".vault__tree .vtree__keys a, .vault__tree .vtree__keys button"
+        },
+        { "measure": ".vault__tree .vtool" },
         { "measure": ".fab" },
-        { "measure": ".vault__tree .vtree__keys a, .vault__tree .vtree__keys button" },
         { "visit": "vault?f=all" },
         { "shot": "390-list" },
+        {
+          "measure": ".vault__list .vtree__keys a, .vault__list .vtree__keys button"
+        },
+        { "measure": ".vfilter__open" },
         { "measure": ".fab" },
-        { "measure": ".vtree__keys a, .vtree__keys button" },
         { "only": "before", "pressOptional": "Search \\(/\\)" },
-        { "only": "before", "shot": "390-search" },
-        { "only": "before", "count": ".vtree__cmd" },
-        { "only": "before", "measure": ".vtree__cmd, #command-bar-input" },
-        { "only": "after", "command": "/? bank" },
-        { "only": "after", "shot": "390-search" },
-        { "only": "after", "count": ".vtree__cmd" },
-        { "only": "after", "measure": "#command-bar-input" },
+        {
+          "only": "before",
+          "fill": { "label": "Search items", "text": "ban" }
+        },
+        { "only": "after", "fill": { "label": "Command", "text": "/? ban" } },
+        { "shot": "390-search" },
+        { "measure": "input:not([type=file]):not(.visually-hidden)" },
+        { "report": ".vault__status-meta" },
+        { "only": "before", "shot": "390-search-kept" },
+        { "only": "after", "command": "/? ban" },
+        { "only": "after", "shot": "390-search-kept" },
+        { "only": "after", "measure": ".command-bar__status" },
         { "only": "after", "report": ".vault__status-meta" }
       ]
     },
@@ -29,9 +59,13 @@
       "height": 568,
       "steps": [
         { "guest": null },
+        {
+          "seed": ["Amazon", "Bankwest", "GitHub", "Gmail", "Netflix", "Slack"]
+        },
         { "visit": "vault?f=all" },
         { "shot": "320-list" },
-        { "measure": ".fab" }
+        { "measure": ".fab" },
+        { "measure": ".vfilter__open" }
       ]
     },
     {
@@ -51,39 +85,47 @@
       "shot": "390-landing",
       "width": 390,
       "title": "Landing — 390 × 844",
-      "caption": "New is the one primary action: a corner button under the thumb. The row above the tree keeps Import and Export.",
-      "before": "New is the first key in the row at the top",
-      "after": "New is a 56px circle in the bottom right; the row no longer carries New or search"
+      "caption": "Import and Export are rows that say what they do, under the tree they act on. New is the corner button.",
+      "before": "no tool rows; add, import, export and search as bare glyphs in a strip at the top",
+      "after": "52px labelled rows under the tree; a 56px corner button; no strip"
     },
     {
       "shot": "390-list",
       "width": 390,
       "title": "List — 390 × 844",
-      "caption": "The corner button rides above the pane's status line and the statusline's prompt; the search key is gone from the row.",
-      "before": "back, filter, +, import, export and search in a row at the top",
-      "after": "back, filter, import, export in the row; + is the corner button"
+      "caption": "The header is back and the view the list is showing, named, as one wide choice. The corner button rides above the status line and the prompt.",
+      "before": "back, funnel, +, import, export and search as six unlabelled glyphs",
+      "after": "back and `All items ▾` across the width; `+` is the corner button"
     },
     {
       "shot": "390-search",
       "width": 390,
       "title": "Search — 390 × 844",
-      "caption": "Search is a verb of the prompt that already lists it. Before, the search key opened a second prompt above the first; after, `/? bank` is typed into the one prompt and the list narrows.",
-      "before": "a second `/` prompt drawn above the status line, with the statusline's own prompt below it",
-      "after": "one prompt; the status line reads the narrowed count and `/bank`"
+      "caption": "Search is typed into the one text input and the list narrows as it is typed. Before, a search key opened a second box above the first.",
+      "before": "two text inputs: a `/` box above the status line, and the prompt below it",
+      "after": "one text input, `/? ban`; the list holds 2 of 14 and the status line says so"
+    },
+    {
+      "shot": "390-search-kept",
+      "width": 390,
+      "title": "Enter keeps the words — 390 × 844",
+      "caption": "Enter commits: the keyboard leaves the field and the words stay in it. Nothing opens over the prompt.",
+      "before": "n/a — the old search key had no such state",
+      "after": "words kept in the prompt; no notice box; list still narrowed"
     },
     {
       "shot": "320-list",
       "width": 320,
       "title": "List — 320 × 568",
-      "caption": "The narrowest phone: the corner button clears the status line and the prompt.",
-      "before": "+ and search among six keys in the row",
-      "after": "corner + button"
+      "caption": "The narrowest phone: header, rows and corner button all fit, and the button clears the status line and prompt.",
+      "before": "six glyph keys in the header",
+      "after": "named view across the header; corner button"
     },
     {
       "shot": "1280-vault",
       "width": 1280,
       "title": "Desktop — 1280 × 800",
-      "caption": "Unchanged apart from the search key: the list's row keeps New, Import and Export, and there is no corner button.",
+      "caption": "Unchanged apart from the search key: the list keeps its icon keys for New, Import and Export, and there is no corner button.",
       "before": "rail + list + buffer; a `/` search key in the list's row",
       "after": "identical without the `/` key; `/` on the keyboard writes `/? ` into the prompt"
     }

@@ -86,7 +86,7 @@ export const LAYOUT_AUDIT =
   //     the fault; a phone's fields fill their row by design.
   const vw = document.documentElement.clientWidth;
   if (vw > 900) {
-    const SPAN = ".command-bar, .vtree__cmd, .codefield, .set-raw, .slash";
+    const SPAN = ".command-bar, .codefield, .set-raw, .slash";
     for (const field of document.querySelectorAll("main input, main select, main textarea")) {
       if (!drawn(field) || field.closest(SPAN)) continue;
       const type = (field.getAttribute("type") || "").toLowerCase();

@@ -131,8 +131,11 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** The path strip's Export key: opens the encrypted-backup sheet. */
-export function ExportKey() {
+/**
+ * The path strip's Export key: opens the encrypted-backup sheet. On a phone
+ * (`row`) it is a labelled row among the vault's tools instead.
+ */
+export function ExportKey({ row = false }: { row?: boolean }) {
   const guideRef = useGuideTarget<HTMLButtonElement>("vault.export");
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -141,14 +144,15 @@ export function ExportKey() {
       <button
         ref={guideRef}
         type="button"
-        className="icon-btn icon-btn--sm"
+        className={row ? "choice vtool" : "icon-btn icon-btn--sm"}
         aria-label="Export items"
         title="Export encrypted vault"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        <IconUpload size={15} />
+        <IconUpload size={row ? 20 : 15} />
+        {row ? <span className="vtool__name">Export items</span> : null}
       </button>
       {open ? <ExportSheet onClose={close} /> : null}
     </>

@@ -7,7 +7,7 @@ import {
   executeCommand,
   matchItem,
 } from "./execute.js";
-import { parseCommand } from "./parse.js";
+import { liveSearchOf, parseCommand } from "./parse.js";
 import {
   COMMAND_SECTIONS,
   commandSections,
@@ -260,5 +260,28 @@ describe("executeCommand navigate", () => {
       ),
     ).toEqual({ ok: false, message: NOT_AVAILABLE_MESSAGE });
     expect(navigated).toEqual(["/connections"]);
+  });
+});
+
+describe("liveSearchOf", () => {
+  it("reads the words once `/?` or `/search` is followed by a space", () => {
+    expect(liveSearchOf("/? bank")).toBe("bank");
+    expect(liveSearchOf("/search  bank card")).toBe("bank card");
+    expect(liveSearchOf("  /? x")).toBe("x");
+    expect(liveSearchOf("/? ")).toBe("");
+  });
+
+  it("is null for anything else, including a bare `/?` that is help", () => {
+    for (const text of [
+      "",
+      "/?",
+      "/search",
+      "/?bank",
+      "search bank",
+      "/open bank",
+      "bank",
+    ]) {
+      expect(liveSearchOf(text)).toBeNull();
+    }
   });
 });

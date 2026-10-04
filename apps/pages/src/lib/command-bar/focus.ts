@@ -1,3 +1,6 @@
+import { liveSearchOf } from "@opensesame/app-core/lib/command-bar/parse.js";
+import { liveSearch } from "./search.js";
+
 /** Focus and chrome chords for the shell omnibox. */
 
 let micToggle: (() => void) | null = null;
@@ -26,13 +29,18 @@ export function registerCommandBarFill(
 /**
  * Search is the command bar's `/?` verb, not a second box beside it. The `/`
  * key and a row's Search entry land here: the field holds `/? ` and the caret
- * stands after it, ready for the words.
+ * stands after it, ready for the words. Words already typed are kept.
  */
 export function searchInCommandBar(): void {
   const input = document.getElementById("command-bar-input");
   if (!(input instanceof HTMLInputElement)) return;
   input.focus();
-  fillField?.("/? ");
+  if (liveSearchOf(input.value) === null) fillField?.("/? ");
+}
+
+/** Empty the field when it holds a search, which drops the listing's filter. */
+export function clearCommandBarSearch(): void {
+  if (liveSearch() !== null) fillField?.("");
 }
 
 /** CommandBar registers its listen toggle so the keymap can fire `m`. */

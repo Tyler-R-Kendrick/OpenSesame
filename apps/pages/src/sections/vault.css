@@ -48,21 +48,49 @@
   }
 }
 
-.vfilter__open {
-  position: relative;
+/* The view the list is showing, as a choice a thumb can hit: the header's
+   whole width, 48px tall, set in the interface face. Narrowed is said in the
+   accent colour, not a dot to be decoded. */
+.vfilter {
+  flex: 1;
+  min-width: 0;
 }
 
-/* The dot says the list in front of you is narrower than the vault. "All
-   items" is the resting state and earns none. */
-.vfilter__open.is-narrowed::after {
-  content: "";
-  position: absolute;
-  top: 20%;
-  right: 20%;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+.vfilter__open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 3rem;
+  margin: 0;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--ui);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vfilter__open:active {
+  background: var(--surface-3);
+}
+
+.vfilter__open.is-narrowed {
+  color: var(--accent);
+}
+
+.vfilter__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vfilter__roads {
@@ -343,38 +371,6 @@
   bottom: 100%;
 }
 
-.vtree__cmd {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.75rem;
-  border-top: 1px solid var(--line);
-  background: var(--surface-2);
-}
-
-.vtree__prompt {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.vtree__cmd input {
-  flex: 1;
-  min-width: 0;
-  max-width: none;
-  min-height: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  caret-color: var(--accent);
-}
-
-.vtree__cmd input:focus {
-  outline: none;
-}
-
 .vault__status {
   flex: none;
   display: flex;
@@ -423,10 +419,6 @@
 }
 
 .detail .detail__backbtn {
-  display: none;
-}
-
-.vtree__key-touch {
   display: none;
 }
 
@@ -726,15 +718,6 @@
     display: none;
   }
 
-  /* `/` is a typed character; a finger looks for the thing it does. */
-  .vtree__key-glyph {
-    display: none;
-  }
-
-  .vtree__key-touch {
-    display: block;
-  }
-
   .vtree__key:not(.vtree__key--help) {
     display: inline-grid;
     place-items: center;
@@ -746,12 +729,6 @@
   .vtree [role="treeitem"],
   .railtree [role="treeitem"] {
     touch-action: pan-y;
-  }
-
-  /* A field under 16px makes iOS zoom the page on focus and never zoom back. */
-  .vtree__cmd input {
-    min-height: 2.75rem;
-    font-size: 16px;
   }
 }
 
@@ -1132,21 +1109,21 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
-  /* The list's command row, at the head of the tree: full-bleed over the
-     pane's padding and pinned, so the verbs stay in reach while the tree
-     scrolls under them. The tree's own colours, not the list's. */
-  .vault__tree > .vtree__pathbar {
-    position: sticky;
-    top: -0.25rem;
-    z-index: 1;
+  /* The list's header on a phone: back, then the view it is showing as one
+     choice the width of the rest, both at a thumb's height. */
+  .vault__list .vtree__pathbar {
     justify-content: flex-start;
     gap: 0.25rem;
-    margin: -0.25rem calc(-0.6rem - env(safe-area-inset-right)) 0.25rem
-      calc(-0.6rem - env(safe-area-inset-left));
-    padding: 0.15rem calc(0.6rem + env(safe-area-inset-right)) 0.15rem
-      calc(0.6rem + env(safe-area-inset-left));
-    background: var(--rail);
-    border-bottom: 1px solid var(--rail-line, var(--line));
+    padding: 0.25rem calc(0.35rem + env(safe-area-inset-right)) 0.25rem
+      calc(0.35rem + env(safe-area-inset-left));
+  }
+
+  .vault__list .vtree__pathbar > .vtree__keys {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
   }
 
   .detail {
