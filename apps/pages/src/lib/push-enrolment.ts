@@ -86,10 +86,25 @@ function unreachable(refusal: EgressDenialCode | null): PushError {
   );
 }
 
-/** 404: the deployment has no such route; 409: another principal holds the endpoint. */
-function refusalCode(status: number): PushErrorCode {
+/**
+ * 404: the deployment has no such route. 409 has two meanings the service
+ * tells apart: another principal holds the endpoint (a fresh subscription
+ * recovers it), or this principal is at its limit (nothing here recovers it,
+ * and a fresh subscription would only be made to be taken back).
+ */
+function refusalCode(status: number, reason: string | null): PushErrorCode {
   if (status === 404) return "unsupported";
-  return status === 409 ? "conflict" : "failed";
+  if (status === 409 && reason === "endpoint_already_registered")
+    return "conflict";
+  return "failed";
+}
+
+async function reasonOf(res: Response): Promise<string | null> {
+  const body: BoundaryValue = await res
+    .clone()
+    .json()
+    .catch(() => null);
+  return isJsonObject(body) && isString(body.error) ? body.error : null;
 }
 
 async function authorized(
@@ -123,7 +138,7 @@ async function authorized(
     }
     if (!res.ok && !tolerate.includes(res.status)) {
       throw new PushError(
-        refusalCode(res.status),
+        refusalCode(res.status, await reasonOf(res)),
         `The server refused that (${res.status}).`,
       );
     }

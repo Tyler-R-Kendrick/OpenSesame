@@ -209,6 +209,22 @@ describe("enrolment", () => {
     expect(mine.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("does not resubscribe when the principal is at its subscription limit (409)", async () => {
+    const mine = subscription();
+    const subscribe = vi.fn(async () => mine);
+    worker(null, subscribe);
+    fetchFn.mockResolvedValueOnce(keyReply());
+    fetchFn.mockResolvedValueOnce(
+      json({ error: "subscription_limit_reached" }, 409),
+    );
+    const refusal = await enablePush(ENROL).catch((caught) => caught);
+    expect(refusal).toMatchObject({ code: "failed" });
+    expect(refusal.message).toMatch(/refused that \(409\)/);
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(mine.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
   it("does not call a policy refusal the service being unreachable", async () => {
     worker(null);
     fetchFn.mockRejectedValueOnce(
