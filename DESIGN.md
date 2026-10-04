@@ -349,6 +349,11 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.
+  A sideways swipe on a listing is the page's whole: `claimHorizontalDrags`
+  cancels its `touchmove`, because `touch-action: pan-y` alone leaves the
+  browser a fling to run, and a tap that lands on one (the menu's first entry,
+  reached for the moment the sheet is up) is spent stopping it and never
+  clicks. `verify:mobile` taps that entry straight after the lift.
 - **Keyboard tips stay off touch-primary surfaces; one with a touch twin swaps
   to it there.** No line a finger reads names a key (`Esc`, `Enter`, `n`, `/`,
   `?`, `j/k`, `gv`). `EmptyTip` and the welcome buffer's key line draw a keys

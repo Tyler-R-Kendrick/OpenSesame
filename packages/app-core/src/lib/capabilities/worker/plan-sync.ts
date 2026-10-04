@@ -16,10 +16,12 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { workerControllerSeams } from "./seams.js";
 import { diagnose, publish, state } from "./state.js";
-import type {
-  CompositionSnapshotForWorker,
-  PageToWorkerMessage,
+import {
+  type CompositionSnapshotForWorker,
+  type PageToWorkerMessage,
+  TAKEOVER_WAIT_MS,
 } from "./types.js";
 
 export function postToController(message: PageToWorkerMessage): boolean {
@@ -31,6 +33,67 @@ export function postToController(message: PageToWorkerMessage): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Ask the controlling worker who it is, unless that is already out and
+ * unanswered. Returns whether a question is now in flight.
+ */
+export function askWorker(): boolean {
+  if (state.helloPending) return true;
+  state.helloPending = postToController({ type: "WORKER_HELLO" });
+  return state.helloPending;
+}
+
+/** Reload the page for a new release: once, as it always did. */
+export function reloadOnce(): void {
+  if (state.reloadStarted) return;
+  state.reloadStarted = true;
+  workerControllerSeams.reload();
+}
+
+/**
+ * A new worker took the page. Another release may have deleted assets the
+ * shell this page was served by references, so a change of release reloads —
+ * as it always did. A change of *variant* within the release this page runs
+ * (Push notifications approved or removed, here or in another tab of the same
+ * origin) strands nothing, and a reload would end whatever the person is in
+ * the middle of — an unlocked vault included. So the new worker is asked which
+ * release it is and the page reloads only when that is not the release it
+ * booted under. A page that does not know its release (its first load, before
+ * any worker controlled it), a worker that does not answer in time, and a
+ * controller that cannot be reached all reload.
+ */
+export function onControllerChange(): void {
+  state.takeover?.cancel();
+  state.takeover = null;
+  state.helloPending = false;
+  if (state.bootReleaseId === null || !askWorker()) {
+    reloadOnce();
+    return;
+  }
+  state.takeover = {
+    cancel: workerControllerSeams.later(() => {
+      state.takeover = null;
+      reloadOnce();
+    }, TAKEOVER_WAIT_MS),
+  };
+}
+
+/** The answer to a takeover's question: stay, or reload for a new release. */
+function settleTakeover(releaseId: string): void {
+  state.takeover?.cancel();
+  state.takeover = null;
+  if (releaseId !== state.bootReleaseId) {
+    reloadOnce();
+    return;
+  }
+  // Same release, another worker: nothing is stale. Forget what the previous
+  // worker was told, introduce the plan to this one, and re-read which variant
+  // now holds the scope.
+  state.lastPlanKey = null;
+  state.postedPlan = null;
+  state.afterTakeover?.();
 }
 
 /** Page-loadable module ids: a `<capability>/worker` unit is the variant's. */
@@ -55,7 +118,7 @@ export function syncPlan(snapshot: CompositionSnapshotForWorker): void {
   }
   if (!state.container?.controller) return;
   if (!state.workerReleaseId) {
-    postToController({ type: "WORKER_HELLO" });
+    askWorker();
     return;
   }
   const moduleIds = pageModuleIds(plan);
@@ -90,13 +153,17 @@ function onPlanRejected(reason: BoundaryValue): void {
 
 function onWorkerInfo(releaseId: BoundaryValue): void {
   if (!isString(releaseId)) return;
+  state.helloPending = false;
   state.workerReleaseId = releaseId;
+  if (state.bootControlled && state.bootReleaseId === null)
+    state.bootReleaseId = releaseId;
   // Another release keeps its own caches: nothing is known saved in them yet,
   // and a plan posted to the old one is not this one's to answer.
   if (releaseId !== state.status.releaseId) {
     state.postedPlan = null;
     publish({ releaseId, savedModuleIds: [] });
   } else publish({ releaseId });
+  if (state.takeover) settleTakeover(releaseId);
   if (state.latest) syncPlan(state.latest);
 }
 

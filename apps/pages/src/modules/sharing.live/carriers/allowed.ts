@@ -12,6 +12,7 @@
  * WebSocket, so an `https://` twin does not stand in for it.
  */
 
+import { LIVE_CARRIER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import type { EgressPort } from "@opensesame/app-core/lib/capabilities/egress.js";
 import {
   type Refusal,
@@ -23,12 +24,11 @@ import type { EffectivePlan } from "@opensesame/capability-composition";
 export const CAPABILITY = "sharing.live";
 
 /**
- * The declared purpose of this capability's external-service egress
- * (`catalog-optional-vault.ts`); egress classifies a request by it, and a
- * drift test holds the two together.
+ * The declared purpose of this capability's external-service egress, read
+ * from the catalog's own declaration (`catalog-optional-vault.ts`): egress
+ * classifies a request by it, exactly.
  */
-export const CARRIER_PURPOSE =
-  "only STUN/TURN servers and code carriers (Nostr, MQTT, NATS, ntfy) the owner names in Routes; joiners see them first";
+export const CARRIER_PURPOSE = LIVE_CARRIER_PURPOSE;
 
 /** What egress is told about every carrier request. */
 export const CARRIER_META = {

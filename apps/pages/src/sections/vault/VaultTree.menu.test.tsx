@@ -85,7 +85,31 @@ function draw(items: VaultItem[] = [makeLogin(), makeNote()]) {
   );
 }
 
+/** A one-finger touch event, carrying only what the drag claim reads. */
+function touch(type: string, x: number, y: number): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "touches", {
+    value: type === "touchend" ? [] : [{ clientX: x, clientY: y }],
+  });
+  return event;
+}
+
 describe("the vault listing's context menu", () => {
+  it("keeps the browser out of a row's sideways swipe, so no fling eats the first tap", () => {
+    draw();
+    const row = screen.getByText("Webmail");
+    const tree = screen.getByRole("tree", { name: "Vault items" });
+    row.dispatchEvent(touch("touchstart", 300, 100));
+    const sideways = touch("touchmove", 240, 102);
+    row.dispatchEvent(sideways);
+    expect(sideways.defaultPrevented).toBe(true);
+    row.dispatchEvent(touch("touchend", 0, 0));
+    tree.dispatchEvent(touch("touchstart", 300, 100));
+    const scroll = touch("touchmove", 298, 180);
+    tree.dispatchEvent(scroll);
+    expect(scroll.defaultPrevented).toBe(false);
+  });
+
   it("gives an item the verbs its keys run, with the keys shown", () => {
     draw();
     fireEvent.contextMenu(screen.getByText("Webmail"));
