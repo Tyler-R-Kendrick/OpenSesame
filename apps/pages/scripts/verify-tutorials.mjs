@@ -128,6 +128,13 @@ async function sealedShell(width) {
   });
   say("  opening the door");
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  // The app root is a lazy chunk: on a slow runner the network goes idle before
+  // the door is drawn, and passTheDoor looks once. Wait for either screen.
+  await page
+    .getByRole("button", { name: "Set up your own" })
+    .or(page.getByRole("heading", { level: 1, name: "Sign in" }))
+    .first()
+    .waitFor({ timeout: 30000 });
   await passTheDoor(page);
   say("  sealing a vault");
   await sealLocalOnly(page);
