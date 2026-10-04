@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "shot": "390-landing" },
+        { "pressOptional": "Search \\(/\\)" },
+        { "shot": "390-search" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-vault" }]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-landing",
+      "width": 390,
+      "title": "Landing — 390 × 844",
+      "caption": "The command row sits above the section tree: new item, import, export and search are one tap from the screen the vault opens on.",
+      "before": "section tree alone; add, import, export and search only exist on the list a pane away",
+      "after": "section tree under a pinned command row of keys, each 44px"
+    },
+    {
+      "shot": "390-search",
+      "width": 390,
+      "title": "Search from the tree — 390 × 844",
+      "caption": "The tree's search key opens the list of everything with its search prompt already focused.",
+      "before": "no search key on the landing; nothing happens",
+      "after": "list of all items with the search prompt open and focused"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop — 1280 × 800",
+      "caption": "Unchanged: the rail carries the tree and the list keeps its own command row.",
+      "before": "rail + list + buffer",
+      "after": "identical; the vault pane draws no tree and no second command row"
+    }
+  ]
+}
