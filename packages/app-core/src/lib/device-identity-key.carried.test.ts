@@ -100,7 +100,12 @@ describe("a key the vault body carries", () => {
 
   it("refuses a carried record of a newer version, and mints nothing beside it", async () => {
     const tomb = await openTomb();
-    const carried: JsonObject = { version: 2, from: "a newer build" };
+    const carried: JsonObject = {
+      version: 2,
+      keyId: "k".repeat(43),
+      publicJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      from: "a newer build",
+    };
     body.set(tomb, carried);
     await expect(ensureDeviceIdentityKey(tomb)).rejects.toMatchObject({
       code: "unreadable",
@@ -109,6 +114,28 @@ describe("a key the vault body carries", () => {
       code: "not-found",
     });
     expect(body.get(tomb)).toBe(carried);
+  });
+
+  it("does not let a high version number on something that is not a key freeze the vault", async () => {
+    // A bare `{ "version": 9 }` is no newer build's record: honouring it would
+    // let anyone who can write a body stop the principal from ever being made.
+    for (const carried of [
+      { version: 9 },
+      { version: 9, keyId: "k".repeat(43) },
+      {
+        version: 9,
+        keyId: "k".repeat(43),
+        publicJwk: {},
+        pad: "x".repeat(9000),
+      },
+    ]) {
+      const tomb = await openTomb();
+      body.set(tomb, carried);
+      const key = await ensureDeviceIdentityKey(tomb);
+      expect(readDeviceIdentityKeyRecord(body.get(tomb) ?? {})?.keyId).toBe(
+        key.keyId,
+      );
+    }
   });
 
   it("treats a forged carried record as no key: it mints, and the mint replaces the forgery", async () => {

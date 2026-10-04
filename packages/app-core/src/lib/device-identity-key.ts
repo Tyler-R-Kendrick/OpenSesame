@@ -93,10 +93,9 @@ function parseBytes(
   bytes: Uint8Array,
 ): Promise<DeviceIdentityKeyRecord | null> {
   try {
-    return trustedDeviceKey(
-      JSON.parse(new TextDecoder().decode(bytes)),
-      Number.MAX_SAFE_INTEGER - DEVICE_KEY_CLOCK_MARGIN_MS,
-    );
+    return trustedDeviceKey(JSON.parse(new TextDecoder().decode(bytes)), {
+      now: Number.MAX_SAFE_INTEGER - DEVICE_KEY_CLOCK_MARGIN_MS,
+    });
   } catch {
     return Promise.resolve(null);
   }

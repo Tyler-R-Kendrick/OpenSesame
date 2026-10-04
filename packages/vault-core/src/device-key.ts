@@ -30,7 +30,31 @@ import {
 /** The tomb path the working copy lives at, and the name every lister prints. */
 export const DEVICE_IDENTITY_KEY_PATH = "config/device-identity-key";
 
-const THUMBPRINT = /^[A-Za-z0-9_-]{43}$/;
+/** The base64url alphabet, in value order, so a character's index is its sextet. */
+const ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/**
+ * 32 bytes in base64url: 43 characters, 258 bits, the last two of them padding.
+ * Only the form an encoder writes is read: a last character whose padding bits
+ * are not zero names the same bytes as another string, and WebCrypto and a
+ * hash would each accept both, so one key would have many ids and many
+ * principals. Checked before anything is hashed or parsed.
+ */
+export function isCanonicalCoordinate(value: BoundaryValue): value is string {
+  return (
+    isString(value) &&
+    value.length === 43 &&
+    [...value].every((char) => ALPHABET.includes(char)) &&
+    ALPHABET.indexOf(value.charAt(42)) % 4 === 0
+  );
+}
+
+/** The longest private JWK a record may hold; a real one is about 250 characters. */
+export const DEVICE_KEY_MAX_PRIVATE_JWK_CHARS = 4096;
+
+/** The longest a record of a version this build does not read may be, as JSON. */
+export const DEVICE_KEY_MAX_FUTURE_CHARS = 8192;
 
 /**
  * How far past this device's clock a record's `createdAt` may sit. A key
@@ -39,6 +63,42 @@ const THUMBPRINT = /^[A-Za-z0-9_-]{43}$/;
  * a forged date decide it. Both ends are read as untrusted, never as old.
  */
 export const DEVICE_KEY_CLOCK_MARGIN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The window a key's `createdAt` must sit in: `notBefore` (a vault's own key
+ * is minted after the vault is, give or take a clock) to `now`, with the
+ * clock margin allowed past `now` when a record is read.
+ */
+export type DeviceKeyTimeBounds = Readonly<{ now: number; notBefore: number }>;
+
+/**
+ * The window for a vault whose header says it was created at `createdAt`
+ * (an ISO time): no key of its own predates it by more than the margin.
+ */
+export function deviceKeyTimeBounds(
+  createdAt: string | undefined,
+  now: number = Date.now(),
+): DeviceKeyTimeBounds {
+  const born = createdAt === undefined ? Number.NaN : Date.parse(createdAt);
+  const floor = Number.isFinite(born) ? born - DEVICE_KEY_CLOCK_MARGIN_MS : 1;
+  return { now, notBefore: Math.min(Math.max(1, Math.floor(floor)), now) };
+}
+
+/**
+ * `record` with `createdAt` brought inside the window: never later than `now`
+ * (a clock that ran ahead, or a file written by one) and never before
+ * `notBefore`. The key is the same key; only the date it ranks by moves.
+ */
+export function clampDeviceKeyTime(
+  record: DeviceIdentityKeyRecord,
+  bounds: DeviceKeyTimeBounds,
+): DeviceIdentityKeyRecord {
+  const createdAt = Math.min(
+    Math.max(record.createdAt, bounds.notBefore),
+    bounds.now,
+  );
+  return createdAt === record.createdAt ? record : { ...record, createdAt };
+}
 
 export type DeviceIdentityKeyRecord = Readonly<{
   version: 1;
@@ -60,14 +120,15 @@ export type DeviceIdentityKeyRecord = Readonly<{
 export function readDeviceIdentityKeyRecord(
   value: BoundaryValue,
   now: number = Date.now(),
+  notBefore = 1,
 ): DeviceIdentityKeyRecord | null {
   if (!isJsonObject(value) || value.version !== 1) return null;
   const pub = value.publicJwk;
   if (
-    !isString(value.keyId) ||
-    !THUMBPRINT.test(value.keyId) ||
+    !isCanonicalCoordinate(value.keyId) ||
     !isString(value.privateJwkJson) ||
-    !plausibleTime(value.createdAt, now) ||
+    value.privateJwkJson.length > DEVICE_KEY_MAX_PRIVATE_JWK_CHARS ||
+    !plausibleTime(value.createdAt, now, notBefore) ||
     !isP256Public(pub)
   ) {
     return null;
@@ -81,12 +142,16 @@ export function readDeviceIdentityKeyRecord(
   };
 }
 
-/** A whole, positive time no later than a day past `now`. */
-function plausibleTime(value: BoundaryValue, now: number): value is number {
+/** A whole time from `notBefore` to a day past `now`. */
+function plausibleTime(
+  value: BoundaryValue,
+  now: number,
+  notBefore: number,
+): value is number {
   return (
     isNumber(value) &&
     Number.isSafeInteger(value) &&
-    value > 0 &&
+    value >= Math.max(1, notBefore) &&
     value <= now + DEVICE_KEY_CLOCK_MARGIN_MS
   );
 }
@@ -98,8 +163,29 @@ function isP256Public(
     isJsonObject(value) &&
     value.kty === "EC" &&
     value.crv === "P-256" &&
-    isString(value.x) &&
-    isString(value.y)
+    isCanonicalCoordinate(value.x) &&
+    isCanonicalCoordinate(value.y)
+  );
+}
+
+/**
+ * A record of a version this build does not read, shaped as far as any
+ * version is: a whole version above 1, a key id and a public JWK, and small.
+ * Such a record is a newer build's and is left alone; anything else that
+ * merely claims a high version is not, and must not freeze carrying.
+ */
+export function isFutureDeviceKeyRecord(
+  value: BoundaryValue,
+): value is JsonObject {
+  return (
+    isJsonObject(value) &&
+    isNumber(value.version) &&
+    Number.isSafeInteger(value.version) &&
+    value.version > 1 &&
+    isString(value.keyId) &&
+    value.keyId.length <= 128 &&
+    isJsonObject(value.publicJwk) &&
+    JSON.stringify(value).length <= DEVICE_KEY_MAX_FUTURE_CHARS
   );
 }
 

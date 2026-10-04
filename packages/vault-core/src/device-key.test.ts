@@ -7,8 +7,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEVICE_IDENTITY_KEY_PATH,
   DEVICE_KEY_CLOCK_MARGIN_MS,
+  DEVICE_KEY_MAX_FUTURE_CHARS,
+  DEVICE_KEY_MAX_PRIVATE_JWK_CHARS,
   type DeviceIdentityKeyRecord,
+  clampDeviceKeyTime,
   deviceKeyField,
+  deviceKeyTimeBounds,
+  isCanonicalCoordinate,
+  isFutureDeviceKeyRecord,
   mergeDeviceKeyFields,
   readDeviceIdentityKeyRecord,
   winningDeviceKey,
@@ -25,7 +31,12 @@ function record(seed: string, createdAt: number): DeviceIdentityKeyRecord {
   return {
     version: 1,
     keyId: keyId(seed),
-    publicJwk: { kty: "EC", crv: "P-256", x: `x-${seed}`, y: `y-${seed}` },
+    publicJwk: {
+      kty: "EC",
+      crv: "P-256",
+      x: keyId(`x${seed}`),
+      y: keyId(`y${seed}`),
+    },
     privateJwkJson: `{"d":"d-${seed}"}`,
     createdAt,
   };
@@ -38,6 +49,7 @@ const newer = record("aaa", 2_000);
 const future: JsonObject = {
   version: 2,
   keyId: keyId("zzz"),
+  publicJwk: { kty: "EC", crv: "P-256", x: keyId("xzzz"), y: keyId("yzzz") },
   sealed: "opaque",
 };
 
@@ -228,4 +240,143 @@ describe("a body's field that is not an object is no record", () => {
       expect(mergeDeviceKeyFields(odd, odd)).toBeUndefined();
     },
   );
+});
+
+/** `value` with the last character's padding bits set: the same bytes, another string. */
+function withPaddingBits(value: string): string {
+  return `${value.slice(0, 42)}B`;
+}
+
+describe("a coordinate is read only in the form an encoder writes", () => {
+  it("accepts 43 base64url characters whose padding bits are zero", () => {
+    expect(isCanonicalCoordinate("A".repeat(43))).toBe(true);
+    expect(isCanonicalCoordinate(`${"_-".repeat(21)}Q`)).toBe(true);
+  });
+
+  it.each([
+    ["a last character with padding bits set", withPaddingBits("A".repeat(43))],
+    ["one character short", "A".repeat(42)],
+    ["one character long", "A".repeat(44)],
+    ["a padded string", `${"A".repeat(43)}=`],
+    ["a character outside the alphabet", `${"A".repeat(42)}+`],
+    ["an empty string", ""],
+  ])("refuses %s", (_name, value) => {
+    expect(isCanonicalCoordinate(value)).toBe(false);
+  });
+
+  it("refuses a record whose x, y or key id is another spelling of the same bytes", () => {
+    const base = deviceKeyField(older);
+    const pub = { kty: "EC", crv: "P-256" };
+    for (const field of [
+      { ...base, keyId: withPaddingBits(older.keyId) },
+      {
+        ...base,
+        publicJwk: {
+          ...pub,
+          x: withPaddingBits(older.publicJwk.x),
+          y: older.publicJwk.y,
+        },
+      },
+      {
+        ...base,
+        publicJwk: {
+          ...pub,
+          x: older.publicJwk.x,
+          y: withPaddingBits(older.publicJwk.y),
+        },
+      },
+    ]) {
+      expect(readDeviceIdentityKeyRecord(field)).toBeNull();
+    }
+    expect(readDeviceIdentityKeyRecord(base)).toEqual(older);
+  });
+
+  it("refuses a private half past the bound, before anything parses it", () => {
+    const privateJwkJson = "x".repeat(DEVICE_KEY_MAX_PRIVATE_JWK_CHARS + 1);
+    expect(
+      readDeviceIdentityKeyRecord({ ...deviceKeyField(older), privateJwkJson }),
+    ).toBeNull();
+    const atBound = "x".repeat(DEVICE_KEY_MAX_PRIVATE_JWK_CHARS);
+    expect(
+      readDeviceIdentityKeyRecord({
+        ...deviceKeyField(older),
+        privateJwkJson: atBound,
+      }),
+    ).not.toBeNull();
+  });
+});
+
+describe("a record of a version this build does not read", () => {
+  it("is honoured when it names a key id and a public key and is small", () => {
+    expect(isFutureDeviceKeyRecord(future)).toBe(true);
+  });
+
+  it.each([
+    ["no key id", { version: 2, publicJwk: {} }],
+    ["no public key", { version: 2, keyId: "k" }],
+    ["a key id that is not text", { version: 2, keyId: 7, publicJwk: {} }],
+    ["a fractional version", { version: 2.5, keyId: "k", publicJwk: {} }],
+    ["an unsafe version", { version: 2 ** 60, keyId: "k", publicJwk: {} }],
+    ["version 1", { version: 1, keyId: "k", publicJwk: {} }],
+    [
+      "a size past the bound",
+      {
+        version: 2,
+        keyId: "k",
+        publicJwk: {},
+        blob: "x".repeat(DEVICE_KEY_MAX_FUTURE_CHARS),
+      },
+    ],
+    [
+      "a key id past the bound",
+      { version: 2, keyId: "k".repeat(129), publicJwk: {} },
+    ],
+  ])("is not honoured with %s", (_name, value) => {
+    expect(isFutureDeviceKeyRecord(value)).toBe(false);
+  });
+});
+
+describe("the window a vault's own key is dated in", () => {
+  const now = 1_790_000_000_000;
+  const born = "2026-03-01T00:00:00.000Z";
+  const floor = Date.parse(born) - DEVICE_KEY_CLOCK_MARGIN_MS;
+
+  it("starts a margin before the vault was made and ends now", () => {
+    expect(deviceKeyTimeBounds(born, now)).toEqual({ now, notBefore: floor });
+  });
+
+  it("falls back to any time when the header names none or a bad one", () => {
+    expect(deviceKeyTimeBounds(undefined, now).notBefore).toBe(1);
+    expect(deviceKeyTimeBounds("not a date", now).notBefore).toBe(1);
+  });
+
+  it("refuses a key dated before the window when it is read with the floor", () => {
+    const at = (createdAt: number) =>
+      readDeviceIdentityKeyRecord(
+        { ...deviceKeyField(older), createdAt },
+        now,
+        floor,
+      );
+    expect(at(floor - 1)).toBeNull();
+    expect(at(floor)?.createdAt).toBe(floor);
+  });
+
+  it("moves a key's date into the window without changing the key", () => {
+    const bounds = deviceKeyTimeBounds(born, now);
+    const future_ = {
+      ...older,
+      createdAt: now + 5 * DEVICE_KEY_CLOCK_MARGIN_MS,
+    };
+    const past = { ...older, createdAt: 3 };
+    expect(clampDeviceKeyTime(future_, bounds)).toEqual({
+      ...older,
+      createdAt: now,
+    });
+    expect(clampDeviceKeyTime(past, bounds)).toEqual({
+      ...older,
+      createdAt: floor,
+    });
+    const inside = { ...older, createdAt: now - 10 };
+    expect(clampDeviceKeyTime(inside, bounds)).toBe(inside);
+  });
 });

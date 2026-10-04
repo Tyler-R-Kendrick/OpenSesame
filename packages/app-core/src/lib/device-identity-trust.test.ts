@@ -11,7 +11,7 @@ import {
   type DeviceIdentityKeyRecord,
   deviceKeyField,
 } from "@opensesame/vault-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { genuineRecord } from "./__tests__/device-identity-records.js";
 import {
   deviceKeyIsGenuine,
@@ -22,6 +22,43 @@ import {
 } from "./device-identity-trust.js";
 
 const NOW = Date.now();
+
+/** A newer build's record: a version this build does not read, but shaped like a key. */
+const NEWER: JsonObject = {
+  version: 2,
+  keyId: "k".repeat(43),
+  publicJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+  from: "newer",
+};
+
+/** The same bytes as `value`, spelled with the last character's padding bits set. */
+function otherSpelling(value: string): string {
+  return `${value.slice(0, 42)}B`;
+}
+
+/**
+ * A key whose x (or y) is another spelling of a genuine coordinate, with its
+ * key id recomputed to match and its private JWK naming the same spelling.
+ * WebCrypto ignores the padding bits, so the signature round trip passes: only
+ * the canonical-form check tells it from a real key, and it would otherwise be
+ * a second principal for the same key pair.
+ */
+async function respelled(
+  coordinate: "x" | "y",
+): Promise<DeviceIdentityKeyRecord> {
+  const real = await genuineRecord(NOW - 1000);
+  const publicJwk = {
+    ...real.publicJwk,
+    [coordinate]: otherSpelling(real.publicJwk[coordinate]),
+  };
+  const priv = JSON.parse(real.privateJwkJson);
+  return {
+    ...real,
+    keyId: await p256JwkThumbprint(publicJwk),
+    publicJwk,
+    privateJwkJson: JSON.stringify({ ...priv, ...publicJwk }),
+  };
+}
 
 /** A different record's private half under this record's public key and id. */
 async function withForeignPrivateHalf(): Promise<DeviceIdentityKeyRecord> {
@@ -84,6 +121,60 @@ describe("a trusted key", () => {
     expect(await trustedDeviceKey(deviceKeyField(slightly))).not.toBeNull();
   });
 
+  it.each(["x", "y"] as const)(
+    "is not a key whose %s is another spelling of the same bytes, key id and all",
+    async (coordinate) => {
+      const probe = await respelled(coordinate);
+      // Everything else about it is consistent: the id is its thumbprint. A
+      // browser's WebCrypto also reads the respelled JWK, so the shape check
+      // has to be what refuses it, before anything is imported.
+      expect(probe.keyId).toBe(await p256JwkThumbprint(probe.publicJwk));
+      const imported = vi.spyOn(crypto.subtle, "importKey");
+      expect(await trustedDeviceKey(deviceKeyField(probe))).toBeNull();
+      expect(imported).not.toHaveBeenCalled();
+      imported.mockRestore();
+      expect(await vetCarriedKey(deviceKeyField(probe))).toEqual({
+        kind: "poison",
+      });
+    },
+  );
+
+  it("is not a record with a field past its bound, and nothing past it is hashed", async () => {
+    const record = await genuineRecord(NOW - 1000);
+    const huge = "A".repeat(2_000_000);
+    for (const field of [
+      { ...deviceKeyField(record), keyId: huge },
+      {
+        ...deviceKeyField(record),
+        publicJwk: { ...record.publicJwk, x: huge },
+      },
+      {
+        ...deviceKeyField(record),
+        publicJwk: { ...record.publicJwk, y: huge },
+      },
+      { ...deviceKeyField(record), privateJwkJson: huge },
+    ]) {
+      expect(await trustedDeviceKey(field)).toBeNull();
+    }
+  });
+
+  it("is not a record dated before the vault's window, and is one inside it", async () => {
+    const record = await genuineRecord(NOW - 1000);
+    const bounds = { now: NOW, notBefore: NOW - 5000 };
+    expect(
+      await trustedDeviceKey(
+        deviceKeyField({ ...record, createdAt: NOW - 5001 }),
+        bounds,
+      ),
+    ).toBeNull();
+    expect(
+      await trustedDeviceKey(
+        deviceKeyField({ ...record, createdAt: NOW - 5000 }),
+        bounds,
+      ),
+    ).not.toBeNull();
+  });
+
   it.each([null, "a string", 7, true, ["a"], undefined])(
     "is never %s",
     async (value) => {
@@ -99,9 +190,17 @@ describe("what a body or backup carries", () => {
   });
 
   it("reads a newer version as future, to be left alone", async () => {
-    expect(await vetCarriedKey({ version: 2, from: "newer" })).toEqual({
-      kind: "future",
-    });
+    expect(await vetCarriedKey(NEWER)).toEqual({ kind: "future" });
+  });
+
+  it.each([
+    ["a bare version number", { version: 2 }],
+    ["a high version with no public key", { version: 9, keyId: "k" }],
+    ["a high version with no key id", { version: 9, publicJwk: {} }],
+    ["an enormous high version", { ...NEWER, version: 2 ** 60 }],
+    ["a high version past the size bound", { ...NEWER, pad: "x".repeat(9000) }],
+  ])("reads %s as poison, not as a newer build's key", async (_name, value) => {
+    expect(await vetCarriedKey(value)).toEqual({ kind: "poison" });
   });
 
   it("reads a forged, malformed or non-object value as poison", async () => {
@@ -121,7 +220,7 @@ describe("what a body or backup carries", () => {
   it("keeps a trusted or future field as it is and drops the rest", async () => {
     const record = await genuineRecord(NOW - 1000);
     const trusted = deviceKeyField(record);
-    const future: JsonObject = { version: 3 };
+    const future: JsonObject = { ...NEWER, version: 3 };
     expect(await vettedField(trusted)).toBe(trusted);
     expect(await vettedField(future)).toBe(future);
     expect(await vettedField(undefined)).toBeUndefined();

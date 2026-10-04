@@ -20,16 +20,17 @@ import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
-  isNumber,
   isString,
 } from "@opensesame/os-domain";
 import { sha256Base64Url } from "@opensesame/sdk-browser";
 import {
+  DEVICE_KEY_MAX_PRIVATE_JWK_CHARS,
   type DeviceIdentityKeyRecord,
+  type DeviceKeyTimeBounds,
+  isFutureDeviceKeyRecord,
   readDeviceIdentityKeyRecord,
 } from "@opensesame/vault-core";
 
-const MAX_PRIVATE_JWK_BYTES = 4096;
 const CHALLENGE = new TextEncoder().encode("opensesame device identity key");
 const ECDSA = { name: "ECDSA", namedCurve: "P-256" } as const;
 
@@ -44,7 +45,9 @@ export function p256JwkThumbprint(
 
 /** Does `privateJwkJson` hold the private half of `publicJwk`? */
 async function ownsPublic(record: DeviceIdentityKeyRecord): Promise<boolean> {
-  if (record.privateJwkJson.length > MAX_PRIVATE_JWK_BYTES) return false;
+  if (record.privateJwkJson.length > DEVICE_KEY_MAX_PRIVATE_JWK_CHARS) {
+    return false;
+  }
   try {
     const parsed: BoundaryValue = JSON.parse(record.privateJwkJson);
     if (
@@ -99,15 +102,21 @@ export async function deviceKeyIsGenuine(
 
 /**
  * The record, when `value` is a key this build can trust; otherwise null.
- * `now` bounds `createdAt`; the tomb's own file, which this device wrote, is
- * read with no upper bound so a clock set back later cannot lock a vault out
- * of its own principal.
+ * `bounds` fence `createdAt` (default: any time up to a day past now); the
+ * tomb's own file, which this device wrote, is read with no upper bound so a
+ * clock set back later cannot lock a vault out of its own principal. The
+ * shape check runs first and bounds every field, so nothing unbounded or
+ * non-canonical is hashed, parsed or imported.
  */
 export async function trustedDeviceKey(
   value: BoundaryValue,
-  now: number = Date.now(),
+  bounds: Partial<DeviceKeyTimeBounds> = {},
 ): Promise<DeviceIdentityKeyRecord | null> {
-  const record = readDeviceIdentityKeyRecord(value, now);
+  const record = readDeviceIdentityKeyRecord(
+    value,
+    bounds.now ?? Date.now(),
+    bounds.notBefore ?? 1,
+  );
   return record && (await deviceKeyIsGenuine(record)) ? record : null;
 }
 
@@ -115,10 +124,13 @@ export async function trustedDeviceKey(
  * What a body or a backup carries under `deviceIdentityKey`:
  * - `absent`: nothing, or `null`;
  * - `trusted`: a key this build trusts;
- * - `future`: a record of a version this build does not know, to be left alone;
+ * - `future`: a record of a version this build does not know, small and
+ *   shaped as far as any version is (a key id and a public key), to be left
+ *   alone;
  * - `poison`: anything else (a forged id, a private half that is not the
- *   public key's, a non-object, a time that cannot be real), to be treated as
- *   absent and dropped from any body that would carry it on.
+ *   public key's, a non-object, a time that cannot be real, a high version
+ *   number on something that is not a key record), to be treated as absent
+ *   and dropped from any body that would carry it on.
  */
 export type CarriedKey =
   | Readonly<{ kind: "absent" }>
@@ -126,14 +138,13 @@ export type CarriedKey =
   | Readonly<{ kind: "future" }>
   | Readonly<{ kind: "poison" }>;
 
-function isFutureVersion(value: BoundaryValue): value is JsonObject {
-  return isJsonObject(value) && isNumber(value.version) && value.version > 1;
-}
-
-export async function vetCarriedKey(value: BoundaryValue): Promise<CarriedKey> {
+export async function vetCarriedKey(
+  value: BoundaryValue,
+  bounds: Partial<DeviceKeyTimeBounds> = {},
+): Promise<CarriedKey> {
   if (value === undefined || value === null) return { kind: "absent" };
-  if (isFutureVersion(value)) return { kind: "future" };
-  const record = await trustedDeviceKey(value);
+  if (isFutureDeviceKeyRecord(value)) return { kind: "future" };
+  const record = await trustedDeviceKey(value, bounds);
   return record ? { kind: "trusted", record } : { kind: "poison" };
 }
 
@@ -143,8 +154,9 @@ export async function vetCarriedKey(value: BoundaryValue): Promise<CarriedKey> {
  */
 export async function vettedField(
   field: BoundaryValue,
+  bounds: Partial<DeviceKeyTimeBounds> = {},
 ): Promise<JsonObject | undefined> {
-  const carried = await vetCarriedKey(field);
+  const carried = await vetCarriedKey(field, bounds);
   return (carried.kind === "trusted" || carried.kind === "future") &&
     isJsonObject(field)
     ? field

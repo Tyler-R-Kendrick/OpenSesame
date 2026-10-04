@@ -252,7 +252,12 @@ describe("a body that carries something that is not a key", () => {
     const tomb = await openTomb();
     const local = await genuineRecord(Date.now() - 1000);
     await writeStoredDeviceIdentityKey(tomb, local);
-    const unknown: JsonObject = { version: 2, from: "a newer build" };
+    const unknown: JsonObject = {
+      version: 2,
+      keyId: "k".repeat(43),
+      publicJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
+      from: "a newer build",
+    };
     const { host, held } = bodyHost(tomb, unknown);
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("kept");
     expect(held.field).toBe(unknown);
