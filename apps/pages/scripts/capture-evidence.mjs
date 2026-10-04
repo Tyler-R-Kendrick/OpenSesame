@@ -347,6 +347,7 @@ async function capture(browser, into) {
     if (journey.clock)
       await page.clock.install({ time: new Date(journey.clock) });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+    await harness.settleFirstLoad?.(page);
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.
     await page.waitForTimeout(5200);
