@@ -1,0 +1,94 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "touchCopy": null
+        },
+        {
+          "shot": "390-vault"
+        },
+        {
+          "openList": null
+        },
+        {
+          "touchCopy": null
+        },
+        {
+          "shot": "390-list"
+        }
+      ]
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "touchCopy": null
+        },
+        {
+          "shot": "1024-touch-welcome"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "touchCopy": null
+        },
+        {
+          "shot": "1280-mouse-welcome"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-vault",
+      "width": 390,
+      "title": "Command bar at 390 on a touch phone",
+      "caption": "The field's hint was cut mid-word on a phone; it now reads a short twin whole.",
+      "before": "placeholder \"go to vault \u00b7 search \u00b7 c\u2026\" cut off",
+      "after": "placeholder \"go \u00b7 search \u00b7 copy\" fits (173px in 248px)"
+    },
+    {
+      "shot": "390-list",
+      "width": 390,
+      "title": "The empty vault list at 390, touch",
+      "caption": "A control for the tip: the base already gave this tip its touch twin, and it still does (now keyed by name, so a call site cannot lose it). The list is unchanged.",
+      "before": "tip \"The + above adds the first item.\"",
+      "after": "identical tip, no key named"
+    },
+    {
+      "shot": "1024-touch-welcome",
+      "width": 1024,
+      "title": "Welcome buffer at 1024 \u00d7 768, touch",
+      "caption": "A finger on a wide screen: the line under the welcome buffer and the rail's gv chip no longer name keys.",
+      "before": "key line \"n new \u00b7 import \u00b7 ? keys\"; gv chip on the rail",
+      "after": "\"tap + to add an item, or import\"; no gv chip"
+    },
+    {
+      "shot": "1280-mouse-welcome",
+      "width": 1280,
+      "title": "Welcome buffer at 1280 \u00d7 900, mouse",
+      "caption": "A mouse keeps every key: this pair is the same on purpose.",
+      "before": "key line, gv chip, full placeholder",
+      "after": "identical"
+    }
+  ]
+}
