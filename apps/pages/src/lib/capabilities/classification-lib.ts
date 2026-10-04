@@ -26,6 +26,7 @@ const CORE_INFRA = [
   "focus",
   "use-focus-after",
   "gestures",
+  "use-claimed-drags",
   "gesture-help",
   "use-narrow",
   "vault-list-path",
