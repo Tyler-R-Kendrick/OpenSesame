@@ -7,9 +7,20 @@
  * says which script each variant is. This controller registers that script —
  * once per page, only when the plan is core-only or the installation has a
  * persisted selection and receipt covering the capability the variant serves
- * — and never registers a second, competing worker: when the controlling
- * script differs from the required one it exposes a `transition-required`
- * state and moves only on an explicit `transitionWorker()` call.
+ * — and never registers a second, competing worker: a scope holds one script,
+ * so when the registered script differs from the required one the controller
+ * replaces it in place (`transitionWorker()`), on activation and whenever a
+ * page boots with the plan already asking for it.
+ *
+ * Approving a capability whose variant this is IS the consent (the same
+ * persisted selection and receipt `variantEligible` demands before a first
+ * registration), so the move needs no second prompt. It is made safe, not
+ * deferred: the old script is never unregistered (a registration with no
+ * script would leave the person with no worker, and unregistering drops the
+ * push subscription it holds), the new one installs beside it and takes over
+ * only when ready, and the page it takes over is not reloaded — both variants
+ * of one build serve the same shell. `transition-required` stays visible for
+ * the moment between noticing the difference and acting on it.
  *
  * Once a worker controls the page the controller asks it who it is
  * (`WORKER_HELLO` → `WORKER_INFO`) and, when the selection asks for
@@ -67,14 +78,19 @@ function variantOfScript(scriptUrl: string): string | null {
   return variant?.id ?? null;
 }
 
+/**
+ * The script this scope is running or about to run: the newest worker first,
+ * so a replacement still installing counts as the answer and is not asked for
+ * a second time.
+ */
 function registeredScript(
   registration: ServiceWorkerRegistration | undefined,
 ): string | null {
   if (!registration) return null;
   return (
-    registration.active?.scriptURL ??
-    registration.waiting?.scriptURL ??
     registration.installing?.scriptURL ??
+    registration.waiting?.scriptURL ??
+    registration.active?.scriptURL ??
     null
   );
 }
@@ -103,7 +119,7 @@ function variantEligible(
 async function register(
   container: ServiceWorkerContainer,
   scriptUrl: string,
-): Promise<void> {
+): Promise<boolean> {
   state.registeredThisPage = true;
   try {
     await container.register(scriptUrl, {
@@ -111,8 +127,10 @@ async function register(
       updateViaCache: "none",
       scope: workerControllerSeams.baseUrl(),
     });
+    return true;
   } catch {
     diagnose("WORKER_REGISTRATION_FAILED");
+    return false;
   }
 }
 
@@ -124,15 +142,29 @@ function attachContainerListeners(container: ServiceWorkerContainer): void {
     // handler narrows it field by field before reading anything.
     onWorkerMessage(overlapCast(event.data));
   });
-  // A new worker took the page: the shell it was served by may reference
-  // assets the new release deleted, so the page reloads — as it always did.
-  container.addEventListener(
-    "controllerchange",
-    () => {
-      workerControllerSeams.reload();
-    },
-    { once: true },
-  );
+  container.addEventListener("controllerchange", onControllerChange);
+}
+
+/**
+ * A new worker took the page. Another release may have deleted assets the
+ * shell it was served by references, so the page reloads — once, as it always
+ * did. The exception is the move this page made itself between two variants
+ * of the same build: nothing is stale, and a reload would end whatever the
+ * person is in the middle of (an unlocked vault included). The page keeps
+ * running and introduces itself to the worker that now controls it.
+ */
+function onControllerChange(): void {
+  if (state.variantSwitch) {
+    state.variantSwitch = false;
+    state.workerReleaseId = null;
+    state.lastPlanKey = null;
+    state.postedPlan = null;
+    if (state.latest) syncPlan(state.latest);
+    return;
+  }
+  if (state.reloadStarted) return;
+  state.reloadStarted = true;
+  workerControllerSeams.reload();
 }
 
 async function currentRegistration(
@@ -145,13 +177,16 @@ async function currentRegistration(
   }
 }
 
-/** Another variant holds this scope: say so and wait to be told to move. */
-function enterTransition(
+/**
+ * Another variant holds this scope. Say so, then move: the variant is only
+ * required here once it is eligible, which is the consent.
+ */
+async function enterTransition(
   registration: ServiceWorkerRegistration,
   current: string,
   requiredId: string,
   requiredUrl: string,
-): void {
+): Promise<void> {
   const from = variantOfScript(current);
   state.pendingTransition = {
     registration,
@@ -162,6 +197,7 @@ function enterTransition(
     variant: from,
     transition: { from, to: requiredId, status: "transition-required" },
   });
+  await transitionWorker();
 }
 
 async function ensureRegistered(
@@ -201,7 +237,7 @@ async function reconcile(
   const registration = await currentRegistration(container);
   const current = registeredScript(registration);
   if (registration && current && current !== requiredUrl) {
-    enterTransition(registration, current, requiredId, requiredUrl);
+    await enterTransition(registration, current, requiredId, requiredUrl);
     return;
   }
   state.pendingTransition = null;
@@ -261,27 +297,48 @@ export function workerControllerSettled(): Promise<void> {
 }
 
 /**
- * Perform the transition a `transition-required` status describes: retire
- * the registration for the other variant, register the required one. The
- * new worker's `controllerchange` reloads the page. Resolves `false` when no
- * transition is pending.
+ * Perform the transition a `transition-required` status describes: register
+ * the required script over the registration that holds the other one. The
+ * registration is never unregistered, so there is no moment without a worker
+ * and a push subscription survives a change of script. The new worker
+ * installs, skips waiting and claims the page; the old one keeps serving until
+ * it does. Resolves `false` when nothing is pending or the registration was
+ * refused (the old worker keeps the scope and the status says why).
  */
 export async function transitionWorker(): Promise<boolean> {
   const pending = state.pendingTransition;
   const container = state.container;
   if (!pending || !container) return false;
   const from = state.status.transition?.from ?? null;
-  publish({ transition: { from, to: pending.to, status: "transitioning" } });
   state.pendingTransition = null;
-  try {
-    await pending.registration.unregister();
-  } catch {
-    // An already-gone registration is the state being asked for.
+  publish({ transition: { from, to: pending.to, status: "transitioning" } });
+  state.variantSwitch = true;
+  if (!(await register(container, pending.scriptUrl))) {
+    state.variantSwitch = false;
+    publish({ transition: null });
+    return false;
   }
-  state.registeredThisPage = false;
-  await register(container, pending.scriptUrl);
+  // Leaving the push variant: the worker that now holds the scope has no
+  // `push` handler, so a subscription left behind would show the browser's own
+  // "updated in the background" notice for every push.
+  if (from === "push" && pending.to !== "push")
+    await dropPushSubscription(pending.registration);
   state.workerReleaseId = null;
   state.lastPlanKey = null;
   publish({ variant: pending.to, transition: null });
+  // The change of controller may have been seen while the status still said
+  // "transitioning", when the worker conversation is silent: say hello now
+  // unless that change is still to come (it will, then).
+  if (!state.variantSwitch && state.latest) syncPlan(state.latest);
   return true;
+}
+
+async function dropPushSubscription(
+  registration: ServiceWorkerRegistration,
+): Promise<void> {
+  try {
+    await (await registration.pushManager?.getSubscription())?.unsubscribe();
+  } catch {
+    // No subscription to drop, or the browser already dropped it.
+  }
 }

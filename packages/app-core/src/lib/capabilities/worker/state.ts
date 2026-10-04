@@ -30,6 +30,15 @@ export type ControllerState = {
     moduleIds: readonly string[];
   }> | null;
   pendingTransition: PendingTransition | null;
+  /**
+   * This page itself replaced the registered script and the next
+   * `controllerchange` is that replacement taking the page, not a new release:
+   * the shell the page runs is the one the new script serves, so the page
+   * keeps running and only re-introduces itself to the worker.
+   */
+  variantSwitch: boolean;
+  /** The page has already been told to reload for a new release. */
+  reloadStarted: boolean;
   reconciling: Promise<void>;
 };
 
@@ -56,6 +65,8 @@ function initialFields(): ControllerState {
     lastPlanKey: null,
     postedPlan: null,
     pendingTransition: null,
+    variantSwitch: false,
+    reloadStarted: false,
     reconciling: Promise.resolve(),
   };
 }

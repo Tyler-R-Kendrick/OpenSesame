@@ -170,6 +170,15 @@ export class FakeContainer {
   }[] = [];
   readonly posted: PageToWorkerMessage[] = [];
   readonly unregistered: string[] = [];
+  /** Push subscriptions the registration holds; `unsubscribe` records here. */
+  readonly pushUnsubscribed: string[] = [];
+  holdsPushSubscription = false;
+  /** A script that is still installing (a replacement the page asked for). */
+  installingScript: string | null = null;
+  /** Make the next `register` reject, as a refused or offline script does. */
+  registerFails = false;
+  /** Whether a replacement takes the page (`controllerchange`) on register. */
+  claimOnRegister = false;
   activeScript: string | null;
   hasController: boolean;
   private readonly handlers = new Map<string, Handler[]>();
@@ -189,22 +198,47 @@ export class FakeContainer {
 
   async register(url: string, options?: RegistrationOptions): Promise<void> {
     this.registered.push({ url, options });
+    if (this.registerFails) throw new TypeError("script fetch failed");
     this.activeScript = url;
+    if (this.claimOnRegister) this.emit("controllerchange");
   }
 
   async getRegistration(): Promise<
     | {
         active: { scriptURL: string } | null;
+        installing: { scriptURL: string } | null;
+        waiting: null;
+        pushManager: {
+          getSubscription: () => Promise<{
+            unsubscribe: () => Promise<boolean>;
+          } | null>;
+        };
         unregister: () => Promise<boolean>;
       }
     | undefined
   > {
-    if (!this.activeScript) return undefined;
+    if (!this.activeScript && !this.installingScript) return undefined;
     const script = this.activeScript;
     return {
-      active: { scriptURL: script },
+      active: script ? { scriptURL: script } : null,
+      installing: this.installingScript
+        ? { scriptURL: this.installingScript }
+        : null,
+      waiting: null,
+      pushManager: {
+        getSubscription: async () =>
+          this.holdsPushSubscription
+            ? {
+                unsubscribe: async () => {
+                  this.pushUnsubscribed.push(script ?? "");
+                  this.holdsPushSubscription = false;
+                  return true;
+                },
+              }
+            : null,
+      },
       unregister: async () => {
-        this.unregistered.push(script);
+        this.unregistered.push(script ?? "");
         this.activeScript = null;
         return true;
       },

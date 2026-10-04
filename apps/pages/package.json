@@ -22,6 +22,7 @@
     "verify:browser-session-lifecycle": "node scripts/verify-browser-session-lifecycle.mjs",
     "test:browser-sessions": "VITE_BASE=/OpenSesame/ pnpm run build && pnpm run verify:browser-sessions",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
+    "verify:push-worker": "node scripts/verify-push-worker.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:siop": "vitest run scripts/siop-headers.test.mjs && node scripts/verify-siop.mjs",

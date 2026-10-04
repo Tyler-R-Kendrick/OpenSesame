@@ -155,6 +155,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Push worker installs on approval and reverts on removal
+        # A real localhost origin with service workers allowed (context.route
+        # never sees a worker's fetches). A device holding the core worker
+        # approves Push notifications and must end on sw-push.js at the same
+        # scope — one registration, no reload, the vault still open — then a
+        # push delivered over CDP must ring the contract's doorbell; removing
+        # the capability returns the core worker.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push-worker
       - name: Phone and tablet layout and touch contract
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
         # targets, no field under 16px (iOS zooms a smaller one on focus and

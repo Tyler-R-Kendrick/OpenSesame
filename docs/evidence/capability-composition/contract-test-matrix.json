@@ -1485,18 +1485,18 @@
     },
     {
       "id": "PWA-06",
-      "statement": "A variant change exposes transition-required instead of registering a competing worker; transitionWorker unregisters the old script and registers the new one.",
+      "statement": "A variant change is reported as transition-required and then made in place: the required script is registered over the scope that holds the other one (never unregistered, never a second scope) once the variant is eligible, without reloading the page.",
       "status": "covered",
       "tests": [
         {
           "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
-          "name": "transitions (PWA-02, PWA-06) exposes transition-required instead of registering a competing worker",
+          "name": "transitions (PWA-02, PWA-06) replaces the registered script in place once the variant is eligible (approval is the consent)",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "apps/pages/src/lib/capabilities/worker-controller.test.ts",
-          "name": "transitions (PWA-02, PWA-06) transitionWorker unregisters the old script and registers the new one",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
+          "name": "approving Push notifications on a device that holds the core worker installs the push worker the moment the approval lands, without reloading the page",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         }

@@ -261,6 +261,16 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push-worker
+# A real localhost origin with service workers allowed (`context.route` never
+# sees a worker's fetches, and the shared harness blocks workers). A device
+# holding the core `sw.js` approves Push notifications and must end on
+# `sw-push.js` at the same scope: one registration, no reload, the vault still
+# open; a push delivered over CDP rings the `{kind, action, ref}` doorbell and
+# a hostile payload only the generic one; removing the capability returns the
+# core worker. Run before touching the worker controller, `src/sw*`, or
+# anything on the push enrolment path (`lib/push*.ts`).
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then

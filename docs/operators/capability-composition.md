@@ -429,10 +429,18 @@ Consequences an operator should expect:
 - **A capability needing a variant this build lacks is not approved.** It
   resolves `WORKER_GRAPH_UNAVAILABLE`, and so does any pair of capabilities no
   single variant can serve together.
-- **Two vaults at one scope cannot run competing workers.** When the
-  controlling script differs from the required one the controller exposes a
-  `transition-required` state and moves only on an explicit transition.
-  Unregistering a worker does not terminate its clients synchronously.
+- **One scope runs one worker, and approval moves it.** When the registered
+  script differs from the one the plan requires, the controller reports
+  `transition-required` and then replaces the script in place — the persisted
+  selection and consent receipt `variantEligible` demands are the consent, so
+  approving Push notifications installs `sw-push.js` at once, and a page that
+  boots with it already approved does the same. It never unregisters (that would
+  leave no worker and drop the push subscription), never registers a second
+  scope, and does not reload the page for a move between two variants of one
+  build. Removing the capability returns the core worker and drops the push
+  subscription the push worker held, because the core worker has no `push`
+  handler. `pnpm --filter @opensesame/pages verify:push-worker` walks it in a real
+  browser.
 - **Caches are namespaced** `opensesame-pages:<scopePath>:<releaseId>:<variant>`,
   and cleanup touches only names matching that application and scope path.
   (The pre-composition worker deleted every cache on the origin. That is fixed;
