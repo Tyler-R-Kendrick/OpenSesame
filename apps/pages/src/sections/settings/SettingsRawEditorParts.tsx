@@ -1,3 +1,4 @@
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconCheck } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
@@ -53,5 +54,23 @@ export function WriteButton({
     >
       <IconCheck size={14} />
     </button>
+  );
+}
+
+/**
+ * A refused save, trayed under its file. Mount it keyed by the path: a refusal
+ * outlives the editor moving to another file, so each file's notice belongs to
+ * its own instance.
+ */
+export function RefusalNotice({
+  path,
+  refusal,
+}: { path: string; refusal: string | null }) {
+  return (
+    <FailureNotice
+      id={`settings-file:${path}`}
+      title="Settings file"
+      message={refusal}
+    />
   );
 }

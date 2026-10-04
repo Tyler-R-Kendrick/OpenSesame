@@ -42,10 +42,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
-import { FailureNotice } from "../../components/FailureNotice.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { Status, WriteButton } from "./SettingsRawEditorParts.js";
+import {
+  RefusalNotice,
+  Status,
+  WriteButton,
+} from "./SettingsRawEditorParts.js";
 import { PaintedText } from "./files/PaintedText.js";
 
 /** Everything the settings pages show, read live so the file follows them. */
@@ -263,11 +266,7 @@ export function SettingsRawEditor({ category }: { category: string }) {
           refusal={refusal}
           message={message}
         />
-        <FailureNotice
-          id={`settings-file:${path}`}
-          title="Settings file"
-          message={refusal}
-        />
+        <RefusalNotice key={path} path={path} refusal={refusal} />
       </div>
     </section>
   );
