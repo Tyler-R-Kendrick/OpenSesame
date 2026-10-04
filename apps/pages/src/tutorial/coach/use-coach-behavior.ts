@@ -64,6 +64,24 @@ export function useCoachFocus(
     };
   }, []);
   const arrived = useRef(false);
+  // Whose hands were last on the page: the card's, or somewhere else. A step
+  // that navigates makes the page move focus on arrival (the vault lands it on
+  // its tree); that is the page, not the person, so the card takes it back
+  // unless the person's last input went outside the card.
+  const lastInputInCard = useRef(true);
+  useEffect(() => {
+    const note = (event: Event): void => {
+      lastInputInCard.current =
+        event.target instanceof Node &&
+        (card.current?.contains(event.target) ?? false);
+    };
+    document.addEventListener("pointerdown", note, true);
+    document.addEventListener("keydown", note, true);
+    return () => {
+      document.removeEventListener("pointerdown", note, true);
+      document.removeEventListener("keydown", note, true);
+    };
+  }, [card]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new step, or the first placing, is the trigger.
   useEffect(() => {
     if (!placed) return;
@@ -71,7 +89,8 @@ export function useCoachFocus(
     if (
       !arrived.current ||
       held === document.body ||
-      card.current?.contains(held)
+      card.current?.contains(held) ||
+      lastInputInCard.current
     ) {
       primary.current?.focus({ preventScroll: true });
     }
