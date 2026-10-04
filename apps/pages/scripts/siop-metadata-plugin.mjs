@@ -8,8 +8,8 @@
  * anyway (ADR 0161 §3). The dev server answers the same path from the origin
  * it is reached on, so a relying-party developer can try discovery locally.
  *
- * Owned by `identity.siop` (`PUBLIC_FILE_OWNERSHIP`), so a hardened build that
- * excludes the capability prunes it with the rest of its files.
+ * Owned by `identity.siop` (`PUBLIC_FILE_OWNERSHIP`): a build that excludes the
+ * capability does not emit it, the way it prunes the rest of that capability.
  */
 import {
   SIOP_METADATA_FILE,
@@ -17,17 +17,28 @@ import {
   siopMetadataText,
 } from "./lib/siop-metadata.mjs";
 
+/** The capability that owns the file (`PUBLIC_FILE_OWNERSHIP`). */
+const OWNER = "identity.siop";
+
 /** @param {{ env?: Record<string, string | undefined> }} [options] */
 export function siopMetadata(options = {}) {
   const env = options.env ?? process.env;
   let base = "/";
+  let composition;
   return {
     name: "opensesame-siop-metadata",
     configResolved(config) {
       base = config.base;
+      // A build that excludes `identity.siop` owns no such file, and the
+      // graph gate fails on one emitted for an excluded capability.
+      composition = config.plugins.find(
+        (plugin) => plugin.name === "opensesame-capability-compose",
+      );
     },
     async generateBundle() {
       if (env.VITEST) return;
+      const state = composition?.__state?.();
+      if (state?.isExcluded?.(OWNER)) return;
       const where = siopMetadataLocation(env, base);
       if (where.skip) {
         this.warn(where.skip);

@@ -61,11 +61,18 @@ describe("the bytes", () => {
   });
 });
 
-function plugin(env) {
+function plugin(env, excluded = []) {
   const emitted = [];
   const warned = [];
   const hooks = siopMetadata({ env });
-  hooks.configResolved({ base: env.BASE ?? SHIPPED_BASE });
+  const compose = {
+    name: "opensesame-capability-compose",
+    __state: () => ({ isExcluded: (id) => excluded.includes(id) }),
+  };
+  hooks.configResolved({
+    base: env.BASE ?? SHIPPED_BASE,
+    plugins: [{ name: "other" }, compose],
+  });
   const context = {
     emitFile: (file) => emitted.push(file),
     warn: (message) => warned.push(message),
@@ -84,6 +91,16 @@ describe("the Vite plugin", () => {
     expect(JSON.parse(emitted[0].source).issuer).toBe(
       `${SHIPPED_ORIGIN}${SHIPPED_BASE}identity/siop`,
     );
+  });
+
+  it("emits nothing when the build excludes the capability that owns it", async () => {
+    const { hooks, context, emitted, warned } = plugin({}, ["identity.siop"]);
+    await hooks.generateBundle.call(context);
+    expect(emitted).toEqual([]);
+    expect(warned).toEqual([]);
+    const other = plugin({}, ["identity.local-iam"]);
+    await other.hooks.generateBundle.call(other.context);
+    expect(other.emitted).toHaveLength(1);
   });
 
   it("warns and emits nothing when it cannot say which origin it is", async () => {
