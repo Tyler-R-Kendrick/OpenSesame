@@ -234,45 +234,56 @@ async function handleCoreRoute(
   return method === "POST" ? presentClaim(init) : notAllowed();
 }
 
+type Matched = ReturnType<typeof matchCorePath>;
+
+/**
+ * Claims hold what a vault sealed, whichever session asks: while a vault is
+ * on this device and shut, no claim is created, polled or presented. A
+ * session minted before any vault existed gets no exemption.
+ */
+function claimsWhileLocked(matched: Matched): boolean {
+  const claim =
+    matched.kind === "poll" ||
+    (matched.kind === "exact" &&
+      (matched.route === "claims" || matched.route === "present"));
+  return claim && deviceVaultView().kind === "locked";
+}
+
+/** A capability's route, or what the host answers for it itself. */
+async function capabilityRoute(
+  path: string,
+  method: string,
+  init: RequestInit,
+): Promise<Response> {
+  const bare = path.split("?")[0] ?? path;
+  // A capability's routes read the vault and its directory. While a vault
+  // on this device is shut they answer `locked`; they never fall back.
+  if (deviceVaultView().kind === "locked") return lockedResponse();
+  // What needs a server is answered here, whoever is registered.
+  if (familyOfPath(bare) === "mfa-codes") return mfaUnavailable();
+  const auth = await authenticateDevice(init);
+  // A handler is given the resolved caller and the body, never a header.
+  const answered = await dispatchDeviceRoute({
+    path,
+    bare,
+    method,
+    body: stringBody(init),
+    caller: auth.ok ? auth.caller : null,
+  });
+  return answered ?? notImplemented(bare);
+}
+
 export async function deviceIdentityFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   const matched = matchCorePath(path);
-
-  // Claims hold what a vault sealed, whichever session asks: while a vault is
-  // on this device and shut, no claim is created, polled or presented. A
-  // session minted before any vault existed gets no exemption.
-  const touchesClaims =
-    matched.kind === "poll" ||
-    (matched.kind === "exact" &&
-      (matched.route === "claims" || matched.route === "present"));
-  if (touchesClaims && deviceVaultView().kind === "locked") {
-    return lockedResponse();
-  }
-
+  if (claimsWhileLocked(matched)) return lockedResponse();
   if (matched.kind === "poll") {
     if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
     return pollClaim(matched.claimId, init);
   }
-  if (matched.kind === "other") {
-    const bare = path.split("?")[0] ?? path;
-    // A capability's routes read the vault and its directory. While a vault
-    // on this device is shut they answer `locked`; they never fall back.
-    if (deviceVaultView().kind === "locked") return lockedResponse();
-    // What needs a server is answered here, whoever is registered.
-    if (familyOfPath(bare) === "mfa-codes") return mfaUnavailable();
-    const auth = await authenticateDevice(init);
-    // A handler is given the resolved caller and the body, never a header.
-    const answered = await dispatchDeviceRoute({
-      path,
-      bare,
-      method,
-      body: stringBody(init),
-      caller: auth.ok ? auth.caller : null,
-    });
-    return answered ?? notImplemented(bare);
-  }
+  if (matched.kind === "other") return capabilityRoute(path, method, init);
   return handleCoreRoute(matched.route, method, init);
 }
