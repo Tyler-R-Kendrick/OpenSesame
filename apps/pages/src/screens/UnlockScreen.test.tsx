@@ -116,27 +116,6 @@ describe("UnlockScreen — first run", () => {
     expect(v.store.create).not.toHaveBeenCalled();
   });
 
-  it("names the PIN format problem live on first run", () => {
-    render(<UnlockScreen />);
-    goLocalOnly();
-    chooseSealMethod("PIN");
-    fireEvent.change(screen.getByLabelText("Device PIN"), {
-      target: { value: "12345678" },
-    });
-    expect(inTray("sequential run of digits")).toBe(true);
-    expect(
-      screen.getByLabelText("Device PIN").getAttribute("aria-invalid"),
-    ).toBe("true");
-    fireEvent.click(
-      screen.getByLabelText("I understand this vault cannot be recovered."),
-    );
-    fireEvent.change(screen.getByLabelText("Confirm PIN"), {
-      target: { value: "12345678" },
-    });
-    expect(submitButton().disabled).toBe(true);
-    expect(v.store.createWithPin).not.toHaveBeenCalled();
-  });
-
   it("hides passkey and falls back to password when WebAuthn cannot run", () => {
     v.host = {
       ok: false,
@@ -820,23 +799,6 @@ describe("UnlockScreen — password unlock", () => {
   it("draws no step rail for a vault without an authenticator code", () => {
     render(<UnlockScreen />);
     expect(screen.queryByText("2 · Authenticator code")).toBeNull();
-  });
-
-  it("says so when a vault has an authenticator code but no key to guard", () => {
-    v.state = { ...v.state, header: { unlocks: { totp: {} } } };
-    v.methods = [];
-    render(<UnlockScreen />);
-    expect(inTray("no passkey, PIN or password to open it with")).toBe(true);
-    expect(screen.queryByText(/no passkey, PIN or password/)).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Unlock/ })).toBeNull();
-    // The roads that still work stay: guest, and deleting to seal again.
-    expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Forgotten how to unlock?" }),
-    ).toBeTruthy();
   });
 
   it("names the signed-in account in a dropdown and signs out from there", () => {

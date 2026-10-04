@@ -667,11 +667,11 @@ function UnlockForm({
                     sequential digits.
                   </p>
                 ) : null}
-                <FailureNotice
-                  id="unlock:pin"
-                  title="PIN"
-                  message={pinProblem}
-                />
+                {pinProblem ? (
+                  <p className="hint" aria-live="polite">
+                    {pinProblem}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
