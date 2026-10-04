@@ -20,13 +20,24 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 
-/** `dist/` under `base`, as a static host serves it; a route is index.html. */
-export function serve(dist, base) {
+/**
+ * `dist/` under `base`, as a static host serves it; a route is index.html.
+ * `runtimeConfig` is what the deployment's `os-runtime-config.json` says, when
+ * the walk needs a deployment that says something.
+ */
+export function serve(dist, base, runtimeConfig = null) {
   const server = http.createServer((request, response) => {
     const { pathname } = new URL(request.url ?? "/", "http://localhost");
     const rel = pathname.startsWith(base)
       ? pathname.slice(base.length)
       : pathname.slice(1);
+    if (rel === "os-runtime-config.json" && runtimeConfig !== null) {
+      response.writeHead(200, {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+      });
+      return response.end(JSON.stringify(runtimeConfig));
+    }
     const file = path.join(dist, rel);
     if (rel && fs.existsSync(file) && fs.statSync(file).isFile()) {
       response.writeHead(200, {

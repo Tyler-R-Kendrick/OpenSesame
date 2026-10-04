@@ -162,7 +162,7 @@ describe("TailnetSyncPanel", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Sync now" }));
     await waitFor(() => expect(observer.syncTailnetNow).toHaveBeenCalledOnce());
-    const stop = screen.getByRole("button", {
+    const stop = await screen.findByRole("button", {
       name: "Stop syncing this vault",
     });
     await waitFor(() => expect(stop.hasAttribute("disabled")).toBe(false));

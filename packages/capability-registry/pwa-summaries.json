@@ -377,7 +377,7 @@
   },
   {
     "id": "identity.local.siop.authorize",
-    "title": "Approve or deny browser-native Self-Issued OpenID Provider v2 sign-in",
+    "title": "Approve or deny a SIOPv2 (Implementer's Draft) sign-in; not a conventional OpenID Connect provider",
     "plane": "client_local",
     "surfaces": {
       "pwa": "route:/identity/siop"
@@ -461,6 +461,22 @@
     "plane": "client_local",
     "surfaces": {
       "pwa": "lib/local-organizations.ts:changeLocalOrganizationMembership"
+    }
+  },
+  {
+    "id": "identity.notification.local.manage",
+    "title": "Choose how this device tells its person a request is waiting",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "identity.local.receipts.read",
+    "title": "Read the receipts of what this device decided for its person",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/access"
     }
   },
   {

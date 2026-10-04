@@ -23,19 +23,46 @@ export const NO_SURFACE: ReadonlySet<CapabilityId> = new Set([
 ]);
 
 /**
+ * Optional capabilities whose every road is an Identity API's: Web Push
+ * enrols with one and Notification routing reads and writes one. With none
+ * named, a switch for either changes nothing a person can see, and its tile
+ * would describe a service that is not there. So with no Identity API Settings
+ * draws neither (ADR 0158, ADR 0162), unless the plan already approves it:
+ * the same rule as `NO_SURFACE`, decided by what is configured rather than by
+ * what is built.
+ */
+export const NEEDS_IDENTITY_API: ReadonlySet<CapabilityId> = new Set([
+  "notifications.web-push",
+  "notifications.routing",
+]);
+
+/** What this installation has that decides what Settings can draw. */
+export type SurfaceContext = Readonly<{
+  /** An Identity API is named in Settings. */
+  identityApi: boolean;
+}>;
+
+/** Without being told otherwise, nothing is withheld for want of a service. */
+const SERVICE_NAMED: SurfaceContext = { identityApi: true };
+
+/**
  * The feature as Settings draws it: the capabilities a switch can change. A
  * capability with no surface is left out unless the plan already approves it —
  * a persisted selection or a policy can carry one, and others run on it
  * (Certificate authority on Access and Certificate records), so its owner keeps
  * the one switch that turns it off (ADR 0158: a row acts, and a setting is not
- * removable while something depends on it, nor stranded).
+ * removable while something depends on it, nor stranded). So is one whose only
+ * road is a service that is not named (`NEEDS_IDENTITY_API`).
  */
 export function shown(
   feature: Feature,
   plan: EffectivePlan | null = null,
+  context: SurfaceContext = SERVICE_NAMED,
 ): Feature {
   const hidden = (id: CapabilityId) =>
-    NO_SURFACE.has(id) && plan?.capabilities[id]?.approved !== true;
+    (NO_SURFACE.has(id) ||
+      (!context.identityApi && NEEDS_IDENTITY_API.has(id))) &&
+    plan?.capabilities[id]?.approved !== true;
   return feature.capabilities.some(hidden)
     ? {
         ...feature,

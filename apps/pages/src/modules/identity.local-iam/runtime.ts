@@ -20,6 +20,7 @@
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { LOCAL_IAM_DEVICE_ROUTES } from "@opensesame/app-core/lib/device-identity-local.js";
 import { registerDeviceRoutes } from "@opensesame/app-core/lib/device-identity-routes.js";
+import { flushReceipts } from "@opensesame/app-core/lib/device-receipts.js";
 import { guestAuthDependencies } from "@opensesame/app-core/lib/guest-auth.js";
 import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import { bindLocalIamLockResets } from "@opensesame/app-core/lib/local-iam-lock-resets.js";
@@ -124,6 +125,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     // — a destination exists exactly while the tab behind it does.
     registerIdentityViewPaths(activation, IDENTITY_VIEWS_OWNED);
     activation.register("keymap-jump", { key: "i", path: "/identity" });
+    // Sign-ins, ended sessions and application grants write receipts whether
+    // or not Access is in the plan, so a receipt still waiting from a tab that
+    // closed first is written when the vault is next opened here too (ADR
+    // 0162). `access.authority` does the same for the receipts it writes.
+    activation.register("unlock-effect", {
+      id: "receipts-flush",
+      run: ({ tomb }) => flushReceipts(tomb).then(() => undefined),
+    });
     registerTutorial(activation, TUTORIAL);
 
     return activation.handle();

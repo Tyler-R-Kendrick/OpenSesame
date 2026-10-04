@@ -107,6 +107,7 @@ export function useLocalConsent(
     error,
     run,
     close: () => channel.current?.close(),
+    deny: () => channel.current?.deny(),
   };
 }
 

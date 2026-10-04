@@ -81,12 +81,12 @@ describe("what the directory family answers", () => {
     ).toBe(503);
   });
 
-  it("keeps the audit trail and request inbox as they were", async () => {
-    const audit = await deviceIdentityFetch("/v1/audit/events");
-    expect(audit.status).toBe(200);
-    expect(overlapCast(await audit.json()).events).toEqual([]);
-    const requests = await deviceIdentityFetch("/v1/authorization-requests");
-    expect(requests.status).toBe(200);
-    expect(overlapCast(await requests.json()).requests).toEqual([]);
+  it("answers the receipts and the inbox to a session only (ADR 0162)", async () => {
+    // Their answers are the vault's own (`device-identity-inbox.test.ts`); a
+    // caller with no live bearer is not given them.
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(401);
+    expect(
+      (await deviceIdentityFetch("/v1/authorization-requests")).status,
+    ).toBe(401);
   });
 });

@@ -201,4 +201,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0158](0158-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
 | [0159](0159-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor and host | Accepted |
 | [0160](0160-the-device-identity-plane-is-declared.md) | The device identity plane is declared | Accepted |
-| [0161](0161-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |
+| [0161](0161-what-a-static-origin-can-be-as-an-openid-provider.md) | What a static origin can be as an OpenID Provider | Accepted |
+| [0162](0162-device-receipts-inbox-and-local-notifications.md) | Device-mode receipts, inbox and local notifications | Accepted |
+| [0163](0163-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |

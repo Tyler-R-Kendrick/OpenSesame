@@ -24,7 +24,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -33,6 +33,7 @@ import { CeremonyShell } from "./CeremonyShell.js";
 import { IconKey } from "./IconKey.js";
 import {
   IconAlert,
+  IconArrowRight,
   IconBell,
   IconInfo,
   IconRefresh,
@@ -186,7 +187,11 @@ function NotificationsBarDefault({
                   stacking banners — keep their own tone-accented card. */}
               {notices.map((notice) =>
                 notice.kind === "status" ? (
-                  <StatusNoticeCard key={notice.id} notice={notice} />
+                  <StatusNoticeCard
+                    key={notice.id}
+                    notice={notice}
+                    onOpen={close}
+                  />
                 ) : (
                   <CeremonyShell
                     key={notice.id}
@@ -241,8 +246,12 @@ function NotificationsBarDefault({
   );
 }
 
-function StatusNoticeCard({ notice }: { notice: Notice }) {
+function StatusNoticeCard({
+  notice,
+  onOpen,
+}: { notice: Notice; onOpen: () => void }) {
   const tone = notice.tone ?? "info";
+  const navigate = useNavigate();
   return (
     <article
       className={`notice-card notice-card--${tone}`}
@@ -255,6 +264,20 @@ function StatusNoticeCard({ notice }: { notice: Notice }) {
       </h3>
       <p>{notice.body}</p>
       <div className="actions">
+        {notice.open ? (
+          // A route of this app, opened in place: the sheet closes with it.
+          <IconKey
+            label={notice.open.label}
+            small
+            onClick={() => {
+              const to = notice.open?.to;
+              onOpen();
+              if (to) navigate(to);
+            }}
+          >
+            <IconArrowRight size={16} />
+          </IconKey>
+        ) : null}
         {notice.retry ? (
           <IconKey
             label={notice.retryLabel ?? "Try again"}

@@ -7,6 +7,7 @@
 
 import {
   type Feature,
+  type SurfaceContext,
   isSwitchable,
 } from "@opensesame/app-core/lib/capabilities/features.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/catalog-provider.js";
@@ -95,9 +96,10 @@ export function featureDraws(
   feature: Feature,
   tile: (provider: Provider) => TileRoad | null,
   plan: EffectivePlan | null = null,
+  context?: SurfaceContext,
 ): boolean {
   return (
-    isSwitchable(feature, plan) ||
+    isSwitchable(feature, plan, context) ||
     feature.providerCategories.some(
       (category) => providerTileItems(category, tile).length > 0,
     )

@@ -67,7 +67,13 @@ const check = (condition, what) => {
   if (!condition) failures.push(what);
 };
 
-const server = await serveDist(dist, base);
+// Push notifications are the person's to approve only where something can
+// answer a push: with no Identity API Settings does not offer the switch
+// (ADR 0158, ADR 0162), so this deployment names one. It is never called: the
+// walk proves the worker, and the push is delivered to the browser directly.
+const server = await serveDist(dist, base, {
+  identityApi: "http://127.0.0.1:9",
+});
 const origin = `http://localhost:${server.address().port}`;
 const scope = `${origin}${base}`;
 const browser = await chromium.launch({

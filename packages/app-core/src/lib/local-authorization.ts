@@ -1,6 +1,7 @@
 import { isString } from "@opensesame/os-domain";
 import { randomString, sha256Base64Url } from "@opensesame/sdk-browser";
 import type { LocalAuthorizationRequest } from "@opensesame/static-auth";
+import { grantRef, recordReceipt } from "./device-receipts.js";
 import type { LocalAccessRequest } from "./local-access-requests.js";
 import {
   type LocalApplicationApproval,
@@ -202,7 +203,7 @@ export async function redeemLocalApplicationCode(
     (await sha256Base64Url(input.codeVerifier)) !== code.request.codeChallenge
   )
     refused();
-  return withLocalApplicationApproval(
+  const granted = await withLocalApplicationApproval(
     tomb,
     code.approval,
     code.request,
@@ -251,9 +252,11 @@ export async function redeemLocalApplicationCode(
         expiresAt: record.expiresAt,
       });
       active.set(grant, { tomb, ...code.approval, request: code.request });
-      return grant;
+      return { grant, record };
     },
   );
+  await recordReceipt(tomb, "sign_in.granted", grantRef(granted.record));
+  return granted.grant;
 }
 
 /** Every protected operation supplies its own exact application and scope requirement. */
@@ -352,7 +355,7 @@ export async function revokeLocalApplicationGrant(
   session: LocalSession,
   id: string,
 ): Promise<void> {
-  return withLocalIdentitySession(
+  const ended = await withLocalIdentitySession(
     tomb,
     session,
     async (identity, assertActive) => {
@@ -366,8 +369,10 @@ export async function revokeLocalApplicationGrant(
         tomb,
         records.filter((row) => row.id !== id),
       );
+      return record;
     },
   );
+  await recordReceipt(tomb, "sign_in.revoked", grantRef(ended));
 }
 
 function mayRevokeGrant(

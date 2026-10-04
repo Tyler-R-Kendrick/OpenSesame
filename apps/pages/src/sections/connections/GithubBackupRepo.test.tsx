@@ -190,6 +190,14 @@ it("creates a typed repository name in the same field", async () => {
     />,
   );
   const input = await screen.findByTestId("github-repo-input");
+  // The field is drawn before the repository list arrives, and the arrival
+  // rewrites the draft: typing is only safe once the refresh key is live again.
+  await waitFor(() =>
+    expect(screen.getByTestId("github-repo-refresh")).toHaveProperty(
+      "disabled",
+      false,
+    ),
+  );
   await userEvent.clear(input);
   await userEvent.type(input, "octocat/my-backup");
   await userEvent.keyboard("{Enter}");

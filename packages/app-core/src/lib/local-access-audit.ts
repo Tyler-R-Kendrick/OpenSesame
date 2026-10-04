@@ -51,26 +51,35 @@ export type LocalAccessAuditEvent = {
   metadata: JsonObject;
 };
 
-type WireFile = { version: 1; events: LocalAccessAuditEvent[] };
+/**
+ * An event as the file holds it. A newer build may write a name this one does
+ * not know; it is kept, in place, when this build rewrites the file, and is
+ * never handed to logic that does not know what it means. Rejecting such a
+ * file as corrupt would make every read fail the other way round, too.
+ */
+type StoredAuditEvent = Omit<LocalAccessAuditEvent, "eventType"> & {
+  eventType: string;
+};
+
+type WireFile = { version: 1; events: StoredAuditEvent[] };
 
 function isOutcome(value: BoundaryValue): value is AuditOutcome {
   return value === "succeeded" || value === "failed" || value === "denied";
 }
 
-function isEventType(value: BoundaryValue): value is AccessAuditEventType {
-  if (!isString(value)) return false;
+function isKnown(event: StoredAuditEvent): event is LocalAccessAuditEvent {
   for (const eventType of ACCESS_AUDIT_EVENT_TYPES) {
-    if (eventType === value) return true;
+    if (eventType === event.eventType) return true;
   }
   return false;
 }
 
-function isAuditEvent(value: BoundaryValue): value is LocalAccessAuditEvent {
+function isAuditEvent(value: BoundaryValue): value is StoredAuditEvent {
   if (!isJsonObject(value)) return false;
   return (
     isString(value.id) &&
     isString(value.occurredAt) &&
-    isEventType(value.eventType) &&
+    isString(value.eventType) &&
     isOutcome(value.outcome) &&
     isString(value.correlationId) &&
     isString(value.targetType) &&
@@ -90,7 +99,7 @@ function parseWire(raw: string): WireFile {
   return { version: 1, events: parsed.events };
 }
 
-async function readAll(tomb: string): Promise<LocalAccessAuditEvent[]> {
+async function readAll(tomb: string): Promise<StoredAuditEvent[]> {
   await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
   try {
     const bytes = await readFile(tomb, PATH);
@@ -106,7 +115,7 @@ async function readAll(tomb: string): Promise<LocalAccessAuditEvent[]> {
 
 async function writeAll(
   tomb: string,
-  events: LocalAccessAuditEvent[],
+  events: StoredAuditEvent[],
 ): Promise<void> {
   const bytes = new TextEncoder().encode(
     JSON.stringify({ version: 1, events } satisfies WireFile),
@@ -124,7 +133,7 @@ async function writeAll(
 export async function listAccessAuditEvents(
   tomb: string,
 ): Promise<LocalAccessAuditEvent[]> {
-  return readAll(tomb);
+  return (await readAll(tomb)).filter(isKnown);
 }
 
 export type RecordAccessAuditInput = {
@@ -142,7 +151,7 @@ export type RecordAccessAuditInput = {
  * Uses the same allowlist as Identity-plane audit (ADR 0015).
  */
 /** Connector, principal and policy a grant or revocation decided, if named. */
-function decisionKey(event: LocalAccessAuditEvent): string | null {
+function decisionKey(event: StoredAuditEvent): string | null {
   if (
     event.targetType !== "connection" ||
     (event.eventType !== "access.connection.granted" &&
@@ -168,12 +177,10 @@ function decisionKey(event: LocalAccessAuditEvent): string | null {
  * revocation a newer grant superseded is trimmed before that grant. The cap
  * still holds.
  */
-function retainEvents(
-  events: readonly LocalAccessAuditEvent[],
-): LocalAccessAuditEvent[] {
+function retainEvents(events: readonly StoredAuditEvent[]): StoredAuditEvent[] {
   if (events.length <= MAX_EVENTS) return [...events];
   const seen = new Set<string>();
-  const standing = new Set<LocalAccessAuditEvent>();
+  const standing = new Set<StoredAuditEvent>();
   for (const event of events) {
     const key = decisionKey(event);
     if (key === null || seen.has(key)) continue;
@@ -182,7 +189,7 @@ function retainEvents(
   }
   // Slots left for everything else once every standing revocation is kept.
   let room = Math.max(0, MAX_EVENTS - standing.size);
-  const kept: LocalAccessAuditEvent[] = [];
+  const kept: StoredAuditEvent[] = [];
   for (const event of events) {
     if (kept.length === MAX_EVENTS) break;
     if (standing.has(event)) {
@@ -219,7 +226,7 @@ export async function recordAccessAuditEvent(
       const current = await readAll(tomb);
       const events = retainEvents([event, ...current]);
       await writeAll(tomb, events);
-      return events;
+      return events.filter(isKnown);
     },
   );
   const outcome =
