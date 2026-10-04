@@ -20,6 +20,7 @@ import { IDENTITY_HELP } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
 import { SETUP_GOALS, SETUP_HELP, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
+import { isKnownGuidePredicate, readGuidePredicate } from "./state.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 export { FEATURE_TUTORIALS } from "./feature-goals.js";
 export type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
@@ -125,64 +126,6 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   ...SETUP_GOALS,
   {
-    id: "identity.sign-in",
-    title: "Sign in with an identity provider",
-    routes: ["/unlock"],
-    guide: [
-      "guide/1",
-      'goal "identity.sign-in"',
-      'say "Sign-in is a ceremony against a provider this deployment already registered. On first run it is this screen; on a returning vault it is Sign in in the user menu. Nothing here mints a vault key."',
-      'wait state "identity.connected" is=true timeout=60000',
-      'success "Signed in. The vault still opens with the local unlock on this device."',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "identity.sign-out",
-    title: "Sign out of this device",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "identity.sign-out"',
-      'say "Signing out ends the account on this device: the Identity session is revoked, the upstream sign-in is forgotten, and the vault locks. The vault key is a separate thing — locking alone keeps you signed in."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.account" "The first segment of the prompt names the account. Open it; Sign out is the last entry." side=bottom',
-      'wait target "shell.account" event=activate timeout=30000',
-      'success "The unlock screen says you are signed out. Sign in again from the user menu, or continue as a guest."',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "identity.switch-account",
-    title: "Sign in as somebody else",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "identity.switch-account"',
-      'say "Switching signs this device out and starts a fresh sign-in. An OpenID issuer is asked to authenticate again; a Google account through shoo.dev is the one shoo.dev remembers, and a different one means signing out at shoo.dev/me first."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.account" "Open the account menu and choose Switch account." side=bottom',
-      'wait target "shell.account" event=activate timeout=30000',
-      'success "Choose the account to sign in with from the user menu."',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "vault.second-step.code",
-    title: "Add a fallback second step by email or text",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "vault.second-step.code"',
-      'say "A code by email or text is a fallback for a lost phone, not a first second step: it needs a sign-in service to send it, and anyone who can read the inbox or hold the number can read the code. Keep an authenticator app or passkey enrolled too."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/security"',
-      'wait route "/settings/security" timeout=15000',
-      'focus "settings.second-step" "Press Add on Email code or Text message. The sheet asks where to send it, offers your account address, sends the first code, and turns the channel on only once that code matches." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
     id: "vault.recovery-codes",
     title: "Save the recovery codes",
     routes: [],
@@ -207,7 +150,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/vaults"',
       'wait route "/settings/vaults" timeout=15000',
-      'focus "settings.item-types" "A type is a JSON manifest, never code. Marketplace reads the git repositories listed there; Source reads one you paste. Each is shown field by field before it installs." side=top',
+      'focus "settings.item-types" "A type is a JSON manifest, never code. Installed lists the types this vault has; Marketplace reads the git repositories it names and takes another one by address. Each is shown field by field before it installs." side=top',
       "end",
     ].join("\n"),
   },
@@ -229,6 +172,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     id: "app.install",
     title: "Install this app on the device",
     routes: ["/settings"],
+    requires: ["install.offered"],
     guide: [
       "guide/1",
       'goal "app.install"',
@@ -236,18 +180,6 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/settings"',
       'wait route "/settings" timeout=15000',
       'focus "settings.install" "This keeps the vault as an installed app, with no browser chrome." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "broker.authorize",
-    title: "Approve a site sign-in",
-    routes: ["/broker/authorize"],
-    guide: [
-      "guide/1",
-      'goal "broker.authorize"',
-      'say "A static site cannot mint tokens. This popup asks you to approve its origin receiving an upstream assertion."',
-      'focus "broker.consent" "Read the origin, then approve or deny. Nothing is granted by loading this page." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -418,7 +350,9 @@ export function mergedGuideGoals(): readonly GuideGoalDescriptor[] {
       ? CORE_HELP_TOPICS
       : Object.freeze([
           ...CORE_HELP_TOPICS,
-          ...OPTIONAL_HELP_TOPICS.filter((topic) => seen.has(topic.goal)),
+          ...OPTIONAL_HELP_TOPICS.filter(
+            (topic) => topic.goal !== null && seen.has(topic.goal),
+          ),
         ]);
   return GUIDE_GOALS;
 }
@@ -428,11 +362,17 @@ export function mergedHelpTopics(): readonly HelpTopic[] {
   return HELP_TOPICS;
 }
 
+/** A requirement holds only when its predicate is declared and true now. */
+function guidePredicateHolds(id: string): boolean {
+  return isKnownGuidePredicate(id) && readGuidePredicate(id);
+}
+
 export function describeGuideGoals(
   route: GuideRouteId,
 ): readonly SupportGoalDescription[] {
   return mergedGuideGoals()
     .filter((goal) => goal.libraryOnly !== true)
+    .filter((goal) => (goal.requires ?? []).every(guidePredicateHolds))
     .filter(
       (goal) =>
         goal.routes.length === 0 ||

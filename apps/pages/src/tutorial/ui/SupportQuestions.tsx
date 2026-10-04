@@ -18,7 +18,8 @@ export type SupportQuestion = {
   readonly id: string;
   readonly title: string;
   readonly ask: () => void;
-  readonly showMe: () => void;
+  /** Absent for written help that has no walkthrough (the gates). */
+  readonly showMe: (() => void) | null;
 };
 
 export function questionsFromTopics(
@@ -28,8 +29,10 @@ export function questionsFromTopics(
 ): SupportQuestion[] {
   const out: SupportQuestion[] = [];
   for (const topic of topics) {
-    const named = guideGoal(topic.goal);
-    if (!named) continue;
+    const named = topic.goal ? guideGoal(topic.goal) : null;
+    // A topic that names a goal no longer live is dropped; one that names none
+    // is written help only.
+    if (topic.goal && !named) continue;
     out.push({
       id: topic.id,
       title: topic.title,
@@ -40,9 +43,11 @@ export function questionsFromTopics(
         }
         support.answerFromAuthoredHelp(topic.title, topic.answer);
       },
-      showMe: () => {
-        void support.startGuide(named.guide, "authored");
-      },
+      showMe: named
+        ? () => {
+            void support.startGuide(named.guide, "authored");
+          }
+        : null,
     });
   }
   return out;
@@ -99,9 +104,11 @@ export function SupportQuestions({
           >
             {question.title}
           </button>
-          <IconKey label="Show me" small onClick={question.showMe}>
-            <IconArrowRight size={16} />
-          </IconKey>
+          {question.showMe ? (
+            <IconKey label="Show me" small onClick={question.showMe}>
+              <IconArrowRight size={16} />
+            </IconKey>
+          ) : null}
         </article>
       ))}
     </section>
