@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
+import { useFinePointer } from "../../lib/use-narrow.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
@@ -24,6 +25,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
   const roads = useConnectorRoads();
+  const keybindings = useFinePointer();
   const { plan } = useComposition();
   const emptyFeatures = FEATURES.filter(
     (feature) => !featureDraws(feature, roads.tile, plan),
@@ -46,5 +48,6 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     contributed,
     duress,
     emptyFeatures,
+    keybindings,
   };
 }

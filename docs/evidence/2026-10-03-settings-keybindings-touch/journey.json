@@ -1,0 +1,56 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings" },
+        { "report": ".set__nav a" },
+        { "shot": "390-settings-tabs" },
+        { "visit": "settings/keybindings" },
+        { "address": null },
+        { "report": ".set__nav a[aria-current]" },
+        { "shot": "390-keybindings-link" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings" },
+        { "report": ".set__nav a" },
+        { "shot": "1280-settings-tabs" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-settings-tabs",
+      "width": 390,
+      "title": "Settings tab strip, touch only — 390 × 844",
+      "caption": "A phone has no key to bind, so the strip no longer offers Keybindings.",
+      "before": "tabs: General, Keybindings, Security, Vaults, Capabilities, Danger",
+      "after": "tabs: General, Security, Vaults, Capabilities, Danger"
+    },
+    {
+      "shot": "390-keybindings-link",
+      "width": 390,
+      "title": "Opening /settings/keybindings on a phone — 390 × 844",
+      "caption": "A shared link to the key editor lands on General.",
+      "before": "the Keybindings editor, current tab Keybindings",
+      "after": "General, current tab General, address /settings"
+    },
+    {
+      "shot": "1280-settings-tabs",
+      "width": 1280,
+      "title": "Settings tab strip, mouse — 1280 × 800",
+      "caption": "Unchanged where a mouse is attached.",
+      "before": "tabs: General, Keybindings, Security, Vaults, Capabilities, Danger",
+      "after": "tabs: General, Keybindings, Security, Vaults, Capabilities, Danger"
+    }
+  ]
+}

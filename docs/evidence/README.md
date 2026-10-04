@@ -49,8 +49,12 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
+| [`2026-10-03-share-once-phone/`](2026-10-03-share-once-phone/README.md) | Share once on an item's page, seated for the phone |
 | [`2026-10-03-settings-walk/`](2026-10-03-settings-walk/README.md) | Settings walk: every row acts, or is not drawn (ADR 0158, second pass) |
+| [`2026-10-03-settings-keybindings-touch/`](2026-10-03-settings-keybindings-touch/README.md) | Settings has no Keybindings tab on a touch-only device |
 | [`2026-10-03-plugin-switch-absent/`](2026-10-03-plugin-switch-absent/README.md) | Plugin tiles draw no switch they cannot act on (ADR 0150, settings rows act or are absent) |
+| [`2026-10-03-phone-vault-tree/`](2026-10-03-phone-vault-tree/README.md) | Phone vault opens on the section tree |
+| [`2026-10-03-phone-menus/`](2026-10-03-phone-menus/README.md) | Phone menus, and gestures where the keyboard was |
 | [`2026-10-03-live-sessions-stack/`](2026-10-03-live-sessions-stack/README.md) | Live sessions: the feature and the stack that followed it (ADR 0150) |
 | [`2026-10-03-keybindings-statusline/`](2026-10-03-keybindings-statusline/README.md) | Keybindings: the half-typed keys on the statusline |
 | [`2026-10-03-keybindings-review-fixes/`](2026-10-03-keybindings-review-fixes/README.md) | Keybindings review fixes: the `?` sheet and the Fixed keys |

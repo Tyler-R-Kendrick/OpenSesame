@@ -1,0 +1,173 @@
+{
+  "out": ".",
+  "clock": "2026-10-03T15:00:00.000Z",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "API key"
+          }
+        },
+        {
+          "fill": {
+            "label": "Secret value",
+            "text": "s3cr3t"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": "button[aria-label='Share once']"
+        },
+        {
+          "measure": ".detail__groupbar"
+        },
+        {
+          "measure": ".detail__grouphead"
+        },
+        {
+          "scrollToOptional": "Share once"
+        },
+        {
+          "shot": "closed-390"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "API key"
+          }
+        },
+        {
+          "fill": {
+            "label": "Secret value",
+            "text": "s3cr3t"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": "button[aria-label='Share once']"
+        },
+        {
+          "measure": ".detail__groupbar"
+        },
+        {
+          "measure": ".detail__grouphead"
+        },
+        {
+          "shot": "closed-1280"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "API key"
+          }
+        },
+        {
+          "fill": {
+            "label": "Secret value",
+            "text": "s3cr3t"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "measure": "#drop-ttl:focus"
+        },
+        {
+          "measure": "body:focus"
+        },
+        {
+          "shot": "open-390"
+        },
+        {
+          "press": "Cancel"
+        },
+        {
+          "measure": "button[aria-label='Share once']:focus"
+        },
+        {
+          "measure": "body:focus"
+        },
+        {
+          "shot": "cancelled-390"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "closed-390",
+      "width": 390,
+      "title": "Share once on an item, phone \u2014 390 \u00d7 844",
+      "caption": "The closed offer was a bare key floating under the last group. It now sits at the end of a headed Share once group.",
+      "before": "bare key 44x44 @16,448, no head, no rule",
+      "after": "bar 358x45 @16,448 (44px key + 1px rule), key 44x44 @330,448"
+    },
+    {
+      "shot": "closed-1280",
+      "width": 1280,
+      "title": "Share once on an item, desktop \u2014 1280 \u00d7 800",
+      "caption": "A mouse width keeps the bare key it always had; the phone arrangement does not reach it.",
+      "before": "key 24x24 @612,281, no bar",
+      "after": "key 24x24 @612,281, bar and head not drawn (0x0)"
+    },
+    {
+      "shot": "open-390",
+      "width": 390,
+      "title": "Share once opened, phone \u2014 390 \u00d7 844",
+      "caption": "Opening the offer moves focus to the Opens for picker instead of dropping it to the page.",
+      "before": "focus on body (nothing matches #drop-ttl:focus)",
+      "after": "focus on #drop-ttl 358x44 @16,509"
+    },
+    {
+      "shot": "cancelled-390",
+      "width": 390,
+      "title": "Share once cancelled, phone \u2014 390 \u00d7 844",
+      "caption": "Cancel returns focus to the Share once key.",
+      "before": "focus on body (nothing matches the key:focus)",
+      "after": "focus on the Share once key 44x44 @330,448"
+    }
+  ]
+}

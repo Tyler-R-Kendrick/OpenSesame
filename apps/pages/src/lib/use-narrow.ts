@@ -1,0 +1,57 @@
+import { useSyncExternalStore } from "react";
+
+/**
+ * The width below which the shell draws one pane at a time. It is the same
+ * 900px the stylesheet breaks on (`styles.css`, `vault.css`): the rail goes,
+ * and what the rail carried has to be drawn somewhere a finger can reach.
+ */
+export const NARROW_QUERY = "(max-width: 900px)";
+
+/** True while any attached pointer is precise: a mouse, a trackpad, a pen. */
+export const FINE_POINTER_QUERY = "(any-pointer: fine)";
+
+function list(media: string): MediaQueryList | null {
+  if (globalThis.window === undefined) return null;
+  try {
+    return window.matchMedia?.(media) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a media query holds. `absent` is the answer where there is no
+ * `matchMedia` to ask (a test renderer, a server): each caller says which way
+ * its page is drawn when nothing can be measured.
+ */
+export function useMediaQuery(media: string, absent: boolean): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const found = list(media);
+      found?.addEventListener("change", onChange);
+      return () => found?.removeEventListener("change", onChange);
+    },
+    () => list(media)?.matches ?? absent,
+    () => absent,
+  );
+}
+
+/**
+ * True while the shell is below the one-pane breakpoint. A browser with no
+ * `matchMedia` is drawn as a desktop: the rail is the frame that is always
+ * complete, and the phone arrangement only exists where the width says so.
+ */
+export function useNarrow(): boolean {
+  return useMediaQuery(NARROW_QUERY, false);
+}
+
+/**
+ * False where no pointing device is attached, which is how a touch-only
+ * phone reads. `(any-pointer: fine)` detects pointers, not keyboards, so a
+ * phone whose only extra is a hardware keyboard also reads false and loses
+ * the Keybindings tab (DESIGN.md § Touch). A laptop, a tablet with a mouse or
+ * trackpad, and a renderer with no `matchMedia` all count as having a key.
+ */
+export function useFinePointer(): boolean {
+  return useMediaQuery(FINE_POINTER_QUERY, true);
+}
