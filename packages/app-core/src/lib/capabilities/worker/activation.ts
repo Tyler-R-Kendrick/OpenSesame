@@ -20,7 +20,10 @@
  * *new version*: asking for the script again under a fresh URL (`?r=1`)
  * replaces the waiting one and runs the activation again, which succeeds
  * almost every time and, repeated, always. So a worker still waiting after
- * `WAITING_NUDGE_MS` is asked for again, and again, until the bound.
+ * `WAITING_NUDGE_MS` is asked for again, and again, until the bound. A request
+ * that never answers is raced against the same bound, so it cannot hold the
+ * caller; what is left waiting at the bound is picked up again by
+ * `worker/recover.ts`.
  */
 
 import { sameScript, workerControllerSeams } from "./seams.js";
@@ -78,8 +81,15 @@ export async function becomesActive(
   reregister: Reregister,
 ): Promise<boolean> {
   let overdue = false;
+  let lapse = () => {};
+  // Resolves when the bound is reached, so a `reregister` whose script fetch
+  // never answers cannot hold the caller (or the reconcile chain) past it.
+  const deadline = new Promise<null>((resolve) => {
+    lapse = () => resolve(null);
+  });
   const cancel = workerControllerSeams.later(() => {
     overdue = true;
+    lapse();
   }, ACTIVATION_WAIT_MS);
   try {
     let current = registration;
@@ -94,7 +104,7 @@ export async function becomesActive(
       // downloading or installing is slow, and is left alone.
       if (worker.state !== "installed") continue;
       attempt += 1;
-      const again = await reregister(attempt);
+      const again = await Promise.race([reregister(attempt), deadline]);
       if (!again) return false;
       current = again;
     }

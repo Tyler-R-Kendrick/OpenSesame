@@ -188,6 +188,11 @@ export class FakeContainer {
    * it is being stopped. The next registration, under a new URL, activates.
    */
   wedges = 0;
+  /**
+   * From this registration on (1 is the first) `register` never answers, as a
+   * script fetch that hangs does. `null`: every one answers.
+   */
+  hangRegisterFrom: number | null = null;
   /** The wedged worker, if one sits waiting. */
   waitingWorker: FakeWorker | null = null;
   /** The worker of the last `register`, for a test that makes it move on. */
@@ -252,6 +257,11 @@ export class FakeContainer {
   async register(url: string, options?: RegistrationOptions) {
     this.registered.push({ url, options });
     if (this.registerFails) throw new TypeError("script fetch failed");
+    if (
+      this.hangRegisterFrom !== null &&
+      this.registered.length >= this.hangRegisterFrom
+    )
+      return new Promise<never>(() => undefined);
     const worker = new FakeWorker(url);
     this.lastInstalling = worker;
     if (this.wedges > 0) {

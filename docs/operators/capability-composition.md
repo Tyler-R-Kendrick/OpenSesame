@@ -451,7 +451,11 @@ Consequences an operator should expect:
     version, which Chrome activates through the ordinary path (0 stuck in 60
     lab runs). Every comparison of "is this the required worker" ignores the
     query. Redundant, or still not active after a minute, is `WORKER_INSTALL_FAILED`
-    as before; `verify:push-worker` runs with two tabs and no nudge.
+    as before, and a request to register that never answers is bound by the same
+    minute. A replacement still waiting when the controller gave up is not left
+    for the life of the page: the controller looks again after 30 s, 2 min and
+    10 min (three times at most), each time through the ordinary transition under
+    a URL no worker holds. `verify:push-worker` runs with two tabs and no nudge.
   - **Reloads.** A page reloads on a change of controller only for a different
     *release*. It learns the release it runs from its first controller, and asks
     the worker that takes over which release it is; the same release means the

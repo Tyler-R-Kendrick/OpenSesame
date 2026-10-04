@@ -49,6 +49,20 @@ import {
   syncPlan,
 } from "./worker/plan-sync.js";
 import {
+  freshScriptUrl,
+  newestAttempt,
+  scheduleRecheck,
+  stuckWaiting,
+  takeRecoveryTurn,
+} from "./worker/recover.js";
+import {
+  currentRegistration,
+  newestScript,
+  register,
+  variantEligible,
+  variantOfScript,
+} from "./worker/registration.js";
+import {
   sameScript,
   scriptUrlAttempt,
   scriptUrlFor,
@@ -65,7 +79,6 @@ import {
   type CompositionSnapshotForWorker,
   type CompositionStoreForWorker,
   type RegisterWorkerOptions,
-  VARIANT_CAPABILITY,
   WORKER_GRAPH_UNAVAILABLE,
 } from "./worker/types.js";
 
@@ -86,70 +99,6 @@ export type {
   WorkerTransition,
 } from "./worker/types.js";
 
-/** Which variant a registered script is, by the distribution's table. */
-function variantOfScript(scriptUrl: string | null): string | null {
-  if (scriptUrl === null) return null;
-  const variant = state.distribution?.workerVariants.find((v) =>
-    sameScript(scriptUrlFor(v.scriptPath), scriptUrl),
-  );
-  return variant?.id ?? null;
-}
-
-/**
- * The script this scope is running or about to run: the newest worker first,
- * so a replacement still installing counts as the answer and is not asked for
- * a second time.
- */
-function newestScript(
-  registration: ServiceWorkerRegistration | undefined,
-): string | null {
-  if (!registration) return null;
-  return (
-    registration.installing?.scriptURL ??
-    registration.waiting?.scriptURL ??
-    registration.active?.scriptURL ??
-    null
-  );
-}
-
-/**
- * Whether the installation may run this variant yet. Core-only always; any
- * other variant only once a persisted selection and receipt exist, and, for a
- * variant that serves one capability, only when that capability is approved
- * and named in the receipt (PWA-03).
- */
-function variantEligible(
-  id: string,
-  snapshot: CompositionSnapshotForWorker,
-): boolean {
-  if (id === CORE_ONLY_VARIANT) return true;
-  const { plan, selection, receipt } = snapshot;
-  if (!plan || !selection || !receipt) return false;
-  const capability = VARIANT_CAPABILITY.get(id);
-  if (!capability) return true;
-  return (
-    plan.approvedCapabilities.includes(capability) &&
-    capability in receipt.exposure
-  );
-}
-
-async function register(
-  container: ServiceWorkerContainer,
-  scriptUrl: string,
-): Promise<ServiceWorkerRegistration | null> {
-  state.registeredThisPage = true;
-  try {
-    return await container.register(scriptUrl, {
-      type: "classic",
-      updateViaCache: "none",
-      scope: workerControllerSeams.baseUrl(),
-    });
-  } catch {
-    diagnose("WORKER_REGISTRATION_FAILED");
-    return null;
-  }
-}
-
 function attachContainerListeners(container: ServiceWorkerContainer): void {
   if (state.listenersAttached) return;
   state.listenersAttached = true;
@@ -169,16 +118,6 @@ async function refreshVariant(
   const registration = await currentRegistration(container);
   publish({ variant: variantOfScript(activeScript(registration)) });
   if (state.latest) syncPlan(state.latest);
-}
-
-async function currentRegistration(
-  container: ServiceWorkerContainer,
-): Promise<ServiceWorkerRegistration | undefined> {
-  try {
-    return await container.getRegistration(workerControllerSeams.baseUrl());
-  } catch {
-    return undefined;
-  }
 }
 
 /**
@@ -206,8 +145,52 @@ async function enterTransition(
 
 /** Ask for the same script again under a fresh URL (`worker/activation.ts`). */
 function askAgain(container: ServiceWorkerContainer, scriptUrl: string) {
-  return (attempt: number) =>
-    register(container, scriptUrlAttempt(scriptUrl, attempt));
+  return async () =>
+    register(
+      container,
+      freshScriptUrl(await currentRegistration(container), scriptUrl),
+    );
+}
+
+/** Run the reconcile again on the latest snapshot, after the one in flight. */
+function reconcileAgain(): void {
+  const snapshot = state.latest;
+  if (!snapshot) return;
+  state.reconciling = state.reconciling
+    .then(() => reconcile(snapshot))
+    .catch(() => undefined);
+}
+
+/**
+ * A replacement gave up on at the bound that is still waiting is a transition
+ * that did not finish: come back to it later (`worker/recover.ts`).
+ */
+async function recheckIfStuck(
+  container: ServiceWorkerContainer,
+  requiredUrl: string,
+): Promise<void> {
+  if (stuckWaiting(await currentRegistration(container), requiredUrl))
+    scheduleRecheck(reconcileAgain);
+}
+
+/** Try the required script again, fresh, through the ordinary transition. */
+async function recoverStuck(
+  registration: ServiceWorkerRegistration,
+  requiredId: string,
+  requiredUrl: string,
+): Promise<void> {
+  if (!takeRecoveryTurn()) return;
+  const from = variantOfScript(activeScript(registration));
+  state.pendingTransition = {
+    registration,
+    scriptUrl: scriptUrlAttempt(requiredUrl, newestAttempt(registration) + 1),
+    to: requiredId,
+  };
+  publish({
+    variant: from,
+    transition: { from, to: requiredId, status: "transition-required" },
+  });
+  await transitionWorker();
 }
 
 /** The first registration of this page, and the worker it becomes. */
@@ -230,6 +213,7 @@ async function ensureRegistered(
   );
   publish({ pendingVariant: null, variant: active ? requiredId : null });
   if (!active) diagnose("WORKER_INSTALL_FAILED");
+  if (!active) await recheckIfStuck(container, requiredUrl);
 }
 
 /** What runs is the active worker; a newer one still installing is pending. */
@@ -267,6 +251,10 @@ async function reconcile(
   state.pendingTransition = null;
   if (state.status.transition?.status === "transition-required")
     publish({ transition: null });
+  if (registration && stuckWaiting(registration, requiredUrl)) {
+    await recoverStuck(registration, requiredId, requiredUrl);
+    return;
+  }
   await ensureRegistered(container, current, requiredId, requiredUrl);
   publishVariant(registration);
   syncPlan(snapshot);
@@ -296,11 +284,8 @@ export function registerWorkerForPlan(
   state.bootControlled = container.controller != null;
   if (state.bootControlled) askWorker();
   const apply = () => {
-    const snapshot = store.getSnapshot();
-    state.latest = snapshot;
-    state.reconciling = state.reconciling
-      .then(() => reconcile(snapshot))
-      .catch(() => undefined);
+    state.latest = store.getSnapshot();
+    reconcileAgain();
   };
   const unsubscribe = store.subscribe(apply);
   apply();
@@ -316,6 +301,7 @@ export function registerWorkerForPlan(
   return () => {
     unsubscribe();
     stopSaved();
+    state.recheckCancel?.();
   };
 }
 
@@ -356,6 +342,7 @@ export async function transitionWorker(): Promise<boolean> {
     // again. Nothing that depended on the new one happens.
     if (registration) diagnose("WORKER_INSTALL_FAILED");
     publish({ pendingVariant: null, transition: null });
+    if (registration) await recheckIfStuck(container, pending.scriptUrl);
     return false;
   }
   // Leaving the push variant, now that the core worker really holds the scope:

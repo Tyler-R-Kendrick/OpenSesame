@@ -46,6 +46,12 @@ export type ControllerState = {
   /** The page has already been told to reload for a new release. */
   reloadStarted: boolean;
   reconciling: Promise<void>;
+  /** The highest `?r=` this page has asked a script for. */
+  asked: number;
+  /** Times the controller came back to a replacement it had given up on. */
+  recoveries: number;
+  /** Cancels the pending look-again timer, if one is set. */
+  recheckCancel: (() => void) | null;
 };
 
 const INITIAL_STATUS: WorkerStatus = {
@@ -79,6 +85,9 @@ function initialFields(): ControllerState {
     afterTakeover: null,
     reloadStarted: false,
     reconciling: Promise.resolve(),
+    asked: 0,
+    recoveries: 0,
+    recheckCancel: null,
   };
 }
 
@@ -103,6 +112,7 @@ export function diagnose(code: string): void {
 
 /** Test seam: forget every page-level decision. */
 export function resetWorkerController(): void {
+  state.recheckCancel?.();
   Object.assign(state, initialFields());
   notify();
 }

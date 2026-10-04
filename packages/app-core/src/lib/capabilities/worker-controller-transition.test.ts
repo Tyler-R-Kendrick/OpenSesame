@@ -285,6 +285,82 @@ describe("a replacement the browser leaves waiting (another tab restarted the ol
     expect(workerStatus().diagnostics).toContain("WORKER_INSTALL_FAILED");
   });
 
+  it("is not held past the bound by a script fetch that never answers", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.wedges = 1000;
+    container.hangRegisterFrom = 2;
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    const done = settled();
+    await pump(2);
+    expect(container.registered).toHaveLength(2);
+    env.elapse();
+    await expect(
+      Promise.race([done.then(() => "settled"), pump(2).then(() => "held")]),
+    ).resolves.toBe("settled");
+    expect(workerStatus().variant).toBe("core-only");
+    expect(workerStatus().diagnostics).toContain("WORKER_INSTALL_FAILED");
+  });
+
+  it("comes back to a replacement it gave up on, fresh, and then holds the scope", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.wedges = 1000;
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    let done = settled();
+    await pump(4);
+    env.elapse();
+    await pump(2);
+    await done;
+    expect(container.activeScript).toBe(CORE_URL);
+    const gaveUp = container.registered.length;
+    const last = container.registered[gaveUp - 1]?.url ?? "";
+    // The browser is well again; the page was never reloaded, nor the plan changed.
+    container.wedges = 0;
+    env.elapse();
+    done = settled();
+    await pump(2);
+    await done;
+    expect(container.registered).toHaveLength(gaveUp + 1);
+    const again = container.registered[gaveUp]?.url ?? "";
+    expect(again).not.toBe(last);
+    expect(new URL(again).pathname).toBe(new URL(PUSH_URL).pathname);
+    expect(container.unregistered).toEqual([]);
+    expect(workerStatus().variant).toBe("push");
+    expect(workerStatus().pendingVariant).toBe(null);
+  });
+
+  it("comes back a bounded number of times, and never in a tight loop", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.wedges = 1_000_000;
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    let done = settled();
+    await pump(4);
+    env.elapse();
+    await pump(2);
+    await done;
+    let counted = container.registered.length;
+    const registrations: number[] = [];
+    for (let round = 0; round < 6; round += 1) {
+      // Nothing changes until the look-again timer runs.
+      await pump(2);
+      expect(container.registered).toHaveLength(counted);
+      env.elapse();
+      done = settled();
+      await pump(4);
+      env.elapse();
+      await pump(2);
+      await done;
+      registrations.push(container.registered.length - counted);
+      counted = container.registered.length;
+    }
+    // Three recoveries each begin with one fresh script; then it is left alone.
+    expect(registrations.slice(0, 3).every((n) => n >= 1)).toBe(true);
+    expect(registrations.slice(3)).toEqual([0, 0, 0]);
+    expect(container.activeScript).toBe(CORE_URL);
+  });
+
   it("counts a script asked for again as the same variant, and registers nothing at the next boot", async () => {
     const container = new FakeContainer(`${PUSH_URL}?r=2`);
     const store = new FakeStore(approved());
