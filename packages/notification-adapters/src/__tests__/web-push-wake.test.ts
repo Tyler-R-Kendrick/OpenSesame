@@ -98,6 +98,30 @@ describe("web push payload and configuration", () => {
     expect(recorder.calls).toHaveLength(0);
   });
 
+  it("treats a signing failure as the operator's, never the subscription's", async () => {
+    const recorder = jsonFetch("", 201);
+    const { subscription } = subscribe();
+    const push = createWebPushAdapter(
+      vapidConfig({
+        fetchImpl: recorder.impl,
+        now: () => {
+          throw new Error("clock unavailable");
+        },
+      }),
+    );
+    const outcome = await push.deliver(
+      push.render(renderInput({ kind: "native_push" })),
+      { channel: "native_push", subscription },
+    );
+    // Not `subscription:*`, which retires the row: a broken signing identity
+    // would otherwise retire every subscription it touched.
+    expect(outcome).toEqual({
+      status: "unconfigured",
+      error: "vapid_signing_failed",
+    });
+    expect(recorder.calls).toHaveLength(0);
+  });
+
   it("is unconfigured when the private key is not the public key's, or the contact is not a contact", () => {
     const keys = generateVapidKeyPair();
     const stranger = generateVapidKeyPair();

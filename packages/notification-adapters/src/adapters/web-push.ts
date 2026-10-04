@@ -39,7 +39,11 @@ import type {
   WakeAction,
   WakeSignal,
 } from "../contract.js";
-import { deliverToPublicEndpoint, postPublicOnly } from "../public-endpoint.js";
+import {
+  deliverToPublicEndpoint,
+  endpointRefusal,
+  postPublicOnly,
+} from "../public-endpoint.js";
 import { renderNotification } from "../templates.js";
 import { encryptWebPushPayload } from "./web-push-ece.js";
 import {
@@ -98,21 +102,33 @@ export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
       return { status: "unconfigured", error: "no_vapid_keys" };
     }
     const subscription = dest.subscription;
+    // Before anything is signed: the token's audience is the endpoint's origin,
+    // so an endpoint that does not parse is the subscription's fault, and is
+    // reported as such rather than as a signing failure.
+    const refusal = endpointRefusal(subscription.endpoint);
+    if (refusal) return { status: "permanent", error: refusal };
     const payload = webPushPayload(msg);
     if (!payload) return { status: "permanent", error: "not_a_wake_message" };
     let body: Buffer;
-    let authorization: string;
     try {
       body = encryptWebPushPayload(subscription, payload);
-      authorization = vapidAuthorization(subscription.endpoint, config, now());
     } catch (err) {
-      // A malformed subscription is not worth retrying: the keys will not
-      // become well-formed on their own, and the row should be re-collected
-      // from the browser instead.
+      // Only the subscription's own keys can fail here (not 16/65 bytes, a point
+      // off the curve): the row will not become well-formed on its own, and it
+      // should be re-collected from the browser instead.
       return {
         status: "permanent",
         error: `subscription:${err instanceof Error ? err.name : "invalid"}`,
       };
+    }
+    let authorization: string;
+    try {
+      authorization = vapidAuthorization(subscription.endpoint, config, now());
+    } catch {
+      // Signing uses only this deployment's key. A failure is the operator's
+      // identity, never the subscription's, so it must not read as
+      // `subscription:` (which retires the row, and would retire every row).
+      return { status: "unconfigured", error: "vapid_signing_failed" };
     }
     // 404 and 410 mean the subscription is gone; `classifyHttpStatus`
     // already calls those permanent, which is what retires the row. So is a
