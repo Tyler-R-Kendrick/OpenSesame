@@ -11,7 +11,12 @@
  * nothing is the bug this suite exists to catch.
  */
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { PASSWORD } from "./pages-journey.mjs";
+import { measureStep, stepChecks } from "./tutorial-measure.mjs";
+
+export { stepChecks };
 
 const MAX_STEPS = 40;
 
@@ -66,161 +71,143 @@ export async function startTutorial(page, id) {
 }
 
 /**
- * Everything one step shows, measured in the page. Waits for the step to be
- * placed, and — for a step that points at a control — for the control to be
- * lit or for the card to say it is not on screen, whichever the product does.
+ * The runtime gives a control TOUR_APPEAR_GRACE_MS to mount before it calls the
+ * step degraded, and the card says "not on screen" from the first frame until
+ * it does. "Not on screen" is therefore only an answer once it has outlasted
+ * that grace; the walk reads the constant from the runtime so the two cannot
+ * drift, and keeps a margin for a slow runner.
  */
-export async function readStep(page) {
-  await page
-    .locator(".coach__card.is-placed")
-    .waitFor({ timeout: 8000 })
-    .catch(() => {});
-  await page
-    .waitForFunction(
-      () => {
-        const root = document.querySelector(".coach");
-        if (!root) return true;
-        if (root.getAttribute("data-coach-kind") !== "point") return true;
-        const degraded = root.textContent?.includes("not on screen");
-        return Boolean(root.querySelector(".coach__ring")) || degraded;
-      },
-      undefined,
-      { timeout: 6000 },
-    )
-    .catch(() => {});
-  // The aperture glides for 300ms between steps; measure after it lands.
-  await page.waitForTimeout(340);
-  return page.evaluate(measureStep);
+const GRACE_MARGIN_MS = 2000;
+export const APPEAR_GRACE_MS = (() => {
+  try {
+    const source = readFileSync(
+      fileURLToPath(
+        new URL(
+          "../../../../packages/guide-runtime/src/tour.ts",
+          import.meta.url,
+        ),
+      ),
+      "utf8",
+    );
+    const found = /TOUR_APPEAR_GRACE_MS\s*=\s*([\d_]+)/.exec(source);
+    if (found) return Number(found[1].replaceAll("_", ""));
+  } catch {
+    // Not run from a checkout: the documented value stands.
+  }
+  return 2500;
+})();
+
+/** Waits for the card to be placed. A card that never is, is an error, not a pass. */
+async function placed(page) {
+  await page.waitForFunction(
+    () =>
+      !document.querySelector(".coach") ||
+      Boolean(document.querySelector(".coach__card.is-placed")),
+    undefined,
+    { timeout: 10000 },
+  );
 }
 
 /**
- * Runs in the page: everything one step shows. Small helpers, so the
- * measurement stays readable and each one is simple to trust.
+ * Waits for a step that points at a control to light it. Resolves when the
+ * ring is drawn, or when the card has said "not on screen" continuously for
+ * longer than the runtime's own grace — never on the first transient cue.
  */
-function measureStep() {
-  const root = document.querySelector(".coach");
-  if (!root) return null;
-  const text = (selector) => root.querySelector(selector)?.textContent ?? "";
-  const box = (node) => {
-    if (!node) return null;
-    const r = node.getBoundingClientRect();
-    const { left, top, right, bottom, width, height } = r;
-    return { left, top, right, bottom, width, height };
-  };
-  const clamp = (value, max) => Math.min(Math.max(value, 0), max);
-  const whatIsAt = (ringBox) => {
-    if (!ringBox) return null;
-    const x = clamp(ringBox.left + ringBox.width / 2, innerWidth - 1);
-    const y = clamp(ringBox.top + ringBox.height / 2, innerHeight - 1);
-    const hit = document.elementFromPoint(x, y);
-    if (!hit) return null;
-    return {
-      dim: hit.classList.contains("coach__dim"),
-      card: Boolean(hit.closest(".coach__card")),
-    };
-  };
-  const card = root.querySelector(".coach__card");
-  const ring = root.querySelector(".coach__ring");
-  const go = root.querySelector(".coach__btn--go");
-  const back = [...root.querySelectorAll(".coach__btn")].find((b) =>
-    /Back|Replay/.test(b.textContent ?? ""),
-  );
-  const ringBox = box(ring);
-  return {
-    kind: root.getAttribute("data-coach-kind"),
-    step: Number(root.getAttribute("data-coach-step")),
-    counter: text(".coach__count"),
-    title: text(".coach__title"),
-    text: text(".coach__text"),
-    cue: text(".coach__cue"),
-    notOnScreen: text(".coach__cue").includes("not on screen"),
-    action: Boolean(ring?.classList.contains("is-action")),
-    card: box(card),
-    ring: ringBox,
-    underAperture: whatIsAt(ringBox),
-    go: box(go),
-    goDisabled: go ? go.disabled : null,
-    backDisabled: back ? back.disabled : null,
-    focusInCard: Boolean(card?.contains(document.activeElement)),
-    viewport: {
-      width: document.documentElement.clientWidth,
-      height: innerHeight,
+async function lit(page) {
+  await page.waitForFunction(
+    ({ finalMs }) => {
+      const root = document.querySelector(".coach");
+      if (!root || !root.getAttribute("data-coach-target")) return true;
+      const key = `${root.getAttribute("data-coach-step")}:${root.getAttribute("data-coach-kind")}`;
+      if (root.getAttribute("data-coach-degraded") !== "true") {
+        window.__walkMissing = null;
+        return Boolean(root.querySelector(".coach__ring"));
+      }
+      if (window.__walkMissing?.key !== key)
+        window.__walkMissing = { key, since: performance.now() };
+      return performance.now() - window.__walkMissing.since >= finalMs;
     },
-  };
-}
-
-function intersects(a, b) {
-  return (
-    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+    { finalMs: APPEAR_GRACE_MS + GRACE_MARGIN_MS },
+    { timeout: APPEAR_GRACE_MS + GRACE_MARGIN_MS + 20000, polling: "raf" },
   );
 }
 
-const inside = (box, viewport) =>
-  box.left >= -0.5 &&
-  box.top >= -0.5 &&
-  box.right <= viewport.width + 0.5 &&
-  box.bottom <= viewport.height + 0.5;
+/**
+ * Waits for the aperture and the card to stop moving: no glide in flight and
+ * the same boxes for several frames running. Replaces a fixed sleep with the
+ * condition the sleep stood for.
+ */
+async function settled(page) {
+  await page.waitForFunction(
+    () => {
+      const root = document.querySelector(".coach");
+      if (!root) return true;
+      const card = root.querySelector(".coach__card");
+      if (!card?.classList.contains("is-placed")) return false;
+      if (root.querySelector(".is-gliding")) return false;
+      const ring = root.querySelector(".coach__ring");
+      const sig = [
+        root.getAttribute("data-coach-step"),
+        root.getAttribute("data-coach-kind"),
+        JSON.stringify(card.getBoundingClientRect()),
+        ring ? JSON.stringify(ring.getBoundingClientRect()) : "-",
+      ].join("|");
+      const held = window.__walkSettled;
+      if (held?.sig === sig) held.frames += 1;
+      else window.__walkSettled = { sig, frames: 0 };
+      return window.__walkSettled.frames >= 4;
+    },
+    undefined,
+    { timeout: 10000, polling: "raf" },
+  );
+}
 
-const touches = (box, viewport) =>
-  box.width > 0 &&
-  box.height > 0 &&
-  box.right > 0 &&
-  box.bottom > 0 &&
-  box.left < viewport.width &&
-  box.top < viewport.height;
-
-const describe = (box) =>
-  `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}`;
-
-/** The card, and Next on it. */
-function cardChecks(info, phone) {
-  const { card, go, viewport } = info;
-  const out = [
-    [
-      inside(card, viewport),
-      `the card sits inside the viewport (${describe(card)} in ${viewport.width}x${viewport.height})`,
-    ],
-    [
-      Boolean(go) && go.width > 0 && !info.goDisabled,
-      "Next is present and enabled",
-    ],
-    [info.text.trim().length > 0, "the step says something"],
-  ];
-  if (!go) return out;
-  out.push([inside(go, viewport), "Next is inside the viewport"]);
-  if (phone) {
-    out.push([
-      go.height >= 43.5,
-      `Next is a 44px key on a phone (${Math.round(go.height)}px)`,
-    ]);
+/** Whether the card on screen differs from `before` (a step number and kind). */
+export async function advancedFrom(page, before, timeout = 6000) {
+  try {
+    await page.waitForFunction(
+      (held) => {
+        const root = document.querySelector(".coach");
+        if (!root) return true;
+        return (
+          root.getAttribute("data-coach-step") !== String(held.step) ||
+          root.getAttribute("data-coach-kind") !== held.kind
+        );
+      },
+      { step: before.step, kind: before.kind },
+      { timeout },
+    );
+    return true;
+  } catch {
+    return false;
   }
-  return out;
 }
 
-/** The lit control: there, visible, uncovered by the card, reachable. */
-function litChecks(info) {
-  const { card, ring, viewport, underAperture } = info;
-  const out = [
-    [!info.notOnScreen, "the control the step points at is on screen"],
-  ];
-  if (!ring) return out;
-  out.push(
-    [touches(ring, viewport), "the lit control is inside the viewport"],
-    [!intersects(card, ring), "the card does not cover the lit control"],
-    [
-      underAperture === null || !underAperture.dim,
-      "the lit control is reachable through the aperture",
-    ],
-  );
-  return out;
+/** Waits for the card to show a given step number. */
+export async function reachedStep(page, step, timeout = 6000) {
+  try {
+    await page.waitForFunction(
+      (want) =>
+        document.querySelector(".coach")?.getAttribute("data-coach-step") ===
+        String(want),
+      step,
+      { timeout },
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-/** The checks every step owes, as [ok, what] pairs. */
-export function stepChecks(info, { phone }) {
-  if (!info.card) return [[false, "the card is on screen"]];
-  const out = [[true, "the card is on screen"], ...cardChecks(info, phone)];
-  if (info.kind === "point") out.push(...litChecks(info));
-  return out;
+/**
+ * Everything one step shows, measured in the page once the step is placed, its
+ * control lit (or given up on past the runtime's grace) and everything still.
+ */
+export async function readStep(page) {
+  await placed(page);
+  await lit(page);
+  await settled(page);
+  return page.evaluate(measureStep);
 }
 
 /** Re-enters the first screen of the shell without reloading (which locks). */
@@ -229,7 +216,11 @@ export async function resetToVault(page, base) {
     window.history.pushState({}, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
   }, `${base}vault`);
-  await page.waitForTimeout(250);
+  await page.waitForFunction(
+    (path) => location.pathname === path && !document.querySelector(".coach"),
+    `${base}vault`,
+    { timeout: 10000 },
+  );
 }
 
 /**
@@ -254,16 +245,33 @@ export async function unlockIfLocked(page) {
   return true;
 }
 
+/** Presses Next by mouse or by keyboard, whichever this step is owed. */
+async function pressNext(page, { info, byKeyboard, check, label }) {
+  const next = page.locator(".coach__btn--go");
+  if (!byKeyboard) {
+    await next.click();
+    return;
+  }
+  check(
+    info.focusInCard,
+    `${label}: focus is on the card, so Enter reaches Next`,
+  );
+  if (!info.focusInCard) await next.focus();
+  await page.keyboard.press("Enter");
+}
+
 /**
  * Press Next through a whole tutorial, checking every step. Returns the
- * ordered list of steps seen. `pointer` alternates mouse and keyboard so both
- * roads are walked on every tutorial.
+ * ordered list of steps seen. `press` alternates mouse and keyboard so both
+ * roads are walked on every tutorial. Steps are numbered 1..N with none
+ * skipped, and N is what the tutorial declared (`total`, when known).
  */
 export async function walkSteps(
   page,
-  { id, check, phone, snap = null, press = "alternate" },
+  { id, check, phone, total = null, snap = null, press = "alternate" },
 ) {
   const seen = [];
+  let expected = 1;
   for (let guard = 0; guard < MAX_STEPS; guard += 1) {
     const info = await readStep(page);
     if (!info) {
@@ -273,38 +281,33 @@ export async function walkSteps(
     const label = `${id} · ${info.kind} ${info.counter || ""}`.trim();
     for (const [ok, what] of stepChecks(info, { phone }))
       check(ok, `${label}: ${what}`);
+    if (info.kind === "close") {
+      const shown = seen.length;
+      if (total !== null && Number.isFinite(total)) {
+        check(
+          shown === total,
+          `${id}: ${shown} steps were shown before the close, the tutorial declared ${total}`,
+        );
+      }
+      seen.push(info);
+      if (snap) await snap(info, guard);
+      return seen;
+    }
+    check(
+      info.step === expected,
+      `${label}: the walk is at step ${expected}, never a skip (the card shows ${info.step})`,
+    );
+    expected = info.step + 1;
     seen.push(info);
     if (snap) await snap(info, guard);
-    if (info.kind === "close") return seen;
 
-    const next = page.locator(".coach__btn--go");
     const byKeyboard =
       press === "keyboard" || (press === "alternate" && guard % 2 === 1);
-    if (byKeyboard) {
-      check(
-        info.focusInCard,
-        `${label}: focus is on the card, so Enter reaches Next`,
-      );
-      if (!info.focusInCard) await next.focus();
-      await page.keyboard.press("Enter");
-    } else {
-      await next.click();
+    await pressNext(page, { info, byKeyboard, check, label });
+    if (!(await advancedFrom(page, info))) {
+      check(false, `${label}: Next did not move the tutorial on`);
+      return seen;
     }
-    // The next card is the next step, never a skip.
-    await page
-      .waitForFunction(
-        (before) => {
-          const root = document.querySelector(".coach");
-          if (!root) return true;
-          return (
-            root.getAttribute("data-coach-step") !== String(before.step) ||
-            root.getAttribute("data-coach-kind") !== before.kind
-          );
-        },
-        { step: info.step, kind: info.kind },
-        { timeout: 6000 },
-      )
-      .catch(() => {});
   }
   check(
     false,

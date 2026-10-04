@@ -737,9 +737,6 @@
     "packages/app-core/src/tutorial/agents/prompt-api/prompt-api-agent.test.ts": {
       "max-lines": 451
     },
-    "packages/app-core/src/tutorial/registry/goals.ts": {
-      "max-lines": 459
-    },
     "packages/audit/src/__tests__/chain.test.ts": {
       "max-lines": 419
     },
