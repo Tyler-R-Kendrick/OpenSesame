@@ -17,11 +17,14 @@ export async function joinerSaves(page, { label, value }) {
  */
 export async function ownerSeesSave(page, { name, value, previous }) {
   await expect(
-    page.getByRole("img", { name: /Ada · edit · GitHub password/ }),
+    page.getByRole("img", { name: /Ada · edit · GitHub value/ }),
   ).toBeVisible({ timeout: 20_000 });
+  // The live panel lives under Settings, which replaces the vault tree.
+  const back = page.getByRole("treeitem", { name: "Back to vault" });
+  if (await back.isVisible().catch(() => false)) await back.click();
   await page.getByRole("treeitem", { name: "Vault", exact: true }).click();
   await page.getByRole("treeitem", { name: new RegExp(name) }).click();
-  await page.getByRole("button", { name: "Reveal password" }).click();
+  await page.getByRole("button", { name: "Reveal secret value" }).click();
   await expect(page.getByText(value, { exact: true })).toBeVisible({
     timeout: 20_000,
   });
