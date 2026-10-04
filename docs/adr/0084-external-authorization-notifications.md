@@ -258,6 +258,18 @@ decisions that make it real:
   disables the row; a 401/403 is the operator's identity being refused and
   retires nothing; any one browser that took the push settles the row, so
   nothing rings twice.
+- **One spelling per endpoint, a cap per principal, and an owner in the write.**
+  Endpoints are normalized before they are digested, so a variant spelling
+  cannot sidestep the ownership claim (rows written earlier keep working and are
+  carried over when their owner re-registers). A principal holds at most 10 live
+  subscriptions (`409 subscription_limit_reached`), and `disable` takes the
+  owner so a freed endpoint re-registered by someone else cannot be disabled by
+  the old holder.
+- **A dispatch pass is bounded and a claim is a lease.** 8 rows in flight, 2 per
+  principal, 20 s per row, with the lease (5 min) longer than the worst pass, so
+  one receiver that never answers cannot stall every tenant and a second worker
+  cannot resend a row in flight. Signing failures and resolver outages retire
+  nothing; a name that resolves private is retired.
 - **Raw SQL never binds a `Date`.** postgres-js cannot serialize one inside a
   drizzle `sql` fragment (PGlite can, which hid it from every in-process suite),
   so the claim queries threw on every tick. Comparisons go through `lte`/`gt`/

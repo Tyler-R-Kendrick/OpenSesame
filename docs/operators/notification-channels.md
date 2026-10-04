@@ -194,24 +194,56 @@ that class names `native_push` and policy allows it; the inbox is always last.
 browser's endpoint and keys. It answers `400 invalid_request` for what could
 never be delivered to: a non-HTTPS endpoint, userinfo, a loopback, private or
 metadata host, a `p256dh` that is not a canonical base64url, uncompressed P-256
-point on the curve, an `auth` that is not 16 bytes. An endpoint is a capability
-URL, so a live row stays with whoever registered it: another principal
-presenting it gets `409 endpoint_already_registered` and nothing moves. A row its
-owner has unsubscribed from (or that was retired as dead) can be registered by
-someone else, which is how one browser changes hands after a sign-out. A client
-that gets a 409 should drop its browser subscription and enrol a fresh one.
+point on the curve, an `auth` that is not 16 bytes.
+
+- **One spelling per endpoint.** The endpoint is normalized before it is stored
+  and digested: WHATWG URL serialization (lower-case host, default port dropped,
+  dot segments resolved), no fragment, no trailing dot on the host, percent
+  escapes spelled one way. A case, port, fragment or escape variant of a URL that
+  is already registered is the same endpoint, not a second row. Rows written
+  before this keep working: browser-issued endpoints are already in this form, so
+  their digest did not change, and a row keyed on a non-canonical raw string is
+  still matched when that exact spelling is presented (another principal gets
+  `409`; the owner's row is carried over and the old one retired).
+- **Owner-held.** An endpoint is a capability URL, so a live row stays with
+  whoever registered it: another principal presenting it gets
+  `409 endpoint_already_registered` and nothing moves. A row its owner has
+  unsubscribed from (or that was retired as dead) can be registered by someone
+  else, which is how one browser changes hands after a sign-out. A client that
+  gets that 409 should drop its browser subscription and enrol a fresh one.
+- **Capped.** A principal holds at most **10** live subscriptions. The 11th
+  answers `409 subscription_limit_reached`; re-subscribing one already held, or
+  unsubscribing one, never counts against it, and concurrent registrations can
+  not exceed the cap (a recount after the write withdraws the loser).
+- `DELETE /v1/notification-channels/push/subscriptions/:id` disables the row only
+  if it is still the caller's, in the same write. Someone else's, or none,
+  answers `404`; repeating your own unsubscribe is a `204`.
 
 **Dead subscriptions.** After a send, a `404` or `410` from the push service
 means the subscription is gone: the row is disabled and not tried again, and it
 is logged by id and endpoint digest only, never the endpoint. A subscription that
-can never be delivered to (bad keys, a private or non-HTTPS endpoint) is retired
-the same way. A `401` or `403` is *your* VAPID identity being refused, not the
-browser's fault, so nothing is retired for it and the row fails permanently,
-loudly. A `5xx` retries with the shared backoff and dead-letters at the cap. If
-any one of a person's browsers took the push the row is delivered (the others
-are not rung twice); if every browser is gone, or there are none, the row
-dead-letters and routing falls through to the next step in the plan, the inbox
-at the last.
+can never be delivered to is retired the same way: keys that do not encrypt, a
+non-HTTPS endpoint, or a private one, including a public-looking DNS name that
+resolves to a private address (every resolved address is judged and the
+connection is pinned to the verified one; a resolver that merely fails or finds
+nothing is retried, so an outage retires nothing). A `401` or `403` is *your*
+VAPID identity being refused, and a failure while signing is likewise yours
+(`vapid_signing_failed`): neither retires a subscription, and the row fails
+permanently and loudly. A `5xx` retries with the shared backoff and dead-letters
+at the cap. If any one of a person's browsers took the push the row is delivered
+(the others are not rung twice); if every browser is gone, or there are none, the
+row dead-letters and routing falls through to the next step in the plan, the
+inbox at the last.
+
+**One receiver cannot stall the queue.** A dispatch pass is bounded: 8 deliveries
+in flight, at most 2 for one principal (per endpoint for webhooks), 20 seconds
+per delivery. A person's subscriptions are pushed side by side and no send
+starts once there is no time left for it to finish; a delivery that hits the
+deadline is retried like any transport failure. A claim also leases the row for 5
+minutes (`DELIVERY_LEASE_MS`), longer than the slowest possible pass, so a second
+worker replica, or the next tick after a slow one, does not send the same row
+again; a worker that dies mid-send has its row retried after the lease, having
+burned the one attempt the claim counted.
 
 ## What a notification may contain
 
