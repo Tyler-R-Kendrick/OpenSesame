@@ -218,7 +218,10 @@ async function runPreamble(
 ): Promise<Entry | null> {
   const { host, run, program } = ctx;
   const { ports } = host;
-  for (let index = beat.start; index < beat.present; index += 1) {
+  // A synthetic close has no presenting instruction (`present` is -1): all of
+  // its instructions are the preamble.
+  const last = beat.present < 0 ? beat.end : beat.present;
+  for (let index = beat.start; index < last; index += 1) {
     const instruction = program.instructions[index];
     if (instruction === undefined) continue;
     if (instruction.kind === "navigate") {
@@ -279,13 +282,11 @@ async function lightTarget(
       (signal) => ports.targets.observe(target, "appear", signal),
       TOUR_APPEAR_GRACE_MS,
     );
-    if (!host.isLive(run) || raced.kind === "aborted") {
-      return { kind: "stop" };
-    }
-    if (raced.kind === "command") {
-      return { kind: "move", command: raced.command };
-    }
-    mounted = raced.kind === "observed" && ports.targets.isMounted(target);
+    const interrupted = interruption(raced, host.isLive(run));
+    if (interrupted !== null) return interrupted;
+    // Next only stops the waiting: the step is still shown, as text when the
+    // control never mounted.
+    mounted = ports.targets.isMounted(target);
   }
   if (!mounted) return { kind: "present", degraded: true };
 
