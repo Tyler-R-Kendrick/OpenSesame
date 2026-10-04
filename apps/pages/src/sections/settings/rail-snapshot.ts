@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
+import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useFinePointer } from "../../lib/use-narrow.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
@@ -27,8 +28,9 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const roads = useConnectorRoads();
   const keybindings = useFinePointer();
   const { plan } = useComposition();
+  const identityApi = useIdentityConfigured();
   const emptyFeatures = FEATURES.filter(
-    (feature) => !featureDraws(feature, roads.tile, plan),
+    (feature) => !featureDraws(feature, roads.tile, plan, { identityApi }),
   ).map((feature) => feature.id);
   const contributed = useMemo(
     () =>

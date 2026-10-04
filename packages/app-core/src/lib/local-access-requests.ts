@@ -8,6 +8,7 @@ import {
   noteInboundRequestCreated,
   noteInboundRequestDecision,
 } from "./activity-log.js";
+import { recordReceipt, requestRef } from "./device-receipts.js";
 import {
   requireLocalApplicationAdmission,
   withLocalApplicationRequest,
@@ -31,11 +32,14 @@ import {
   requestInteraction,
   writeLocalRequestRecords,
 } from "./local-request-store.js";
+import { type LocalAccessRequest, summarize } from "./local-request-summary.js";
 import {
   type LocalSession,
   withLocalIdentitySession,
 } from "./local-sessions.js";
 import { tombUnlocked } from "./vfs.js";
+
+export type { LocalAccessRequest };
 
 type RequestRef = { id: string; version: number; requestDigest: string };
 type Decision = RequestRef & {
@@ -69,7 +73,7 @@ export async function createLocalAccessRequest(
   input: LocalAccessRequestInput,
 ) {
   const request = LocalAccessRequestInputSchema.parse(input);
-  return withLocalApplicationRequest(
+  const created = await withLocalApplicationRequest(
     tomb,
     session,
     request.applicationId,
@@ -107,29 +111,9 @@ export async function createLocalAccessRequest(
       return summary;
     },
   );
+  await recordReceipt(tomb, "request.created", requestRef(created));
+  return created;
 }
-
-function summarize(row: LocalAccessRequestRecord) {
-  return {
-    id: row.id,
-    version: row.version,
-    requestDigest: row.requestDigest,
-    requesterId: row.requesterId,
-    applicationId: row.applicationId,
-    applicationRevision: row.applicationRevision,
-    authorizationDigest: row.authorizationDigest,
-    organizationId: row.organizationId,
-    redirectUri: row.redirectUri,
-    scopes: [...row.scopes],
-    reason: row.reason,
-    createdAt: row.createdAt,
-    expiresAt: row.expiresAt,
-    status: row.status,
-    decidedAt: row.decidedAt,
-    approvingPrincipalId: row.approval?.principalId ?? null,
-  };
-}
-export type LocalAccessRequest = ReturnType<typeof summarize>;
 
 /** Role eligibility only; callers must also validate the person and application policy. */
 export function localRequestMemberMayDecide(
@@ -221,7 +205,7 @@ export async function decideLocalAccessRequest(
     input.principalId,
     digest,
   );
-  return withLocalDirectoryLock(tomb, async () => {
+  const settled = await withLocalDirectoryLock(tomb, async () => {
     consumeLocalAuthentication(evidence, digest);
     const rows = await readLocalRequestRecords(tomb);
     const row = requireRequest(rows, input);
@@ -279,6 +263,12 @@ export async function decideLocalAccessRequest(
     noteInboundRequestDecision(summary.id, ok);
     return summary;
   });
+  const kind = settled.status === "approved" ? "approved" : "denied";
+  await recordReceipt(tomb, `request.${kind}`, {
+    ...requestRef(settled),
+    actor: input.principalId,
+  });
+  return settled;
 }
 
 export async function requireApprovalKey(
@@ -355,7 +345,7 @@ export async function consumeLocalAccessRequest<T>(
 /** Custodian withdrawal can only narrow pending authority. */
 export async function revokeLocalAccessRequest(tomb: string, ref: RequestRef) {
   const reference = { ...ref };
-  return withLocalDirectoryLock(tomb, async () => {
+  const withdrawn = await withLocalDirectoryLock(tomb, async () => {
     const rows = await readLocalRequestRecords(tomb);
     const row = requireRequest(rows, reference);
     const revoked = interactionMachine.revoke(
@@ -373,6 +363,8 @@ export async function revokeLocalAccessRequest(tomb: string, ref: RequestRef) {
     );
     return summarize(next);
   });
+  await recordReceipt(tomb, "request.withdrawn", requestRef(withdrawn));
+  return withdrawn;
 }
 
 /** Remove terminal history only; pending or approved authority must first be withdrawn. */

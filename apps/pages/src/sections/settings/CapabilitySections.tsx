@@ -34,6 +34,7 @@ import { useComposition } from "../../bindings/capabilities.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
@@ -251,6 +252,7 @@ function CapabilitySection({
 }: SectionProps) {
   const { plan } = useComposition();
   const roads = useConnectorRoads();
+  const identityApi = useIdentityConfigured();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
   // The model picks configure AI and probe the browser and the harnesses on
@@ -266,7 +268,7 @@ function CapabilitySection({
   const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch and no connector whose
   // page has something to do on this device (ADR 0158).
-  if (!featureDraws(feature, roads.tile, plan)) return null;
+  if (!featureDraws(feature, roads.tile, plan, { identityApi })) return null;
   return (
     <section
       className="conn-group capsection"
@@ -276,7 +278,7 @@ function CapabilitySection({
     >
       <SectionHead id={`${id}-title`} title={feature.title}>
         <WithdrawnMark feature={feature} />
-        {isSwitchable(feature, plan) ? (
+        {isSwitchable(feature, plan, { identityApi }) ? (
           <SectionSwitch
             feature={feature}
             current={current}
@@ -339,21 +341,24 @@ export function CapabilitySections({
 }) {
   const ref = useGuideTarget<HTMLDivElement>("settings.connectivity");
   const { plan } = useComposition();
+  const identityApi = useIdentityConfigured();
   return (
     <div className="capsections" id="settings-connections" ref={ref}>
       <GuestSection />
-      {FEATURES.map((feature) => shown(feature, plan)).map((feature) => {
-        const Section =
-          feature.id === "backups" ? BackupsSection : CapabilitySection;
-        return (
-          <Section
-            key={feature.id}
-            feature={feature}
-            current={current}
-            onPropose={onPropose}
-          />
-        );
-      })}
+      {FEATURES.map((feature) => shown(feature, plan, { identityApi })).map(
+        (feature) => {
+          const Section =
+            feature.id === "backups" ? BackupsSection : CapabilitySection;
+          return (
+            <Section
+              key={feature.id}
+              feature={feature}
+              current={current}
+              onPropose={onPropose}
+            />
+          );
+        },
+      )}
     </div>
   );
 }

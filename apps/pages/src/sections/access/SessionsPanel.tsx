@@ -13,9 +13,7 @@ export function SessionsPanel({ online }: { online: boolean }) {
       <LocalAuthorityPanel key={tomb} tomb={tomb} records="session" />
       <LocalAuthorityTemplates />
       <VaultSessionsPanel key={`${tomb}-vault-sessions`} tomb={tomb} />
-      {session ? (
-        <Receipts online={online} sessionKey={session.principalId} />
-      ) : null}
+      {session ? <Receipts online={online} sessionKey={session.key} /> : null}
     </>
   );
 }

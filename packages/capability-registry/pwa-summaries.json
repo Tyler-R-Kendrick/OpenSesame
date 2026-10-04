@@ -464,6 +464,22 @@
     }
   },
   {
+    "id": "identity.notification.local.manage",
+    "title": "Choose how this device tells its person a request is waiting",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
+    "id": "identity.local.receipts.read",
+    "title": "Read the receipts of what this device decided for its person",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/access"
+    }
+  },
+  {
     "id": "identity.org_signin.upstream.manage",
     "title": "Read and set an organization's sign-in upstream: OIDC issuer and client, or SAML IdP (PATCH /v1/organizations/:id)",
     "plane": "identity",
