@@ -1,28 +1,22 @@
-import { isString, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import {
   type Folder,
   type InstallResult,
-  type SealedBlob,
   type VaultBody,
   VaultCorruptError,
   type VaultHeader,
   type VaultItem,
   WrongPasswordError,
-  assertSealed,
   createVault,
   emptyBody,
   importVaultKey,
   installItemType,
   installedDefinitions,
-  mergeVaultBodies,
   mintVaultKey,
   rewrapVaultKey,
-  sameVaultContent,
-  sealJson,
   syncInstalledTypes,
   uninstallItemType,
   unwrapRawVaultKeyFromPassword,
-  vaultSealBinding,
   withTombstone,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
@@ -57,11 +51,10 @@ import {
   readSealedFile,
   unlockTomb,
   writePlaintextFile,
-  writeSealedFile,
 } from "../vfs.js";
 import {
-  adoptMerged,
   applyManifestPlan,
+  bodyBeforeWrite,
   recordItemTypes,
   renameFolder,
   restoreItem,
@@ -70,7 +63,6 @@ import {
 import { headerCarriesGate } from "./header-gate.js";
 import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
-import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import {
   probePasskeyCeremony,
   unlockVaultWithHeldPrf,
@@ -106,7 +98,7 @@ import {
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
-import { openJsonForRebind, rebindTombSeals } from "./seal-rebind.js";
+import { rebindTombSeals } from "./seal-rebind.js";
 import { CodeSendGuard, PendingChallenge } from "./second-step-guard.js";
 import {
   UnguardedTotpEnrollment,
@@ -117,16 +109,28 @@ import {
 } from "./self-authenticator.js";
 import { loadVaultBody } from "./store-body.js";
 import {
+  type ApplyChange,
+  type VaultBodyPort,
+  bodyPortOf,
+  installDeviceKeyCarrier,
+  levelDeviceKey,
+  makeBodyPort,
+  registerBodyPort,
+} from "./store-device-key.js";
+import { freshBody, sealMark } from "./store-fresh.js";
+import {
   deviceHoldsSealedVault,
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
+import { type ImportOptions, importSealedInto } from "./store-import.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
   type SnapshotMerge,
-  openSnapshotBody,
+  mergeSnapshotInto,
 } from "./store-merge.js";
+import { writeBody } from "./store-seal.js";
 import {
   discardTombCaches,
   discardVaultBody,
@@ -151,6 +155,7 @@ import {
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
 import {
   withBodyWriteLock,
+  withBodyWriteLockOrBare,
   withExclusiveOpenLease,
 } from "./vault-shared-locks.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
@@ -225,6 +230,8 @@ export class VaultStore {
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeChain: Promise<unknown> = Promise.resolve();
+  /** The seal of the body this tab last wrote or read; another writer's differs. */
+  #sealMark: string | null = null;
   #lockHandlers = new Set<() => void>();
   #scope: VaultScope = scopedVaultScope();
   /** Guest/this-tab: key never wrapped; lock must not leave a wrap-less header. */
@@ -234,6 +241,7 @@ export class VaultStore {
 
   constructor() {
     this.#header = this.#readHeader();
+    registerBodyPort(this, () => this.#bodyPort());
     this.#protection = new VaultProtectionBrowserService({
       isGuestOrEphemeral: () =>
         this.#ephemeral || this.#scope.tomb === GUEST_TOMB,
@@ -652,6 +660,7 @@ export class VaultStore {
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
       await this.#loadPrefsFromVfs();
       this.#body = await this.#loadBody(vaultKey);
+      this.#sealMark = sealMark(this.#scope.tomb);
       syncInstalledTypes(this.#body.itemTypes);
     } catch (error) {
       this.#vaultKey = null;
@@ -660,6 +669,7 @@ export class VaultStore {
       this.#body = emptyBody();
       throw error;
     }
+    await levelDeviceKey(this.#bodyPort());
     await this.#protection.ensureProtectionProjected();
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
@@ -1215,17 +1225,16 @@ export class VaultStore {
 
   async #persist(): Promise<void> {
     if (!this.#vaultKey) throw new Error("The vault is locked.");
-    // Revision advances only after the sealed write lands.
-    const rev = (this.#body.rev ?? 0) + 1;
-    const sealed = await sealJson(
+    const written = await writeBody(
+      this.#scope.tomb,
       this.#vaultKey,
-      { ...this.#body, rev },
-      vaultSealBinding(this.#scope.tomb, BODY_PATH),
+      this.#body,
+      this.#header,
     );
-    assertSealed(sealed);
-    await writeSealedFile(this.#scope.tomb, BODY_PATH, sealed);
-    this.#body.rev = rev;
-    await this.#recordBodyRev(rev);
+    this.#body.rev = written.rev;
+    this.#header = written.header;
+    // Last: a body that did not finish being recorded is read back, not trusted.
+    this.#sealMark = written.mark;
     noteVaultBodyPersisted();
   }
 
@@ -1236,21 +1245,7 @@ export class VaultStore {
   async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {
     const { vaultKey, header } = this.#requireUnlocked();
     await this.flushPendingWrites();
-    const incoming = await openSnapshotBody(vaultKey, header, input);
-    let merged = mergeVaultBodies(this.#body, incoming);
-    const localChanged = !sameVaultContent(merged, this.#body);
-    if (localChanged) {
-      // Merged again inside the write chain, so an edit that landed meanwhile
-      // is part of what gets sealed rather than overwritten by it.
-      await this.#mutate((body) => {
-        merged = mergeVaultBodies(body, incoming);
-        adoptMerged(body, merged);
-      });
-      // A type installed on another device arrives with this merge; rebuilding
-      // the registry here is what makes it live without a re-unlock (ADR 0087 §7).
-      syncInstalledTypes(this.#body.itemTypes);
-    }
-    return { localChanged, remoteBehind: !sameVaultContent(merged, incoming) };
+    return mergeSnapshotInto(this.#bodyPort(), vaultKey, header, input);
   }
 
   /** This vault's header and sealed body as stored, once pending writes land. */
@@ -1262,61 +1257,60 @@ export class VaultStore {
     return { tomb: this.#scope.tomb, header, body, rev: this.#body.rev ?? 0 };
   }
 
-  /**
-   * Note in the header how far the body has got. Written after the body, never
-   * before: trailing by one is harmless — the body is simply newer — while
-   * leading by one would accuse an intact vault of having been rolled back.
-   */
-  async #recordBodyRev(rev: number): Promise<void> {
-    const header = this.#header;
-    if (!header || (header.bodyRev ?? 0) >= rev) return;
-    const next: VaultHeader = { ...header, bodyRev: rev };
-    this.#header = next;
-    try {
-      await writePlaintextFile(
-        this.#scope.tomb,
-        HEADER_PATH,
-        JSON.stringify(next),
-      );
-    } catch {
-      // The body is safely stored; only the rollback witness is behind. Losing
-      // it costs detection, not data, and the next write will catch it up.
-      this.#header = header;
-    }
+  /** Apply a mutation and seal it, in the order requested (a rename per keystroke). */
+  #mutate(change: (body: VaultBody) => void): Promise<void> {
+    return this.#exclusive((apply) => apply(change));
   }
 
   /**
-   * Apply a mutation and seal it. Writes are chained so rapid edits (folder
-   * rename on every keystroke) persist in the order they were requested.
+   * Run `act` as the next write: on the write chain, then under the cross-tab
+   * body lock, from the disk's body when another tab wrote since this one did.
+   * Chain, then lock, is the one order (`destroy` too), so neither waits on
+   * the other. `act` writes through `apply`, which never queues again.
    */
-  async #mutate(change: (body: VaultBody) => void): Promise<void> {
-    const run = this.#writeChain.then(async () => {
-      if (!this.#vaultKey) throw new Error("The vault is locked.");
-      // Keep the pre-change body so a failed seal or write cannot leave memory
-      // ahead of what is on disk.
-      const previous: VaultBody = {
-        v: this.#body.v,
-        items: this.#body.items,
-        folders: this.#body.folders,
-        ...(this.#body.itemTypes !== undefined
-          ? { itemTypes: this.#body.itemTypes }
-          : undefined),
-        ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : undefined),
-        tombstones: this.#body.tombstones,
-      };
-      change(this.#body);
-      try {
-        await this.#persist();
-      } catch (error) {
-        this.#body = previous;
-        this.#emit();
-        throw error;
-      }
-      this.touch();
-      this.#emit();
+  #exclusive<T>(act: (apply: ApplyChange) => Promise<T>): Promise<T> {
+    const run = this.#writeChain.then(() => {
+      const vaultKey = this.#vaultKey;
+      if (!vaultKey) throw new Error("The vault is locked.");
+      return withBodyWriteLockOrBare(this.#scope.tomb, async () => {
+        const fresh = await freshBody(
+          this.#scope.tomb,
+          vaultKey,
+          { header: this.#header, body: this.#body, mark: this.#sealMark },
+          () => (this.#sharesDisk() ? this.#readHeader() : null),
+        );
+        this.#header = fresh.header;
+        if (fresh.body) {
+          this.#body = fresh.body;
+          syncInstalledTypes(fresh.body.itemTypes);
+          this.#emit();
+        }
+        return act((change) => this.#apply(change));
+      });
     });
     this.#writeChain = run.catch(() => undefined);
     return run;
+  }
+
+  /** A guest or scratch session is never exported or synced, and its tomb has no header of its own. */
+  #sharesDisk(): boolean {
+    return !this.#ephemeral && !isGuestSessionTomb(this.#scope.tomb);
+  }
+
+  async #apply(change: (body: VaultBody) => void): Promise<void> {
+    if (!this.#vaultKey) throw new Error("The vault is locked.");
+    // Keep the pre-change body: a failed write must not leave memory ahead of disk.
+    const previous = bodyBeforeWrite(this.#body);
+    change(this.#body);
+    try {
+      await this.#persist();
+    } catch (error) {
+      this.#body = previous;
+      this.#emit();
+      throw error;
+    }
+    this.touch();
+    this.#emit();
   }
 
   // —— item types (ADR 0087) ————————————————————————————————
@@ -1503,61 +1497,23 @@ export class VaultStore {
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
-  async importSealed(
+  importSealed(
     fileText: string,
     secret: string | Uint8Array,
+    options: ImportOptions = {},
   ): Promise<number> {
-    let parsed: {
-      format?: string;
-      tomb?: string;
-      header?: VaultHeader;
-      body?: SealedBlob;
-    };
-    try {
-      parsed = overlapCast(JSON.parse(fileText));
-    } catch {
-      throw new Error("That file is not valid JSON.");
-    }
-    if (
-      parsed.format !== "opensesame-vault-export" ||
-      !parsed.header ||
-      !parsed.body
-    ) {
-      throw new Error("That file is not an OpenSesame vault export.");
-    }
-    const raw = await unwrapExportedVaultKey(parsed.header, secret);
-    const key = await importVaultKey(raw);
-    raw.fill(0);
-    const named = parsed.tomb ?? "";
-    const tomb = isString(named) && named.length > 0 ? named : this.#scope.tomb;
-    const opened = await openJsonForRebind<VaultBody>(
-      key,
-      parsed.body,
-      vaultSealBinding(tomb, BODY_PATH),
-    );
-    const incoming = opened.value;
+    return importSealedInto(this.#bodyPort(), fileText, secret, options);
+  }
 
-    if (!this.#vaultKey) throw new Error("Unlock this vault before importing.");
-    const existing = new Set(this.#body.items.map((item) => item.id));
-    const merged = (incoming.items ?? []).filter(
-      (item) => !existing.has(item.id),
-    );
-    const folderIds = new Set(this.#body.folders.map((folder) => folder.id));
-    const mergedFolders = (incoming.folders ?? []).filter(
-      (folder) => !folderIds.has(folder.id),
-    );
-    // Carry the export's definitions too, or the import lands items nothing here can read.
-    const incomingTypes = incoming.itemTypes ?? {};
-    await this.#mutate((body) => {
-      body.items = [...body.items, ...merged];
-      body.folders = [...body.folders, ...mergedFolders];
-      const added = Object.keys(incomingTypes).filter(
-        (id) => body.itemTypes?.[id] === undefined,
-      );
-      recordItemTypes(body, { ...incomingTypes, ...body.itemTypes }, { added });
+  #bodyPort(): VaultBodyPort {
+    return makeBodyPort({
+      tomb: () => this.#scope.tomb,
+      open: () => this.#vaultKey !== null,
+      carries: () => this.#sharesDisk(),
+      header: () => this.#header,
+      body: () => this.#body,
+      exclusive: (act) => this.#exclusive(act),
     });
-    syncInstalledTypes(this.#body.itemTypes);
-    return merged.length;
   }
 
   /** Irreversibly remove the vault from this device. */
@@ -1654,6 +1610,9 @@ export class VaultStore {
 }
 
 export const vaultStore = new VaultStore();
+
+// The device identity host mints through this store's body (ADR 0160 §5).
+installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
 
 // A guest's tomb is sealed and isolated like any other, so a guest's
 // actions are logged in it (PRODUCT.md: guests are first-class).

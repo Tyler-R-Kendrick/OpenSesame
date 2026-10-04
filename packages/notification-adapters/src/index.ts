@@ -18,6 +18,8 @@ export * from "./adapters/teams.js";
 export * from "./adapters/wechat.js";
 export * from "./adapters/sms.js";
 export * from "./adapters/web-push.js";
+export * from "./webpush-env.js";
+export { normalizePushEndpoint } from "./push-endpoint.js";
 export * from "./adapters/generic-webhook.js";
 export {
   bytesEqual,

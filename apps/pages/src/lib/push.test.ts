@@ -2,28 +2,11 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  PushError,
-  disablePush,
-  enablePush,
-  pushNotificationBody,
-  pushSeams,
-  pushSupported,
-  reviewUrlFromPayload,
-} from "./push.js";
+import { overlapCast } from "@opensesame/os-domain";
+import { describe, expect, it } from "vitest";
+import { pushNotificationBody, reviewUrlFromPayload } from "./push.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-
-const fetchFn = vi.hoisted(() => vi.fn());
-
-const defaults = {
-  fetchFn: pushSeams.fetchFn,
-  serviceWorkerContainer: pushSeams.serviceWorkerContainer,
-  pushApiAvailable: pushSeams.pushApiAvailable,
-  requestPermission: pushSeams.requestPermission,
-};
 
 const SCOPE = "https://example.github.io/OpenSesame/";
 
@@ -46,19 +29,6 @@ const HOSTILE = {
   title: "Attacker chosen title",
   body: "Attacker chosen body",
 };
-
-beforeEach(() => {
-  fetchFn.mockReset();
-  Object.assign(pushSeams, {
-    fetchFn,
-    pushApiAvailable: () => true,
-    requestPermission: async () => "granted",
-  });
-});
-
-afterEach(() => {
-  Object.assign(pushSeams, defaults);
-});
 
 describe("what a push may say on a lock screen", () => {
   it("renders a minimal body carrying none of the payload's content", () => {
@@ -176,6 +146,11 @@ describe("the service worker's own listeners", () => {
     expect(source("sw-push.ts")).toContain("installPushHandlers(sw)");
   });
 
+  it("ships none of the document's enrolment code", () => {
+    expect(sw).not.toContain("push-enrolment");
+    expect(sw).not.toContain("sdk-browser");
+  });
+
   it("renders notifications only through the helper", () => {
     // The single call to showNotification is fed by pushNotificationBody, so
     // there is no second path by which payload text could reach a screen.
@@ -205,188 +180,5 @@ describe("the service worker's own listeners", () => {
     expect(core).toContain('from "./cache-names.js"');
     expect(code).not.toMatch(/caches\.match\(/);
     expect(code).not.toMatch(/"opensesame-pages[-:][^"]*"/);
-  });
-});
-
-/* ------------------------------------------------------------------ *
- * Enrolment
- * ------------------------------------------------------------------ */
-
-function json(body: BoundaryValue, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function worker(subscription: BoundaryValue, subscribe = vi.fn()) {
-  const getSubscription = vi.fn(async () => subscription);
-  const registration = {
-    pushManager: { getSubscription, subscribe },
-  };
-  Object.assign(pushSeams, {
-    serviceWorkerContainer: () => ({ ready: Promise.resolve(registration) }),
-  });
-  return { getSubscription, subscribe };
-}
-
-const SUBSCRIPTION = {
-  endpoint: "https://push.example/endpoint/abc",
-  toJSON: () => ({
-    endpoint: "https://push.example/endpoint/abc",
-    keys: { p256dh: "cDI1NmRo", auth: "YXV0aA" },
-  }),
-  unsubscribe: vi.fn(async () => true),
-};
-
-describe("enrolment", () => {
-  it("reports no support rather than pretending", async () => {
-    Object.assign(pushSeams, {
-      serviceWorkerContainer: () => null,
-      pushApiAvailable: () => false,
-    });
-    expect(pushSupported()).toBe(false);
-    await expect(
-      enablePush({ baseUrl: "https://id.example", accessToken: "t" }),
-    ).rejects.toBeInstanceOf(PushError);
-  });
-
-  it("refuses when notifications are blocked, and says requests still wait", async () => {
-    worker(null);
-    Object.assign(pushSeams, { requestPermission: async () => "denied" });
-    await expect(
-      enablePush({ baseUrl: "https://id.example", accessToken: "t" }),
-    ).rejects.toThrow(/still wait for you in the app/);
-  });
-
-  it("fetches the VAPID key, subscribes user-visibly, and registers", async () => {
-    const asked: PushSubscriptionOptionsInit[] = [];
-    const subscribe = vi.fn(async (options: PushSubscriptionOptionsInit) => {
-      asked.push(options);
-      return SUBSCRIPTION;
-    });
-    worker(null, subscribe);
-    fetchFn.mockResolvedValueOnce(json({ publicKey: "cHVibGlja2V5" }));
-    fetchFn.mockResolvedValueOnce(
-      json({ id: "push_1", createdAt: "2026-01-01T00:00:00.000Z" }),
-    );
-
-    const record = await enablePush({
-      baseUrl: "https://id.example/",
-      accessToken: "session-bearer",
-      deviceLabel: "Laptop",
-    });
-    expect(record.id).toBe("push_1");
-
-    expect(String(fetchFn.mock.calls[0]?.[0])).toBe(
-      "https://id.example/v1/notification-channels/push/key",
-    );
-    expect(asked).toHaveLength(1);
-    expect(asked[0]?.userVisibleOnly).toBe(true);
-    expect(asked[0]?.applicationServerKey).toBeTruthy();
-
-    const init: RequestInit = fetchFn.mock.calls[1]?.[1] ?? {};
-    expect(String(fetchFn.mock.calls[1]?.[0])).toBe(
-      "https://id.example/v1/notification-channels/push/subscriptions",
-    );
-    expect(JSON.parse(String(init.body ?? "{}"))).toEqual({
-      endpoint: "https://push.example/endpoint/abc",
-      keys: { p256dh: "cDI1NmRo", auth: "YXV0aA" },
-      deviceLabel: "Laptop",
-    });
-  });
-
-  it("reuses an existing subscription instead of minting a second", async () => {
-    const subscribe = vi.fn();
-    worker(SUBSCRIPTION, subscribe);
-    fetchFn.mockResolvedValueOnce(json({ id: "push_1", createdAt: "x" }));
-
-    await enablePush({ baseUrl: "https://id.example", accessToken: "t" });
-    expect(subscribe).not.toHaveBeenCalled();
-    // No key fetch either: nothing new is being signed for.
-    expect(fetchFn).toHaveBeenCalledTimes(1);
-  });
-
-  it("withdraws by opaque id, never by the capability endpoint", async () => {
-    const unsubscribe = vi.fn(async () => true);
-    worker({ ...SUBSCRIPTION, unsubscribe });
-    fetchFn.mockResolvedValueOnce(new Response(null, { status: 204 }));
-
-    expect(
-      await disablePush({
-        baseUrl: "https://id.example",
-        accessToken: "t",
-        subscriptionId: "push_1",
-      }),
-    ).toEqual({ browser: true, server: true });
-    const [url, init] = fetchFn.mock.calls[0] ?? [];
-    expect(String(url)).toBe(
-      "https://id.example/v1/notification-channels/push/subscriptions/push_1",
-    );
-    expect(init?.method).toBe("DELETE");
-    // The endpoint is a capability URL: it is never sent back to be matched on.
-    expect(String(url)).not.toContain("push.example");
-    expect(String(init?.body ?? "")).not.toContain("push.example");
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-  });
-
-  it("treats an already-forgotten subscription as the outcome it wanted", async () => {
-    const unsubscribe = vi.fn(async () => true);
-    worker({ ...SUBSCRIPTION, unsubscribe });
-    fetchFn.mockResolvedValueOnce(json({ error: "not_found" }, 404));
-
-    expect(
-      await disablePush({
-        baseUrl: "https://id.example",
-        accessToken: "t",
-        subscriptionId: "push_gone",
-      }),
-    ).toEqual({ browser: true, server: true });
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-  });
-
-  it("stops delivering locally even when the server call fails", async () => {
-    const unsubscribe = vi.fn(async () => true);
-    worker({ ...SUBSCRIPTION, unsubscribe });
-    fetchFn.mockResolvedValueOnce(json({ error: "boom" }, 500));
-
-    await expect(
-      disablePush({
-        baseUrl: "https://id.example",
-        accessToken: "t",
-        subscriptionId: "push_1",
-      }),
-    ).rejects.toBeInstanceOf(PushError);
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-  });
-
-  it("undoes the browser half even with no id to name on the server", async () => {
-    const unsubscribe = vi.fn(async () => true);
-    worker({ ...SUBSCRIPTION, unsubscribe });
-
-    expect(
-      await disablePush({ baseUrl: "https://id.example", accessToken: "t" }),
-    ).toEqual({ browser: true, server: false });
-    expect(fetchFn).not.toHaveBeenCalled();
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-  });
-
-  it("undoes the browser half with no session to tell the server with, and says the server was not told", async () => {
-    const unsubscribe = vi.fn(async () => true);
-    worker({ ...SUBSCRIPTION, unsubscribe });
-
-    expect(await disablePush({ subscriptionId: "push_1" })).toEqual({
-      browser: true,
-      server: false,
-    });
-    expect(fetchFn).not.toHaveBeenCalled();
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-  });
-
-  it("is a no-op when nothing was subscribed here", async () => {
-    worker(null);
-    expect(
-      await disablePush({ baseUrl: "https://id.example", accessToken: "t" }),
-    ).toEqual({ browser: false, server: false });
   });
 });

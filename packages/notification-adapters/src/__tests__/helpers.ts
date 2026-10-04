@@ -7,7 +7,16 @@
  * more than once below: that an unconfigured adapter made no call at all.
  */
 
-import type { FetchLike, RenderInput } from "../contract.js";
+import { createECDH, randomBytes } from "node:crypto";
+
+import { generateVapidKeyPair } from "../adapters/web-push.js";
+import type { WebPushConfig } from "../adapters/web-push.js";
+import { base64UrlEncode } from "../bytes.js";
+import type {
+  FetchLike,
+  PushSubscriptionRecord,
+  RenderInput,
+} from "../contract.js";
 
 export interface RecordedRequest {
   url: string;
@@ -123,4 +132,44 @@ export function seededBytes(seed: number, length: number): Uint8Array {
     out[index] = (state >>> 16) & 0xff;
   }
   return out;
+}
+
+/* Web Push seams */
+
+export const ENDPOINT = "https://push.example.test/wpush/v2/AbCdEf-01234";
+
+export interface TestSubscription {
+  subscription: PushSubscriptionRecord;
+  /** The half a browser keeps and a server never has. */
+  uaPrivateKey: Buffer;
+  authSecret: Buffer;
+}
+
+/** A browser-shaped subscription, plus the private half a browser keeps. */
+export function subscribe(): TestSubscription {
+  const ua = createECDH("prime256v1");
+  ua.generateKeys();
+  const authSecret = randomBytes(16);
+  return {
+    subscription: {
+      endpoint: ENDPOINT,
+      keys: {
+        p256dh: base64UrlEncode(ua.getPublicKey()),
+        auth: base64UrlEncode(authSecret),
+      },
+    },
+    uaPrivateKey: ua.getPrivateKey(),
+    authSecret,
+  };
+}
+
+export function vapidConfig(extra: Partial<WebPushConfig> = {}): WebPushConfig {
+  const keys = generateVapidKeyPair();
+  return {
+    vapidPublicKey: keys.publicKey,
+    vapidPrivateKey: keys.privateKey,
+    vapidSubject: "mailto:ops@example.test",
+    now: () => FIXED_NOW,
+    ...extra,
+  };
 }

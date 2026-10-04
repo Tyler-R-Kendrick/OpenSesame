@@ -23,14 +23,41 @@
  * port, and puts it back on dispose.
  */
 
+import { capabilityArtifacts } from "@opensesame/app-core/host.js";
+import { WEB_PUSH_ENROLMENT_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import {
+  sameScript,
+  scriptUrlFor,
+} from "@opensesame/app-core/lib/capabilities/worker/seams.js";
 import { identityBase } from "@opensesame/app-core/lib/identity.js";
+import {
+  PUSH_PENDING_FORGET_KEY,
+  PUSH_SUBSCRIPTION_KEY,
+} from "@opensesame/app-core/lib/web-push-ledger.js";
 import { createElement } from "react";
-import { pushSeams } from "../../lib/push.js";
+import { pushSeams } from "../../lib/push-enrolment.js";
+import { noRoadOut } from "../../lib/push-seams.js";
 import { createActivation } from "../activation.js";
-import { PUSH_SUBSCRIPTION_KEY, PushPanel } from "./PushPanel.js";
+import { PushPanel } from "./PushPanel.js";
 
 export const CAPABILITY = "notifications.web-push";
+
+/**
+ * The absolute URL of the push variant's script in this build, or null when
+ * the build says nothing about it (a test host with no distribution). A push
+ * subscription is only worth taking once the worker holding the scope is this
+ * one: the core worker has no `push` handler.
+ */
+async function pushScriptUrl(): Promise<string | null> {
+  try {
+    const distribution = await capabilityArtifacts().distribution();
+    const variant = distribution.workerVariants.find((v) => v.id === "push");
+    return variant ? scriptUrlFor(variant.scriptPath) : null;
+  } catch {
+    return null;
+  }
+}
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
@@ -38,18 +65,26 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    await ctx.hydrate([PUSH_SUBSCRIPTION_KEY]);
+    await ctx.hydrate([PUSH_SUBSCRIPTION_KEY, PUSH_PENDING_FORGET_KEY]);
+    if (activation.disposed()) return activation.handle();
+    const script = await pushScriptUrl();
     if (activation.disposed()) return activation.handle();
 
     // The enrolment's one road out is the egress port, under this capability.
-    const direct = pushSeams.fetchFn;
+    const anyWorker = pushSeams.workerIsPush;
     pushSeams.fetchFn = (url, init) =>
       ctx.egress.fetch(url, init, {
         capability: CAPABILITY,
-        purpose: "push enrolment with the configured Identity API",
+        purpose: WEB_PUSH_ENROLMENT_PURPOSE,
       });
+    if (script !== null)
+      pushSeams.workerIsPush = (registration) =>
+        sameScript(registration.active?.scriptURL ?? null, script);
     activation.onDispose(() => {
-      pushSeams.fetchFn = direct;
+      // Not the raw fetch: a request still in flight when the capability goes
+      // has no road out, and is refused like any unapproved capability's.
+      pushSeams.fetchFn = noRoadOut;
+      pushSeams.workerIsPush = anyWorker;
     });
 
     activation.register("settings-panel", {

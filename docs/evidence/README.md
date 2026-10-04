@@ -47,7 +47,11 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-04-push-enrolment-copy/`](2026-10-04-push-enrolment-copy/README.md) | Push enrolment: the Push row and its notices, before and after |
+| [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
 | [`2026-10-04-failures-in-the-tray/`](2026-10-04-failures-in-the-tray/README.md) | Failures live in the tray |
+| [`2026-10-04-device-identity-carry/`](2026-10-04-device-identity-carry/README.md) | The device identity key travels with the vault (ADR 0160 §5a) — before and after |
+| [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
 | [`2026-10-03-touch-copy/`](2026-10-03-touch-copy/README.md) | Keyboard-only copy stands down under a finger |
 | [`2026-10-03-share-once-phone/`](2026-10-03-share-once-phone/README.md) | Share once on an item's page, seated for the phone |

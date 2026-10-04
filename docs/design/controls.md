@@ -56,7 +56,7 @@ screen to narrate one failed thing, and it is gone the moment the person moves.
 A screen with no shell — unlock, the front door, the federated return, an
 unframed popup — has no bell of its own, so `AppRoot` mounts `NoticeCorner`
 there; it draws only while the tray holds something
-([ADR 0160](../adr/0160-failures-live-in-the-tray.md)).
+([ADR 0161](../adr/0161-failures-live-in-the-tray.md)).
 
 A notice is keyed by `id` — one per place, so a second try replaces the first
 and a success clears it; give a per-item editor the item's id. A visually-hidden

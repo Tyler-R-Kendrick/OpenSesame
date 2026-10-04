@@ -76,6 +76,27 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.itemTypes = merged.itemTypes ?? {};
   body.itemTypesAt = merged.itemTypesAt;
   body.tombstones = merged.tombstones;
+  body.deviceIdentityKey = merged.deviceIdentityKey;
+}
+
+/** A copy of what a failed write must put back, so memory never runs ahead of disk. */
+export function bodyBeforeWrite(body: VaultBody): VaultBody {
+  return {
+    v: body.v,
+    items: body.items,
+    folders: body.folders,
+    ...(body.itemTypes !== undefined
+      ? { itemTypes: body.itemTypes }
+      : undefined),
+    ...(body.itemTypesAt !== undefined
+      ? { itemTypesAt: body.itemTypesAt }
+      : undefined),
+    ...(body.rev !== undefined ? { rev: body.rev } : undefined),
+    tombstones: body.tombstones,
+    ...(body.deviceIdentityKey !== undefined
+      ? { deviceIdentityKey: body.deviceIdentityKey }
+      : undefined),
+  };
 }
 
 /** An item the retired sample-data feature wrote: its flag is no longer typed. */

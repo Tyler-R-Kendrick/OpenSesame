@@ -30,6 +30,8 @@ own SQLite store in [`crates/storage`](../../crates/storage).
 ```bash
 pnpm --filter @opensesame/database test               # PGlite when DATABASE_URL is unset
 pnpm --filter @opensesame/database test:integration   # tests/pact.test.ts
+DATABASE_URL=postgres://user@127.0.0.1:5432/postgres OPENSESAME_CLAIM_PEPPER=<32+ chars> \
+  pnpm --filter @opensesame/database test:postgres    # the whole suite on a real server
 pnpm --filter @opensesame/database typecheck
 pnpm --filter @opensesame/database db:generate        # drizzle-kit generate from the schema
 pnpm --filter @opensesame/database db:migrate         # needs DATABASE_URL
@@ -39,7 +41,15 @@ pnpm --filter @opensesame/database db:reset           # drops public + drizzle s
 The root `pnpm db:migrate` / `pnpm db:reset` call the same scripts, and
 `pnpm bootstrap` runs `db:generate` then `db:migrate`. Tests use a real
 Postgres when `DATABASE_URL` is set and an in-process PGlite otherwise
-(`tests/pg-harness.ts`). A migration must land with its `meta/` snapshot:
+(`tests/pg-harness.ts`, `tests/pg-harness-full.ts`). On a real server every
+suite gets a database of its own, created and dropped around it, so the run is
+repeatable and the role only needs `CREATEDB`. Run both: PGlite binds a JS
+`Date` that the production driver (postgres-js) cannot, so a raw `sql`
+fragment holding a `Date` passes in-process and throws on a real server —
+that is what stopped `runCleanupTick` on every tick. Compare with the
+column-aware operators (`lte`, `gt`, `gte`), or `sql.param(value, column)` inside a
+fragment; `tests/raw-sql-binding.test.ts` is the cheap tripwire. CI runs
+`test:postgres` against a Postgres service whenever this package is affected. A migration must land with its `meta/` snapshot:
 `tests/migration-journal.test.ts` fails without it, because the next
 `db:generate` would re-emit the missing tables.
 

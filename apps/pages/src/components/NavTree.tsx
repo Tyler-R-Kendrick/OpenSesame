@@ -13,6 +13,7 @@ import {
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
+import { useClaimedDrags } from "../lib/use-claimed-drags.js";
 import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useVaultAllTo } from "../lib/vault-list-path.js";
 import { useVault } from "../lib/vault/hooks.js";
@@ -263,6 +264,7 @@ export function NavTree() {
   currentToRef.current = section && !sectionOpen ? section.to : selectedTo;
   const counts = useVaultCounts(items);
 
+  useClaimedDrags(treeRef);
   useRailKeyboard(treeRef, navigateRef, currentToRef);
   useRailCursorFollowsRoute(
     treeRef,

@@ -4,9 +4,9 @@ import { LocalAuthorityTemplates } from "./LocalAuthorityTemplates.js";
 import { VaultSessionsPanel } from "./VaultSessionsPanel.js";
 import { Receipts } from "./receipts.js";
 
-import { useIdentitySession } from "../../bindings/identity.js";
+import { useReceiptsSession } from "./use-receipts-session.js";
 export function SessionsPanel({ online }: { online: boolean }) {
-  const session = useIdentitySession();
+  const session = useReceiptsSession();
   const { tomb } = useVault();
   return (
     <>

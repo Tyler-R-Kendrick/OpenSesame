@@ -147,47 +147,51 @@ describe("push variant gating (PWA-03)", () => {
 });
 
 describe("transitions (PWA-02, PWA-06)", () => {
-  it("exposes transition-required instead of registering a competing worker", async () => {
+  const pushPlan = plan({
+    requiredWorkerVariant: "push",
+    approvedCapabilities: ["notifications.web-push"],
+  });
+
+  it("replaces the registered script in place once the variant is eligible (approval is the consent)", async () => {
     const container = new FakeContainer(CORE_URL);
     const store = new FakeStore({
-      plan: plan({
-        requiredWorkerVariant: "push",
-        approvedCapabilities: ["notifications.web-push"],
-      }),
+      plan: pushPlan,
       selection: selection("selected-only"),
       receipt: receipt("notifications.web-push"),
     });
     const { settled } = arm(container, store);
     await settled();
-    expect(container.registered).toEqual([]);
-    expect(container.posted).toEqual([]);
-    expect(workerStatus().transition).toEqual({
-      from: "core-only",
-      to: "push",
-      status: "transition-required",
-    });
+    expect(container.registered.map((r) => r.url)).toEqual([PUSH_URL]);
+    expect(container.unregistered).toEqual([]);
+    expect(workerStatus().transition).toBe(null);
+    expect(workerStatus().variant).toBe("push");
   });
 
-  it("transitionWorker unregisters the old script and registers the new one", async () => {
+  it("never replaces a worker for a variant the installation has not accepted", async () => {
     const container = new FakeContainer(CORE_URL);
     const store = new FakeStore({
-      plan: plan({
-        requiredWorkerVariant: "push",
-        approvedCapabilities: ["notifications.web-push"],
-      }),
-      selection: selection("shell-only"),
-      receipt: receipt("notifications.web-push"),
+      plan: pushPlan,
+      selection: selection("selected-only"),
+      receipt: receipt("vault.passwords"),
     });
     const { settled } = arm(container, store);
     await settled();
-    await expect(transitionWorker()).resolves.toBe(true);
-    expect(container.unregistered).toEqual([CORE_URL]);
-    expect(container.registered.map((r) => r.url)).toEqual([PUSH_URL]);
+    expect(container.registered).toEqual([]);
     expect(workerStatus().transition).toBe(null);
-    expect(workerStatus().variant).toBe("push");
-    container.emit("controllerchange");
-    expect(env.reloads).toBe(1);
+    expect(workerStatus().variant).toBe(null);
+  });
+
+  it("transitionWorker has nothing to do when no change is pending", async () => {
+    const container = new FakeContainer(CORE_URL);
+    const store = new FakeStore({
+      plan: plan(),
+      selection: null,
+      receipt: null,
+    });
+    const { settled } = arm(container, store);
+    await settled();
     await expect(transitionWorker()).resolves.toBe(false);
+    expect(container.registered).toEqual([]);
   });
 
   it("reloads once on controllerchange, as the page always did", async () => {

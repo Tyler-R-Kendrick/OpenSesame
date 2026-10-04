@@ -66,6 +66,7 @@ export async function runVaultCommand(
     tomb: opened.tomb,
     bound: opened.bound,
     rev: opened.rev,
+    concealed: [...opened.concealed],
   };
   if (command.name === "vault-verify") {
     emit(command.flags, `OK — ${describe(opened)}`, {
@@ -74,7 +75,11 @@ export async function runVaultCommand(
     });
     return 0;
   }
-  const lines = opened.items.map((item) => `${item.path}\t${item.kind}`);
+  // A concealed file is listed by name and never by value (ADR 0160 §5).
+  const lines = [
+    ...opened.items.map((item) => `${item.path}\t${item.kind}`),
+    ...opened.concealed.map((path) => `${path}\tconcealed`),
+  ];
   emit(command.flags, [describe(opened), ...lines].join("\n"), {
     ...summary,
     items: opened.items.map(({ id, name, kind, path }) => ({

@@ -24,6 +24,7 @@ type Vector = {
     bound: boolean;
     rev: number | null;
     items: { id: string; name: string; kind: string }[];
+    concealed?: string[];
   };
 };
 type Fixture = { password: string; vectors: Record<string, Vector> };
@@ -100,6 +101,7 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
         tomb: vector.expect.tomb,
         bound: vector.expect.bound,
         rev: vector.expect.rev,
+        concealed: vector.expect.concealed ?? [],
         items: vector.expect.items.length,
       });
     },
@@ -162,8 +164,32 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
       );
       expect(values.length).toBeGreaterThan(0);
       for (const value of values) expect(out).not.toContain(value);
+      // Nor any part of the device identity key a body carries (ADR 0160 §5).
+      const key = body.deviceIdentityKey;
+      if (key !== undefined) {
+        for (const value of stringLeaves(key).filter((v) => v.length >= 6)) {
+          expect(out).not.toContain(value);
+        }
+      }
     },
   );
+
+  it("lists the device identity key by name, last, marked concealed, and never counts it", async () => {
+    const file = await vectorFile("backup-device-identity");
+    expect(await runCli(["vault", "ls", file], typed(fixture.password))).toBe(
+      0,
+    );
+    const lines = out.trim().split("\n");
+    expect(lines[0]).toContain("2 items");
+    expect(lines.at(-1)).toBe("config/device-identity-key\tconcealed");
+    expect(lines.slice(1, -1)).toHaveLength(2);
+    out = "";
+    await runCli(["vault", "ls", file, "--json"], typed(fixture.password));
+    const listed: { concealed: string[]; items: JsonObject[] } =
+      JSON.parse(out);
+    expect(listed.concealed).toEqual(["config/device-identity-key"]);
+    expect(listed.items).toHaveLength(2);
+  });
 
   it("refuses the wrong password without output", async () => {
     const code = await runCli(

@@ -187,7 +187,7 @@ export class PostgresAuthorityProjectionStateStore
         ],
         set: {
           committedRevision: sql`GREATEST(${authorityProjectionState.committedRevision}, ${mark.committedRevision})`,
-          dirtySince: sql`COALESCE(${authorityProjectionState.dirtySince}, ${now})`,
+          dirtySince: sql`COALESCE(${authorityProjectionState.dirtySince}, ${sql.param(now, authorityProjectionState.dirtySince)})`,
           updatedAt: now,
         },
       });
@@ -231,7 +231,7 @@ export class PostgresAuthorityProjectionStateStore
       .update(authorityProjectionState)
       .set({
         lastError: error,
-        dirtySince: sql`COALESCE(${authorityProjectionState.dirtySince}, ${now})`,
+        dirtySince: sql`COALESCE(${authorityProjectionState.dirtySince}, ${sql.param(now, authorityProjectionState.dirtySince)})`,
         updatedAt: now,
       })
       .where(

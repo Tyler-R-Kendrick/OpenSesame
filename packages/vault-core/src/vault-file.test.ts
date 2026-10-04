@@ -10,7 +10,13 @@ import fixture from "../../../spec/conformance/vault-vectors.json" with {
 };
 import { VaultCorruptError, WrongPasswordError } from "./crypto.js";
 import { unwrapRawVaultKeyFromPassword } from "./crypto.js";
-import { openVaultBody, openVaultFile, readVaultFile } from "./vault-file.js";
+import { readDeviceIdentityKeyRecord } from "./device-key.js";
+import {
+  openVaultBody,
+  openVaultFile,
+  readVaultFile,
+  summarizeVaultBody,
+} from "./vault-file.js";
 
 const vectors = Object.entries(fixture.vectors);
 
@@ -35,6 +41,10 @@ describe("openVaultFile over the golden vectors", () => {
       bound: v.expect.bound,
       rev: v.expect.rev,
     });
+    // A concealed file is named and never shown (ADR 0160 §5).
+    expect(opened.concealed).toEqual(
+      "concealed" in v.expect ? v.expect.concealed : [],
+    );
     for (const item of opened.items) expect(item.path).toContain(item.name);
   });
 
@@ -54,6 +64,33 @@ describe("openVaultFile over the golden vectors", () => {
     );
     expect(values.length).toBeGreaterThan(0);
     for (const value of values) expect(printed).not.toContain(value);
+    // Nor any part of the device identity key a body carries.
+    const key = body.deviceIdentityKey;
+    if (key !== undefined) {
+      for (const value of stringLeaves(key).filter((x) => x.length >= 6)) {
+        expect(printed).not.toContain(value);
+      }
+      expect(printed).not.toContain("deviceIdentityKey");
+    }
+  });
+
+  it("holds a vector whose body carries the device identity key", async () => {
+    const carrying = vectors.filter(([, v]) => "concealed" in v.expect);
+    expect(carrying.map(([name]) => name)).toEqual(["backup-device-identity"]);
+    const [, v] = carrying[0] ?? [];
+    if (!v) throw new Error("no vector carries a key");
+    const sealed = readVaultFile(v.file);
+    const raw = await unwrapRawVaultKeyFromPassword(
+      sealed.header,
+      fixture.password,
+    );
+    const { body } = await openVaultBody(sealed, raw);
+    expect(
+      readDeviceIdentityKeyRecord(body.deviceIdentityKey ?? {}),
+    ).not.toBeNull();
+    // The sealed file shows nothing of it to someone without the vault key.
+    expect(v.file).not.toContain("privateJwkJson");
+    expect(v.file).not.toContain("device-identity");
   });
 
   it("refuses the wrong password and anything that is not a vault file", async () => {
@@ -65,4 +102,18 @@ describe("openVaultFile over the golden vectors", () => {
     expect(() => readVaultFile("{}")).toThrow(VaultCorruptError);
     expect(() => readVaultFile("not json")).toThrow(VaultCorruptError);
   });
+});
+
+describe("which bodies list the device identity key", () => {
+  const sealed = readVaultFile(fixture.vectors["export-personal"].file);
+
+  // The same rows the Rust reader runs (`crates/human-vault`, `body.rs`): a
+  // `null` key is absent in both, any other value is listed by name.
+  it.each(fixture.concealedBodies.map((row) => [row.name, row] as const))(
+    "%s",
+    (_name, row) => {
+      const listed = summarizeVaultBody(sealed, overlapCast(row.body), true);
+      expect(listed.concealed).toEqual(row.concealed);
+    },
+  );
 });

@@ -1,3 +1,5 @@
+import { DEVICE_IDENTITY_KEY_PATH } from "@opensesame/vault-core";
+
 /**
  * Settings as files. A category's configuration is a set of virtual files;
  * the Form view is drawn from what they parse to, and Settings' source view
@@ -106,4 +108,52 @@ export function mergeFileProviders(
   };
   if (creates === undefined) return merged;
   return { ...merged, creates };
+}
+
+const CONCEALED_NAME = baseName(DEVICE_IDENTITY_KEY_PATH);
+const CONCEALED = "This file is not shown or changed here.";
+
+/**
+ * A path the viewer never lists, reads, checks, writes or removes: the device
+ * identity key (ADR 0160 §5). It is a concealed secret, so no provider offers
+ * it, and this is the guarantee that none ever does by accident — the name
+ * alone is matched, in any directory, however the path is written.
+ */
+export function isConcealedFilePath(path: string): boolean {
+  let decoded = path;
+  try {
+    decoded = decodeURIComponent(path);
+  } catch {
+    // An undecodable path is matched as written.
+  }
+  return decoded
+    .split(/[\\/]+/)
+    .some((segment) => segment.trim().toLowerCase() === CONCEALED_NAME);
+}
+
+/** `provider` with every concealed path removed from its listing and refused by name. */
+export function withoutConcealedFiles(
+  provider: VirtualFileProvider,
+): VirtualFileProvider {
+  return {
+    ...provider,
+    list: () =>
+      provider.list().filter((file) => !isConcealedFilePath(file.path)),
+    read: async (path) => {
+      if (isConcealedFilePath(path)) throw new Error(CONCEALED);
+      return provider.read(path);
+    },
+    check: (path, text) =>
+      isConcealedFilePath(path)
+        ? { ok: false, message: CONCEALED }
+        : provider.check(path, text),
+    write: async (path, text) =>
+      isConcealedFilePath(path)
+        ? { ok: false, message: CONCEALED }
+        : provider.write(path, text),
+    remove: async (path) =>
+      isConcealedFilePath(path)
+        ? { ok: false, message: CONCEALED }
+        : provider.remove(path),
+  };
 }

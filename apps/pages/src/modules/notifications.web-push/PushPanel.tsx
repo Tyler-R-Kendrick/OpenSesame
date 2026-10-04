@@ -19,30 +19,24 @@ import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
-import { useEffect, useState } from "react";
+import { PUSH_SUBSCRIPTION_KEY } from "@opensesame/app-core/lib/web-push-ledger.js";
+import { useEffect, useRef, useState } from "react";
 import { useIdentitySession } from "../../bindings/identity.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconBell, IconPlus, IconX } from "../../components/Icons.js";
 import {
   disablePush,
   enablePush,
-  pushSeams,
+  flushPendingForgets,
+  keepToForget,
+  pushSubscribed,
   pushSupported,
-} from "../../lib/push.js";
+} from "../../lib/push-enrolment.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { CeremonyRow } from "../../sections/settings/CeremonyRow.js";
 
 const NOTICE_ID = "push-on-this-device";
-/** The id the Identity API gave this browser's subscription, so it can be withdrawn. */
-export const PUSH_SUBSCRIPTION_KEY = "push.subscription.id";
-
-/** Whether this browser holds a push subscription now. */
-async function subscribed(): Promise<boolean> {
-  const container = pushSeams.serviceWorkerContainer();
-  if (!container) return false;
-  const worker = await container.ready;
-  return (await worker.pushManager.getSubscription()) !== null;
-}
+export { PUSH_SUBSCRIPTION_KEY };
 
 type Credentials = { baseUrl: string; accessToken: string } | null;
 
@@ -55,12 +49,20 @@ async function turnPush(
   credentials: Credentials,
 ): Promise<boolean> {
   if (on) {
-    const withdrawn = await disablePush({
-      ...credentials,
-      subscriptionId: kvGet(PUSH_SUBSCRIPTION_KEY) ?? undefined,
-    });
-    kvDelete(PUSH_SUBSCRIPTION_KEY);
-    if (!withdrawn.server) {
+    const held = kvGet(PUSH_SUBSCRIPTION_KEY);
+    let told = false;
+    try {
+      told = (
+        await disablePush({ ...credentials, subscriptionId: held ?? undefined })
+      ).server;
+    } finally {
+      // Whether or not the service was told (a refusal throws), the browser's
+      // subscription is gone and the live slot is empty; an id the service may
+      // still list is kept to forget when it can be, never lost.
+      kvDelete(PUSH_SUBSCRIPTION_KEY);
+      if (!told) keepToForget(held);
+    }
+    if (!told) {
       setStatusNotice({
         id: NOTICE_ID,
         tone: "warn",
@@ -71,8 +73,14 @@ async function turnPush(
     return false;
   }
   if (credentials === null) return false;
+  const stale = kvGet(PUSH_SUBSCRIPTION_KEY);
   const record = await enablePush(credentials);
+  // The browser lost the subscription the stored id named (a cleared site, an
+  // expired one): the service still lists it. The id is kept to forget before
+  // it is overwritten, so a forget that fails is retried, not lost.
+  if (stale && record.id && stale !== record.id) keepToForget(stale);
   if (record.id) kvSet(PUSH_SUBSCRIPTION_KEY, record.id);
+  await flushPendingForgets(credentials, record.id || null);
   return true;
 }
 
@@ -82,12 +90,14 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
   const supported = pushSupported();
   const [on, setOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  // State lags a render behind a second press; a ref does not.
+  const pressed = useRef(false);
   const live = configured && session !== null && supported;
 
   useEffect(() => {
     if (!supported) return;
     let current = true;
-    void subscribed().then(
+    void pushSubscribed().then(
       (value) => {
         if (current) setOn(value);
       },
@@ -100,11 +110,24 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
     };
   }, [supported]);
 
+  // Whenever the row can reach the service, tell it about ids this browser
+  // stopped using (a removed capability's subscription, a failed withdrawal).
+  const accessToken = session?.accessToken ?? null;
+  useEffect(() => {
+    if (!live || accessToken === null) return;
+    void flushPendingForgets(
+      { baseUrl: baseUrl(), accessToken },
+      kvGet(PUSH_SUBSCRIPTION_KEY),
+    );
+  }, [live, accessToken, baseUrl]);
+
   // Off is drawn only where it can be turned on; On is drawn wherever the
   // browser holds a subscription, so it can always be ended.
   if (on === null || (!on && !live)) return null;
 
   const turn = async () => {
+    if (pressed.current) return;
+    pressed.current = true;
     dismissNotice(NOTICE_ID);
     setBusy(true);
     try {
@@ -120,8 +143,9 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
         title: "Push on this device",
         body: caught instanceof Error ? caught.message : String(caught),
       });
-      setOn(await subscribed().catch(() => false));
+      setOn(await pushSubscribed().catch(() => false));
     } finally {
+      pressed.current = false;
       setBusy(false);
     }
   };
@@ -148,9 +172,7 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
                   : "Turn on push on this device"
               }
               aria-busy={busy || undefined}
-              onClick={() => {
-                if (!busy) void turn();
-              }}
+              onClick={() => void turn()}
             >
               {on ? <IconX size={16} /> : <IconPlus size={16} />}
             </IconKey>

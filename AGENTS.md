@@ -78,7 +78,9 @@ pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subs
                           #   tools/quality/log-hygiene-baseline.json (ADR 0157)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
-                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
+                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks;
+                          #   and repo-wide, a seam its module exports for its owner and tests (the vault store's
+                          #   body port, ADR 0160 §5a) is imported by no one else
 pnpm quality:bundle      # build apps/pages|pwa, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
@@ -226,6 +228,15 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:device-identity
+# Same harness, the device as the Identity plane (ADR 0160), a guest with no
+# Identity API at desktop and phone widths: no sign-out row until the device
+# has a session, the status reads "This device", the session's principal is
+# the vault key's thumbprint and survives Refresh, every Settings section and
+# Access tab reads clean, and Receipts is drawn only once Browser-local IAM
+# serves an audit trail. Run before touching `identityPlane`, `identityServes`,
+# the device host, or a panel gated on the Identity plane.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
 # WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
@@ -261,6 +272,40 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push-worker
+# A real localhost origin with service workers allowed (`context.route` never
+# sees a worker's fetches, and the shared harness blocks workers). A device
+# holding the core `sw.js` approves Push notifications and must end on
+# `sw-push.js` at the same scope: one registration, no reload, the vault still
+# open; a push delivered over CDP rings the `{kind, action, ref}` doorbell and
+# a hostile payload only the generic one; removing the capability returns the
+# core worker. A second tab stays open throughout, and a replacement Chrome
+# leaves waiting is asked for again under a fresh `?r=` URL, with no nudge. Run
+# before touching the worker controller, `src/sw*`, or anything on the push
+# enrolment path (`lib/push*.ts`).
+pnpm --filter @opensesame/pages build:push-verify    # second Pages build into
+                          #   dist-push-verify, stamped loopback_development for
+                          #   http://localhost:41877 (the one origin that profile
+                          #   honours); the tracked security-profile.json is put
+                          #   back whether the build passes or fails
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push
+# Web Push end to end against a real Identity API (control-plane
+# `startServer()` in memory on :41878, the Host's Web Push delivery, and a
+# stand-in push service that verifies RFC 8292 VAPID and decrypts RFC 8291
+# aes128gcm); runs under tsx. Only the browser's own subscription is stood in
+# for. Walks approve Push, turn on (the server records the browser's
+# subscription), a real push through the stand-in rings the closed doorbell,
+# turn off (the row is gone), and the failures: service unreachable, an
+# endpoint another principal holds (409, recovered), an account at its limit
+# (409, nothing left half-enrolled, a held subscription the server cannot record
+# is let go) and an operator policy that refuses the Identity API's origin. About
+# 20 s. Run before touching `lib/push*.ts`, `modules/notifications.web-push`,
+# or the control-plane, notification-adapters, identity-worker and database code
+# the walk imports; CI runs it as its own job, "Web Push end to end", whenever
+# the Pages build or any of that server code changes (`push` area in
+# `scripts/lib/ci-changed-areas.mjs`).
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -446,6 +491,15 @@ Do not add new top-level directories or loose root files — find the group.
   is not authentication evidence. Keep exact-origin/source binding, PKCE,
   human-only consent and scoped opener headers; never widen model authority
   to make the flow pass. Browser-local identity is not a hosted OIDC service.
+- **Web Push is proved against a real Identity API.** Changes to push
+  enrolment, the push worker or its controller, the Identity API's push routes,
+  the Web Push adapters or the Host's delivery require
+  `pnpm --filter @opensesame/pages verify:push-worker` and `verify:push`
+  against fresh builds (`build:push-verify` for the second). `verify:push` is
+  its own CI job, folded into the required Bundle budgets check, and runs
+  for the server code it exercises as well as for Pages. A push worker that is
+  only ever shown to a mocked enrolment, or a walk that nudges the browser, is
+  not evidence.
 - `@opensesame/os-domain` **must not** import Better Auth, oidc-provider,
   Hono, Drizzle, or React (see CONTRIBUTING.md).
 - Prefer mature libraries over NIH protocol code —
@@ -456,7 +510,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0160).
+  0001–0161).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -828,7 +882,7 @@ Do not add new top-level directories or loose root files — find the group.
   use `StatusNote`, which now trays every error and warning and draws only a
   quiet success. A screen with no shell (unlock, front door, federated return,
   an unframed popup) gets the corner bell, `NoticeCorner`, mounted by `AppRoot`
-  ([ADR 0160](docs/adr/0160-failures-live-in-the-tray.md)). Do not add explainer or caption prose. Pages copy never
+  ([ADR 0161](docs/adr/0161-failures-live-in-the-tray.md)). Do not add explainer or caption prose. Pages copy never
   names a Host, and a browser-local connector action never asks the person to
   pair one. `pnpm lint:design` (`scripts/quality/design-lint.mjs`) rejects word-verb
   buttons, status pills, explainer captions, and any in-page failure
@@ -1066,7 +1120,9 @@ CI lives in `.github/workflows/`:
   and the ones that depend on them: TypeScript runs `turbo run typecheck test`
   for that set, and Rust runs `cargo test --all-targets -p` for that set on
   Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
-  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
+  "Web Push end to end" (`verify:push`) is its own job that the same check
+  waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,
   and `pnpm quality`. A docs-only diff passes the three checks without those
   suites. An unrecognized path runs every suite.
