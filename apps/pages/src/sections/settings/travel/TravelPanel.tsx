@@ -106,9 +106,14 @@ export function TravelPanel() {
   const flow = useTravelFlow(() => setSheet(null));
   const { owner, busy, notice } = flow;
   const { remnants, reread } = useTravelRemnants(owner, notice);
-  const carried = useDeviceVaults().filter(
+  const sealed = useDeviceVaults().filter(
     (vault) => vault.kind !== "guest" && vault.state !== "empty",
-  ).length;
+  );
+  const carried = sealed.length;
+  // The open vault always travels, so leaving needs another to leave behind:
+  // with none, packing refuses ("nothing would leave") and the key is a dead
+  // end — it is not drawn (ADR 0158).
+  const canLeave = sealed.some((vault) => vault.state !== "open");
   const files = remnants.reduce((sum, r) => sum + r.files.length, 0);
   const blocked = travelRefusalText("owner_not_present");
 
@@ -147,14 +152,16 @@ export function TravelPanel() {
             action={null}
           />
         ) : null}
-        <ModeRow
-          icon={<IconUpload size={16} />}
-          label="Leave for a trip"
-          sub={owner ? `${plural(carried, "vault")} on this device` : blocked}
-          keyLabel="Turn on travel mode"
-          disabled={!owner || busy}
-          onOpen={() => open("leave")}
-        />
+        {canLeave ? (
+          <ModeRow
+            icon={<IconUpload size={16} />}
+            label="Leave for a trip"
+            sub={owner ? `${plural(carried, "vault")} on this device` : blocked}
+            keyLabel="Turn on travel mode"
+            disabled={!owner || busy}
+            onOpen={() => open("leave")}
+          />
+        ) : null}
         <ModeRow
           icon={<IconDownload size={16} />}
           label="Come home from a trip"

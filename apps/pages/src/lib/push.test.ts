@@ -318,7 +318,7 @@ describe("enrolment", () => {
         accessToken: "t",
         subscriptionId: "push_1",
       }),
-    ).toBe(true);
+    ).toEqual({ browser: true, server: true });
     const [url, init] = fetchFn.mock.calls[0] ?? [];
     expect(String(url)).toBe(
       "https://id.example/v1/notification-channels/push/subscriptions/push_1",
@@ -341,7 +341,7 @@ describe("enrolment", () => {
         accessToken: "t",
         subscriptionId: "push_gone",
       }),
-    ).toBe(true);
+    ).toEqual({ browser: true, server: true });
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -366,7 +366,19 @@ describe("enrolment", () => {
 
     expect(
       await disablePush({ baseUrl: "https://id.example", accessToken: "t" }),
-    ).toBe(true);
+    ).toEqual({ browser: true, server: false });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("undoes the browser half with no session to tell the server with, and says the server was not told", async () => {
+    const unsubscribe = vi.fn(async () => true);
+    worker({ ...SUBSCRIPTION, unsubscribe });
+
+    expect(await disablePush({ subscriptionId: "push_1" })).toEqual({
+      browser: true,
+      server: false,
+    });
     expect(fetchFn).not.toHaveBeenCalled();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
@@ -375,6 +387,6 @@ describe("enrolment", () => {
     worker(null);
     expect(
       await disablePush({ baseUrl: "https://id.example", accessToken: "t" }),
-    ).toBe(false);
+    ).toEqual({ browser: false, server: false });
   });
 });

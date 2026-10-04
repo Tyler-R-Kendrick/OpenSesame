@@ -1,10 +1,15 @@
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
+import { useIdentitySession } from "../../bindings/identity.js";
+import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { VisualPrefs } from "./VisualPrefs.js";
 
 export function GeneralPrefsPanel() {
   const store = useVaultStore();
   const { prefs } = useVault();
+  const configured = useIdentityConfigured();
+  const session = useIdentitySession();
+  const identity = configured || session !== null;
   const commit = (next: Partial<VaultPrefs>) => {
     void store.commitPrefs(next);
   };
@@ -12,6 +17,7 @@ export function GeneralPrefsPanel() {
   return (
     <VisualPrefs
       prefs={prefs}
+      identity={identity}
       onTheme={(id) => commit({ theme: id })}
       onNumber={(key, value) => {
         if (key === "autoLockMinutes") {

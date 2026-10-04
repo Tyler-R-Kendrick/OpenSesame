@@ -10,6 +10,10 @@
  */
 
 import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
+import {
   type TailnetSyncState,
   forgetTailnetDrive,
   pairTailnetDrive,
@@ -21,7 +25,6 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconConnection, IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
-import { type StatusMessage, StatusNote } from "../../components/StatusNote.js";
 import {
   subscribeLinkedPairing,
   takeLinkedPairing,
@@ -42,6 +45,8 @@ export type TailnetPanelSeams = {
   sync: () => Promise<void>;
   forget: () => Promise<void>;
 };
+
+const NOTICE_ID = "tailnet-sync";
 
 export const tailnetPanelSeams: TailnetPanelSeams = {
   state: tailnetSyncState,
@@ -142,19 +147,21 @@ export function TailnetSyncPanel() {
   );
   const { status, guest } = useVault();
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<StatusMessage | null>(null);
   const [pairing, setPairing] = useState<{ code: string } | null>(null);
   const canPair = guest || status === "unlocked" || status === "empty";
   useLinkedPairing(useCallback((code) => setPairing({ code }), []));
 
+  // A failure is a notice in the tray, not a box in the page (DESIGN.md).
   const run: Run = (task) => {
-    setMessage(null);
+    dismissNotice(NOTICE_ID);
     setBusy(true);
     void task()
       .catch((caught) =>
-        setMessage({
+        setStatusNotice({
+          id: NOTICE_ID,
           tone: "err",
-          text: caught instanceof Error ? caught.message : String(caught),
+          title: "Tailnet sync",
+          body: caught instanceof Error ? caught.message : String(caught),
         }),
       )
       .finally(() => setBusy(false));
@@ -199,7 +206,6 @@ export function TailnetSyncPanel() {
               }
             />
           )}
-          <StatusNote message={message} onDismiss={() => setMessage(null)} />
         </div>
         {pairing ? (
           <TailnetPairSheet

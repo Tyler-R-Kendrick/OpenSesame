@@ -97,11 +97,10 @@ describe("Settings › Live sessions › Routes", () => {
     fireEvent.click(panel.getByRole("button", { name: "Add the address" }));
     await panel.findByText("100.101.102.103");
 
-    // Relay only means nothing until there is a TURN server.
-    const relay = panel.getByRole("checkbox", {
-      name: "Relay only, through TURN",
-    });
-    expect(relay).toHaveProperty("disabled", true);
+    // Relay only means nothing until there is a TURN server: not drawn.
+    expect(
+      panel.queryByRole("checkbox", { name: "Relay only, through TURN" }),
+    ).toBeNull();
     type(
       panel,
       "STUN or TURN server",

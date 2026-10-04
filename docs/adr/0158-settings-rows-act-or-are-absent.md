@@ -90,9 +90,10 @@ that cannot supply every action supplies none, and the panel is absent.
   at all: the adapters exist, but the browser enrollment service does not enroll
   them (`browser-enroll.ts`), and a "setup intent" row with no action was the
   representation this decision removes. It returns with its enrollment.
-- The Better Auth / WorkOS / Auth0 tiles under Capabilities still create Host
-  connections and give no feedback on a device with no Host. That is a
-  separate defect; nothing on Security depends on it any more.
+- The Better Auth / WorkOS / Auth0 tiles under Capabilities created Host
+  connections and gave no feedback on a device with no Host. That road is
+  deleted ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md),
+  second amendment); nothing on Security depended on it.
 - **Transport follows the rule, and ADR 0132's acceptance scenario changed with
   it.** With no endpoint and no status read, Transport draws only its form —
   no five idle rows, no Refresh key, no verify key. `AT-STATIC-EMPTY` /
@@ -103,3 +104,66 @@ that cannot supply every action supplies none, and the panel is absent.
   is drawn is enabled. A live sweep of every key on Security, as a guest and
   with a sealed personal vault, found none that does nothing except "Seal
   identity", a form submit that stays disabled until its own field has text.
+
+## Amendment (2026-10-03): a second walk of every Settings tab
+
+A second walk — as a guest and as a password-sealed vault with a PIN, an
+authenticator and a recovery key, at 1280 and 390 wide, with every optional
+capability switched on — found the rule still broken in places the first sweep
+did not reach, and one claim above ("found none that does nothing") untrue. Each
+was fixed at its root:
+
+- **A switch that cannot take.** Turning Browser-local IAM off while Self-issued
+  OpenID runs changed nothing: the plan pulls a dependency back in. A tile whose
+  capability another running one is built on, and a section's switch when a
+  running capability outside it needs one of its own, now say *needed by …*
+  (`dependentsOf`, `heldOutside` in `features.ts`) instead of drawing a switch.
+- **A link to a blank page** is fixed by the connectors work, not here: with
+  Connections off (the default, ADR 0153) a provider tile whose page only
+  Connections routes is not drawn, and a section left with nothing to act on is
+  absent ([ADR 0151](0151-connector-pages-act-on-the-roads-a-device-has.md),
+  third amendment). This walk reproduced it (43 tiles, each opening a blank
+  page) and kept that mechanism rather than a second one.
+- **A switch that looks off while it is on.** Switches carried `aria-pressed`
+  beside `aria-checked`; dropping the redundant one left `.toggle` styled only
+  for `aria-pressed`, so every switch drew off. The toggle's on state now answers
+  to either (`components/toggle-style.test.ts`).
+- **A switch for nothing.** External telemetry and Certificate authority have no
+  Pages code (their modules say so); Push notifications had a library and no row.
+  The first two draw no section (`NO_SURFACE`) — unless a plan already approves
+  one (a persisted selection or a policy can carry it, and Access and Certificate
+  records run on Certificate authority), when its one switch stays so it can be
+  turned off and nothing is left "needed by" a capability with no control
+  (`shown(feature, plan)`); Push gets *Push on this device*
+  under General, drawn to turn push on where the browser, an Identity API and a
+  session allow it, and kept (On, with its one key) wherever the browser is still
+  subscribed, so it can always be ended; turning it off says when the service
+  could not be told.
+- **A key drawn disabled.** Reset every key and macro with nothing changed, a
+  macro step's move up on the first and down on the last, Add and Record at the
+  step limit, New macro and Edit while an editor is open, the open vault's travel
+  switch, Leave for a trip with one vault, Relay only with no TURN server, the
+  Environments value rows with no environment, and the preferred unlock's own
+  star. Each is absent until it can act, and focus follows.
+- **A row with nothing to change.** Notifications on a device with no Identity
+  API (one inbox row), the plugin tiles with nothing paired and no way to pair,
+  and the *Sign out of Identity too* switch on a device with no Identity to sign
+  out of: it is drawn while an Identity API is named or an Identity session is
+  held (a guest on a device with a service named still sees it), and absent
+  otherwise. A stored `signOutOnLock: true` is not lost with the row: it is the
+  vault's own preference, still read and written as `signOutOnLock` in the
+  General settings file, and the switch returns, on, with the Identity API or
+  session. With nothing to sign out of, it does nothing at lock.
+- **A preset that did nothing.** Choosing a purpose card wrote the policy but the
+  composition store read it only at boot, so the card never marked itself.
+- **A message that outlived its subject.** Security's page-level success box
+  still said "PIN unlock enrolled" after a rotation had removed the PIN, and
+  failures drew behind the sheet that caused them. Success is the row's own mark
+  (announced), a failure is a notice in the tray.
+- **A rotation that said less than it did.** Rotating the vault key kept only
+  the password and silently removed the recovery key, the authenticator and the
+  recovery codes; the sheet named only "passkey/PIN". It now lists exactly the
+  enrolled ones before and after.
+- **Dev only, and fatal there.** `main.tsx` renders under StrictMode; the
+  authenticator sheet's cleanup cancelled an enrollment its re-mount never began,
+  so the first code was refused with "Start authenticator enrollment first."
