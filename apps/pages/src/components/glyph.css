@@ -1,0 +1,118 @@
+/* The dotted mark (GlyphMark.tsx). Its hue is the second cue and its dots the
+   first: the lightness is set per theme so the dots keep their contrast on
+   either canvas, and nothing else about it is a colour of ours. */
+
+.glyph {
+  --glyph-sat: 62%;
+  --glyph-light: 36%;
+  display: block;
+  flex: none;
+  width: 1.5rem;
+  height: auto;
+  color: hsl(var(--glyph-hue) var(--glyph-sat) var(--glyph-light));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .glyph {
+    --glyph-light: 66%;
+  }
+}
+
+:root[data-theme="dark"] .glyph {
+  --glyph-light: 66%;
+}
+
+.glyph__on {
+  fill: currentColor;
+}
+
+/* The dots that are not raised stay faintly there, as they do on a braille
+   cell, so a pattern reads as a pattern and not as scattered specks. */
+.glyph__off {
+  fill: currentColor;
+  opacity: 0.16;
+}
+
+/* A mark that stands in for a name is held, not selected: a finger resting on
+   it asks for the switcher, never for the platform's text-selection loupe. */
+.prompt__seg--glyph .glyph {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* The prompt's segments carry both the name and its glyph; the phone's top bar
+   draws the glyph (below) and every other place draws the name. The name stays
+   in the DOM and in `aria-label`, so what a control is called never changes
+   with the width it is drawn at. */
+.prompt__glyph {
+  display: none;
+}
+
+.topbar .prompt__seg--glyph {
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+
+.topbar .prompt__seg--glyph .prompt__name {
+  display: none;
+}
+
+.topbar .prompt__seg--glyph .prompt__glyph {
+  display: block;
+  width: 1.75rem;
+}
+
+.topbar .prompt__seg--glyph:hover,
+.topbar .prompt__seg--glyph[aria-expanded="true"] {
+  background: var(--surface-2);
+}
+
+/* `:/` finishes the prompt on a desktop; beside two marks it is only width. */
+.topbar .prompt__dim--path {
+  display: none;
+}
+
+/* Where a mark sits beside a name — a profile in the account menu — it is the
+   size of the line. */
+.account-switcher__item .glyph {
+  width: 1.375rem;
+}
+
+/* The top bar's prompt clipped its own switchers: a menu hangs below the bar,
+   outside the box the prompt's `overflow: hidden` keeps, so on a phone pressing
+   a segment drew nothing (and the vault list, 20rem wide from the segment's
+   left edge, ran off the screen besides). The segments ellipsise their own
+   names, so the prompt has nothing left to clip, and the menus take the width
+   of the screen, under the bar, whichever segment opened them. */
+.topbar .rail__prompt {
+  overflow: visible;
+}
+
+.topbar .rail__prompt .project-switcher__menu,
+.topbar .rail__prompt .account-switcher__menu {
+  position: fixed;
+  top: auto;
+  right: 0.5rem;
+  left: 0.5rem;
+  width: auto;
+  min-width: 0;
+  max-height: calc(100dvh - 5rem);
+  overflow-y: auto;
+}
+
+.topbar .rail__prompt .project-switcher__menu,
+.topbar .rail__prompt .account-switcher__menu {
+  /* The prompt is `nowrap`, and a menu hung from it inherits that. */
+  white-space: normal;
+}
+
+/* A vault's glyph fills the slot its kind icon held; the 16px rule that sized
+   those icons is for icons. */
+.vault-list .vault-row__mark .glyph {
+  width: 1.5rem;
+  height: auto;
+}
+
+.vault-list--menu .vault-row__mark .glyph {
+  width: 1.375rem;
+}
