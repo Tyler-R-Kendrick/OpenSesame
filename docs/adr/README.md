@@ -203,3 +203,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0160](0160-the-device-identity-plane-is-declared.md) | The device identity plane is declared | Accepted |
 | [0161](0161-what-a-static-origin-can-be-as-an-openid-provider.md) | What a static origin can be as an OpenID Provider | Accepted |
 | [0162](0162-device-receipts-inbox-and-local-notifications.md) | Device-mode receipts, inbox and local notifications | Accepted |
+| [0163](0163-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |

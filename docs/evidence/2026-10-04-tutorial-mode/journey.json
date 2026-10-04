@@ -1,0 +1,174 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "supportOpen": null
+        },
+        {
+          "shot": "1280-panel"
+        },
+        {
+          "tutorialsTab": null
+        },
+        {
+          "shot": "1280-library"
+        },
+        {
+          "tour": {
+            "title": "Lock the vault",
+            "question": "Where do I lock the vault?"
+          }
+        },
+        {
+          "shot": "1280-tour-1"
+        },
+        {
+          "tourMeasure": null
+        },
+        {
+          "tourNext": null
+        },
+        {
+          "shot": "1280-tour-2"
+        },
+        {
+          "tourMeasure": null
+        },
+        {
+          "tourNext": null
+        },
+        {
+          "shot": "1280-tour-3"
+        },
+        {
+          "tourMeasure": null
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "supportOpen": null
+        },
+        {
+          "shot": "390-panel"
+        },
+        {
+          "tutorialsTab": null
+        },
+        {
+          "shot": "390-library"
+        },
+        {
+          "tour": {
+            "title": "Lock the vault",
+            "question": "Where do I lock the vault?"
+          }
+        },
+        {
+          "shot": "390-tour-1"
+        },
+        {
+          "tourMeasure": null
+        },
+        {
+          "tourNext": null
+        },
+        {
+          "shot": "390-tour-2"
+        },
+        {
+          "tourMeasure": null
+        },
+        {
+          "tourNext": null
+        },
+        {
+          "shot": "390-tour-3"
+        },
+        {
+          "tourMeasure": null
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-library",
+      "width": 1280,
+      "title": "Support \u203a Tutorials \u2014 1280 wide",
+      "caption": "Tutorials have their own tab: every walkthrough, grouped, with its step count and a key to start or replay it.",
+      "before": "questions only, no tutorial list or step counts",
+      "after": "Tutorials tab, one row per tour with 'N steps'"
+    },
+    {
+      "shot": "1280-tour-1",
+      "width": 1280,
+      "title": "Tutorial, step 1 \u2014 1280 wide",
+      "caption": "A tutorial opens as a card of its own \u2014 title, step meter, Next \u2014 instead of a bubble that runs by itself.",
+      "before": "352\u00d771 bubble, no Next, no step count",
+      "after": "416\u00d7155 card, 'Step 1 of 2', Back + Next"
+    },
+    {
+      "shot": "1280-tour-2",
+      "width": 1280,
+      "title": "Tutorial, step 2 (points at the lock) \u2014 1280 wide",
+      "caption": "The card sits beside the lit control and waits for the person; Back, Next and Exit are always there.",
+      "before": "same 352\u00d771 bubble at every press (nothing advanced)",
+      "after": "368\u00d7132 card beside the lock, 'Step 2 of 2'"
+    },
+    {
+      "shot": "1280-tour-3",
+      "width": 1280,
+      "title": "Tutorial, last step \u2014 1280 wide",
+      "caption": "The last step closes the tour with Done; Replay is one row away in the library.",
+      "before": "still the first bubble \u2014 no end",
+      "after": "closing card with Done"
+    },
+    {
+      "shot": "390-library",
+      "width": 390,
+      "title": "Support \u203a Tutorials \u2014 390 wide",
+      "caption": "Tutorials have their own tab: every walkthrough, grouped, with its step count and a key to start or replay it.",
+      "before": "questions only, no tutorial list or step counts",
+      "after": "Tutorials tab, one row per tour with 'N steps'"
+    },
+    {
+      "shot": "390-tour-1",
+      "width": 390,
+      "title": "Tutorial, step 1 \u2014 390 wide",
+      "caption": "A tutorial opens as a card of its own \u2014 title, step meter, Next \u2014 instead of a bubble that runs by itself.",
+      "before": "352\u00d771 bubble at the top, no Next, no step count",
+      "after": "374\u00d7187 sheet docked to the bottom, 'Step 1 of 2'"
+    },
+    {
+      "shot": "390-tour-2",
+      "width": 390,
+      "title": "Tutorial, step 2 (points at the lock) \u2014 390 wide",
+      "caption": "The card sits beside the lit control and waits for the person; Back, Next and Exit are always there.",
+      "before": "352\u00d771 bubble at the top, no Next, no step count",
+      "after": "374\u00d7164 sheet docked away from the lock, Next 44px"
+    },
+    {
+      "shot": "390-tour-3",
+      "width": 390,
+      "title": "Tutorial, last step \u2014 390 wide",
+      "caption": "The last step closes the tour with Done; Replay is one row away in the library.",
+      "before": "352\u00d771 bubble at the top, no Next, no step count",
+      "after": "374\u00d7187 closing sheet with Done"
+    }
+  ]
+}
