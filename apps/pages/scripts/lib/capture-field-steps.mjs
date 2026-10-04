@@ -38,5 +38,51 @@ export function fieldSteps({ press }) {
       await field.fill(text);
       await page.waitForTimeout(300);
     },
+    /**
+     * Open the Identity sheet from the top bar's overflow key and leave it
+     * open. A desktop draws no top bar (it appears below 901px), so the
+     * window narrows for the visit and widens again after, with no reload.
+     */
+    async identitySheet(page) {
+      await openIdentitySheet(page, press);
+    },
+    /**
+     * Connect the device to Identity the way a person does: the sheet's
+     * Continue as guest, which closes the sheet once the session is open.
+     */
+    async connectIdentity(page) {
+      const sheet = await openIdentitySheet(page, press);
+      await press(sheet.getByRole("button", { name: "Continue as guest" }));
+      await sheet.waitFor({ state: "detached", timeout: 15000 });
+      await restoreWidth(page);
+    },
+    /** Put the window back to its width after an Identity visit narrowed it. */
+    async widen(page) {
+      await restoreWidth(page);
+    },
   };
+}
+
+const narrowedFrom = new WeakMap();
+
+async function restoreWidth(page) {
+  const wide = narrowedFrom.get(page);
+  if (!wide) return;
+  narrowedFrom.delete(page);
+  await page.setViewportSize(wide);
+  await page.waitForTimeout(600);
+}
+
+async function openIdentitySheet(page, press) {
+  const size = page.viewportSize();
+  if (size && size.width > 900 && !narrowedFrom.has(page)) {
+    narrowedFrom.set(page, size);
+    await page.setViewportSize({ width: 700, height: size.height });
+    await page.waitForTimeout(600);
+  }
+  await press(page.getByRole("button", { name: /^More —/ }).first());
+  await press(page.locator(".conn", { hasText: "Identity" }).first());
+  const sheet = page.getByRole("dialog", { name: "Identity connection" });
+  await sheet.waitFor({ timeout: 10000 });
+  return sheet;
 }

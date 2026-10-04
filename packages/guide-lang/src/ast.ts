@@ -176,7 +176,7 @@ export type GuideLimits = { readonly [K in keyof typeof GUIDE_LIMITS]: number };
  * spend fourteen instructions. Only the *size* of a tour widens; the grammar,
  * the vocabulary check, the text budget and the timeout range do not, and
  * the caller (the engine's `authored` origin) is the only thing that chooses
- * this budget — model output never reaches it (ADR 0160).
+ * this budget — model output never reaches it (ADR 0161).
  */
 export const AUTHORED_GUIDE_LIMITS: GuideLimits = {
   ...GUIDE_LIMITS,

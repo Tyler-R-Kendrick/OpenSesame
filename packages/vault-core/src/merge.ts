@@ -7,6 +7,7 @@
  * and a purge or a folder delete travels as a tombstone so the other side's
  * older copy cannot bring it back.
  */
+import { mergeDeviceKeyFields } from "./device-key.js";
 import type {
   Folder,
   InstalledItemTypes,
@@ -34,6 +35,10 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
     right,
     tombstones?.itemTypes ?? {},
   );
+  const deviceIdentityKey = mergeDeviceKeyFields(
+    left.deviceIdentityKey,
+    right.deviceIdentityKey,
+  );
   return {
     v: 1,
     items: newest(left.items, right.items, itemVersion)
@@ -45,6 +50,7 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
     ...(Object.keys(itemTypes).length > 0 ? { itemTypes } : undefined),
     ...(Object.keys(itemTypesAt).length > 0 ? { itemTypesAt } : undefined),
     ...(tombstones ? { tombstones } : undefined),
+    ...(deviceIdentityKey ? { deviceIdentityKey } : undefined),
     rev: Math.max(left.rev ?? 0, right.rev ?? 0),
   };
 }
@@ -206,5 +212,6 @@ function contentKey(body: VaultBody): string {
     sortedEntries(body.itemTypes),
     sortedEntries(body.itemTypesAt),
     ...TOMBSTONE_KINDS.map((kind) => sortedEntries(body.tombstones?.[kind])),
+    body.deviceIdentityKey ?? null,
   ]);
 }

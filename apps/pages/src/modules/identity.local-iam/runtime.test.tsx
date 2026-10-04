@@ -1,3 +1,5 @@
+import { deviceIdentityFetch } from "@opensesame/app-core/lib/device-identity-host.js";
+import { identityServes } from "@opensesame/app-core/lib/identity-plane.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
 /** @vitest-environment jsdom */
@@ -105,6 +107,29 @@ describe("identity.local-iam runtime", () => {
     expect(enabledIdentityViews()).toEqual(["devices", "service-accounts"]);
     await handle.dispose();
     expect(enabledIdentityViews()).toEqual([]);
+  });
+
+  it("contributes its device Identity routes only while active (ADR 0160)", async () => {
+    // Imported under spies above, so nothing registered at load: the device
+    // plane serves no directory, audit trail or request inbox until this is on.
+    expect(identityServes("directory")).toBe(false);
+    expect(identityServes("audit")).toBe(false);
+    expect(identityServes("requests")).toBe(false);
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(501);
+
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    expect(identityServes("directory")).toBe(true);
+    expect(identityServes("audit")).toBe(true);
+    expect(identityServes("requests")).toBe(true);
+    // What needs a server stays unserved however the capability is on.
+    expect(identityServes("mfa-codes")).toBe(false);
+    expect(identityServes("notifications")).toBe(false);
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(200);
+
+    await handle.dispose();
+    expect(identityServes("directory")).toBe(false);
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(501);
   });
 
   it("binds the lock resets only while active (no top-level onVaultLock)", async () => {

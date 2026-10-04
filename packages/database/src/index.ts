@@ -70,6 +70,7 @@ export {
   type OrgFederationStores,
   type OrgLdapConfigStore,
 } from "./org-federation-store.js";
+export { DELIVERY_LEASE_MS } from "./repos/delivery-claims.js";
 export {
   createRepositories,
   createDrizzle,

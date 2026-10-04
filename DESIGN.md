@@ -205,7 +205,12 @@ mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
 unreachable, and the list keeps its funnel key for switching without going
-back.
+back. The list's command row is not a pane away either: the same keys — new
+item, whatever a capability adds beside it (Import), Export, and search — are
+pinned above the tree (`VaultActions`, in the list's own `VaultPathbar`), each
+at the 44px floor. The funnel and the back key stay on the list, where there
+is something to filter and somewhere to go back from; the tree's search key
+opens the list of everything with its prompt focused.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -344,6 +349,19 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.
+  A sideways swipe on a listing is the page's whole: `claimHorizontalDrags`
+  cancels its `touchmove`, because `touch-action: pan-y` alone leaves the
+  browser a fling to run, and a tap that lands on one (the menu's first entry,
+  reached for the moment the sheet is up) is spent stopping it and never
+  clicks. `verify:mobile` taps that entry straight after the lift.
+- **Keyboard tips stay off touch-primary surfaces; one with a touch twin swaps
+  to it there.** No line a finger reads names a key (`Esc`, `Enter`, `n`, `/`,
+  `?`, `j/k`, `gv`). `EmptyTip` and the welcome buffer's key line draw a keys
+  voice and a touch voice and the stylesheet picks one under
+  `(pointer: coarse)`; copy that lives in an attribute (the command bar's
+  placeholder) reads `useCoarsePointer`. A narrow window with a mouse keeps the
+  keys: the pointer decides, not the width. A twin names only what the shell
+  really does (see `lib/gesture-help.ts`).
 - **A submenu is a drill-in, not a box.** A sheet's nested choices replace its
   list under a 44px back row that names the parent; the floating menu keeps its
   submenu beside the row. A finger is never shown the keyboard's inverse-video

@@ -11,6 +11,11 @@ use super::{
     pin::is_js_space,
 };
 
+/// The path a vault's device identity key is listed under (ADR 0160 §5): the
+/// name and nothing of the key. Mirrors `DEVICE_IDENTITY_KEY_PATH` in
+/// `packages/vault-core`.
+pub const DEVICE_IDENTITY_KEY_PATH: &str = "config/device-identity-key";
+
 /// Resolves an item type id to its extension (`.login`), when the caller has
 /// a registry; `None` falls back as `typeExtension` does.
 pub type ExtensionOf<'a> = &'a dyn Fn(&str) -> Option<String>;
@@ -41,6 +46,9 @@ pub struct OpenedVaultFile {
     pub rolled_back: bool,
     pub folders: usize,
     pub items: Vec<VaultFileEntry>,
+    /// Files the body carries whose value is never shown, by path alone: the
+    /// device identity key, when the vault holds one.
+    pub concealed: Vec<String>,
 }
 
 /// The built-in extensions of the legacy kinds (`KIND_EXT`), the reader's
@@ -164,6 +172,11 @@ pub fn summarize(
                     .unwrap_or_else(|| item.name.clone()),
             })
             .collect(),
+        concealed: if body.carries_device_identity_key {
+            vec![DEVICE_IDENTITY_KEY_PATH.to_owned()]
+        } else {
+            Vec::new()
+        },
     }
 }
 

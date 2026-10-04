@@ -18,8 +18,8 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity-host.js";
-import { dispatchExtendedDeviceRoute } from "@opensesame/app-core/lib/device-identity-local.js";
+import { LOCAL_IAM_DEVICE_ROUTES } from "@opensesame/app-core/lib/device-identity-local.js";
+import { registerDeviceRoutes } from "@opensesame/app-core/lib/device-identity-routes.js";
 import { guestAuthDependencies } from "@opensesame/app-core/lib/guest-auth.js";
 import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import { bindLocalIamLockResets } from "@opensesame/app-core/lib/local-iam-lock-resets.js";
@@ -79,13 +79,13 @@ export const capabilityRuntime: CapabilityRuntime = {
     if (activation.disposed()) return activation.handle();
 
     const seedGuest = guestAuthDependencies.ensureDefaultAccess;
-    const dispatchExtended = deviceIdentitySeams.dispatchExtended;
     guestAuthDependencies.ensureDefaultAccess = ensureDefaultAccess;
-    deviceIdentitySeams.dispatchExtended = dispatchExtendedDeviceRoute;
     activation.onDispose(() => {
       guestAuthDependencies.ensureDefaultAccess = seedGuest;
-      deviceIdentitySeams.dispatchExtended = dispatchExtended;
     });
+    // The directory, audit and request families of the device Identity plane
+    // (ADR 0160): present exactly while this capability is.
+    activation.onDispose(registerDeviceRoutes(LOCAL_IAM_DEVICE_ROUTES));
 
     activation.onDispose(bindLocalIamLockResets());
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));

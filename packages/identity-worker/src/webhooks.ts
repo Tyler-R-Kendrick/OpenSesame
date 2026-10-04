@@ -4,9 +4,19 @@ import type {
   WebhookEndpointRepository,
 } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
-import { type OutboxEvent, readString } from "@opensesame/os-domain";
+import {
+  type OutboxEvent,
+  type WebhookDelivery,
+  readString,
+} from "@opensesame/os-domain";
 import { signWebhook } from "@opensesame/webhooks";
 import { postWebhook } from "@opensesame/webhooks/delivery";
+import {
+  DEFAULT_CLAIM_LIMIT,
+  DELIVERY_CONCURRENCY,
+  DELIVERY_PER_PRINCIPAL,
+  mapBounded,
+} from "./bounded.js";
 
 /**
  * Webhook dispatch for the authorization-request inbox (ADR 0046 decision 12).
@@ -119,13 +129,19 @@ export interface WebhookDeliveryResult {
 /** Stage 2: claim due deliveries and POST them, signed. */
 export async function deliverWebhooks(
   deps: WebhookDispatchDeps,
-  limit = 50,
+  limit = DEFAULT_CLAIM_LIMIT,
 ): Promise<WebhookDeliveryResult> {
   const now = deps.clock();
   const fetchImpl = deps.fetchImpl ?? postWebhook;
   const due = await deps.repos.webhookDeliveries.claimDue(limit, now);
   const result: WebhookDeliveryResult = { delivered: 0, failed: 0, dead: 0 };
-  for (const delivery of due) {
+  // A receiver that never answers holds its own slots, not the whole queue.
+  const pass = {
+    concurrency: DELIVERY_CONCURRENCY,
+    perKey: DELIVERY_PER_PRINCIPAL,
+    keyOf: (row: WebhookDelivery) => row.endpointId,
+  };
+  await mapBounded(due, pass, async (delivery) => {
     const endpoint = await deps.repos.webhookEndpoints.getById(
       delivery.endpointId,
     );
@@ -138,7 +154,7 @@ export async function deliverWebhooks(
         true,
       );
       result.dead += 1;
-      continue;
+      return;
     }
     const body = JSON.stringify({
       eventType: delivery.eventType,
@@ -161,7 +177,7 @@ export async function deliverWebhooks(
       if (response.ok) {
         await deps.repos.webhookDeliveries.markDelivered(delivery.id, now);
         result.delivered += 1;
-        continue;
+        return;
       }
       // Status text only: a hostile receiver's response body must not land
       // in our logs or rows.
@@ -183,7 +199,7 @@ export async function deliverWebhooks(
         result,
       );
     }
-  }
+  });
   return result;
 }
 

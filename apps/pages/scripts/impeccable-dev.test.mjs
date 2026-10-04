@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "vitest";
 import { impeccableDevHtml } from "./impeccable-dev.mjs";
 
@@ -41,4 +42,14 @@ test("upstream CSP injection is removed outside opted-in development", () => {
     impeccableDevHtml(injected, true, true),
     /crossorigin="anonymous"/,
   );
+});
+
+test("the committed page carries no dev-helper script, token or CSP allowance", () => {
+  const source = readFileSync(
+    new URL("../index.html", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /localhost:8400/);
+  assert.doesNotMatch(source, /impeccable-live-(start|end)/);
+  assert.doesNotMatch(source, /data-impeccable-csp-original/);
 });

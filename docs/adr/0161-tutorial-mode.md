@@ -1,4 +1,4 @@
-# ADR 0160 — Tutorial mode: a tour you walk, one step at a time
+# ADR 0161 — Tutorial mode: a tour you walk, one step at a time
 
 - Status: Accepted
 - Date: 2026-10-04

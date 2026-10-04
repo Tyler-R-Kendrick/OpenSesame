@@ -7,7 +7,7 @@ import type { GuideOrigin } from "./engine.js";
  *
  * Every guide the browser runs is a tour — a person walks it a step at a
  * time — and only its *origin* decides the budget it was compiled under: an
- * authored tutorial may be longer than a model's trajectory (ADR 0160). The
+ * authored tutorial may be longer than a model's trajectory (ADR 0161). The
  * engine and every test engine take these four from here, so the pacing a
  * test observes is the pacing the app has.
  */

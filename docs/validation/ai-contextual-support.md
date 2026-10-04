@@ -181,7 +181,7 @@ its findings, the two authority planes on the statusline, the core connections
 panel in Settings — that they drop on unmount, and that no semantic id is ever
 mounted twice across all of them.
 
-**Rendering.** Since ADR 0160 a walkthrough is a tutorial drawn by a React card
+**Rendering.** Since ADR 0161 a walkthrough is a tutorial drawn by a React card
 (`tutorial/coach/`), not a Driver.js popover, so there is no HTML sink to
 defend: `__tests__/adversarial/renderer-inertness.test.ts` drives six classic
 payloads (`<img src=x onerror=…>`, `<script>`, a `javascript:` href,
@@ -311,7 +311,7 @@ the string `driver-popover` appears in neither the entry chunk nor anything it
 statically imports. The AG-UI adapter is a small separate chunk reached through
 a `__vite__mapDeps` dynamic import, and the library closure that carries the
 AG-UI event vocabulary is a further chunk the entry does not name at all.
-(ADR 0160 later removed Driver.js: the tutorial card is a lazy React chunk
+(ADR 0161 later removed Driver.js: the tutorial card is a lazy React chunk
 loaded the first time a tutorial has a step to draw, behind the same `lazy`
 boundary as the panel.)
 

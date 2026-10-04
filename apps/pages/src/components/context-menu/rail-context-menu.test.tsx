@@ -34,6 +34,21 @@ describe("the rail's context menu", () => {
     return screen.getByRole("menu");
   }
 
+  it("keeps the browser out of a row's sideways swipe, so no fling eats the first tap", () => {
+    renderShell("/vault", <ContextMenuLayer />);
+    const row = screen.getByRole("treeitem", { name: "Vault" });
+    const touch = (type: string, x: number, y: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "touches", {
+        value: [{ clientX: x, clientY: y }],
+      });
+      row.dispatchEvent(event);
+      return event;
+    };
+    touch("touchstart", 200, 100);
+    expect(touch("touchmove", 140, 101).defaultPrevented).toBe(true);
+  });
+
   it("lists trash/ and every config.yaml only once hidden items are shown", () => {
     const { container } = renderShell("/vault", <ContextMenuLayer />);
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();

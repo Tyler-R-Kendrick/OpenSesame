@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 433,
-    "violations": 679,
-    "oversizedLines": 221382
+    "violations": 682,
+    "oversizedLines": 221459
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -237,19 +237,25 @@
     "apps/pages/src/sections/wallet/PassesPanel.tsx": {
       "max-lines-per-function": 1
     },
+    "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
+      "max-lines": 424
+    },
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
       "max-nested-callbacks": 1
     },
+    "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/tutorial/session.ts": {
       "complexity": 1,
-      "max-lines": 679,
-      "max-lines-per-function": 1
+      "max-lines": 922,
+      "max-lines-per-function": 2
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 520
+      "max-lines": 555
     },
     "crates/agent-events/src/lib.rs": {
       "max-lines": 493
@@ -719,7 +725,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1665
+      "max-lines": 1624
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 577
@@ -738,7 +744,7 @@
       "max-lines": 451
     },
     "packages/app-core/src/tutorial/registry/goals.ts": {
-      "max-lines": 459
+      "max-lines": 508
     },
     "packages/audit/src/__tests__/chain.test.ts": {
       "max-lines": 419
@@ -838,9 +844,6 @@
     "packages/control-plane/src/__tests__/notification-callbacks.test.ts": {
       "max-lines": 699
     },
-    "packages/control-plane/src/__tests__/notification-channels.test.ts": {
-      "max-lines": 402
-    },
     "packages/control-plane/src/__tests__/oauth2-leg.test.ts": {
       "max-lines": 489
     },
@@ -892,7 +895,7 @@
     },
     "packages/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 484,
+      "max-lines": 483,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -1003,7 +1006,7 @@
     },
     "packages/control-plane/src/routes/notification-channels.ts": {
       "complexity": 1,
-      "max-lines": 746,
+      "max-lines": 629,
       "max-lines-per-function": 2
     },
     "packages/control-plane/src/routes/openid4vci.ts": {
@@ -1105,11 +1108,11 @@
       "max-lines": 856
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1802
+      "max-lines": 1718
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,
-      "max-lines": 2882
+      "max-lines": 2732
     },
     "packages/database/src/schema/index.ts": {
       "max-lines": 2370
@@ -1145,8 +1148,8 @@
       "max-lines": 490
     },
     "packages/guide-lang/src/parse.ts": {
-      "complexity": 2,
-      "max-lines": 583,
+      "complexity": 3,
+      "max-lines": 743,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1154,6 +1157,8 @@
       "max-lines": 984
     },
     "packages/guide-runtime/src/runtime.ts": {
+      "complexity": 1,
+      "max-lines": 536,
       "max-lines-per-function": 1
     },
     "packages/identity-worker/src/__tests__/notifications.test.ts": {
@@ -1166,8 +1171,8 @@
       "max-statements": 1
     },
     "packages/identity-worker/src/notifications.ts": {
-      "complexity": 3,
-      "max-lines": 1003,
+      "complexity": 2,
+      "max-lines": 964,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1201,9 +1206,6 @@
     },
     "packages/notification-adapters/src/adapters/telegram.ts": {
       "max-lines-per-function": 1
-    },
-    "packages/notification-adapters/src/adapters/web-push.ts": {
-      "max-lines": 519
     },
     "packages/notification-adapters/src/adapters/wechat.ts": {
       "max-lines-per-function": 1
@@ -1351,7 +1353,7 @@
     },
     "packages/vault-core/src/model.ts": {
       "complexity": 1,
-      "max-lines": 514
+      "max-lines": 497
     },
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,

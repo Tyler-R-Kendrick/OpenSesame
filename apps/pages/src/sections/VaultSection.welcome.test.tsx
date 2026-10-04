@@ -54,8 +54,11 @@ describe("the buffer states what the list beside it holds", () => {
       items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
     };
     expect(welcome("/vault?f=trash")).toBe("1 item · trash");
-    expect(document.querySelector(".buffer__keys")?.textContent).toBe(
+    expect(document.querySelector(".buffer__keys-keys")?.textContent).toBe(
       "enter open · r restore · X delete · / search · ? keys",
+    );
+    expect(document.querySelector(".buffer__keys-touch")?.textContent).toBe(
+      "hold or swipe a row to restore or delete",
     );
   });
 });

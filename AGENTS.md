@@ -78,7 +78,9 @@ pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subs
                           #   tools/quality/log-hygiene-baseline.json (ADR 0157)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
-                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
+                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks;
+                          #   and repo-wide, a seam its module exports for its owner and tests (the vault store's
+                          #   body port, ADR 0160 §5a) is imported by no one else
 pnpm quality:bundle      # build apps/pages|pwa, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
@@ -226,12 +228,20 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:device-identity
+# Same harness, the device as the Identity plane (ADR 0160), a guest with no
+# Identity API at desktop and phone widths: no sign-out row until the device
+# has a session, the status reads "This device", the session's principal is
+# the vault key's thumbprint and survives Refresh, every Settings section and
+# Access tab reads clean, and Receipts is drawn only once Browser-local IAM
+# serves an audit trail. Run before touching `identityPlane`, `identityServes`,
+# the device host, or a panel gated on the Identity plane.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:tutorials
-# Same harness, every tutorial (ADR 0160): the Support sheet's Tutorials tab
+# Same harness, every tutorial (ADR 0161): the Support sheet's Tutorials tab
 # lists them, each is started from its row and walked with Next alone — the
 # mouse on one step, Enter on the next — on the shell with every optional
-# capability switched on and on the gates (front door, unlock, setup), at
-# desktop and phone width. Every step's card must sit inside the screen with
+# capability switched on, at desktop and phone width. Every step's card must sit inside the screen with
 # Next present, and a step that points at a control must light it, leave it
 # uncovered and reachable through the aperture. Then Back, Replay, Done, and
 # where focus went. A control that is missing is a failure here although a
@@ -273,6 +283,40 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push-worker
+# A real localhost origin with service workers allowed (`context.route` never
+# sees a worker's fetches, and the shared harness blocks workers). A device
+# holding the core `sw.js` approves Push notifications and must end on
+# `sw-push.js` at the same scope: one registration, no reload, the vault still
+# open; a push delivered over CDP rings the `{kind, action, ref}` doorbell and
+# a hostile payload only the generic one; removing the capability returns the
+# core worker. A second tab stays open throughout, and a replacement Chrome
+# leaves waiting is asked for again under a fresh `?r=` URL, with no nudge. Run
+# before touching the worker controller, `src/sw*`, or anything on the push
+# enrolment path (`lib/push*.ts`).
+pnpm --filter @opensesame/pages build:push-verify    # second Pages build into
+                          #   dist-push-verify, stamped loopback_development for
+                          #   http://localhost:41877 (the one origin that profile
+                          #   honours); the tracked security-profile.json is put
+                          #   back whether the build passes or fails
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push
+# Web Push end to end against a real Identity API (control-plane
+# `startServer()` in memory on :41878, the Host's Web Push delivery, and a
+# stand-in push service that verifies RFC 8292 VAPID and decrypts RFC 8291
+# aes128gcm); runs under tsx. Only the browser's own subscription is stood in
+# for. Walks approve Push, turn on (the server records the browser's
+# subscription), a real push through the stand-in rings the closed doorbell,
+# turn off (the row is gone), and the failures: service unreachable, an
+# endpoint another principal holds (409, recovered), an account at its limit
+# (409, nothing left half-enrolled, a held subscription the server cannot record
+# is let go) and an operator policy that refuses the Identity API's origin. About
+# 20 s. Run before touching `lib/push*.ts`, `modules/notifications.web-push`,
+# or the control-plane, notification-adapters, identity-worker and database code
+# the walk imports; CI runs it as its own job, "Web Push end to end", whenever
+# the Pages build or any of that server code changes (`push` area in
+# `scripts/lib/ci-changed-areas.mjs`).
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -343,7 +387,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
-| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0160): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Capabilities section in `registry/feature-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
+| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0161): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Capabilities section in `registry/feature-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
@@ -377,7 +421,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages` tools |
 | `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
-| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser. `auto` mode runs a model's trajectory to its next boundary; `tour` mode (`plan.ts`, `tour.ts`) walks a person through steps at their own pace — Next, Back, Replay, a step that degrades to text when its control is absent (ADR 0160) |
+| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser. `auto` mode runs a model's trajectory to its next boundary; `tour` mode (`plan.ts`, `tour.ts`) walks a person through steps at their own pace — Next, Back, Replay, a step that degrades to text when its control is absent (ADR 0161) |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
@@ -458,6 +502,15 @@ Do not add new top-level directories or loose root files — find the group.
   is not authentication evidence. Keep exact-origin/source binding, PKCE,
   human-only consent and scoped opener headers; never widen model authority
   to make the flow pass. Browser-local identity is not a hosted OIDC service.
+- **Web Push is proved against a real Identity API.** Changes to push
+  enrolment, the push worker or its controller, the Identity API's push routes,
+  the Web Push adapters or the Host's delivery require
+  `pnpm --filter @opensesame/pages verify:push-worker` and `verify:push`
+  against fresh builds (`build:push-verify` for the second). `verify:push` is
+  its own CI job, folded into the required Bundle budgets check, and runs
+  for the server code it exercises as well as for Pages. A push worker that is
+  only ever shown to a mocked enrolment, or a walk that nudges the browser, is
+  not evidence.
 - `@opensesame/os-domain` **must not** import Better Auth, oidc-provider,
   Hono, Drizzle, or React (see CONTRIBUTING.md).
 - Prefer mature libraries over NIH protocol code —
@@ -468,7 +521,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0160).
+  0001–0161).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -772,7 +825,7 @@ Do not add new top-level directories or loose root files — find the group.
   parser and validator model output goes through
   ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
 - **Every feature has a replayable tutorial, and every tutorial is walked in a
-  real browser** ([ADR 0160](docs/adr/0160-tutorial-mode.md)). A new section of
+  real browser** ([ADR 0161](docs/adr/0161-tutorial-mode.md)). A new section of
   Settings › Capabilities gets a `feature.<id>` target and a tour in
   `feature-goals.ts`; a new goal gets a home in `registry/areas.ts` (the test
   fails without one) and a step is a `say`, a pointing directive with the
@@ -1083,7 +1136,9 @@ CI lives in `.github/workflows/`:
   and the ones that depend on them: TypeScript runs `turbo run typecheck test`
   for that set, and Rust runs `cargo test --all-targets -p` for that set on
   Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
-  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
+  "Web Push end to end" (`verify:push`) is its own job that the same check
+  waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,
   and `pnpm quality`. A docs-only diff passes the three checks without those
   suites. An unrecognized path runs every suite.

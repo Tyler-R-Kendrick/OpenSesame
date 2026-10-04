@@ -1,5 +1,5 @@
 /**
- * Capture verbs for the tutorial mode (ADR 0160): open Support, start a
+ * Capture verbs for the tutorial mode (ADR 0161): open Support, start a
  * tutorial, and press Next — in the base build as well, where a tutorial is
  * started from a written-help answer and carries no Next of its own, so one
  * journey walks both builds and the pair differs only by the change.

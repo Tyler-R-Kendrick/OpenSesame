@@ -13,15 +13,17 @@ import {
   tombPath,
 } from "@opensesame/vault-core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconChevronRight } from "../../components/Icons.js";
 import { SlashSearchField } from "../../components/SlashSearch.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
+import { useClaimedDrags } from "../../lib/use-claimed-drags.js";
 import { VaultPathbar } from "./VaultPathbar.js";
 import { Decorations } from "./VaultRowDecorations.js";
 import { useMenuFlip } from "./use-menu-flip.js";
+import { useSearchHandoff } from "./use-search-handoff.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
 
@@ -75,6 +77,7 @@ export function VaultTree({
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const treeRef = useRef<HTMLDivElement>(null);
+  useClaimedDrags(treeRef);
   const { listRef, menuAbove } = useMenuFlip(menuFor, treeRef);
   const onMenuClose = (restore: boolean) => {
     setMenuFor(null);
@@ -154,6 +157,7 @@ export function VaultTree({
   useEffect(() => {
     if (query !== null) searchRef.current?.focus();
   }, [query]);
+  useSearchHandoff(setQuery);
 
   useEffect(() => {
     const rowAt = (key: string | null) =>
@@ -270,11 +274,9 @@ export function VaultTree({
       {items.length === 0 ? (
         <div className="empty">
           <h2>{emptyMessage}</h2>
-          <EmptyTip>
-            {emptyMessage === "Trash is empty"
-              ? emptyTips.keymap
-              : emptyTips.vaultEmpty}
-          </EmptyTip>
+          <EmptyTip
+            tip={emptyMessage === "Trash is empty" ? "keymap" : "vaultEmpty"}
+          />
         </div>
       ) : null}
 
