@@ -29,7 +29,11 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { chromium } from "@playwright/test";
-import { capabilityOnSwitch, capabilitySwitch } from "./lib/always-on.mjs";
+import {
+  capabilityOffSwitch,
+  capabilityOnSwitch,
+  capabilitySwitch,
+} from "./lib/always-on.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import {
   addCapabilities,
@@ -104,7 +108,7 @@ const scriptsOf = (page) =>
     `${new URL(page.url()).origin}${base}`,
   );
 
-async function until(read, ok, what, timeout = 25_000) {
+async function until(read, ok, what, timeout = 60_000) {
   const stop = Date.now() + timeout;
   let last;
   while (Date.now() < stop) {
@@ -145,6 +149,28 @@ try {
     serviceWorkers: "allow",
   });
   await context.grantPermissions(["notifications"], { origin });
+  // Headless Chromium has no push service to subscribe against, so what the
+  // browser holds is stood in for: `getSubscription` answers from this state,
+  // and `unsubscribe` is counted. The app's own code is what calls both.
+  const shim = { held: false, unsubscribed: 0 };
+  await context.exposeBinding("__pushShim", (_source, op) => {
+    if (op === "held") return shim.held;
+    if (op === "unsubscribe") {
+      shim.held = false;
+      shim.unsubscribed += 1;
+      return true;
+    }
+    return null;
+  });
+  await context.addInitScript(() => {
+    PushManager.prototype.getSubscription = async () =>
+      (await window.__pushShim("held"))
+        ? {
+            endpoint: "https://push.shim.example/endpoint",
+            unsubscribe: () => window.__pushShim("unsubscribe"),
+          }
+        : null;
+  });
   const page = await context.newPage();
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(String(error?.message)));
@@ -172,6 +198,61 @@ try {
     });
   };
 
+  /**
+   * Wait for `script` to hold this scope for the page. A worker that has
+   * installed and asked to skip waiting is activated by the browser once the
+   * old worker is idle, and with a second tab fetching at that moment Chrome
+   * sometimes does not try again. That is the browser's to finish, not the
+   * page's, so after a few seconds waiting it is nudged through CDP — the
+   * same `skipWaiting` the worker already called — and the nudge is printed,
+   * never hidden.
+   */
+  const untilHeld = async (script, what) => {
+    const stop = Date.now() + 60_000;
+    let waitingSince = null;
+    let last;
+    while (Date.now() < stop) {
+      last = await scriptsOf(page);
+      if (last.active === script && last.controller === script) return last;
+      waitingSince =
+        last.waiting === script ? (waitingSince ?? Date.now()) : null;
+      if (waitingSince !== null && Date.now() - waitingSince > 8_000) {
+        console.log(
+          `WARN ${script.split("/").pop()} sat waiting: nudged via CDP`,
+        );
+        await cdp.send("ServiceWorker.skipWaiting", { scopeURL: scope });
+        waitingSince = Date.now();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    throw new Error(`${what}: ${JSON.stringify(last)}`);
+  };
+
+  /**
+   * Deliver until `ok` holds of what the registration shows, as a push service
+   * redelivers what a worker that was starting up missed. Returns what it
+   * showed and how long the attempt that worked took; the tag makes a repeat
+   * replace the notification rather than add one.
+   */
+  const ringUntil = async (payload, ok, what) => {
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const sentAt = Date.now();
+      await deliver(payload);
+      try {
+        const list = await until(
+          () => notificationsOf(page),
+          ok,
+          what,
+          attempt === 5 ? 15_000 : 3_000,
+        );
+        return { list, ms: Date.now() - sentAt };
+      } catch (error) {
+        if (attempt === 5) throw error;
+      }
+    }
+    return { list: [], ms: 0 };
+  };
+
   // A device that has only met the front door holds the core worker.
   await page.goto(scope);
   const core = `${scope}sw.js`;
@@ -192,26 +273,40 @@ try {
     "before approval the scope runs the core worker",
   );
 
-  // The core worker has no push handler: a push to it shows no doorbell.
+  // A second tab of the same origin, with its own unlocked vault. It does
+  // nothing below; the other tab's approval must not reload or lock it.
+  const other = await context.newPage();
+  other.on("pageerror", (error) => pageErrors.push(String(error?.message)));
+  await other.goto(scope);
+  await until(
+    () => scriptsOf(other),
+    (s) => s.controller === core,
+    "the second tab should be controlled by the core worker",
+  );
+  await other.getByRole("button", { name: "Continue as guest" }).click();
+  await waitOpen(other);
+  await other.waitForTimeout(500);
+  const otherBefore = await other.evaluate(() => performance.timeOrigin);
+  const otherStillOpen = async () =>
+    (await other.getByRole("button", { name: "Lock vault" }).first().count()) >
+      0 && (await other.evaluate(() => performance.timeOrigin)) === otherBefore;
+  check(await otherStillOpen(), "a second tab is open with its own vault");
+
+  // The core worker has no push handler: a push to it shows no doorbell. This
+  // is only meaningful beside the positive control below, which delivers the
+  // same payload the same way once the push worker holds the scope.
   await deliver({ kind: "authorization_request", action: "review", ref: REF });
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1500);
   check(
     (await notificationsOf(page)).length === 0,
-    "the core worker shows nothing for a push (it has no handler)",
+    "the core worker shows nothing for a push (it has no handler); control below",
   );
 
   // Approve Push notifications the way a person does.
   await addCapabilities(page, [TITLE]);
-  state = await until(
-    () => scriptsOf(page),
-    (s) =>
-      s.active === `${scope}sw-push.js` &&
-      s.controller === `${scope}sw-push.js`,
+  state = await untilHeld(
+    `${scope}sw-push.js`,
     "approving Push notifications should install and hand the page to sw-push.js",
-  );
-  check(
-    true,
-    `approving Push notifications moved the scope to ${state.active}`,
   );
   check(
     state.registrations === 1,
@@ -230,14 +325,31 @@ try {
       0,
     "the vault is still open: the in-flight page survived the worker change",
   );
+  const otherState = await until(
+    () => scriptsOf(other),
+    (s) => s.controller === `${scope}sw-push.js`,
+    "the second tab should be handed to the push worker too",
+  );
+  check(
+    otherState.controller === `${scope}sw-push.js`,
+    "the second tab is controlled by the push worker",
+  );
+  // Give a wrongly scheduled reload time to happen before asserting it did not.
+  await other.waitForTimeout(3000);
+  check(
+    await otherStillOpen(),
+    "the second tab neither reloaded nor locked its vault when the first approved",
+  );
 
   // The doorbell: a decrypted push becomes the notification the contract says.
-  await deliver({ kind: "authorization_request", action: "review", ref: REF });
-  const shown = await until(
-    () => notificationsOf(page),
+  const { list: shown, ms: ringMs } = await ringUntil(
+    { kind: "authorization_request", action: "review", ref: REF },
     (list) => list.some((n) => n.data?.ref === REF),
     "the push worker should show the pushed message",
   );
+  // How long the same delivery path takes to ring bounds how long silence must
+  // last before it means something.
+  console.log(`control: the same delivery rang the push worker in ${ringMs}ms`);
   const bell = shown.find((n) => n.data?.ref === REF);
   check(
     bell.title === "Authorization requested",
@@ -254,16 +366,15 @@ try {
   );
 
   // A hostile payload cannot put its own words on a lock screen.
-  await deliver({
-    kind: "authorization_request",
-    action: "review",
-    ref: "../x",
-    title: "Your password is hunter2",
-    authorizationDetails: { secret: "x" },
-  });
   // The generic doorbell is the one tagged without a reference.
-  const hostile = await until(
-    () => notificationsOf(page),
+  const { list: hostile } = await ringUntil(
+    {
+      kind: "authorization_request",
+      action: "review",
+      ref: "../x",
+      title: "Your password is hunter2",
+      authorizationDetails: { secret: "x" },
+    },
     (list) => list.some((n) => n.tag === "opensesame-approval"),
     "a malformed push should still ring the generic doorbell",
   );
@@ -294,18 +405,20 @@ try {
   await waitOpen(page);
   await openSettingsCategory(page, "Capabilities");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });
+  // The browser holds a push subscription made under the push worker.
+  shim.held = true;
   const documentAtRevert = await documentOrigin();
+  const otherAtRevert = await other.evaluate(() => performance.timeOrigin);
+  const unsubscribedBefore = shim.unsubscribed;
+  // The same robust waits as `addCapabilities`: removal commits in place, so a
+  // review that stays up is a failure of this walk, not something to click past.
   await capabilitySwitch(page, TITLE).click();
-  const reviewKey = page.getByTestId("capability-review");
-  if ((await reviewKey.count()) > 0) {
-    await page
-      .getByRole("button", { name: /confirm|apply|remove|continue/i })
-      .first()
-      .click();
-  }
-  state = await until(
-    () => scriptsOf(page),
-    (s) => s.active === core && s.controller === core,
+  await page
+    .getByTestId("capability-review")
+    .waitFor({ state: "detached", timeout: 15_000 });
+  await capabilityOffSwitch(page, TITLE).waitFor({ timeout: 15_000 });
+  state = await untilHeld(
+    core,
     "removing Push notifications should return the scope to the core worker",
   );
   check(state.registrations === 1, "reverting leaves one registration");
@@ -313,15 +426,39 @@ try {
     (await documentOrigin()) === documentAtRevert,
     "reverting did not reload the page",
   );
+  await until(
+    async () => shim.unsubscribed,
+    (count) => count > unsubscribedBefore,
+    "reverting should drop the subscription the push worker held",
+  );
+  // Each tab's controller follows the plan and may ask; the second ask finds
+  // nothing to drop. What matters is that it was dropped, and only after the
+  // scope was back on the core worker (waited for above).
+  check(
+    shim.unsubscribed > unsubscribedBefore && shim.held === false,
+    "reverting dropped the browser's push subscription once the core worker held the scope",
+  );
+  await other.waitForTimeout(3000);
+  check(
+    (await scriptsOf(other)).controller === core &&
+      (await other.evaluate(() => performance.timeOrigin)) === otherAtRevert &&
+      (await other
+        .getByRole("button", { name: "Lock vault" })
+        .first()
+        .count()) > 0,
+    "the second tab neither reloaded nor locked when the capability was removed",
+  );
+  // Silence beside the control above: wait several times as long as the push
+  // worker took to ring for the identical delivery.
   await deliver({
     kind: "authorization_request",
     action: "review",
     ref: REF_AFTER,
   });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(Math.max(1500, ringMs * 4));
   check(
     (await notificationsOf(page)).every((n) => n.data?.ref !== REF_AFTER),
-    "after reverting, the core worker again shows nothing for a push",
+    "after reverting, the core worker again shows nothing for a push (control above: the push worker did)",
   );
 
   check(pageErrors.length === 0, `no page errors (${pageErrors.join(" | ")})`);
