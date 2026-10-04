@@ -1132,21 +1132,92 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
-  /* The list's command row, at the head of the tree: full-bleed over the
-     pane's padding and pinned, so the verbs stay in reach while the tree
-     scrolls under them. The tree's own colours, not the list's. */
-  .vault__tree > .vtree__pathbar {
+  /* What the tree asks of a thumb (PhoneAdd.tsx). Search is the field the pane
+     opens on, pinned full-bleed over the pane's padding so it stays in reach
+     while the tree scrolls under it. */
+  .vault__tree > .vadd__find {
     position: sticky;
     top: -0.25rem;
     z-index: 1;
-    justify-content: flex-start;
-    gap: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    box-sizing: border-box;
+    width: calc(
+      100% +
+      1.2rem +
+      env(safe-area-inset-left) +
+      env(safe-area-inset-right)
+    );
+    min-height: 3.25rem;
     margin: -0.25rem calc(-0.6rem - env(safe-area-inset-right)) 0.25rem
       calc(-0.6rem - env(safe-area-inset-left));
-    padding: 0.15rem calc(0.6rem + env(safe-area-inset-right)) 0.15rem
-      calc(0.6rem + env(safe-area-inset-left));
-    background: var(--rail);
+    padding: 0 calc(1rem + env(safe-area-inset-right)) 0
+      calc(1rem + env(safe-area-inset-left));
+    border: 0;
     border-bottom: 1px solid var(--rail-line, var(--line));
+    border-radius: 0;
+    background: var(--rail);
+    color: var(--ink-3);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .vadd__find:active {
+    background: var(--surface-3);
+  }
+
+  .vadd__find svg {
+    flex: none;
+    color: var(--ink-2);
+  }
+
+  /* The tree's rows fill the pane so the corner key rests at its foot, and
+     stays there (sticky) once the tree is taller than the screen. */
+  .vault[data-pane="tree"] .vault__tree {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .vault__tree > .railtree {
+    flex: 1 0 auto;
+  }
+
+  .vadd__key {
+    position: sticky;
+    bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    z-index: 2;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 3.75rem;
+    height: 3.75rem;
+    margin: 0.75rem 0.15rem 0 auto;
+    border: 0;
+    border-radius: 2px;
+    background: var(--ink);
+    color: var(--canvas);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .vadd__key:active {
+    background: var(--ink-2);
+  }
+
+  /* Import and Export stay mounted, because each owns the sheet or picker it
+     opens, but their keys are rows of the Add sheet here, not keys. */
+  .vadd__host {
+    display: contents;
+  }
+
+  .vadd__host > button,
+  .vadd__host > a {
+    display: none;
   }
 
   .detail {
