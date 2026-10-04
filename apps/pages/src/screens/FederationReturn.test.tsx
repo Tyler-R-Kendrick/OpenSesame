@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   cleanup,
   fireEvent,
@@ -70,6 +71,22 @@ function renderReturn() {
   );
 }
 
+/** The tray holds a status notice carrying every part; the page does not. */
+async function trayHas(...parts: string[]) {
+  await waitFor(() =>
+    expect(
+      listNotices().some(
+        (n) =>
+          n.kind === "status" &&
+          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
+      ),
+    ).toBe(true),
+  );
+  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
+}
+
+const noFailures = () => listNotices().filter((n) => n.kind === "status");
+
 describe("FederationReturn", () => {
   beforeEach(() => {
     sessionStorage.clear();
@@ -92,7 +109,10 @@ describe("FederationReturn", () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("shows progress while the sign-in completes", () => {
     fed.completeSignIn.mockReturnValue(new Promise(() => {}));
@@ -115,7 +135,7 @@ describe("FederationReturn", () => {
       expect(screen.getByTestId("location").textContent).toBe("/"),
     );
     expect(fed.completeSignIn).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(noFailures()).toEqual([]);
   });
 
   it("surfaces federation errors with a way back", async () => {
@@ -123,11 +143,12 @@ describe("FederationReturn", () => {
       new FederationError("access_denied", "Upstream refused the login."),
     );
     renderReturn();
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Sign-in didn't finish");
     // Mapped to plain words, with the no-change anchor — never the raw code.
-    expect(alert.textContent).toContain("Access was denied at the provider.");
-    expect(alert.textContent).toContain("Nothing was changed on this device.");
+    await trayHas(
+      "Sign-in didn't finish",
+      "Access was denied at the provider.",
+      "Nothing was changed on this device.",
+    );
     // The way back does not re-attempt sign-in.
     fireEvent.click(screen.getByRole("button", { name: "Back to sign-in" }));
     expect(fed.completeSignIn).toHaveBeenCalledTimes(1);
@@ -136,15 +157,13 @@ describe("FederationReturn", () => {
   it("surfaces plain errors verbatim", async () => {
     fed.completeSignIn.mockRejectedValue(new Error("network unreachable"));
     renderReturn();
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("network unreachable");
+    await trayHas("network unreachable");
   });
 
   it("uses a generic message for non-Error failures", async () => {
     fed.completeSignIn.mockRejectedValue("weird");
     renderReturn();
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Sign-in failed.");
+    await trayHas("Sign-in failed.");
   });
 
   it("joins the org tenant after an SSO/SAML return", async () => {
@@ -269,8 +288,7 @@ describe("FederationReturn", () => {
       new Error("That sign-in expired before it could be adopted. Try again."),
     );
     renderReturn();
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("expired before it could be adopted");
+    await trayHas("expired before it could be adopted");
     expect(screen.queryByText("settings landed")).toBeNull();
   });
 
@@ -285,9 +303,7 @@ describe("FederationReturn", () => {
       ),
     );
     renderReturn();
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Sign-in didn't finish");
-    expect(alert.textContent).toContain("already attached to a different");
+    await trayHas("Sign-in didn't finish", "already attached to a different");
     expect(screen.queryByText("settings landed")).toBeNull();
   });
 
@@ -305,7 +321,7 @@ describe("FederationReturn", () => {
     // Landing in the app means no banner is stored — a stored one would only
     // resurface stale on the next lock.
     expect(readAuthOutcome()).toBeNull();
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(noFailures()).toEqual([]);
   });
 
   it("banners a brokered sign-in that comes back to a locked vault", async () => {

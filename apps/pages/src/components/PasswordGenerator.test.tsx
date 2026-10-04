@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
@@ -32,13 +33,25 @@ function generatedValue(): string {
   return el.textContent ?? "";
 }
 
+/** A failure is a status notice in the tray; the page does not repeat it. */
+const inTray = (text: string) =>
+  listNotices().some((n) => n.kind === "status" && n.body.includes(text));
+
+async function trayHas(text: string) {
+  await waitFor(() => expect(inTray(text)).toBe(true));
+  expect(screen.queryByText(text)).toBeNull();
+}
+
 describe("PasswordGenerator", () => {
   beforeEach(() => {
     copySecret.mockReset();
     copySecret.mockResolvedValue("copied");
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("generates a 20-character password on mount with an entropy readout", async () => {
     render(<PasswordGenerator onUse={vi.fn()} />);
@@ -98,9 +111,7 @@ describe("PasswordGenerator", () => {
     for (const label of ["A–Z", "a–z", "0–9", "Symbols"]) {
       fireEvent.click(screen.getByLabelText(label));
     }
-    expect(
-      await screen.findByText("Choose at least one character set."),
-    ).toBeTruthy();
+    await trayHas("Choose at least one character set.");
     expect(generatedValue()).toBe("—");
     expect(
       overlapCast(

@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import {
   configureLocalApplication,
   readLocalApplications,
@@ -10,10 +11,10 @@ import {
   vfsSeams,
 } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
-/** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { LocalApplicationSettings } from "./LocalApplicationSettings.js";
 
 let tomb: string;
@@ -102,7 +103,10 @@ it("never presents unread or failed registration data as absence", async () => {
   if (!rejectRead) throw new Error("Missing pending read");
   const reject = rejectRead;
   await act(async () => reject(new Error("Storage failed")));
-  await screen.findByRole("alert");
+  await expectInTray("Could not read application registration.");
+  expect(
+    screen.queryByText(/Could not read application registration/),
+  ).toBeNull();
   expect(
     screen.queryByText("Not registered for local application access."),
   ).toBeNull();

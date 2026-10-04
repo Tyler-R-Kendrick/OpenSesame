@@ -110,6 +110,7 @@ embeddedCatalogSeams.writeEmbeddedProviders = vi
   .mockResolvedValue(undefined);
 
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
+import { expectInTray } from "../components/tray.test-support.js";
 const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
 Object.assign(passkeyCeremonyNoteSeams, { PasskeyCeremonyNote: () => null });
 afterAll(() =>
@@ -206,9 +207,7 @@ describe("ConnectionsSection gallery", () => {
     bundledRef.current = keyed;
     embeddedCatalogSeams.bundledProviders = keyed;
     renderAt("/connections");
-    expect(
-      await screen.findByText(/Connection sealing is not available yet/),
-    ).toBeTruthy();
+    await expectInTray("Connection sealing is not available yet");
   });
 
   it("lists unfinished connections under Needs attention", async () => {
@@ -355,7 +354,7 @@ describe("ConnectionsSection deeper branches", () => {
   it("renders the offline note and disables reload", async () => {
     online.value = false;
     renderAt("/connections");
-    expect(await screen.findByText(/This browser is offline/)).toBeTruthy();
+    await expectInTray("This browser is offline");
   });
 
   it("shows sentences for reauth and expired connections", async () => {

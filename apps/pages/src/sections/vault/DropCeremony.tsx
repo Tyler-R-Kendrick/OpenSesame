@@ -23,6 +23,7 @@ import {
   type VaultItem,
   b64ToBytes,
 } from "@opensesame/vault-core";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -144,11 +145,11 @@ export function ShareSecretDrop({
     <section className="detail__group" aria-label="Share this item once">
       <h2 className="detail__grouphead">Share once</h2>
       <TtlPicker value={ttlMs} onChange={setTtlMs} />
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : null}
+      <FailureNotice
+        id={`vault:drop:${item.id}`}
+        title="Drop"
+        message={error}
+      />
       <div className="actions">
         <FormCommit
           label={busy ? "Sealing…" : "Seal and share"}

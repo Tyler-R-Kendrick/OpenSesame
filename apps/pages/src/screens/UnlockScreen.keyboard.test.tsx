@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -37,7 +38,10 @@ describe("UnlockScreen — where the keyboard lands", () => {
     for (const fn of Object.values(v.store)) fn.mockReset();
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("lands on the go control for passkey, then follows the method tabs", () => {
     // A returning vault opens on passkey, which has no field: Enter on the go
@@ -103,7 +107,9 @@ describe("UnlockScreen — where the keyboard lands", () => {
     const field = screen.getByLabelText("Password");
     fireEvent.change(field, { target: { value: "nope" } });
     fireEvent.click(submitButton());
-    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    await waitFor(() =>
+      expect(listNotices().some((n) => n.kind === "status")).toBe(true),
+    );
     expect(document.activeElement).toBe(field);
   });
 });

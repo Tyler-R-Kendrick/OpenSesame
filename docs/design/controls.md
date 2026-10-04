@@ -39,20 +39,37 @@ The one exception is a sentence that is itself the content: the answer support
 returns, the prose of a help topic, the `say` line a walkthrough speaks while
 it points at something. That is not explainer prose, it is the thing asked for.
 
-**In-page error boxes.** A `note--err` paragraph banner rendered inside a
+**In-page error boxes.** A `note--err` paragraph banner, a dynamic
+`note--${tone}`, a `*__error` paragraph, a `broker__card--err` card, a visible
+`role="alert"`, or any block filled with the error wash, rendered inside a
 screen. A failure belongs on the object that failed — a `StatusMark` beside
-the row, the field, the receipt — or, where there is no such object on screen,
-a notice in the tray (`setStatusNotice`), which already carries every other
-page condition and survives the screen that produced it being navigated away
-from. An error box in the middle of a screen is explainer prose wearing an
-alert role: it interrupts the whole screen to narrate one failed thing, and it
-is gone the moment the person moves.
+the row, the field, the receipt — and, because a 14px glyph's label is read by
+nobody, as a notice in the tray: `<FailureNotice id title message />`
+(`apps/pages/src/components/FailureNotice.tsx`), `useFailureNotice`
+(`apps/pages/src/components/use-failure-notice.ts`) or `StatusNote`, all of which end
+in `setStatusNotice`. The tray already carries every other page condition,
+announces an error with `role="alert"`, offers the retry, and survives the
+screen that produced it being navigated away from. An error box in the middle
+of a screen is explainer prose wearing an alert role: it interrupts the whole
+screen to narrate one failed thing, and it is gone the moment the person moves.
+
+A screen with no shell — unlock, the front door, the federated return, an
+unframed popup — has no bell of its own, so `AppRoot` mounts `NoticeCorner`
+there; it draws only while the tray holds something
+([ADR 0160](../adr/0160-failures-live-in-the-tray.md)).
+
+A notice is keyed by `id` — one per place, so a second try replaces the first
+and a success clears it; give a per-item editor the item's id. A visually-hidden
+live region (`className="visually-hidden" role="alert"`) is the one spelling of
+`role="alert"` the lint allows: it draws nothing.
 
 `pnpm lint:design` holds both. Explainer sentences are matched by content in
-the connector panels; in-page error boxes are ratcheted per file in
-`tools/quality/design-note-baseline.json`, which only falls — a file that
-removes one lowers its recorded number in the same commit, and a new file is
-recorded at zero, so new code meets the budget outright.
+the connector panels. In-page failures are a plain failure
+(`no-in-page-error` for markup, `no-error-box-css` for CSS that paints one) with
+no ledger: the count is zero everywhere, and a new file meets that outright.
+The tray's own `.notice-card--err`, danger controls (`btn--danger`,
+`icon-btn--danger`), the `StatusMark` glyph and `aria-invalid` field borders may
+carry the error colour; nothing else may fill a block with it.
 
 ## 1. The terminal commit — `.go`
 

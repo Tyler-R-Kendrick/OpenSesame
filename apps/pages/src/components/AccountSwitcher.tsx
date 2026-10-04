@@ -45,15 +45,14 @@ import {
 } from "@opensesame/app-core/lib/session-exit.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { FailureNotice } from "./FailureNotice.js";
 import { IconCheck, IconPlus, IconUser } from "./Icons.js";
 
 import { useAccount } from "../bindings/account.js";
 import { useIdentitySession } from "../bindings/identity.js";
 function guestLabel(hasSession: boolean, assurance?: string): string {
   if (!hasSession) return guestVaultLabel();
-  if (assurance === "provisional" || !assurance) {
-    return guestVaultLabel();
-  }
+  if (assurance === "provisional" || !assurance) return guestVaultLabel();
   return "account";
 }
 
@@ -302,7 +301,7 @@ function AccountSwitcherDefault() {
               </div>
             ) : null}
 
-            {error ? <p className="account-switcher__error">{error}</p> : null}
+            <FailureNotice id="account:error" title="Account" message={error} />
 
             {/* The roads out. Each one lands on the unlock screen's Sign in
                 tab, which says what just happened. */}

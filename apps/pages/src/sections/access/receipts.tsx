@@ -19,7 +19,8 @@ import {
   outcomeChip,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
+import { IconClock, IconRefresh } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { formatTime } from "./format.js";
 
@@ -113,15 +114,13 @@ export function Receipts({
       </div>
 
       <div className="panel__body panel__body--tight">
-        {!online ? (
-          <output className="note note--warn">
-            <IconAlert /> Offline.
-          </output>
-        ) : error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : busy && events === null ? (
+        <FailureNotice
+          id="access:receipts"
+          title="Receipts"
+          message={online ? error : "Offline."}
+          tone={online ? "err" : "warn"}
+        />
+        {!online || error ? null : busy && events === null ? (
           <output className="note">Asking Identity…</output>
         ) : events && events.length > 0 ? (
           <ul className="access-trail">

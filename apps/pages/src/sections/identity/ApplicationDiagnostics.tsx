@@ -9,6 +9,7 @@ import {
 } from "@opensesame/app-core/lib/configuration/policy-tests.js";
 import type { LocalScopeRoles } from "@opensesame/app-core/lib/local-application-policy.js";
 import { useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconCheck } from "../../components/Icons.js";
 
 export function ApplicationDiagnostics(props: {
@@ -121,11 +122,15 @@ export function ApplicationDiagnostics(props: {
             </li>
           ))}
         </ul>
-        {publicationBlocked(runs) ? (
-          <p role="alert" className="note note--err">
-            A saved test failed. Candidate publication is blocked.
-          </p>
-        ) : null}
+        <FailureNotice
+          id="identity:application-tests"
+          title="Application tests"
+          message={
+            publicationBlocked(runs)
+              ? "A saved test failed. Candidate publication is blocked."
+              : null
+          }
+        />
       </div>
     </section>
   );

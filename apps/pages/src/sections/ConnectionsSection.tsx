@@ -5,11 +5,15 @@ import {
   listConnections,
 } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
-import { IconKey } from "../components/IconKey.js";
-import { IconAlert, IconRefresh } from "../components/Icons.js";
+import { FailureNotice } from "../components/FailureNotice.js";
+import { IconRefresh } from "../components/Icons.js";
 import { PageIndex } from "../components/PageIndex.js";
 import { StatusMark } from "../components/StatusMark.js";
 import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
@@ -131,6 +135,28 @@ export function ConnectionsSection() {
     setCatalogError(null);
   }, []);
 
+  const catalogFailure =
+    catalogError && (providers?.length ?? 0) === 0
+      ? catalogError.message
+      : null;
+  const raisedCatalog = useRef(false);
+  useEffect(() => {
+    if (catalogFailure) {
+      raisedCatalog.current = true;
+      setStatusNotice({
+        id: "connections:catalog",
+        tone: "err",
+        title: "Built-in connector catalog unavailable",
+        body: catalogFailure,
+        retry: () => void loadCatalog(),
+        retryLabel: "Try catalog again",
+      });
+    } else if (raisedCatalog.current) {
+      raisedCatalog.current = false;
+      dismissNotice("connections:catalog");
+    }
+  }, [catalogFailure, loadCatalog]);
+
   const loadConnections = useCallback(async () => {
     const id = ++connectionRun.current;
     setLoading(true);
@@ -237,25 +263,16 @@ export function ConnectionsSection() {
         />
       ) : null}
 
-      {online ? null : (
-        <p className="note note--warn">
-          <IconAlert /> This browser is offline. Nothing on this page can be
-          read or changed until it reconnects.
-        </p>
-      )}
-
-      {catalogError && (providers?.length ?? 0) === 0 ? (
-        <div className="note note--err conn-error" role="alert">
-          <IconAlert />
-          <div className="conn-error__copy">
-            <strong>Built-in connector catalog unavailable</strong>
-            <p>{catalogError.message}</p>
-            <IconKey label="Try catalog again" small onClick={loadCatalog}>
-              <IconRefresh size={16} />
-            </IconKey>
-          </div>
-        </div>
-      ) : null}
+      <FailureNotice
+        id="connections:offline"
+        title="Offline"
+        tone="warn"
+        message={
+          online
+            ? null
+            : "This browser is offline. Nothing on this page can be read or changed until it reconnects."
+        }
+      />
 
       <NeedsAttention
         connections={connections ?? []}

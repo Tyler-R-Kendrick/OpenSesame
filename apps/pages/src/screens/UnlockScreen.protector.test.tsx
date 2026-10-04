@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { WrongPasswordError } from "@opensesame/vault-core";
@@ -111,7 +112,10 @@ beforeEach(() => {
   for (const fn of Object.values(v.store)) fn.mockReset();
   v.store.unlockWithProtector.mockResolvedValue(undefined);
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  clearNotices();
+});
 
 describe("UnlockScreen — tabs for enrolled protectors", () => {
   it("draws exactly the enrolled methods: the header's wraps and the manifest's usable capsules", () => {
@@ -227,9 +231,16 @@ describe("UnlockScreen — recovery key", () => {
     const key = field("Recovery key");
     fireEvent.change(key, { target: { value: "bm9wZQ==" } });
     fireEvent.click(submitButton());
+    await waitFor(() =>
+      expect(
+        listNotices().some((n) =>
+          n.body.includes("That recovery key did not unlock the vault."),
+        ),
+      ).toBe(true),
+    );
     expect(
-      await screen.findByText("That recovery key did not unlock the vault."),
-    ).toBeTruthy();
+      screen.queryByText("That recovery key did not unlock the vault."),
+    ).toBeNull();
     expect(key.value).toBe("");
     await waitFor(() => expect(document.activeElement).toBe(key));
   });

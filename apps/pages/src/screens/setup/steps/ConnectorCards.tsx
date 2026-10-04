@@ -24,6 +24,7 @@ import {
   openConsentPopup,
 } from "@opensesame/app-core/lib/connections.js";
 import { useEffect, useState } from "react";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { IconConnection } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useCapabilityChoice } from "./shared.js";
@@ -199,11 +200,11 @@ function ConnectorCard({
           onConnect={() => void connect()}
         />
       </span>
-      {state.phase === "error" ? (
-        <p className="xcard__note" role="alert">
-          {state.text}
-        </p>
-      ) : null}
+      <FailureNotice
+        id={`setup:connector:${providerId}`}
+        title={connectorLabel(providerId)}
+        message={state.phase === "error" ? state.text : null}
+      />
     </li>
   );
 }

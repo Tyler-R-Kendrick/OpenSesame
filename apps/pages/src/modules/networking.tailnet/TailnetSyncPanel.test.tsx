@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import type { TailnetSyncState } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { captureLinkedPairing } from "../../lib/pairing-link.js";
@@ -70,6 +71,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  clearNotices();
   Object.assign(vaultHooksSeams, originalHooks);
   Object.assign(tailnetPanelSeams, originalPanelSeams);
 });
@@ -137,9 +139,15 @@ describe("TailnetSyncPanel", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Pair with this drive" }),
     );
-    expect(
-      await screen.findByRole("img", { name: /another vault/ }),
-    ).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        listNotices().some(
+          (notice) =>
+            notice.kind === "status" && notice.body.includes("another vault"),
+        ),
+      ).toBe(true),
+    );
+    expect(screen.queryByText(/another vault/)).toBeNull();
     // The ceremony stays open: nothing was paired.
     expect(
       screen.getByRole("dialog", { name: "Pair with a drive" }),

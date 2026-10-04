@@ -43,11 +43,6 @@
   box-shadow: var(--shadow);
 }
 
-.broker__card--err {
-  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
-  background: var(--err-wash);
-}
-
 .broker__card h2 {
   margin: 0 0 0.5rem;
   font-size: 1.0625rem;

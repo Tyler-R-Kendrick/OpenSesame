@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { expectInTray } from "./tray-contract.mjs";
 
 export async function checkLoginWebsites(page, check) {
   const viewport = page.viewportSize();
@@ -56,7 +57,7 @@ export async function checkLoginWebsites(page, check) {
     await address.fill("[");
     await page.getByLabel("Name", { exact: true }).fill("Pattern fixture");
     await page.getByRole("button", { name: "Save item", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("invalid");
+    await expectInTray(page, "invalid");
     await address.fill("(.*\\.)?example\\.com");
     await page.getByRole("button", { name: "Save item", exact: true }).click();
     await expect(

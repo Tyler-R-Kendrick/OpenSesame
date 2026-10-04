@@ -34,6 +34,7 @@ import {
   listIdpRegistrations,
   registerIdp,
 } from "@opensesame/app-core/lib/idp-registry.js";
+import { expectInTray } from "../components/tray.test-support.js";
 import { IdentitySection } from "./IdentitySection.js";
 
 function makeRecord(overrides: Partial<IdpRecord> = {}): IdpRecord {
@@ -236,9 +237,7 @@ describe("IdentitySection", () => {
 
     // Step 2: client credentials plus the deployment's redirect URI to copy.
     expect(await screen.findByLabelText(/^Client ID$/i)).toBeTruthy();
-    expect(
-      screen.getByText(/cannot register clients automatically/),
-    ).toBeTruthy();
+    await expectInTray(/cannot register clients automatically/);
     expect(
       screen.getByText("http://127.0.0.1:8788/v1/federated/callback"),
     ).toBeTruthy();
@@ -364,9 +363,7 @@ describe("IdentitySection", () => {
     // http off-loopback never leaves the browser.
     await userEvent.type(url, "http://auth.acme.com");
     await userEvent.click(firstButton("Check issuer"));
-    expect(
-      await screen.findByText(/https is required, except on localhost/),
-    ).toBeTruthy();
+    await expectInTray(/https is required, except on localhost/);
     expect(registerByoProvider).not.toHaveBeenCalled();
 
     // Loopback http is the local-dev carve-out; trailing slashes normalize off.
@@ -620,7 +617,7 @@ describe("IdentitySection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Create organization/i }),
     );
-    expect(await screen.findByText(/Use a slug like acme-corp/)).toBeTruthy();
+    await expectInTray(/Use a slug like acme-corp/);
     expect(directory.createOrganization).not.toHaveBeenCalled();
 
     await userEvent.clear(screen.getByLabelText(/^Slug$/i));

@@ -13,8 +13,9 @@ import { connectorPath } from "@opensesame/app-core/sections/connections/shared.
 import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconChevronRight, IconInfo, IconX } from "../../components/Icons.js";
+import { IconChevronRight, IconX } from "../../components/Icons.js";
 import {
   SlashSearchField,
   SlashSearchKey,
@@ -80,13 +81,16 @@ export function CatalogPanel({
           <p className="hint">Loading the connector catalog…</p>
         ) : (
           <>
-            {sealKeyMissing ? (
-              <p className="note note--warn conn-unconfigured">
-                <IconInfo />
-                Connection sealing is not available yet on this deployment. Ask
-                an operator to finish setup, then try again.
-              </p>
-            ) : null}
+            <FailureNotice
+              id="connections:sealing"
+              title="Connection sealing"
+              tone="warn"
+              message={
+                sealKeyMissing
+                  ? "Connection sealing is not available yet on this deployment. Ask an operator to finish setup, then try again."
+                  : null
+              }
+            />
 
             {grouped.map((group) => (
               <div className="conn-group" key={group.id}>

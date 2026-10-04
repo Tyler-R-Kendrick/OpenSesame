@@ -8,6 +8,7 @@ import {
   generatorEntropyBits,
 } from "@opensesame/app-core/lib/vault/password.js";
 import { useCallback, useEffect, useState } from "react";
+import { FailureNotice } from "./FailureNotice.js";
 import { useCopyFeedback } from "./FieldRow.js";
 import { FormCommit } from "./FormCommit.js";
 import { IconKey } from "./IconKey.js";
@@ -227,11 +228,12 @@ export function PasswordGenerator({
         )}
       </div>
 
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : (
+      <FailureNotice
+        id="password-generator:error"
+        title="Generator"
+        message={error}
+      />
+      {error ? null : (
         <p className="hint">
           {bits} bits of entropy — the generator's own configuration, not an
           estimate.

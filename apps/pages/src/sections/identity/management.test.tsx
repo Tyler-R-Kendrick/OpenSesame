@@ -1,4 +1,5 @@
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { type JsonObject, isJsonObject } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -105,6 +106,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  clearNotices();
   cleanup();
   uninstallOrgDirectory?.();
   uninstallOrgDirectory = null;
@@ -186,7 +188,14 @@ it("keeps a refused agent draft and disables offline mutations", async () => {
     "a".repeat(43),
   );
   await user.click(screen.getByRole("button", { name: "Save agent" }));
-  await screen.findByRole("alert");
+  await waitFor(() =>
+    expect(
+      listNotices().some(
+        (n) => n.kind === "status" && n.id === "identity:agents",
+      ),
+    ).toBe(true),
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByDisplayValue("Draft")).toBeTruthy();
   view.rerender(<AgentsPanel online={false} />);
   expect(screen.getByRole("button", { name: "Save agent" })).toHaveProperty(

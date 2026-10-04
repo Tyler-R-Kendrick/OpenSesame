@@ -1,71 +1,68 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { StatusNote } from "./StatusNote.js";
 
 describe("StatusNote", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("renders nothing without a message", () => {
     const { container } = render(<StatusNote message={null} />);
     expect(container.firstChild).toBeNull();
+    expect(listNotices()).toHaveLength(0);
   });
 
-  it("announces errors with role=alert", () => {
-    render(<StatusNote message={{ tone: "err", text: "It broke." }} />);
-    const note = screen.getByRole("alert");
-    expect(note.textContent).toContain("It broke.");
-    expect(note.className).toContain("note--err");
+  it("sends an error to the tray and draws nothing in the page", () => {
+    const { container } = render(
+      <StatusNote message={{ tone: "err", text: "It broke." }} />,
+    );
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(listNotices()).toMatchObject([
+      { kind: "status", tone: "err", body: "It broke." },
+    ]);
   });
 
-  it("keeps successes quiet with role=status", () => {
+  it("sends a warning to the tray as a warning", () => {
+    const { container } = render(
+      <StatusNote
+        title="Host"
+        message={{ tone: "warn", text: "Host is down." }}
+      />,
+    );
+    expect(container.firstChild).toBeNull();
+    expect(listNotices()).toMatchObject([
+      { tone: "warn", title: "Host", body: "Host is down." },
+    ]);
+  });
+
+  it("keeps successes quiet, inline, and out of the tray", () => {
     render(<StatusNote message={{ tone: "ok", text: "Saved." }} />);
     const note = screen.getByRole("status");
     expect(note.textContent).toContain("Saved.");
     expect(note.className).toContain("note--ok");
+    expect(listNotices()).toHaveLength(0);
   });
 
-  it("lets an error be dismissed, and calls onDismiss", () => {
-    const onDismiss = vi.fn();
-    render(
-      <StatusNote
-        message={{ tone: "err", text: "It broke." }}
-        onDismiss={onDismiss}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  it("lets a warning be dismissed", () => {
-    render(<StatusNote message={{ tone: "warn", text: "Host is down." }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByText("Host is down.")).toBeNull();
-  });
-
-  it("does not offer dismiss on a success", () => {
-    render(<StatusNote message={{ tone: "ok", text: "Saved." }} />);
-    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
-  });
-
-  it("shows a new error after the previous one was dismissed", () => {
-    const { rerender } = render(
-      <StatusNote message={{ tone: "err", text: "First." }} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    rerender(<StatusNote message={{ tone: "err", text: "Second." }} />);
-    expect(screen.getByRole("alert").textContent).toContain("Second.");
-  });
-
-  it("shows the same error again after the parent cleared it", () => {
+  it("clears its notice when the failure goes away", () => {
     const { rerender } = render(
       <StatusNote message={{ tone: "err", text: "It broke." }} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(listNotices()).toHaveLength(1);
     rerender(<StatusNote message={null} />);
-    rerender(<StatusNote message={{ tone: "err", text: "It broke." }} />);
-    expect(screen.getByRole("alert").textContent).toContain("It broke.");
+    expect(listNotices()).toHaveLength(0);
+  });
+
+  it("replaces, never stacks, a second failure", () => {
+    const { rerender } = render(
+      <StatusNote message={{ tone: "err", text: "First." }} />,
+    );
+    rerender(<StatusNote message={{ tone: "err", text: "Second." }} />);
+    expect(listNotices().map((notice) => notice.body)).toEqual(["Second."]);
   });
 });

@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconAlert, IconLogin } from "../../components/Icons.js";
+import { IconLogin } from "../../components/Icons.js";
 
 import {
   loadSettings,
@@ -57,16 +58,17 @@ export function ConnectIdentityNote({
             </button>
           )}
         </div>
-        {!online ? (
-          <output className="note note--warn">
-            <IconAlert /> Offline — connecting needs the network.
-          </output>
-        ) : null}
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="identity:connect-offline"
+          title="Offline"
+          tone="warn"
+          message={online ? null : "Offline — connecting needs the network."}
+        />
+        <FailureNotice
+          id="identity:connect"
+          title="Sign-in service"
+          message={error}
+        />
       </div>
     </section>
   );

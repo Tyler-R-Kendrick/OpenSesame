@@ -4,6 +4,7 @@ import {
 } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconRefresh } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { LocalApplicationSettings } from "../identity/LocalApplicationSettings.js";
@@ -69,11 +70,7 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
         </button>
       </div>
       <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <FailureNotice id="access:policies" title="Policies" message={error} />
         {!directory && !error ? <output>Loading local policies…</output> : null}
         {directory && applications ? (
           <>

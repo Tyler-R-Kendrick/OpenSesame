@@ -66,9 +66,9 @@ import {
   useState,
 } from "react";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { IconKey, ReloadKey } from "../components/IconKey.js";
 import {
-  IconAlert,
   IconCheck,
   IconCopy,
   IconEdit,
@@ -83,6 +83,7 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { StatusMark, statusTone } from "../components/StatusMark.js";
+import { StatusNote } from "../components/StatusNote.js";
 import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
@@ -139,12 +140,7 @@ function IdentityTabPanels({
   return (
     <>
       <IdentityTabs selected={tab} onSelect={onSelectTab} />
-      {flash ? (
-        <output className={`note note--${flash.tone}`}>
-          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-          <p>{flash.text}</p>
-        </output>
-      ) : null}
+      <StatusNote title="Identity" message={flash} />
       {tab === "people" ? (
         localOnly ? (
           <LocalDirectoryPanel kind="person" />
@@ -433,18 +429,22 @@ function IdpCeremony({
           </p>
         ))}
 
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="identity:idp-ceremony"
+          title="Identity provider"
+          message={error}
+        />
 
-        {!online ? (
-          <output className="note note--warn">
-            <IconAlert /> Offline — registration and sign-in both need the
-            Identity service to answer.
-          </output>
-        ) : null}
+        <FailureNotice
+          id="identity:idp-offline"
+          title="Offline"
+          tone="warn"
+          message={
+            online
+              ? null
+              : "Offline — registration and sign-in both need the Identity service to answer."
+          }
+        />
 
         <button
           type="button"
@@ -726,11 +726,11 @@ function IdpPresetForm({
         />
       ) : null}
 
-      {byo.error ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> {byo.error}
-        </p>
-      ) : null}
+      <FailureNotice
+        id="identity:idp-preset"
+        title="Identity provider"
+        message={byo.error}
+      />
 
       <div className="actions actions--end">
         <button
@@ -820,11 +820,11 @@ function CustomOidcCard({
         />
       ) : null}
 
-      {byo.error ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> {byo.error}
-        </p>
-      ) : null}
+      <FailureNotice
+        id="identity:idp-custom"
+        title="Custom provider"
+        message={byo.error}
+      />
 
       <div className="actions actions--end">
         <FormCommit
@@ -911,11 +911,7 @@ function MeCard({ online }: { online: boolean }) {
       </div>
 
       <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
+        <FailureNotice id="identity:me" title="Account" message={error} />
 
         {me === null && !error ? (
           <output className="note">Asking Identity…</output>
@@ -1020,11 +1016,11 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
       </div>
 
       <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="identity:linked-identities"
+          title="Linked identities"
+          message={error}
+        />
 
         {identities === null && !error ? (
           <output className="note">Asking Identity…</output>
@@ -1102,12 +1098,7 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
           </div>
         ) : null}
 
-        {flash ? (
-          <output className={`note note--${flash.tone}`}>
-            {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-            <p>{flash.text}</p>
-          </output>
-        ) : null}
+        <StatusNote title="Linked identities" message={flash} />
       </div>
     </section>
   );
@@ -1212,11 +1203,7 @@ function OrgMembersCard({ online }: { online: boolean }) {
       </div>
 
       <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
+        <FailureNotice id="identity:members" title="Members" message={error} />
 
         {members === null && !error ? (
           <output className="note">Asking Identity…</output>
@@ -1325,12 +1312,7 @@ function OrgMembersCard({ online }: { online: boolean }) {
           <p className="hint">Only the owner can add or remove members.</p>
         ) : null}
 
-        {flash ? (
-          <output className={`note note--${flash.tone}`}>
-            {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-            <p>{flash.text}</p>
-          </output>
-        ) : null}
+        <StatusNote title="Members" message={flash} />
       </div>
     </section>
   );
@@ -1435,11 +1417,11 @@ function ServiceAccountsPanel({
         </div>
 
         <div className="panel__body">
-          {error ? (
-            <p className="note note--err" role="alert">
-              <IconAlert /> {error}
-            </p>
-          ) : null}
+          <FailureNotice
+            id="identity:applications"
+            title="Applications"
+            message={error}
+          />
 
           {clients === null && !error ? (
             <output className="note">Asking Identity…</output>
@@ -1556,12 +1538,7 @@ function ServiceAccountsPanel({
             </output>
           ) : null}
 
-          {flash ? (
-            <output className={`note note--${flash.tone}`}>
-              {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-              <p>{flash.text}</p>
-            </output>
-          ) : null}
+          <StatusNote title="Applications" message={flash} />
         </div>
       </section>
 
@@ -1779,11 +1756,11 @@ function OrganizationPanel({
         </div>
 
         <div className="panel__body">
-          {error ? (
-            <p className="note note--err" role="alert">
-              <IconAlert /> {error}
-            </p>
-          ) : null}
+          <FailureNotice
+            id="identity:organizations"
+            title="Organizations"
+            message={error}
+          />
 
           {orgs === null && !error ? (
             <output className="note">Asking Identity…</output>
@@ -1939,11 +1916,11 @@ function CreateOrgForm({
             </p>
           </div>
 
-          {error ? (
-            <p className="note note--err" role="alert">
-              <IconAlert /> {error}
-            </p>
-          ) : null}
+          <FailureNotice
+            id="identity:create-organization"
+            title="Organization"
+            message={error}
+          />
           {created ? (
             <output className="note note--ok">
               <IconCheck /> {created}

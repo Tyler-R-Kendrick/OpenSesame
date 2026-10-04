@@ -32,7 +32,7 @@ runs it.
 | `bundle-budget-gate.mjs` | `quality:bundle` | Built bundle sizes against [`tools/quality/bundle-budgets.json`](../tools/quality/bundle-budgets.json). |
 | `ts-coverage-gate.mjs` | `test:coverage:ts` | TypeScript coverage floors, per package and overall. |
 | `lint-changed.mjs` | `lint` | Biome over files changed since `origin/main`. |
-| `design-lint.mjs` (+ `-layout`, `-verbs`) | `lint:design` | Word-verb buttons, status pills and explainer captions ([docs/design/controls.md](../docs/design/controls.md)). |
+| `design-lint.mjs` (+ `-layout`, `-verbs`, `-failures`) | `lint:design` | Word-verb buttons, status pills, explainer captions and in-page failure boxes ([docs/design/controls.md](../docs/design/controls.md)). |
 | `docs-index.mjs` | `docs:index` | Regenerates the ADR and security-audit indexes; `--check` fails when they are stale. |
 
 ## audit/ — `pnpm audit:*`

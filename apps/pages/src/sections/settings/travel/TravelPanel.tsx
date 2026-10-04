@@ -11,6 +11,7 @@
 
 import { type ReactNode, useState } from "react";
 import { useDeviceVaults } from "../../../bindings/vaults.js";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { IconKey } from "../../../components/IconKey.js";
 import {
   IconDownload,
@@ -101,6 +102,24 @@ function RemnantsRow({
   );
 }
 
+type TravelNotice = ReturnType<typeof useTravelFlow>["notice"];
+
+/** A failed or cautioned travel step goes to the tray; nothing is drawn. */
+function TravelFailure({ notice }: { notice: TravelNotice }) {
+  const failing = notice?.tone === "err" || notice?.tone === "warn";
+  const sentence = notice?.meta
+    ? `${notice.text} · ${notice.meta}`
+    : notice?.text;
+  return (
+    <FailureNotice
+      id="settings:travel"
+      title="Travel"
+      message={failing ? sentence : null}
+      tone={notice?.tone === "warn" ? "warn" : "err"}
+    />
+  );
+}
+
 export function TravelPanel() {
   const [sheet, setSheet] = useState<Sheet>(null);
   const flow = useTravelFlow(() => setSheet(null));
@@ -142,13 +161,13 @@ export function TravelPanel() {
         </div>
       </div>
       <div className="panel__body">
+        <TravelFailure notice={notice} />
         {notice && sheet === null ? (
           <CeremonyRow
             icon={<IconVault size={16} />}
             label={notice.text}
             mark={{ tone: notice.tone, label: RECEIPT_MARK[notice.tone] }}
             sub={notice.meta ?? ""}
-            alert={notice.tone === "err"}
             action={null}
           />
         ) : null}

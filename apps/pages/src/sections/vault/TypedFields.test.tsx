@@ -53,6 +53,7 @@ Object.assign(vaultHooksSeams, {
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
 import { ItemEditor } from "./ItemEditor.js";
 
@@ -226,9 +227,7 @@ describe("the editor for a type installed at runtime", () => {
       target: { value: "Deposit box" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save item" }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain("Branch"),
-    );
+    await expectInTray("Fill in Branch before saving.");
     expect(saveItem).not.toHaveBeenCalled();
   });
 

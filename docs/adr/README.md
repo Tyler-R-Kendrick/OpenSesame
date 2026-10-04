@@ -200,3 +200,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0157](0157-logs-and-events-carry-no-secrets.md) | Logs and events carry no secrets, and rest sealed | Accepted |
 | [0158](0158-settings-rows-act-or-are-absent.md) | A Settings row acts, or it is not drawn | Accepted |
 | [0159](0159-agent-hooks-interceptor.md) | OpenSesame as an agent-hooks/0.1 interceptor and host | Accepted |
+| [0160](0160-failures-live-in-the-tray.md) | A failure lives in the tray, never in a box in the page | Accepted |

@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../bindings/identity.js";
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   PERSONAL_PROJECT_ID,
   projectSeams,
@@ -74,6 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  clearNotices();
   Object.assign(projectSeams, originalProjectSeams);
   Object.assign(vaultsSeams, originalVaultsSeams);
 });
@@ -130,8 +132,14 @@ describe("VaultsScreen — the front door", () => {
     switchVault.mockRejectedValue(new Error("storage refused"));
     const onPicked = renderScreen();
     fireEvent.click(screen.getByText("project · 4f2a"));
-    expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(screen.getByText("storage refused")).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        listNotices().some(
+          (n) => n.kind === "status" && n.body.includes("storage refused"),
+        ),
+      ).toBe(true),
+    );
+    expect(screen.queryByText("storage refused")).toBeNull();
     expect(onPicked).not.toHaveBeenCalled();
   });
 

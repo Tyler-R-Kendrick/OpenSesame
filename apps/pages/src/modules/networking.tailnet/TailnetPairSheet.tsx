@@ -8,9 +8,9 @@
 import { useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconConnection } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
 
 export function TailnetPairSheet({
   initialCode,
@@ -101,11 +101,11 @@ export function TailnetPairSheet({
               setError(null);
             }}
           />
-          {error ? (
-            <p className="vexport__marks" role="alert">
-              <StatusMark tone="err" label={error} />
-            </p>
-          ) : null}
+          <FailureNotice
+            id="tailnet:pair"
+            title="Tailnet pairing"
+            message={error}
+          />
         </CeremonyShell>
       </form>
     </CeremonySheet>

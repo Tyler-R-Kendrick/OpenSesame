@@ -687,11 +687,6 @@ input[type="radio"] {
   background: var(--warn-wash);
 }
 
-.note--err {
-  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
-  background: var(--err-wash);
-}
-
 .banner {
   display: flex;
   gap: 0.75rem;
@@ -2167,13 +2162,6 @@ body {
   cursor: default;
 }
 
-.project-switcher__error {
-  margin: 0.35rem 0 0;
-  padding: 0 0.3rem;
-  font-size: 0.75rem;
-  color: var(--err);
-}
-
 /* ——— Account switcher ————————————————————————————————————— */
 
 .account-switcher {
@@ -2401,18 +2389,8 @@ body {
 }
 
 .account-switcher__hint,
-.account-switcher__error {
-  margin: 0.35rem 0 0;
-  padding: 0 0.3rem;
-  font-size: 0.75rem;
-}
-
 .account-switcher__hint {
   color: var(--ink-2);
-}
-
-.account-switcher__error {
-  color: var(--err);
 }
 
 /* ——— Field shell ————————————————————————————————————————
@@ -3654,4 +3632,24 @@ summary::before {
 
 details[open] > summary::before {
   transform: rotate(45deg);
+}
+
+/* ——— Notice corner ———————————————————————————————————————
+   The bell for a screen with no shell (unlock, front door, federated return,
+   an unframed popup). Present only while the tray holds a notice. The rail's
+   tokens are re-pointed at the page's own so the key reads on the canvas. */
+.notice-corner {
+  --rail-fg: var(--ink);
+  --rail-2: var(--surface-2);
+  position: fixed;
+  z-index: 40;
+  top: max(0.5rem, env(safe-area-inset-top));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+@media (pointer: coarse) {
+  .notice-corner .cx__btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }

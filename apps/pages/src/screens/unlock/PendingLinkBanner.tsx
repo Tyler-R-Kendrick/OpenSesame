@@ -11,6 +11,9 @@
  * A deferred account link gets no banner either — the bell's "Finish
  * attaching your sign-in" prompt is already waiting after unlock.)
  *
+ * Only the quiet outcomes are drawn (signed in, signed out, attach). A failed
+ * or half-finished sign-in goes to the tray, where it waits for the bell.
+ *
  * It is also where the fresh document a reset left for says what the reset
  * left behind (`ResetLeftNotice`), ahead of the outcome.
  */
@@ -20,6 +23,7 @@ import {
   readAuthOutcome,
 } from "@opensesame/app-core/lib/auth-outcome.js";
 import { recoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
 import { signOut } from "@opensesame/app-core/lib/session-exit.js";
 import { describeOutcome } from "@opensesame/app-core/screens/unlock/pending-link-banner-model.js";
 import { useEffect, useReducer } from "react";
@@ -38,19 +42,38 @@ export function PendingLinkBanner() {
   const [, bump] = useReducer((epoch: number) => epoch + 1, 0);
 
   const outcome = readAuthOutcome();
+  const model = outcome ? describeOutcome(outcome) : null;
+  // A failed sign-in is never drawn here: it goes to the tray (it is waiting in
+  // the bell after unlock) and the stored record is spent so it is raised once.
+  const failedTone =
+    model?.tone === "err" || model?.tone === "warn" ? model.tone : null;
+  const failedText = failedTone ? model?.text : undefined;
+  const failedTitle =
+    outcome?.kind === "link_failed" ? "Account link" : "Sign-in";
+  useEffect(() => {
+    if (!failedTone || !failedText) return;
+    setStatusNotice({
+      id: "unlock:outcome",
+      tone: failedTone,
+      title: failedTitle,
+      body: failedText,
+    });
+    clearAuthOutcome();
+    bump();
+  }, [failedTone, failedText, failedTitle]);
+
   // What the last reset left behind comes before anything else on the
   // screen the fresh document opens on (`ResetLeftNotice`).
-  if (!outcome) return <ResetLeftNotice />;
-  const model = describeOutcome(outcome);
+  if (!outcome || !model || failedTone) return <ResetLeftNotice />;
 
   return (
     <>
       <ResetLeftNotice />
       <output
         className={
-          model.tone === "plain"
-            ? "note unlock__outcome"
-            : `note note--${model.tone} unlock__outcome`
+          model.tone === "ok"
+            ? "note note--ok unlock__outcome"
+            : "note unlock__outcome"
         }
         aria-live="polite"
       >

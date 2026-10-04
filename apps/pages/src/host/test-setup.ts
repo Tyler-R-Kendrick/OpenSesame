@@ -5,6 +5,7 @@
  */
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   assertOwnedStorageWrites,
   recordStorageWrite,
@@ -33,3 +34,6 @@ closeJsdomGaps();
 // A test that wrote a Web Storage key the app does not own fails here, even
 // when the code under test swallowed the write's outcome.
 afterEach(assertOwnedStorageWrites);
+
+// A failure a test raised in the tray never reaches the next test.
+afterEach(clearNotices);

@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
@@ -78,6 +79,15 @@ function vaultRow(label: string): HTMLElement {
   return overlapCast(matches[0]);
 }
 
+/** A failure is a status notice in the tray; the page does not repeat it. */
+const inTray = (text: string) =>
+  listNotices().some((n) => n.kind === "status" && n.body.includes(text));
+
+async function trayHas(text: string) {
+  await waitFor(() => expect(inTray(text)).toBe(true));
+  expect(screen.queryByText(text)).toBeNull();
+}
+
 describe("ProjectSwitcher — the @tomb prompt", () => {
   beforeEach(() => {
     proj.state.activeId = "personal";
@@ -92,6 +102,7 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.unstubAllGlobals();
   });
 
@@ -149,7 +160,7 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
     renderSwitcher();
     openMenu();
     fireEvent.click(vaultRow("Work"));
-    expect(await screen.findByText("vault busy")).toBeTruthy();
+    await trayHas("vault busy");
   });
 
   it("Escape and the backdrop both close the menu", () => {
@@ -225,7 +236,7 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
       target: { value: "Personal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
-    expect(await screen.findByText("name taken")).toBeTruthy();
+    await trayHas("name taken");
   });
 
   it("never deletes from the prompt — that lives in Settings → Vaults", () => {
@@ -263,13 +274,13 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
     renderSwitcher();
     openMenu();
     fireEvent.click(vaultRow("Work"));
-    expect(await screen.findByText("plain string failure")).toBeTruthy();
+    await trayHas("plain string failure");
 
     proj.createProject.mockRejectedValue("create blew up");
     fireEvent.change(screen.getByLabelText("New vault name"), {
       target: { value: "X" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
-    expect(await screen.findByText("create blew up")).toBeTruthy();
+    await trayHas("create blew up");
   });
 });

@@ -32,6 +32,7 @@ import {
 import { useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { FailureNotice } from "./FailureNotice.js";
 import { IconPlus } from "./Icons.js";
 import { VaultList } from "./VaultList.js";
 
@@ -175,7 +176,11 @@ function ProjectSwitcherDefault() {
                 Manage
               </button>
             </div>
-            {error ? <p className="project-switcher__error">{error}</p> : null}
+            <FailureNotice
+              id="project-switcher:error"
+              title="Vault"
+              message={error}
+            />
           </div>
         </>
       ) : null}

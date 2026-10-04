@@ -1,4 +1,5 @@
 import type { ConfigDiagnostic } from "@opensesame/app-core/lib/configuration/types.js";
+import { FailureNotice } from "../FailureNotice.js";
 
 export function SourceEditor(props: {
   id: string;
@@ -22,7 +23,6 @@ export function SourceEditor(props: {
         value={props.value}
         disabled={props.disabled}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${props.id}-err` : undefined}
         onChange={(event) => props.onChange(event.target.value)}
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === "s") {
@@ -31,11 +31,11 @@ export function SourceEditor(props: {
           }
         }}
       />
-      {error ? (
-        <p id={`${props.id}-err`} className="cfg-source__err" role="alert">
-          {error.message}
-        </p>
-      ) : null}
+      <FailureNotice
+        id={`config-source:${props.id}`}
+        title="Configuration"
+        message={error?.message}
+      />
     </div>
   );
 }

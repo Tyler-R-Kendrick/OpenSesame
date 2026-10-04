@@ -56,6 +56,7 @@ const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { listConnections });
 afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
 
 function base<K extends VaultItem["kind"]>(kind: K, id: string, name: string) {
@@ -257,7 +258,7 @@ describe("ItemDetail", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Save new value/i }),
     );
-    expect(await screen.findByRole("alert")).toBeTruthy();
+    await expectInTray("Enter a new value.");
     expect(store.saveItem).not.toHaveBeenCalled();
     await userEvent.type(
       screen.getByPlaceholderText("New password"),
@@ -432,9 +433,8 @@ describe("ItemDetail", () => {
   });
 
   it("never looks up receipts, whatever the Host or connection state", async () => {
-    // Pages keeps no Host fetch (ADR 0128): the line is the same whether the
-    // Host would have had no connection, been degraded, had no receipts or
-    // failed, and nothing is asked of it.
+    // Pages keeps no Host fetch (ADR 0128): the line is the same whatever the
+    // Host did (no connection, degraded, no receipts, failed); nothing is asked.
     const sent = vi.spyOn(globalThis, "fetch");
     const worlds = [
       () => listConnections.mockResolvedValue([]),

@@ -7,6 +7,7 @@ import {
   type LocalDirectoryChange,
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
@@ -35,6 +36,7 @@ beforeEach(async () => {
   });
 });
 afterEach(() => {
+  clearNotices();
   cleanup();
   lockAllTombs();
   vi.unstubAllGlobals();
@@ -124,13 +126,20 @@ it("shows a true empty state and a dash count", async () => {
   render(<LocalPolicyEditor tomb={tomb} />);
   await screen.findByText("No local applications.");
   expect(screen.getByText(/No local applications\./)).toBeTruthy();
-  expect(screen.queryByRole("alert")).toBeNull();
+  expect(listNotices()).toHaveLength(0);
 });
 
 it("does not report unread locked storage as an empty policy set", async () => {
   await seed();
   lockAllTombs();
   render(<LocalPolicyEditor tomb={tomb} />);
-  await screen.findByRole("alert");
+  await waitFor(() =>
+    expect(
+      listNotices().some(
+        (notice) => notice.kind === "status" && notice.tone === "err",
+      ),
+    ).toBe(true),
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.queryByText(/No local applications\./)).toBeNull();
 });

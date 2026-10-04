@@ -196,8 +196,11 @@ export function IdentityCeremony({
         }
         alts={alts}
       />
-      {error ? <StatusNote message={{ tone: "warn", text: error }} /> : null}
-      {flash ? <StatusNote message={flash} /> : null}
+      <StatusNote
+        title="Identity"
+        message={error ? { tone: "warn", text: error } : null}
+      />
+      <StatusNote title="Identity" message={flash} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import {
 } from "@opensesame/app-core/lib/identity-management.js";
 import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
@@ -130,11 +131,7 @@ export function AgentsPanel({ online }: { online: boolean }) {
           Register an agent against its own proof key; registration alone grants
           no resource access.
         </p>
-        {error ? (
-          <p className="note note--err" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <FailureNotice id="identity:agents" title="Agents" message={error} />
         {loading ? <output>Loading agents…</output> : null}
         {!loading && !error && agents.length === 0 ? (
           <p className="hint">No agents registered.</p>

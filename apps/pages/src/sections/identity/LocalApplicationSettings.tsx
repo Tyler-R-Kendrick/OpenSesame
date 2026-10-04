@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
@@ -180,11 +181,11 @@ function RegistrationEditor({
             : "Not registered for local application access."}
         </output>
       ) : null}
-      {model.error ? (
-        <p role="alert" className="note note--err">
-          {model.error}
-        </p>
-      ) : null}
+      <FailureNotice
+        id={`identity:local-application:${applicationId}`}
+        title="Application"
+        message={model.error}
+      />
       {!model.state && !model.error ? (
         <output>Loading registration…</output>
       ) : null}

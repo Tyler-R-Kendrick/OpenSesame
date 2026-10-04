@@ -70,6 +70,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { landFocus } from "../../lib/focus.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
@@ -271,11 +272,9 @@ export function SignInPanel(props: Props) {
     );
   }
 
-  const errorNote = error ? (
-    <p className="note note--err" role="alert">
-      <span>{error}</span>
-    </p>
-  ) : null;
+  const errorNote = (
+    <FailureNotice id="unlock:sign-in" title="Sign-in" message={error} />
+  );
 
   if (stage === "magic-link") {
     return (

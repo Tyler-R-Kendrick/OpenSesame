@@ -20,7 +20,7 @@ import { defaultCapabilityPorts } from "@opensesame/app-core/lib/configuration/c
 import { POLICY_FILE } from "@opensesame/app-core/sections/settings/capability-files.js";
 import { useState } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
-import { StatusMark } from "../../components/StatusMark.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { PurposeCards } from "../../screens/capabilities/PurposeCards.js";
 import { SectionHead } from "./CapabilitySwitch.js";
@@ -65,12 +65,11 @@ export function InstanceCapabilitiesPanel() {
       <SectionHead id="instance-policy-title" title="Instance policy">
         <OpenFileKey path={POLICY_FILE} name="instance-policy.yaml" />
       </SectionHead>
-      {notice ? (
-        <p className="capspanel__notice" role="alert">
-          <StatusMark tone="err" label={notice} />
-          <span>{notice}</span>
-        </p>
-      ) : null}
+      <FailureNotice
+        id="settings:instance-policy"
+        title="Instance policy"
+        message={notice}
+      />
       <PurposeCards
         presets={capabilityPorts.PRESETS}
         chosen={snapshot.policy?.presetProvenance?.id ?? null}

@@ -1,6 +1,7 @@
 import { describeFederationError } from "@opensesame/app-core/lib/federation-copy.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
@@ -32,9 +33,12 @@ export function FederationReturn() {
     return (
       <div ref={rootRef} className="broker">
         <main className="broker__main">
-          <div className="broker__card broker__card--err" role="alert">
-            <h2>Sign-in didn't finish</h2>
-            <p>{error}</p>
+          <FailureNotice
+            id="federation:return"
+            title="Sign-in didn't finish"
+            message={error}
+          />
+          <div className="broker__card">
             <button
               type="button"
               className="broker__btn"
