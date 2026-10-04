@@ -47,6 +47,17 @@ async function toLocalSeal(page) {
   await page.keyboard.press("Enter");
 }
 
+/**
+ * A phone opens the vault on its section tree, with the keyboard on it (the
+ * rail's own tree, drawn in the buffer). Enter on its cursor — "all" — is the
+ * way in to the list, where the desktop already is.
+ */
+async function intoTheList(page, width) {
+  if (width === 1280) return;
+  await expect(page.locator(".railtree")).toBeFocused();
+  await page.keyboard.press("Enter");
+}
+
 async function savedVaultUnlock(width) {
   const { page, context } = await harness.newPage(browser);
   await page.setViewportSize({ width, height: 900 });
@@ -76,11 +87,13 @@ async function savedVaultUnlock(width) {
   await tabTo(page, seal);
   await page.keyboard.press("Enter");
   const create = page.getByRole("link", { name: "New item", exact: true });
+  await intoTheList(page, width);
   await expect(create).toBeFocused();
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
   await page.keyboard.insertText(password);
   await page.keyboard.press("Enter");
+  // The reload kept the address, which is already the list.
   await expect(create).toBeFocused();
   if (width === 1280) {
     const before = page.url();
@@ -120,6 +133,7 @@ try {
     ).toBeFocused();
     await page.keyboard.press("Enter");
     const create = page.getByRole("link", { name: "New item", exact: true });
+    await intoTheList(page, width);
     await expect(create).toBeFocused();
     if (width === 1280) {
       const before = page.url();

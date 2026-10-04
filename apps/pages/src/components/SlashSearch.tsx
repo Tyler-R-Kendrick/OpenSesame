@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { registerSearchKeymap } from "../lib/keymap.js";
+import { IconSearch } from "./Icons.js";
 import "./slash-search.css";
 
 export function useListingSearch() {
@@ -52,7 +53,8 @@ export function SlashSearchKey({
       aria-label={label}
       onClick={onOpen}
     >
-      /
+      <span className="vtree__key-glyph">/</span>
+      <IconSearch size={14} className="vtree__key-touch" />
     </button>
   );
 }

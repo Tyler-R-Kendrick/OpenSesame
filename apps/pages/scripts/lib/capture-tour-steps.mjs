@@ -12,7 +12,13 @@ function supportKey(page) {
     .first();
 }
 
-export function tourSteps({ press }) {
+async function press(locator) {
+  const touch = await locator.page().evaluate(() => "ontouchstart" in window);
+  if (touch) await locator.tap();
+  else await locator.click();
+}
+
+export function tourSteps() {
   return {
     /** Open the Support sheet, unless it is already open. */
     async supportOpen(page) {

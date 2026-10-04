@@ -32,6 +32,7 @@ import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
+import { toTheList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -135,6 +136,7 @@ async function networkingOn(page) {
 
 async function saveItem(page, name) {
   await visit(page, "vault");
+  await toTheList(page);
   await page
     .getByRole("link", { name: "New item", exact: true })
     .first()
@@ -232,6 +234,8 @@ try {
   await shot(b.page, "390-device-b-unlock");
   await unlockWithPassword(b.page);
   await visit(b.page, "vault");
+  // A phone opens the vault on the section tree; the item is two panes in.
+  await toTheList(b.page);
   await expect(b.page.getByText("Bank of Example").first()).toBeVisible({
     timeout: 20_000,
   });

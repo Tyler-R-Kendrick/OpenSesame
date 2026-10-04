@@ -23,6 +23,7 @@ import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
+import { useVaultAllTo } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras } from "./EditorExtras.js";
@@ -48,6 +49,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const { kind: kindParam, itemId } = useParams();
   const [search] = useSearchParams();
+  const allItemsTo = useVaultAllTo();
   const navigate = useNavigate();
   const { items, folders } = useVault();
   const store = useVaultStore();
@@ -250,7 +252,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     }
   }
 
-  const closeTo = mode === "edit" ? `/vault/${draft.id}` : "/vault";
+  const closeTo = mode === "edit" ? `/vault/${draft.id}` : allItemsTo;
   const saveVerb = saving
     ? draft.kind === "certificate" && !draft.certificatePem
       ? "Issuing…"

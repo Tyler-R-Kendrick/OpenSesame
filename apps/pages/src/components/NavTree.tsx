@@ -1,9 +1,3 @@
-import { uniqueFolderKind } from "@opensesame/app-core/components/vault-rail-model.js";
-import {
-  isSettingsConfigSearch,
-  settingsCategoryFromLocation,
-  settingsConfigRoute,
-} from "@opensesame/app-core/lib/crumbs.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
 import {
   type Folder,
@@ -18,13 +12,9 @@ import {
  * approved (ADR 0130).
  */
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  NavLink,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { useShowHidden } from "../lib/use-show-hidden.js";
+import { useVaultAllTo } from "../lib/vault-list-path.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { IconChevronLeft } from "./Icons.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
@@ -41,7 +31,7 @@ import { type VaultCounts, VaultRail } from "./VaultRail.js";
 import { openContextMenu } from "./context-menu/menu-model.js";
 import { railMenu, railRowAt } from "./context-menu/rail-menu.js";
 import { useRailCursor, useRailCursorFollowsRoute } from "./rail-cursor.js";
-import { selectedRailPath } from "./rail-path.js";
+import { useSelectedRail } from "./use-selected-rail.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
 import { useVaultDirectories } from "../bindings/contributions.js";
@@ -129,6 +119,7 @@ function SectionBranch({
   folders,
   kinds,
   showHidden,
+  allTo,
 }: {
   section: SectionRowModel;
   expand: SectionExpand;
@@ -139,6 +130,8 @@ function SectionBranch({
   folders: Folder[];
   kinds: readonly ItemKindRow[];
   showHidden: boolean;
+  /** Where the vault's "all items" entry goes — see `VaultRail`. */
+  allTo: string;
 }) {
   const { expanded, here, onToggle } = expand;
   if (section.to === "/vault") {
@@ -160,6 +153,7 @@ function SectionBranch({
             selectedTo={selectedTo}
             kinds={kinds}
             showHidden={showHidden}
+            allTo={allTo}
           />
         ) : null}
       </>
@@ -242,36 +236,17 @@ function NavBack() {
 export function NavTree() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   const { items, folders } = useVault();
   const sections = useSections();
   const kinds = useVaultDirectories(items);
   const showHidden = useShowHidden();
+  const allTo = useVaultAllTo();
   const treeRef = useRef<HTMLElement>(null);
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   const currentToRef = useRef("");
   const expandFor = useSectionExpands(location.pathname, navigate);
-  const activeFilter = params.get("f") ?? "all";
-  const activeFolder = params.get("folder");
-  const settingsCategory = settingsCategoryFromLocation(
-    location.pathname,
-    location.hash,
-  );
-  // A settings directory's `config.yaml` is its own rail entry.
-  const selectedTo =
-    location.pathname.startsWith("/settings") &&
-    isSettingsConfigSearch(location.search)
-      ? settingsConfigRoute(settingsCategory)
-      : selectedRailPath(
-          location.pathname,
-          location.hash,
-          params.get("view"),
-          activeFilter,
-          activeFolder,
-          settingsCategory,
-          activeFolder ? uniqueFolderKind(items, activeFolder, kinds) : null,
-        );
+  const selectedTo = useSelectedRail(items, kinds, allTo);
   const section = sectionForPath(location.pathname, sections);
   // Settings and the activity log are session-level: the session
   // prompt's menu roots the tree in either one, so neither is a
@@ -329,6 +304,7 @@ export function NavTree() {
           folders={folders}
           kinds={kinds}
           showHidden={showHidden}
+          allTo={allTo}
         />
       ))}
     </nav>

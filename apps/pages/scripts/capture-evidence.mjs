@@ -40,7 +40,6 @@ import { liveSteps } from "./lib/capture-live-steps.mjs";
 import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
-import { tourSteps } from "./lib/capture-tour-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
@@ -250,7 +249,6 @@ const STEPS = {
   },
   ...capabilitySteps({ press, openSettings }),
   ...scopedSteps({ press }),
-  ...tourSteps({ press }),
   /** A new section loads with the app root, so a chosen one needs a reload. */
   async reload(page) {
     await page.reload({ waitUntil: "networkidle" });

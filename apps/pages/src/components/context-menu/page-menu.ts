@@ -4,6 +4,7 @@ import {
 } from "@opensesame/app-core/lib/crumbs.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { focusCommandBar } from "../../lib/command-bar/focus.js";
+import { isTouchPointer } from "../../lib/gestures.js";
 import { showKeymapHelp } from "../../lib/keymap-help.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
 
@@ -77,7 +78,7 @@ export function shellGroup(): MenuItem[] {
     { id: "command", label: "Command bar", hint: ":", run: focusCommandBar },
     {
       id: "keymap",
-      label: "Keyboard shortcuts",
+      label: isTouchPointer() ? "Gestures" : "Keyboard shortcuts",
       hint: "?",
       run: showKeymapHelp,
     },
