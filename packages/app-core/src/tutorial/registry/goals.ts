@@ -221,7 +221,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'say "An export is one encrypted backup file: the sealed vault body plus its key-wrapping header. It is opened again with the master password, for moving to another device."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "vault.export" "This opens the export sheet. Nothing is written until you choose where to save it." side=bottom',
+      'focus "vault.export" "Export opens the export sheet; on a phone it is a row of the Add sheet. Nothing is written until you choose where to save it." side=bottom',
       "end",
     ].join("\n"),
   },

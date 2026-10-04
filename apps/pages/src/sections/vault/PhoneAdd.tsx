@@ -48,7 +48,12 @@ const ICONS: Record<string, ReactNode> = {
 export function PhoneAdd({ createPath }: { createPath: string }) {
   const navigate = useNavigate();
   const host = useRef<HTMLDivElement>(null);
-  const guide = useGuideTarget<HTMLButtonElement>("vault.create");
+  // The Add key is the one door to all three on a phone: the keys the tours
+  // point at on a wide screen are rows of its sheet here, so the registry
+  // points at it while those keys are not drawn.
+  const guideCreate = useGuideTarget<HTMLButtonElement>("vault.create");
+  const guideImport = useGuideTarget<HTMLButtonElement>("vault.import");
+  const guideExport = useGuideTarget<HTMLButtonElement>("vault.export");
 
   const open = (event: MouseEvent<HTMLButtonElement>) => {
     // Import and Export are the commands the desktop draws as keys. They stay
@@ -81,7 +86,11 @@ export function PhoneAdd({ createPath }: { createPath: string }) {
   return (
     <>
       <button
-        ref={guide}
+        ref={(element) => {
+          guideCreate(element);
+          guideImport(element);
+          guideExport(element);
+        }}
         type="button"
         className="vadd__key"
         aria-label="Add"
