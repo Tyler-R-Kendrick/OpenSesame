@@ -43,7 +43,12 @@ import { installPushShim } from "./lib/push-browser-shim.mjs";
 import { policyWalk } from "./lib/push-policy-walk.mjs";
 import { PAGES_ORIGIN, startPushStack } from "./lib/push-stack.mjs";
 import { createRun } from "./lib/push-verify-kit.mjs";
-import { notificationsOf, until } from "./lib/push-worker-harness.mjs";
+import {
+  notificationsOf,
+  trackControlledBirth,
+  until,
+  untilBornControlled,
+} from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist-push-verify");
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -70,6 +75,7 @@ try {
   });
   await context.grantPermissions(["notifications"], { origin: PAGES_ORIGIN });
   const shim = await installPushShim(context, () => stack.standIn.mint());
+  await trackControlledBirth(context);
   const page = await context.newPage();
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(String(error?.message)));
@@ -111,6 +117,7 @@ try {
     "front door, guest, approve Push notifications and Notification routing",
   );
   await page.goto(scope);
+  await untilBornControlled(page);
   await doorGuest(page).waitFor({ timeout: 20_000 });
   await doorGuest(page).click();
   await waitOpen(page);
