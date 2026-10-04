@@ -738,6 +738,16 @@
   .vtree__key:not(.vtree__key--help) {
     display: inline-grid;
     place-items: center;
+    /* Drawn as the bare icon key it sits beside (refresh, add, export): the
+       keycap box was the one bordered square in a row of keys. */
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink-2);
+  }
+
+  .vtree__key:not(.vtree__key--help):hover {
+    color: var(--ink-2);
+    border-color: transparent;
   }
 
   /* A row swiped left asks for its actions (lib/gestures.ts): the browser
@@ -1340,4 +1350,58 @@ select.editor__ext:hover {
   display: flex;
   gap: 0.35rem;
   margin: 0.4rem 0 0;
+}
+
+/* —— Phone polish ———————————————————————————————————————————— */
+
+@media (max-width: 900px) {
+  /* A password's own keys (reveal, copy) sit in the row's key column; its
+     "update" key lives in the text column, where a one-column grid dropped it
+     onto a line of its own, left-aligned under the dots. The text column is a
+     label over a value, and the key joins the value's line, so the three keys
+     read as one cluster at the row's edge. */
+  .frow__text:has(> .icon-btn) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.15rem;
+  }
+
+  .frow__text:has(> .icon-btn) > .frow__label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .frow__text:has(> .icon-btn) > :is(.conceal, .frow__value) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .frow__text:has(> .icon-btn) > .icon-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  /* An add-a-field chip beside its field is a chip below it once the pair
+     collapses to a column; it kept the column's whole width, a bar among the
+     chips that sit at their own width one row down. */
+  .editor__row > .editor__optional {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  /* A finding's marks are glyphs, not chips: the explanation reads beside its
+     glyph instead of under a glyph standing alone on a line, and the fix key
+     sits at the row's edge instead of alone on the left. */
+  .health__issues li {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.5rem;
+  }
+
+  .health__finding .actions {
+    justify-content: flex-end;
+    margin-top: 0;
+  }
 }
