@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import {
   enterEnrollmentCode,
+  expectRefusedOnField,
   finishUnlockSelfSupplied,
   finishUnlockWithCode,
   readSeed,
@@ -204,7 +205,7 @@ const browser = await chromium.launch(launch);
   await enterEnrollmentCode(page, "000000");
   await page.waitForTimeout(800);
   const refused = await snap(page, "1-guest-wrong-enroll-code");
-  check(/did not match/i.test(refused), "a wrong enrollment code is refused");
+  await expectRefusedOnField(page, check);
   check(
     /3 · Confirm/.test(refused) && (await dialog.count()) === 1,
     "still in the sheet, on Confirm, after a wrong code",

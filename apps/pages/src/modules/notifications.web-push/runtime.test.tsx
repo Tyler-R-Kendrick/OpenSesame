@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { pushSeams } from "../../lib/push.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -23,20 +24,25 @@ describe("notifications.web-push runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("notifications.web-push");
   });
 
-  it("registers nothing on the document side: enrolment is a permission the person grants", async () => {
+  it("registers one settings panel, the enrolment row; the permission is the person's to grant", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "notifications.web-push",
-      kinds: [],
-      count: 0,
+      kinds: ["settings-panel"],
+      count: 1,
     });
   });
 
-  it("reaches no network on activation", async () => {
+  it("reaches no network on activation, reads only its own key, and routes enrolment through the egress port until it is disposed", async () => {
+    const direct = pushSeams.fetchFn;
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(t.egressCalls).toEqual([]);
-    expect(t.hydrated).toEqual([]);
+    expect(t.hydrated).toEqual([["push.subscription.id"]]);
+    expect(pushSeams.fetchFn).not.toBe(direct);
+    const [panel] = t.entries("settings-panel");
+    expect(panel?.category).toBe("general");
     await handle.dispose();
     await handle.dispose();
+    expect(pushSeams.fetchFn).toBe(direct);
   });
 });

@@ -75,9 +75,10 @@ describe("PluginPanel", () => {
     for (const revoke of undeclare) revoke();
   });
 
-  it("asks nothing and offers no switch with no daemon paired", async () => {
+  it("asks nothing and draws nothing with no daemon paired and no way to pair one", async () => {
     const { sent } = mount(wireState(), [], false);
-    expect(await screen.findByLabelText("No daemon paired")).toBeTruthy();
+    expect(document.getElementById("plugin-surrogate-proxy")).toBeNull();
+    expect(screen.queryByLabelText("No daemon paired")).toBeNull();
     expect(screen.queryByRole("button", { name: /paired daemon/ })).toBeNull();
     expect(sent).toEqual([]);
   });
