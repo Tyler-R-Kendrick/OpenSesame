@@ -226,6 +226,15 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:device-identity
+# Same harness, the device as the Identity plane (ADR 0160), a guest with no
+# Identity API at desktop and phone widths: no sign-out row until the device
+# has a session, the status reads "This device", the session's principal is
+# the vault key's thumbprint and survives Refresh, every Settings section and
+# Access tab reads clean, and Receipts is drawn only once Browser-local IAM
+# serves an audit trail. Run before touching `identityPlane`, `identityServes`,
+# the device host, or a panel gated on the Identity plane.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
 # WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
