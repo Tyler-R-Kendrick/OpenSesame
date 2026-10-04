@@ -2,13 +2,17 @@
  * `backup.cloud-secrets` — sealed secrets mirrored to a cloud secret store
  * (the `cloud_secret_storage` family: Doppler, Infisical, AWS Secrets
  * Manager, HashiCorp Vault, …). Always on: that family's binding tiles are
- * drawn by Settings › Capabilities among the always-on provider groups, so
- * this module registers nothing of its own.
+ * drawn by Settings › Capabilities among the always-on provider groups.
+ *
+ * It also draws the SOPS document panel under Settings › Security (ADR 0130
+ * §1): a person with no account opens, edits and saves an upstream SOPS file
+ * in this browser. It is a `settings-panel`, so Security lists it without
+ * importing the sheet.
  *
  * What deliberately stays core: the AWS KMS and Google Cloud KMS connection
- * configuration and the age / SOPS panels under Settings › Security. They
- * configure vault key *protectors*, which is the unlock path
- * (`vault.local-unlock`), not secret storage.
+ * configuration under Settings › Security. It configures vault key
+ * *protectors*, which is the unlock path (`vault.local-unlock`), not secret
+ * storage.
  *
  * Egress this module wraps: none of its own today — bindings are recorded
  * in settings, and the connector pages that authorize them belong to
@@ -28,6 +32,7 @@ import {
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
+import { SopsDocumentPanel } from "../../sections/settings/sops/SopsDocumentPanel.js";
 import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "backup.cloud-secrets";
@@ -61,10 +66,20 @@ export function runSavedStorageConnectors(): FeatureRequest[] {
   return startStorageConnectors();
 }
 
+/** Security's SOPS row: one key that opens the document sheet. */
+export const SOPS_DOCUMENT_PANEL = {
+  id: "sops-document",
+  label: "SOPS",
+  category: "security",
+  Panel: SopsDocumentPanel,
+  order: 40,
+};
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
+    if (activation.disposed()) return activation.handle();
     const releaseStorage = registerCategorySend(
       "cloud_secret_storage",
       runSavedStorageConnectors,
@@ -75,6 +90,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     );
     activation.onDispose(releaseStorage);
     activation.onDispose(releaseEncryption);
+    activation.register("settings-panel", SOPS_DOCUMENT_PANEL);
     return activation.handle();
   },
 };
