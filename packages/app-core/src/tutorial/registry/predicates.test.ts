@@ -3,11 +3,15 @@
 import { isBoolean } from "@opensesame/os-domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { accountSeams } from "../../lib/account.js";
+import { deviceIdentitySeams } from "../../lib/device-identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { unlockMethodsSeams } from "../../lib/vault/unlock-methods.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import {
   GUIDE_PREDICATES,
   noteGuideConnectionsPresent,
+  provideGuideInstallOffer,
   registerGuidePredicates,
 } from "./predicates.js";
 import {
@@ -107,6 +111,57 @@ describe("reading a predicate", () => {
     expect(readGuidePredicate("connections.any")).toBe(true);
     noteGuideConnectionsPresent(false);
     expect(readGuidePredicate("connections.any")).toBe(false);
+  });
+
+  it("says whether an account is signed in, and nothing about who", () => {
+    const real = accountSeams.describeAccount;
+    try {
+      accountSeams.describeAccount = () => null;
+      expect(readGuidePredicate("account.signed-in")).toBe(false);
+      accountSeams.describeAccount = () => ({
+        name: "Ada",
+        detail: "Google",
+        providerId: "google",
+        guest: false,
+      });
+      expect(readGuidePredicate("account.signed-in")).toBe(true);
+    } finally {
+      accountSeams.describeAccount = real;
+    }
+  });
+
+  it("says whether a sign-in service is set", () => {
+    const real = deviceIdentitySeams.remoteIdentityApi;
+    try {
+      deviceIdentitySeams.remoteIdentityApi = () => "";
+      expect(readGuidePredicate("signin-service.configured")).toBe(false);
+      deviceIdentitySeams.remoteIdentityApi = () => "https://id.example.test";
+      expect(readGuidePredicate("signin-service.configured")).toBe(true);
+    } finally {
+      deviceIdentitySeams.remoteIdentityApi = real;
+    }
+  });
+
+  it("says whether the vault has a key enrolled", () => {
+    const real = unlockMethodsSeams.listAvailableUnlockMethods;
+    try {
+      unlockMethodsSeams.listAvailableUnlockMethods = () => [];
+      expect(readGuidePredicate("vault.key-enrolled")).toBe(false);
+      unlockMethodsSeams.listAvailableUnlockMethods = () => ["password"];
+      expect(readGuidePredicate("vault.key-enrolled")).toBe(true);
+    } finally {
+      unlockMethodsSeams.listAvailableUnlockMethods = real;
+    }
+  });
+
+  it("reads the install offer from the reader the shell provides", () => {
+    expect(readGuidePredicate("install.offered")).toBe(false);
+    provideGuideInstallOffer(() => true);
+    try {
+      expect(readGuidePredicate("install.offered")).toBe(true);
+    } finally {
+      provideGuideInstallOffer(() => false);
+    }
   });
 
   it("refuses an id nothing declared", () => {

@@ -102,10 +102,15 @@ to the screen edge the lit control is *not* on, and its keys are 44px.
 
 The Support sheet gains a **Tutorials** tab beside Ask: every live tutorial,
 grouped by what a person wants to do (`areas.ts`), each row a title, a step
-count and a start key. Starting one is replaying it. A tutorial written for a
-gate — unlock, setup, the broker popup — is offered only while the person is on
-that gate, because a guide may wait on an overlay route and never navigate to
-it. Every section of Settings › Capabilities is a `feature.*` target, every one
+count and a start key. Starting one is replaying it. There is no tutorial for
+a gate — unlock, setup, the broker popup, join: the Support sheet is not
+mounted there (ADR 0090), so nothing could start one. Written help for those
+screens stays, as help topics with no walkthrough. The Ask tab and the library
+share one gate (`goalOffered`, read through `useTutorialGate`): a goal that
+points at a section of Settings › Capabilities is offered only where that
+section is drawn, and one that `requires` a state predicate (`account.signed-in`,
+`signin-service.configured`, `vault.key-enrolled`, `install.offered`, `identity.connected`) only where
+it holds. Every section of Settings › Capabilities is a `feature.*` target, every one
 has a tutorial (`FEATURE_TUTORIALS`), and `areas.test.ts` fails a goal with no
 home or a feature with no tour.
 

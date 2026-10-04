@@ -13,8 +13,11 @@
  * it.
  */
 
+import { describeAccount } from "../../lib/account.js";
+import { isRemoteIdentityConfigured } from "../../lib/device-identity.js";
 import { currentSession } from "../../lib/identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { listAvailableUnlockMethods } from "../../lib/vault/unlock-methods.js";
 import { isOnline, page } from "../../ports.js";
 import {
   type GuideRouteId,
@@ -40,6 +43,17 @@ export function noteGuideConnectionsPresent(present: boolean): void {
   if (connectionsPresent === present) return;
   connectionsPresent = present;
   announceGuideStateChange();
+}
+
+let installOffer: () => boolean = () => false;
+
+/**
+ * Where the shell says whether Settings draws an install to make or report.
+ * That state lives in Pages (the browser's install signals), so the shell
+ * hands the registry its reader instead of the registry importing a screen.
+ */
+export function provideGuideInstallOffer(read: () => boolean): void {
+  installOffer = read;
 }
 
 function currentRoute(): GuideRouteId {
@@ -112,6 +126,31 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
     id: "identity.connected",
     description: "An Identity session is held on this device right now.",
     read: () => currentSession() !== null,
+  },
+  {
+    id: "account.signed-in",
+    description:
+      "An account is signed in on this device, a guest included: the account menu has an account to sign out of.",
+    read: () => describeAccount() !== null,
+  },
+  {
+    id: "signin-service.configured",
+    description:
+      "A sign-in service address is set, so email and text codes can be sent.",
+    read: isRemoteIdentityConfigured,
+  },
+  {
+    id: "vault.key-enrolled",
+    description:
+      "This vault has a key enrolled (password, PIN or passkey), so a second step has a key to guard.",
+    read: () =>
+      listAvailableUnlockMethods(vaultStore.getSnapshot().header).length > 0,
+  },
+  {
+    id: "install.offered",
+    description:
+      "Settings draws an Install panel: this browser has an install to offer or to report that the one-gesture dialog does not cover.",
+    read: () => installOffer(),
   },
   {
     id: "connections.any",

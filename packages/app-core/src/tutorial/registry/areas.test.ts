@@ -1,13 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { accountSeams } from "../../lib/account.js";
 import { FEATURES } from "../../lib/capabilities/features.js";
 import {
   TUTORIAL_AREAS,
+  goalOffered,
   tutorialLibrary,
   tutorialStartsFrom,
   tutorialStepCount,
 } from "./areas.js";
-import { FEATURE_TUTORIALS, guideGoal, mergedGuideGoals } from "./goals.js";
+import {
+  FEATURE_TUTORIALS,
+  describeGuideGoals,
+  guideGoal,
+  mergedGuideGoals,
+} from "./goals.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
+import { registerGuidePredicates } from "./predicates.js";
+import { GUIDE_OVERLAY_ROUTES } from "./routes.js";
+import { resetGuidePredicatesForTest } from "./state.js";
 
 let revoke = () => {};
 beforeAll(() => {
@@ -61,30 +71,30 @@ describe("the tutorial library", () => {
 });
 
 describe("where a tutorial can start", () => {
-  it("offers a gate's tutorial only on that gate", () => {
-    const unlock = guideGoal("unlock.open");
-    expect(unlock).not.toBeNull();
-    if (!unlock) return;
-    expect(tutorialStartsFrom(unlock, "/unlock")).toBe(true);
-    expect(tutorialStartsFrom(unlock, "/vault")).toBe(false);
-    const ids = (route: string) =>
-      tutorialLibrary(route).flatMap((group) =>
-        group.tutorials.map((entry) => entry.goal.id),
-      );
-    expect(ids("/vault")).not.toContain("unlock.open");
-    expect(ids("/unlock")).toContain("unlock.open");
+  const gateOnly = {
+    id: "x.gate-only",
+    title: "Gate only",
+    routes: ["/unlock"],
+    guide: "",
+  };
+
+  it("never offers a tutorial only a gate could start", () => {
+    // The Support sheet is never mounted at a gate (ADR 0090), so a goal that
+    // names nothing but gates could not be started by anyone.
+    expect(tutorialStartsFrom(gateOnly, "/vault")).toBe(false);
+    for (const goal of mergedGuideGoals()) {
+      expect(
+        goal.routes.length === 0 ||
+          goal.routes.some((scope) => !GUIDE_OVERLAY_ROUTES.has(scope)),
+        `${goal.id} names only gates`,
+      ).toBe(true);
+    }
   });
 
-  it("offers a gate nothing but the tutorials written for it", () => {
-    const ids = (route: string) =>
-      tutorialLibrary(route).flatMap((group) =>
-        group.tutorials.map((entry) => entry.goal.id),
-      );
-    // The unlock screen has no shell to navigate in: no shell tutorial starts there.
-    expect(ids("/unlock")).not.toContain("vault.lock");
-    expect(ids("/unlock")).toContain("unlock.open");
-    expect(ids("/setup")).toContain("setup.operator");
-    expect(ids("/setup")).not.toContain("unlock.open");
+  it("starts a goal from the screens it names and from anywhere it navigates", () => {
+    const factors = guideGoal("identity.account-factors");
+    expect(factors).not.toBeNull();
+    if (factors) expect(tutorialStartsFrom(factors, "/vault")).toBe(true);
   });
 
   it("offers a tutorial that navigates from anywhere", () => {
@@ -114,5 +124,78 @@ describe("the step count on a library row", () => {
       ),
     ).toBe(2);
     expect(tutorialStepCount('guide/1\ngoal "x.y"\nsay "Only."\nend')).toBe(1);
+  });
+});
+
+describe("what a tutorial needs before it is offered", () => {
+  const ids = (options: Parameters<typeof tutorialLibrary>[1]) =>
+    tutorialLibrary("/settings", options).flatMap((group) =>
+      group.tutorials.map((entry) => entry.goal.id),
+    );
+
+  it("hides the account menu tours from a device with no account", () => {
+    const holds = (predicate: string) => predicate !== "account.signed-in";
+    expect(ids({ holds })).not.toContain("identity.sign-out");
+    expect(ids({ holds })).not.toContain("identity.switch-account");
+    expect(ids({ holds: () => true })).toContain("identity.sign-out");
+    expect(ids({ holds: () => true })).toContain("identity.switch-account");
+  });
+
+  it("offers the install tour only where Settings draws the install panel", () => {
+    const holds = (predicate: string) => predicate !== "install.offered";
+    expect(ids({ holds })).not.toContain("app.install");
+    expect(ids({ holds: () => true })).toContain("app.install");
+  });
+
+  it("offers the email and text code tour only with a sign-in service and an enrolled key", () => {
+    for (const missing of ["signin-service.configured", "vault.key-enrolled"]) {
+      const holds = (predicate: string) => predicate !== missing;
+      expect(ids({ holds })).not.toContain("vault.second-step.code");
+    }
+    expect(ids({ holds: () => true })).toContain("vault.second-step.code");
+  });
+
+  it("points the model and tailnet tours at their sections, so an undrawn one hides them", () => {
+    const sectionDrawn = (feature: string) =>
+      feature !== "ai" && feature !== "networking";
+    const withheld = ids({ sectionDrawn });
+    expect(withheld).not.toContain("settings.model-provider");
+    expect(withheld).not.toContain("settings.tailnet-sync");
+    const drawn = ids({ sectionDrawn: () => true });
+    expect(drawn).toContain("settings.model-provider");
+    expect(drawn).toContain("settings.tailnet-sync");
+  });
+
+  it("applies one gate to the library and to any other list of goals", () => {
+    const tour = guideGoal("settings.model-provider");
+    expect(tour).not.toBeNull();
+    if (!tour) return;
+    expect(goalOffered(tour, { sectionDrawn: () => false })).toBe(false);
+    expect(goalOffered(tour, { sectionDrawn: () => true })).toBe(true);
+    expect(goalOffered(tour)).toBe(true);
+  });
+});
+
+describe("the goals a model is told about", () => {
+  it("leave out one whose requirement does not hold", () => {
+    const titles = () =>
+      describeGuideGoals("/vault").map((goal) => String(goal.id));
+    const real = accountSeams.describeAccount;
+    resetGuidePredicatesForTest();
+    registerGuidePredicates();
+    try {
+      accountSeams.describeAccount = () => null;
+      expect(titles()).not.toContain("identity.sign-out");
+      accountSeams.describeAccount = () => ({
+        name: "Ada",
+        detail: "Google",
+        providerId: "google",
+        guest: false,
+      });
+      expect(titles()).toContain("identity.sign-out");
+    } finally {
+      accountSeams.describeAccount = real;
+      resetGuidePredicatesForTest();
+    }
   });
 });
