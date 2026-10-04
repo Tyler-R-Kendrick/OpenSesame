@@ -35,6 +35,7 @@ an adapter produced.
 | Adapters (`adapters/`) | `createSlackAdapter`, `createTeamsAdapter`, `createTelegramAdapter`, `createWeChatAdapter`, `createSmsAdapter`, `createWebPushAdapter`, `createGenericWebhookAdapter` |
 | Registry (`registry.ts`) | `createAdapterRegistry` |
 | Rendering (`templates.ts`) | `renderNotification`, `sanitizeUntrustedText`, length limits |
+| Web Push configuration (`webpush-env.ts`) | `loadVapidIdentity`, `readVapidPublicKey`, `pushSubscriptionRefusal`, `generateVapidKeyPair` |
 | Helpers | `callbackDigest`, `secretsEqual`, `bytesEqual`, base64url, `classifyHttpStatus`, `DELIVERY_TIMEOUT_MS`, `isHttpsUrl` |
 | `duressAlert` | Duress alert delivery mapping and a local delivery double; delivered is not received, and received is not acknowledged |
 
@@ -43,7 +44,14 @@ an adapter produced.
 ```bash
 pnpm --filter @opensesame/notification-adapters test
 pnpm --filter @opensesame/notification-adapters typecheck
+pnpm --filter @opensesame/notification-adapters generate:vapid [mailto:you@example.com]
 ```
+
+`@opensesame/notification-adapters/test-support` is a stand-in Web Push service
+(`startPushStandIn`) that verifies the VAPID token with `jws` and decrypts
+`aes128gcm` with `http_ece`, plus `mintPushSubscription` for real P-256 keys.
+Its API is documented at the top of `test-support/push-standin.ts`; tests and
+`verify:push` import it, production code never does.
 
 The suite runs offline against recorded `fetch` calls. Provider logic belongs
 in this package and nowhere else.

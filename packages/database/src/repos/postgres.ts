@@ -33,8 +33,10 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   inArray,
   isNull,
+  lte,
   notExists,
   or,
   sql,
@@ -43,6 +45,10 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
 import { createPostgresAgentAuthRepository } from "./agent-auth-repo.js";
+import {
+  claimDueNotificationRows,
+  claimDueWebhookRows,
+} from "./delivery-claims.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -74,7 +80,6 @@ import {
   type ProjectMembershipStore,
   type ProjectStore,
   type ProjectStores,
-  type PushSubscription,
   type PushSubscriptionRepository,
   type Repositories,
   type TransactionFn,
@@ -88,6 +93,7 @@ import {
   outboxHoldActive,
 } from "./interfaces.js";
 import { mapAuditEvent } from "./postgres-map-audit.js";
+import { createPostgresPushSubscriptions } from "./push-subscriptions-postgres.js";
 import { createPostgresWalletInteractionRepos } from "./wallet-interaction-postgres.js";
 import type {
   ExecutionReservationRepository,
@@ -502,23 +508,6 @@ function mapApprovalReceipt(
   };
 }
 
-function mapPushSubscription(
-  row: typeof schema.pushSubscriptions.$inferSelect,
-): PushSubscription {
-  return {
-    id: row.id,
-    principalId: row.principalId,
-    endpoint: row.endpoint,
-    p256dhKey: row.p256dhKey,
-    authSecret: row.authSecret,
-    endpointDigest: row.endpointDigest,
-    ...(row.deviceLabel ? { deviceLabel: row.deviceLabel } : undefined),
-    createdAt: row.createdAt,
-    ...(row.lastUsedAt ? { lastUsedAt: row.lastUsedAt } : undefined),
-    ...(row.disabledAt ? { disabledAt: row.disabledAt } : undefined),
-  };
-}
-
 function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres-js surfaces the PG error code on the error itself; the PGlite
   // driver wraps the original error in `cause`. Check both so the conflict
@@ -579,6 +568,9 @@ export class PostgresRepositories implements Repositories {
     this.interactionProofAttempts = wallet.interactionProofAttempts;
     this.walletRegistrations = wallet.walletRegistrations;
     this.executionReservations = wallet.executionReservations;
+    this.pushSubscriptions = createPostgresPushSubscriptions(this.db, (uow) =>
+      dbOf(uow, this.db),
+    );
   }
 
   readonly principals: PrincipalRepository = {
@@ -1487,36 +1479,8 @@ export class PostgresRepositories implements Repositories {
       return mapWebhookDelivery(row);
     },
 
-    claimDue: async (limit, now) => {
-      // Same discipline as the outbox drain: SKIP LOCKED so two dispatchers
-      // racing split the due set instead of double-delivering it, and the
-      // attempt is counted on claim so a crash mid-send still burned a try.
-      return this.db.transaction(async (tx) => {
-        const candidates = await tx
-          .select()
-          .from(schema.webhookDeliveries)
-          .where(
-            and(
-              isNull(schema.webhookDeliveries.deliveredAt),
-              isNull(schema.webhookDeliveries.deadAt),
-              sql`${schema.webhookDeliveries.nextAttemptAt} <= ${now}`,
-            ),
-          )
-          .orderBy(schema.webhookDeliveries.nextAttemptAt)
-          .limit(limit)
-          .for("update", { skipLocked: true });
-        const claimed: WebhookDelivery[] = [];
-        for (const row of candidates) {
-          const [updated] = await tx
-            .update(schema.webhookDeliveries)
-            .set({ attempts: row.attempts + 1 })
-            .where(eq(schema.webhookDeliveries.id, row.id))
-            .returning();
-          if (updated) claimed.push(mapWebhookDelivery(updated));
-        }
-        return claimed;
-      });
-    },
+    claimDue: async (limit, now) =>
+      (await claimDueWebhookRows(this.db, limit, now)).map(mapWebhookDelivery),
 
     markDelivered: async (id, at) => {
       await this.db
@@ -1572,7 +1536,7 @@ export class PostgresRepositories implements Repositories {
           .where(
             and(
               isNull(schema.outboxEvents.publishedAt),
-              sql`${schema.outboxEvents.availableAt} <= ${now}`,
+              lte(schema.outboxEvents.availableAt, now),
             ),
           )
           .orderBy(schema.outboxEvents.availableAt)
@@ -1814,7 +1778,7 @@ export class PostgresRepositories implements Repositories {
           and(
             eq(schema.channelBindingChallenges.id, id),
             isNull(schema.channelBindingChallenges.completedAt),
-            sql`${schema.channelBindingChallenges.expiresAt} > ${now}`,
+            gt(schema.channelBindingChallenges.expiresAt, now),
             sql`${schema.channelBindingChallenges.attempts} < ${schema.channelBindingChallenges.maxAttempts}`,
           ),
         )
@@ -1920,38 +1884,10 @@ export class PostgresRepositories implements Repositories {
       }
     },
 
-    claimDue: async (limit, now) => {
-      // Same discipline as the outbox drain: SKIP LOCKED so two dispatchers
-      // racing split the due set instead of double-delivering it, and the
-      // attempt is counted on claim so a crash mid-send still burned a try.
-      return this.db.transaction(async (tx) => {
-        const candidates = await tx
-          .select()
-          .from(schema.notificationDeliveries)
-          .where(
-            and(
-              or(
-                eq(schema.notificationDeliveries.state, "pending"),
-                eq(schema.notificationDeliveries.state, "failed"),
-              ),
-              sql`${schema.notificationDeliveries.nextAttemptAt} <= ${now}`,
-            ),
-          )
-          .orderBy(asc(schema.notificationDeliveries.nextAttemptAt))
-          .limit(limit)
-          .for("update", { skipLocked: true });
-        const claimed: NotificationDelivery[] = [];
-        for (const row of candidates) {
-          const [updated] = await tx
-            .update(schema.notificationDeliveries)
-            .set({ attempts: row.attempts + 1 })
-            .where(eq(schema.notificationDeliveries.id, row.id))
-            .returning();
-          if (updated) claimed.push(mapNotificationDelivery(updated));
-        }
-        return claimed;
-      });
-    },
+    claimDue: async (limit, now) =>
+      (await claimDueNotificationRows(this.db, limit, now)).map(
+        mapNotificationDelivery,
+      ),
 
     markDelivered: async (id, at, providerMessageRef) => {
       await this.db
@@ -2180,7 +2116,7 @@ export class PostgresRepositories implements Repositories {
           and(
             eq(schema.comparisonChallenges.authReqId, authReqId),
             isNull(schema.comparisonChallenges.satisfiedAt),
-            sql`${schema.comparisonChallenges.expiresAt} > ${now}`,
+            gt(schema.comparisonChallenges.expiresAt, now),
             sql`${schema.comparisonChallenges.attempts} < ${schema.comparisonChallenges.maxAttempts}`,
           ),
         )
@@ -2258,93 +2194,7 @@ export class PostgresRepositories implements Repositories {
     },
   };
 
-  readonly pushSubscriptions: PushSubscriptionRepository = {
-    create: async (sub, uow) => {
-      // Upsert onto `endpoint_digest`, not a plain insert. A browser that
-      // re-subscribes presents the same endpoint, and the same endpoint is the
-      // same destination: the stored keys are replaced in place — the row
-      // keeps its id and `created_at`, and a disabled row is revived — so the
-      // table can never hold two rows that push the same person.
-      const [row] = await dbOf(uow, this.db)
-        .insert(schema.pushSubscriptions)
-        .values({
-          id: sub.id,
-          principalId: sub.principalId,
-          endpoint: sub.endpoint,
-          p256dhKey: sub.p256dhKey,
-          authSecret: sub.authSecret,
-          endpointDigest: sub.endpointDigest,
-          deviceLabel: sub.deviceLabel ?? null,
-          createdAt: sub.createdAt,
-          lastUsedAt: sub.lastUsedAt ?? null,
-          disabledAt: sub.disabledAt ?? null,
-        })
-        .onConflictDoUpdate({
-          target: schema.pushSubscriptions.endpointDigest,
-          set: {
-            principalId: sub.principalId,
-            endpoint: sub.endpoint,
-            p256dhKey: sub.p256dhKey,
-            authSecret: sub.authSecret,
-            deviceLabel: sub.deviceLabel ?? null,
-            lastUsedAt: sub.lastUsedAt ?? null,
-            disabledAt: sub.disabledAt ?? null,
-          },
-        })
-        .returning();
-      if (!row) throw new Error("upsert push subscription returned no row");
-      return mapPushSubscription(row);
-    },
-
-    listForPrincipal: async (principalId) => {
-      const rows = await this.db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(
-          and(
-            eq(schema.pushSubscriptions.principalId, principalId),
-            // A disabled subscription is not a destination.
-            isNull(schema.pushSubscriptions.disabledAt),
-          ),
-        )
-        .orderBy(asc(schema.pushSubscriptions.createdAt));
-      return rows.map(mapPushSubscription);
-    },
-
-    getById: async (id) => {
-      const [row] = await this.db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(eq(schema.pushSubscriptions.id, id))
-        .limit(1);
-      return row ? mapPushSubscription(row) : null;
-    },
-
-    findByEndpointDigest: async (digest) => {
-      const [row] = await this.db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(eq(schema.pushSubscriptions.endpointDigest, digest))
-        .limit(1);
-      return row ? mapPushSubscription(row) : null;
-    },
-
-    disable: async (id, at) => {
-      // Compare-and-set on `disabled_at is null`: only the caller that really
-      // retired the subscription is told it did.
-      const rows = await this.db
-        .update(schema.pushSubscriptions)
-        .set({ disabledAt: at })
-        .where(
-          and(
-            eq(schema.pushSubscriptions.id, id),
-            isNull(schema.pushSubscriptions.disabledAt),
-          ),
-        )
-        .returning({ id: schema.pushSubscriptions.id });
-      return rows.length === 1;
-    },
-  };
+  readonly pushSubscriptions: PushSubscriptionRepository;
 
   readonly callbackReplays: CallbackReplayRepository = {
     claim: async (record) => {
@@ -2370,7 +2220,7 @@ export class PostgresRepositories implements Repositories {
     purgeExpired: async (now) => {
       const rows = await this.db
         .delete(schema.callbackReplays)
-        .where(sql`${schema.callbackReplays.expiresAt} <= ${now}`)
+        .where(lte(schema.callbackReplays.expiresAt, now))
         .returning({ id: schema.callbackReplays.id });
       return rows.length;
     },

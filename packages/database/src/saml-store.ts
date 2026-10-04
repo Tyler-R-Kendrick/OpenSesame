@@ -1,4 +1,4 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
 
@@ -167,7 +167,7 @@ export function createPostgresSamlStores(db: Database): SamlStores {
           .where(
             and(
               eq(schema.samlAssertionReplay.assertionId, assertionId),
-              sql`${schema.samlAssertionReplay.expiresAt} >= ${now}`,
+              gte(schema.samlAssertionReplay.expiresAt, now),
             ),
           )
           .limit(1);

@@ -140,11 +140,110 @@ unset and SMS stays unavailable.
 
 ### Web Push
 
-Generate a VAPID keypair and supply it. The public key is served from
-`GET /v1/notification-channels/push/key` and is public by design; the private
-key signs the VAPID JWT and never leaves the server. Subscriptions are stored
-and never returned — a push endpoint is a capability URL, and anyone holding one
-can push to that browser.
+Web Push reaches a person's enrolled browsers with a closed, content-free
+wake-up. Nothing needs a vendor account; the push services (FCM, Mozilla,
+Apple) only ever carry ciphertext.
+
+**1. Generate a VAPID key pair, once.**
+
+```bash
+pnpm --filter @opensesame/notification-adapters generate:vapid mailto:ops@example.com
+```
+
+It prints the three lines below (the private key on stdout, so you can pipe it
+into a secret store; a reminder on stderr). Replacing the pair later invalidates
+every existing browser subscription, because browsers subscribe under the public
+key.
+
+**2. Set the environment.**
+
+| Variable | Where | Meaning |
+|---|---|---|
+| `OPENSESAME_WEBPUSH_PUBLIC_KEY` | Identity API and worker | base64url uncompressed P-256 point (65 bytes). Public by design; served at `GET /v1/notification-channels/push/key`. |
+| `OPENSESAME_WEBPUSH_PRIVATE_KEY` | worker (and the Identity API, if it should offer `native_push` by itself) | base64url P-256 private scalar (32 bytes). **Secret.** Signs the VAPID token; never leaves the process. |
+| `OPENSESAME_WEBPUSH_SUBJECT` | with the private key | `mailto:` or `https:` contact (RFC 8292 §2.1). Push services use it to reach you. |
+| `OPENSESAME_NOTIFICATION_CHANNELS` | Identity API | Comma-separated channels it offers. Default `in_app`. |
+
+Validated at boot, in the API and in the worker: a malformed public key, a
+private key that is set without a public key or a contact, and a private key that
+does not derive the public key each **refuse to start** (a half-working signing
+identity otherwise fails one push at a time, far from the cause). With **no
+private key** Web Push is simply off: the worker has no adapter, every plan
+collapses to the inbox, and `GET /v1/notification-preferences/effective` reports
+`native_push` as `adapter_unavailable`, because that is the truth.
+
+**3. `native_push` is offered when VAPID is configured.** If the Identity API has
+all three variables it adds `native_push` to its channel list by itself; you do
+not need to also list it. If only the worker holds the private key (the API has
+just the public one, which is the least-privilege split), list it yourself:
+`OPENSESAME_NOTIFICATION_CHANNELS=in_app,native_push`. Listing `native_push`
+with no public key refuses to start, since nothing could enrol under it.
+
+**What is delivered.** A push is a wake-up, not a message. The payload is
+exactly `{"kind", "action", "ref"}`: the notification class
+(`authorization_request`, `authorization_decision`, `security_event`), a closed
+action label (`review`, `decided`, `none`) and the request's opaque reference.
+The Pages service worker draws its own title and body from tables compiled into
+the page and builds the click target `approve/<ref>` from `ref` alone. No
+binding message, requester, authorization details or principal id is in the
+payload, encrypted or not, and a `ref` the worker would refuse to put in a URL is
+omitted rather than sent. A push is sent only when the person's preference for
+that class names `native_push` and policy allows it; the inbox is always last.
+
+**Enrolment.** `POST /v1/notification-channels/push/subscriptions` stores the
+browser's endpoint and keys. It answers `400 invalid_request` for what could
+never be delivered to: a non-HTTPS endpoint, userinfo, a loopback, private or
+metadata host, a `p256dh` that is not a canonical base64url, uncompressed P-256
+point on the curve, an `auth` that is not 16 bytes.
+
+- **One spelling per endpoint.** The endpoint is normalized before it is stored
+  and digested: WHATWG URL serialization (lower-case host, default port dropped,
+  dot segments resolved), no fragment, no trailing dot on the host, percent
+  escapes spelled one way. A case, port, fragment or escape variant of a URL that
+  is already registered is the same endpoint, not a second row. Rows written
+  before this keep working: browser-issued endpoints are already in this form, so
+  their digest did not change, and a row keyed on a non-canonical raw string is
+  still matched when that exact spelling is presented (another principal gets
+  `409`; the owner's row is carried over and the old one retired).
+- **Owner-held.** An endpoint is a capability URL, so a live row stays with
+  whoever registered it: another principal presenting it gets
+  `409 endpoint_already_registered` and nothing moves. A row its owner has
+  unsubscribed from (or that was retired as dead) can be registered by someone
+  else, which is how one browser changes hands after a sign-out. A client that
+  gets that 409 should drop its browser subscription and enrol a fresh one.
+- **Capped.** A principal holds at most **10** live subscriptions. The 11th
+  answers `409 subscription_limit_reached`; re-subscribing one already held, or
+  unsubscribing one, never counts against it, and concurrent registrations can
+  not exceed the cap (a recount after the write withdraws the loser).
+- `DELETE /v1/notification-channels/push/subscriptions/:id` disables the row only
+  if it is still the caller's, in the same write. Someone else's, or none,
+  answers `404`; repeating your own unsubscribe is a `204`.
+
+**Dead subscriptions.** After a send, a `404` or `410` from the push service
+means the subscription is gone: the row is disabled and not tried again, and it
+is logged by id and endpoint digest only, never the endpoint. A subscription that
+can never be delivered to is retired the same way: keys that do not encrypt, a
+non-HTTPS endpoint, or a private one, including a public-looking DNS name that
+resolves to a private address (every resolved address is judged and the
+connection is pinned to the verified one; a resolver that merely fails or finds
+nothing is retried, so an outage retires nothing). A `401` or `403` is *your*
+VAPID identity being refused, and a failure while signing is likewise yours
+(`vapid_signing_failed`): neither retires a subscription, and the row fails
+permanently and loudly. A `5xx` retries with the shared backoff and dead-letters
+at the cap. If any one of a person's browsers took the push the row is delivered
+(the others are not rung twice); if every browser is gone, or there are none, the
+row dead-letters and routing falls through to the next step in the plan, the
+inbox at the last.
+
+**One receiver cannot stall the queue.** A dispatch pass is bounded: 8 deliveries
+in flight, at most 2 for one principal (per endpoint for webhooks), 20 seconds
+per delivery. A person's subscriptions are pushed side by side and no send
+starts once there is no time left for it to finish; a delivery that hits the
+deadline is retried like any transport failure. A claim also leases the row for 5
+minutes (`DELIVERY_LEASE_MS`), longer than the slowest possible pass, so a second
+worker replica, or the next tick after a slow one, does not send the same row
+again; a worker that dies mid-send has its row retried after the lease, having
+burned the one attempt the claim counted.
 
 ## What a notification may contain
 
@@ -232,5 +331,7 @@ way — nothing security-relevant is decided from it.
   dead-lettered delivery has approved and denied nothing.
 - With no channels configured at all, requests still arrive in the durable inbox
   and no phantom delivery is recorded as successful.
+- A Web Push subscription the push service reports gone (404/410) is disabled
+  so it is not tried again; see [Web Push](#web-push).
 - When a preferred channel fails permanently, routing falls through to the next
   step **already in the plan** — never to a channel policy or bindings excluded.
