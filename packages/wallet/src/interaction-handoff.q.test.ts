@@ -94,7 +94,13 @@ async function decode(saveUrl: string): Promise<SaveLinkClaims> {
   return claims;
 }
 
-const NEVER_EXPIRES = new Date("2030-01-01T00:00:00.000Z");
+// The adapter refuses an `expiresAt` that is not after its clock, and these
+// tests reach it through the production factory, which has no clock port. A
+// calendar date written here is a pass that lapses on that day and turns the
+// suite red for everyone (the same suite failed from 2030-01-01 on): the expiry
+// is measured from the clock the adapter will read, a decade ahead of it.
+const TEN_YEARS_MS = 10 * 365 * 24 * 60 * 60 * 1000;
+const NEVER_EXPIRES = new Date(Date.now() + TEN_YEARS_MS);
 
 describe("Q: a wallet pass fronts a real interaction and leaks nothing (ADR 0086)", () => {
   it("carries the canonical URL as its only barcode, and no request secret", async () => {

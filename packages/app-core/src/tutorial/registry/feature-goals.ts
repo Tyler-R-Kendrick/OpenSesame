@@ -314,5 +314,6 @@ export const FEATURE_TUTORIALS = {
   surrogates: "settings.surrogate-credentials",
   networking: "settings.tailnet-sync",
   notifications: "settings.notifications",
+  "local-notifications": "settings.local-notifications",
   telemetry: "feature.telemetry",
 } as const;

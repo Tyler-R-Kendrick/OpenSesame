@@ -1,3 +1,4 @@
+import { devicePlaneCapabilities } from "./device-plane.js";
 import type { Capability } from "./index.js";
 
 /**
@@ -69,4 +70,7 @@ export const localOrganizationCapabilities: readonly Capability[] = [
       },
     },
   },
+  // What the device does as its own Identity plane (ADR 0162) rides with the
+  // local-IAM group: it is the same person's, in the same tab.
+  ...devicePlaneCapabilities,
 ];

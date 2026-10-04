@@ -15,7 +15,7 @@ import {
   listLocalShares,
   revokeLocalShare,
 } from "./local-share-grants.js";
-import { lockAllTombs } from "./vfs.js";
+import { lockAllTombs, writeFile } from "./vfs.js";
 
 const originalConnectionSeams = { ...connectionSeams };
 const originalBackupSeams = { ...backupSeams };
@@ -153,6 +153,21 @@ it("revoking the grant in Access removes the share and the card does not re-issu
   });
   expect(shouldEnsureGithubAccessGrant(after, baseConnection)).toBe(false);
   expect(hostFetch).not.toHaveBeenCalled();
+});
+
+it("an unreadable trail is answered as revoked: the card does not issue the grant", async () => {
+  const fixture = await localRequestFixture();
+  await writeFile(
+    fixture.tomb,
+    "config/access-audit",
+    new TextEncoder().encode(JSON.stringify({ version: 2, events: "?" })),
+  );
+  const snapshot = await loadGithubInstallationSnapshot(
+    fixture.tomb,
+    baseConnection,
+  );
+  expect(snapshot.auditReadable).toBe(false);
+  expect(shouldEnsureGithubAccessGrant(snapshot, baseConnection)).toBe(false);
 });
 
 it("a first visit with a live connection and no history issues the grant", async () => {

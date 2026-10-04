@@ -1,5 +1,6 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { listReceipts } from "./device-receipts.js";
 import {
   listRecordedLocalGrants,
   revokeRecordedLocalGrant,
@@ -115,4 +116,23 @@ it("does not report success or rewrite corrupt data when persistence fails", asy
   await expect(listRecordedLocalGrants(tomb)).rejects.toThrow();
   await expect(revokeRecordedLocalGrant(tomb, records[0].id)).rejects.toThrow();
   expect(await readFile(tomb, "config/identity-grants")).toEqual(invalid);
+});
+
+it("leaves a receipt when the person ends an application's grant, and none for one that was not there", async () => {
+  const [first] = records;
+  await revokeRecordedLocalGrant(tomb, first?.id ?? "");
+  const receipts = await listReceipts(tomb, 10);
+  expect(receipts.map((row) => row.eventType)).toEqual([
+    "access.sign_in.revoked",
+  ]);
+  expect(receipts[0]?.metadata).toMatchObject({
+    targetType: "application",
+    targetId: first?.applicationId,
+    subject: first?.principalId,
+    organizationId: first?.organizationId,
+  });
+  await expect(
+    revokeRecordedLocalGrant(tomb, crypto.randomUUID()),
+  ).rejects.toThrow();
+  expect(await listReceipts(tomb, 10)).toHaveLength(1);
 });

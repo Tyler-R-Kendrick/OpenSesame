@@ -12,7 +12,13 @@ import {
   isFunction,
   overlapCast,
 } from "@opensesame/os-domain";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { expect, vi } from "vitest";
 
 export type TestVaultState = {
@@ -159,6 +165,19 @@ Object.assign(orgSeams, { lookupOrgTenant, lookupOrgByDomain });
 import { providersSeams } from "@opensesame/app-core/lib/providers.js";
 export const listFederatedProviders = vi.fn();
 export const requestEmailMagicLink = vi.fn();
+/**
+ * The catalog the screen asked for has arrived and been drawn. Waiting for the
+ * call (`toHaveBeenCalled`) is not waiting for the answer: until it settles the
+ * screen shows only the compiled-in road, and a click or a read of a catalog
+ * row before then races the fetch, which a loaded runner loses.
+ */
+export async function catalogSettled(): Promise<void> {
+  await act(async () => {
+    await Promise.allSettled(
+      listFederatedProviders.mock.results.map((result) => result.value),
+    );
+  });
+}
 Object.assign(providersSeams, {
   listFederatedProviders,
   requestEmailMagicLink,

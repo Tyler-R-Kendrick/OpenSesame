@@ -86,6 +86,9 @@ export async function makeWorld(
       aggregateType: "authorization_request",
       aggregateId: AUTH_REQ,
       eventType: "authority.invocation.requested",
+      // Due at the tick's clock, never at the wall clock: `append` defaults to
+      // `new Date()`, which is after a fixed NOW once the wall clock passes it.
+      availableAt: NOW,
       payload: {
         principalId: APPROVER,
         authReqId: AUTH_REQ,

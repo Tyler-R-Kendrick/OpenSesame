@@ -7,7 +7,7 @@ const chains = new Map<string, Promise<unknown>>();
 
 export function withLocalAccessLedgerLock<T>(
   tomb: string,
-  ledger: "session" | "share" | "audit",
+  ledger: "session" | "share" | "audit" | "receipts",
   path: string,
   maxBytes: number,
   action: () => Promise<T>,

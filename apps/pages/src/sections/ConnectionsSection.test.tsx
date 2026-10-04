@@ -281,7 +281,7 @@ describe("ConnectionsSection connector page", () => {
       name: /Create GitHub App for this organization/i,
     });
     await userEvent.click(button);
-    expect(submitGithubAppManifest).toHaveBeenCalled();
+    await waitFor(() => expect(submitGithubAppManifest).toHaveBeenCalled());
   });
 
   it("reports GitHub App deployment failures", async () => {

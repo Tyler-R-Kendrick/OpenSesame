@@ -27,6 +27,7 @@ const KINDS = [
   "tutorial-goal",
   "tutorial-route",
   "tutorial-target",
+  "unlock-effect",
 ];
 
 describe("identity.local-iam runtime", () => {
@@ -55,8 +56,9 @@ describe("identity.local-iam runtime", () => {
       capability: "identity.local-iam",
       kinds: KINDS,
       // 1 section + 2 routes + 1 section command + 2 tab commands + 1 jump
-      // + tutorial descriptors
-      count: 1 + 2 + 1 + 2 + 1 + targets.length + goals.length + routes.length,
+      // + 1 unlock effect + tutorial descriptors
+      count:
+        1 + 2 + 1 + 2 + 1 + 1 + targets.length + goals.length + routes.length,
     });
   });
 
@@ -125,7 +127,8 @@ describe("identity.local-iam runtime", () => {
     // What needs a server stays unserved however the capability is on.
     expect(identityServes("mfa-codes")).toBe(false);
     expect(identityServes("notifications")).toBe(false);
-    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(200);
+    // Served, and answered to a session only (ADR 0162): no bearer, no trail.
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(401);
 
     await handle.dispose();
     expect(identityServes("directory")).toBe(false);
@@ -151,5 +154,20 @@ describe("identity.local-iam runtime", () => {
     emitVaultLock();
     expect(changes).toHaveBeenCalledTimes(2);
     off();
+  });
+
+  it("writes any receipt still waiting when the vault is opened, with Access in the plan or not", async () => {
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const [effect] = t.entries("unlock-effect");
+    expect(effect?.id).toBe("receipts-flush");
+    await expect(
+      effect?.run({
+        tomb: "no-such-tomb",
+        guest: false,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBeUndefined();
+    await handle.dispose();
   });
 });

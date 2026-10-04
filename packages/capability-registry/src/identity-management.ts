@@ -153,7 +153,7 @@ export const identityManagementCapabilities: readonly Capability[] = [
   {
     id: "identity.local.siop.authorize",
     title:
-      "Approve or deny browser-native Self-Issued OpenID Provider v2 sign-in",
+      "Approve or deny a SIOPv2 (Implementer's Draft) sign-in; not a conventional OpenID Connect provider",
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
@@ -181,8 +181,8 @@ export const identityManagementCapabilities: readonly Capability[] = [
       },
       cli: {
         reason:
-          "Native SIOPv2 is a browser/PWA Self-Issued OP ceremony; CLI RPs consume verified tokens rather than hosting the vault OP",
-        adr: "0116-browser-native-siop-v2.md",
+          "Native SIOPv2 is a browser/PWA Self-Issued OP ceremony; a CLI is a relying party that verifies tokens with the siop-v2 kit and never holds the vault key",
+        adr: "0161-what-a-static-origin-can-be-as-an-openid-provider.md",
       },
     },
   },

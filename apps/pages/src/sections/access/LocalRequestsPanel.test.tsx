@@ -40,7 +40,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function request(): Promise<LocalAccessRequestRecord> {
+type Overrides = Partial<
+  Pick<LocalAccessRequestRecord, "authorizationDigest" | "reason">
+>;
+
+async function request(
+  extra: Overrides = {},
+): Promise<LocalAccessRequestRecord> {
   const base = {
     id: crypto.randomUUID(),
     version: 0,
@@ -56,6 +62,7 @@ async function request(): Promise<LocalAccessRequestRecord> {
     createdAt: now,
     expiresAt: now + 300_000,
     status: "pending" as const,
+    ...extra,
   };
   return { ...base, requestDigest: await localRequestDigest(base) };
 }
@@ -65,6 +72,22 @@ async function refresh(requests: LocalAccessRequestRecord[]) {
     writeLocalRequestRecords(tomb, requests),
   );
 }
+
+it("does not offer a sign-in that is being consented to in its own window", async () => {
+  const asked = await request();
+  const signIn = await request({
+    reason: "Application sign-in",
+    authorizationDigest: "A".repeat(43),
+  });
+  await refresh([asked, signIn]);
+  render(<LocalRequestsPanel tomb={tomb} />);
+  await screen.findByRole("button", { name: "Review request" });
+  // Two requests are stored and one is shown: the other is decided where it was
+  // raised, and a decision made here would only make that one fail.
+  expect(
+    screen.getAllByRole("button", { name: "Review request" }),
+  ).toHaveLength(1);
+});
 
 it.each(["expired", "revoked", "denied", "approved"] as const)(
   "updates an open pending review to refreshed %s without retaining approval controls",
