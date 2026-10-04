@@ -14,7 +14,11 @@ import {
 import { installPushShim } from "./push-browser-shim.mjs";
 import { PAGES_ORIGIN } from "./push-stack.mjs";
 import { OPERATOR_POLICY } from "./push-verify-kit.mjs";
-import { until } from "./push-worker-harness.mjs";
+import {
+  trackControlledBirth,
+  until,
+  untilBornControlled,
+} from "./push-worker-harness.mjs";
 
 const TURN_ON = { name: "Turn on push on this device" };
 
@@ -34,6 +38,7 @@ export async function policyWalk({ browser, stack, scope, check, serve }) {
   const governedShim = await installPushShim(governed, () =>
     stack.standIn.mint(),
   );
+  await trackControlledBirth(governed);
   const second = await governed.newPage();
   const pushCalls = [];
   second.on("request", (request) => {
@@ -41,6 +46,7 @@ export async function policyWalk({ browser, stack, scope, check, serve }) {
       pushCalls.push(request.url());
   });
   await second.goto(scope);
+  await untilBornControlled(second);
   await doorGuest(second).waitFor({ timeout: 20_000 });
   await doorGuest(second).click();
   await waitOpen(second);
