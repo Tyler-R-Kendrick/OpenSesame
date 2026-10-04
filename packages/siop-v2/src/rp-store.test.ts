@@ -126,7 +126,9 @@ describe("StorageLoginStore", () => {
     storage.setItem("siop-rp:login:partial", JSON.stringify({ nonce: "n" }));
     expect(store.take("partial")).toBeUndefined();
     for (const missing of ["clientId", "binding"]) {
-      const { [missing as "clientId" | "binding"]: _omitted, ...rest } = LOGIN;
+      const rest = Object.fromEntries(
+        Object.entries(LOGIN).filter(([key]) => key !== missing),
+      );
       storage.setItem(`siop-rp:login:no-${missing}`, JSON.stringify(rest));
       expect(store.take(`no-${missing}`)).toBeUndefined();
     }

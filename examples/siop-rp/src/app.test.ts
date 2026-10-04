@@ -18,8 +18,8 @@ describe("the relying party app", () => {
     const first = await start(base);
     const second = await start(base);
     expect(first.status).toBe(302);
-    expect(first.url).not.toBeNull();
-    const url = first.url as URL;
+    if (first.url === null) throw new Error("no redirect to Pages");
+    const { url } = first;
     expect(`${url.origin}${url.pathname}`).toBe(issuerOf(config));
     expect(url.searchParams.get("client_id")).toBe(CLIENT);
     expect(url.searchParams.get("redirect_uri")).toBe(config.redirectUri);

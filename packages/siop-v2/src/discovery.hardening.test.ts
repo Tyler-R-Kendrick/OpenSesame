@@ -28,7 +28,7 @@ async function codeOf<T>(run: () => Promise<T>): Promise<string> {
 }
 
 /** A response whose body arrives as the given chunks, counting what was pulled. */
-function streamed(chunks: Uint8Array[], headers: Record<string, string> = {}) {
+function streamed(chunks: Uint8Array[], contentLength?: string) {
   const pulled = { chunks: 0, cancelled: false };
   const response: MetadataResponse = {
     ok: true,
@@ -37,7 +37,9 @@ function streamed(chunks: Uint8Array[], headers: Record<string, string> = {}) {
       get: (name) =>
         name.toLowerCase() === "content-type"
           ? "application/json"
-          : (headers[name.toLowerCase()] ?? null),
+          : name.toLowerCase() === "content-length"
+            ? (contentLength ?? null)
+            : null,
     },
     body: {
       getReader: () => {
@@ -81,9 +83,10 @@ describe("the body is bounded by bytes, not characters", () => {
   });
 
   it("refuses on a declared content-length before reading anything", async () => {
-    const { response, pulled } = streamed([new TextEncoder().encode(GOOD)], {
-      "content-length": String(MAX_SIOP_METADATA_BYTES + 1),
-    });
+    const { response, pulled } = streamed(
+      [new TextEncoder().encode(GOOD)],
+      String(MAX_SIOP_METADATA_BYTES + 1),
+    );
     const fetch: MetadataFetch = async () => response;
     expect(
       await codeOf(() => fetchSiopMetadata({ fetch, expectedIssuer: ISSUER })),

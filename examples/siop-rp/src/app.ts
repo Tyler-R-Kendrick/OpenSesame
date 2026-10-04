@@ -99,66 +99,47 @@ function bindingFrom(req: Request): string {
   return "";
 }
 
-export function createSiopRpApp(
-  config: SiopRpConfig,
-  options: SiopRpAppOptions = {},
-): Express {
-  const relyingParty =
-    options.relyingParty ??
-    createSiopRelyingParty({
-      issuer: issuerOf(config),
-      authorizationEndpoint: options.authorizationEndpoint,
-      clientId: config.clientId,
-      redirectUri: config.redirectUri,
-      allowedRedirectUris: config.redirectUris,
-      allowLoopbackHttp: config.allowLoopbackHttp,
-      store: new MemoryLoginStore(config.maxPendingLogins),
-    });
-  const origin = new URL(config.redirectUri).origin;
-  // The pages and endpoints a form may submit to: this server, and the Pages
-  // deployment its 302 sends the browser on to (a form's redirect is checked
-  // against `form-action` too).
-  const pagesOrigin = new URL(issuerOf(config)).origin;
-  const redirectFor = new Map(
-    config.callbackPaths.map((path, index) => [
-      path,
-      config.redirectUris[index] ?? config.redirectUri,
-    ]),
-  );
-  const limit = new StartRateLimit(config.startsPerMinute, options.now);
-  const app = express();
-  app.disable("x-powered-by");
-  app.use((_req, res, next) => {
+/**
+ * Headers on every answer. `form-action` names this server and the Pages
+ * deployment: a browser checks a form's *redirect* target against it, so the
+ * sign-in form's 302 to Pages is blocked by `'none'` or by `'self'` alone.
+ */
+function pageHeaders(pagesOrigin: string) {
+  const policy = `default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' ${pagesOrigin}; frame-ancestors 'none'`;
+  return (_req: Request, res: Response, next: NextFunction): void => {
     res.setHeader("cache-control", "no-store");
     res.setHeader("referrer-policy", "no-referrer");
     res.setHeader("x-content-type-options", "nosniff");
-    res.setHeader(
-      "content-security-policy",
-      `default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' ${pagesOrigin}; frame-ancestors 'none'`,
-    );
+    res.setHeader("content-security-policy", policy);
     next();
-  });
+  };
+}
 
-  app.get("/", (_req, res) => {
-    res.type("html").send(
-      indexHtml({
-        pagesBase: config.pagesBase,
-        clientId: config.clientId,
-        redirectUri: config.redirectUri,
-      }),
-    );
-  });
-  app.get("/example.css", (_req, res) => {
-    res.type("css").send(EXAMPLE_CSS);
-  });
-  app.get("/siop-callback.js", (_req, res) => {
-    res.type("js").send(CALLBACK_SCRIPT);
-  });
+type StartDeps = {
+  relyingParty: SiopRelyingParty;
+  limit: StartRateLimit;
+  redirectFor: Map<string, string>;
+};
 
-  // The application id is minted by the person's own vault, so a relying
-  // party for many people takes it per login: `?client_id=local_<uuid>`. A
-  // second registered callback is chosen the same way: `?callback=/path`.
-  app.get("/auth/start", async (req, res) => {
+/** What `startLogin` refusing means to the visitor, as a status and a code. */
+function refusalOfStart(
+  failure: Error,
+): { status: number; error: string } | null {
+  if (!(failure instanceof SiopRpError)) return null;
+  if (failure.code === "capacity_exceeded")
+    return { status: 503, error: "busy" };
+  if (failure.code === "invalid_configuration")
+    return { status: 400, error: "invalid_client_id" };
+  return null;
+}
+
+/**
+ * The application id is minted by the person's own vault, so a relying party
+ * for many people takes it per login: `?client_id=local_<uuid>`. A second
+ * registered callback is chosen the same way: `?callback=/path`.
+ */
+function startRoute({ relyingParty, limit, redirectFor }: StartDeps) {
+  return async (req: Request, res: Response): Promise<void> => {
     if (!limit.allow(req.ip ?? "unknown")) {
       res.setHeader("retry-after", "60");
       res.status(429).json({ error: "rate_limited" });
@@ -181,20 +162,71 @@ export function createSiopRpApp(
       );
       res.redirect(302, started.authorizationUrl);
     } catch (failure) {
-      if (failure instanceof SiopRpError) {
-        if (failure.code === "capacity_exceeded") {
-          res.setHeader("retry-after", "30");
-          res.status(503).json({ error: "busy" });
-          return;
-        }
-        if (failure.code === "invalid_configuration") {
-          res.status(400).json({ error: "invalid_client_id" });
-          return;
-        }
+      const error = failure instanceof Error ? failure : new Error();
+      const refused = refusalOfStart(error);
+      if (refused === null) {
+        respondRefused(res, error);
+        return;
       }
-      respondRefused(res, failure instanceof Error ? failure : new Error());
+      if (refused.status === 503) res.setHeader("retry-after", "30");
+      res.status(refused.status).json({ error: refused.error });
     }
+  };
+}
+
+/** The redirect URI each callback path was registered as. */
+function redirectsByPath(config: SiopRpConfig): Map<string, string> {
+  return new Map(
+    config.callbackPaths.map((path, index) => [
+      path,
+      config.redirectUris[index] ?? config.redirectUri,
+    ]),
+  );
+}
+
+export function createSiopRpApp(
+  config: SiopRpConfig,
+  options: SiopRpAppOptions = {},
+): Express {
+  const relyingParty =
+    options.relyingParty ??
+    createSiopRelyingParty({
+      issuer: issuerOf(config),
+      authorizationEndpoint: options.authorizationEndpoint,
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
+      allowedRedirectUris: config.redirectUris,
+      allowLoopbackHttp: config.allowLoopbackHttp,
+      store: new MemoryLoginStore(config.maxPendingLogins),
+    });
+  const origin = new URL(config.redirectUri).origin;
+  // The pages and endpoints a form may submit to: this server, and the Pages
+  // deployment its 302 sends the browser on to (a form's redirect is checked
+  // against `form-action` too).
+  const pagesOrigin = new URL(issuerOf(config)).origin;
+  const redirectFor = redirectsByPath(config);
+  const limit = new StartRateLimit(config.startsPerMinute, options.now);
+  const app = express();
+  app.disable("x-powered-by");
+  app.use(pageHeaders(pagesOrigin));
+
+  app.get("/", (_req, res) => {
+    res.type("html").send(
+      indexHtml({
+        pagesBase: config.pagesBase,
+        clientId: config.clientId,
+        redirectUri: config.redirectUri,
+      }),
+    );
   });
+  app.get("/example.css", (_req, res) => {
+    res.type("css").send(EXAMPLE_CSS);
+  });
+  app.get("/siop-callback.js", (_req, res) => {
+    res.type("js").send(CALLBACK_SCRIPT);
+  });
+
+  app.get("/auth/start", startRoute({ relyingParty, limit, redirectFor }));
 
   const json = express.json({ limit: "20kb", type: "application/json" });
   for (const path of config.callbackPaths) {
