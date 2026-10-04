@@ -23,6 +23,7 @@
  * port, and puts it back on dispose.
  */
 
+import { WEB_PUSH_ENROLMENT_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { identityBase } from "@opensesame/app-core/lib/identity.js";
 import { createElement } from "react";
@@ -46,7 +47,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     pushSeams.fetchFn = (url, init) =>
       ctx.egress.fetch(url, init, {
         capability: CAPABILITY,
-        purpose: "push enrolment with the configured Identity API",
+        purpose: WEB_PUSH_ENROLMENT_PURPOSE,
       });
     activation.onDispose(() => {
       pushSeams.fetchFn = direct;
