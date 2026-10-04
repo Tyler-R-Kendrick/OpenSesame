@@ -52,6 +52,7 @@ import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registr
 
 import { FederationError } from "@opensesame/app-core/lib/federation.js";
 import { resetFederationReturnCeremony } from "@opensesame/app-core/screens/federation-return-model.js";
+import { expectInTray } from "../components/tray.test-support.js";
 import { FederationReturn } from "./FederationReturn.js";
 
 /** Where the router is now, so a test can wait for a navigation to land. */
@@ -70,20 +71,6 @@ function renderReturn() {
       </Routes>
     </MemoryRouter>,
   );
-}
-
-/** The tray holds a status notice carrying every part; the page does not. */
-async function trayHas(...parts: string[]) {
-  await waitFor(() =>
-    expect(
-      listNotices().some(
-        (n) =>
-          n.kind === "status" &&
-          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
-      ),
-    ).toBe(true),
-  );
-  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
 }
 
 const noFailures = () => listNotices().filter((n) => n.kind === "status");
@@ -161,11 +148,14 @@ describe("FederationReturn", () => {
     );
     renderReturn();
     // Mapped to plain words, with the no-change anchor — never the raw code.
-    await trayHas(
-      "Sign-in didn't finish",
-      "Access was denied at the provider.",
-      "Nothing was changed on this device.",
+    await expectInTray(
+      "Access was denied at the provider. Nothing was changed on this device.",
     );
+    expect(
+      listNotices().some(
+        (n) => n.kind === "status" && n.title === "Sign-in didn't finish",
+      ),
+    ).toBe(true);
     // The way back does not re-attempt sign-in.
     fireEvent.click(screen.getByRole("button", { name: "Back to sign-in" }));
     expect(fed.completeSignIn).toHaveBeenCalledTimes(1);
@@ -174,13 +164,13 @@ describe("FederationReturn", () => {
   it("surfaces plain errors verbatim", async () => {
     fed.completeSignIn.mockRejectedValue(new Error("network unreachable"));
     renderReturn();
-    await trayHas("network unreachable");
+    await expectInTray("network unreachable");
   });
 
   it("uses a generic message for non-Error failures", async () => {
     fed.completeSignIn.mockRejectedValue("weird");
     renderReturn();
-    await trayHas("Sign-in failed.");
+    await expectInTray("Sign-in failed.");
   });
 
   it("joins the org tenant after an SSO/SAML return", async () => {
@@ -305,7 +295,7 @@ describe("FederationReturn", () => {
       new Error("That sign-in expired before it could be adopted. Try again."),
     );
     renderReturn();
-    await trayHas("expired before it could be adopted");
+    await expectInTray("expired before it could be adopted");
     expect(screen.queryByText("settings landed")).toBeNull();
   });
 
@@ -320,7 +310,12 @@ describe("FederationReturn", () => {
       ),
     );
     renderReturn();
-    await trayHas("Sign-in didn't finish", "already attached to a different");
+    await expectInTray("already attached to a different");
+    expect(
+      listNotices().some(
+        (n) => n.kind === "status" && n.title === "Sign-in didn't finish",
+      ),
+    ).toBe(true);
     expect(screen.queryByText("settings landed")).toBeNull();
   });
 

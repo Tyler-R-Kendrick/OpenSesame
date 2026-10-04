@@ -9,7 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { expectInTray, inTray } from "../components/tray.test-support.js";
 import { SetupScreen } from "./SetupScreen.js";
 import {
   type ProviderFields,
@@ -37,13 +37,8 @@ beforeEach(() => resetSetupScreen(seams));
 
 afterEach(() => {
   cleanup();
-  clearNotices();
   clearInstallOffer();
 });
-
-/** A failure is a status notice in the tray; the page does not repeat it. */
-const inTray = (text: string) =>
-  listNotices().some((n) => n.kind === "status" && n.body.includes(text));
 
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
   it("opens the operator ceremony on its capabilities tab when asked for", () => {
@@ -172,7 +167,7 @@ describe("building the list of ways in", () => {
     fireEvent.change(fieldNamed("Client ID"), { target: { value: "other" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Google" }));
 
-    await waitFor(() => expect(inTray("already a way in")).toBe(true));
+    await expectInTray("already a way in");
     expect(discover).not.toHaveBeenCalled();
     expect(written.signIn.providers).toHaveLength(1);
   });
@@ -285,9 +280,7 @@ describe("building the list of ways in", () => {
     fireEvent.change(fieldNamed("Client ID"), { target: { value: "abc" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Okta" }));
 
-    await waitFor(() =>
-      expect(inTray("Could not reach https://acme.okta.com.")).toBe(true),
-    );
+    await expectInTray("Could not reach https://acme.okta.com.");
     expect(written.signIn.providers).toEqual([]);
   });
 });

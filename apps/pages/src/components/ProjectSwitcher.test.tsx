@@ -1,4 +1,3 @@
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
@@ -52,6 +51,7 @@ import { guestAuthSeams } from "@opensesame/app-core/lib/guest-auth.js";
 Object.assign(guestAuthSeams, { continueAsGuest: proj.continueAsGuest });
 
 import { ProjectSwitcher, projectSwitcherSeams } from "./ProjectSwitcher.js";
+import { expectInTray } from "./tray.test-support.js";
 Object.assign(projectSwitcherSeams, {
   afterProjectChange: proj.afterProjectChange,
 });
@@ -79,15 +79,6 @@ function vaultRow(label: string): HTMLElement {
   return overlapCast(matches[0]);
 }
 
-/** A failure is a status notice in the tray; the page does not repeat it. */
-const inTray = (text: string) =>
-  listNotices().some((n) => n.kind === "status" && n.body.includes(text));
-
-async function trayHas(text: string) {
-  await waitFor(() => expect(inTray(text)).toBe(true));
-  expect(screen.queryByText(text)).toBeNull();
-}
-
 describe("ProjectSwitcher — the @tomb prompt", () => {
   beforeEach(() => {
     proj.state.activeId = "personal";
@@ -102,7 +93,6 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
 
   afterEach(() => {
     cleanup();
-    clearNotices();
     vi.unstubAllGlobals();
   });
 
@@ -160,7 +150,7 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
     renderSwitcher();
     openMenu();
     fireEvent.click(vaultRow("Work"));
-    await trayHas("vault busy");
+    await expectInTray("vault busy");
   });
 
   it("Escape and the backdrop both close the menu", () => {
@@ -236,7 +226,7 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
       target: { value: "Personal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
-    await trayHas("name taken");
+    await expectInTray("name taken");
   });
 
   it("never deletes from the prompt — that lives in Settings → Vaults", () => {
@@ -274,13 +264,13 @@ describe("ProjectSwitcher — the @tomb prompt", () => {
     renderSwitcher();
     openMenu();
     fireEvent.click(vaultRow("Work"));
-    await trayHas("plain string failure");
+    await expectInTray("plain string failure");
 
     proj.createProject.mockRejectedValue("create blew up");
     fireEvent.change(screen.getByLabelText("New vault name"), {
       target: { value: "X" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
-    await trayHas("create blew up");
+    await expectInTray("create blew up");
   });
 });

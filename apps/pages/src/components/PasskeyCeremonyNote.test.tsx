@@ -16,7 +16,6 @@ const state = vi.hoisted(() => {
   return bag;
 });
 
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { webauthnSeams } from "@opensesame/app-core/lib/webauthn.js";
 const originalWebauthnSeams = { ...webauthnSeams };
 Object.assign(webauthnSeams, {
@@ -25,15 +24,7 @@ Object.assign(webauthnSeams, {
 });
 
 import { PasskeyCeremonyNote } from "./PasskeyCeremonyNote.js";
-
-/** A failure is a status notice in the tray; the page does not repeat it. */
-const inTray = (text: string) =>
-  listNotices().some((n) => n.kind === "status" && n.body.includes(text));
-
-async function trayHas(text: string) {
-  await waitFor(() => expect(inTray(text)).toBe(true));
-  expect(screen.queryByText(text)).toBeNull();
-}
+import { expectInTray } from "./tray.test-support.js";
 
 describe("PasskeyCeremonyNote", () => {
   beforeEach(() => {
@@ -42,7 +33,6 @@ describe("PasskeyCeremonyNote", () => {
 
   afterEach(() => {
     cleanup();
-    clearNotices();
   });
   afterAll(() => {
     Object.assign(webauthnSeams, originalWebauthnSeams);
@@ -62,7 +52,7 @@ describe("PasskeyCeremonyNote", () => {
   it("says once that passkeys are missing, and offers no Mobile MFA hand-off (ADR 0140 D10)", async () => {
     state.support = "missing";
     render(<PasskeyCeremonyNote />);
-    await trayHas("This browser cannot do passkeys here.");
+    await expectInTray("This browser cannot do passkeys here.");
     expect(screen.queryByRole("img")).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByText(/Mobile MFA/)).toBeNull();

@@ -1,4 +1,3 @@
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   cleanup,
   fireEvent,
@@ -17,20 +16,6 @@ import {
   it,
   vi,
 } from "vitest";
-
-/** The tray holds a status notice whose title and body carry every part. */
-async function trayHas(...parts: string[]) {
-  await waitFor(() =>
-    expect(
-      listNotices().some(
-        (n) =>
-          n.kind === "status" &&
-          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
-      ),
-    ).toBe(true),
-  );
-  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
-}
 
 const fed = vi.hoisted(() => ({
   beginSignIn: vi.fn(),
@@ -57,6 +42,7 @@ afterAll(() => Object.assign(siteBrokerSeams, originalSiteBrokerSeams));
 
 import { FederationError } from "@opensesame/app-core/lib/federation.js";
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import { scopedKey } from "@opensesame/app-core/lib/projects.js";
 import {
   CONSENTS_KEY,
@@ -66,6 +52,7 @@ import {
   consentFor,
 } from "@opensesame/app-core/lib/site-broker.js";
 import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
+import { expectInTray } from "../components/tray.test-support.js";
 import { BrokerAuthorize } from "./BrokerAuthorize.js";
 
 const mockedDeliver = vi.mocked(siteBrokerSeams.deliverToRp);
@@ -116,16 +103,14 @@ describe("BrokerAuthorize", () => {
 
   afterEach(() => {
     cleanup();
-    clearNotices();
   });
 
   it("rejects requests missing the required parameters", async () => {
     renderBroker("?client_id=origin:x");
-    await trayHas(
-      "Invalid request",
-      "invalid_request",
-      "client_id, origin, and state are required.",
+    await expectInTray(
+      "invalid_request — client_id, origin, and state are required.",
     );
+    expect(listNotices().map((n) => n.title)).toContain("Invalid request");
   });
 
   it("rejects a client_id that does not match the origin", async () => {
@@ -136,13 +121,14 @@ describe("BrokerAuthorize", () => {
       state: STATE,
     });
     renderBroker(`?${params.toString()}`);
-    await trayHas("origin_mismatch");
+    await expectInTray("origin_mismatch");
   });
 
   it("blocks origins denied by the domain policy and informs the site", async () => {
     addDomainRule("localhost:5173", "blacklist");
     renderBroker(validSearch());
-    await trayHas("Domain not allowed", "matches a blocked domain");
+    await expectInTray("matches a blocked domain");
+    expect(listNotices().map((n) => n.title)).toContain("Domain not allowed");
     expect(mockedDeliver).toHaveBeenCalledTimes(1);
     const [message, targetOrigin] = mockedDeliver.mock.calls[0] ?? [];
     expect(message).toMatchObject({
@@ -188,7 +174,8 @@ describe("BrokerAuthorize", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with GitHub" }),
     );
-    await trayHas("Sign-in failed", "Could not reach the IdP.");
+    await expectInTray("Could not reach the IdP.");
+    expect(listNotices().map((n) => n.title)).toContain("Sign-in failed");
   });
 
   it("shows the consent card for a new origin and releases on approval", async () => {
