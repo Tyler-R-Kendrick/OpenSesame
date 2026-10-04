@@ -186,7 +186,7 @@ async function importWithKey(
     }
     let added = 0;
     try {
-      await port.mutateFresh((body) => {
+      await port.mutate((body) => {
         // Another tab may have given the vault something since this one looked.
         if (!isFreshVault(body)) {
           throw new Error(

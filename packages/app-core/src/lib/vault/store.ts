@@ -7,7 +7,6 @@ import {
   type VaultHeader,
   type VaultItem,
   WrongPasswordError,
-  assertSealed,
   createVault,
   emptyBody,
   importVaultKey,
@@ -15,11 +14,9 @@ import {
   installedDefinitions,
   mintVaultKey,
   rewrapVaultKey,
-  sealJson,
   syncInstalledTypes,
   uninstallItemType,
   unwrapRawVaultKeyFromPassword,
-  vaultSealBinding,
   withTombstone,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
@@ -54,7 +51,6 @@ import {
   readSealedFile,
   unlockTomb,
   writePlaintextFile,
-  writeSealedFile,
 } from "../vfs.js";
 import {
   applyManifestPlan,
@@ -113,6 +109,7 @@ import {
 } from "./self-authenticator.js";
 import { loadVaultBody } from "./store-body.js";
 import {
+  type ApplyChange,
   type VaultBodyPort,
   bodyPortOf,
   installDeviceKeyCarrier,
@@ -120,6 +117,7 @@ import {
   makeBodyPort,
   registerBodyPort,
 } from "./store-device-key.js";
+import { freshBody, sealMark } from "./store-fresh.js";
 import {
   deviceHoldsSealedVault,
   readTombHeader,
@@ -132,6 +130,7 @@ import {
   type SnapshotMerge,
   mergeSnapshotInto,
 } from "./store-merge.js";
+import { writeBody } from "./store-seal.js";
 import {
   discardTombCaches,
   discardVaultBody,
@@ -156,6 +155,7 @@ import {
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
 import {
   withBodyWriteLock,
+  withBodyWriteLockOrBare,
   withExclusiveOpenLease,
 } from "./vault-shared-locks.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
@@ -230,6 +230,8 @@ export class VaultStore {
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeChain: Promise<unknown> = Promise.resolve();
+  /** The seal of the body this tab last wrote or read; another writer's differs. */
+  #sealMark: string | null = null;
   #lockHandlers = new Set<() => void>();
   #scope: VaultScope = scopedVaultScope();
   /** Guest/this-tab: key never wrapped; lock must not leave a wrap-less header. */
@@ -658,6 +660,7 @@ export class VaultStore {
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
       await this.#loadPrefsFromVfs();
       this.#body = await this.#loadBody(vaultKey);
+      this.#sealMark = sealMark(this.#scope.tomb);
       syncInstalledTypes(this.#body.itemTypes);
     } catch (error) {
       this.#vaultKey = null;
@@ -1222,17 +1225,16 @@ export class VaultStore {
 
   async #persist(): Promise<void> {
     if (!this.#vaultKey) throw new Error("The vault is locked.");
-    // Revision advances only after the sealed write lands.
-    const rev = (this.#body.rev ?? 0) + 1;
-    const sealed = await sealJson(
+    const written = await writeBody(
+      this.#scope.tomb,
       this.#vaultKey,
-      { ...this.#body, rev },
-      vaultSealBinding(this.#scope.tomb, BODY_PATH),
+      this.#body,
+      this.#header,
     );
-    assertSealed(sealed);
-    await writeSealedFile(this.#scope.tomb, BODY_PATH, sealed);
-    this.#body.rev = rev;
-    await this.#recordBodyRev(rev);
+    this.#body.rev = written.rev;
+    this.#header = written.header;
+    // Last: a body that did not finish being recorded is read back, not trusted.
+    this.#sealMark = written.mark;
     noteVaultBodyPersisted();
   }
 
@@ -1255,52 +1257,60 @@ export class VaultStore {
     return { tomb: this.#scope.tomb, header, body, rev: this.#body.rev ?? 0 };
   }
 
-  /**
-   * Note in the header how far the body has got. Written after the body, never
-   * before: trailing by one is harmless — the body is simply newer — while
-   * leading by one would accuse an intact vault of having been rolled back.
-   */
-  async #recordBodyRev(rev: number): Promise<void> {
-    const header = this.#header;
-    if (!header || (header.bodyRev ?? 0) >= rev) return;
-    const next: VaultHeader = { ...header, bodyRev: rev };
-    this.#header = next;
-    try {
-      await writePlaintextFile(
-        this.#scope.tomb,
-        HEADER_PATH,
-        JSON.stringify(next),
-      );
-    } catch {
-      // The body is safely stored; only the rollback witness is behind. Losing
-      // it costs detection, not data, and the next write will catch it up.
-      this.#header = header;
-    }
+  /** Apply a mutation and seal it, in the order requested (a rename per keystroke). */
+  #mutate(change: (body: VaultBody) => void): Promise<void> {
+    return this.#exclusive((apply) => apply(change));
   }
 
   /**
-   * Apply a mutation and seal it. Writes are chained so rapid edits (folder
-   * rename on every keystroke) persist in the order they were requested.
+   * Run `act` as the next write: on the write chain, then under the cross-tab
+   * body lock, from the disk's body when another tab wrote since this one did.
+   * Chain, then lock, is the one order (`destroy` too), so neither waits on
+   * the other. `act` writes through `apply`, which never queues again.
    */
-  async #mutate(change: (body: VaultBody) => void): Promise<void> {
-    const run = this.#writeChain.then(async () => {
-      if (!this.#vaultKey) throw new Error("The vault is locked.");
-      // Keep the pre-change body so a failed seal or write cannot leave memory
-      // ahead of what is on disk.
-      const previous = bodyBeforeWrite(this.#body);
-      change(this.#body);
-      try {
-        await this.#persist();
-      } catch (error) {
-        this.#body = previous;
-        this.#emit();
-        throw error;
-      }
-      this.touch();
-      this.#emit();
+  #exclusive<T>(act: (apply: ApplyChange) => Promise<T>): Promise<T> {
+    const run = this.#writeChain.then(() => {
+      const vaultKey = this.#vaultKey;
+      if (!vaultKey) throw new Error("The vault is locked.");
+      return withBodyWriteLockOrBare(this.#scope.tomb, async () => {
+        const fresh = await freshBody(
+          this.#scope.tomb,
+          vaultKey,
+          { header: this.#header, body: this.#body, mark: this.#sealMark },
+          () => (this.#sharesDisk() ? this.#readHeader() : null),
+        );
+        this.#header = fresh.header;
+        if (fresh.body) {
+          this.#body = fresh.body;
+          syncInstalledTypes(fresh.body.itemTypes);
+          this.#emit();
+        }
+        return act((change) => this.#apply(change));
+      });
     });
     this.#writeChain = run.catch(() => undefined);
     return run;
+  }
+
+  /** A guest or scratch session is never exported or synced, and its tomb has no header of its own. */
+  #sharesDisk(): boolean {
+    return !this.#ephemeral && !isGuestSessionTomb(this.#scope.tomb);
+  }
+
+  async #apply(change: (body: VaultBody) => void): Promise<void> {
+    if (!this.#vaultKey) throw new Error("The vault is locked.");
+    // Keep the pre-change body: a failed write must not leave memory ahead of disk.
+    const previous = bodyBeforeWrite(this.#body);
+    change(this.#body);
+    try {
+      await this.#persist();
+    } catch (error) {
+      this.#body = previous;
+      this.#emit();
+      throw error;
+    }
+    this.touch();
+    this.#emit();
   }
 
   // —— item types (ADR 0087) ————————————————————————————————
@@ -1499,21 +1509,10 @@ export class VaultStore {
     return makeBodyPort({
       tomb: () => this.#scope.tomb,
       open: () => this.#vaultKey !== null,
-      // A guest and a scratch session are never exported or synced.
-      carries: () => !this.#ephemeral && !isGuestSessionTomb(this.#scope.tomb),
-      vaultKey: () => this.#requireUnlocked().vaultKey,
+      carries: () => this.#sharesDisk(),
       header: () => this.#header,
-      setHeader: (next) => {
-        this.#header = next;
-      },
-      readHeader: () => this.#readHeader(),
       body: () => this.#body,
-      setBody: (next) => {
-        this.#body = next;
-      },
-      emit: () => this.#emit(),
-      flush: () => this.flushPendingWrites(),
-      mutate: (change) => this.#mutate(change),
+      exclusive: (act) => this.#exclusive(act),
     });
   }
 

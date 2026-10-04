@@ -21,7 +21,6 @@ import {
   deviceKeyField,
   deviceKeyTimeBounds,
   mergeDeviceKeyFields,
-  syncInstalledTypes,
 } from "@opensesame/vault-core";
 import {
   type DeviceKeyCarrier,
@@ -32,8 +31,6 @@ import type {
   KeyCarryOptions,
   KeyCarryOutcome,
 } from "../device-identity-carry.js";
-import { loadVaultBody } from "./store-body.js";
-import { withBodyWriteLock } from "./vault-shared-locks.js";
 
 /** The open vault, as far as the key and a restore need to see it. */
 export type VaultBodyPort = Readonly<{
@@ -44,13 +41,13 @@ export type VaultBodyPort = Readonly<{
   carries: () => boolean;
   header: () => VaultHeader | null;
   body: () => VaultBody;
-  mutate: (change: (body: VaultBody) => void) => Promise<void>;
   /**
-   * Change the body under the cross-tab body lock, starting from what the disk
-   * holds now: a tab that answered a request from a stale copy never writes
-   * over another tab's edit, nor with a revision the header has moved past.
+   * Change the body. Every write starts from what the disk holds, under the
+   * cross-tab body lock, so a tab that answered a request from a stale copy
+   * never writes over another tab's edit (the identity key among them), nor
+   * with a revision the header has moved past.
    */
-  mutateFresh: (change: (body: VaultBody) => void) => Promise<void>;
+  mutate: (change: (body: VaultBody) => void) => Promise<void>;
   /**
    * Put `field` in the body, from the disk's copy and under the body lock. It
    * is vetted first (what is not a genuine key is never carried) and its date
@@ -63,47 +60,23 @@ export type VaultBodyPort = Readonly<{
   publishKey: (field: JsonObject) => Promise<void>;
 }>;
 
+/** A write the store has queued and locked: it changes the body and seals it. */
+export type ApplyChange = (change: (body: VaultBody) => void) => Promise<void>;
+
 /** What the store lends `makeBodyPort`: its private state, by closure. */
 export type BodyHost = Readonly<{
   tomb: () => string;
   open: () => boolean;
   carries: () => boolean;
-  /** The vault key; throws while the vault is locked. */
-  vaultKey: () => CryptoKey;
   header: () => VaultHeader | null;
-  setHeader: (next: VaultHeader | null) => void;
-  readHeader: () => VaultHeader | null;
   body: () => VaultBody;
-  setBody: (next: VaultBody) => void;
-  emit: () => void;
-  flush: () => Promise<void>;
-  mutate: (change: (body: VaultBody) => void) => Promise<void>;
+  /**
+   * Run `act` as the store's next write: on its write chain, then under the
+   * cross-tab body lock with the body as the disk holds it. `act` changes the
+   * body through `apply`, which does not queue again.
+   */
+  exclusive: <T>(act: (apply: ApplyChange) => Promise<T>) => Promise<T>;
 }>;
-
-/**
- * Run `act` under the cross-tab body lock with the store's body and header
- * replaced by what the disk holds: another tab may have written since this one
- * loaded, and a write from the stale copy would drop its edit and could seal a
- * revision the header has already moved past.
- */
-async function withFreshBody<T>(
-  host: BodyHost,
-  act: () => Promise<T>,
-): Promise<T> {
-  const vaultKey = host.vaultKey();
-  await host.flush();
-  const tomb = host.tomb();
-  return withBodyWriteLock(tomb, async () => {
-    host.setHeader(host.readHeader() ?? host.header());
-    const disk = await loadVaultBody(tomb, vaultKey, host.header());
-    if ((disk.rev ?? 0) > (host.body().rev ?? 0)) {
-      host.setBody(disk);
-      syncInstalledTypes(disk.itemTypes);
-      host.emit();
-    }
-    return act();
-  });
-}
 
 export function makeBodyPort(host: BodyHost): VaultBodyPort {
   return {
@@ -112,10 +85,9 @@ export function makeBodyPort(host: BodyHost): VaultBodyPort {
     carries: host.carries,
     header: host.header,
     body: host.body,
-    mutate: host.mutate,
-    mutateFresh: (change) => withFreshBody(host, () => host.mutate(change)),
+    mutate: (change) => host.exclusive((apply) => apply(change)),
     publishKey: (field) =>
-      withFreshBody(host, async () => {
+      host.exclusive(async (apply) => {
         const { trustedDeviceKey, vetCarriedKey } = await import(
           "../device-identity-trust.js"
         );
@@ -140,7 +112,7 @@ export function makeBodyPort(host: BodyHost): VaultBodyPort {
           deviceKeyField(record),
         );
         if (next === held) return;
-        await host.mutate((body) => {
+        await apply((body) => {
           body.deviceIdentityKey = next;
         });
       }),
