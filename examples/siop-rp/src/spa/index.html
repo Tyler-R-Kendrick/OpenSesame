@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>SIOPv2 single-page relying party</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; line-height: 1.5; padding: 0 1rem; }
+      pre { font-size: 0.9em; overflow-wrap: anywhere; white-space: pre-wrap; }
+      [data-state="refused"] { color: #8b0000; }
+    </style>
+  </head>
+  <body>
+    <h1>SIOPv2 single-page relying party</h1>
+    <p><button id="signin" type="button">Sign in with OpenSesame Pages</button></p>
+    <p id="status" role="status"></p>
+    <pre id="detail" hidden></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
