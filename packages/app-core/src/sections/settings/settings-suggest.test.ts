@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseConfigYaml } from "../../lib/configuration/yaml-profile.js";
 import { decodeSettings, suggestSettings } from "./settings-files.js";
+import { gestureSuggestions, inGestures } from "./settings-suggest.js";
 
 describe("suggesting inside the keymap file", () => {
   const at = (source: string) =>
@@ -97,5 +98,38 @@ describe("suggesting inside the keymap file", () => {
         suggestion,
       ]);
     }
+  });
+});
+
+describe("gesture completion (ADR 0164)", () => {
+  const at = (source: string) => gestureSuggestions(source, source.length);
+
+  it("knows when the caret is inside gestures:", () => {
+    const source = "keybindings:\n  w: listing.next\ngestures:\n  sh";
+    expect(inGestures(source, source.length)).toBe(true);
+    expect(inGestures("keybindings:\n  w", 16)).toBe(false);
+    expect(inGestures("gestures:\n", 0)).toBe(false);
+  });
+
+  it("offers gesture names for a key, narrowed to what is typed", () => {
+    expect(at("gestures:\n  two-finger-swipe-")).toEqual([
+      "two-finger-swipe-left",
+      "two-finger-swipe-right",
+      "two-finger-swipe-up",
+      "two-finger-swipe-down",
+    ]);
+    expect(at("gestures:\n  sh")).toEqual(["shake"]);
+  });
+
+  it("offers only actions a gesture may bind, and the file's own macros", () => {
+    const offered = at(
+      "macros:\n  top:\n    steps: [listing.first]\ngestures:\n  shake: ",
+    );
+    expect(offered).toContain("item.favorite");
+    expect(offered).toContain("macro.top");
+    expect(offered).toContain("nop");
+    expect(offered).not.toContain("item.trash");
+    expect(offered).not.toContain("register.record");
+    expect(at("gestures:\n  shake: item.fav")).toEqual(["item.favorite"]);
   });
 });

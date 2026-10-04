@@ -23,6 +23,7 @@ import {
   readKeymap,
 } from "./config.js";
 import { defaultBindings } from "./effective.js";
+import { keysForgotten } from "./gesture-bindings.js";
 import { canonicalSequence } from "./notation.js";
 import { keymapFingerprint, salvageKeymap } from "./salvage.js";
 
@@ -224,6 +225,16 @@ export function resetKeymap(): KeymapResult {
   live = EMPTY_KEYMAP;
   emit();
   return { ok: true, config: live };
+}
+
+/**
+ * Forget every key and macro, and keep the gestures that name none: the
+ * Keyboard tab's reset (ADR 0164). Written as one save, so a store that will
+ * not take it is refused and the live keymap stays as it was.
+ */
+export function resetKeys(): KeymapResult {
+  const result = saveKeymap(keysForgotten(loadKeymap()));
+  return result.ok ? result : { ok: false, message: NOT_RESET };
 }
 
 /** Forget the live copy, as a fresh page load would (tests). */

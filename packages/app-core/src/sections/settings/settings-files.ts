@@ -5,6 +5,7 @@
  * person's comments across that round trip).
  */
 import {
+  type BoundaryValue,
   type JsonObject,
   isBoolean,
   isJsonObject,
@@ -30,7 +31,9 @@ import {
 } from "./settings-keymap-yaml.js";
 import {
   bindingSuggestions,
+  gestureSuggestions,
   inBindings,
+  inGestures,
   indentOf,
   lineAt,
 } from "./settings-suggest.js";
@@ -53,6 +56,7 @@ export type FieldKind =
   | "keymap"
   | "macros"
   | "contexts"
+  | "gestures"
   | "list";
 
 export type SettingsField = {
@@ -76,6 +80,8 @@ export type SettingsDoc = {
   macros?: Record<string, MacroDoc>;
   /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0156 §6). */
   contexts?: ContextsDoc;
+  /** The touch loadout: gesture → action (ADR 0164). */
+  gestures?: Record<string, string>;
 };
 
 export type DecodeResult =
@@ -99,7 +105,9 @@ const GENERAL = [
  */
 const KEYBINDINGS = [
   { key: "singleKeys", kind: "boolean" },
+  { key: "motion", kind: "boolean" },
   { key: "keybindings", kind: "keymap" },
+  { key: "gestures", kind: "gestures" },
   { key: "contexts", kind: "contexts" },
   { key: "macros", kind: "macros" },
 ] as const satisfies readonly SettingsField[];
@@ -109,6 +117,7 @@ const KEYMAP_KINDS: ReadonlySet<FieldKind> = new Set([
   "keymap",
   "macros",
   "contexts",
+  "gestures",
 ]);
 
 /** Settings › Security: every row there changes through its own sheet. */
@@ -228,6 +237,9 @@ export function suggestSettings(
   const { text } = lineAt(source, caret);
   const fields = settingsFields(category).filter((field) => !field.readonly);
   if (indentOf(text) > 0) {
+    const gestures = fields.some((field) => field.kind === "gestures");
+    if (gestures && inGestures(source, caret))
+      return gestureSuggestions(source, caret);
     const keymap = fields.some((field) => field.kind === "keymap");
     return keymap && inBindings(source, caret)
       ? bindingSuggestions(source, caret)
@@ -267,6 +279,7 @@ export function sameDoc(left: SettingsDoc, right: SettingsDoc): boolean {
   return (
     stable(left.values) === stable(right.values) &&
     stable(left.keybindings) === stable(right.keybindings) &&
+    stable(left.gestures ?? {}) === stable(right.gestures ?? {}) &&
     stableMacros(left.macros) === stableMacros(right.macros) &&
     stableContexts(left.contexts) === stableContexts(right.contexts)
   );
@@ -307,14 +320,21 @@ function keymapProblem(
   doc: SettingsDoc,
 ): DecodeResult | null {
   const has = (kind: FieldKind) => fields.some((field) => field.kind === kind);
-  if (!has("keymap") && Object.keys(doc.keybindings).length > 0)
-    return { ok: false, message: "keybindings is not a setting here." };
-  if (!has("macros") && Object.keys(doc.macros ?? {}).length > 0)
-    return { ok: false, message: "macros is not a setting here." };
-  if (!has("contexts") && Object.keys(doc.contexts ?? {}).length > 0)
-    return { ok: false, message: "contexts is not a setting here." };
+  const written: readonly (readonly [FieldKind, string, number])[] = [
+    ["keymap", "keybindings", Object.keys(doc.keybindings).length],
+    ["macros", "macros", Object.keys(doc.macros ?? {}).length],
+    ["contexts", "contexts", Object.keys(doc.contexts ?? {}).length],
+    ["gestures", "gestures", Object.keys(doc.gestures ?? {}).length],
+  ];
+  const stray = written.find(([kind, , count]) => !has(kind) && count > 0);
+  if (stray)
+    return { ok: false, message: `${stray[1]} is not a setting here.` };
   if (!has("keymap")) return null;
-  const keymap = readKeymapParts(doc, doc.values.singleKeys ?? true);
+  const keymap = readKeymapParts(
+    doc,
+    doc.values.singleKeys ?? true,
+    doc.values.motion ?? true,
+  );
   return keymap.ok ? null : keymap;
 }
 
@@ -344,21 +364,23 @@ function checkValue(
   return null;
 }
 
+/** A keymap's own keys, set on `doc`; false for every other key. */
+function takeKeymapKey(doc: SettingsDoc, key: string, raw: BoundaryValue) {
+  if (key === "keybindings" && isJsonObject(raw))
+    doc.keybindings = bindingsFromObject(raw);
+  else if (key === "contexts") doc.contexts = contextsFromObject(raw);
+  else if (key === "gestures" && isJsonObject(raw))
+    doc.gestures = bindingsFromObject(raw);
+  else if (key === "macros" && isJsonObject(raw))
+    doc.macros = macrosFromObject(raw);
+  else return false;
+  return true;
+}
+
 function docFromObject(value: JsonObject): SettingsDoc {
   const doc = emptyDoc();
   for (const [key, raw] of Object.entries(value)) {
-    if (key === "keybindings" && isJsonObject(raw)) {
-      doc.keybindings = bindingsFromObject(raw);
-      continue;
-    }
-    if (key === "contexts") {
-      doc.contexts = contextsFromObject(raw);
-      continue;
-    }
-    if (key === "macros" && isJsonObject(raw)) {
-      doc.macros = macrosFromObject(raw);
-      continue;
-    }
+    if (raw === undefined || takeKeymapKey(doc, key, raw)) continue;
     if (Array.isArray(raw)) {
       doc.values[key] = raw.map(String);
       continue;
